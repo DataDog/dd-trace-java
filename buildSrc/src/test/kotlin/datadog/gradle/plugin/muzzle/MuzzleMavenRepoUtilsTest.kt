@@ -17,6 +17,7 @@ import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import java.io.File
+import java.io.IOException
 import java.lang.reflect.Proxy
 import java.util.concurrent.atomic.AtomicInteger
 import org.assertj.core.api.Assertions.assertThat
@@ -168,6 +169,35 @@ class MuzzleMavenRepoUtilsTest {
       .hasMessageContaining("Attempts:\n  4")
       .hasMessageContaining("Last resolution failure:")
       .hasMessageContaining("transient version range failure 4")
+    assertThat(attempts).hasValue(4)
+  }
+
+  @Test
+  fun `resolveVersionRange failure includes embedded result exceptions from every attempt`() {
+    val directive = MuzzleDirective().apply {
+      group = "com.example"
+      module = "mylib"
+      versions = "[1.0,)"
+    }
+    val attempts = AtomicInteger()
+    val failingSystem = repositorySystemReturningEmptyResultsWithExceptions(attempts)
+
+    assertThatThrownBy {
+      MuzzleMavenRepoUtils.resolveVersionRange(
+        directive,
+        failingSystem,
+        newSession(),
+        emptyList(),
+        enableBackoffRetries = false
+      )
+    }.isInstanceOf(IllegalStateException::class.java)
+      .hasMessageContaining("Resolution result exceptions:")
+      .hasMessageContaining("Attempt 1:")
+      .hasMessageContaining("Attempt 4:")
+      .hasMessageContaining("java.lang.IllegalStateException: metadata failure 1")
+      .hasMessageContaining("Caused by: java.io.IOException: download failure 1")
+      .hasMessageContaining("java.lang.IllegalStateException: metadata failure 4")
+      .hasMessageContaining("Caused by: java.io.IOException: download failure 4")
     assertThat(attempts).hasValue(4)
   }
 
@@ -350,6 +380,31 @@ class MuzzleMavenRepoUtilsTest {
           result
         }
         "toString" -> "repositorySystemThrowingThenResolving"
+        else -> throw UnsupportedOperationException(method.name)
+      }
+    } as RepositorySystem
+
+  private fun repositorySystemReturningEmptyResultsWithExceptions(
+    attempts: AtomicInteger
+  ): RepositorySystem =
+    Proxy.newProxyInstance(
+      RepositorySystem::class.java.classLoader,
+      arrayOf(RepositorySystem::class.java)
+    ) { _, method, args ->
+      when (method.name) {
+        "resolveVersionRange" -> {
+          val attempt = attempts.incrementAndGet()
+          val request = args?.get(1) as VersionRangeRequest
+          VersionRangeResult(request).apply {
+            addException(
+              IllegalStateException(
+                "metadata failure $attempt",
+                IOException("download failure $attempt")
+              )
+            )
+          }
+        }
+        "toString" -> "repositorySystemReturningEmptyResultsWithExceptions"
         else -> throw UnsupportedOperationException(method.name)
       }
     } as RepositorySystem
