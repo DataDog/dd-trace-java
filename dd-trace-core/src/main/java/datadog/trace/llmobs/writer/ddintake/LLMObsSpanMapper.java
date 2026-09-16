@@ -32,7 +32,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -88,10 +87,6 @@ public class LLMObsSpanMapper implements RemoteMapper {
   private static final byte[] PAGENT_NAME = "pagent_name".getBytes(StandardCharsets.UTF_8);
   private static final byte[] PAGENT_SPAN_ID = "pagent_span_id".getBytes(StandardCharsets.UTF_8);
   private static final byte[] METADATA = "metadata".getBytes(StandardCharsets.UTF_8);
-
-  /** Key of the reserved namespace the agent manifest is nested under inside {@code metadata}. */
-  private static final String METADATA_DD_KEY = "_dd";
-
   private static final byte[] PROMPT = "prompt".getBytes(StandardCharsets.UTF_8);
   private static final byte[] SPAN_KIND = "span.kind".getBytes(StandardCharsets.UTF_8);
   private static final byte[] SPANS = "spans".getBytes(StandardCharsets.UTF_8);
@@ -150,9 +145,6 @@ public class LLMObsSpanMapper implements RemoteMapper {
       LLMOBS_TAG_PREFIX + LLMObsTags.PAGENT_SPAN_ID;
   private static final String PAGENT_NAME_TAG_INTERNAL_FULL =
       LLMOBS_TAG_PREFIX + LLMObsTags.PAGENT_NAME;
-  private static final String METADATA_TAG_INTERNAL_FULL = LLMOBS_TAG_PREFIX + LLMObsTags.METADATA;
-  private static final String AGENT_MANIFEST_TAG_INTERNAL_FULL =
-      LLMOBS_TAG_PREFIX + LLMObsTags.AGENT_MANIFEST;
 
   private final MetaWriter metaWriter = new MetaWriter();
   private final int size;
@@ -403,8 +395,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
                     LLMOBS_TAG_PREFIX + LLMObsTags.MODEL_PROVIDER,
                     LLMOBS_TAG_PREFIX + LLMObsTags.MODEL_VERSION,
                     LLMOBS_TAG_PREFIX + LLMObsTags.TOOL_DEFINITIONS,
-                    METADATA_TAG_INTERNAL_FULL,
-                    AGENT_MANIFEST_TAG_INTERNAL_FULL,
+                    LLMOBS_TAG_PREFIX + LLMObsTags.METADATA,
                     PAGENT_SPAN_ID_TAG_INTERNAL_FULL,
                     PAGENT_NAME_TAG_INTERNAL_FULL)));
 
@@ -496,11 +487,6 @@ public class LLMObsSpanMapper implements RemoteMapper {
       // agent_attribution block is skipped; subtract 1 for that entry too.
       boolean hasInvalidParentAgentSpanId =
           tagsToRemapToMeta.containsKey(PAGENT_SPAN_ID_TAG_INTERNAL_FULL) && !hasAgentAttribution;
-      // The manifest is nested under metadata._dd.agent_manifest rather than emitted as its own
-      // meta key, so it never counts towards metaSize. When there is no metadata to nest it in,
-      // writing it adds a metadata key that is not backed by a remapped tag.
-      Map<?, ?> agentManifest = mapTag(tagsToRemapToMeta, AGENT_MANIFEST_TAG_INTERNAL_FULL);
-      Map<?, ?> metadataMap = mapTag(tagsToRemapToMeta, METADATA_TAG_INTERNAL_FULL);
       int metaSize =
           tagsToRemapToMeta.size()
               - (hasInputPrompt ? 1 : 0)
@@ -508,9 +494,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
               + 1
               + (null != errorInfo && !errorInfo.isEmpty() ? 1 : 0)
               - (hasAgentAttributionName ? 1 : 0)
-              - (hasInvalidParentAgentSpanId ? 1 : 0)
-              - (agentManifest != null ? 1 : 0)
-              + (agentManifest != null && metadataMap == null ? 1 : 0);
+              - (hasInvalidParentAgentSpanId ? 1 : 0);
       writable.writeUTF8(META);
       writable.startMap(metaSize);
       writable.writeUTF8(SPAN_KIND);
@@ -624,13 +608,13 @@ public class LLMObsSpanMapper implements RemoteMapper {
           writable.writeString(key, null);
           writeToolDefinitions((List<?>) val);
         } else if (key.equals(LLMObsTags.METADATA) && val instanceof Map) {
-          writeMetadata((Map<?, ?>) val, agentManifest);
-        } else if (key.equals(LLMObsTags.AGENT_MANIFEST) && val instanceof Map) {
-          if (metadataMap != null) {
-            // Written by the metadata branch, which nests the manifest under _dd.
-            continue;
+          Map<String, Object> metadataMap = (Map) val;
+          writable.writeUTF8(METADATA);
+          writable.startMap(metadataMap.size());
+          for (Map.Entry<String, Object> entry : metadataMap.entrySet()) {
+            writable.writeString(entry.getKey(), null);
+            writable.writeObject(entry.getValue(), null);
           }
-          writeMetadata(null, agentManifest);
         } else {
           writable.writeString(key, null);
           writable.writeObject(val, null);
@@ -643,64 +627,6 @@ public class LLMObsSpanMapper implements RemoteMapper {
         writable.writeUTF8(PROMPT);
         writable.writeObject(inputPrompt, null);
       }
-    }
-
-    /** Returns the tag's value if it is present as a map, else {@code null}. */
-    private static Map<?, ?> mapTag(Map<String, Object> tags, String key) {
-      Object val = tags.get(key);
-      return val instanceof Map ? (Map<?, ?>) val : null;
-    }
-
-    /**
-     * Writes {@code meta.metadata}, nesting {@code agentManifest} under its reserved {@code _dd}
-     * namespace as {@code metadata._dd.agent_manifest}, which is where the backend reads the agent
-     * manifest from. Either argument may be {@code null}; a user-supplied {@code _dd} map is merged
-     * with, rather than replaced by, the manifest.
-     */
-    private void writeMetadata(Map<?, ?> metadata, Map<?, ?> agentManifest) {
-      writable.writeUTF8(METADATA);
-
-      if (agentManifest == null) {
-        writable.startMap(metadata == null ? 0 : metadata.size());
-        if (metadata != null) {
-          for (Map.Entry<?, ?> entry : metadata.entrySet()) {
-            writable.writeString(String.valueOf(entry.getKey()), null);
-            writable.writeObject(entry.getValue(), null);
-          }
-        }
-        return;
-      }
-
-      Map<String, Object> dd = new LinkedHashMap<>();
-      int passthroughSize = 0;
-      if (metadata != null) {
-        for (Map.Entry<?, ?> entry : metadata.entrySet()) {
-          if (METADATA_DD_KEY.equals(String.valueOf(entry.getKey()))) {
-            if (entry.getValue() instanceof Map) {
-              for (Map.Entry<?, ?> ddEntry : ((Map<?, ?>) entry.getValue()).entrySet()) {
-                dd.put(String.valueOf(ddEntry.getKey()), ddEntry.getValue());
-              }
-            }
-          } else {
-            ++passthroughSize;
-          }
-        }
-      }
-      dd.put(LLMObsTags.AGENT_MANIFEST, agentManifest);
-
-      writable.startMap(passthroughSize + 1);
-      if (metadata != null) {
-        for (Map.Entry<?, ?> entry : metadata.entrySet()) {
-          String key = String.valueOf(entry.getKey());
-          if (METADATA_DD_KEY.equals(key)) {
-            continue;
-          }
-          writable.writeString(key, null);
-          writable.writeObject(entry.getValue(), null);
-        }
-      }
-      writable.writeUTF8(DD);
-      writable.writeObject(dd, null);
     }
 
     private void writeToolDefinitions(List<?> toolDefinitions) {

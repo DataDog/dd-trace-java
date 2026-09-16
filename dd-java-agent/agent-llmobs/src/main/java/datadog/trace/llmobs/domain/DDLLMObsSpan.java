@@ -43,7 +43,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private static final String SPAN_KIND = LLMOBS_TAG_PREFIX + Tags.SPAN_KIND;
   private static final String METADATA = LLMOBS_TAG_PREFIX + LLMObsTags.METADATA;
   private static final String TOOL_DEFINITIONS = LLMOBS_TAG_PREFIX + LLMObsTags.TOOL_DEFINITIONS;
-  private static final String AGENT_MANIFEST = LLMOBS_TAG_PREFIX + LLMObsTags.AGENT_MANIFEST;
+  private static final String METADATA_DD = "_dd";
   private static final String MANUAL_FRAMEWORK = "manual";
   private static final String PROMPT_TRACKING_INSTRUMENTATION_METHOD =
       LLMOBS_TAG_PREFIX + "prompt_tracking_instrumentation_method";
@@ -417,16 +417,19 @@ public class DDLLMObsSpan implements LLMObsSpan {
           "dropping agent manifest on non-agent span kind; annotateAgentManifest is only supported for agent spans");
       return;
     }
-    // Read existing manifest (may be null on first call)
-    Object existing = span.getTag(AGENT_MANIFEST);
-    @SuppressWarnings("unchecked")
-    Map<String, Object> base =
-        (existing instanceof Map)
-            ? new LinkedHashMap<>((Map<String, Object>) existing)
-            : new LinkedHashMap<>();
+    // The manifest rides inside metadata under the reserved _dd namespace, serializing to
+    // meta.metadata._dd.agent_manifest, which is where the backend reads it from.
+    Map<String, Object> metadata = copyStringKeyedMap(span.getTag(METADATA));
+    Map<String, Object> dd = copyStringKeyedMap(metadata.get(METADATA_DD));
+    // Empty on the first call; merges with itself on subsequent ones.
+    Map<String, Object> base = copyStringKeyedMap(dd.get(LLMObsTags.AGENT_MANIFEST));
+
     mergeManifest(base, manifest);
     base.put("framework", MANUAL_FRAMEWORK);
-    span.setTag(AGENT_MANIFEST, base);
+
+    dd.put(LLMObsTags.AGENT_MANIFEST, base);
+    metadata.put(METADATA_DD, dd);
+    span.setTag(METADATA, metadata);
 
     // Sync pagent name to the manifest name so the serializer emits the manifest name in
     // agent_attribution. The manifest name takes priority over the span name set at construction.
@@ -489,6 +492,13 @@ public class DDLLMObsSpan implements LLMObsSpan {
         base.put("tools", toolList);
       }
     }
+  }
+
+  /** Copies {@code source} if it is a map, else returns an empty mutable map. */
+  private static Map<String, Object> copyStringKeyedMap(Object source) {
+    return source instanceof Map
+        ? copyStringKeyedMap((Map<?, ?>) source)
+        : new LinkedHashMap<String, Object>();
   }
 
   private static Map<String, Object> copyStringKeyedMap(Map<?, ?> source) {
