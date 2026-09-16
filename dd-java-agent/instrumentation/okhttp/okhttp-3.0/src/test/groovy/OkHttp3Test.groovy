@@ -32,12 +32,6 @@ abstract class OkHttp3Test extends HttpClientTest {
     true
   }
 
-  @Override
-  boolean useStrictTraceWrites() {
-    // TODO fix this by making sure that spans get closed properly
-    return false
-  }
-
   OkHttpClient getClient() {
     new OkHttpClient.Builder()
       .connectTimeout(CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
