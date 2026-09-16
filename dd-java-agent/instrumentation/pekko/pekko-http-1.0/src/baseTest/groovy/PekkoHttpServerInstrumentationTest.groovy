@@ -129,6 +129,12 @@ class PekkoHttpServerInstrumentationBindAndHandleTest extends PekkoHttpServerIns
 
 class PekkoHttpServerInstrumentationBindAndHandleContextSwapForkedTest extends PekkoHttpServerInstrumentationBindAndHandleTest {
   @Override
+  boolean recreateServerForEachTest() {
+    // This forked suite changes a process-wide setting; do not let its actor system outlive it.
+    true
+  }
+
+  @Override
   void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig(TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED, "false")
