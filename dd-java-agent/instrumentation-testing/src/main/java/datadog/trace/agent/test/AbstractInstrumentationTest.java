@@ -106,7 +106,7 @@ public abstract class AbstractInstrumentationTest {
     transformerListener = new ClassFileTransformerListener();
     activeTransformer =
         AgentInstaller.installBytebuddyAgent(
-            INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), transformerListener);
+            INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), false, transformerListener);
 
     // check for instrumentation issues during installation
     assertTrue(InstrumentationErrors.noErrors(), InstrumentationErrors::describeErrors);
