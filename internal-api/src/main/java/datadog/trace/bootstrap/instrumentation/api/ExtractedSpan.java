@@ -140,7 +140,13 @@ class ExtractedSpan extends ImmutableSpan {
 
   @Override
   public TraceConfig traceConfig() {
-    return null;
+    if (this.spanContext instanceof TagContext) {
+      TraceConfig traceConfig = ((TagContext) this.spanContext).getTraceConfig();
+      if (traceConfig != null) {
+        return traceConfig;
+      }
+    }
+    return AgentTracer.traceConfig();
   }
 
   @Override

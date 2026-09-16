@@ -307,6 +307,36 @@ public class ExceptionProbeInstrumentationTest {
     assertProbeId(probeIdsByMethodName, "processWithException", snapshot2.getProbe().getId());
   }
 
+  @Test
+  public void mixedWithLogProbesCoordinatedSamplingIsIndependent() throws Exception {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
+    Config config = createConfig();
+    ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
+    LogProbe logProbe =
+        LogProbe.builder()
+            .probeId(PROBE_ID)
+            .where(CLASS_NAME, "processWithException")
+            .captureSnapshot(true)
+            .build();
+    Collection<ProbeDefinition> definitions = Arrays.asList(logProbe);
+    TestSnapshotListener listener =
+        setupExceptionDebugging(config, exceptionProbeManager, classNameFiltering, definitions);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    String fingerprint =
+        callMethodThrowingRuntimeException(testClass); // instrument exception stacktrace, log
+    // probe samples once (its own decision for this first, distinct local root span)
+    assertWithTimeout(
+        () -> exceptionProbeManager.isAlreadyInstrumented(fingerprint), Duration.ofSeconds(30));
+    int callCountBeforeSnapshot = probeSampler.getCallCount();
+    listener.snapshots.clear();
+    callMethodThrowingRuntimeException(testClass); // generate snapshots on a new local root span
+    assertEquals(2, listener.snapshots.size()); // 1 log snapshot + 1 exception snapshot
+    // the log probe (entry) and the deepest exception probe (exit) must each independently
+    // consult the probe sampler rather than sharing a single coordinated decision cached on the
+    // local root span: one call for the log probe's own decision, one for the exception probe's.
+    assertEquals(2, probeSampler.getCallCount() - callCountBeforeSnapshot);
+  }
+
   private static void assertExceptionMsg(String expectedMsg, Snapshot snapshot) {
     assertEquals(
         expectedMsg, snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
