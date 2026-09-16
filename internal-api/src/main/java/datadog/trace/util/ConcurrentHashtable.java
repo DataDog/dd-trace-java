@@ -310,23 +310,38 @@ public final class ConcurrentHashtable {
     }
 
     /**
-     * Removes all entries and passes each one to {@code sink} while holding the table write lock.
-     * The sink should be quick and must not throw. If it throws, the partial drain is not rolled
-     * back and the size is not adjusted.
+     * Removes all entries and invokes {@code drainedEntryConsumer} for each one.
+     *
+     * <p>The drain holds the table write lock while detaching buckets and invoking the consumer.
+     * For each removed entry, the consumer is invoked synchronously after its bucket is detached.
+     * Capacity is released only after all invocations return. The consumer should be quick and must
+     * not throw; failures are not rolled back.
      *
      * <p>Use {@link #drain(Object, BiConsumer)} to avoid a capturing lambda.
+     *
+     * @param drainedEntryConsumer action invoked for each removed entry
      */
-    public void drain(@Nonnull Consumer<? super TEntry> sink) {
-      ConcurrentHashtable.drain(state, sink);
+    public void drain(@Nonnull Consumer<? super TEntry> drainedEntryConsumer) {
+      ConcurrentHashtable.drain(state, drainedEntryConsumer);
     }
 
     /**
-     * Context-passing {@link #drain(Consumer)}. Pass a non-capturing {@link BiConsumer} (typically
-     * a {@code static final}) plus the accumulator as {@code context} (e.g. the target list or
-     * event builder) to avoid a capturing-lambda allocation.
+     * Context-passing {@link #drain(Consumer)}. The drain holds the table write lock while
+     * detaching buckets and invoking {@code drainedEntryConsumer}. For each removed entry, the
+     * consumer is invoked synchronously after its bucket is detached. Capacity is released only
+     * after all invocations return.
+     *
+     * <p>Pass a non-capturing {@link BiConsumer} (typically a {@code static final}) plus the
+     * accumulator as {@code context} (e.g. the target list or event builder) to avoid a
+     * capturing-lambda allocation.
+     *
+     * @param <C> context type
+     * @param context context passed to each invocation of {@code drainedEntryConsumer}
+     * @param drainedEntryConsumer action invoked with the context and each removed entry
      */
-    public <C> void drain(C context, @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
-      ConcurrentHashtable.drain(state, context, sink);
+    public <C> void drain(
+        C context, @Nonnull BiConsumer<? super C, ? super TEntry> drainedEntryConsumer) {
+      ConcurrentHashtable.drain(state, context, drainedEntryConsumer);
     }
 
     /** Removes all entries. Lock-free readers mid-walk complete against the entries they hold. */
@@ -582,23 +597,38 @@ public final class ConcurrentHashtable {
     }
 
     /**
-     * Removes all entries and passes each one to {@code sink} while holding the table write lock.
-     * The sink should be quick and must not throw. If it throws, the partial drain is not rolled
-     * back and the size is not adjusted.
+     * Removes all entries and invokes {@code drainedEntryConsumer} for each one.
+     *
+     * <p>The drain holds the table write lock while detaching buckets and invoking the consumer.
+     * For each removed entry, the consumer is invoked synchronously after its bucket is detached.
+     * Capacity is released only after all invocations return. The consumer should be quick and must
+     * not throw; failures are not rolled back.
      *
      * <p>Use {@link #drain(Object, BiConsumer)} to avoid a capturing lambda.
+     *
+     * @param drainedEntryConsumer action invoked for each removed entry
      */
-    public void drain(@Nonnull Consumer<? super TEntry> sink) {
-      ConcurrentHashtable.drain(state, sink);
+    public void drain(@Nonnull Consumer<? super TEntry> drainedEntryConsumer) {
+      ConcurrentHashtable.drain(state, drainedEntryConsumer);
     }
 
     /**
-     * Context-passing {@link #drain(Consumer)}. Pass a non-capturing {@link BiConsumer} (typically
-     * a {@code static final}) plus the accumulator as {@code context} (e.g. the target list or
-     * event builder) to avoid a capturing-lambda allocation.
+     * Context-passing {@link #drain(Consumer)}. The drain holds the table write lock while
+     * detaching buckets and invoking {@code drainedEntryConsumer}. For each removed entry, the
+     * consumer is invoked synchronously after its bucket is detached. Capacity is released only
+     * after all invocations return.
+     *
+     * <p>Pass a non-capturing {@link BiConsumer} (typically a {@code static final}) plus the
+     * accumulator as {@code context} (e.g. the target list or event builder) to avoid a
+     * capturing-lambda allocation.
+     *
+     * @param <C> context type
+     * @param context context passed to each invocation of {@code drainedEntryConsumer}
+     * @param drainedEntryConsumer action invoked with the context and each removed entry
      */
-    public <C> void drain(C context, @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
-      ConcurrentHashtable.drain(state, context, sink);
+    public <C> void drain(
+        C context, @Nonnull BiConsumer<? super C, ? super TEntry> drainedEntryConsumer) {
+      ConcurrentHashtable.drain(state, context, drainedEntryConsumer);
     }
 
     /** Removes all entries. Lock-free readers mid-walk complete against the entries they hold. */
@@ -1168,25 +1198,32 @@ public final class ConcurrentHashtable {
   }
 
   /**
-   * Removes all entries while holding the table write lock. Each bucket head is cleared with a
-   * volatile write before its detached chain is passed to {@code sink}, so subsequent lock-free
-   * readers observe an empty bucket while readers already on that chain can continue through its
-   * retained {@code next} links. This overload does not update size accounting.
+   * Removes all entries from {@code buckets} and invokes {@code drainedEntryConsumer} for each one.
    *
-   * <p>The sink must not throw. If it does, the partial drain is not rolled back.
+   * <p>The drain holds the table write lock while detaching buckets and invoking the consumer. For
+   * each removed entry, the consumer is invoked synchronously after its bucket is detached. A
+   * lock-free reader already traversing the detached chain can continue through its retained links.
+   *
+   * <p>This overload does not update size accounting. The consumer should be quick and must not
+   * throw; failures are not rolled back.
+   *
+   * @param <TEntry> entry type
+   * @param buckets bucket array to drain
+   * @param drainedEntryConsumer action invoked for each entry after its bucket is detached
    */
   public static <TEntry extends Entry> void drain(
-      @Nonnull AtomicReferenceArray<TEntry> buckets, @Nonnull Consumer<? super TEntry> sink) {
-    drainCounting(buckets, sink);
+      @Nonnull AtomicReferenceArray<TEntry> buckets,
+      @Nonnull Consumer<? super TEntry> drainedEntryConsumer) {
+    drainCounting(buckets, drainedEntryConsumer);
   }
 
   /**
-   * {@link #drain(AtomicReferenceArray, Consumer)} returning how many entries it handed to {@code
-   * sink}, so a {@link State} form can subtract exactly that from its {@link SizeManager} instead
-   * of zeroing. The count is free here: the sweep already visits every entry.
+   * {@link #drain(AtomicReferenceArray, Consumer)} returning the number of entries passed to {@code
+   * drainedEntryConsumer} for size accounting.
    */
   private static <TEntry extends Entry> int drainCounting(
-      @Nonnull AtomicReferenceArray<TEntry> buckets, @Nonnull Consumer<? super TEntry> sink) {
+      @Nonnull AtomicReferenceArray<TEntry> buckets,
+      @Nonnull Consumer<? super TEntry> drainedEntryConsumer) {
     int removed = 0;
     synchronized (getTableWriteLock(buckets)) {
       for (int i = 0; i < buckets.length(); i++) {
@@ -1197,26 +1234,40 @@ public final class ConcurrentHashtable {
         buckets.set(i, null);
         for (TEntry e = head; e != null; e = e.next()) {
           removed++;
-          sink.accept(e);
+          drainedEntryConsumer.accept(e);
         }
       }
     }
     return removed;
   }
 
-  /** Context-passing variant of {@link #drain(AtomicReferenceArray, Consumer)}. Self-locking. */
+  /**
+   * Removes all entries from {@code buckets} and invokes {@code drainedEntryConsumer} with {@code
+   * context} and each removed entry.
+   *
+   * <p>The drain holds the table write lock while detaching buckets and invoking the consumer. For
+   * each removed entry, the consumer is invoked synchronously after its bucket is detached. This
+   * overload does not update size accounting. The consumer should be quick and must not throw;
+   * failures are not rolled back.
+   *
+   * @param <C> context type
+   * @param <TEntry> entry type
+   * @param buckets bucket array to drain
+   * @param context context passed to each invocation of {@code drainedEntryConsumer}
+   * @param drainedEntryConsumer action invoked with the context and each removed entry
+   */
   public static <C, TEntry extends Entry> void drain(
       @Nonnull AtomicReferenceArray<TEntry> buckets,
       C context,
-      @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
-    drainCounting(buckets, context, sink);
+      @Nonnull BiConsumer<? super C, ? super TEntry> drainedEntryConsumer) {
+    drainCounting(buckets, context, drainedEntryConsumer);
   }
 
   /** {@link #drainCounting(AtomicReferenceArray, Consumer)}, context-passing form. */
   private static <C, TEntry extends Entry> int drainCounting(
       @Nonnull AtomicReferenceArray<TEntry> buckets,
       C context,
-      @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
+      @Nonnull BiConsumer<? super C, ? super TEntry> drainedEntryConsumer) {
     int removed = 0;
     synchronized (getTableWriteLock(buckets)) {
       for (int i = 0; i < buckets.length(); i++) {
@@ -1227,7 +1278,7 @@ public final class ConcurrentHashtable {
         buckets.set(i, null);
         for (TEntry e = head; e != null; e = e.next()) {
           removed++;
-          sink.accept(context, e);
+          drainedEntryConsumer.accept(context, e);
         }
       }
     }
@@ -1235,25 +1286,52 @@ public final class ConcurrentHashtable {
   }
 
   /**
-   * {@link #drain(AtomicReferenceArray, Consumer)} plus the matching bookkeeping: empties {@code
-   * state} into {@code sink} and gives its {@link SizeManager} back exactly the slots the sweep
-   * freed. Draining without that leaves the cap permanently consumed, so the two belong in one call
-   * rather than as a pair the caller has to remember.
+   * Removes all entries from {@code state}, invokes {@code drainedEntryConsumer} for each one, and
+   * releases one capacity slot for each removed entry.
+   *
+   * <p>The drain holds the table write lock while detaching buckets and invoking the consumer. For
+   * each removed entry, the consumer is invoked synchronously after its bucket is detached.
+   * Capacity for removed entries is released only after all invocations return. Outstanding
+   * reservations remain counted.
+   *
+   * <p>The consumer should be quick and must not throw; if it throws, removed entries are not
+   * restored and their capacity is not released.
+   *
+   * @param <TEntry> entry type
+   * @param state table state to drain
+   * @param drainedEntryConsumer action invoked for each entry after its bucket is detached
    */
   public static <TEntry extends Entry> void drain(
-      @Nonnull State<TEntry> state, @Nonnull Consumer<? super TEntry> sink) {
+      @Nonnull State<TEntry> state, @Nonnull Consumer<? super TEntry> drainedEntryConsumer) {
     synchronized (getTableWriteLock(state)) {
-      state.sizeManager.release(drainCounting(state.buckets, sink));
+      state.sizeManager.release(drainCounting(state.buckets, drainedEntryConsumer));
     }
   }
 
-  /** Context-passing form of {@link #drain(State, Consumer)}. */
+  /**
+   * Removes all entries from {@code state}, invokes {@code drainedEntryConsumer} with {@code
+   * context} and each removed entry, and releases one capacity slot for each removed entry.
+   *
+   * <p>The drain holds the table write lock while detaching buckets and invoking the consumer. For
+   * each removed entry, the consumer is invoked synchronously after its bucket is detached.
+   * Capacity for removed entries is released only after all invocations return. Outstanding
+   * reservations remain counted.
+   *
+   * <p>The consumer should be quick and must not throw; if it throws, removed entries are not
+   * restored and their capacity is not released.
+   *
+   * @param <C> context type
+   * @param <TEntry> entry type
+   * @param state table state to drain
+   * @param context context passed to each invocation of {@code drainedEntryConsumer}
+   * @param drainedEntryConsumer action invoked with the context and each removed entry
+   */
   public static <C, TEntry extends Entry> void drain(
       @Nonnull State<TEntry> state,
       C context,
-      @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
+      @Nonnull BiConsumer<? super C, ? super TEntry> drainedEntryConsumer) {
     synchronized (getTableWriteLock(state)) {
-      state.sizeManager.release(drainCounting(state.buckets, context, sink));
+      state.sizeManager.release(drainCounting(state.buckets, context, drainedEntryConsumer));
     }
   }
 

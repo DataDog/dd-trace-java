@@ -366,10 +366,11 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
   }
 
   @Test
-  void responseCallbacksApplyFallbackForLambdaUrlWithNonApiGatewayResponse() throws IOException {
-    // A Lambda Function URL handler returning plain JSON (no statusCode/headers/body structure)
-    // should trigger the fallback: no responseStarted (status unknown), content-type:
-    // application/json, full JSON as body.
+  void responseCallbacksTreatLambdaUrlResponseWithoutStatusCodeAsImplicitSuccess()
+      throws IOException {
+    // A Lambda Function URL return value carrying no statusCode is not a response the gateway
+    // honours: it serialises the whole value as the body of a 200 with content-type
+    // application/json, which is what the callbacks must report.
     String eventJson =
         "{"
             + "\"version\": \"2.0\","
@@ -389,7 +390,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     ByteArrayOutputStream output = new ByteArrayOutputStream();
     new HandlerStreamingWithRawJson().handleRequest(input, output, newContext());
 
-    assertNull(capturedResponseStatus); // no responseStarted for status-less fallback
+    assertEquals(200, (int) capturedResponseStatus);
     assertEquals("application/json", capturedResponseHeaders.get("content-type"));
     assertTrue(capturedResponseBody instanceof Map);
     assertEquals("hello", ((Map<?, ?>) capturedResponseBody).get("result"));

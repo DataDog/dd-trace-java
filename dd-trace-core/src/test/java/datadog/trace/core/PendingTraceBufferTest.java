@@ -505,7 +505,7 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
 
   private DDSpan addContinuation(DDSpan span) {
     ContextScope scope = scopeManager.activateSpan(span);
-    continuations.add(scopeManager.captureSpan(span));
+    continuations.add(scopeManager.capture(span));
     scope.close();
     return span;
   }

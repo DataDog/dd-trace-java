@@ -69,6 +69,13 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
   }
 
   @Override
+  protected boolean useCoordinatedSampling() {
+    // exception probes have their own independent exception sampling flow and must not share a
+    // trace-wide sampling decision with ordinary snapshot probes on the same local root span.
+    return false;
+  }
+
+  @Override
   public CapturedContext.Status createStatus() {
     return new ExceptionProbeStatus(this);
   }

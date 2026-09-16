@@ -13,7 +13,7 @@ def serverExtension = 'zip'
 
 repositories {
   ivy {
-    url = mass.artifactUrl('dlcdn.apache.org')
+    url = mass.artifactUrl('archive.apache.org/dist')
     content {
       includeGroup serverName
     }

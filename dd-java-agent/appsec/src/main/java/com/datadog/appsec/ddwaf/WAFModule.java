@@ -437,10 +437,10 @@ public class WAFModule implements AppSecModule {
           WafMetricCollector.get().raspRuleMatch(gwCtx.raspRuleType, flow.isBlocking());
         }
         Collection<AppSecEvent> events = buildEvents(resultWithData, securityResponseId);
-        boolean isThrottled = reqCtx.isThrottled(rateLimiter);
-
-        if (!isThrottled) {
-          if (resultWithData.keep) {
+        // The limiter gates force-keeping the trace, not WAF execution or event reporting.
+        if (resultWithData.keep) {
+          boolean isThrottled = reqCtx.isThrottled(rateLimiter);
+          if (!isThrottled) {
             reqCtx.setManuallyKept(true);
             AgentSpan activeSpan = AgentTracer.get().activeSpan();
             if (activeSpan != null) {
@@ -456,13 +456,10 @@ public class WAFModule implements AppSecModule {
                   .setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
             }
           } else {
-            // If active span is not available then we need to set manual keep in GatewayBridge
-            log.debug("There is no active span available");
-          }
-        } else {
-          log.debug("Rate limited WAF events");
-          if (!gwCtx.isRasp) {
-            reqCtx.setWafRateLimited();
+            log.debug("Rate limited AppSec trace");
+            if (!gwCtx.isRasp) {
+              reqCtx.setWafRateLimited();
+            }
           }
         }
 
