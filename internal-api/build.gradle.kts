@@ -3,10 +3,9 @@ import groovy.lang.Closure
 
 plugins {
   `java-library`
+  id("dd-trace-java.module.internal-api")
   id("dd-trace-java.jmh-conventions")
 }
-
-apply(from = "$rootDir/gradle/java.gradle")
 
 java {
   toolchain {
@@ -59,6 +58,8 @@ extra["excludedClassesCoverage"] = listOf(
   // These are almost fully abstract classes so nothing to test
   "datadog.trace.api.profiling.RecordingData",
   "datadog.trace.api.appsec.AppSecEventTracker",
+  // Anonymous EventTrackerService adapter; covered by AppSecEventTrackerTest in dd-java-agent:appsec
+  "datadog.trace.api.appsec.AppSecEventTracker.1",
   // POJOs
   "datadog.trace.api.appsec.HttpClientPayload",
   "datadog.trace.api.appsec.HttpClientRequest",
@@ -78,6 +79,7 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.debugger.DebuggerConfigUpdate",
   // Bootstrap API
   "datadog.trace.bootstrap.ActiveSubsystems",
+  "datadog.trace.bootstrap.ContextStore",
   "datadog.trace.bootstrap.ContextStore.Factory",
   "datadog.trace.bootstrap.instrumentation.api.java.lang.ProcessImplInstrumentationHelpers",
   "datadog.trace.bootstrap.instrumentation.api.Tags",
@@ -96,6 +98,7 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTraceConfig",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTracerAPI",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI",
+  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.TraceScopeContinuationWrapper",
   "datadog.trace.bootstrap.instrumentation.api.BlackHoleSpan",
   "datadog.trace.bootstrap.instrumentation.api.BlackHoleSpan.Context",
   "datadog.trace.bootstrap.instrumentation.api.ErrorPriorities",
@@ -153,6 +156,8 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.civisibility.CiVisibilityWellKnownTags",
   "datadog.trace.api.civisibility.InstrumentationBridge",
   "datadog.trace.api.civisibility.InstrumentationTestBridge",
+  // Internal cross-module bridge
+  "datadog.trace.api.llmobs.LLMObsInternal",
   // POJO
   "datadog.trace.api.git.GitInfo",
   "datadog.trace.api.git.GitInfoProvider",
@@ -279,9 +284,11 @@ dependencies {
   testImplementation("org.snakeyaml:snakeyaml-engine:2.9")
   testImplementation(project(":utils:test-utils"))
   testImplementation(libs.bundles.junit5)
+  testImplementation(libs.assertj.core)
   testImplementation("org.junit.vintage:junit-vintage-engine:${libs.versions.junit5.get()}")
   testImplementation(libs.commons.math)
   testImplementation(libs.bundles.mockito)
+  testImplementation(libs.jol.core)
 }
 
 jmh {

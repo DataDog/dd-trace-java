@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 evaluationDependsOn ':dd-java-agent:instrumentation:tomcat:tomcat-5.5'
 
 muzzle {
@@ -23,8 +27,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   compileOnly group: 'org.apache.tomcat', name: 'tomcat-catalina', version: '7.0.4'

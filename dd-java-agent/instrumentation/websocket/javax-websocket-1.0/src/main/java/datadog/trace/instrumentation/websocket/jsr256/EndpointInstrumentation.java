@@ -68,7 +68,7 @@ public class EndpointInstrumentation
           current.forceSamplingDecision();
         }
         InstrumentationContext.get(Session.class, HandlerContext.Sender.class)
-            .putIfAbsent(
+            .getOrPut(
                 session, new HandlerContext.Sender(current.getLocalRootSpan(), session.getId()));
       }
     }

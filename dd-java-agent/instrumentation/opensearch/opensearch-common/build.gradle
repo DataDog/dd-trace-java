@@ -1,4 +1,6 @@
-apply from: "$rootDir/gradle/java.gradle"
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
 
 dependencies {
   compileOnly group: 'org.opensearch.client', name: 'opensearch-rest-client', version: '1.0.0'

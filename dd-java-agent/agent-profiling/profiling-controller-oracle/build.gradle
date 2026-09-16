@@ -1,4 +1,6 @@
-apply from: "$rootDir/gradle/java.gradle"
+plugins {
+  id 'dd-trace-java.module.internal-library'
+}
 
 tracerJava {
   addSourceSetFor(JavaVersion.VERSION_11) {

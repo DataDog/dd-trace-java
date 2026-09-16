@@ -1,4 +1,6 @@
-apply from: "$rootDir/gradle/java.gradle"
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
 
 addTestSuiteForDir("latest7Test", "test")
 addTestSuiteForDir("latest8Test", "test")

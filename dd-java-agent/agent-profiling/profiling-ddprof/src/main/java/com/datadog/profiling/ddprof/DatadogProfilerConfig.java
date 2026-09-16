@@ -37,6 +37,9 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVEMEM_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVEMEM_INTERVAL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVEMEM_INTERVAL_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVESOCKET_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVESOCKET_ENABLED_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVESOCKET_INTERVAL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_SAFEMODE;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_SAFEMODE_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT;
@@ -316,6 +319,28 @@ public class DatadogProfilerConfig {
 
   public static int getNativeMemoryInterval() {
     return getNativeMemoryInterval(ConfigProvider.getInstance());
+  }
+
+  public static boolean isNativeSocketProfilingEnabled(ConfigProvider configProvider) {
+    // natsock never shipped under the legacy '.async.' naming, so it has no async-translated
+    // form to fall back to — call the provider directly instead of the ddprof->async helper.
+    return configProvider.getBoolean(
+        PROFILING_DATADOG_PROFILER_NATIVESOCKET_ENABLED,
+        PROFILING_DATADOG_PROFILER_NATIVESOCKET_ENABLED_DEFAULT);
+  }
+
+  public static boolean isNativeSocketProfilingEnabled() {
+    return isNativeSocketProfilingEnabled(ConfigProvider.getInstance());
+  }
+
+  public static String getNativeSocketInterval(ConfigProvider configProvider) {
+    // natsock never shipped under the legacy '.async.' naming, so it has no async-translated
+    // form to fall back to — call the provider directly instead of the ddprof->async helper.
+    return configProvider.getString(PROFILING_DATADOG_PROFILER_NATIVESOCKET_INTERVAL);
+  }
+
+  public static String getNativeSocketInterval() {
+    return getNativeSocketInterval(ConfigProvider.getInstance());
   }
 
   public static int getStackDepth(ConfigProvider configProvider) {

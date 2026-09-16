@@ -49,6 +49,7 @@ public class MoshiSnapshotHelper {
   public static final String DEPTH_REASON = "depth";
   public static final String REDACTED_IDENT_REASON = "redactedIdent";
   public static final String REDACTED_TYPE_REASON = "redactedType";
+  public static final String REDACTED_STRING = "redacted";
   public static final String TYPE = "type";
   public static final String VALUE = "value";
   public static final String FIELDS = "fields";

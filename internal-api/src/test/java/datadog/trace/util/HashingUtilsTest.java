@@ -143,6 +143,30 @@ public class HashingUtilsTest {
     assertEquals(hashArray, hashIterable);
   }
 
+  @Test
+  public void addToHashArrayFoldsFromSeedLikeChainedAddToHash() {
+    Object[] array = new Object[] {"foo", "bar", "quux"};
+
+    // Full-array overload folds every element onto the seed; from zero it matches hash(Object[]).
+    assertEquals(HashingUtils.hash(array), HashingUtils.addToHash(0, array));
+
+    // A non-zero seed carries through, so the result differs from the zero-seed fold.
+    assertNotEquals(HashingUtils.addToHash(0, array), HashingUtils.addToHash(1, array));
+  }
+
+  @Test
+  public void addToHashArrayRespectsLen() {
+    Object[] array = new Object[] {"foo", "bar", "quux"};
+
+    // The len override folds only the first len elements.
+    assertEquals(
+        HashingUtils.hash(new Object[] {"foo", "bar"}), HashingUtils.addToHash(0, array, 2));
+    assertNotEquals(HashingUtils.addToHash(0, array), HashingUtils.addToHash(0, array, 2));
+
+    // len==0 never enters the loop and returns the seed unchanged.
+    assertEquals(42, HashingUtils.addToHash(42, array, 0));
+  }
+
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
   public void booleans(boolean value) {

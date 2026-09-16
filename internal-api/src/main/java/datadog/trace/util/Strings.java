@@ -353,4 +353,51 @@ public final class Strings {
     int idx = s.indexOf(needle, beginIndex);
     return idx >= 0 && idx + needle.length() <= endIndex;
   }
+
+  /**
+   * A {@code hashCode} consistent with {@link String#equalsIgnoreCase}: any two strings that are
+   * equal ignoring case produce the same value. Same polynomial as {@link String#hashCode} but over
+   * the case-folded characters, so it never allocates (no {@code toLowerCase} copy).
+   *
+   * <p>Uses the same two-way fold {@code String.equalsIgnoreCase} / {@code
+   * String.regionMatches(ignoreCase)} use ({@code toLowerCase(toUpperCase(c))}), so the two stay
+   * consistent for all inputs, not just ASCII — pairing a one-way fold here with {@code
+   * equalsIgnoreCase} would risk silent false misses on the Unicode characters where they diverge.
+   *
+   * <p>Folds by code point, not by {@code char} (UTF-16 unit). On JDK 9+, {@code equalsIgnoreCase}
+   * itself reconstructs supplementary code points before folding (e.g. it treats U+10400 and
+   * U+10428 as equal), so a per-{@code char} fold would make this hash inconsistent with it for
+   * such pairs -- a supplementary-plane analog of the same silent-false-miss risk called out above.
+   * A per-{@code char} fold matched {@code equalsIgnoreCase} only on JDK 8, where it did not
+   * reconstruct code points; folding by code point keeps the two consistent on every supported JDK.
+   * (On JDK 8, where {@code equalsIgnoreCase} still treats such pairs as distinct, folding them
+   * together here is merely an extra, harmless collision -- consistency only needs to hold in the
+   * equal-hash direction, not the reverse.)
+   */
+  public static int caseInsensitiveHashCode(String s) {
+    int h = 0;
+    final int len = s.length();
+    for (int i = 0; i < len; ) {
+      final char c = s.charAt(i);
+      if (c < 0x80) {
+        // ASCII fast path: case folding is exactly A-Z -> a-z, and every ASCII char is its own
+        // code point, so this is equivalent to (and cheaper than) the code-point fold below.
+        h = 31 * h + ((c >= 'A' && c <= 'Z') ? (c + 32) : c);
+        ++i;
+        continue;
+      }
+      final int cp = s.codePointAt(i);
+      final int folded = Character.toLowerCase(Character.toUpperCase(cp));
+      if (Character.isSupplementaryCodePoint(folded)) {
+        // Fold back into the two chars equalsIgnoreCase itself compares, so the polynomial stays
+        // over the same "characters" for both single- and multi-char inputs.
+        h = 31 * h + Character.highSurrogate(folded);
+        h = 31 * h + Character.lowSurrogate(folded);
+      } else {
+        h = 31 * h + folded;
+      }
+      i += Character.charCount(cp);
+    }
+    return h;
+  }
 }

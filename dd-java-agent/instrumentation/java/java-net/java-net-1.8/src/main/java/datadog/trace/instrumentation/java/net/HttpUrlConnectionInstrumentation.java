@@ -74,7 +74,7 @@ public class HttpUrlConnectionInstrumentation extends InstrumenterModule.Tracing
 
       final ContextStore<HttpURLConnection, HttpUrlState> contextStore =
           InstrumentationContext.get(HttpURLConnection.class, HttpUrlState.class);
-      final HttpUrlState state = contextStore.putIfAbsent(thiz, HttpUrlState.FACTORY);
+      final HttpUrlState state = contextStore.getOrCreate(thiz, HttpUrlState.FACTORY);
 
       synchronized (state) {
         final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpURLConnection.class);

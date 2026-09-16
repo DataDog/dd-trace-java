@@ -664,6 +664,122 @@ class WafMetricCollectorTest extends DDSpecification {
     matchMetrics.find { it.tags.contains('block:false') }?.value == 1
   }
 
+  void 'test api security missing route metric'() {
+    given:
+    final collector = WafMetricCollector.get()
+
+    when:
+    collector.apiSecurityMissingRoute('netty')
+
+    then:
+    collector.prepareMetrics()
+    final metrics = collector.drain().findAll { it.metricName == 'api_security.missing_route' }
+
+    metrics.size() == 1
+    final metric = metrics[0]
+    metric instanceof WafMetricCollector.ApiSecurityMissingRoute
+    metric.type == 'count'
+    metric.namespace == 'appsec'
+    metric.value == 1
+    metric.tags.toSet() == ['framework:netty'].toSet()
+  }
+
+  void 'test api security missing route metric aggregates multiple calls per framework'() {
+    given:
+    final collector = WafMetricCollector.get()
+
+    when: 'the same framework is hit twice and a different framework once, before a single drain'
+    collector.apiSecurityMissingRoute('netty')
+    collector.apiSecurityMissingRoute('netty')
+    collector.apiSecurityMissingRoute('tomcat')
+    collector.prepareMetrics()
+    final metrics = collector.drain().findAll { it.metricName == 'api_security.missing_route' }
+
+    then: 'one aggregated metric per framework is emitted, not one per call'
+    metrics.size() == 2
+    metrics.find { it.tags.contains('framework:netty') }?.value == 2
+    metrics.find { it.tags.contains('framework:tomcat') }?.value == 1
+
+    when: 'a further drain cycle happens with no new calls'
+    collector.prepareMetrics()
+    final secondDrainMetrics =
+      collector.drain().findAll { it.metricName == 'api_security.missing_route' }
+
+    then: 'the per-framework counters were reset and nothing is re-emitted'
+    secondDrainMetrics.isEmpty()
+  }
+
+  void 'test api security missing route metric caps distinct framework cardinality'() {
+    given:
+    final collector = WafMetricCollector.get()
+
+    when: 'more distinct frameworks than the cardinality cap are reported'
+    (1..100).each { collector.apiSecurityMissingRoute("framework-${it}") }
+    collector.prepareMetrics()
+    final metrics = collector.drain().findAll { it.metricName == 'api_security.missing_route' }
+
+    then: 'the number of distinct framework tags emitted never exceeds the cap'
+    metrics.size() <= 64
+    metrics.find { it.tags.contains('framework:unknown') }.value >= 100 - 64
+  }
+
+  void 'test api security request schema metric'() {
+    given:
+    final collector = WafMetricCollector.get()
+
+    when:
+    collector.apiSecurityRequestSchema('netty')
+
+    then:
+    collector.prepareMetrics()
+    final metrics = collector.drain().findAll { it.metricName == 'api_security.request.schema' }
+
+    metrics.size() == 1
+    final metric = metrics[0]
+    metric instanceof WafMetricCollector.ApiSecurityRequestSchema
+    metric.type == 'count'
+    metric.namespace == 'appsec'
+    metric.value == 1
+    metric.tags.toSet() == ['framework:netty'].toSet()
+  }
+
+  void 'test api security request no schema metric'() {
+    given:
+    final collector = WafMetricCollector.get()
+
+    when:
+    collector.apiSecurityRequestNoSchema('netty')
+
+    then:
+    collector.prepareMetrics()
+    final metrics = collector.drain().findAll { it.metricName == 'api_security.request.no_schema' }
+
+    metrics.size() == 1
+    final metric = metrics[0]
+    metric instanceof WafMetricCollector.ApiSecurityRequestNoSchema
+    metric.type == 'count'
+    metric.namespace == 'appsec'
+    metric.value == 1
+    metric.tags.toSet() == ['framework:netty'].toSet()
+  }
+
+  @SuppressWarnings('UnnecessaryBooleanExpression')
+  void 'test normalize framework: #scenario'() {
+    expect:
+    WafMetricCollector.normalizeFramework(framework) == expectedFramework
+
+    where:
+    scenario                     | framework            || expectedFramework
+    'null framework'             | null                 || 'unknown'
+    'empty framework'            | ''                   || 'unknown'
+    'blank framework'            | '   '                || 'unknown'
+    'normal framework'           | 'netty'              || 'netty'
+    'framework with whitespace'  | '  netty  '          || 'netty'
+    'framework with mixed case'  | 'Netty'              || 'netty'
+    'framework with bad chars'   | 'my framework!'      || 'my_framework_'
+    'framework over 200 chars'   | 'a' * 300            || 'a' * 200
+  }
+
   /**
    * Helper method to generate all combinations of n boolean values.
    */

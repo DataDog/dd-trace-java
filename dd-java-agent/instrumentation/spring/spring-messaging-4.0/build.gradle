@@ -3,6 +3,8 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
 plugins {
   id 'org.jetbrains.kotlin.jvm'
+  id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.conventions.testing.kotlin'
 }
 
 muzzle {
@@ -17,9 +19,6 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-apply from: "$rootDir/gradle/test-with-kotlin.gradle"
-
 testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_17
 }
@@ -27,10 +26,8 @@ testJvmConstraints {
 addTestSuiteForDir('latestDepTest', 'test')
 
 ["compileTestGroovy", "compileLatestDepTestGroovy"].each { name ->
-  def kotlinTaskName = name.replace("Groovy", "Kotlin")
   tasks.named(name, GroovyCompile) {
     configureCompiler(it, 17)
-    classpath += files(tasks.named(kotlinTaskName).map { it.destinationDirectory })
   }
 }
 

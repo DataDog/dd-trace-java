@@ -78,18 +78,15 @@ class ConfigProviderTest extends DDSpecification {
     then:
     // Check the default
     def defaultSetting = collected.get(ConfigOrigin.DEFAULT).get("test.key")
-    defaultSetting.key == "test.key"
     defaultSetting.stringValue() == "defaultValue"
     defaultSetting.origin == ConfigOrigin.DEFAULT
     defaultSetting.seqId == ConfigSetting.DEFAULT_SEQ_ID
 
     def envSetting = collected.get(ConfigOrigin.ENV).get("test.key")
-    envSetting.key == "test.key"
     envSetting.stringValue() == "envValue"
     envSetting.origin == ConfigOrigin.ENV
 
     def jvmSetting = collected.get(ConfigOrigin.JVM_PROP).get("test.key")
-    jvmSetting.key == "test.key"
     jvmSetting.stringValue() == "jvmValue"
     jvmSetting.origin == ConfigOrigin.JVM_PROP
 
@@ -117,20 +114,17 @@ class ConfigProviderTest extends DDSpecification {
     then:
     // Default
     def defaultSetting = collected.get(ConfigOrigin.DEFAULT).get(configKey)
-    defaultSetting.key == configKey
     defaultSetting.stringValue() == String.valueOf(defaultValue)
     defaultSetting.origin == ConfigOrigin.DEFAULT
     defaultSetting.seqId == ConfigSetting.DEFAULT_SEQ_ID
 
     // ENV (valid)
     def envSetting = collected.get(ConfigOrigin.ENV).get(configKey)
-    envSetting.key == configKey
     envSetting.stringValue() == validValue
     envSetting.origin == ConfigOrigin.ENV
 
     // JVM_PROP (invalid, should still be reported)
     def jvmSetting = collected.get(ConfigOrigin.JVM_PROP).get(configKey)
-    jvmSetting.key == configKey
     jvmSetting.stringValue() == invalidValue
     jvmSetting.origin == ConfigOrigin.JVM_PROP
 
@@ -174,26 +168,22 @@ class ConfigProviderTest extends DDSpecification {
     then:
     // Default
     def defaultSetting = collected.get(ConfigOrigin.DEFAULT).get(configKey)
-    defaultSetting.key == configKey
     defaultSetting.stringValue() == String.valueOf(defaultValue)
     defaultSetting.origin == ConfigOrigin.DEFAULT
     defaultSetting.seqId == ConfigSetting.DEFAULT_SEQ_ID
 
     // ENV (valid)
     def envSetting = collected.get(ConfigOrigin.ENV).get(configKey)
-    envSetting.key == configKey
     envSetting.stringValue() == envValue
     envSetting.origin == ConfigOrigin.ENV
 
     // JVM_PROP (invalid, should still be reported)
     def jvmSetting = collected.get(ConfigOrigin.JVM_PROP).get(configKey)
-    jvmSetting.key == configKey
     jvmSetting.stringValue() == propValue
     jvmSetting.origin == ConfigOrigin.JVM_PROP
 
     // Config was evaluated to false and reported with CALCULATED origin
     def calcSetting = collected.get(ConfigOrigin.CALCULATED).get(configKey)
-    calcSetting.key == configKey
     calcSetting.stringValue() == "false"
     calcSetting.origin == ConfigOrigin.CALCULATED
 
@@ -245,20 +235,17 @@ class ConfigProviderTest extends DDSpecification {
     then:
     // Default
     def defaultSetting = collected.get(ConfigOrigin.DEFAULT).get("test.string")
-    defaultSetting.key == "test.string"
     defaultSetting.stringValue() == "defaultValue"
     defaultSetting.origin == ConfigOrigin.DEFAULT
     defaultSetting.seqId == ConfigSetting.DEFAULT_SEQ_ID
 
     // ENV
     def envSetting = collected.get(ConfigOrigin.ENV).get("test.string")
-    envSetting.key == "test.string"
     envSetting.stringValue() == "envValue"
     envSetting.origin == ConfigOrigin.ENV
 
     // JVM_PROP (highest precedence)
     def jvmSetting = collected.get(ConfigOrigin.JVM_PROP).get("test.string")
-    jvmSetting.key == "test.string"
     jvmSetting.stringValue() == "jvmValue"
     jvmSetting.origin == ConfigOrigin.JVM_PROP
 

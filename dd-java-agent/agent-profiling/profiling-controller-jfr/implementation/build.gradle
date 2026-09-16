@@ -1,6 +1,9 @@
+plugins {
+  id 'dd-trace-java.module.internal-library'
+  id 'idea'
+}
+
 // Set properties before any plugins get loaded
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'idea'
 
 testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_1_8

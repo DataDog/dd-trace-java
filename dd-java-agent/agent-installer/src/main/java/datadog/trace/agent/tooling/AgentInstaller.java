@@ -6,6 +6,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher
 import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 
 import datadog.environment.SystemProperties;
+import datadog.instrument.fieldinject.GlobalObjectStore;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableRedefinitionStrategyListener;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
@@ -16,6 +17,7 @@ import datadog.trace.agent.tooling.usm.UsmMessageFactoryImpl;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Platform;
 import datadog.trace.api.ProductActivation;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.telemetry.IntegrationsCollector;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
@@ -54,6 +56,8 @@ public class AgentInstaller {
 
   private static final List<Runnable> LOG_MANAGER_CALLBACKS = new CopyOnWriteArrayList<>();
   private static final List<Runnable> MBEAN_SERVER_BUILDER_CALLBACKS = new CopyOnWriteArrayList<>();
+
+  private static final long GLOBAL_OBJECT_STORE_CLEAN_FREQUENCY_SECONDS = 1;
 
   static {
     enableByteBuddyRawTypes();
@@ -107,6 +111,17 @@ public class AgentInstaller {
       final Instrumentation inst,
       final boolean skipAdditionalLibraryMatcher,
       final Set<InstrumenterModule.TargetSystem> enabledSystems,
+      final AgentBuilder.Listener... listeners) {
+    return installBytebuddyAgent(
+        inst, skipAdditionalLibraryMatcher, enabledSystems, DEBUG, listeners);
+  }
+
+  @VisibleForTesting
+  public static ClassFileTransformer installBytebuddyAgent(
+      final Instrumentation inst,
+      final boolean skipAdditionalLibraryMatcher,
+      final Set<InstrumenterModule.TargetSystem> enabledSystems,
+      final boolean adviceTransformationDiagnosticsEnabled,
       final AgentBuilder.Listener... listeners) {
     Utils.setInstrumentation(inst);
 
@@ -213,7 +228,11 @@ public class AgentInstaller {
     }
 
     CombiningTransformerBuilder transformerBuilder =
-        new CombiningTransformerBuilder(agentBuilder, instrumenterIndex, enabledSystems);
+        new CombiningTransformerBuilder(
+            agentBuilder,
+            instrumenterIndex,
+            enabledSystems,
+            adviceTransformationDiagnosticsEnabled);
 
     int installedCount = 0;
     for (InstrumenterModule module : instrumenterModules) {
@@ -249,6 +268,15 @@ public class AgentInstaller {
               IntegrationsCollector.get().update(instrumentationNames, true);
             }
           });
+    }
+
+    if (!InstrumenterConfig.get().isRuntimeContextMapPerStore()) {
+      AgentTaskScheduler.get()
+          .scheduleAtFixedRate(
+              GlobalObjectStore::removeStaleEntries,
+              GLOBAL_OBJECT_STORE_CLEAN_FREQUENCY_SECONDS,
+              GLOBAL_OBJECT_STORE_CLEAN_FREQUENCY_SECONDS,
+              TimeUnit.SECONDS);
     }
 
     InstrumenterState.resetDefaultState();
@@ -417,11 +445,44 @@ public class AgentInstaller {
         final boolean loaded,
         final Throwable throwable) {
       if (DEBUG) {
-        log.debug(
-            "Transformation failed - instrumentation.target.class={} instrumentation.target.classloader={}",
-            typeName,
-            classLoader,
-            throwable);
+        if (throwable instanceof AdviceTransformationException) {
+          AdviceTransformationException failure = (AdviceTransformationException) throwable;
+          try {
+            InstrumenterFlare.recordTransformationError(
+                "instrumentation.class="
+                    + failure.getInstrumentationClass()
+                    + " advice.class="
+                    + failure.getAdviceClass()
+                    + " instrumentation.target.class="
+                    + failure.getTargetClass()
+                    + " instrumentation.target.method="
+                    + failure.getTargetMethod()
+                    + " instrumentation.target.loaded="
+                    + loaded
+                    + " instrumentation.target.classloader="
+                    + classLoader
+                    + " error="
+                    + failure.getCause());
+          } catch (RuntimeException ignored) {
+            // Flare collection must not interfere with transformation failure reporting.
+          }
+          log.debug(
+              "Advice transformation failed - instrumentation.class={} advice.class={} instrumentation.target.class={} instrumentation.target.method={} instrumentation.target.loaded={} instrumentation.target.classloader={}",
+              failure.getInstrumentationClass(),
+              failure.getAdviceClass(),
+              failure.getTargetClass(),
+              failure.getTargetMethod(),
+              loaded,
+              classLoader,
+              failure.getCause());
+        } else {
+          log.debug(
+              "Transformation failed - instrumentation.target.class={} instrumentation.target.loaded={} instrumentation.target.classloader={}",
+              typeName,
+              loaded,
+              classLoader,
+              throwable);
+        }
       }
     }
 

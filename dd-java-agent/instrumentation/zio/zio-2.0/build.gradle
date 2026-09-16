@@ -1,3 +1,8 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.conventions.testing.scala'
+}
+
 def zioVersion = '2.0.0'
 def scalaVersion = '2.12'
 
@@ -24,9 +29,6 @@ muzzle {
     javaVersion = "11"
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply from: "$rootDir/gradle/test-with-scala.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 

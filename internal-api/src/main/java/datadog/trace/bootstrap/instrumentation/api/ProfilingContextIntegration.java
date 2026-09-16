@@ -3,7 +3,11 @@ package datadog.trace.bootstrap.instrumentation.api;
 import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.Stateful;
-import datadog.trace.api.profiling.*;
+import datadog.trace.api.profiling.Profiling;
+import datadog.trace.api.profiling.ProfilingContextAttribute;
+import datadog.trace.api.profiling.ProfilingScope;
+import datadog.trace.api.profiling.Timer;
+import datadog.trace.api.profiling.Timing;
 
 public interface ProfilingContextIntegration extends Profiling, EndpointCheckpointer, Timer {
   /**

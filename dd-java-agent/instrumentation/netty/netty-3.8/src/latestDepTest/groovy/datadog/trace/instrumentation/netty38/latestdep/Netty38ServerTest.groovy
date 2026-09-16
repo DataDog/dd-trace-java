@@ -102,10 +102,10 @@ class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
                 response.headers().set(CONTENT_LENGTH, responseContent.readableBytes())
               }
               return new DownstreamMessageEvent(
-                ctx.getChannel(),
-                new SucceededChannelFuture(ctx.getChannel()),
-                response,
-                ctx.getChannel().getRemoteAddress())
+                  ctx.getChannel(),
+                  new SucceededChannelFuture(ctx.getChannel()),
+                  response,
+                  ctx.getChannel().getRemoteAddress())
             }
           }
         }
@@ -119,10 +119,10 @@ class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
           response.headers().set(CONTENT_TYPE, "text/plain")
           response.headers().set(CONTENT_LENGTH, buffer.readableBytes())
           ctx.sendDownstream(new DownstreamMessageEvent(
-            ctx.getChannel(),
-            new FailedChannelFuture(ctx.getChannel(), ex.getCause()),
-            response,
-            ctx.getChannel().getRemoteAddress()))
+              ctx.getChannel(),
+              new FailedChannelFuture(ctx.getChannel(), ex.getCause()),
+              response,
+              ctx.getChannel().getRemoteAddress()))
         }
       })
 

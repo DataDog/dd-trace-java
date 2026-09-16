@@ -6,6 +6,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_FEATURE_FLAGGING_CONFIGUR
 import static datadog.trace.api.ConfigDefaults.DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_BYTES
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_ITEMS
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
 import static datadog.trace.api.DDTags.HOST_TAG
@@ -100,6 +102,7 @@ import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIG_URL
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_HOST
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED
@@ -124,6 +127,8 @@ import static datadog.trace.api.config.TracerConfig.SPAN_TAGS
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL
+import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_BYTES
+import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_ITEMS
 import static datadog.trace.api.config.TracerConfig.TRACE_EXPERIMENTAL_FEATURES_ENABLED
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_ENABLED
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL
@@ -589,7 +594,7 @@ class ConfigTest extends DDSpecification {
   def "otel generic config via system properties - metrics enabled"() {
     setup:
     System.setProperty(DD_METRICS_OTEL_ENABLED_PROP, "true")
-    System.setProperty(OTEL_RESOURCE_ATTRIBUTES_PROP, "service.name=my=app,service.version=1.0.0,deployment.environment=production, message=blahblah")
+    System.setProperty(OTEL_RESOURCE_ATTRIBUTES_PROP, "service.name=my=app,service.version=1.0.0,deployment.environment.name=production, message=blahblah")
     System.setProperty("otel.log.level", "warning")
 
     when:
@@ -3126,6 +3131,33 @@ class ConfigTest extends DDSpecification {
     "\$.a,invalid" | "\$.b,invalid" | '[$[\'a\']]'          | '[$[\'b\']]'
   }
 
+  def "baggage limits normalize negative values to zero"() {
+    setup:
+    def prop = new Properties()
+    if (maxItems != null) {
+      prop.setProperty(TRACE_BAGGAGE_MAX_ITEMS, maxItems)
+    }
+    if (maxBytes != null) {
+      prop.setProperty(TRACE_BAGGAGE_MAX_BYTES, maxBytes)
+    }
+
+    when:
+    Config config = Config.get(prop)
+
+    then:
+    config.traceBaggageMaxItems == expectedMaxItems
+    config.traceBaggageMaxBytes == expectedMaxBytes
+
+    where:
+    maxItems | maxBytes | expectedMaxItems                  | expectedMaxBytes
+    null     | null     | DEFAULT_TRACE_BAGGAGE_MAX_ITEMS   | DEFAULT_TRACE_BAGGAGE_MAX_BYTES
+    "0"      | "0"      | 0                                 | 0
+    "8"      | "512"    | 8                                 | 512
+    "-1"     | null     | 0                                 | DEFAULT_TRACE_BAGGAGE_MAX_BYTES
+    null     | "-8192"  | DEFAULT_TRACE_BAGGAGE_MAX_ITEMS   | 0
+    "-1"     | "-1"     | 0                                 | 0
+  }
+
   // Subclass for setting Strictness of ConfigHelper when using fake configs
   static class ConfigTestWithFakes extends ConfigTest {
 
@@ -3425,6 +3457,26 @@ class ConfigTest extends DDSpecification {
     "false" | null    | false
     "true"  | "false" | true    // sys prop takes precedence
     "false" | "true"  | false   // sys prop takes precedence
+  }
+
+  def "Oracle DBM action propagation enabled = #configured"() {
+    setup:
+    def properties = new Properties()
+    if (configured != null) {
+      properties.setProperty(DB_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED, configured)
+    }
+
+    when:
+    def config = new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    config.isDbmPropagationOracleActionOnlyEnabled() == expected
+
+    where:
+    configured | expected
+    null       | false
+    "false"    | false
+    "true"     | true
   }
 
   def "trace resource renaming activation with appsec=#appsec and explicit=#explicit"() {

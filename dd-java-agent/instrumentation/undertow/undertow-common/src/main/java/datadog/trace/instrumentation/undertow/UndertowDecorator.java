@@ -28,12 +28,12 @@ public class UndertowDecorator
 
   @SuppressWarnings("unchecked")
   public static final AttachmentKey<ContextContinuation> DATADOG_UNDERTOW_CONTINUATION =
-      attachmentStore.putIfAbsent(
+      attachmentStore.getOrCreate(
           "DD_UNDERTOW_CONTINUATION", () -> AttachmentKey.create(ContextContinuation.class));
 
   @SuppressWarnings("unchecked")
   public static final AttachmentKey<Context> PARENT_CONTEXT_KEY =
-      attachmentStore.putIfAbsent(
+      attachmentStore.getOrCreate(
           "DD_UNDERTOW_PARENT_CONTEXT", () -> AttachmentKey.create(Context.class));
 
   public static final UndertowDecorator DECORATE = new UndertowDecorator();

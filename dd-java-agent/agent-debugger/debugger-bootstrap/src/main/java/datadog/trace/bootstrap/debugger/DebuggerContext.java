@@ -21,35 +21,6 @@ public class DebuggerContext {
   private static final Logger LOGGER = LoggerFactory.getLogger(DebuggerContext.class);
   private static final ThreadLocal<Boolean> IN_PROBE = ThreadLocal.withInitial(() -> Boolean.FALSE);
 
-  public enum SkipCause {
-    RATE {
-      @Override
-      public String tag() {
-        return "cause:rate";
-      }
-    },
-    CONDITION {
-      @Override
-      public String tag() {
-        return "cause:condition";
-      }
-    },
-    DEBUG_SESSION_DISABLED {
-      @Override
-      public String tag() {
-        return "cause:debug session disabled";
-      }
-    },
-    BUDGET {
-      @Override
-      public String tag() {
-        return "cause:budget_exceeded";
-      }
-    };
-
-    public abstract String tag();
-  }
-
   public interface ProbeResolver {
     ProbeImplementation resolve(int probeIndex);
   }

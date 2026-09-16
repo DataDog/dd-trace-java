@@ -2,6 +2,7 @@ package com.datadog.debugger.agent;
 
 import static datadog.trace.api.Config.isExplicitlyDisabled;
 
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.DebuggerConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
@@ -29,12 +30,17 @@ class DefaultDebuggerConfigUpdater implements DebuggerConfigUpdater {
         update.getDynamicInstrumentationEnabled(),
         DebuggerAgent::startDynamicInstrumentation,
         DebuggerAgent::stopDynamicInstrumentation);
-    startOrStopFeature(
-        config,
-        DebuggerConfig.EXCEPTION_REPLAY_ENABLED,
-        update.getExceptionReplayEnabled(),
-        DebuggerAgent::startExceptionReplay,
-        DebuggerAgent::stopExceptionReplay);
+    if (JavaVirtualMachine.isJavaVersionAtLeast(11)) {
+      // Cannot remotely enable Exception Replay for JDK < 11 (JVM 8 bug)
+      startOrStopFeature(
+          config,
+          DebuggerConfig.EXCEPTION_REPLAY_ENABLED,
+          update.getExceptionReplayEnabled(),
+          DebuggerAgent::startExceptionReplay,
+          DebuggerAgent::stopExceptionReplay);
+    } else {
+      LOGGER.debug("Cannot start Exception Replay on JDK version < 11");
+    }
     startOrStopFeature(
         config,
         TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED,

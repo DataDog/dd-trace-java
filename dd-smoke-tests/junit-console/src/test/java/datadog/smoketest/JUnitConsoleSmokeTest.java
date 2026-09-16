@@ -30,6 +30,8 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledForJreRange;
+import org.junit.jupiter.api.condition.JRE;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,6 +61,8 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
   }
 
   @Test
+  // Exception Replay is disabled by default on JDK8 due to JVM bug
+  @EnabledForJreRange(min = JRE.JAVA_11)
   void testHeadlessFailedTestReplay() throws Exception {
     String projectName = "test_junit_console_failed_test_replay";
     givenProjectFiles(projectName);

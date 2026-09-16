@@ -1,6 +1,7 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
+import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 
 import datadog.communication.serialization.Codec;
 import datadog.communication.serialization.GenerationalUtf8Cache;
@@ -36,6 +37,26 @@ public final class TraceMapperV0_4 implements TraceMapper {
           ? new GenerationalUtf8Cache(Config.get().getTagValueUtf8CacheSize())
           : null;
 
+  // Controls how often the UTF8 caches are recalibrated. The caches adapt to shifts in tag-value
+  // cardinality over a timescale much longer than a single span, so recalibrating periodically
+  // rather than per-span preserves their effectiveness without paying recalibrate()'s O(cacheSize)
+  // cost on every span. Must be a power of two (see the mask in shouldRecalibrate).
+  static final long RECALIBRATE_SPAN_INTERVAL = 512;
+
+  // True when at least one cache exists. static-final so the JIT can fold the whole recalibrate
+  // block away when both caches are off.
+  private static final boolean RECALIBRATE = (TAG_CACHE != null || VALUE_CACHE != null);
+
+  // Advanced by the single serializer thread. The value is a recalibration cadence, not an exact
+  // count, so a plain counter suffices -- no atomic/volatile needed; a benign race would at most
+  // nudge when recalibrate fires.
+  private static long spanCounter;
+
+  /** True once every {@link #RECALIBRATE_SPAN_INTERVAL} spans; advances the span counter. */
+  static boolean shouldRecalibrate() {
+    return RECALIBRATE && (++spanCounter & (RECALIBRATE_SPAN_INTERVAL - 1)) == 0;
+  }
+
   private final int size;
   private boolean firstSpanWritten;
 
@@ -68,8 +89,10 @@ public final class TraceMapperV0_4 implements TraceMapper {
 
     @Override
     public void accept(Metadata metadata) {
-      if (TAG_CACHE != null) TAG_CACHE.recalibrate();
-      if (VALUE_CACHE != null) VALUE_CACHE.recalibrate();
+      if (shouldRecalibrate()) {
+        if (TAG_CACHE != null) TAG_CACHE.recalibrate();
+        if (VALUE_CACHE != null) VALUE_CACHE.recalibrate();
+      }
 
       TagMap tags = metadata.getTags();
 
@@ -81,7 +104,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
       int metaSize =
           metadata.getBaggage().size()
               + tags.size()
-              + (null == metadata.getHttpStatusCode() ? 0 : 1)
+              + (UNSET_STATUS == metadata.getHttpStatusCode() ? 0 : 1)
               + (null == metadata.getOrigin() ? 0 : 1)
               + (null == processTags ? 0 : 1)
               + 1;
@@ -171,9 +194,9 @@ public final class TraceMapperV0_4 implements TraceMapper {
       }
       writable.writeUTF8(THREAD_NAME);
       writable.writeUTF8(metadata.getThreadName());
-      if (null != metadata.getHttpStatusCode()) {
+      if (UNSET_STATUS != metadata.getHttpStatusCode()) {
         writable.writeUTF8(HTTP_STATUS);
-        writable.writeUTF8(metadata.getHttpStatusCode());
+        writable.writeUTF8(metadata.getHttpStatusCodeString());
       }
       if (null != metadata.getOrigin()) {
         writable.writeUTF8(ORIGIN_KEY);

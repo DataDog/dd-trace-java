@@ -44,11 +44,31 @@ public interface LLMObsSpan {
   void annotateIO(String inputData, String outputData);
 
   /**
+   * Annotate an LLM span with the prompt used for the LLM call.
+   *
+   * <p>This annotation is ignored for non-LLM spans.
+   *
+   * @param prompt The prompt used for the LLM call
+   */
+  default void annotatePrompt(LLMObs.Prompt prompt) {}
+
+  /**
    * Annotate the span with the definitions of tools available to the LLM.
    *
    * @param toolDefinitions The tool definitions supplied to the LLM
    */
   default void setToolDefinitions(List<LLMObs.ToolDefinition> toolDefinitions) {}
+
+  /**
+   * Annotate an agent span with its manifest configuration.
+   *
+   * <p>This annotation is ignored for non-agent spans.
+   *
+   * <p>A fully-empty manifest (no fields set) still writes the {@code framework} key.
+   *
+   * @param agentManifest The agent manifest configuration
+   */
+  default void annotateAgentManifest(LLMObs.AgentManifest agentManifest) {}
 
   /**
    * Annotate the span with metadata

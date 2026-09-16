@@ -24,6 +24,10 @@ public final class BundleWiringHelper {
 
   /** Probes for the named resource without using any class-loader related methods. */
   public static Object probeResource(final Bundle origin, final String resourceName) {
+    if (null == origin) {
+      // bundle reference has gone stale, e.g. the bundle was uninstalled
+      return SKIP_REQUEST;
+    }
     URL resource = origin.getEntry(resourceName);
     if (null != resource) {
       return resource;
@@ -52,6 +56,10 @@ public final class BundleWiringHelper {
 
   /** Delegates resource request to any direct dependencies (Import-Package, Require-Bundle etc.) */
   public static URL getResource(final Bundle origin, final String resourceName) {
+    if (null == origin) {
+      // bundle reference has gone stale, e.g. the bundle was uninstalled
+      return null;
+    }
     BundleWiring wiring = (BundleWiring) origin.adapt(BundleWiring.class);
     if (null != wiring) {
       // track which bundles we've visited to avoid dependency cycles
@@ -80,6 +88,10 @@ public final class BundleWiringHelper {
 
   /** Delegates class-load request to those direct dependencies that provide a similar package. */
   public static Class<?> loadClass(final Bundle origin, final String className) {
+    if (null == origin) {
+      // bundle reference has gone stale, e.g. the bundle was uninstalled
+      return null;
+    }
     BundleWiring wiring = (BundleWiring) origin.adapt(BundleWiring.class);
     if (null != wiring) {
       // track which bundles we've visited to avoid dependency cycles

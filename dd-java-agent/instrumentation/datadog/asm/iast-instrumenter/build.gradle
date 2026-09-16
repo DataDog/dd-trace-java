@@ -1,10 +1,13 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   pass {
     coreJdk()
   }
 }
 
-apply from: "${rootDir}/gradle/java.gradle"
 apply from: "${rootDir}/gradle/tries.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')

@@ -1,6 +1,6 @@
 package datadog.smoketest.springboot.controller;
 
-import static org.springframework.web.reactive.function.server.RouterFunctions.*;
+import static org.springframework.web.reactive.function.server.RouterFunctions.route;
 
 import datadog.smoketest.springboot.model.Fruit;
 import datadog.smoketest.springboot.repository.FruitRepository;

@@ -1,7 +1,9 @@
 package datadog.context.propagation;
 
 import static datadog.context.propagation.Concern.DEFAULT_PRIORITY;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
 
