@@ -296,6 +296,14 @@ class SmokeTestAppEndToEndTest {
             .joinToString(System.lineSeparator()) { "repository=" + it.url }
         )
       }
+
+      gradle.projectsLoaded {
+        gradle.rootProject.repositories.mavenCentral {
+          content {
+            includeGroup("com.unrelated")
+          }
+        }
+      }
       """.trimIndent(),
     )
     writeInnerBuild(
@@ -349,6 +357,9 @@ class SmokeTestAppEndToEndTest {
       "project-only-1.0.jar=project-only",
       "shared-1.0.jar=proxy",
     )
+    assertThat(resolvedLines).containsOnlyOnce(
+      "repository=${proxyRepository.toURI()}",
+    )
     assertThat(resolvedLines).doesNotContain(
       "repository=https://repo.maven.apache.org/maven2/",
     )
@@ -356,6 +367,9 @@ class SmokeTestAppEndToEndTest {
     assertThat(pluginRepositoriesFile).exists()
     val pluginRepositoryLines = pluginRepositoriesFile.readLines()
     assertThat(pluginRepositoryLines).contains(
+      "repository=${proxyRepository.toURI()}",
+    )
+    assertThat(pluginRepositoryLines).containsOnlyOnce(
       "repository=${proxyRepository.toURI()}",
     )
     assertThat(pluginRepositoryLines).doesNotContain(
