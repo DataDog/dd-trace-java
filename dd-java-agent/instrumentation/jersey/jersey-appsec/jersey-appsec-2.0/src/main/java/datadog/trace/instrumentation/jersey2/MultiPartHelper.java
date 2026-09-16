@@ -2,9 +2,11 @@ package datadog.trace.instrumentation.jersey2;
 
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
+import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.http.MultipartContentDecoder;
 import java.io.IOException;
 import java.io.InputStream;
@@ -106,7 +108,12 @@ public final class MultiPartHelper {
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
       BlockResponseFunction brf = ctx.getBlockResponseFunction();
       if (brf != null) {
-        brf.tryCommitBlockingResponse(ctx.getTraceSegment(), rba);
+        if (!brf.tryCommitBlockingResponse(ctx.getTraceSegment(), rba)) {
+          Object rawAppSecCtx = ctx.getData(RequestContextSlot.APPSEC);
+          if (rawAppSecCtx instanceof AppSecContext) {
+            ((AppSecContext) rawAppSecCtx).reportBlockFailure();
+          }
+        }
         BlockingException be = new BlockingException(message);
         ctx.getTraceSegment().effectivelyBlocked();
         return be;

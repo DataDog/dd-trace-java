@@ -4,6 +4,7 @@ import static datadog.trace.api.gateway.Events.EVENTS;
 
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
+import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.appsec.HttpClientPayload;
 import datadog.trace.api.appsec.HttpClientRequest;
 import datadog.trace.api.appsec.HttpClientResponse;
@@ -175,7 +176,12 @@ public class AppSecInterceptor implements Interceptor {
       BlockResponseFunction brf = ctx.getBlockResponseFunction();
       if (brf != null) {
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        brf.tryCommitBlockingResponse(ctx.getTraceSegment(), rba);
+        if (!brf.tryCommitBlockingResponse(ctx.getTraceSegment(), rba)) {
+          Object rawAppSecCtx = ctx.getData(RequestContextSlot.APPSEC);
+          if (rawAppSecCtx instanceof AppSecContext) {
+            ((AppSecContext) rawAppSecCtx).reportBlockFailure();
+          }
+        }
       }
       throw new BlockingException("Blocked request (for http downstream request)");
     }
