@@ -34,10 +34,13 @@ public final class TaskWrapperRedefinitionStrategyListener
       @Nonnull final Throwable throwable,
       @Nonnull final List<Class<?>> types) {
     if (UnwrappingVisitor.ENABLED) {
-      if (DEBUG) {
-        LOGGER.debug(
-            "Exception while retransforming with the visitor in batch {}, disabling it", index);
-      }
+      // logged once: the flag is one-way, so this branch cannot be re-entered
+      LOGGER.info(
+          "Disabling queueing time profiling: retransformation failed for a batch of {} classes"
+              + " because adding the TaskWrapper interface is a structural change the JVM rejects"
+              + " for already loaded classes (e.g. materialized from a JDK 24+ AOT cache)."
+              + " Retrying the batch without it; all other instrumentation is preserved.",
+          batch.size());
       UnwrappingVisitor.ENABLED = false;
       return Collections.singletonList(batch);
     } else {
