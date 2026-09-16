@@ -69,8 +69,11 @@ class TagMapNamespaceNamesTest {
     map.forEach(reader -> otelByTag.put(reader.tag(), reader.openTelemetryTag()));
 
     TagMap.Entry entry = map.getEntry(tag);
+    // Key off the entry's own (canonical) tag(), not the possibly-pre-normalization `tag`
+    // argument: entries are stored under their canonical Datadog name, so a lookup by an
+    // OpenTelemetry alias returns an entry whose tag() differs from the string used to set it.
     assertEquals(
-        otelByTag.get(tag),
+        otelByTag.get(entry.tag()),
         entry.openTelemetryTag(),
         "iteration and getEntry must agree on the OpenTelemetry name for " + tag);
     return entry;

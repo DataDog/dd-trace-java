@@ -144,5 +144,20 @@ public final class KnownTagCodec {
     return Installed.RESOLVER.keyOf(name);
   }
 
+  /**
+   * The Datadog-namespace name to store {@code name} under: {@code name} itself when it is not a
+   * known tag, otherwise the canonical Datadog name for whichever id it resolves to. A Datadog name
+   * maps to itself (no-op); an OpenTelemetry rename maps to the Datadog name it is a rename of.
+   *
+   * <p>{@link TagMap} calls this at entry construction so that setting a known tag under its
+   * Datadog name and under its OpenTelemetry rename store to the same {@code Entry} rather than two
+   * separate ones -- the two names denote one tag, and only serialization ({@link #datadogNameOf},
+   * {@link #openTelemetryTagOf}) should see them as different.
+   */
+  public static String canonicalTagName(String name) {
+    long id = keyOf(name);
+    return id != 0 ? nameOf(id) : name;
+  }
+
   private KnownTagCodec() {}
 }

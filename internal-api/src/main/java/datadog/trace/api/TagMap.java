@@ -124,7 +124,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   public abstract static class EntryChange {
     public static final EntryRemoval newRemoval(String tag) {
-      return new EntryRemoval(tag);
+      // Canonicalize so a removal recorded under an OpenTelemetry rename matches an Entry recorded
+      // (via Entry's own constructor) under its Datadog name -- see Ledger#contains/#matches.
+      return new EntryRemoval(KnownTagCodec.canonicalTagName(tag));
     }
 
     final String tag;
@@ -368,7 +370,18 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     volatile String strCache = null;
 
     private Entry(String tag, byte type, long prim, Object obj) {
-      super(tag);
+      /*
+       * Canonicalize to the Datadog name of whichever known tag this is, so that setting the same
+       * known tag under its OpenTelemetry rename and under its Datadog name store to the same
+       * Entry instead of two independent ones -- see KnownTagCodec#canonicalTagName. This is the
+       * single choke point for entry construction (every newXxxEntry factory funnels here), so it
+       * covers every write path without duplicating the lookup per factory.
+       *
+       * This does pay a KnownTagCodec.keyOf/nameOf lookup on the app thread for every tag of every
+       * span, which tagId() below was deliberately written to avoid -- accepted as an interim cost:
+       * setTag already does not inline well, and the lookup is a cheap static perfect-hash probe.
+       */
+      super(KnownTagCodec.canonicalTagName(tag));
       this.lazyTagHash = 0; // lazily computed
 
       this.rawType = type;
@@ -390,13 +403,13 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     @Override
     public long tagId() {
       /*
-       * Deliberately NOT memoized in a field, unlike hash(). An Entry is allocated on the app
-       * thread for every tag of every span, and TagMap$Entry is the tracer's largest allocation
-       * source -- a long field costs 8 bytes on all of them (there are only 3 bytes of padding to
-       * absorb it) plus a putfield per construction. The only caller is serialization, on the
-       * background thread, once per entry, and keyOf is a single open-addressed probe over a
-       * static final table keyed on an already-cached String hash. Paying it there beats widening
-       * every Entry to cache it.
+       * Deliberately NOT memoized in a field, unlike hash(). The constructor above already pays a
+       * keyOf lookup on the app thread to canonicalize the tag name, but re-deriving the id here
+       * from that already-canonical name is still cheaper than widening every Entry to cache it:
+       * TagMap$Entry is the tracer's largest allocation source, and a long field costs 8 bytes on
+       * all of them (there are only 3 bytes of padding to absorb it) plus a putfield per
+       * construction, for a value only serialization -- on the background thread, once per entry --
+       * ever reads.
        */
       return KnownTagCodec.keyOf(this.tag);
     }
@@ -954,6 +967,10 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
 
     private boolean contains(String tag) {
+      // Entries and removals are both recorded under their canonical Datadog name (see newAnyEntry
+      // et al. and newRemoval above); canonicalize the query the same way or it would miss.
+      tag = KnownTagCodec.canonicalTagName(tag);
+
       EntryChange[] thisChanges = this.entryChanges;
 
       // min is to clamp, so bounds check elimination optimization works
@@ -968,6 +985,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
      * Just for testing
      */
     Entry findLastEntry(String tag) {
+      tag = KnownTagCodec.canonicalTagName(tag);
       EntryChange[] thisChanges = this.entryChanges;
 
       // min is to clamp, so ArrayBoundsCheckElimination optimization works
@@ -1294,6 +1312,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   public Entry getEntry(String tag) {
+    // Entries are stored under their canonical Datadog name (see Entry's constructor); a lookup by
+    // an OpenTelemetry rename must canonicalize the same way, or it would hash to the wrong bucket
+    // and silently miss the entry stored under the Datadog name.
+    tag = KnownTagCodec.canonicalTagName(tag);
+
     Entry local = this.getLocalEntry(tag);
     if (local != null) {
       // Local entry shadows the parent (local-wins) — unchanged hot path.
@@ -1773,6 +1796,10 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   public Entry getAndRemove(String tag) {
     this.checkWriteAccess();
+
+    // See getEntry: entries are stored under their canonical Datadog name, so a removal by an
+    // OpenTelemetry rename must canonicalize first to find (and tombstone) the right entry.
+    tag = KnownTagCodec.canonicalTagName(tag);
 
     Entry localRemoved = this.removeLocal(tag);
 
