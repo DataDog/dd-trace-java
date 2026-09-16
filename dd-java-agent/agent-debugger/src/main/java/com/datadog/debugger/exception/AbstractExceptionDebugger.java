@@ -93,9 +93,12 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
       Throwable throwable;
       int chainedExceptionIdx = 0;
       while ((throwable = chainedExceptions.pollFirst()) != null) {
+        StackTraceElement[] stackTrace = throwable.getStackTrace();
+        if (stackTrace == null || stackTrace.length == 0) {
+          continue;
+        }
         ExceptionProbeManager.CreationResult creationResult =
-            exceptionProbeManager.createProbesForException(
-                throwable.getStackTrace(), chainedExceptionIdx);
+            exceptionProbeManager.createProbesForException(stackTrace, chainedExceptionIdx);
         if (creationResult.probesCreated > 0) {
           if (!applyConfigAsync) {
             applyExceptionConfiguration(fingerprint);
