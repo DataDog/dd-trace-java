@@ -97,7 +97,7 @@ public class SourceFileTrackingTransformer implements ClassFileTransformer {
     return null;
   }
 
-  private void registerSourceFile(String className, byte[] classfileBuffer) {
+  protected void registerSourceFile(String className, byte[] classfileBuffer) {
     try {
       String javaClassName = Strings.getClassName(className);
       if (classNameFilter.isExcluded(javaClassName)) {

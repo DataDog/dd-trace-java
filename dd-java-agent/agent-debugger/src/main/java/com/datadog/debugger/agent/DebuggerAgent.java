@@ -42,10 +42,12 @@ import datadog.trace.util.TagsHelper;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
+import java.lang.instrument.IllegalClassFormatException;
 import java.lang.instrument.Instrumentation;
 import java.lang.ref.WeakReference;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.ProtectionDomain;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -438,8 +440,29 @@ public class DebuggerAgent {
       LOGGER.debug("Source file tracking is disabled");
       return;
     }
-    SourceFileTrackingTransformer sourceFileTrackingTransformer =
-        new SourceFileTrackingTransformer(finder);
+    SourceFileTrackingTransformer sourceFileTrackingTransformer;
+    if (Config.get().isDebuggerSynchronousSourceFileTrackingEnabled()) {
+      sourceFileTrackingTransformer =
+          new SourceFileTrackingTransformer(finder) {
+            {
+              classNameFilter = new ClassNameFiltering(Config.get());
+            }
+
+            @Override
+            public byte[] transform(
+                ClassLoader loader,
+                String className,
+                Class<?> classBeingRedefined,
+                ProtectionDomain protectionDomain,
+                byte[] classfileBuffer)
+                throws IllegalClassFormatException {
+              registerSourceFile(className, classfileBuffer);
+              return null;
+            }
+          };
+    } else {
+      sourceFileTrackingTransformer = new SourceFileTrackingTransformer(finder);
+    }
     sourceFileTrackingTransformer.start();
     instrumentation.addTransformer(sourceFileTrackingTransformer);
   }
