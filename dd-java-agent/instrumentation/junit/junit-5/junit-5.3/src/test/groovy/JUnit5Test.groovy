@@ -132,7 +132,8 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                             | success | tests                          | retriedTests
-    "test-retry-failed"                      | false   | [TestFailed]                   | []
+    "test-failed"                            | false   | [TestFailed]                   | []
+    "test-retry-failed"                      | false   | [TestFailed]                   | [new TestFQN("org.example.TestFailed", "test_failed")]
     "test-failed-then-succeed"               | true    | [TestFailedThenSucceed]        | [new TestFQN("org.example.TestFailedThenSucceed", "test_failed_then_succeed")]
     "test-retry-template"                    | false   | [TestFailedTemplate]           | [new TestFQN("org.example.TestFailedTemplate", "test_template")]
     "test-retry-factory"                     | false   | [TestFailedFactory]            | [new TestFQN("org.example.TestFailedFactory", "test_factory")]
