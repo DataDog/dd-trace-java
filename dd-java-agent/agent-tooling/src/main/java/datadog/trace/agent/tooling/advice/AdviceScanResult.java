@@ -149,12 +149,21 @@ public final class AdviceScanResult {
   /** One discovered class. External leaves have no scanned bytecode. */
   public static final class ClassInfo {
     private final String className;
+    private final boolean fromModuleOutput;
     private final boolean scanned;
+    private final List<String> requiredDependencies;
     private final List<Usage> usages;
 
-    ClassInfo(String className, boolean scanned, List<Usage> usages) {
+    ClassInfo(
+        String className,
+        boolean fromModuleOutput,
+        boolean scanned,
+        Collection<String> requiredDependencies,
+        List<Usage> usages) {
       this.className = className;
+      this.fromModuleOutput = fromModuleOutput;
       this.scanned = scanned;
+      this.requiredDependencies = immutableCopy(requiredDependencies);
       this.usages = immutableCopy(usages);
     }
 
@@ -166,12 +175,20 @@ public final class AdviceScanResult {
       return scanned;
     }
 
+    public boolean isFromModuleOutput() {
+      return fromModuleOutput;
+    }
+
     public boolean isInstrumentationClass() {
       return AdviceScanResult.isInstrumentationClass(className);
     }
 
     public List<Usage> getUsages() {
       return usages;
+    }
+
+    public List<String> getRequiredDependencies() {
+      return requiredDependencies;
     }
   }
 
