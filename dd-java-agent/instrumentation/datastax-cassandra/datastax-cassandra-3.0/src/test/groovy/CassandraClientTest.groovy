@@ -23,12 +23,6 @@ import java.util.concurrent.TimeUnit
 abstract class CassandraClientTest extends VersionedNamingTestBase {
   private static final int ASYNC_TIMEOUT_MS = 5000
 
-  @Override
-  boolean useStrictTraceWrites() {
-    // TODO fix this by making sure that spans get closed properly
-    return false
-  }
-
   @Shared
   Cluster cluster
 
