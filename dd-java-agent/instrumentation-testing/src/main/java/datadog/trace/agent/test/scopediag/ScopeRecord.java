@@ -61,7 +61,9 @@ public final class ScopeRecord {
             continuationSeq,
             deferredCleanup,
             open == null ? null : open.snapshot());
-    copy.close = close == null ? null : close.snapshot();
+    if (close != null) {
+      copy.setClose(close.snapshot());
+    }
     for (ScopeEvent event : wrongThreadCloses) {
       copy.wrongThreadCloses.add(event.snapshot());
     }
