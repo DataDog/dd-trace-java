@@ -77,7 +77,9 @@ public final class ContinuationRecord {
     for (ScopeEvent event : failedActivations) {
       copy.failedActivations.add(event.snapshot());
     }
-    copy.terminal = terminal == null ? null : terminal.snapshot();
+    if (terminal != null) {
+      copy.setTerminalOrExtra(terminal.snapshot());
+    }
     for (ScopeEvent event : extraTerminals) {
       copy.extraTerminals.add(event.snapshot());
     }
