@@ -40,6 +40,14 @@ public class ParsePostDataInstrumentation extends InstrumenterModule.AppSec
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      packageName + ".LibertyBlockingHelper",
+      packageName + ".LibertyBlockingHelper$WsByteBufferImpl",
+    };
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
@@ -74,9 +82,12 @@ public class ParsePostDataInstrumentation extends InstrumenterModule.AppSec
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
         BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
         if (blockResponseFunction != null) {
-          blockResponseFunction.tryCommitBlockingResponse(reqCtx, rba);
-          t = new BlockingException("Blocked request (for SRTServletRequest/parsePostData)");
-          reqCtx.getTraceSegment().effectivelyBlocked();
+          boolean success =
+              LibertyBlockingHelper.tryCommitBlockingResponse(blockResponseFunction, reqCtx, rba);
+          if (success) {
+            t = new BlockingException("Blocked request (for SRTServletRequest/parsePostData)");
+            reqCtx.getTraceSegment().effectivelyBlocked();
+          }
         }
       }
     }

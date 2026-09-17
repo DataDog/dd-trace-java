@@ -91,8 +91,9 @@ public class FormDataParserInstrumentation extends InstrumenterModule.AppSec
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
         BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
         if (blockResponseFunction != null) {
-          FormDataContentHelper.tryCommitBlockingResponse(blockResponseFunction, reqCtx, rba);
-          if (t == null) {
+          boolean success =
+              FormDataContentHelper.tryCommitBlockingResponse(blockResponseFunction, reqCtx, rba);
+          if (success && t == null) {
             t = new BlockingException("Blocked request (for FormEncodedDataParser/doParse)");
           }
         }
