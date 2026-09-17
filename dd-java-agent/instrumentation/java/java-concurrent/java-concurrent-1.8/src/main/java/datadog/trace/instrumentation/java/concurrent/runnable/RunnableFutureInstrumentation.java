@@ -91,7 +91,9 @@ public final class RunnableFutureInstrumentation extends InstrumenterModule.Cont
         getClass().getName() + "$Construct");
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
     ElementMatcher.Junction<MethodDescription> runMatcher = isMethod().and(named("run"));
-    if (InstrumenterConfig.get().isIntegrationEnabled(singleton("netty-concurrent"), true)) {
+    InstrumenterConfig config = InstrumenterConfig.get();
+    if (config.isIntegrationEnabled(
+        singleton("netty-concurrent"), config.isIntegrationsEnabled())) {
       // Netty 4.1.44+ separates delayed scheduling in run() from execution in runTask().
       runMatcher =
           runMatcher.and(
