@@ -322,6 +322,12 @@ class AkkaHttpServerInstrumentationBindAndHandleTest extends AkkaHttpServerInstr
 
 class AkkaHttpServerInstrumentationBindAndHandleContextSwapForkedTest extends AkkaHttpServerInstrumentationBindAndHandleTest {
   @Override
+  boolean recreateServerForEachTest() {
+    // This forked suite changes a process-wide setting; do not let its actor system outlive it.
+    true
+  }
+
+  @Override
   void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig(TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED, "false")
