@@ -26,11 +26,10 @@ final class ScopeContinuationTransformer {
       return;
     }
     try {
-      // Related core types can otherwise load this target reentrantly while they are transformed.
-      Class.forName(
-          "datadog.trace.core.scopemanager.ScopeContinuation",
-          false,
-          ScopeContinuationTransformer.class.getClassLoader());
+      // Related core types can otherwise load these targets reentrantly while they are transformed.
+      ClassLoader loader = ScopeContinuationTransformer.class.getClassLoader();
+      Class.forName("datadog.trace.core.scopemanager.ScopeContinuation", false, loader);
+      Class.forName("datadog.trace.core.scopemanager.ScopeStack", false, loader);
     } catch (ClassNotFoundException missingCoreTracer) {
       throw new IllegalStateException(
           "Scope continuation diagnostics require dd-trace-core", missingCoreTracer);
