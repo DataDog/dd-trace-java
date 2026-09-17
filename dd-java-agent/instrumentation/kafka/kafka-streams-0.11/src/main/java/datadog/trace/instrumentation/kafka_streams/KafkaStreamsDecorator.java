@@ -58,6 +58,21 @@ public class KafkaStreamsDecorator extends MessagingClientDecorator {
   public static final boolean KAFKA_LEGACY_TRACING = Config.get().isKafkaLegacyTracingEnabled();
   public static final boolean TIME_IN_QUEUE_ENABLED =
       Config.get().isTimeInQueueEnabled(!KAFKA_LEGACY_TRACING, KAFKA);
+
+  // Set by startTracedConsumeSpan when time-in-queue tracing produced a broker parent span that
+  // must be finished only after the consume span it parents has been activated by the caller, so
+  // TraceStructureWriter (in strict mode) writes the broker and consume spans out together.
+  private static final ThreadLocal<AgentSpan> PENDING_QUEUE_SPAN_TO_FINISH = new ThreadLocal<>();
+
+  /** Finishes and clears any queue span deferred by {@code startTracedConsumeSpan}, if present. */
+  public static void finishPendingQueueSpan() {
+    AgentSpan queueSpan = PENDING_QUEUE_SPAN_TO_FINISH.get();
+    if (queueSpan != null) {
+      PENDING_QUEUE_SPAN_TO_FINISH.remove();
+      queueSpan.finish();
+    }
+  }
+
   public static final boolean TRACING_ENABLED =
       Utils.isTracingEnabled(INTEGRATION_NAME, LEGACY_INTEGRATION_NAME);
   public static final String KAFKA_PRODUCED_KEY = "x_datadog_kafka_produced";
@@ -172,19 +187,21 @@ public class KafkaStreamsDecorator extends MessagingClientDecorator {
    */
   public static AgentSpan startTracedConsumeSpan(
       final StampedRecord record, final ProcessorNode node, final String applicationId) {
-    AgentSpan span, queueSpan = null;
+    AgentSpan span;
     long timeInQueueStart = SR_GETTER.extractTimeInQueueStart(record);
     if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
       span = startSpan(JAVA_KAFKA.toString(), KAFKA_CONSUME);
     } else {
-      queueSpan =
+      AgentSpan queueSpan =
           startSpan(JAVA_KAFKA.toString(), KAFKA_DELIVER, MILLISECONDS.toMicros(timeInQueueStart));
       BROKER_DECORATE.afterStart(queueSpan);
       BROKER_DECORATE.onTimeInQueue(queueSpan, record);
       span = startSpan(JAVA_KAFKA.toString(), KAFKA_CONSUME, queueSpan.spanContext());
       BROKER_DECORATE.beforeFinish(queueSpan);
-      // The queueSpan will be finished after inner span has been activated to ensure that
-      // spans are written out together by TraceStructureWriter when running in strict mode
+      // The queueSpan is finished by the caller (via finishPendingQueueSpan) only after this
+      // consume span has been activated, so TraceStructureWriter (in strict mode) writes them
+      // out together.
+      PENDING_QUEUE_SPAN_TO_FINISH.set(queueSpan);
     }
 
     DataStreamsTags tags = createWithGroup("kafka", INBOUND, applicationId, record.topic());
@@ -195,9 +212,6 @@ public class KafkaStreamsDecorator extends MessagingClientDecorator {
 
     CONSUMER_DECORATE.afterStart(span);
     CONSUMER_DECORATE.onConsume(span, record, node);
-    if (null != queueSpan) {
-      queueSpan.finish();
-    }
     return span;
   }
 
@@ -206,19 +220,21 @@ public class KafkaStreamsDecorator extends MessagingClientDecorator {
    */
   public static AgentSpan startTracedConsumeSpan(
       final ProcessorRecordContext record, final ProcessorNode node, final String applicationId) {
-    AgentSpan span, queueSpan = null;
+    AgentSpan span;
     long timeInQueueStart = PR_GETTER.extractTimeInQueueStart(record);
     if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
       span = startSpan(JAVA_KAFKA.toString(), KAFKA_CONSUME);
     } else {
-      queueSpan =
+      AgentSpan queueSpan =
           startSpan(JAVA_KAFKA.toString(), KAFKA_DELIVER, MILLISECONDS.toMicros(timeInQueueStart));
       BROKER_DECORATE.afterStart(queueSpan);
       BROKER_DECORATE.onTimeInQueue(queueSpan, record);
       span = startSpan(JAVA_KAFKA.toString(), KAFKA_CONSUME, queueSpan.spanContext());
       BROKER_DECORATE.beforeFinish(queueSpan);
-      // The queueSpan will be finished after inner span has been activated to ensure that
-      // spans are written out together by TraceStructureWriter when running in strict mode
+      // The queueSpan is finished by the caller (via finishPendingQueueSpan) only after this
+      // consume span has been activated, so TraceStructureWriter (in strict mode) writes them
+      // out together.
+      PENDING_QUEUE_SPAN_TO_FINISH.set(queueSpan);
     }
 
     DataStreamsTags tags = createWithGroup("kafka", INBOUND, applicationId, record.topic());
@@ -227,9 +243,6 @@ public class KafkaStreamsDecorator extends MessagingClientDecorator {
 
     CONSUMER_DECORATE.afterStart(span);
     CONSUMER_DECORATE.onConsume(span, record, node);
-    if (null != queueSpan) {
-      queueSpan.finish();
-    }
     return span;
   }
 

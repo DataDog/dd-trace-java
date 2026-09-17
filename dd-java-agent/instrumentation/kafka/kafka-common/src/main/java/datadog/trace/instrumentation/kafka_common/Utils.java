@@ -22,10 +22,11 @@ public final class Utils {
    * constructor call actually registers.
    */
   public static boolean isTracingEnabled(String integrationName, String legacyIntegrationName) {
-    return InstrumenterConfig.get()
-        .isIntegrationEnabled(
+    InstrumenterConfig instrumenterConfig = InstrumenterConfig.get();
+    return instrumenterConfig.isTraceEnabled()
+        && instrumenterConfig.isIntegrationEnabled(
             Arrays.asList(integrationName, legacyIntegrationName),
-            InstrumenterConfig.get().isIntegrationsEnabled());
+            instrumenterConfig.isIntegrationsEnabled());
   }
 
   /**

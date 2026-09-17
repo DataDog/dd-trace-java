@@ -4,7 +4,6 @@ import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.kafka_streams.ProcessorRecordContextVisitor.PR_GETTER;
@@ -261,11 +260,12 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.DataStrea
           streamTaskContext != null ? streamTaskContext.getApplicationId() : null;
 
       final AgentSpan span =
-          !KafkaStreamsDecorator.TRACING_ENABLED && traceConfig().isDataStreamsEnabled()
+          !KafkaStreamsDecorator.TRACING_ENABLED
               ? KafkaStreamsDecorator.startDsmOnlyPathwaySpan(record, applicationId)
               : KafkaStreamsDecorator.startTracedConsumeSpan(record, node, applicationId);
 
       AgentScope agentScope = activateSpan(span);
+      KafkaStreamsDecorator.finishPendingQueueSpan();
 
       if (streamTaskContext == null) {
         streamTaskContext = new StreamTaskContext();
@@ -294,11 +294,12 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.DataStrea
           streamTaskContext != null ? streamTaskContext.getApplicationId() : null;
 
       final AgentSpan span =
-          !KafkaStreamsDecorator.TRACING_ENABLED && traceConfig().isDataStreamsEnabled()
+          !KafkaStreamsDecorator.TRACING_ENABLED
               ? KafkaStreamsDecorator.startDsmOnlyPathwaySpan(record, applicationId)
               : KafkaStreamsDecorator.startTracedConsumeSpan(record, node, applicationId);
 
       AgentScope agentScope = activateSpan(span);
+      KafkaStreamsDecorator.finishPendingQueueSpan();
 
       if (streamTaskContext == null) {
         streamTaskContext = new StreamTaskContext();

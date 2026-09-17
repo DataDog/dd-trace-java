@@ -49,6 +49,11 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
   private final String clusterId;
   private final String bootstrapServers;
 
+  // Set by startTracedConsumeSpan when time-in-queue tracing produced a broker parent span that
+  // must be finished only after the consume span it parents has been activated by the caller, so
+  // TraceStructureWriter (in strict mode) writes the broker and consume spans out together.
+  private AgentSpan pendingQueueSpanToFinish;
+
   public TracingIterator(
       final Iterator<ConsumerRecord<?, ?>> delegateIterator,
       final CharSequence operationName,
@@ -100,7 +105,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
       }
       if (val != null) {
         final AgentSpan span =
-            !KafkaDecorator.TRACING_ENABLED && traceConfig().isDataStreamsEnabled()
+            !KafkaDecorator.TRACING_ENABLED
                 ? startDsmOnlyPathwaySpan(val)
                 : startTracedConsumeSpan(val);
         if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
@@ -110,6 +115,10 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           if (previousSpan != null) {
             previousSpan.finishWithEndToEnd();
           }
+        }
+        if (pendingQueueSpanToFinish != null) {
+          pendingQueueSpanToFinish.finish();
+          pendingQueueSpanToFinish = null;
         }
       }
     } catch (final Exception e) {
@@ -122,14 +131,14 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
    * parent), tags it, and reports DSM checkpoints/transactions off of it.
    */
   private AgentSpan startTracedConsumeSpan(ConsumerRecord<?, ?> val) {
-    AgentSpan span, queueSpan = null;
+    AgentSpan span;
     if (!Config.get().isKafkaClientPropagationDisabledForTopic(val.topic())) {
       final AgentSpanContext spanContext = extractContextAndGetSpanContext(val.headers(), GETTER);
       long timeInQueueStart = GETTER.extractTimeInQueueStart(val.headers());
       if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
         span = startSpan(JAVA_KAFKA.toString(), operationName, spanContext);
       } else {
-        queueSpan =
+        AgentSpan queueSpan =
             startSpan(
                 JAVA_KAFKA.toString(),
                 KAFKA_DELIVER,
@@ -139,8 +148,9 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
         BROKER_DECORATE.onTimeInQueue(queueSpan, val);
         span = startSpan(JAVA_KAFKA.toString(), operationName, queueSpan.spanContext());
         BROKER_DECORATE.beforeFinish(queueSpan);
-        // The queueSpan will be finished after inner span has been activated to ensure that
-        // spans are written out together by TraceStructureWriter when running in strict mode
+        // The queueSpan is finished by startNewRecordSpan only after this consume span has been
+        // activated, so TraceStructureWriter (in strict mode) writes them out together.
+        pendingQueueSpanToFinish = queueSpan;
       }
 
       DataStreamsTags tags = create("kafka", INBOUND, val.topic(), group, clusterId);
@@ -155,9 +165,6 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
     }
     decorator.afterStart(span);
     decorator.onConsume(span, val, group, clusterId, bootstrapServers);
-    if (null != queueSpan) {
-      queueSpan.finish();
-    }
 
     trackDsmConsumeTransaction(span, val);
     return span;

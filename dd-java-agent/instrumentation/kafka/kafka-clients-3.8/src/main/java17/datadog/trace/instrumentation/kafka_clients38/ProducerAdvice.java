@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extra
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.JAVA_KAFKA;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.KAFKA_PRODUCE;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.PRODUCER_DECORATE;
@@ -49,18 +48,23 @@ public class ProducerAdvice {
     final AgentSpan span;
     final AgentSpan callbackParentSpan;
 
-    if (!KafkaDecorator.TRACING_ENABLED && traceConfig().isDataStreamsEnabled()) {
-      // DSM-only mode: never create a real span, so nothing for this integration is ever
-      // written to the agent. The pathway is carried on a lightweight, never-collected span
-      // shim instead, falling back to whatever pathway the currently active span (if any)
-      // is carrying so a consume->produce chain keeps propagating the same pathway.
+    if (!KafkaDecorator.TRACING_ENABLED) {
+      // Tracing is disabled for this integration: never create a real span, so nothing for
+      // this integration is ever written to the agent, regardless of whether DSM is currently
+      // enabled. (TRACING_ENABLED is fixed at startup, but DSM can be toggled dynamically via
+      // remote config, so it must not gate this branch.) When DSM is enabled the pathway is
+      // carried on a lightweight, never-collected span shim instead, falling back to whatever
+      // pathway the currently active span (if any) is carrying so a consume->produce chain
+      // keeps propagating the same pathway.
       final AgentSpan localActiveSpan = activeSpan();
       final AgentSpanContext pathwaySource =
           extractedContext != null
               ? extractedContext
               : localActiveSpan == null ? null : localActiveSpan.spanContext();
       span = Utils.newPathwayOnlySpan(pathwaySource);
-      callbackParentSpan = span;
+      // Keep whatever real trace was already active (if any) as the callback's parent, rather
+      // than the pathway-only shim, so the callback still runs within the caller's actual trace.
+      callbackParentSpan = localActiveSpan;
     } else {
       if (extractedContext != null) {
         span = startSpan(JAVA_KAFKA.toString(), KAFKA_PRODUCE, extractedContext);
