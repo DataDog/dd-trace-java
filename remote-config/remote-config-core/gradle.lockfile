@@ -7,6 +7,7 @@ cafe.cryptography:ed25519-elisabeth:0.1.0=compileClasspath,runtimeClasspath,test
 ch.qos.logback:logback-classic:1.2.13=testCompileClasspath,testRuntimeClasspath
 ch.qos.logback:logback-core:1.2.13=testCompileClasspath,testRuntimeClasspath
 com.datadoghq.okhttp3:okhttp:3.12.15=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
+com.datadoghq:dd-instrument-java:0.0.5=runtimeClasspath,testRuntimeClasspath
 com.datadoghq:dd-javac-plugin-client:0.2.2=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.github.javaparser:javaparser-core:3.25.6=codenarc
 com.github.spotbugs:spotbugs-annotations:4.10.3=compileClasspath,spotbugs
