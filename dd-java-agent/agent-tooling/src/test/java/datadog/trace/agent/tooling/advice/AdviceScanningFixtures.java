@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling.advice;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.instrumentation.testing.ExternalHelper;
 import java.util.ArrayList;
 import java.util.List;
@@ -60,6 +61,24 @@ final class AdviceScanningFixtures {
     public void methodAdvice(MethodTransformer transformer) {
       adviceRegistrations++;
       transformer.applyAdvices(null, AdviceRoot.class.getName(), AdditionalAdvice.class.getName());
+    }
+  }
+
+  public static final class PipelineModule extends ScanModule {
+    static int instances;
+
+    public PipelineModule() {
+      instances++;
+    }
+
+    @Override
+    public String[] muzzleIgnoredClassNames() {
+      return new String[] {ClassReader.class.getName()};
+    }
+
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+      return new Reference[] {new Reference.Builder("extra/AddedReference").build()};
     }
   }
 }
