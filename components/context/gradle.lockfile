@@ -4,6 +4,7 @@
 # To regenerate this file, run: ./gradlew :components:context:dependencies --write-locks
 ch.qos.logback:logback-classic:1.2.13=testCompileClasspath,testRuntimeClasspath
 ch.qos.logback:logback-core:1.2.13=testCompileClasspath,testRuntimeClasspath
+com.datadoghq:dd-instrument-java:0.0.5=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.github.javaparser:javaparser-core:3.25.6=codenarc
 com.github.spotbugs:spotbugs-annotations:4.10.3=compileClasspath,spotbugs
 com.github.spotbugs:spotbugs:4.10.3=spotbugs
@@ -73,4 +74,4 @@ org.spockframework:spock-core:2.4-groovy-3.0=testCompileClasspath,testRuntimeCla
 org.tabletest:tabletest-junit:1.2.2=testCompileClasspath,testRuntimeClasspath
 org.tabletest:tabletest-parser:1.2.1=testCompileClasspath,testRuntimeClasspath
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
-empty=annotationProcessor,runtimeClasspath,spotbugsPlugins,testAnnotationProcessor
+empty=annotationProcessor,spotbugsPlugins,testAnnotationProcessor
