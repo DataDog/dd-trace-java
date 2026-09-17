@@ -53,6 +53,7 @@ import datadog.trace.api.intake.Intake;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.benchmark.StaticEventLogger;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.StableConfigSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
@@ -1490,29 +1491,42 @@ public class Agent {
    * on JFR.
    */
   private static ProfilingContextIntegration createProfilingContextIntegration() {
-    if (Config.get().isProfilingEnabled()) {
-      if (Config.get().isDatadogProfilerEnabled() && !OperatingSystem.isWindows()) {
+    Config config = Config.get();
+    // isDatadogProfilerEnabled() is ORed in explicitly so an explicit
+    // DD_TRACE_OTEL_CONTEXT_EXPOSURE_ENABLED=false never disables ddprof for a user where real
+    // profiling already enabled it - the new flag is additive, not a replacement gate.
+    if ((config.isDatadogProfilerEnabled() || config.isOtelContextExposureEnabled())
+        && !OperatingSystem.isWindows()) {
+      try {
+        ProfilingContextIntegration integration =
+            (ProfilingContextIntegration)
+                AGENT_CLASSLOADER
+                    .loadClass("com.datadog.profiling.ddprof.DatadogProfilingIntegration")
+                    .getDeclaredConstructor()
+                    .newInstance();
         try {
-          return (ProfilingContextIntegration)
-              AGENT_CLASSLOADER
-                  .loadClass("com.datadog.profiling.ddprof.DatadogProfilingIntegration")
-                  .getDeclaredConstructor()
-                  .newInstance();
+          AGENT_CLASSLOADER
+              .loadClass("com.datadog.profiling.agent.ProcessContext")
+              .getMethod("register", ConfigProvider.class)
+              .invoke(null, ConfigProvider.getInstance());
         } catch (Throwable t) {
-          log.debug("ddprof-based profiling context labeling not available. {}", t.getMessage());
+          log.debug("Process context registration not available. {}", t.getMessage());
         }
+        return integration;
+      } catch (Throwable t) {
+        log.debug("ddprof-based profiling context labeling not available. {}", t.getMessage());
       }
-      if (Config.get().isProfilingTimelineEventsEnabled()) {
-        // important: note that this will not initialise JFR until onStart is called
-        try {
-          return (ProfilingContextIntegration)
-              AGENT_CLASSLOADER
-                  .loadClass("com.datadog.profiling.controller.openjdk.JFREventContextIntegration")
-                  .getDeclaredConstructor()
-                  .newInstance();
-        } catch (Throwable t) {
-          log.debug("JFR event-based profiling context labeling not available. {}", t.getMessage());
-        }
+    }
+    if (config.isProfilingEnabled() && config.isProfilingTimelineEventsEnabled()) {
+      // important: note that this will not initialise JFR until onStart is called
+      try {
+        return (ProfilingContextIntegration)
+            AGENT_CLASSLOADER
+                .loadClass("com.datadog.profiling.controller.openjdk.JFREventContextIntegration")
+                .getDeclaredConstructor()
+                .newInstance();
+      } catch (Throwable t) {
+        log.debug("JFR event-based profiling context labeling not available. {}", t.getMessage());
       }
     }
     return ProfilingContextIntegration.NoOp.INSTANCE;

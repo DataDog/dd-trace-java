@@ -8812,6 +8812,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_OSGI_ENABLED", "DD_INTEGRATION_OSGI_ENABLED"]
       }
     ],
+    "DD_TRACE_OTEL_CONTEXT_EXPOSURE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_TRACE_OTEL_ENABLED": [
       {
         "version": "A",
