@@ -28,7 +28,8 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
   def "test assertInstrumentationMuzzled advice"() {
     setup:
     def instrumentationLoader = new ServiceEnabledClassLoader(InstrumenterModule,
-      Instrumenter.HasMethodAdvice, ElementMatcher, ReferenceMatcher, Reference, ReferenceCreator)
+      Instrumenter.HasMethodAdvice, ElementMatcher, ReferenceMatcher, Reference, ReferenceCreator,
+      ReferenceCreatorTestSupport)
     instrumentationLoader.addClass(TestInstrumentationClasses)
     instrumentationLoader.addClass(BaseInst)
     instCP.each { instrumentationLoader.addClass(it) }
@@ -54,7 +55,8 @@ class MuzzleVersionScanPluginTest extends DDSpecification {
   def "verify advice match failure"() {
     setup:
     def instrumentationLoader = new ServiceEnabledClassLoader(InstrumenterModule,
-      Instrumenter.HasMethodAdvice, ElementMatcher, ReferenceMatcher, Reference, ReferenceCreator)
+      Instrumenter.HasMethodAdvice, ElementMatcher, ReferenceMatcher, Reference, ReferenceCreator,
+      ReferenceCreatorTestSupport)
     instrumentationLoader.addClass(TestInstrumentationClasses)
     instrumentationLoader.addClass(BaseInst)
     instCP.each { instrumentationLoader.addClass(it) }
