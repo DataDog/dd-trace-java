@@ -33,7 +33,7 @@ public class SourceFileTrackingTransformer implements ClassFileTransformer {
   private final AtomicInteger queueSize = new AtomicInteger(0);
   private AgentTaskScheduler.Scheduled<Runnable> scheduled;
   // this field MUST only be used in flush() calling thread
-  private ClassNameFiltering classNameFilter;
+  protected ClassNameFiltering classNameFilter;
 
   public SourceFileTrackingTransformer(ClassesToRetransformFinder finder) {
     this.finder = finder;
