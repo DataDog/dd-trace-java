@@ -453,7 +453,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     if (scopeDiagnosticsSuiteEnabled()) {
       if (scopeDiagnosticsSuiteSetupPending) {
         scopeDiagnosticsSuiteSetupPending = false
-        def suiteSetupFailure = reportScopeDiagnostics(scopeDiagClassConfig(), "suite setup")
+        def suiteSetupFailure = reportScopeDiagnosticsForPhase(scopeDiagClassConfig(), "suite setup")
         if (suiteSetupFailure != null) {
           throw suiteSetupFailure
         }
@@ -588,10 +588,10 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
   }
 
   private Throwable reportScopeDiagnostics() {
-    return reportScopeDiagnostics(scopeDiagConfig(), null)
+    return reportScopeDiagnosticsForPhase(scopeDiagConfig(), null)
   }
 
-  private Throwable reportScopeDiagnostics(TrackScopeContinuations config, String phase) {
+  private Throwable reportScopeDiagnosticsForPhase(TrackScopeContinuations config, String phase) {
     if (!ScopeDiagnostics.isEnabled(config)) {
       return null
     }
@@ -642,7 +642,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
   protected void cleanupAfterAgent() {}
 
   void cleanupSpec() {
-    def scopeDiagnosticsFailure = reportScopeDiagnostics(scopeDiagClassConfig(), "suite cleanup")
+    def scopeDiagnosticsFailure = reportScopeDiagnosticsForPhase(scopeDiagClassConfig(), "suite cleanup")
     try {
       TEST_TRACER?.close()
       TEST_AGENT_WRITER?.close()
