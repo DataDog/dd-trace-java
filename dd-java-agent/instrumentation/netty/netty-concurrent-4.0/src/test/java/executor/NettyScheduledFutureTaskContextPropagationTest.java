@@ -30,15 +30,15 @@ class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumenta
       AgentSpan parent = startSpan("test", "parent");
 
       // Netty 4.1.44+ calls ScheduledFutureTask.run() once while enqueueing a delayed task and
-      // again when the delay expires. The continuation captured here must survive the enqueue run.
+      // again when the delay expires. Context must only activate when runTask() executes.
       try (AgentScope ignored = activateSpan(parent)) {
         executor.schedule(task, 50, MILLISECONDS);
       } finally {
         parent.finish();
       }
 
-      // When the delayed task actually runs, instrumentation should activate the captured
-      // continuation so traced work in the task remains a child of the scheduling span.
+      // When the delayed task actually runs, runTask() activates the captured continuation so
+      // traced work in the task remains a child of the scheduling span.
       assertTrue(task.started.await(5, SECONDS));
       try {
         assertTrue(task.sawActiveSpan.get());
@@ -59,8 +59,8 @@ class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumenta
   void testDelayedTaskPropagatesContextOnAllNettyVersions() throws Exception {
     // Cross-version invariant: context propagation through a delayed task must work on every
     // supported Netty version — pre-4.1.44 (single run() at the deadline) and 4.1.44+ (a delay > 0
-    // self-enqueue run followed by the real fire). This guards against the fix regressing the
-    // versions that were never broken.
+    // self-enqueue run followed by execution through runTask()). This guards against regressing
+    // versions that use the original single-run lifecycle.
     try (CloseableDefaultEventExecutorGroup group = new CloseableDefaultEventExecutorGroup()) {
       EventExecutor executor = group.next();
       TraceableTask task = new TraceableTask();
@@ -84,9 +84,8 @@ class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumenta
 
   @Test
   void testImmediateScheduledTaskKeepsContext() throws Exception {
-    // A ScheduledFutureTask scheduled with a non-positive delay only ever runs its body when
-    // delayNanos <= 0 (Netty self-enqueues only while delay > 0). The fix's "delay > 0" skip must
-    // therefore NOT apply to immediate tasks, so the captured continuation must still activate.
+    // A ScheduledFutureTask scheduled with a non-positive delay executes its body immediately
+    // through runTask(), where the captured continuation must activate.
     try (CloseableDefaultEventExecutorGroup group = new CloseableDefaultEventExecutorGroup()) {
       EventExecutor executor = group.next();
       TraceableTask task = new TraceableTask();

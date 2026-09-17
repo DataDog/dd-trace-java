@@ -14,6 +14,7 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE_FUTURE;
 import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
+import static java.util.Collections.singleton;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
@@ -26,6 +27,7 @@ import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
@@ -35,6 +37,7 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -87,15 +90,17 @@ public final class RunnableFutureInstrumentation extends InstrumenterModule.Cont
                             .and(takesArgument(1, named(Callable.class.getName()))))),
         getClass().getName() + "$Construct");
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("run"))
-            .and(
-                not(
-                    isDeclaredBy(
-                        nameEndsWith(".netty.util.concurrent.ScheduledFutureTask")
-                            .and(hasSuperType(declaresMethod(named("runTask"))))))),
-        getClass().getName() + "$Run");
+    ElementMatcher.Junction<MethodDescription> runMatcher = isMethod().and(named("run"));
+    if (InstrumenterConfig.get().isIntegrationEnabled(singleton("netty-concurrent"), true)) {
+      // Netty 4.1.44+ separates delayed scheduling in run() from execution in runTask().
+      runMatcher =
+          runMatcher.and(
+              not(
+                  isDeclaredBy(
+                      nameEndsWith(".netty.util.concurrent.ScheduledFutureTask")
+                          .and(hasSuperType(declaresMethod(named("runTask")))))));
+    }
+    transformer.applyAdvice(runMatcher, getClass().getName() + "$Run");
     transformer.applyAdvice(
         isMethod().and(namedOneOf("cancel", "set", "setException")),
         getClass().getName() + "$Cancel");

@@ -21,10 +21,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
 
 /**
- * The Netty instrumentation matches {@code ScheduledFutureTask} by the {@code
- * .netty.util.concurrent.ScheduledFutureTask} class-name suffix so it also covers shaded Netty
- * copies. This verifies context propagation through a delayed task on grpc-netty-shaded's
- * (relocated) {@code DefaultEventExecutorGroup}.
+ * The Netty instrumentation matches {@code PromiseTask} by the {@code
+ * .netty.util.concurrent.PromiseTask} class-name suffix so it also covers shaded Netty copies. This
+ * verifies context propagation through a delayed task on grpc-netty-shaded's relocated {@code
+ * DefaultEventExecutorGroup}.
  */
 class GrpcShadedNettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumentationTest {
   @Test
