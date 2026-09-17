@@ -74,10 +74,11 @@ public final class ValkeyInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
         @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
-      DECORATE.onError(spanFromScope(scope), throwable);
-      DECORATE.beforeFinish(spanFromScope(scope));
+      AgentSpan span = spanFromScope(scope);
+      DECORATE.onError(span, throwable);
+      DECORATE.beforeFinish(span);
       scope.close();
-      spanFromScope(scope).finish();
+      span.finish();
     }
   }
 }

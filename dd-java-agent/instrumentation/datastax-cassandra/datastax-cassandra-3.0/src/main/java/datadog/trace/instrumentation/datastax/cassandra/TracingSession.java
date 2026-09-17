@@ -79,15 +79,16 @@ public class TracingSession implements Session {
   @Override
   public ResultSet execute(final String query) {
     try (final ContextScope scope = startSpanWithScope(query)) {
+      final AgentSpan span = spanFromScope(scope);
       try {
         final ResultSet resultSet = session.execute(query);
-        beforeSpanFinish(spanFromScope(scope), resultSet);
+        beforeSpanFinish(span, resultSet);
         return resultSet;
       } catch (final RuntimeException e) {
-        beforeSpanFinish(spanFromScope(scope), e);
+        beforeSpanFinish(span, e);
         throw e;
       } finally {
-        spanFromScope(scope).finish();
+        span.finish();
       }
     }
   }
@@ -95,15 +96,16 @@ public class TracingSession implements Session {
   @Override
   public ResultSet execute(final String query, final Object... values) {
     try (final ContextScope scope = startSpanWithScope(query)) {
+      final AgentSpan span = spanFromScope(scope);
       try {
         final ResultSet resultSet = session.execute(query, values);
-        beforeSpanFinish(spanFromScope(scope), resultSet);
+        beforeSpanFinish(span, resultSet);
         return resultSet;
       } catch (final RuntimeException e) {
-        beforeSpanFinish(spanFromScope(scope), e);
+        beforeSpanFinish(span, e);
         throw e;
       } finally {
-        spanFromScope(scope).finish();
+        span.finish();
       }
     }
   }
@@ -111,15 +113,16 @@ public class TracingSession implements Session {
   @Override
   public ResultSet execute(final String query, final Map<String, Object> values) {
     try (final ContextScope scope = startSpanWithScope(query)) {
+      final AgentSpan span = spanFromScope(scope);
       try {
         final ResultSet resultSet = session.execute(query, values);
-        beforeSpanFinish(spanFromScope(scope), resultSet);
+        beforeSpanFinish(span, resultSet);
         return resultSet;
       } catch (final RuntimeException e) {
-        beforeSpanFinish(spanFromScope(scope), e);
+        beforeSpanFinish(span, e);
         throw e;
       } finally {
-        spanFromScope(scope).finish();
+        span.finish();
       }
     }
   }
@@ -128,15 +131,16 @@ public class TracingSession implements Session {
   public ResultSet execute(final Statement statement) {
     final String query = getQuery(statement);
     try (final ContextScope scope = startSpanWithScope(query)) {
+      final AgentSpan span = spanFromScope(scope);
       try {
         final ResultSet resultSet = session.execute(statement);
-        beforeSpanFinish(spanFromScope(scope), resultSet);
+        beforeSpanFinish(span, resultSet);
         return resultSet;
       } catch (final RuntimeException e) {
-        beforeSpanFinish(spanFromScope(scope), e);
+        beforeSpanFinish(span, e);
         throw e;
       } finally {
-        spanFromScope(scope).finish();
+        span.finish();
       }
     }
   }

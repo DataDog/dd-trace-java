@@ -137,10 +137,11 @@ public final class IgniteCacheSyncInstrumentation extends AbstractIgniteCacheIns
         return;
       }
 
-      DECORATE.onError(spanFromScope(scope), throwable);
-      DECORATE.beforeFinish(spanFromScope(scope));
+      AgentSpan span = spanFromScope(scope);
+      DECORATE.onError(span, throwable);
+      DECORATE.beforeFinish(span);
       scope.close();
-      spanFromScope(scope).finish();
+      span.finish();
       CallDepthThreadLocalMap.reset(IgniteCache.class); // reset call depth count
     }
   }
@@ -174,10 +175,11 @@ public final class IgniteCacheSyncInstrumentation extends AbstractIgniteCacheIns
         return;
       }
 
-      DECORATE.onError(spanFromScope(scope), throwable);
-      DECORATE.beforeFinish(spanFromScope(scope));
+      AgentSpan span = spanFromScope(scope);
+      DECORATE.onError(span, throwable);
+      DECORATE.beforeFinish(span);
       scope.close();
-      spanFromScope(scope).finish();
+      span.finish();
       CallDepthThreadLocalMap.reset(IgniteCache.class); // reset call depth count
     }
   }

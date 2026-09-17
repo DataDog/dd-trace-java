@@ -96,7 +96,7 @@ public final class JaxRsClientV1Instrumentation extends InstrumenterModule.Traci
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);
       scope.close();
-      spanFromScope(scope).finish();
+      span.finish();
     }
   }
 

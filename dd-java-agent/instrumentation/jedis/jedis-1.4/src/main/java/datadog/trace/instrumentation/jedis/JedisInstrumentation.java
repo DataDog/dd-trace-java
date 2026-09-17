@@ -81,10 +81,11 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
         return;
       }
       CallDepthThreadLocalMap.reset(Connection.class);
-      DECORATE.onError(spanFromScope(scope), throwable);
-      DECORATE.beforeFinish(spanFromScope(scope));
+      AgentSpan span = spanFromScope(scope);
+      DECORATE.onError(span, throwable);
+      DECORATE.beforeFinish(span);
       scope.close();
-      spanFromScope(scope).finish();
+      span.finish();
     }
   }
 }

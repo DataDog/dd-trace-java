@@ -110,7 +110,7 @@ public final class JaxRsAnnotationsInstrumentation extends InstrumenterModule.Tr
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);
       scope.close();
-      spanFromScope(scope).finish();
+      span.finish();
     }
   }
 }

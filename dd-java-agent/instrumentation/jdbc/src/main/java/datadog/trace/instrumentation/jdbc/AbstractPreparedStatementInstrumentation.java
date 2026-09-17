@@ -131,10 +131,11 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
       if (scope == null) {
         return;
       }
-      DECORATE.onError(spanFromScope(scope), throwable);
-      DECORATE.beforeFinish(spanFromScope(scope));
+      AgentSpan span = spanFromScope(scope);
+      DECORATE.onError(span, throwable);
+      DECORATE.beforeFinish(span);
       scope.close();
-      spanFromScope(scope).finish();
+      span.finish();
     }
   }
 }

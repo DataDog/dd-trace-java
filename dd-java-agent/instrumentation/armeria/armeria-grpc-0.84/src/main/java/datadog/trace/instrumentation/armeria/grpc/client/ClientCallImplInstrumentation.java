@@ -212,9 +212,10 @@ public final class ClientCallImplInstrumentation
     public static void closeObserver(
         @Advice.Enter ContextScope scope, @Advice.Argument(0) Status status) {
       if (null != scope) {
-        DECORATE.onClose(spanFromScope(scope), status);
+        AgentSpan span = spanFromScope(scope);
+        DECORATE.onClose(span, status);
         scope.close();
-        spanFromScope(scope).finish();
+        span.finish();
       }
     }
   }
