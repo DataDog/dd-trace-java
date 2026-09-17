@@ -166,7 +166,7 @@ class HttpMessageConverterInstrumentationTest extends InstrumentationSpecificati
     converter.read(MultiValueMap, message)
 
     then:
-    thrown(BlockingException)
+    notThrown(BlockingException)
     appSecContext.blockFailureReported == true
 
     cleanup:
@@ -202,7 +202,7 @@ class HttpMessageConverterInstrumentationTest extends InstrumentationSpecificati
     converter.write('example', MediaType.TEXT_PLAIN, message)
 
     then:
-    thrown(BlockingException)
+    notThrown(BlockingException)
     appSecContext.blockFailureReported == true
 
     cleanup:
