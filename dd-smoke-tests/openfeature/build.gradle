@@ -1,9 +1,29 @@
+import datadog.buildlogic.smoketest.NestedGradleBuild
+import org.gradle.process.CommandLineArgumentProvider
+
 plugins {
   id 'dd-trace-java.smoke-test-app'
   id 'dd-trace-java.module.smoke-test'
 }
 
 description = 'Open Feature provider Smoke Tests.'
+
+def minimumSupportedOpenFeatureSdkVersion = '1.20.1'
+def latestOpenFeatureSdkVersion = '+'
+def minimumSupportedAgentVersion = '1.65.0'
+
+configurations {
+  register('developmentProvider') {
+    canBeConsumed = false
+    canBeResolved = true
+    transitive = false
+  }
+  register('minimumSupportedAgent') {
+    canBeConsumed = false
+    canBeResolved = true
+    transitive = false
+  }
+}
 
 testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_11
@@ -21,6 +41,118 @@ smokeTestApp {
 dependencies {
   testImplementation project(':dd-smoke-tests')
   testImplementation project(':products:feature-flagging:feature-flagging-lib')
+
+  developmentProvider project(':products:feature-flagging:feature-flagging-api')
+  minimumSupportedAgent "com.datadoghq:dd-java-agent:${minimumSupportedAgentVersion}"
+}
+
+def developmentProviderJar = configurations.developmentProvider.elements.map { files ->
+  objects.fileProperty().fileValue(files.iterator().next().asFile).get()
+}
+
+def registerCompatibilityApp = { String name, String providerVersion, String sdkVersion ->
+  def appBuildDir = layout.buildDirectory.dir("application-${name}")
+  def appTask = tasks.register("${name}App", NestedGradleBuild) {
+    applicationDir = layout.projectDirectory.dir('application')
+    applicationBuildDir = appBuildDir
+    tasksToRun = ['bootJar']
+    buildArguments.add("-PopenFeatureSdkVersion=${sdkVersion}")
+    if (providerVersion == null) {
+      projectJar('featureFlaggingApiJar', developmentProviderJar)
+    } else {
+      buildArguments.add("-PddOpenFeatureVersion=${providerVersion}")
+    }
+  }
+  return [
+    task: appTask,
+    jar: appBuildDir.map {
+      it.file('libs/openfeature-smoketest.jar')
+    }
+  ]
+}
+
+def registerCompatibilityTest = { String name, Map app, Configuration agent, String testClass ->
+  tasks.register(name, Test) {
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    description = "Runs the OpenFeature smoke suite with ${name - 'Test'}."
+    useJUnitPlatform()
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    include "**/${testClass}.*"
+    dependsOn app.task
+    inputs.file(app.jar)
+    if (agent != null) {
+      inputs.files(agent)
+    }
+    jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+        @Override
+        Iterable<String> asArguments() {
+          final arguments = [
+            "-Ddatadog.smoketest.openfeature.application.path=${app.jar.get().asFile.absolutePath}"
+          ]
+          if (agent != null) {
+            arguments.add("-Ddatadog.smoketest.openfeature.agent.path=${agent.singleFile.absolutePath}")
+          }
+          return arguments
+        }
+      })
+  }
+}
+
+tasks.named('test', Test) {
+  exclude '**/OpenFeatureCompatibilitySmokeTest.*'
+}
+
+def minimumSdkApp = registerCompatibilityApp(
+  'minimumSdk',
+  null,
+  minimumSupportedOpenFeatureSdkVersion
+  )
+def latestSdkMinimumAgentApp = registerCompatibilityApp(
+  'latestSdkMinimumAgent',
+  // Keep the provider aligned with the minimum agent's internal API.
+  minimumSupportedAgentVersion,
+  latestOpenFeatureSdkVersion
+  )
+def latestDevelopmentVersionsApp = registerCompatibilityApp(
+  'latestDevelopmentVersions',
+  null,
+  latestOpenFeatureSdkVersion
+  )
+
+def minimumSdkLatestAgentTest = registerCompatibilityTest(
+  'minimumSdkLatestAgentTest',
+  minimumSdkApp,
+  null,
+  'OpenFeatureCompatibilitySmokeTest'
+  )
+def latestSdkMinimumAgentTest = registerCompatibilityTest(
+  'latestSdkMinimumAgentTest',
+  latestSdkMinimumAgentApp,
+  configurations.minimumSupportedAgent,
+  'OpenFeatureCompatibilitySmokeTest'
+  )
+def latestDevelopmentVersionsTest = registerCompatibilityTest(
+  'latestDevelopmentVersionsTest',
+  latestDevelopmentVersionsApp,
+  null,
+  'OpenFeatureProviderSmokeTest'
+  )
+
+minimumSdkLatestAgentTest.configure {
+  mustRunAfter tasks.named('test')
+}
+latestSdkMinimumAgentTest.configure {
+  mustRunAfter minimumSdkLatestAgentTest
+}
+latestDevelopmentVersionsTest.configure {
+  mustRunAfter latestSdkMinimumAgentTest
+}
+
+tasks.register('openFeatureCompatibilityTest') {
+  group = LifecycleBasePlugin.VERIFICATION_GROUP
+  description = 'Tests supported OpenFeature SDK versions with minimum and development agents.'
+  dependsOn minimumSdkLatestAgentTest, latestSdkMinimumAgentTest, latestDevelopmentVersionsTest
 }
 
 spotless {
