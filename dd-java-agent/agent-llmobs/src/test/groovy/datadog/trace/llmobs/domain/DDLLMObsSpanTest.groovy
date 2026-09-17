@@ -702,7 +702,7 @@ class DDLLMObsSpanTest  extends DDSpecification{
     setup:
     def expectedSessionId = "session-abc-123"
     def parent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "parent-workflow", expectedSessionId)
-    // Activate the parent's AgentScope so the child span is created in the same trace.
+    // Activate the parent's ContextScope so the child span is created in the same trace.
     // Without this, the child gets a fresh trace_id and the trace-consistency gate in
     // DDLLMObsSpan would (correctly) skip session_id inheritance.
     def parentScope = AgentTracer.activateSpan((AgentSpan) parent.span)
@@ -741,7 +741,7 @@ class DDLLMObsSpanTest  extends DDSpecification{
     setup:
     def expectedSessionId = "session-grandparent-xyz"
     def grandparent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "grandparent-workflow", expectedSessionId)
-    // Activate each ancestor's AgentScope so descendants stay in the same trace —
+    // Activate each ancestor's ContextScope so descendants stay in the same trace —
     // session_id inheritance is gated on trace-id consistency in DDLLMObsSpan.
     def grandparentScope = AgentTracer.activateSpan((AgentSpan) grandparent.span)
     def parent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "parent-workflow", null)
@@ -767,7 +767,7 @@ class DDLLMObsSpanTest  extends DDSpecification{
   def "child does NOT inherit session_id when stale LLMObsContext is from a different trace (e.g. async boundary leak)"() {
     setup:
     // Simulates a stale LLMObsContext (e.g. leaked across an async boundary). The parent's
-    // LLMObsContext is attached, but its AgentScope is deliberately NOT activated — so the
+    // LLMObsContext is attached, but its ContextScope is deliberately NOT activated — so the
     // next span we create starts a fresh trace and the trace-consistency gate must skip
     // session_id inheritance.
     def parent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "stale-workflow", "stale-session-id")
