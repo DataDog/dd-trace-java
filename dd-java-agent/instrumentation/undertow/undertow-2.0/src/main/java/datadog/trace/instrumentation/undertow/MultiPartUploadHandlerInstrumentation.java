@@ -67,6 +67,7 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class ParseBlockingAdvice {
+
     @Advice.OnMethodEnter(suppress = Throwable.class)
     static boolean onEnter(@Advice.FieldValue("exchange") HttpServerExchange exchange) {
       return exchange.getAttachment(FORM_DATA) == null;
@@ -104,7 +105,8 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
           Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
           BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
           if (blockResponseFunction != null) {
-            boolean success = blockResponseFunction.tryCommitBlockingResponse(reqCtx, rba);
+            boolean success =
+                FormDataContentHelper.tryCommitBlockingResponse(blockResponseFunction, reqCtx, rba);
             if (success && t == null) {
               t =
                   new BlockingException(
@@ -132,7 +134,7 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
                 (Flow.Action.RequestBlockingAction) filenamesAction;
             BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
             if (brf != null && t == null) {
-              boolean success = brf.tryCommitBlockingResponse(reqCtx, rba);
+              boolean success = FormDataContentHelper.tryCommitBlockingResponse(brf, reqCtx, rba);
               if (success) {
                 t = new BlockingException("Blocked request (multipart file upload)");
               }
@@ -151,7 +153,7 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
                 (Flow.Action.RequestBlockingAction) contentAction;
             BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
             if (brf != null && t == null) {
-              boolean success = brf.tryCommitBlockingResponse(reqCtx, rba);
+              boolean success = FormDataContentHelper.tryCommitBlockingResponse(brf, reqCtx, rba);
               if (success) {
                 t = new BlockingException("Blocked request (multipart file upload content)");
               }

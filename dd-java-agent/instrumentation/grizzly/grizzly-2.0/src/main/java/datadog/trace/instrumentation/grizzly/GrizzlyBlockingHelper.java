@@ -91,6 +91,11 @@ public class GrizzlyBlockingHelper {
       }
       os.close();
       response.finish();
+
+      if (span != null) {
+        span.getRequestContext().getTraceSegment().effectivelyBlocked();
+      }
+      SpanClosingListener.LISTENER.onAfterService(request);
     } catch (Throwable e) {
       log.info("Error committing blocking response", e);
       if (span != null) {
@@ -109,11 +114,6 @@ public class GrizzlyBlockingHelper {
       }
       return true;
     }
-
-    if (span != null) {
-      span.getRequestContext().getTraceSegment().effectivelyBlocked();
-    }
-    SpanClosingListener.LISTENER.onAfterService(request);
 
     return true;
   }
