@@ -78,6 +78,7 @@ junit_upload() {
         custom_tags_args+=(--tags "test.configuration.job_name:${job_base_name}")
     fi
 
+    # The commit message must contain the exact, case-sensitive token [ci: DEBUG_LOGS].
     if [[ "${CI_COMMIT_MESSAGE:-}" == *"[ci: DEBUG_LOGS]"* ]]; then
         DD_CIVISIBILITY_LOGS_ENABLED=true
     fi
