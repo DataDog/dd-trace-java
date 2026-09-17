@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.okhttp2;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -13,7 +12,6 @@ import static org.mockito.Mockito.when;
 import com.squareup.okhttp.Request;
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.appsec.api.blocking.BlockingException;
-import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.appsec.HttpClientRequest;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -29,7 +27,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Covers the {@code AppSecInterceptor.publish() -> AppSecContext.reportBlockFailure()} path, driven
+ * Covers the wiring between {@code AppSecInterceptor.publish()} and {@link
+ * BlockResponseFunction#tryCommitBlockingResponse(RequestContext,
+ * Flow.Action.RequestBlockingAction)}, which is the method that reports block failures. Driven
  * through the public {@code onRequest()} entry point, which always ends in a {@link
  * BlockingException} when the callback returns a blocking flow.
  */
@@ -42,15 +42,13 @@ class AppSecInterceptorBlockFailureTest {
 
   private Request request;
   private RequestContext ctx;
-  private TraceSegment traceSegment;
   private AgentSpan span;
 
   @BeforeEach
   void setup() {
     request = new Request.Builder().url("http://example.com").build();
-    traceSegment = mock(TraceSegment.class);
     ctx = mock(RequestContext.class);
-    when(ctx.getTraceSegment()).thenReturn(traceSegment);
+    when(ctx.getTraceSegment()).thenReturn(mock(TraceSegment.class));
 
     span = mock(AgentSpan.class);
     when(span.getRequestContext()).thenReturn(ctx);
@@ -72,40 +70,13 @@ class AppSecInterceptorBlockFailureTest {
   }
 
   @Test
-  void reportsBlockFailureWhenBlockingResponseCannotBeCommitted() {
-    final BlockResponseFunction brf = blockResponseFunction(false);
-    final AppSecContext appSecCtx = mock(AppSecContext.class);
-    doReturn(appSecCtx).when(ctx).getData(RequestContextSlot.APPSEC);
+  void commitsBlockingResponseWithTheRequestContext() {
+    final BlockResponseFunction brf = mock(BlockResponseFunction.class);
+    when(ctx.getBlockResponseFunction()).thenReturn(brf);
 
     assertThrows(BlockingException.class, this::onRequest);
 
-    verify(brf, times(1)).tryCommitBlockingResponse(traceSegment, RBA);
-    verify(appSecCtx, times(1)).reportBlockFailure();
-  }
-
-  @Test
-  void doesNotReportBlockFailureWhenBlockingResponseIsCommitted() {
-    final BlockResponseFunction brf = blockResponseFunction(true);
-
-    assertThrows(BlockingException.class, this::onRequest);
-
-    verify(brf, times(1)).tryCommitBlockingResponse(traceSegment, RBA);
-    verify(ctx, never()).getData(any(RequestContextSlot.class));
-  }
-
-  @Test
-  void doesNotThrowWhenAppSecSlotDoesNotHoldAnAppSecContext() {
-    final BlockResponseFunction brf = blockResponseFunction(false);
-
-    // null in the AppSec slot
-    doReturn(null).when(ctx).getData(RequestContextSlot.APPSEC);
-    assertThrows(BlockingException.class, this::onRequest);
-
-    // a foreign object in the AppSec slot
-    doReturn("not an AppSecContext").when(ctx).getData(RequestContextSlot.APPSEC);
-    assertThrows(BlockingException.class, this::onRequest);
-
-    verify(brf, times(2)).tryCommitBlockingResponse(traceSegment, RBA);
+    verify(brf, times(1)).tryCommitBlockingResponse(ctx, RBA);
   }
 
   @Test
@@ -119,13 +90,6 @@ class AppSecInterceptorBlockFailureTest {
 
   private void onRequest() {
     AppSecInterceptor.onRequest(span, false, "http://example.com", request);
-  }
-
-  private BlockResponseFunction blockResponseFunction(final boolean committed) {
-    final BlockResponseFunction brf = mock(BlockResponseFunction.class);
-    when(brf.tryCommitBlockingResponse(traceSegment, RBA)).thenReturn(committed);
-    when(ctx.getBlockResponseFunction()).thenReturn(brf);
-    return brf;
   }
 
   private static Flow<Void> blockingFlow() {

@@ -107,9 +107,9 @@ class ServletFileUploadInstrumentationTest extends InstrumentationSpecification 
     1 * module.taintObject(iastCtx, _ as FileItemIterator, SourceTypes.REQUEST_MULTIPART_PARAMETER)
   }
 
-  void 'test appsec reports block failure when the filenames blocking response cannot be committed'() {
+  void 'test appsec commits the filenames blocking response with the request context'() {
     given:
-    final appSecCtx = Mock(AppSecContext)
+    final appSecCtx = Stub(AppSecContext)
     final brf = Mock(BlockResponseFunction)
     appSecSubscriptionService.registerCallback(EVENTS.requestFilesFilenames(), { RequestContext reqCtx, List<String> filenames ->
       blockingFlow()
@@ -121,13 +121,12 @@ class ServletFileUploadInstrumentationTest extends InstrumentationSpecification 
 
     then:
     thrown(BlockingException)
-    1 * brf.tryCommitBlockingResponse(_, _) >> false
-    1 * appSecCtx.reportBlockFailure()
+    1 * brf.tryCommitBlockingResponse(_ as RequestContext, _ as Flow.Action.RequestBlockingAction) >> true
   }
 
-  void 'test appsec reports block failure when the file content blocking response cannot be committed'() {
+  void 'test appsec commits the file content blocking response with the request context'() {
     given:
-    final appSecCtx = Mock(AppSecContext)
+    final appSecCtx = Stub(AppSecContext)
     final brf = Mock(BlockResponseFunction)
     appSecSubscriptionService.registerCallback(EVENTS.requestFilesContent(), { RequestContext reqCtx, List<String> contents ->
       blockingFlow()
@@ -139,26 +138,7 @@ class ServletFileUploadInstrumentationTest extends InstrumentationSpecification 
 
     then:
     thrown(BlockingException)
-    1 * brf.tryCommitBlockingResponse(_, _) >> false
-    1 * appSecCtx.reportBlockFailure()
-  }
-
-  void 'test appsec does not report block failure when the blocking response is committed'() {
-    given:
-    final appSecCtx = Mock(AppSecContext)
-    final brf = Mock(BlockResponseFunction)
-    appSecSubscriptionService.registerCallback(EVENTS.requestFilesFilenames(), { RequestContext reqCtx, List<String> filenames ->
-      blockingFlow()
-    } as BiFunction<RequestContext, List<String>, Flow<Void>>)
-    final servletFileUpload = new ServletFileUpload(new DiskFileItemFactory())
-
-    when:
-    runUnderAppSecTrace(appSecCtx, brf) { servletFileUpload.parseRequest(multipartRequest()) }
-
-    then:
-    thrown(BlockingException)
-    1 * brf.tryCommitBlockingResponse(_, _) >> true
-    0 * appSecCtx.reportBlockFailure()
+    1 * brf.tryCommitBlockingResponse(_ as RequestContext, _ as Flow.Action.RequestBlockingAction) >> true
   }
 
   private static MockHttpServletRequest multipartRequest() {
