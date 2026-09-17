@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.armeria.grpc.client.GrpcClientDecorator.COMPONENT_NAME;
 import static datadog.trace.instrumentation.armeria.grpc.client.GrpcClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.armeria.grpc.client.GrpcClientDecorator.GRPC_MESSAGE;
@@ -16,11 +17,11 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.grpc.ClientCall;
 import io.grpc.Metadata;
@@ -102,7 +103,7 @@ public final class ClientCallImplInstrumentation
 
   public static final class Start {
     @Advice.OnMethodEnter
-    public static <T> AgentScope before(
+    public static <T> ContextScope before(
         @Advice.This ClientCall<?, ?> call,
         @Advice.Argument(0) ClientCall.Listener<T> responseListener,
         @Advice.Argument(1) Metadata headers,
@@ -118,7 +119,7 @@ public final class ClientCallImplInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void after(
-        @Advice.Enter AgentScope scope,
+        @Advice.Enter ContextScope scope,
         @Advice.Thrown Throwable error,
         @Advice.Local("$$ddSpan") AgentSpan span)
         throws Throwable {
@@ -146,7 +147,7 @@ public final class ClientCallImplInstrumentation
 
   public static final class ActivateSpan {
     @Advice.OnMethodEnter
-    public static AgentScope before(@Advice.This ClientCall<?, ?> call) {
+    public static ContextScope before(@Advice.This ClientCall<?, ?> call) {
       AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
       if (null != span) {
         return activateSpan(span);
@@ -155,7 +156,7 @@ public final class ClientCallImplInstrumentation
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter AgentScope scope) {
+    public static void after(@Advice.Enter ContextScope scope) {
       if (null != scope) {
         scope.close();
       }
@@ -164,7 +165,7 @@ public final class ClientCallImplInstrumentation
 
   public static final class SendMessage {
     @Advice.OnMethodEnter
-    public static AgentScope before(@Advice.This ClientCall<?, ?> call) {
+    public static ContextScope before(@Advice.This ClientCall<?, ?> call) {
       // could create a message span here for the request
       AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
       if (span != null) {
@@ -174,7 +175,7 @@ public final class ClientCallImplInstrumentation
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter AgentScope scope) {
+    public static void after(@Advice.Enter ContextScope scope) {
       if (null != scope) {
         scope.close();
       }
@@ -199,7 +200,7 @@ public final class ClientCallImplInstrumentation
 
   public static final class CloseObserver {
     @Advice.OnMethodEnter
-    public static AgentScope before(@Advice.This ClientCall<?, ?> call) {
+    public static ContextScope before(@Advice.This ClientCall<?, ?> call) {
       AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
       if (span != null) {
         return activateSpan(span);
@@ -209,11 +210,11 @@ public final class ClientCallImplInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void closeObserver(
-        @Advice.Enter AgentScope scope, @Advice.Argument(0) Status status) {
+        @Advice.Enter ContextScope scope, @Advice.Argument(0) Status status) {
       if (null != scope) {
-        DECORATE.onClose(scope.span(), status);
+        DECORATE.onClose(spanFromScope(scope), status);
         scope.close();
-        scope.span().finish();
+        spanFromScope(scope).finish();
       }
     }
   }
@@ -225,7 +226,7 @@ public final class ClientCallImplInstrumentation
    */
   public static final class CloseObserverWithCause {
     @Advice.OnMethodEnter
-    public static AgentScope before(@Advice.This ClientCall<?, ?> call) {
+    public static ContextScope before(@Advice.This ClientCall<?, ?> call) {
       AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
       if (span != null) {
         return activateSpan(span);
@@ -236,7 +237,7 @@ public final class ClientCallImplInstrumentation
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void closeObserver(
         @Advice.This ClientCall<?, ?> call,
-        @Advice.Enter AgentScope scope,
+        @Advice.Enter ContextScope scope,
         @Advice.Argument(0) Status status,
         @Advice.FieldValue("closed") boolean closed) {
       if (null != scope) {
@@ -257,7 +258,7 @@ public final class ClientCallImplInstrumentation
 
   public static final class ReceiveMessages {
     @Advice.OnMethodEnter
-    public static AgentScope before() {
+    public static ContextScope before() {
       AgentSpan clientSpan = activeSpan();
       if (clientSpan != null && OPERATION_NAME.equals(clientSpan.getOperationName())) {
         AgentSpan messageSpan =
@@ -270,10 +271,10 @@ public final class ClientCallImplInstrumentation
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter AgentScope scope) {
+    public static void after(@Advice.Enter ContextScope scope) {
       if (null != scope) {
         scope.close();
-        scope.span().finish();
+        spanFromScope(scope).finish();
       }
     }
   }

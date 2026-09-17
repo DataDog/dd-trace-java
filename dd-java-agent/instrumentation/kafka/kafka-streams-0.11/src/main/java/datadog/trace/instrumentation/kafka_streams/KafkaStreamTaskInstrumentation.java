@@ -11,6 +11,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
 import static datadog.trace.instrumentation.kafka_common.Utils.computePayloadSizeBytes;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.BROKER_DECORATE;
@@ -42,7 +43,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.instrumentation.kafka_clients.TracingIterableDelegator;
@@ -316,7 +316,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
 
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onConsume(span, record, node);
-      AgentScope agentScope = activateSpan(span);
+      ContextScope agentScope = activateSpan(span);
       if (null != queueSpan) {
         queueSpan.finish();
       }
@@ -388,7 +388,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
 
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onConsume(span, record, node);
-      AgentScope agentScope = activateSpan(span);
+      ContextScope agentScope = activateSpan(span);
       if (null != queueSpan) {
         queueSpan.finish();
       }
@@ -410,9 +410,9 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       StreamTaskContext streamTaskContext =
           InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
       if (streamTaskContext != null) {
-        AgentScope scope = streamTaskContext.getAgentScope();
+        ContextScope scope = streamTaskContext.getAgentScope();
         if (scope != null) {
-          AgentSpan span = scope.span();
+          AgentSpan span = spanFromScope(scope);
           CONSUMER_DECORATE.onError(span, throwable);
           CONSUMER_DECORATE.beforeFinish(span);
           scope.close();

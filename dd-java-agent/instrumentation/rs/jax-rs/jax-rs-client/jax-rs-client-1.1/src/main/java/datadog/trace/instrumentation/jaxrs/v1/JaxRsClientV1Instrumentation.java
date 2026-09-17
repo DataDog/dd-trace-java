@@ -7,6 +7,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.jaxrs.v1.InjectAdapter.SETTER;
 import static datadog.trace.instrumentation.jaxrs.v1.JaxRsClientV1Decorator.DECORATE;
@@ -19,10 +20,10 @@ import com.google.auto.service.AutoService;
 import com.sun.jersey.api.client.ClientHandler;
 import com.sun.jersey.api.client.ClientRequest;
 import com.sun.jersey.api.client.ClientResponse;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -66,7 +67,7 @@ public final class JaxRsClientV1Instrumentation extends InstrumenterModule.Traci
   public static class HandleAdvice {
 
     @Advice.OnMethodEnter
-    public static AgentScope onEnter(
+    public static ContextScope onEnter(
         @Advice.Argument(value = 0) final ClientRequest request,
         @Advice.This final ClientHandler thisObj) {
 
@@ -84,18 +85,18 @@ public final class JaxRsClientV1Instrumentation extends InstrumenterModule.Traci
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Return final ClientResponse response,
         @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
       }
-      final AgentSpan span = scope.span();
+      final AgentSpan span = spanFromScope(scope);
       DECORATE.onResponse(span, response);
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);
       scope.close();
-      scope.span().finish();
+      spanFromScope(scope).finish();
     }
   }
 

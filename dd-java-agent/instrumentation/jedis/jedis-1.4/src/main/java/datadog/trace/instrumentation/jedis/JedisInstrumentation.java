@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.jedis.JedisClientDecorator.COMPONENT_NAME;
 import static datadog.trace.instrumentation.jedis.JedisClientDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -11,10 +12,10 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -60,7 +61,7 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
   public static class JedisAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(
+    public static ContextScope onEnter(
         @Advice.Argument(0) final Command command, @Advice.This final Connection thiz) {
       if (CallDepthThreadLocalMap.incrementCallDepth(Connection.class) > 0) {
         return null;
@@ -75,15 +76,15 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
       }
       CallDepthThreadLocalMap.reset(Connection.class);
-      DECORATE.onError(scope.span(), throwable);
-      DECORATE.beforeFinish(scope.span());
+      DECORATE.onError(spanFromScope(scope), throwable);
+      DECORATE.beforeFinish(spanFromScope(scope));
       scope.close();
-      scope.span().finish();
+      spanFromScope(scope).finish();
     }
   }
 }

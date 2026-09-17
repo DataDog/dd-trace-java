@@ -12,10 +12,10 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
+import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.context.TraceScope;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -69,7 +69,7 @@ public final class AwsHttpClientInstrumentation
      * stored in channel attributes.
      */
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static TraceScope methodEnter(
+    public static ContextScope methodEnter(
         @Advice.This final Object thiz,
         @Advice.Argument(1) final RequestExecutionContext requestExecutionContext) {
       final AgentSpan activeSpan = activeSpan();
@@ -84,14 +84,24 @@ public final class AwsHttpClientInstrumentation
           closeActive(); // then drop-through and activate no-op span
         } else {
           // keep sync legacy HTTP span alive for duration of call
-          return AgentTracer::closeActive;
+          return new ContextScope() {
+            @Override
+            public Context context() {
+              return activeSpan;
+            }
+
+            @Override
+            public void close() {
+              closeActive();
+            }
+          };
         }
       }
       return activateSpan(noopSpan());
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit(@Advice.Enter final TraceScope scope) {
+    public static void methodExit(@Advice.Enter final ContextScope scope) {
       scope.close();
     }
 
