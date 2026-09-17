@@ -91,11 +91,6 @@ public class GrizzlyBlockingHelper {
       }
       os.close();
       response.finish();
-
-      if (span != null) {
-        span.getRequestContext().getTraceSegment().effectivelyBlocked();
-      }
-      SpanClosingListener.LISTENER.onAfterService(request);
     } catch (Throwable e) {
       log.info("Error committing blocking response", e);
       if (span != null) {
@@ -113,6 +108,22 @@ public class GrizzlyBlockingHelper {
         span.finish();
       }
       return true;
+    }
+
+    try {
+      if (span != null) {
+        span.getRequestContext().getTraceSegment().effectivelyBlocked();
+      }
+      SpanClosingListener.LISTENER.onAfterService(request);
+    } catch (Throwable e) {
+      // the response was already committed successfully; this is a finalization error, not a
+      // commit failure, so it must not be reported as a block failure
+      log.info("Error finalizing blocked request", e);
+      if (span != null) {
+        DECORATE.onError(span, e);
+        DECORATE.beforeFinish(context);
+        span.finish();
+      }
     }
 
     return true;
