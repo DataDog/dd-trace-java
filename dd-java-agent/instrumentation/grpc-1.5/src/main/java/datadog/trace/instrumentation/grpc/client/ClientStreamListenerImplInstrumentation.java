@@ -41,7 +41,6 @@ public class ClientStreamListenerImplInstrumentation
   public static final class Construct {
     @Advice.OnMethodExit
     public static void capture(@Advice.This ClientStreamListener listener) {
-      // instrumentation of ClientCallImpl::start ensures this scope is present and valid
       AgentSpan span = activeSpan();
       if (null != span) {
         InstrumentationContext.get(ClientStreamListener.class, AgentSpan.class).put(listener, span);
@@ -66,11 +65,8 @@ public class ClientStreamListenerImplInstrumentation
   }
 
   public static final class RecordActivity {
-
     @Advice.OnMethodEnter
     public static AgentScope before(@Advice.This ClientStreamListener listener) {
-      // activate the span so serialisation work is accounted for, whichever thread the work is done
-      // on
       AgentSpan span =
           InstrumentationContext.get(ClientStreamListener.class, AgentSpan.class).get(listener);
       if (span != null) {
@@ -87,18 +83,9 @@ public class ClientStreamListenerImplInstrumentation
     }
   }
 
-  /*
-  A call to 'headersAvailable' is optional - meaning that it may not appear at all but if it appears
-  it will be followed by a call to `messageRead`. In order to properly cooperate with the `messageRead` instrumentation
-  we must make sure that when this method is finished the associated span is 'migrated' - such that `messageRead`
-  instrumentation can correctly 'resume' the span.
-   */
   public static final class RecordHeaders {
-
     @Advice.OnMethodEnter
     public static AgentScope before(@Advice.This ClientStreamListener listener) {
-      // activate the span so serialisation work is accounted for, whichever thread the work is done
-      // on
       AgentSpan span =
           InstrumentationContext.get(ClientStreamListener.class, AgentSpan.class).get(listener);
       if (span != null) {
