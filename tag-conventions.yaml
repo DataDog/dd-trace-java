@@ -151,4 +151,10 @@ mixins:
 #   a name (service does, for OpenTelemetry's service.name).
 # - Tags with no otel-name pass through under their Datadog name (RFC "retain"). A `# TODO(otel)` note
 #   marks a pending OpenTelemetry-team review of a mapping that is not yet a settled rename.
+# - db.statement/db.query.text is deliberately never re-exposed as a stored tag once consumed into
+#   resource.name, regardless of which alias set it -- the two names are equivalent for identity/id
+#   purposes, but the raw value (often unobfuscated SQL) is intentionally not retained. This is an
+#   open question (not yet resolved one way or the other): revisit only as a language-agnostic policy
+#   change (i.e. decide to start storing/exporting it in every tracer), not as a per-language or
+#   per-spelling special case.
 # ---------------------------------------------------------------------------
