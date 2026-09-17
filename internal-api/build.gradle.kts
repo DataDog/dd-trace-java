@@ -87,8 +87,6 @@ extra["excludedClassesCoverage"] = listOf(
   // Caused by empty 'default' interface method
   "datadog.trace.bootstrap.instrumentation.api.AgentPropagation",
   "datadog.trace.bootstrap.instrumentation.api.AgentPropagation.ContextVisitor",
-  "datadog.trace.bootstrap.instrumentation.api.AgentScope",
-  "datadog.trace.bootstrap.instrumentation.api.AgentScope.Continuation",
   "datadog.trace.bootstrap.instrumentation.api.AgentSpan",
   "datadog.trace.bootstrap.instrumentation.api.AgentSpanContext",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer",
