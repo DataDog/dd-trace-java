@@ -105,7 +105,6 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.bootstrap.instrumentation.api.InstrumentationTags",
   "datadog.trace.bootstrap.instrumentation.api.InternalContextKeys",
   "datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes",
-  "datadog.trace.bootstrap.instrumentation.api.NoopAgentScope",
   "datadog.trace.bootstrap.instrumentation.api.NoopAgentSpan",
   "datadog.trace.bootstrap.instrumentation.api.NoopContinuation",
   "datadog.trace.bootstrap.instrumentation.api.NoopScope",

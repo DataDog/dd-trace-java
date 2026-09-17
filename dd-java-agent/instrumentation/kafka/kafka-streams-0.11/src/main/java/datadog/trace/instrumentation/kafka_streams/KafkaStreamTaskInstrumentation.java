@@ -316,7 +316,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
 
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onConsume(span, record, node);
-      ContextScope agentScope = activateSpan(span);
+      ContextScope scope = activateSpan(span);
       if (null != queueSpan) {
         queueSpan.finish();
       }
@@ -324,7 +324,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       if (streamTaskContext == null) {
         streamTaskContext = new StreamTaskContext();
       }
-      streamTaskContext.setAgentScope(agentScope);
+      streamTaskContext.setScope(scope);
       InstrumentationContext.get(StreamTask.class, StreamTaskContext.class)
           .put(task, streamTaskContext);
     }
@@ -388,7 +388,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
 
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onConsume(span, record, node);
-      ContextScope agentScope = activateSpan(span);
+      ContextScope scope = activateSpan(span);
       if (null != queueSpan) {
         queueSpan.finish();
       }
@@ -396,7 +396,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       if (streamTaskContext == null) {
         streamTaskContext = new StreamTaskContext();
       }
-      streamTaskContext.setAgentScope(agentScope);
+      streamTaskContext.setScope(scope);
       InstrumentationContext.get(StreamTask.class, StreamTaskContext.class)
           .put(task, streamTaskContext);
     }
@@ -410,14 +410,14 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
       StreamTaskContext streamTaskContext =
           InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
       if (streamTaskContext != null) {
-        ContextScope scope = streamTaskContext.getAgentScope();
+        ContextScope scope = streamTaskContext.getScope();
         if (scope != null) {
           AgentSpan span = spanFromScope(scope);
           CONSUMER_DECORATE.onError(span, throwable);
           CONSUMER_DECORATE.beforeFinish(span);
           scope.close();
           span.finish();
-          streamTaskContext.setAgentScope(null);
+          streamTaskContext.setScope(null);
         }
       }
     }
