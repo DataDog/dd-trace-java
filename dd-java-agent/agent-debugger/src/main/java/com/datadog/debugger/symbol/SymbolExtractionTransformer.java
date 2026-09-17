@@ -1,11 +1,14 @@
 package com.datadog.debugger.symbol;
 
+import com.datadog.debugger.util.DebuggerInternalPackages;
 import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import datadog.trace.util.Strings;
 import java.lang.instrument.ClassFileTransformer;
 import java.security.ProtectionDomain;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static com.datadog.debugger.util.DebuggerInternalPackages.isDebuggerInternalClass;
 
 public class SymbolExtractionTransformer implements ClassFileTransformer {
 
@@ -31,8 +34,8 @@ public class SymbolExtractionTransformer implements ClassFileTransformer {
       return null;
     }
     try {
-      if (className.startsWith("com/datadog/debugger/symbol/")) {
-        // Don't parse our own classes to avoid duplicate class definition
+      if (isDebuggerInternalClass(className)) {
+        // Don't parse debugger-internal classes to avoid duplicate class definition
         return null;
       }
       if (classNameFiltering.isExcluded(Strings.getClassName(className))) {
