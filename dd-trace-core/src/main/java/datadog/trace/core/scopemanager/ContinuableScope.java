@@ -123,7 +123,6 @@ class ContinuableScope implements AgentScope {
     return referenceCount > 0;
   }
 
-  @Override
   public final boolean isAsyncPropagating() {
     return asyncPropagating;
   }
@@ -138,7 +137,6 @@ class ContinuableScope implements AgentScope {
     return context;
   }
 
-  @Override
   public final void setAsyncPropagation(final boolean value) {
     asyncPropagating = value;
   }

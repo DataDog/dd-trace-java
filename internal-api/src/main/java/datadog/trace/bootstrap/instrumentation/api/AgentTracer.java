@@ -608,7 +608,7 @@ public class AgentTracer {
 
     @Override
     public TraceScope muteTracing() {
-      return NoopScope.INSTANCE;
+      return NoopTraceScope.INSTANCE;
     }
 
     @Override

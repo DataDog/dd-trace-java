@@ -1502,7 +1502,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   @Override
   public TraceScope muteTracing() {
-    return activateSpan(blackholeSpan());
+    return activateSpan(blackholeSpan())::close;
   }
 
   @Override
