@@ -67,6 +67,8 @@ To run tests on a different JVM than the one used for the build, you can specify
 * `-PtestJvm=X` like `-PtestJvm=8`, `-PtestJvm=25` to run with a specific JDK version,
 * `-PtestJvm=/path/to/jdk` to run with a given JDK,
 
+To also run CI tests on the additional vendor and pre-release JVMs, include the exact, case-sensitive `[ci: NON_DEFAULT_JVMS]` text in the commit message.
+
 ### Running System Tests
 
 The system tests are setup to run on continuous integration (CI) as pull request check using [a dedicated workflow]((https://github.com/DataDog/system-tests/blob/main/.github/workflows/system-tests.yml)).
