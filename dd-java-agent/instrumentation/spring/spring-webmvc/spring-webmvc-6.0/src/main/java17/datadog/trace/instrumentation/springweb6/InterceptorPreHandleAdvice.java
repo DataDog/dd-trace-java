@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.springweb6;
 import static datadog.trace.api.gateway.Events.EVENTS;
 
 import datadog.appsec.api.blocking.BlockingException;
-import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -67,12 +66,7 @@ public class InterceptorPreHandleAdvice {
             Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
             BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
             if (brf != null) {
-              if (!brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba)) {
-                Object rawAppSecCtx = reqCtx.getData(RequestContextSlot.APPSEC);
-                if (rawAppSecCtx instanceof AppSecContext) {
-                  ((AppSecContext) rawAppSecCtx).reportBlockFailure();
-                }
-              }
+              brf.tryCommitBlockingResponse(reqCtx, rba);
             }
             t =
                 new BlockingException(

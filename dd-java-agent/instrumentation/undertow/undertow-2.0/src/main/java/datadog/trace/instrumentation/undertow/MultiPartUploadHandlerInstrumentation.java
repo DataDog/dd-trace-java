@@ -14,7 +14,6 @@ import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -105,16 +104,7 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
           Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
           BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
           if (blockResponseFunction != null) {
-            boolean success =
-                blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-            if (!success) {
-              // NOTE: UndertowBlockResponseFunction currently always returns true; this branch is
-              // expected to be unreachable until that is fixed separately (tech-debt follow-up).
-              Object rawAppSecCtx = reqCtx.getData(RequestContextSlot.APPSEC);
-              if (rawAppSecCtx instanceof AppSecContext) {
-                ((AppSecContext) rawAppSecCtx).reportBlockFailure();
-              }
-            }
+            boolean success = blockResponseFunction.tryCommitBlockingResponse(reqCtx, rba);
             if (success && t == null) {
               t =
                   new BlockingException(
@@ -142,16 +132,7 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
                 (Flow.Action.RequestBlockingAction) filenamesAction;
             BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
             if (brf != null && t == null) {
-              boolean success = brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-              if (!success) {
-                // NOTE: UndertowBlockResponseFunction currently always returns true; this branch
-                // is expected to be unreachable until that is fixed separately (tech-debt
-                // follow-up).
-                Object rawAppSecCtx = reqCtx.getData(RequestContextSlot.APPSEC);
-                if (rawAppSecCtx instanceof AppSecContext) {
-                  ((AppSecContext) rawAppSecCtx).reportBlockFailure();
-                }
-              }
+              boolean success = brf.tryCommitBlockingResponse(reqCtx, rba);
               if (success) {
                 t = new BlockingException("Blocked request (multipart file upload)");
               }
@@ -170,16 +151,7 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
                 (Flow.Action.RequestBlockingAction) contentAction;
             BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
             if (brf != null && t == null) {
-              boolean success = brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-              if (!success) {
-                // NOTE: UndertowBlockResponseFunction currently always returns true; this branch
-                // is expected to be unreachable until that is fixed separately (tech-debt
-                // follow-up).
-                Object rawAppSecCtx = reqCtx.getData(RequestContextSlot.APPSEC);
-                if (rawAppSecCtx instanceof AppSecContext) {
-                  ((AppSecContext) rawAppSecCtx).reportBlockFailure();
-                }
-              }
+              boolean success = brf.tryCommitBlockingResponse(reqCtx, rba);
               if (success) {
                 t = new BlockingException("Blocked request (multipart file upload content)");
               }

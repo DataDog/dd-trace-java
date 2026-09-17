@@ -15,7 +15,6 @@ import akka.japi.JavaPartialFunction;
 import akka.stream.Materializer;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
-import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -616,21 +615,17 @@ public class UnmarshallerHelpers {
     if (brf == null) {
       return null;
     }
-    boolean success = brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+    // Conditional async-race gap (same class as netty-blocking.md §10/§11, but via
+    // Future.map/.recover/.thenApply on a Scala ExecutionContext instead of
+    // eventLoop().execute()): the block-failure report below is only guaranteed to run before
+    // GatewayBridge.onRequestEnded/end-of-request telemetry is emitted when the route's
+    // response Future causally depends (via flatMap) on this same unmarshalling Future - the
+    // idiomatic Akka HTTP usage. If the app decouples unmarshalling (used only for a side
+    // effect) from response production, or triggers toStrict() conversions independently of
+    // the main response chain, this report can arrive after end-of-request telemetry has
+    // already been emitted. This is not fixed here; see the KB entry for akka-http.
+    boolean success = brf.tryCommitBlockingResponse(reqCtx, rba);
     if (!success) {
-      // Conditional async-race gap (same class as netty-blocking.md §10/§11, but via
-      // Future.map/.recover/.thenApply on a Scala ExecutionContext instead of
-      // eventLoop().execute()): reportBlockFailure() below is only guaranteed to run before
-      // GatewayBridge.onRequestEnded/end-of-request telemetry is emitted when the route's
-      // response Future causally depends (via flatMap) on this same unmarshalling Future - the
-      // idiomatic Akka HTTP usage. If the app decouples unmarshalling (used only for a side
-      // effect) from response production, or triggers toStrict() conversions independently of
-      // the main response chain, this report can arrive after end-of-request telemetry has
-      // already been emitted. This is not fixed here; see the KB entry for akka-http.
-      Object rawAppSecCtx = reqCtx.getData(RequestContextSlot.APPSEC);
-      if (rawAppSecCtx instanceof AppSecContext) {
-        ((AppSecContext) rawAppSecCtx).reportBlockFailure();
-      }
       return null;
     }
     if (brf instanceof AkkaBlockResponseFunction) {

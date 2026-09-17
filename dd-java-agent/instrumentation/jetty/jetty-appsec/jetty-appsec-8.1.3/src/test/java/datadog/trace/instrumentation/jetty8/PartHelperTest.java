@@ -18,7 +18,6 @@ import static org.mockito.Mockito.when;
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
-import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.EventType;
@@ -50,7 +49,6 @@ class PartHelperTest {
   private CallbackProvider callbackProvider;
   private RequestContext reqCtx;
   private BlockResponseFunction brf;
-  private AppSecContext appSecContext;
   private TraceSegment traceSegment;
 
   // Same RequestBlockingAction used across the block-failure-reporting tests below.
@@ -62,11 +60,9 @@ class PartHelperTest {
     callbackProvider = mock(CallbackProvider.class);
     traceSegment = mock(TraceSegment.class);
     brf = mock(BlockResponseFunction.class);
-    appSecContext = mock(AppSecContext.class);
     reqCtx = mock(RequestContext.class);
     when(reqCtx.getTraceSegment()).thenReturn(traceSegment);
     when(reqCtx.getBlockResponseFunction()).thenReturn(brf);
-    when(reqCtx.getData(RequestContextSlot.APPSEC)).thenReturn(appSecContext);
 
     AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
     when(tracer.getCallbackProvider(any(RequestContextSlot.class))).thenReturn(callbackProvider);
@@ -98,36 +94,35 @@ class PartHelperTest {
         .getCallback(event);
   }
 
-  // ── fireBodyProcessedEvent: report-on-failure branch ───────────────────────
+  // ── fireBodyProcessedEvent: wiring to BlockResponseFunction ─────────────────
 
   @Test
-  void fireBodyProcessedEventReportsBlockFailureWhenCommitFails() throws IOException {
+  void fireBodyProcessedEventCommitFails() throws IOException {
     stubCallback(Events.get().requestBodyProcessed());
-    when(brf.tryCommitBlockingResponse(traceSegment, RBA)).thenReturn(false);
+    when(brf.tryCommitBlockingResponse(reqCtx, RBA)).thenReturn(false);
 
     BlockingException result =
         PartHelper.fireBodyProcessedEvent(singletonList(field("a", "x")), reqCtx);
 
     assertNull(result);
-    verify(appSecContext, times(1)).reportBlockFailure();
+    verify(brf, times(1)).tryCommitBlockingResponse(reqCtx, RBA);
     verify(traceSegment, never()).effectivelyBlocked();
   }
 
   @Test
-  void fireBodyProcessedEventDoesNotReportBlockFailureWhenCommitSucceeds() throws IOException {
+  void fireBodyProcessedEventCommitSucceeds() throws IOException {
     stubCallback(Events.get().requestBodyProcessed());
-    when(brf.tryCommitBlockingResponse(traceSegment, RBA)).thenReturn(true);
+    when(brf.tryCommitBlockingResponse(reqCtx, RBA)).thenReturn(true);
 
     BlockingException result =
         PartHelper.fireBodyProcessedEvent(singletonList(field("a", "x")), reqCtx);
 
     assertNotNull(result);
-    verify(appSecContext, never()).reportBlockFailure();
+    verify(brf, times(1)).tryCommitBlockingResponse(reqCtx, RBA);
   }
 
   @Test
-  void fireBodyProcessedEventDoesNotReportBlockFailureWhenNoBlockResponseFunction()
-      throws IOException {
+  void fireBodyProcessedEventNoBlockResponseFunction() throws IOException {
     stubCallback(Events.get().requestBodyProcessed());
     when(reqCtx.getBlockResponseFunction()).thenReturn(null);
 
@@ -135,37 +130,37 @@ class PartHelperTest {
         PartHelper.fireBodyProcessedEvent(singletonList(field("a", "x")), reqCtx);
 
     assertNull(result);
-    verify(appSecContext, never()).reportBlockFailure();
+    verify(brf, never()).tryCommitBlockingResponse(any(RequestContext.class), any());
   }
 
-  // ── fireFilenamesEvent: report-on-failure branch ───────────────────────────
+  // ── fireFilenamesEvent: wiring to BlockResponseFunction ─────────────────────
 
   @Test
-  void fireFilenamesEventReportsBlockFailureWhenCommitFails() {
+  void fireFilenamesEventCommitFails() {
     stubCallback(Events.get().requestFilesFilenames());
-    when(brf.tryCommitBlockingResponse(traceSegment, RBA)).thenReturn(false);
+    when(brf.tryCommitBlockingResponse(reqCtx, RBA)).thenReturn(false);
 
     BlockingException result =
         PartHelper.fireFilenamesEvent(singletonList(filePart("evil.php")), reqCtx);
 
     assertNull(result);
-    verify(appSecContext, times(1)).reportBlockFailure();
+    verify(brf, times(1)).tryCommitBlockingResponse(reqCtx, RBA);
   }
 
   @Test
-  void fireFilenamesEventDoesNotReportBlockFailureWhenCommitSucceeds() {
+  void fireFilenamesEventCommitSucceeds() {
     stubCallback(Events.get().requestFilesFilenames());
-    when(brf.tryCommitBlockingResponse(traceSegment, RBA)).thenReturn(true);
+    when(brf.tryCommitBlockingResponse(reqCtx, RBA)).thenReturn(true);
 
     BlockingException result =
         PartHelper.fireFilenamesEvent(singletonList(filePart("evil.php")), reqCtx);
 
     assertNotNull(result);
-    verify(appSecContext, never()).reportBlockFailure();
+    verify(brf, times(1)).tryCommitBlockingResponse(reqCtx, RBA);
   }
 
   @Test
-  void fireFilenamesEventDoesNotReportBlockFailureWhenNoBlockResponseFunction() {
+  void fireFilenamesEventNoBlockResponseFunction() {
     stubCallback(Events.get().requestFilesFilenames());
     when(reqCtx.getBlockResponseFunction()).thenReturn(null);
 
@@ -173,15 +168,15 @@ class PartHelperTest {
         PartHelper.fireFilenamesEvent(singletonList(filePart("evil.php")), reqCtx);
 
     assertNull(result);
-    verify(appSecContext, never()).reportBlockFailure();
+    verify(brf, never()).tryCommitBlockingResponse(any(RequestContext.class), any());
   }
 
-  // ── fireFilesContentEvent: report-on-failure branch ─────────────────────────
+  // ── fireFilesContentEvent: wiring to BlockResponseFunction ──────────────────
 
   @Test
-  void fireFilesContentEventReportsBlockFailureWhenCommitFails() throws IOException {
+  void fireFilesContentEventCommitFails() throws IOException {
     stubCallback(Events.get().requestFilesContent());
-    when(brf.tryCommitBlockingResponse(traceSegment, RBA)).thenReturn(false);
+    when(brf.tryCommitBlockingResponse(reqCtx, RBA)).thenReturn(false);
 
     Part p = filePart("photo.jpg");
     when(p.getInputStream())
@@ -190,13 +185,13 @@ class PartHelperTest {
     BlockingException result = PartHelper.fireFilesContentEvent(singletonList(p), reqCtx);
 
     assertNull(result);
-    verify(appSecContext, times(1)).reportBlockFailure();
+    verify(brf, times(1)).tryCommitBlockingResponse(reqCtx, RBA);
   }
 
   @Test
-  void fireFilesContentEventDoesNotReportBlockFailureWhenCommitSucceeds() throws IOException {
+  void fireFilesContentEventCommitSucceeds() throws IOException {
     stubCallback(Events.get().requestFilesContent());
-    when(brf.tryCommitBlockingResponse(traceSegment, RBA)).thenReturn(true);
+    when(brf.tryCommitBlockingResponse(reqCtx, RBA)).thenReturn(true);
 
     Part p = filePart("photo.jpg");
     when(p.getInputStream())
@@ -205,12 +200,11 @@ class PartHelperTest {
     BlockingException result = PartHelper.fireFilesContentEvent(singletonList(p), reqCtx);
 
     assertNotNull(result);
-    verify(appSecContext, never()).reportBlockFailure();
+    verify(brf, times(1)).tryCommitBlockingResponse(reqCtx, RBA);
   }
 
   @Test
-  void fireFilesContentEventDoesNotReportBlockFailureWhenNoBlockResponseFunction()
-      throws IOException {
+  void fireFilesContentEventNoBlockResponseFunction() throws IOException {
     stubCallback(Events.get().requestFilesContent());
     when(reqCtx.getBlockResponseFunction()).thenReturn(null);
 
@@ -221,7 +215,7 @@ class PartHelperTest {
     BlockingException result = PartHelper.fireFilesContentEvent(singletonList(p), reqCtx);
 
     assertNull(result);
-    verify(appSecContext, never()).reportBlockFailure();
+    verify(brf, never()).tryCommitBlockingResponse(any(RequestContext.class), any());
   }
 
   // ── extractFilenames ────────────────────────────────────────────────────────

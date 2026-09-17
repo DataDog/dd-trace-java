@@ -13,7 +13,6 @@ import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.iast.IastPostProcessorFactory;
-import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -168,12 +167,7 @@ public class TemplateAndMatrixVariablesInstrumentation extends InstrumenterModul
                 Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
                 BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
                 if (brf != null) {
-                  if (!brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba)) {
-                    Object rawAppSecCtx = reqCtx.getData(RequestContextSlot.APPSEC);
-                    if (rawAppSecCtx instanceof AppSecContext) {
-                      ((AppSecContext) rawAppSecCtx).reportBlockFailure();
-                    }
-                  }
+                  brf.tryCommitBlockingResponse(reqCtx, rba);
                 }
                 t =
                     new BlockingException(

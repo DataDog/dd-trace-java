@@ -12,7 +12,6 @@ import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -78,12 +77,7 @@ public class GetPartsInstrumentation extends InstrumenterModule.AppSec
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
         BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
         if (brf != null) {
-          if (!brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba)) {
-            Object rawAppSecCtx = reqCtx.getData(RequestContextSlot.APPSEC);
-            if (rawAppSecCtx instanceof AppSecContext) {
-              ((AppSecContext) rawAppSecCtx).reportBlockFailure();
-            }
-          }
+          brf.tryCommitBlockingResponse(reqCtx, rba);
           if (t == null) {
             t = new BlockingException("Blocked request (multipart file upload)");
             reqCtx.getTraceSegment().effectivelyBlocked();
