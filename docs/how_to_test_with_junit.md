@@ -308,7 +308,7 @@ Call it from a static initializer (runs before `@BeforeAll`):
 ```java
 class MyTest extends AbstractInstrumentationTest {
     static {
-        testConfig.idGenerationStrategy("RANDOM").strictTraceWrites(false);
+        testConfig.idGenerationStrategy("RANDOM");
     }
 }
 ```
@@ -318,7 +318,11 @@ Available settings:
 | Method                         | Default        | Description                          |
 |--------------------------------|----------------|--------------------------------------|
 | `idGenerationStrategy(String)` | `"SEQUENTIAL"` | Span ID generation strategy          |
-| `strictTraceWrites(boolean)`   | `true`         | Enable strict trace write validation |
+
+Instrumentation tests always use strict trace writes so unfinished asynchronous work cannot be
+silently accepted. Strict writes are not configurable through the test harness. Fix continuation
+lifecycle failures when possible; otherwise follow the quarantine and documented diagnostic
+opt-out policy in the [general testing guidance](how_to_test.md#continuation-lifecycle-failures).
 
 ### Basic test
 
