@@ -27,6 +27,7 @@ class DDLLMObsSpanAgentVersionTest {
   private static final String AGENT_VERSION_TAG = "_ml_obs_tag." + LLMObsTags.AGENT_VERSION;
 
   private static final Field SPAN_FIELD;
+  private static final Field STANDALONE_APM_SCOPE_FIELD;
 
   private static CoreTracer tracer;
 
@@ -34,6 +35,8 @@ class DDLLMObsSpanAgentVersionTest {
     try {
       SPAN_FIELD = DDLLMObsSpan.class.getDeclaredField("span");
       SPAN_FIELD.setAccessible(true);
+      STANDALONE_APM_SCOPE_FIELD = DDLLMObsSpan.class.getDeclaredField("standaloneApmScope");
+      STANDALONE_APM_SCOPE_FIELD.setAccessible(true);
     } catch (ReflectiveOperationException error) {
       throw new ExceptionInInitializerError(error);
     }
@@ -138,11 +141,19 @@ class DDLLMObsSpanAgentVersionTest {
   }
 
   @Test
-  void childDoesNotInheritAgentVersionWhenStaleContextIsFromADifferentTrace() {
-    // Simulates a stale LLMObsContext (e.g. leaked across an async boundary): the parent's
-    // context is attached, but its AgentScope is deliberately NOT activated, so the next span
-    // started begins a fresh trace and the trace-consistency gate must skip inheritance.
+  void childDoesNotInheritAgentVersionWhenStaleContextIsFromADifferentTrace()
+      throws ReflectiveOperationException {
+    // Simulates a stale LLMObsContext (e.g. leaked across an async boundary): the agent's
+    // LLMObs context is still active but its APM scope is closed (as it would be on a different
+    // thread or after an async handoff). The child starts a fresh APM trace and the
+    // trace-consistency gate must skip inheritance.
     DDLLMObsSpan agent = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "stale-agent", "stale-v1");
+    // Close the standalone APM scope to simulate async boundary — LLMObs context leaks but
+    // APM scope does not.
+    AgentScope apmScope = (AgentScope) STANDALONE_APM_SCOPE_FIELD.get(agent);
+    if (apmScope != null) {
+      apmScope.close();
+    }
     try {
       DDLLMObsSpan child = llmObsSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "tool1", null);
       try (AgentScope childScope = AgentTracer.activateSpan(spanOf(child))) {

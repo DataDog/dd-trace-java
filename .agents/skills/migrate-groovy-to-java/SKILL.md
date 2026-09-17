@@ -35,6 +35,7 @@ When converting Groovy code to Java code, make sure that:
 - Migrate the named Spock clauses if they exist as inline comments in the Java unit test
 - When Groovy tests navigate a JSON request body through helpers like `asMap()` / `asLong()` / `asList()`, check whether `json-unit-assertj` (`libs.json.unit.assertj`) is already in the module's build file. If it is, add a method that returns the raw JSON string and use `assertThatJson(json).node("some.nested.field").isEqualTo(value)` directly instead of the map traversal.
 - Groovy's `[key: val]` map literals use a `LinkedHashMap`. When the test doesn't care about insertion order, use `singletonMap` for a single entry or `HashMap` for two or more. If a helper method builds these maps, add a two-arg overload rather than scattering `new LinkedHashMap<>()` constructions through test bodies.
+- The Spock construct `clean:` section needs to wrap the unit test with a try...finally block to respect the behavior.
 
 TableTest usage
   Import: `import org.tabletest.junit.TableTest;`
