@@ -77,7 +77,7 @@ public class AgentTracer {
     return get().startSpan(prototype, operationName);
   }
 
-  public static AgentScope activateSpan(final AgentSpan span) {
+  public static ContextScope activateSpan(final AgentSpan span) {
     return get().activateSpan(span);
   }
 
@@ -139,7 +139,7 @@ public class AgentTracer {
    *
    * @see datadog.trace.api.config.TracerConfig#SCOPE_ITERATION_KEEP_ALIVE
    */
-  public static AgentScope activateNext(final AgentSpan span) {
+  public static ContextScope activateNext(final AgentSpan span) {
     return get().activateNext(span);
   }
 
@@ -288,10 +288,10 @@ public class AgentTracer {
         long startTimeMicros);
 
     /** Activate a span from inside auto-instrumentation. */
-    AgentScope activateSpan(AgentSpan span);
+    ContextScope activateSpan(AgentSpan span);
 
     /** Activate a span from outside auto-instrumentation, i.e. a manual or custom span. */
-    AgentScope activateManualSpan(AgentSpan span);
+    ContextScope activateManualSpan(AgentSpan span);
 
     /** Activate a span which will be closed by {@link #closeActive()} instead of a scope. */
     void activateSpanWithoutScope(AgentSpan span);
@@ -314,7 +314,7 @@ public class AgentTracer {
 
     void closePrevious(boolean finishSpan);
 
-    AgentScope activateNext(AgentSpan span);
+    ContextScope activateNext(AgentSpan span);
 
     AgentSpan activeSpan();
 
@@ -488,12 +488,12 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentScope activateSpan(final AgentSpan span) {
+    public ContextScope activateSpan(final AgentSpan span) {
       return NoopScope.INSTANCE;
     }
 
     @Override
-    public AgentScope activateManualSpan(final AgentSpan span) {
+    public ContextScope activateManualSpan(final AgentSpan span) {
       return NoopScope.INSTANCE;
     }
 
@@ -521,7 +521,7 @@ public class AgentTracer {
     public void closePrevious(final boolean finishSpan) {}
 
     @Override
-    public AgentScope activateNext(final AgentSpan span) {
+    public ContextScope activateNext(final AgentSpan span) {
       return NoopScope.INSTANCE;
     }
 
