@@ -123,6 +123,10 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
       }
     } catch (final Exception e) {
       log.debug("Error starting new record span", e);
+    } finally {
+      // In case an exception was thrown after startTracedConsumeSpan set this but before it was
+      // finished above, clear it so a later call doesn't finish a stale, already-orphaned span.
+      pendingQueueSpanToFinish = null;
     }
   }
 
