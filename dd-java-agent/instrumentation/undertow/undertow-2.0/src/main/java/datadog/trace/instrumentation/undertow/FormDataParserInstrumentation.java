@@ -40,7 +40,7 @@ public class FormDataParserInstrumentation extends InstrumenterModule.AppSec
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".FormDataMap"};
+    return new String[] {packageName + ".FormDataMap", packageName + ".FormDataContentHelper"};
   }
 
   private static final Reference EXCHANGE_REFERENCE =
@@ -91,7 +91,7 @@ public class FormDataParserInstrumentation extends InstrumenterModule.AppSec
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
         BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
         if (blockResponseFunction != null) {
-          blockResponseFunction.tryCommitBlockingResponse(reqCtx, rba);
+          FormDataContentHelper.tryCommitBlockingResponse(blockResponseFunction, reqCtx, rba);
           if (t == null) {
             t = new BlockingException("Blocked request (for FormEncodedDataParser/doParse)");
           }
