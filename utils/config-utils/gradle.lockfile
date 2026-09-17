@@ -4,6 +4,7 @@
 # To regenerate this file, run: ./gradlew :utils:config-utils:dependencies --write-locks
 ch.qos.logback:logback-classic:1.2.13=testCompileClasspath,testRuntimeClasspath
 ch.qos.logback:logback-core:1.2.13=testCompileClasspath,testRuntimeClasspath
+com.datadoghq:dd-instrument-java:0.0.5=testRuntimeClasspath
 com.datadoghq:dd-javac-plugin-client:0.2.2=testRuntimeClasspath
 com.github.javaparser:javaparser-core:3.25.6=codenarc
 com.github.spotbugs:spotbugs-annotations:4.10.4=compileClasspath,spotbugs
