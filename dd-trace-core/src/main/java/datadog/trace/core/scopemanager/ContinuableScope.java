@@ -1,13 +1,13 @@
 package datadog.trace.core.scopemanager;
 
 import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.api.Stateful;
 import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.api.scopemanager.ScopeListener;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
-class ContinuableScope implements AgentScope {
+class ContinuableScope implements ContextScope {
 
   // different sources of scopes
   static final byte INSTRUMENTATION = 0;
@@ -127,7 +127,6 @@ class ContinuableScope implements AgentScope {
     return asyncPropagating;
   }
 
-  @Override
   public final AgentSpan span() {
     return AgentSpan.fromContext(context);
   }
