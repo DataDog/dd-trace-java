@@ -28,9 +28,11 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.RunnableFuture;
+import java.util.concurrent.ScheduledFuture;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -64,7 +66,10 @@ public final class RunnableFutureInstrumentation extends InstrumenterModule.Cont
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("java.util.concurrent.RunnableFuture", State.class.getName());
+    Map<String, String> contextStores = new HashMap<>();
+    contextStores.put("java.util.concurrent.RunnableFuture", State.class.getName());
+    contextStores.put("java.util.concurrent.ScheduledFuture", Boolean.class.getName());
+    return contextStores;
   }
 
   @Override
@@ -147,6 +152,12 @@ public final class RunnableFutureInstrumentation extends InstrumenterModule.Cont
   public static final class Run {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static <T> ContextScope activate(@Advice.This RunnableFuture<T> task) {
+      if (task instanceof ScheduledFuture
+          && Boolean.TRUE.equals(
+              InstrumentationContext.get(ScheduledFuture.class, Boolean.class)
+                  .remove((ScheduledFuture<?>) task))) {
+        return null;
+      }
       return startTaskScope(InstrumentationContext.get(RunnableFuture.class, State.class), task);
     }
 
