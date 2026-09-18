@@ -1,8 +1,11 @@
 package datadog.trace.agent.tooling.advice;
 
+import static datadog.trace.agent.tooling.HelperScanner.isHelperClass;
 import static java.util.Collections.addAll;
 import static java.util.Collections.emptyList;
+import static java.util.Collections.emptySet;
 import static java.util.Collections.singletonList;
+import static java.util.stream.Collectors.toCollection;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -12,6 +15,12 @@ import datadog.trace.agent.tooling.advice.AdviceScanResult.SourceLocation;
 import datadog.trace.agent.tooling.advice.AdviceScanResult.Usage;
 import datadog.trace.agent.tooling.advice.AdviceScanResult.UsageKind;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.security.CodeSource;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -20,9 +29,11 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.jar.asm.ClassReader;
 import net.bytebuddy.jar.asm.ClassVisitor;
+import net.bytebuddy.jar.asm.FieldVisitor;
 import net.bytebuddy.jar.asm.Handle;
 import net.bytebuddy.jar.asm.Label;
 import net.bytebuddy.jar.asm.MethodVisitor;
@@ -35,6 +46,7 @@ public final class AdviceScanner {
 
   private final InstrumenterModule module;
   private final ClassFileLocator classFileLocator;
+  private final Set<String> moduleOutputClasses;
   private final LinkedHashSet<String> adviceRoots = new LinkedHashSet<>();
   private final LinkedHashMap<String, MutableClassInfo> classes = new LinkedHashMap<>();
   private final Deque<String> scanQueue = new ArrayDeque<>();
@@ -43,6 +55,7 @@ public final class AdviceScanner {
   private AdviceScanner(InstrumenterModule module, ClassFileLocator classFileLocator) {
     this.module = module;
     this.classFileLocator = classFileLocator;
+    moduleOutputClasses = findModuleOutputClasses(module);
   }
 
   public static AdviceScanResult scan(InstrumenterModule module) {
@@ -65,12 +78,25 @@ public final class AdviceScanner {
     while ((className = scanQueue.pollFirst()) != null) {
       scanClass(classes.get(className));
     }
+    markReachableClasses();
 
     Map<String, ClassInfo> immutableClasses = new LinkedHashMap<>();
     for (Map.Entry<String, MutableClassInfo> entry : classes.entrySet()) {
       immutableClasses.put(entry.getKey(), entry.getValue().freeze());
     }
     return new AdviceScanResult(adviceRoots, immutableClasses);
+  }
+
+  private void markReachableClasses() {
+    Deque<String> pending = new ArrayDeque<>(adviceRoots);
+    String className;
+    while ((className = pending.pollFirst()) != null) {
+      MutableClassInfo info = classes.get(className);
+      if (info != null && !info.reachableFromAdvice) {
+        info.reachableFromAdvice = true;
+        pending.addAll(info.dependencies);
+      }
+    }
   }
 
   private void collectAdviceRoots() {
@@ -100,16 +126,34 @@ public final class AdviceScanner {
       }
       return existing;
     }
-    MutableClassInfo created = new MutableClassInfo(className, adviceClass);
+    MutableClassInfo created =
+        new MutableClassInfo(className, adviceClass, moduleOutputClasses.contains(className));
     classes.put(className, created);
     return created;
   }
 
   private void enqueue(MutableClassInfo info, boolean adviceRoot) {
     if (info != null
-        && (adviceRoot || AdviceScanResult.isInstrumentationClass(info.className))
+        && (adviceRoot
+            || AdviceScanResult.isInstrumentationClass(info.className)
+            || isHelperClass(info.className, info.fromModuleOutput))
         && queued.add(info.className)) {
       scanQueue.addLast(info.className);
+      if (!adviceRoot && info.fromModuleOutput) {
+        enqueueNestedClasses(info);
+      }
+    }
+  }
+
+  private void enqueueNestedClasses(MutableClassInfo owner) {
+    String prefix = owner.className + "$";
+    for (String className : moduleOutputClasses) {
+      if (className.startsWith(prefix)) {
+        MutableClassInfo nested = discover(className, owner.adviceClass);
+        if (queued.add(className)) {
+          scanQueue.addLast(className);
+        }
+      }
     }
   }
 
@@ -121,8 +165,16 @@ public final class AdviceScanner {
       addTypeDependency(from, Type.getType(className));
       return;
     }
+    from.dependencies.add(className);
     MutableClassInfo target = discover(className, from.adviceClass);
     enqueue(target, false);
+  }
+
+  private void addRequiredDependency(MutableClassInfo from, String className) {
+    if (className != null && !className.equals(from.className)) {
+      from.requiredDependencies.add(className);
+      addDependency(from, className);
+    }
   }
 
   private void addTypeDependency(MutableClassInfo from, Type type) {
@@ -142,6 +194,39 @@ public final class AdviceScanner {
 
   private void addHandleDependencies(MutableClassInfo from, Handle handle) {
     addDependency(from, binaryName(handle.getOwner()));
+    addTypeDependency(from, Type.getType(handle.getDesc()));
+  }
+
+  private static Set<String> findModuleOutputClasses(InstrumenterModule module) {
+    CodeSource codeSource = module.getClass().getProtectionDomain().getCodeSource();
+    if (codeSource == null || codeSource.getLocation() == null) {
+      throw new IllegalStateException(
+          "Cannot locate compiled output for " + module.getClass().getName());
+    }
+    Path root;
+    try {
+      root = Paths.get(codeSource.getLocation().toURI());
+    } catch (URISyntaxException error) {
+      throw new IllegalStateException(
+          "Cannot resolve compiled output for " + module.getClass().getName(), error);
+    }
+    if (!Files.isDirectory(root)) {
+      return emptySet();
+    }
+    try (Stream<Path> files = Files.walk(root)) {
+      return files
+          .filter(Files::isRegularFile)
+          .map(root::relativize)
+          .map(Path::toString)
+          .filter(name -> name.endsWith(".class"))
+          .map(name -> name.substring(0, name.length() - ".class".length()))
+          .map(name -> name.replace('/', '.').replace('\\', '.'))
+          .sorted()
+          .collect(toCollection(LinkedHashSet::new));
+    } catch (IOException error) {
+      throw new IllegalStateException(
+          "Cannot inspect compiled output for " + module.getClass().getName(), error);
+    }
   }
 
   @SuppressForbidden
@@ -155,9 +240,14 @@ public final class AdviceScanner {
           info.className, owningAdvice(info.className), "cannot read class bytecode", error);
     }
     if (!resolution.isResolved()) {
-      if (adviceRoots.contains(info.className)) {
+      if (adviceRoots.contains(info.className) || info.fromModuleOutput) {
         throw scanFailure(
-            info.className, owningAdvice(info.className), "advice class is missing", null);
+            info.className,
+            owningAdvice(info.className),
+            adviceRoots.contains(info.className)
+                ? "advice class is missing"
+                : "helper class from module output is missing",
+            null);
       }
       System.err.println(resource + " not found, skipping");
       return;
@@ -246,7 +336,7 @@ public final class AdviceScanner {
       if (interfaces != null) {
         for (String interfaceName : interfaces) {
           String binaryInterface = binaryName(interfaceName);
-          addDependency(info, binaryInterface);
+          addRequiredDependency(info, binaryInterface);
           info.usages.add(
               createUsage(
                   info.className,
@@ -261,12 +351,48 @@ public final class AdviceScanner {
                   emptyList()));
         }
       }
-      // The superclass is captured by the invokespecial instruction in each constructor.
+      // Record the hierarchy for helper ordering. Muzzle's superclass reference remains captured
+      // by the invokespecial instruction in each constructor.
+      if (superName != null) {
+        addRequiredDependency(info, binaryName(superName));
+      }
+    }
+
+    @Override
+    public void visitInnerClass(String name, String outerName, String innerName, int access) {
+      if (outerName != null && info.className.equals(binaryName(name))) {
+        addEnclosingClass(outerName);
+      }
+    }
+
+    @Override
+    public void visitOuterClass(String owner, String name, String descriptor) {
+      addEnclosingClass(owner);
+    }
+
+    private void addEnclosingClass(String owner) {
+      // Advice is inlined; its enclosing instrumentation class does not need injection.
+      if (!adviceRoots.contains(info.className)) {
+        addRequiredDependency(info, binaryName(owner));
+      }
+    }
+
+    @Override
+    public FieldVisitor visitField(
+        int access, String name, String descriptor, String signature, Object value) {
+      addTypeDependency(info, Type.getType(descriptor));
+      return null;
     }
 
     @Override
     public MethodVisitor visitMethod(
         int access, String name, String descriptor, String signature, String[] exceptions) {
+      addTypeDependency(info, Type.getMethodType(descriptor));
+      if (exceptions != null) {
+        for (String exception : exceptions) {
+          addDependency(info, binaryName(exception));
+        }
+      }
       return new ScanningMethodVisitor(info);
     }
   }
@@ -283,6 +409,13 @@ public final class AdviceScanner {
     @Override
     public void visitLineNumber(int line, Label start) {
       this.line = line;
+    }
+
+    @Override
+    public void visitTryCatchBlock(Label start, Label end, Label handler, String type) {
+      if (type != null) {
+        addDependency(info, binaryName(type));
+      }
     }
 
     @Override
@@ -317,11 +450,14 @@ public final class AdviceScanner {
     @Override
     public void visitInvokeDynamicInsn(
         String name, String descriptor, Handle bootstrapMethodHandle, Object... arguments) {
+      addTypeDependency(info, Type.getMethodType(descriptor));
       List<HandleUse> handles = new ArrayList<>();
       addHandle(handles, bootstrapMethodHandle);
       for (Object argument : arguments) {
         if (argument instanceof Handle) {
           addHandle(handles, (Handle) argument);
+        } else if (argument instanceof Type) {
+          addTypeDependency(info, (Type) argument);
         }
       }
       info.usages.add(
@@ -402,17 +538,23 @@ public final class AdviceScanner {
 
   private static final class MutableClassInfo {
     private final String className;
+    private final boolean fromModuleOutput;
     private String adviceClass;
     private boolean scanned;
+    private boolean reachableFromAdvice;
+    private final Set<String> dependencies = new LinkedHashSet<>();
+    private final Set<String> requiredDependencies = new LinkedHashSet<>();
     private final List<Usage> usages = new ArrayList<>();
 
-    private MutableClassInfo(String className, String adviceClass) {
+    private MutableClassInfo(String className, String adviceClass, boolean fromModuleOutput) {
       this.className = className;
       this.adviceClass = adviceClass;
+      this.fromModuleOutput = fromModuleOutput;
     }
 
     private ClassInfo freeze() {
-      return new ClassInfo(className, scanned, usages);
+      return new ClassInfo(
+          className, fromModuleOutput, scanned, reachableFromAdvice, requiredDependencies, usages);
     }
   }
 }

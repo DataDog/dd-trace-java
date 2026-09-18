@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling.advice;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.advice.AdviceScanningHelper.Dependency;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.instrumentation.testing.ExternalHelper;
 import java.util.ArrayList;
@@ -11,16 +12,6 @@ import net.bytebuddy.jar.asm.ClassReader;
 
 final class AdviceScanningFixtures {
   private AdviceScanningFixtures() {}
-
-  static final class Dependency {
-    static String field;
-
-    Dependency() {}
-
-    String method(String value) {
-      return value;
-    }
-  }
 
   static class AdviceRoot {
     static String apply(String value) {
@@ -46,6 +37,19 @@ final class AdviceScanningFixtures {
   static class AdditionalAdvice {
     static void apply() {
       new Dependency();
+    }
+  }
+
+  static class CatchAdvice {
+    static void apply() {
+      CatchOnlyHelper.run();
+    }
+  }
+
+  public static final class CatchModule extends ScanModule {
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+      transformer.applyAdvice(null, CatchAdvice.class.getName());
     }
   }
 

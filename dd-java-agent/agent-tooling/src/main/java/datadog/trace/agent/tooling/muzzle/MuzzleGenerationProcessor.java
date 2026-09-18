@@ -21,6 +21,7 @@ public final class MuzzleGenerationProcessor implements AdviceProcessor {
     InstrumenterModule module = context.getModule();
 
     Set<String> ignoredClasses = new HashSet<>(asList(module.muzzleIgnoredClassNames()));
+    addAll(ignoredClasses, context.getHelperClassNames());
     AdviceShader shader = AdviceShader.with(module.adviceShading());
     List<Reference> references = ReferenceCreator.createReferences(scanResult, shader);
     references.removeIf(reference -> ignoredClasses.contains(reference.className));
