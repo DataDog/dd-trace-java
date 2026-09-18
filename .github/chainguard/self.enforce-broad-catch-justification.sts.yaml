@@ -3,7 +3,7 @@ issuer: https://token.actions.githubusercontent.com
 subject: repo:DataDog/dd-trace-java:pull_request
 
 claim_pattern:
-  event_name: pull_req]est
+  event_name: pull_request
   job_workflow_ref: DataDog/dd-trace-java/\.github/workflows/enforce-broad-catch-justification\.yaml@refs/(pull/[0-9]+/merge|heads/.+)
 
 permissions:
