@@ -720,6 +720,30 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     }
   }
 
+  @TableTest({
+    "scenario         | tag                        ",
+    "datadog spelling | 'Tags.HTTP_STATUS'         ",
+    "otel spelling    | 'http.response.status_code'"
+  })
+  void httpStatusCodeIsInterceptedRegardlessOfSpelling(
+      @ConvertWith(TagsConverter.class) String tag) {
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "fakeOperation").start();
+    try {
+      span.setTag(tag, 200);
+      assertEquals((short) 200, span.getHttpStatusCode());
+      // consumed into Metadata's httpStatusCode field, not left behind as a generic tag under
+      // either spelling -- otherwise the OTLP writers would emit it a second time. getTag(...)
+      // is not a suitable check here: it synthesizes the Datadog spelling's value straight from
+      // httpStatusCode regardless of generic storage, so go straight to the backing TagMap.
+      assertNull(span.unsafeGetTag(HTTP_STATUS));
+      assertNull(span.unsafeGetTag("http.response.status_code"));
+    } finally {
+      span.finish();
+    }
+  }
+
   @Test
   void whenInterceptServiceNameExtraServiceProviderIsCalled() {
     ServiceNameCollector origServiceNameCollector = ServiceNameCollector.get();

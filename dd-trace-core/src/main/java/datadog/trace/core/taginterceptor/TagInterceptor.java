@@ -46,6 +46,15 @@ public class TagInterceptor {
 
   private static final UTF8BytesString NOT_FOUND_RESOURCE_NAME = UTF8BytesString.create("404");
 
+  /**
+   * OpenTelemetry's alias for {@link Tags#HTTP_STATUS} (tag-conventions.yaml's otel-name for
+   * http.status_code). Unlike db.statement/db.query.text, there is no reason for the two spellings
+   * to behave differently here, so both must dispatch to the same interception -- otherwise a
+   * status code set under this spelling skips interception, and if the same span's status was also
+   * captured under the Datadog spelling, the value gets exported twice.
+   */
+  private static final String HTTP_STATUS_OTEL_NAME = "http.response.status_code";
+
   private final RuleFlags ruleFlags;
   private final boolean isServiceNameSetByUser;
   private final boolean splitByServletContext;
@@ -118,6 +127,7 @@ public class TagInterceptor {
       case ANALYTICS_SAMPLE_RATE:
       case Tags.ERROR:
       case HTTP_STATUS:
+      case HTTP_STATUS_OTEL_NAME:
       case HTTP_METHOD:
       case HTTP_URL:
       case ORIGIN_KEY:
@@ -184,6 +194,7 @@ public class TagInterceptor {
       case Tags.ERROR:
         return interceptError(span, value);
       case HTTP_STATUS:
+      case HTTP_STATUS_OTEL_NAME:
         // not set internally but may come from manual instrumentation
         return interceptHttpStatusCode(span, value);
       case HTTP_METHOD:
