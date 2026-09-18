@@ -14,6 +14,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
+import datadog.trace.instrumentation.tomcat.BlockFailureReporter;
 import datadog.trace.instrumentation.tomcat.ExtractAdapter;
 import datadog.trace.instrumentation.tomcat.TomcatDecorator;
 import net.bytebuddy.asm.Advice;
@@ -75,6 +76,7 @@ public class CommitActionInstrumentation extends InstrumenterModule.AppSec
       pkg + ".TomcatDecorator",
       pkg + ".TomcatDecorator$TomcatBlockResponseFunction",
       pkg + ".TomcatBlockingHelper",
+      pkg + ".BlockFailureReporter",
       pkg + ".RequestURIDataAdapter",
     };
   }
@@ -114,7 +116,7 @@ public class CommitActionInstrumentation extends InstrumenterModule.AppSec
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
         BlockResponseFunction brf = requestContext.getBlockResponseFunction();
         if (brf != null) {
-          brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
+          BlockFailureReporter.tryCommitAndReport(requestContext, rba);
           thiz.action(ActionCode.ACTION_CLOSE, null);
           return true;
         }
