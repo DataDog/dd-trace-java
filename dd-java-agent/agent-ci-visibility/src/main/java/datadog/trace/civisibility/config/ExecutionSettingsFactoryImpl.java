@@ -342,7 +342,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     }
   }
 
-  static DynamicAutoTestRetrySettings createDynamicAutoTestRetrySettings(
+  private static DynamicAutoTestRetrySettings createDynamicAutoTestRetrySettings(
       Config config, CiVisibilitySettings settings, boolean flakyTestRetriesEnabled) {
     return DynamicAutoTestRetrySettings.create(
         config.isCiVisibilityDynamicAtrEnabled() && flakyTestRetriesEnabled,

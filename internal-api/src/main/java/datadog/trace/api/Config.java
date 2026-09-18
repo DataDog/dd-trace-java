@@ -854,6 +854,7 @@ public class Config {
   private static final int MAX_DYNAMIC_ATR_RETRIES_PER_BUCKET = 20;
 
   private static final Pattern COLON = Pattern.compile(":");
+  private static final Pattern COMMA = Pattern.compile(",");
 
   // Historical conflating-Batch size; used to translate TRACER_METRICS_MAX_PENDING (configured in
   // legacy batch units) into the new per-SpanSnapshot inbox capacity.
@@ -6375,7 +6376,7 @@ public class Config {
       return null;
     }
 
-    String[] values = configuredBuckets.split(",", -1);
+    String[] values = COMMA.split(configuredBuckets, -1);
     if (values.length != DYNAMIC_ATR_BUCKET_COUNT) {
       logInvalidDynamicAtrBuckets(configuredBuckets);
       return null;

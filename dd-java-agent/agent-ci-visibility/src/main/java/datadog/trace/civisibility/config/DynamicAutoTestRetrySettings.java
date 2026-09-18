@@ -17,13 +17,13 @@ public final class DynamicAutoTestRetrySettings {
 
   private final boolean enabled;
   private final boolean custom;
-  private final List<ExecutionsByDuration> retriesByDuration;
+  private final List<ExecutionsByDuration> executionsByDuration;
 
   private DynamicAutoTestRetrySettings(
-      boolean enabled, boolean custom, List<ExecutionsByDuration> retriesByDuration) {
+      boolean enabled, boolean custom, List<ExecutionsByDuration> executionsByDuration) {
     this.enabled = enabled;
     this.custom = custom;
-    this.retriesByDuration = Collections.unmodifiableList(new ArrayList<>(retriesByDuration));
+    this.executionsByDuration = Collections.unmodifiableList(new ArrayList<>(executionsByDuration));
   }
 
   public static DynamicAutoTestRetrySettings create(
@@ -33,16 +33,20 @@ public final class DynamicAutoTestRetrySettings {
     if (!enabled) {
       return DEFAULT;
     }
-    if (customBuckets == null) {
-      return new DynamicAutoTestRetrySettings(true, false, backendRetriesByDuration);
+    List<ExecutionsByDuration> executionsByDuration = new ArrayList<>();
+    if (customBuckets != null) {
+      for (int i = 0; i < customBuckets.size(); i++) {
+        executionsByDuration.add(
+            new ExecutionsByDuration(BUCKET_DURATIONS_MILLIS[i], customBuckets.get(i) + 1));
+      }
+    } else {
+      for (ExecutionsByDuration retries : backendRetriesByDuration) {
+        executionsByDuration.add(
+            new ExecutionsByDuration(
+                retries.getDurationMillis(), Math.max(1, retries.getExecutions()) + 1));
+      }
     }
-
-    List<ExecutionsByDuration> retriesByDuration = new ArrayList<>(customBuckets.size());
-    for (int i = 0; i < customBuckets.size(); i++) {
-      retriesByDuration.add(
-          new ExecutionsByDuration(BUCKET_DURATIONS_MILLIS[i], customBuckets.get(i)));
-    }
-    return new DynamicAutoTestRetrySettings(true, true, retriesByDuration);
+    return new DynamicAutoTestRetrySettings(true, customBuckets != null, executionsByDuration);
   }
 
   public boolean isEnabled() {
@@ -53,13 +57,13 @@ public final class DynamicAutoTestRetrySettings {
     return custom;
   }
 
-  public int retriesForDuration(long durationMillis) {
-    for (ExecutionsByDuration retries : retriesByDuration) {
-      if (durationMillis <= retries.getDurationMillis()) {
-        return retries.getExecutions();
+  public int executionsForDuration(long durationMillis) {
+    for (ExecutionsByDuration executions : executionsByDuration) {
+      if (durationMillis <= executions.getDurationMillis()) {
+        return executions.getExecutions();
       }
     }
-    return 0;
+    return 2;
   }
 
   @Override
@@ -73,12 +77,12 @@ public final class DynamicAutoTestRetrySettings {
     DynamicAutoTestRetrySettings that = (DynamicAutoTestRetrySettings) o;
     return enabled == that.enabled
         && custom == that.custom
-        && Objects.equals(retriesByDuration, that.retriesByDuration);
+        && Objects.equals(executionsByDuration, that.executionsByDuration);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(enabled, custom, retriesByDuration);
+    return Objects.hash(enabled, custom, executionsByDuration);
   }
 
   public static final class Serializer {
@@ -92,16 +96,16 @@ public final class DynamicAutoTestRetrySettings {
       byte flags =
           (byte) ((settings.enabled ? ENABLED_FLAG : 0) | (settings.custom ? CUSTOM_FLAG : 0));
       serializer.write(flags);
-      serializer.write(settings.retriesByDuration, ExecutionsByDuration.Serializer::serialize);
+      serializer.write(settings.executionsByDuration, ExecutionsByDuration.Serializer::serialize);
     }
 
     public static DynamicAutoTestRetrySettings deserialize(ByteBuffer buffer) {
       byte flags = datadog.trace.civisibility.ipc.serialization.Serializer.readByte(buffer);
-      List<ExecutionsByDuration> retriesByDuration =
+      List<ExecutionsByDuration> executionsByDuration =
           datadog.trace.civisibility.ipc.serialization.Serializer.readList(
               buffer, ExecutionsByDuration.Serializer::deserialize);
       return new DynamicAutoTestRetrySettings(
-          (flags & ENABLED_FLAG) != 0, (flags & CUSTOM_FLAG) != 0, retriesByDuration);
+          (flags & ENABLED_FLAG) != 0, (flags & CUSTOM_FLAG) != 0, executionsByDuration);
     }
   }
 }
