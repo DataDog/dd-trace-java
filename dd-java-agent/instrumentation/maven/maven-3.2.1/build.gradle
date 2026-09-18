@@ -13,6 +13,12 @@ muzzle {
 
 addTestSuiteForDir('latestDepTest', 'test')
 
+tasks.withType(Test).configureEach {
+  if (project.hasProperty('mavenRepositoryProxy')) {
+    environment 'MAVEN_REPOSITORY_PROXY', project.property('mavenRepositoryProxy')
+  }
+}
+
 dependencies {
   compileOnly 'org.apache.maven:maven-embedder:3.2.1'
 
