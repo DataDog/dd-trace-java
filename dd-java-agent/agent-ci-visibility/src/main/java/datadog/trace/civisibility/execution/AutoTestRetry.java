@@ -17,16 +17,20 @@ import java.util.concurrent.atomic.AtomicInteger;
         "TestExecutionPolicy instances are confined to a single thread and are not meant to be thread-safe")
 public class AutoTestRetry implements TestExecutionPolicy {
 
-  private final boolean suppressFailures;
-  private final AtomicInteger totalRetryCount;
   private int maxExecutions;
+  private final boolean suppressFailures;
   private int executions;
-  private ExecutionAggregation results = ExecutionAggregation.NONE;
+  private ExecutionAggregation results;
+
+  /** Total retry counter that is shared by all auto test retry policies */
+  private final AtomicInteger totalRetryCount;
 
   public AutoTestRetry(int maxExecutions, boolean suppressFailures, AtomicInteger totalRetryCount) {
     this.maxExecutions = maxExecutions;
     this.suppressFailures = suppressFailures;
     this.totalRetryCount = totalRetryCount;
+    this.executions = 0;
+    this.results = ExecutionAggregation.NONE;
   }
 
   protected int maxExecutionsForDuration(long durationMillis) {
@@ -45,10 +49,11 @@ public class AutoTestRetry implements TestExecutionPolicy {
     }
 
     boolean lastExecution = !retriesLeft();
-    boolean retry = executions > 1;
+    boolean retry = executions > 1; // first execution is not a retry
     boolean failureSuppressed = status == TestStatus.fail && (!lastExecution || suppressFailures);
     TestStatus finalStatus = null;
     if (lastExecution) {
+      // final status is always the last status reported (or pass if a failure is suppressed)
       finalStatus = failureSuppressed ? TestStatus.pass : status;
     }
 
@@ -69,6 +74,8 @@ public class AutoTestRetry implements TestExecutionPolicy {
 
   @Override
   public boolean suppressFailures() {
+    // do not suppress failures for last execution (unless flag to suppress all failures is set);
+    // the +1 is because this method is called _before_ subsequent execution is registered
     return executions + 1 < maxExecutions || suppressFailures;
   }
 
