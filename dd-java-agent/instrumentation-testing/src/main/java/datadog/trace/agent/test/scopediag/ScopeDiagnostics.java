@@ -28,7 +28,7 @@ public final class ScopeDiagnostics {
       Collections.newSetFromMap(new IdentityHashMap<ContextContinuation, Boolean>());
   private long seq;
   private long scopeSeq;
-  private boolean recording;
+  private volatile Object recordingWindow;
   private StackFilter stackFilter = new StackFilter(DEFAULT_MAX_FRAMES);
 
   private final Listener listener = new Listener();
@@ -42,33 +42,32 @@ public final class ScopeDiagnostics {
 
   /** Clears any prior data and starts recording, keeping up to {@code maxFrames} per stack. */
   public static void startRecording(int maxFrames) {
-    ScopeContinuationProbe.disable();
+    ScopeContinuationTransformer.install();
     synchronized (INSTANCE.lifecycleLock) {
-      INSTANCE.recording = false;
       INSTANCE.clear();
       INSTANCE.stackFilter = new StackFilter(maxFrames);
-    }
-    ScopeContinuationProbe.enable();
-    synchronized (INSTANCE.lifecycleLock) {
-      INSTANCE.recording = true;
+      INSTANCE.recordingWindow = new Object();
     }
   }
 
-  /** Stops recording (the probe goes inert). Recorded data remains queryable until reset. */
+  /** Stops recording. Recorded data remains queryable until reset. */
   public static void stop() {
-    ScopeContinuationProbe.disable();
     synchronized (INSTANCE.lifecycleLock) {
-      INSTANCE.recording = false;
+      INSTANCE.recordingWindow = null;
     }
   }
 
   /** Discards all recorded data. */
   public static void reset() {
-    ScopeContinuationProbe.disable();
     synchronized (INSTANCE.lifecycleLock) {
-      INSTANCE.recording = false;
+      INSTANCE.recordingWindow = null;
       INSTANCE.clear();
     }
+  }
+
+  /** Each probe keeps this identity until admission under the lifecycle lock. */
+  static Object recordingWindow() {
+    return INSTANCE.recordingWindow;
   }
 
   /** Returns an immutable snapshot of the events recorded so far. */
@@ -82,7 +81,7 @@ public final class ScopeDiagnostics {
   public static void awaitQuiescence() {
     long deadline = System.nanoTime() + DEFAULT_QUIESCENCE_TIMEOUT_MILLIS * 1_000_000L;
     synchronized (INSTANCE.lifecycleLock) {
-      while (INSTANCE.recording && INSTANCE.snapshot().hasIncompleteLifecycles()) {
+      while (INSTANCE.recordingWindow != null && INSTANCE.snapshot().hasIncompleteLifecycles()) {
         long remaining = deadline - System.nanoTime();
         if (remaining <= 0) {
           return;
@@ -162,15 +161,21 @@ public final class ScopeDiagnostics {
   }
 
   static void recordCapture(
-      ContextContinuation id, DDTraceId traceId, long spanId, String spanName, byte source) {
+      Object window,
+      ContextContinuation id,
+      DDTraceId traceId,
+      long spanId,
+      String spanName,
+      byte source) {
     synchronized (INSTANCE.lifecycleLock) {
-      if (INSTANCE.recording) {
+      if (window != null && window == INSTANCE.recordingWindow) {
         INSTANCE.listener.onCapture(id, traceId, spanId, spanName, source);
       }
     }
   }
 
   static void recordActivate(
+      Object window,
       ContextContinuation id,
       DDTraceId traceId,
       long spanId,
@@ -178,38 +183,45 @@ public final class ScopeDiagnostics {
       byte source,
       long nanos) {
     synchronized (INSTANCE.lifecycleLock) {
-      if (INSTANCE.recording) {
+      if (window != null && window == INSTANCE.recordingWindow) {
         INSTANCE.listener.onActivate(id, traceId, spanId, spanName, source, nanos);
       }
     }
   }
 
-  static void recordActivateFailed(ContextContinuation id) {
+  static void recordActivateFailed(Object window, ContextContinuation id) {
     synchronized (INSTANCE.lifecycleLock) {
-      if (INSTANCE.recording) {
+      if (window != null && window == INSTANCE.recordingWindow) {
         INSTANCE.listener.onActivateFailed(id);
       }
     }
   }
 
   static void recordResolve(
-      ContextContinuation id, boolean cancelled, long resolveNanos, boolean alreadyResolved) {
+      Object window,
+      ContextContinuation id,
+      boolean cancelled,
+      long resolveNanos,
+      boolean alreadyResolved) {
     synchronized (INSTANCE.lifecycleLock) {
-      if (INSTANCE.recording && (alreadyResolved || INSTANCE.resolved.add(id))) {
+      if (window != null
+          && window == INSTANCE.recordingWindow
+          && (alreadyResolved || INSTANCE.resolved.add(id))) {
         INSTANCE.listener.onResolve(id, cancelled, resolveNanos);
       }
     }
   }
 
-  static void recordRootWritten(DDTraceId traceId) {
+  static void recordRootWritten(Object window, DDTraceId traceId) {
     synchronized (INSTANCE.lifecycleLock) {
-      if (INSTANCE.recording) {
+      if (window != null && window == INSTANCE.recordingWindow) {
         INSTANCE.listener.onRootWritten(traceId);
       }
     }
   }
 
   static void recordScopeOpen(
+      Object window,
       Object scope,
       DDTraceId traceId,
       long spanId,
@@ -217,31 +229,31 @@ public final class ScopeDiagnostics {
       byte source,
       ContextContinuation continuation) {
     synchronized (INSTANCE.lifecycleLock) {
-      if (INSTANCE.recording) {
+      if (window != null && window == INSTANCE.recordingWindow) {
         INSTANCE.listener.onScopeOpen(scope, traceId, spanId, spanName, source, continuation);
       }
     }
   }
 
-  static void recordScopeClose(Object scope) {
+  static void recordScopeClose(Object window, Object scope) {
     synchronized (INSTANCE.lifecycleLock) {
-      if (INSTANCE.recording) {
+      if (window != null && window == INSTANCE.recordingWindow) {
         INSTANCE.listener.onScopeClose(scope);
       }
     }
   }
 
-  static void recordScopeCloseWrongThread(Object scope) {
+  static void recordScopeCloseWrongThread(Object window, Object scope) {
     synchronized (INSTANCE.lifecycleLock) {
-      if (INSTANCE.recording) {
+      if (window != null && window == INSTANCE.recordingWindow) {
         INSTANCE.listener.onScopeCloseWrongThread(scope);
       }
     }
   }
 
-  static void recordDeferredScopeCleanup(Object scope) {
+  static void recordDeferredScopeCleanup(Object window, Object scope) {
     synchronized (INSTANCE.lifecycleLock) {
-      if (INSTANCE.recording) {
+      if (window != null && window == INSTANCE.recordingWindow) {
         INSTANCE.listener.onDeferredScopeCleanup(scope);
       }
     }
@@ -277,9 +289,8 @@ public final class ScopeDiagnostics {
     void onActivateFailed(ContextContinuation id) {
       try {
         ContinuationRecord record = records.get(id);
-        // only an activation of an already-resolved continuation is a real failure; a plain
-        // rollback (e.g. cancelled before any capture was recorded) is benign and ignored
-        if (record != null && record.isResolved()) {
+        // Resolution advice can arrive after a concurrent failed resume.
+        if (record != null) {
           record.addFailedActivation(event(ScopeEvent.Type.ACTIVATE_FAILED));
         }
       } catch (Throwable ignored) {
