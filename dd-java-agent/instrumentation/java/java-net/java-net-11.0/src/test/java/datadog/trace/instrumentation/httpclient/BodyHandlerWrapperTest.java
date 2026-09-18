@@ -1,15 +1,18 @@
 package datadog.trace.instrumentation.httpclient;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
+import datadog.context.ContextKey;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.reflect.Proxy;
 import java.net.http.HttpResponse.BodySubscriber;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -17,6 +20,36 @@ import java.util.concurrent.Flow;
 import org.junit.jupiter.api.Test;
 
 class BodyHandlerWrapperTest {
+
+  @Test
+  void holdsContextAcrossCallbacksUntilCompletion() {
+    Context original = Context.current();
+    Context captured = original.with(ContextKey.named("response-body"), new Object());
+    ContextContinuation continuation = captured.capture();
+    RecordingSubscriber subscriber = new RecordingSubscriber();
+    BodySubscriber<Void> wrapper = wrap(subscriber, continuation);
+
+    try {
+      wrapper.onNext(List.of());
+      assertSame(captured, subscriber.callbackContexts.get(0));
+      assertSame(original, Context.current());
+
+      wrapper.onNext(List.of());
+      assertSame(captured, subscriber.callbackContexts.get(1));
+      assertSame(original, Context.current());
+
+      wrapper.onComplete();
+      assertSame(captured, subscriber.callbackContexts.get(2));
+      assertSame(original, Context.current());
+
+      // A released continuation must no longer reactivate the captured context.
+      try (ContextScope ignored = continuation.resume()) {
+        assertSame(original, Context.current());
+      }
+    } finally {
+      continuation.release();
+    }
+  }
 
   @Test
   void releasesContinuationWhenOnSubscribeThrows() {
@@ -65,7 +98,7 @@ class BodyHandlerWrapperTest {
   }
 
   private static BodySubscriber<Void> wrap(
-      RecordingSubscriber subscriber, RecordingContinuation continuation) {
+      RecordingSubscriber subscriber, ContextContinuation continuation) {
     AgentSpan span =
         (AgentSpan)
             Proxy.newProxyInstance(
@@ -78,6 +111,7 @@ class BodyHandlerWrapperTest {
   private static final class RecordingSubscriber
       implements java.net.http.HttpResponse.BodySubscriber<Void> {
     private final CompletableFuture<Void> body = new CompletableFuture<>();
+    private final List<Context> callbackContexts = new ArrayList<>();
     private Flow.Subscription subscription;
     private boolean throwOnSubscribe;
     private boolean throwOnNext;
@@ -97,6 +131,7 @@ class BodyHandlerWrapperTest {
 
     @Override
     public void onNext(List<ByteBuffer> item) {
+      callbackContexts.add(Context.current());
       if (throwOnNext) {
         throw new IllegalStateException("onNext");
       }
@@ -109,6 +144,7 @@ class BodyHandlerWrapperTest {
 
     @Override
     public void onComplete() {
+      callbackContexts.add(Context.current());
       body.complete(null);
     }
   }
