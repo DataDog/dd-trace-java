@@ -89,7 +89,7 @@ private fun registerLogEnvVarUsages(target: Project, extension: SupportedTracerC
     val javaFiles = target.fileTree(target.projectDir) {
       include("**/src/main/java/**/*.java")
       exclude("**/build/**", "**/dd-smoke-tests/**")
-      // Undertow uses DD_UNDERTOW_CONTINUATION as a legacy key to store a ContextScope. It is not related to an environment variable
+      // Undertow uses DD_UNDERTOW_CONTINUATION as a legacy key to store a ContextContinuation. It is not related to an environment variable
       exclude("dd-java-agent/instrumentation/undertow/undertow-common/src/main/java/datadog/trace/instrumentation/undertow/UndertowDecorator.java")
     }
     inputs.files(javaFiles)
