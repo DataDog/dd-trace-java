@@ -338,6 +338,9 @@ public final class ScopeDiagnosticsReport {
       sb.append(' ').append(failures);
     }
     sb.append('\n');
+    for (ScopeEvent event : scope.wrongThreadCloses()) {
+      appendEvent(sb, indent + "wrong-thread close", event);
+    }
   }
 
   private void appendEvent(StringBuilder sb, String label, ScopeEvent event) {

@@ -24,13 +24,18 @@ resolution, scope, thread, timing, and callsite data needed to find the missing 
 
 ## Work the failure
 
-1. Run the smallest failing test with full output:
+1. Resolve the actual Gradle module path and failing suite from CI or the module's tasks. Nesting
+   varies (for example, `netty:netty-4.1` versus `kotlin-coroutines-1.3`). Use `forkedTest` for
+   `*ForkedTest*` classes, or the suite-specific forked task such as `latestDepForkedTest`.
+   Run the smallest failing test with full output:
 
 ```bash
-./gradlew :dd-java-agent:instrumentation:<framework>-<minVersion>:test --tests '<FQCN-or-pattern>' --info 2>&1 | tee /tmp/scopediag-run.txt
+set -o pipefail
+./gradlew :dd-java-agent:instrumentation:<module-path>:<test-task> --tests '<FQCN-or-pattern>' --info 2>&1 | tee /tmp/scopediag-run.txt
 ```
 
-2. Find `Scope/continuation timeline` in the output. If Gradle hides it, inspect the test XML's
+2. Verify the selected test ran in that task's XML results; a successful build with no discovered
+   tests is not validation. Find `Scope/continuation timeline` in the output. If Gradle hides it, inspect the test XML's
    `<system-out>` under the module's `build/test-results` directory.
 3. Follow the failing record from its first event:
    - `LEAKED` / `NEVER_CLOSED`: find the success, error, cancellation, and rejection exits that

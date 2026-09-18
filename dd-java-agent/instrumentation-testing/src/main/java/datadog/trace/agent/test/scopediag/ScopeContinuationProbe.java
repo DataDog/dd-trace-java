@@ -85,7 +85,7 @@ public final class ScopeContinuationProbe {
     if (!recording) {
       return;
     }
-    if (countAfter != CANCELLED) {
+    if (countBefore != CANCELLED && countAfter != CANCELLED) {
       return;
     }
     // release discards; cancelFromContinuedScopeClose finishes. Its slow path delegates to release,
