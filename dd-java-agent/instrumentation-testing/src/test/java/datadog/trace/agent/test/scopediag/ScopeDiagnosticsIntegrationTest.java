@@ -98,6 +98,45 @@ class ScopeDiagnosticsIntegrationTest {
   }
 
   @Test
+  void repeatedContinuedScopeCloseIsFlagged() {
+    tracer = CoreTracer.builder().writer(new ListWriter()).strictTraceWrites(false).build();
+    ScopeDiagnostics.startRecording();
+
+    AgentSpan span = tracer.startSpan("test", "op");
+    ContextContinuation continuation = tracer.capture(span);
+    ContextScope scope = continuation.resume();
+    scope.close();
+    assertFalse(ScopeDiagnostics.report().hasProblems());
+    scope.close();
+    span.finish();
+
+    ScopeDiagnosticsReport report = ScopeDiagnostics.report();
+    assertEquals(1, report.doubleCount());
+    assertEquals(0, report.leakCount());
+    assertTrue(report.hasProblems());
+    assertTrue(report.renderTimeline().contains("DOUBLE_FINISH"));
+  }
+
+  @Test
+  void heldContinuationScopeCloseAndReleaseResolveOnce() {
+    tracer = CoreTracer.builder().writer(new ListWriter()).strictTraceWrites(false).build();
+    ScopeDiagnostics.startRecording();
+
+    AgentSpan span = tracer.startSpan("test", "op");
+    ContextContinuation continuation = tracer.capture(span).hold();
+    ContextScope scope = continuation.resume();
+    scope.close();
+    assertEquals(1, ScopeDiagnostics.report().leakCount());
+    continuation.release();
+    span.finish();
+
+    ScopeDiagnosticsReport report = ScopeDiagnostics.report();
+    assertEquals(0, report.doubleCount());
+    assertEquals(0, report.leakCount());
+    assertFalse(report.hasProblems());
+  }
+
+  @Test
   void scopeLifetimeRecordedAndLinkedToContinuation() {
     tracer = CoreTracer.builder().writer(new ListWriter()).strictTraceWrites(false).build();
 
