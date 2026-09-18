@@ -151,8 +151,8 @@ public class WebsocketDecorator extends BaseDecorator {
       final AgentSpan handshakeSpan = handlerContext.getHandshakeSpan();
       boolean inheritSampling = config.isWebsocketMessagesInheritSampling();
       boolean useDedicatedTraces = config.isWebsocketMessagesSeparateTraces();
-      if (traceStarter) {
-        if (useDedicatedTraces) {
+      if (useDedicatedTraces) {
+        if (traceStarter) {
           wsSpan = startSpan(WEBSOCKET.toString(), operationName, null);
           if (inheritSampling) {
             wsSpan.copyPropagationAndBaggage(handshakeSpan);
@@ -161,10 +161,10 @@ public class WebsocketDecorator extends BaseDecorator {
             wsSpan.setTag(DECISION_MAKER_RESOURCE, handshakeSpan.getResourceName());
           }
         } else {
-          wsSpan = startSpan(WEBSOCKET.toString(), operationName, handshakeSpan.spanContext());
+          wsSpan = startSpan(WEBSOCKET.toString(), operationName);
         }
       } else {
-        wsSpan = startSpan(WEBSOCKET.toString(), operationName);
+        wsSpan = startSpan(WEBSOCKET.toString(), operationName, handshakeSpan.spanContext());
       }
       handlerContext.setWebsocketSpan(wsSpan);
       afterStart(wsSpan);
@@ -178,9 +178,8 @@ public class WebsocketDecorator extends BaseDecorator {
       if (config.isWebsocketTagSessionId()) {
         wsSpan.setTag(WEBSOCKET_SESSION_ID, handlerContext.getSessionId());
       }
-      if (useDedicatedTraces || !traceStarter) {
-        // the link is not added if the user wants to have receive frames on the same trace as the
-        // handshake
+      if (useDedicatedTraces) {
+        // The link is not added if the user wants all frames on the same trace as the handshake.
         wsSpan.addLink(
             SpanLink.from(
                 inheritSampling
