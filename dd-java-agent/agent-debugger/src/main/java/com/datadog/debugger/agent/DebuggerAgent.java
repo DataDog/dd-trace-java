@@ -55,7 +55,7 @@ import java.util.zip.ZipOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Debugger agent implementation */
+/** Debugger agent implementation  modification */
 public class DebuggerAgent {
   private static final Logger LOGGER = LoggerFactory.getLogger(DebuggerAgent.class);
   private static Instrumentation instrumentation;
