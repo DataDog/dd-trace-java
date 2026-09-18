@@ -15,6 +15,7 @@ import com.openai.models.embeddings.EmbeddingModel;
 import com.sun.net.httpserver.HttpServer;
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
+import datadog.trace.api.llmobs.GenAiApmTags;
 import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -365,6 +366,7 @@ class LlmObsDisabledForkedTest extends AbstractLlmObsOpenAiForkedTest {
     assertTrue(
         span.getTags().keySet().stream().noneMatch(key -> key.startsWith("gen_ai.")),
         "openai.request span should carry no gen_ai.* tags");
+    assertNull(span.getTag(GenAiApmTags.ARTIFICIAL_TAGS));
     assertNull(span.getTag("_ml_obs_tag.span.kind"));
   }
 

@@ -71,6 +71,7 @@ class DDLLMObsSpanGenAiApmTagsTest {
     assertEquals(4.0, span.getTag(GenAiApmTags.USAGE_CACHE_READ_INPUT_TOKENS));
     assertEquals(5.0, span.getTag(GenAiApmTags.USAGE_CACHE_WRITE_INPUT_TOKENS));
     assertEquals(6.0, span.getTag(GenAiApmTags.USAGE_REASONING_OUTPUT_TOKENS));
+    assertEquals("True", span.getTag(GenAiApmTags.ARTIFICIAL_TAGS));
   }
 
   @Test

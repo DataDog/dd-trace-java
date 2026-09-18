@@ -82,6 +82,7 @@ class EmbeddingServiceTest extends OpenAiTest {
             "gen_ai.application.name" String
             "gen_ai.usage.input_tokens" Double
             "gen_ai.usage.total_tokens" Double
+            "_dd.llmobs.artificial_gen_ai_tags" "True"
             "_ml_obs_tag.service" String
             "$CommonTags.DDTRACE_VERSION" String
             "$CommonTags.SOURCE" "integration"

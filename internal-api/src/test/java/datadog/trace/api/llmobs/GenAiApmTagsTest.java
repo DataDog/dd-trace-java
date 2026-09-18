@@ -69,6 +69,7 @@ class GenAiApmTagsTest {
     assertEquals(4.0, tags.get(GenAiApmTags.USAGE_CACHE_READ_INPUT_TOKENS));
     assertEquals(5.0, tags.get(GenAiApmTags.USAGE_CACHE_WRITE_INPUT_TOKENS));
     assertEquals(6.0, tags.get(GenAiApmTags.USAGE_REASONING_OUTPUT_TOKENS));
+    assertEquals("True", tags.get(GenAiApmTags.ARTIFICIAL_TAGS));
   }
 
   @Test
@@ -147,6 +148,7 @@ class GenAiApmTagsTest {
     GenAiApmTags.apply(span);
 
     assertTrue(tags.keySet().stream().noneMatch(key -> key.startsWith("gen_ai.")));
+    assertFalse(tags.containsKey(GenAiApmTags.ARTIFICIAL_TAGS));
   }
 
   @Test

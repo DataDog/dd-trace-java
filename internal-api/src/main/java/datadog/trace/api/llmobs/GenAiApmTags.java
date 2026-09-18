@@ -24,6 +24,15 @@ public final class GenAiApmTags {
       "gen_ai.usage.cache_write_input_tokens";
   public static final String USAGE_REASONING_OUTPUT_TOKENS = "gen_ai.usage.reasoning_output_tokens";
 
+  /**
+   * Marks the {@code gen_ai.*} attributes as written by the tracer rather than by the user. Without
+   * it, the backend processor treats the attributes as a user annotation and creates a duplicate
+   * LLM Observability span.
+   */
+  public static final String ARTIFICIAL_TAGS = "_dd.llmobs.artificial_gen_ai_tags";
+
+  private static final String ARTIFICIAL_TAGS_VALUE = "True";
+
   private static final String LLMOBS_TAG_PREFIX = "_ml_obs_tag.";
   private static final String LLMOBS_METRIC_PREFIX = "_ml_obs_metric.";
 
@@ -92,6 +101,8 @@ public final class GenAiApmTags {
         }
       }
     }
+
+    span.setTag(ARTIFICIAL_TAGS, ARTIFICIAL_TAGS_VALUE);
   }
 
   /** The value of {@code key} as a non-empty string, or null. */
