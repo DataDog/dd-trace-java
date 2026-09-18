@@ -335,6 +335,7 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_MAX_CAP
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_MAX_EXCEPTION_PER_SECOND;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SOURCE_FILE_TRACKING_ENABLED;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYNCHRONOUS_SOURCE_FILE_TRACKING_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DISTRIBUTED_DEBUGGER_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT_MS;
@@ -1295,6 +1296,7 @@ public class Config {
   private final int debuggerCodeOriginMaxUserFrames;
   private final boolean distributedDebuggerEnabled;
   private final boolean debuggerSourceFileTrackingEnabled;
+  private final boolean debuggerSynchronousSourceFileTrackingEnabled;
 
   private final Set<String> debuggerThirdPartyIncludes;
   private final Set<String> debuggerThirdPartyExcludes;
@@ -3104,6 +3106,8 @@ public class Config {
     debuggerSourceFileTrackingEnabled =
         configProvider.getBoolean(
             DEBUGGER_SOURCE_FILE_TRACKING_ENABLED, DEFAULT_DEBUGGER_SOURCE_FILE_TRACKING_ENABLED);
+    debuggerSynchronousSourceFileTrackingEnabled =
+        configProvider.getBoolean(DEBUGGER_SYNCHRONOUS_SOURCE_FILE_TRACKING_ENABLED, false);
 
     debuggerThirdPartyIncludes =
         tryMakeImmutableSet(
@@ -5012,6 +5016,10 @@ public class Config {
 
   public boolean isDebuggerSourceFileTrackingEnabled() {
     return debuggerSourceFileTrackingEnabled;
+  }
+
+  public boolean isDebuggerSynchronousSourceFileTrackingEnabled() {
+    return debuggerSynchronousSourceFileTrackingEnabled;
   }
 
   public Set<String> getThirdPartyIncludes() {
