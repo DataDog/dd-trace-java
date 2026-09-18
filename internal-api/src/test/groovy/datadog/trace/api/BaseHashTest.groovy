@@ -108,6 +108,35 @@ class BaseHashTest extends DDSpecification {
     BaseHash.getBaseHash() == hashBefore
   }
 
+  def "Identity hash tracks service/env/primaryTag like base hash"() {
+    when:
+    BaseHash.recalcBaseHash(null)
+    def firstIdentityHash = BaseHash.getIdentityHash()
+
+    injectSysConfig(SERVICE_NAME, "service-1")
+    BaseHash.recalcBaseHash(null)
+    def secondIdentityHash = BaseHash.getIdentityHash()
+
+    then:
+    firstIdentityHash != secondIdentityHash
+  }
+
+  def "Identity hash is unaffected by container tags hash or process tags"() {
+    when:
+    BaseHash.recalcBaseHash(null)
+    def baseIdentityHash = BaseHash.getIdentityHash()
+
+    BaseHash.recalcBaseHash("some-container-tags-hash")
+    def withContainerTagsHash = BaseHash.getIdentityHash()
+
+    ProcessTags.addTag("foo", "bar")
+    def withProcessTags = BaseHash.getIdentityHash()
+
+    then: "DSM2-335: identity hash must not be perturbed by per-pod/per-rollout inputs"
+    baseIdentityHash == withContainerTagsHash
+    baseIdentityHash == withProcessTags
+  }
+
   def "ContainerTagsHash used in hash calculation when provided"() {
     when:
     injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, propagateTagsEnabled.toString())
