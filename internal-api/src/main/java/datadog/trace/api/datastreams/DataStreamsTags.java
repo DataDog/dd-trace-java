@@ -352,9 +352,7 @@ public class DataStreamsTags {
     // here (per-pod/per-process metadata inherited from DBM's BaseHash, see BaseHash.getBaseHash()
     // and PR #9282). They're dropped entirely rather than moved to the aggregation tier: the
     // backend never decodes them into discrete tags today, so they only added opaque cardinality
-    // with no user-visible benefit. @TODO tag a DSM backend owner to confirm there's no hidden
-    // reliance on aggregationHash/completeHash changing when these values change before this
-    // ships (see PR #9282 review thread, raphaelgavache's unanswered comment on this line).
+    // with no user-visible benefit.
 
     // aggregation tags are 7-11: datasetName, datasetNamespace, isManual, group, consumerGroup
     for (int i = 7; i < 12; i++) {
