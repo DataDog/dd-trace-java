@@ -9,13 +9,42 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.advice.AdviceScanResult;
 import datadog.trace.agent.tooling.advice.AdviceScanner;
+import datadog.trace.instrumentation.testing.ExternalHelper;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
+import net.bytebuddy.jar.asm.Type;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 
 class ReferenceCreatorConversionTest {
+  @Test
+  void preservesTransitiveReferencesThroughArrayOwners() {
+    for (Class<?> advice :
+        new Class<?>[] {ArrayCloneAdvice.class, MultidimensionalArrayCloneAdvice.class}) {
+      Map<String, Reference> references = ReferenceCreatorTestSupport.referencesFrom(advice);
+
+      Reference type = references.get(Type.class.getName());
+      assertNotNull(type, advice.getName());
+      assertTrue(
+          Stream.of(type.methods)
+              .anyMatch(
+                  method ->
+                      method.name.equals("getType")
+                          && method.methodType.equals(
+                              "(Ljava/lang/Class;)Lnet/bytebuddy/jar/asm/Type;")),
+          advice.getName());
+      assertFalse(references.keySet().stream().anyMatch(name -> name.startsWith("[")));
+    }
+  }
+
+  @Test
+  void ignoresPrimitiveArrayOwners() {
+    assertTrue(
+        ReferenceCreatorTestSupport.referencesFrom(PrimitiveArrayCloneAdvice.class).isEmpty());
+  }
+
   @Test
   void appliesAdviceShadingOnlyDuringConversion() {
     ShadingModule module = new ShadingModule();
@@ -45,6 +74,24 @@ class ReferenceCreatorConversionTest {
     @Override
     public Map<String, String> adviceShading() {
       return Collections.singletonMap("org.junit.jupiter.api", "relocated.library");
+    }
+  }
+
+  static final class ArrayCloneAdvice {
+    static Object apply(ExternalHelper[] helpers) {
+      return helpers.clone();
+    }
+  }
+
+  static final class MultidimensionalArrayCloneAdvice {
+    static Object apply(ExternalHelper[][] helpers) {
+      return helpers.clone();
+    }
+  }
+
+  static final class PrimitiveArrayCloneAdvice {
+    static Object apply(int[] values) {
+      return values.clone();
     }
   }
 
