@@ -3,15 +3,19 @@ package datadog.trace.instrumentation.openai_java;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.openai.client.OpenAIClient;
 import com.openai.client.okhttp.OpenAIOkHttpClient;
 import com.openai.credential.BearerTokenCredential;
 import com.openai.models.ChatModel;
 import com.openai.models.chat.completions.ChatCompletionCreateParams;
+import com.openai.models.embeddings.EmbeddingCreateParams;
+import com.openai.models.embeddings.EmbeddingModel;
 import com.sun.net.httpserver.HttpServer;
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
+import datadog.trace.api.llmobs.GenAiApmTags;
 import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -73,6 +77,13 @@ abstract class AbstractLlmObsOpenAiForkedTest extends AbstractInstrumentationTes
         .model(ChatModel.GPT_4O_MINI)
         .addSystemMessage("")
         .addUserMessage("")
+        .build();
+  }
+
+  protected static EmbeddingCreateParams buildMinimalEmbeddingParams() {
+    return EmbeddingCreateParams.builder()
+        .model(EmbeddingModel.TEXT_EMBEDDING_ADA_002)
+        .input("")
         .build();
   }
 
@@ -316,5 +327,64 @@ class LlmObsZeroSampleRateForkedTest extends AbstractLlmObsOpenAiForkedTest {
         LLMObsContext.SAMPLING_DECISION_DROPPED,
         openAiSpan.getTag("_ml_obs_tag.sampling_decision"));
     assertEquals("0", openAiSpan.getTag("_ml_obs_tag.sample_rate"));
+  }
+}
+
+/**
+ * Verifies that an openai.request span carries no gen_ai.* attributes at all with LLM Observability
+ * disabled. The attributes are derived from the LLMObs tag set, which the decorator does not build
+ * in that configuration.
+ */
+@WithConfig(key = "llmobs.enabled", value = "false")
+class LlmObsDisabledForkedTest extends AbstractLlmObsOpenAiForkedTest {
+
+  @Test
+  void chatCompletionEmitsNoGenAiAttributes() {
+    try {
+      openAiClient.chat().completions().create(buildMinimalChatParams());
+    } catch (Exception ignored) {
+      // The mock server returns no body, so the SDK may throw while parsing the response.
+    }
+
+    assertNoGenAiTags(awaitOpenAiSpan("/v1/chat/completions"));
+  }
+
+  @Test
+  void embeddingEmitsNoGenAiAttributes() {
+    try {
+      openAiClient.embeddings().create(buildMinimalEmbeddingParams());
+    } catch (Exception ignored) {
+      // The mock server returns no body, so the SDK may throw while parsing the response.
+    }
+
+    assertNoGenAiTags(awaitOpenAiSpan("/v1/embeddings"));
+  }
+
+  private static void assertNoGenAiTags(DDSpan span) {
+    // The endpoint and model the span was selected by are APM tags of their own, still present.
+    assertNotNull(span.getTag("openai.request.model"));
+    assertTrue(
+        span.getTags().keySet().stream().noneMatch(key -> key.startsWith("gen_ai.")),
+        "openai.request span should carry no gen_ai.* tags");
+    assertNull(span.getTag(GenAiApmTags.ARTIFICIAL_TAGS));
+    assertNull(span.getTag("_ml_obs_tag.span.kind"));
+  }
+
+  // Both tests here produce an openai.request span, so match on the endpoint rather than take the
+  // first one written: a trace arriving late from the sibling test would otherwise be picked up.
+  private DDSpan awaitOpenAiSpan(String endpoint) {
+    blockUntilTracesMatch(traces -> findOpenAiSpan(traces, endpoint) != null);
+    DDSpan span = findOpenAiSpan(writer, endpoint);
+    assertNotNull(span, "openai.request span for " + endpoint + " should have been created");
+    return span;
+  }
+
+  private static DDSpan findOpenAiSpan(List<List<DDSpan>> traces, String endpoint) {
+    return traces.stream()
+        .flatMap(List::stream)
+        .filter(span -> "openai.request".equals(span.getOperationName().toString()))
+        .filter(span -> endpoint.equals(span.getTag("openai.request.endpoint")))
+        .findFirst()
+        .orElse(null);
   }
 }

@@ -9,6 +9,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceApiInfo;
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.api.llmobs.GenAiApmTags;
 import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.api.llmobs.LLMObsSampler;
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
@@ -178,6 +179,8 @@ public class OpenAiDecorator extends ClientDecorator {
     if (llmObsEnabled && span != null) {
       span.setTag(CommonTags.ERROR, span.isError() ? 1 : 0);
       span.setTag(CommonTags.ERROR_TYPE, span.getTag(DDTags.ERROR_TYPE));
+
+      GenAiApmTags.apply(span);
 
       Object spanKindTag = span.getTag(CommonTags.SPAN_KIND);
       if (spanKindTag != null) {
