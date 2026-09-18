@@ -3,6 +3,7 @@ package datadog.trace.core.propagation.opg;
 import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
+import static datadog.trace.api.sampling.SamplingMechanism.AGENT_RATE;
 import static datadog.trace.api.sampling.SamplingMechanism.MANUAL;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static java.util.Collections.emptySet;
@@ -150,6 +151,34 @@ class OrgGuardEnforcerTest {
     assertFalse(reEncoded.contains("dd="), "dd= should be dropped: " + reEncoded);
     assertTrue(reEncoded.contains("vendor1=abc"), "vendor1 missing: " + reEncoded);
     assertTrue(reEncoded.contains("vendor2=def"), "vendor2 missing: " + reEncoded);
+  }
+
+  @Test
+  @DisplayName("strip replaces inherited OTel sampling state after local resampling")
+  void stripReplacesOtelSamplingStateAfterLocalResampling() {
+    OrgGuardEnforcer enforcer = enforcer(false, emptySet(), () -> "L");
+    PropagationTags tags =
+        factory.fromHeaderValue(
+            W3C, "dd=s:1;o:foo;t.opm:upstream-X,ot=rv:00000000000000;th:1,vendor1=abc");
+    ExtractedContext ctx =
+        new ExtractedContext(
+            DDTraceId.from(123L),
+            456L,
+            SAMPLER_KEEP,
+            "origin",
+            tags,
+            TracePropagationStyle.TRACECONTEXT);
+
+    ExtractedContext stripped = (ExtractedContext) enforcer.enforce(ctx);
+    assertTrue(
+        stripped
+            .getPropagationTags()
+            .tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 1.0, true, 1L, false));
+
+    String reEncoded = stripped.getPropagationTags().headerValue(W3C);
+    assertNotNull(reEncoded);
+    assertTrue(
+        reEncoded.matches("dd=s:1;t.dm:-1;t.ksr:1,ot=rv:[0-9a-f]{14};th:0,vendor1=abc"), reEncoded);
   }
 
   // ---- helpers ----

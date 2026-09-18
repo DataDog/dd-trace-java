@@ -64,19 +64,14 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
     final RateSamplersByEnvAndService rates = serviceRates;
     RateSampler sampler = rates.getSampler(env, serviceName);
 
-    if (sampler.sample(span)) {
-      span.setSamplingPriority(
-          PrioritySampling.SAMPLER_KEEP,
-          SAMPLING_AGENT_RATE,
-          sampler.getSampleRate(),
-          SamplingMechanism.AGENT_RATE);
-    } else {
-      span.setSamplingPriority(
-          PrioritySampling.SAMPLER_DROP,
-          SAMPLING_AGENT_RATE,
-          sampler.getSampleRate(),
-          SamplingMechanism.AGENT_RATE);
-    }
+    boolean sampled = sampler.sample(span);
+    int samplingPriority = sampled ? PrioritySampling.SAMPLER_KEEP : PrioritySampling.SAMPLER_DROP;
+    span.setSamplingPriority(
+        samplingPriority,
+        SAMPLING_AGENT_RATE,
+        sampler.getSampleRate(),
+        sampled,
+        SamplingMechanism.AGENT_RATE);
   }
 
   private <T extends CoreSpan<T>> String getSpanEnv(final T span) {

@@ -287,6 +287,7 @@ class OpenTelemetryTest extends InstrumentationSpecification {
     }
     if (contextPriority == UNSET) {
       expectedTracestate += ";t.ksr:1"
+      expectedTracestate += ",ot=${span.delegate.spanContext().propagationTags.samplingState().otelTraceState}"
     }
     if (traceId.toHighOrderLong() != 0) {
       expectedDataTags << "_dd.p.tid=" + traceId.toHexStringPadded(32).substring(0, 16)
