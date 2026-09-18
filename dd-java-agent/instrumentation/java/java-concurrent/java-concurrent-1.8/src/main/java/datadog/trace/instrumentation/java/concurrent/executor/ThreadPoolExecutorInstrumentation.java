@@ -62,7 +62,9 @@ public final class ThreadPoolExecutorInstrumentation
   private static final ElementMatcher<MethodDescription> NO_WRAPPING_BEFORE_DELEGATION =
       not(
           isDeclaredBy(
-              namedOneOf("org.elasticsearch.common.util.concurrent.EsThreadPoolExecutor")));
+              namedOneOf(
+                  "org.elasticsearch.common.util.concurrent.EsThreadPoolExecutor",
+                  "org.opensearch.common.util.concurrent.OpenSearchThreadPoolExecutor")));
 
   @Override
   public String hierarchyMarkerType() {
