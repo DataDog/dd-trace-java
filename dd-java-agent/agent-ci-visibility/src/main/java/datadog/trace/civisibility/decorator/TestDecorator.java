@@ -4,6 +4,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
 public interface TestDecorator {
   String TEST_TYPE = "test";
+  String TEST_TYPE_BENCHMARK = "benchmark";
 
   AgentSpan afterStart(final AgentSpan span);
 
