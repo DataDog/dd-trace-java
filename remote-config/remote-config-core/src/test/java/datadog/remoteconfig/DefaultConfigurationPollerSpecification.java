@@ -2,6 +2,7 @@ package datadog.remoteconfig;
 
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.ClientState.ConfigState.APPLY_STATE_ERROR;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
+import static datadog.trace.test.util.PlatformTestUtils.normalizeLineEndings;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
@@ -903,7 +904,7 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
     Map<String, Object> state = clientState(parseBody());
     assertTrue(asList(state.get("config_states")).isEmpty());
     assertEquals(Boolean.TRUE, state.get("has_error"));
-    assertEquals(errorMsg, state.get("error"));
+    assertEquals(errorMsg, normalizeLineEndings((String) state.get("error")));
   }
 
   @Test

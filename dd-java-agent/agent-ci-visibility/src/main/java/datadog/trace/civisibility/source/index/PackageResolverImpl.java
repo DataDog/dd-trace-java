@@ -2,7 +2,6 @@ package datadog.trace.civisibility.source.index;
 
 import datadog.trace.api.civisibility.domain.Language;
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
@@ -70,7 +69,8 @@ public class PackageResolverImpl implements PackageResolver {
         String packageName = line.substring(packageNameStart, packageNameEnd);
         Path packagePath;
         try {
-          packagePath = fileSystem.getPath(packageName.replace('.', File.separatorChar));
+          packagePath =
+              fileSystem.getPath(packageName.replace('.', fileSystem.getSeparator().charAt(0)));
         } catch (InvalidPathException e) {
           log.debug("Invalid package {} found for source file {}", packageName, sourceFile, e);
           continue;

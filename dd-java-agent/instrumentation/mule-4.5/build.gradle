@@ -1,3 +1,5 @@
+import datadog.gradle.plugin.HostPlatform
+
 plugins {
   id 'dd-trace-java.module.instrumentation'
   id 'idea'
@@ -231,7 +233,6 @@ tasks.register('mvnPackage', Exec) {
   environment["JAVA_HOME"] = getLazyJavaHomeFor(8)
 
   List<String> mvnArgs = [
-    "$rootDir/mvnw",
     "-Ddatadog.builddir=$buildDir",
     "-Ddatadog.name=mule-test-application",
     "-Ddatadog.version=$version",
@@ -240,10 +241,10 @@ tasks.register('mvnPackage', Exec) {
 
   // Specify caches folder on CI.
   if (providers.environmentVariable("CI").isPresent()) {
-    mvnArgs.add(1, "-Dmaven.repo.local=$rootDir/.mvn/caches")
+    mvnArgs.add(0, "-Dmaven.repo.local=$rootDir/.mvn/caches")
   }
 
-  commandLine(mvnArgs)
+  commandLine(HostPlatform.mavenWrapperCommand(rootDir, mvnArgs))
 
   outputs.dir("$buildDir/target")
   inputs.dir("$appDir/src")

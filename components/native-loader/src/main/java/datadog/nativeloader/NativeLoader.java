@@ -4,17 +4,16 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileAttribute;
-import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 
 /**
  * NativeLoader is intended as a more feature rich replacement for calling {@link
@@ -379,18 +378,26 @@ public final class NativeLoader {
 
     static Path createTempFile(Path tempDir, String libname, String libExt)
         throws IOException, SecurityException {
-      FileAttribute<Set<PosixFilePermission>> permAttrs =
-          PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"));
+      FileAttribute<?>[] fileAttributes = new FileAttribute<?>[0];
+      if (supportsPosix(tempDir)) {
+        fileAttributes =
+            new FileAttribute<?>[] {
+              PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"))
+            };
+      }
 
       if (tempDir == null) {
-        return Files.createTempFile(libname, "." + libExt, permAttrs);
+        return Files.createTempFile(libname, "." + libExt, fileAttributes);
       } else {
-        Files.createDirectories(
-            tempDir,
-            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
-
-        return Files.createTempFile(tempDir, libname, "." + libExt, permAttrs);
+        Files.createDirectories(tempDir, fileAttributes);
+        return Files.createTempFile(tempDir, libname, "." + libExt, fileAttributes);
       }
+    }
+
+    private static boolean supportsPosix(Path tempDir) {
+      return (tempDir == null ? FileSystems.getDefault() : tempDir.getFileSystem())
+          .supportedFileAttributeViews()
+          .contains("posix");
     }
 
     static boolean delete(File tempFile) {

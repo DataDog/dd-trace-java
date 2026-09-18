@@ -1,3 +1,6 @@
+import datadog.environment.OperatingSystem
+import spock.lang.IgnoreIf
+
 import com.couchbase.client.core.env.TimeoutConfig
 import com.couchbase.client.core.error.DocumentNotFoundException
 import com.couchbase.client.core.error.ParsingFailureException
@@ -26,6 +29,9 @@ import spock.lang.Shared
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
+@IgnoreIf(reason = "Requires a Docker environment capable of running Linux Testcontainers", inherited = true, value = {
+  OperatingSystem.isWindows()
+})
 abstract class CouchbaseClient31Test extends VersionedNamingTestBase {
   static final String BUCKET = 'test-bucket'
 
