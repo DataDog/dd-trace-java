@@ -34,6 +34,8 @@ class LLMObsContextPropagatorTest {
   private static final String PAGENT_SPAN_ID_TAG = "_dd.p.llmobs_pagent_span_id";
   private static final String PAGENT_NAME_TAG = "_dd.p.llmobs_pagent_name";
   private static final String PARENT_ID_TAG = "_dd.p.llmobs_parent_id";
+  private static final String SAMPLE_RATE_TAG = "_dd.p.llmobs_sr";
+  private static final String SAMPLING_DECISION_TAG = "_dd.p.llmobs_sd";
 
   private static CoreTracer tracer;
 
@@ -264,6 +266,46 @@ class LLMObsContextPropagatorTest {
     }
     assertTrue(tags.contains(PARENT_ID_TAG + "="), () -> "parent_id dropped: " + tags);
     assertTrue(tags.contains(PAGENT_SPAN_ID_TAG + "="), () -> "pagent_span_id dropped: " + tags);
+  }
+
+  /** A span that samples locally also publishes the verdict it reached onto the wire. */
+  @Test
+  void stagesTheSamplingVerdictOnInjection() {
+    Map<String, String> carrier = producerCarrier("checkout", null);
+
+    String wire = carrier.get("x-datadog-tags");
+    assertTrue(wire.contains(SAMPLE_RATE_TAG + "=1"), () -> "sample rate missing from " + wire);
+    assertTrue(
+        wire.contains(SAMPLING_DECISION_TAG + "=1"),
+        () -> "sampling decision missing from " + wire);
+  }
+
+  /**
+   * The sampling verdict has to survive a process hop, otherwise a consumer configured at a
+   * different rate than its producer re-rolls and the distributed LLMObs trace is retained only in
+   * part. The upstream here dropped at rate 0.1 while this service keeps everything: without
+   * propagation the consumer would report a decision of "1" against its own rate.
+   */
+  @Test
+  void consumerHonoursThePropagatedSamplingVerdict() {
+    Map<String, String> inbound = producerCarrier("checkout", null);
+    // Stand in for an upstream configured at a different rate than this service's default of 1.0.
+    inbound.put(
+        "x-datadog-tags",
+        inbound
+            .get("x-datadog-tags")
+            .replace(SAMPLE_RATE_TAG + "=1", SAMPLE_RATE_TAG + "=0.1")
+            .replace(SAMPLING_DECISION_TAG + "=1", SAMPLING_DECISION_TAG + "=0"));
+
+    try (AgentScope consumeScope = startLocalChildScope(extractSpan(inbound))) {
+      DDLLMObsSpan consumer = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "handler", null, null);
+      try {
+        assertEquals("0", LLMObsContext.currentSamplingDecision());
+        assertEquals("0.1", LLMObsContext.currentSampleRate());
+      } finally {
+        consumer.finish();
+      }
+    }
   }
 
   @Test

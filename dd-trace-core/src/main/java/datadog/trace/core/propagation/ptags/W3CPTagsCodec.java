@@ -128,6 +128,8 @@ public class W3CPTagsCodec extends PTagsCodec {
     TagValue llmObsParentAgentSpanIdTagValue = null;
     TagValue llmObsParentAgentNameTagValue = null;
     TagValue llmObsParentIdTagValue = null;
+    TagValue llmObsSampleRateTagValue = null;
+    TagValue llmObsSamplingDecisionTagValue = null;
     while (tagPos < ddMemberValueEnd) {
       tagPos = skipEmptyElements(value, tagPos, ddMemberValueEnd);
       if (tagPos >= ddMemberValueEnd) {
@@ -213,6 +215,10 @@ public class W3CPTagsCodec extends PTagsCodec {
               llmObsParentAgentNameTagValue = tagValue;
             } else if (tagKey.equals(LLMOBS_PARENT_ID_TAG)) {
               llmObsParentIdTagValue = tagValue;
+            } else if (tagKey.equals(LLMOBS_SAMPLE_RATE_TAG)) {
+              llmObsSampleRateTagValue = tagValue;
+            } else if (tagKey.equals(LLMOBS_SAMPLING_DECISION_TAG)) {
+              llmObsSamplingDecisionTagValue = tagValue;
             } else {
               if (tagPairs == null) {
                 // This is roughly the size of a two element linked list but can hold six
@@ -252,7 +258,9 @@ public class W3CPTagsCodec extends PTagsCodec {
             llmObsSessionIdTagValue,
             llmObsParentAgentSpanIdTagValue,
             llmObsParentAgentNameTagValue,
-            llmObsParentIdTagValue),
+            llmObsParentIdTagValue,
+            llmObsSampleRateTagValue,
+            llmObsSamplingDecisionTagValue),
         otelTraceState);
   }
 

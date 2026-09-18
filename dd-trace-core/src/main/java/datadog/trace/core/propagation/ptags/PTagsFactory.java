@@ -8,6 +8,8 @@ import static datadog.trace.core.propagation.ptags.PTagsCodec.LLMOBS_ML_APP_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.LLMOBS_PAGENT_NAME_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.LLMOBS_PAGENT_SPAN_ID_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.LLMOBS_PARENT_ID_TAG;
+import static datadog.trace.core.propagation.ptags.PTagsCodec.LLMOBS_SAMPLE_RATE_TAG;
+import static datadog.trace.core.propagation.ptags.PTagsCodec.LLMOBS_SAMPLING_DECISION_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.LLMOBS_SESSION_ID_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.ORG_PROPAGATION_MARKER_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_ID_TAG;
@@ -412,14 +414,18 @@ public class PTagsFactory implements PropagationTags.Factory {
         CharSequence sessionId,
         CharSequence parentAgentSpanId,
         CharSequence parentAgentName,
-        CharSequence parentId) {
+        CharSequence parentId,
+        CharSequence sampleRate,
+        CharSequence samplingDecision) {
       LLMObsTagValues updated =
           LLMObsTagValues.of(
               toTagValue(mlApp),
               toTagValue(sessionId),
               toTagValue(parentAgentSpanId),
               toTagValue(parentAgentName),
-              toTagValue(parentId));
+              toTagValue(parentId),
+              toTagValue(sampleRate),
+              toTagValue(samplingDecision));
       if (!updated.equals(llmObsTags)) {
         clearCachedHeaders();
         llmObsTags = updated;
@@ -457,6 +463,16 @@ public class PTagsFactory implements PropagationTags.Factory {
     @Override
     public CharSequence getLLMObsParentId() {
       return decoded(extractedLLMObsTags.parentId);
+    }
+
+    @Override
+    public CharSequence getLLMObsSampleRate() {
+      return decoded(extractedLLMObsTags.sampleRate);
+    }
+
+    @Override
+    public CharSequence getLLMObsSamplingDecision() {
+      return decoded(extractedLLMObsTags.samplingDecision);
     }
 
     /**
@@ -669,6 +685,12 @@ public class PTagsFactory implements PropagationTags.Factory {
                 size, LLMOBS_PAGENT_NAME_TAG, currentLLMObsTags.parentAgentName);
         size =
             PTagsCodec.calcXDatadogTagsSize(size, LLMOBS_PARENT_ID_TAG, currentLLMObsTags.parentId);
+        size =
+            PTagsCodec.calcXDatadogTagsSize(
+                size, LLMOBS_SAMPLE_RATE_TAG, currentLLMObsTags.sampleRate);
+        size =
+            PTagsCodec.calcXDatadogTagsSize(
+                size, LLMOBS_SAMPLING_DECISION_TAG, currentLLMObsTags.samplingDecision);
         int currentProductTraceSource = traceSource;
         if (currentProductTraceSource != ProductTraceSource.UNSET) {
           size =

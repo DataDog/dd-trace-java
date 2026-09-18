@@ -180,7 +180,8 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
       Map<String, String> tags) {
     PropagationTags propagationTags = factory().fromHeaderValue(DATADOG, "");
 
-    propagationTags.updateLLMObsContext(mlApp, sessionId, pagentSpanId, pagentName, parentId);
+    propagationTags.updateLLMObsContext(
+        mlApp, sessionId, pagentSpanId, pagentName, parentId, null, null);
 
     assertEquals(expectedHeaderValue, propagationTags.headerValue(DATADOG));
     assertEquals(tags, propagationTags.createTagMap());
@@ -195,9 +196,40 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
   void updatePropagationTagsLLMObsContextRejectsControlCharacters(String mlApp) {
     PropagationTags propagationTags = factory().fromHeaderValue(DATADOG, "");
 
-    propagationTags.updateLLMObsContext(mlApp, "sess-1", null, null, null);
+    propagationTags.updateLLMObsContext(mlApp, "sess-1", null, null, null, null, null);
 
     assertEquals("_dd.p.llmobs_sid=sess-1", propagationTags.headerValue(DATADOG));
+  }
+
+  @TableTest({
+    "scenario              | sampleRate | samplingDecision | expectedHeaderValue                     ",
+    "both propagate        | '0.25'     | '1'              | '_dd.p.llmobs_sr=0.25,_dd.p.llmobs_sd=1'",
+    "dropped decision      | '1'        | '0'              | '_dd.p.llmobs_sr=1,_dd.p.llmobs_sd=0'   ",
+    "rate without decision | '0.25'     |                  | '_dd.p.llmobs_sr=0.25'                  ",
+    "decision without rate |            | '1'              | '_dd.p.llmobs_sd=1'                     ",
+    "neither               |            |                  |                                         "
+  })
+  void updatePropagationTagsLLMObsSampling(
+      String sampleRate, String samplingDecision, String expectedHeaderValue) {
+    PropagationTags propagationTags = factory().fromHeaderValue(DATADOG, "");
+
+    propagationTags.updateLLMObsContext(null, null, null, null, null, sampleRate, samplingDecision);
+
+    assertEquals(expectedHeaderValue, propagationTags.headerValue(DATADOG));
+  }
+
+  @Test
+  void llmObsSamplingRoundTripsThroughHeader() {
+    PropagationTags extracted =
+        factory()
+            .fromHeaderValue(
+                DATADOG, "_dd.p.llmobs_ml_app=my-ml-app,_dd.p.llmobs_sr=0.25,_dd.p.llmobs_sd=0");
+
+    assertEquals("0.25", extracted.getLLMObsSampleRate().toString());
+    assertEquals("0", extracted.getLLMObsSamplingDecision().toString());
+    // Absent tags read back as null rather than an empty string, so a consumer can tell "the
+    // caller made no decision" from "the caller decided to drop".
+    assertNull(extracted.getLLMObsParentId());
   }
 
   @Test
@@ -207,7 +239,7 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
     PropagationTags propagationTags =
         factory().fromHeaderValue(DATADOG, "_dd.p.tid=1234567890abcdef");
 
-    propagationTags.updateLLMObsContext("planner,west", "sess-1", null, null, null);
+    propagationTags.updateLLMObsContext("planner,west", "sess-1", null, null, null, null, null);
     PropagationTags reparsed =
         factory().fromHeaderValue(DATADOG, propagationTags.headerValue(DATADOG));
 

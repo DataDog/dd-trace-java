@@ -58,7 +58,9 @@ public class LLMObsContextPropagator implements Propagator {
         LLMObsContext.currentSessionId(),
         LLMObsContext.currentParentAgentSpanId(),
         LLMObsContext.currentParentAgentName(),
-        String.valueOf(llmObsContext.getSpanId()));
+        String.valueOf(llmObsContext.getSpanId()),
+        LLMObsContext.currentSampleRate(),
+        LLMObsContext.currentSamplingDecision());
   }
 
   @Override

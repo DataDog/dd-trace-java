@@ -110,6 +110,24 @@ public interface AgentSpanContext {
   }
 
   /**
+   * Gets the LLM Observability sample rate that arrived on the inbound headers, or {@code null} if
+   * none did or this context implementation doesn't have propagation-tags access. This is the rate
+   * that produced {@link #getLLMObsSamplingDecision()} upstream, not this service's own.
+   */
+  default CharSequence getLLMObsSampleRate() {
+    return null;
+  }
+
+  /**
+   * Gets the LLM Observability sampling decision that arrived on the inbound headers ({@code "1"}
+   * retained, {@code "0"} dropped), or {@code null} if none did or this context implementation
+   * doesn't have propagation-tags access.
+   */
+  default CharSequence getLLMObsSamplingDecision() {
+    return null;
+  }
+
+  /**
    * Sets the whole LLM Observability tag set to propagate with this trace, replacing any set
    * previously staged. Taken together rather than one tag at a time so the update is atomic: a
    * concurrent reader never serializes a header mixing values from two different contexts. No-op by
@@ -120,7 +138,9 @@ public interface AgentSpanContext {
       CharSequence sessionId,
       CharSequence parentAgentSpanId,
       CharSequence parentAgentName,
-      CharSequence parentId) {}
+      CharSequence parentId,
+      CharSequence sampleRate,
+      CharSequence samplingDecision) {}
 
   /**
    * Discards anything locally staged by {@link #updateLLMObsContext}, restoring the LLM

@@ -1574,14 +1574,33 @@ public class DDSpanContext
   }
 
   @Override
+  public CharSequence getLLMObsSampleRate() {
+    return getPropagationTags().getLLMObsSampleRate();
+  }
+
+  @Override
+  public CharSequence getLLMObsSamplingDecision() {
+    return getPropagationTags().getLLMObsSamplingDecision();
+  }
+
+  @Override
   public void updateLLMObsContext(
       CharSequence mlApp,
       CharSequence sessionId,
       CharSequence parentAgentSpanId,
       CharSequence parentAgentName,
-      CharSequence parentId) {
+      CharSequence parentId,
+      CharSequence sampleRate,
+      CharSequence samplingDecision) {
     getPropagationTags()
-        .updateLLMObsContext(mlApp, sessionId, parentAgentSpanId, parentAgentName, parentId);
+        .updateLLMObsContext(
+            mlApp,
+            sessionId,
+            parentAgentSpanId,
+            parentAgentName,
+            parentId,
+            sampleRate,
+            samplingDecision);
   }
 
   @Override

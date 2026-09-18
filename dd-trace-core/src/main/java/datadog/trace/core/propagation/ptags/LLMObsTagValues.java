@@ -3,7 +3,7 @@ package datadog.trace.core.propagation.ptags;
 import java.util.Objects;
 
 /**
- * Bundles the five LLM Observability propagation tag values as a single parameter.
+ * Bundles the seven LLM Observability propagation tag values as a single parameter.
  *
  * <p>Never {@code null}: use {@link #EMPTY} to say "no LLM Observability tags", and obtain
  * instances through {@link #of} so that the common case — an incoming request carrying none of
@@ -11,13 +11,16 @@ import java.util.Objects;
  * EMPTY} rather than allocating.
  */
 final class LLMObsTagValues {
-  static final LLMObsTagValues EMPTY = new LLMObsTagValues(null, null, null, null, null);
+  static final LLMObsTagValues EMPTY =
+      new LLMObsTagValues(null, null, null, null, null, null, null);
 
   final TagValue mlApp;
   final TagValue sessionId;
   final TagValue parentAgentSpanId;
   final TagValue parentAgentName;
   final TagValue parentId;
+  final TagValue sampleRate;
+  final TagValue samplingDecision;
 
   /** Returns {@link #EMPTY} when every value is {@code null}, otherwise a new bundle. */
   static LLMObsTagValues of(
@@ -25,15 +28,26 @@ final class LLMObsTagValues {
       TagValue sessionId,
       TagValue parentAgentSpanId,
       TagValue parentAgentName,
-      TagValue parentId) {
+      TagValue parentId,
+      TagValue sampleRate,
+      TagValue samplingDecision) {
     if (mlApp == null
         && sessionId == null
         && parentAgentSpanId == null
         && parentAgentName == null
-        && parentId == null) {
+        && parentId == null
+        && sampleRate == null
+        && samplingDecision == null) {
       return EMPTY;
     }
-    return new LLMObsTagValues(mlApp, sessionId, parentAgentSpanId, parentAgentName, parentId);
+    return new LLMObsTagValues(
+        mlApp,
+        sessionId,
+        parentAgentSpanId,
+        parentAgentName,
+        parentId,
+        sampleRate,
+        samplingDecision);
   }
 
   private LLMObsTagValues(
@@ -41,12 +55,16 @@ final class LLMObsTagValues {
       TagValue sessionId,
       TagValue parentAgentSpanId,
       TagValue parentAgentName,
-      TagValue parentId) {
+      TagValue parentId,
+      TagValue sampleRate,
+      TagValue samplingDecision) {
     this.mlApp = mlApp;
     this.sessionId = sessionId;
     this.parentAgentSpanId = parentAgentSpanId;
     this.parentAgentName = parentAgentName;
     this.parentId = parentId;
+    this.sampleRate = sampleRate;
+    this.samplingDecision = samplingDecision;
   }
 
   @Override
@@ -62,11 +80,20 @@ final class LLMObsTagValues {
         && Objects.equals(sessionId, other.sessionId)
         && Objects.equals(parentAgentSpanId, other.parentAgentSpanId)
         && Objects.equals(parentAgentName, other.parentAgentName)
-        && Objects.equals(parentId, other.parentId);
+        && Objects.equals(parentId, other.parentId)
+        && Objects.equals(sampleRate, other.sampleRate)
+        && Objects.equals(samplingDecision, other.samplingDecision);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(mlApp, sessionId, parentAgentSpanId, parentAgentName, parentId);
+    return Objects.hash(
+        mlApp,
+        sessionId,
+        parentAgentSpanId,
+        parentAgentName,
+        parentId,
+        sampleRate,
+        samplingDecision);
   }
 }

@@ -225,6 +225,18 @@ public class DDLLMObsSpan implements LLMObsSpan {
       if (resolvedParentAgentSpanId != null) {
         resolvedParentAgentName = asString(span.spanContext().getLLMObsParentAgentName());
       }
+      // Adopt the upstream sampling verdict so a distributed LLMObs trace is retained or dropped
+      // as a whole. Re-rolling locally only agrees with the caller when both services happen to
+      // be configured at the same rate; honouring the propagated decision removes that
+      // coincidence. Both tags are required together — the rate is meaningless without the
+      // decision it produced, and a lone decision would be reported against this service's rate,
+      // which is not the rate that produced it.
+      String propagatedSampleRate = asString(span.spanContext().getLLMObsSampleRate());
+      String propagatedSamplingDecision = asString(span.spanContext().getLLMObsSamplingDecision());
+      if (propagatedSampleRate != null && propagatedSamplingDecision != null) {
+        sampleRate = propagatedSampleRate;
+        samplingDecision = propagatedSamplingDecision;
+      }
     }
 
     // The service default goes last, once the explicit, in-process and propagated values have all

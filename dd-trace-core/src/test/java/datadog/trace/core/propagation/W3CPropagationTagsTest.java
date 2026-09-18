@@ -414,6 +414,18 @@ class W3CPropagationTagsTest extends DDCoreJavaSpecification {
     assertNull(propagationTags.getLLMObsParentId());
   }
 
+  @Test
+  void llmObsSamplingRoundTripsThroughTracestate() {
+    PropagationTags propagationTags = factory().fromHeaderValue(W3C, "");
+
+    propagationTags.updateLLMObsContext(null, null, null, null, null, "0.25", "0");
+    String header = propagationTags.headerValue(W3C);
+    PropagationTags reparsed = factory().fromHeaderValue(W3C, header);
+
+    assertEquals("0.25", reparsed.getLLMObsSampleRate().toString());
+    assertEquals("0", reparsed.getLLMObsSamplingDecision().toString());
+  }
+
   private static String buildHeader(int memberCount) {
     StringBuilder sb = new StringBuilder();
     for (int i = 1; i <= memberCount; i++) {

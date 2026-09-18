@@ -212,13 +212,31 @@ public abstract class PropagationTags {
    */
   public abstract CharSequence getLLMObsParentId();
 
+  /**
+   * Returns the LLM Observability sample rate that arrived on the inbound headers as {@code
+   * _dd.p.llmobs_sr}, or {@code null} if none did. Always accompanied by {@link
+   * #getLLMObsSamplingDecision()} — the rate is the one that produced that decision, not this
+   * service's configured rate. See {@link #getLLMObsMlApp()}.
+   */
+  public abstract CharSequence getLLMObsSampleRate();
+
+  /**
+   * Returns the LLM Observability sampling decision that arrived on the inbound headers as {@code
+   * _dd.p.llmobs_sd} ({@code "1"} retained, {@code "0"} dropped), or {@code null} if none did.
+   * Honouring it keeps a distributed LLMObs trace whole across services configured at different
+   * rates, which re-rolling locally would not. See {@link #getLLMObsMlApp()}.
+   */
+  public abstract CharSequence getLLMObsSamplingDecision();
+
   /** Sets the whole LLM Observability tag set to propagate with this trace. */
   public abstract void updateLLMObsContext(
       CharSequence mlApp,
       CharSequence sessionId,
       CharSequence parentAgentSpanId,
       CharSequence parentAgentName,
-      CharSequence parentId);
+      CharSequence parentId,
+      CharSequence sampleRate,
+      CharSequence samplingDecision);
 
   /**
    * Discards anything locally staged by {@link #updateLLMObsContext}, restoring the LLM
