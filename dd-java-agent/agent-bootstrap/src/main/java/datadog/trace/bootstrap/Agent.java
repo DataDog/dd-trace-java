@@ -53,6 +53,7 @@ import datadog.trace.api.intake.Intake;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.benchmark.StaticEventLogger;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.StableConfigSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
@@ -72,6 +73,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.security.CodeSource;
 import java.util.EnumSet;
+import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.PatternSyntaxException;
@@ -1490,32 +1492,81 @@ public class Agent {
    * on JFR.
    */
   private static ProfilingContextIntegration createProfilingContextIntegration() {
-    if (Config.get().isProfilingEnabled()) {
-      if (Config.get().isDatadogProfilerEnabled() && !OperatingSystem.isWindows()) {
-        try {
-          return (ProfilingContextIntegration)
-              AGENT_CLASSLOADER
-                  .loadClass("com.datadog.profiling.ddprof.DatadogProfilingIntegration")
-                  .getDeclaredConstructor()
-                  .newInstance();
-        } catch (Throwable t) {
-          log.debug("ddprof-based profiling context labeling not available. {}", t.getMessage());
-        }
+    Config config = Config.get();
+    // isDatadogProfilerEnabled() is ORed in explicitly so a user with real profiling enabled keeps
+    // ddprof regardless of the AppSec activation level that otherwise drives
+    // isOtelContextExposureEnabled() - additive, not a replacement gate.
+    if ((config.isDatadogProfilerEnabled() || config.isOtelContextExposureEnabled())
+        && !OperatingSystem.isWindows()) {
+      // When the ddprof integration is triggered by context exposure alone (profiling disabled),
+      // its construction is deferred off the premain thread: it loads the ddprof native library
+      // and touches java.nio.file, which must not happen on the primordial premain thread. Users
+      // with the profiler actually enabled keep the synchronous path, since profiling accuracy
+      // requires seeing every scope from the very first one.
+      ProfilingContextIntegration integration =
+          createDdprofContextIntegration(AGENT_CLASSLOADER, !config.isDatadogProfilerEnabled());
+      if (integration != null) {
+        return integration;
       }
-      if (Config.get().isProfilingTimelineEventsEnabled()) {
-        // important: note that this will not initialise JFR until onStart is called
-        try {
-          return (ProfilingContextIntegration)
-              AGENT_CLASSLOADER
-                  .loadClass("com.datadog.profiling.controller.openjdk.JFREventContextIntegration")
-                  .getDeclaredConstructor()
-                  .newInstance();
-        } catch (Throwable t) {
-          log.debug("JFR event-based profiling context labeling not available. {}", t.getMessage());
-        }
+    }
+    if (config.isProfilingEnabled() && config.isProfilingTimelineEventsEnabled()) {
+      // important: note that this will not initialise JFR until onStart is called
+      try {
+        return (ProfilingContextIntegration)
+            AGENT_CLASSLOADER
+                .loadClass("com.datadog.profiling.controller.openjdk.JFREventContextIntegration")
+                .getDeclaredConstructor()
+                .newInstance();
+      } catch (Throwable t) {
+        log.debug("JFR event-based profiling context labeling not available. {}", t.getMessage());
       }
     }
     return ProfilingContextIntegration.NoOp.INSTANCE;
+  }
+
+  /**
+   * Creates the ddprof-based profiling context integration, either synchronously or deferred off
+   * the calling thread.
+   *
+   * @param classLoader the agent class loader used to reach the profiling classes.
+   * @param deferInitialization when true, the integration (and the process context registration
+   *     that follows it) is constructed on an {@link AgentTaskScheduler} thread instead of the
+   *     caller's, which during premain is the JVM's primordial thread.
+   * @return the integration, or {@code null} if a synchronous construction failed, in which case
+   *     the caller falls back to the other integrations.
+   */
+  static ProfilingContextIntegration createDdprofContextIntegration(
+      final ClassLoader classLoader, final boolean deferInitialization) {
+    Callable<ProfilingContextIntegration> factory =
+        () -> {
+          ProfilingContextIntegration integration =
+              (ProfilingContextIntegration)
+                  classLoader
+                      .loadClass("com.datadog.profiling.ddprof.DatadogProfilingIntegration")
+                      .getDeclaredConstructor()
+                      .newInstance();
+          try {
+            classLoader
+                .loadClass("com.datadog.profiling.agent.ProcessContext")
+                .getMethod("register", ConfigProvider.class)
+                .invoke(null, ConfigProvider.getInstance());
+          } catch (Throwable t) {
+            log.debug("Process context registration not available. {}", t.getMessage());
+          }
+          return integration;
+        };
+    if (deferInitialization) {
+      DeferredProfilingContextIntegration deferred =
+          new DeferredProfilingContextIntegration("ddprof", factory);
+      deferred.scheduleInitialization();
+      return deferred;
+    }
+    try {
+      return factory.call();
+    } catch (Throwable t) {
+      log.debug("ddprof-based profiling context labeling not available. {}", t.getMessage());
+      return null;
+    }
   }
 
   private static boolean startProfilingAgent(

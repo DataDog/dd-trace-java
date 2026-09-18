@@ -1080,6 +1080,7 @@ public class Config {
   private final ProfilingEnablement profilingEnabled;
   private final boolean profilingAgentless;
   private final boolean isDatadogProfilerEnabled;
+  private final boolean otelContextExposureEnabled;
   @Deprecated private final String profilingUrl;
   private final Map<String, String> profilingTags;
   private final int profilingStartDelay;
@@ -2641,6 +2642,16 @@ public class Config {
         traceResourceRenamingExplicit != null
             ? traceResourceRenamingExplicit
             : instrumenterConfig.getAppSecActivation() == ProductActivation.FULLY_ENABLED;
+
+    // OpenTelemetry thread/process context exposure configuration
+    // No dedicated flag: enabled whenever the Datadog profiler is safe and configured and either
+    // profiling is enabled or AppSec is fully enabled. A user who wants this off already has a
+    // kill switch through the underlying flags - DD_PROFILING_ENABLED and DD_APPSEC_ENABLED -
+    // the same way isProfilingEnabled() itself has no dedicated override beyond its own flag.
+    this.otelContextExposureEnabled =
+        isDatadogProfilerSafeAndConfigured()
+            && (isProfilingEnabled()
+                || instrumenterConfig.getAppSecActivation() == ProductActivation.FULLY_ENABLED);
 
     this.traceResourceRenamingAlwaysSimplifiedEndpoint =
         configProvider.getBoolean(TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT, false);
@@ -4236,8 +4247,38 @@ public class Config {
     return profilingRecordExceptionMessage;
   }
 
+  /**
+   * Despite the name, this does NOT mean "the Datadog profiler engine is currently recording" - it
+   * means "profiling is enabled AND the ddprof engine is allowed to run" ({@link
+   * #isProfilingEnabled()} AND {@link #isDatadogProfilerSafeAndConfigured()}). The underlying
+   * {@code isDatadogProfilerEnabled} field is itself independent of profiling: see {@link
+   * #isDatadogProfilerSafeAndConfigured()}.
+   */
   public boolean isDatadogProfilerEnabled() {
     return isProfilingEnabled() && isDatadogProfilerEnabled;
+  }
+
+  /**
+   * The raw Datadog-profiler env-safety and explicit-flag predicate, without the {@link
+   * #isProfilingEnabled()} AND-prefix applied by {@link #isDatadogProfilerEnabled()}. Exposed as
+   * its own getter so other call sites (for example {@link #isOtelContextExposureEnabled()}) can
+   * reuse the same native-image/J9/JDK8 exclusions without re-deriving them or accidentally
+   * depending on {@code isProfilingEnabled()}.
+   */
+  public boolean isDatadogProfilerSafeAndConfigured() {
+    return isDatadogProfilerEnabled;
+  }
+
+  /**
+   * Whether the OpenTelemetry thread and process context should be exposed through the Datadog
+   * profiler native library, so external consumers (for example eBPF/CWS) can read the span context
+   * of a JVM. Enabled when the Datadog profiler is safe and configured and either profiling is
+   * enabled or AppSec is fully enabled. No dedicated override: disabling profiling and AppSec
+   * already disables this, the same way {@link #isProfilingEnabled()} has no override of its own
+   * beyond {@code DD_PROFILING_ENABLED}.
+   */
+  public boolean isOtelContextExposureEnabled() {
+    return otelContextExposureEnabled;
   }
 
   public static boolean isDatadogProfilerEnablementOverridden() {
@@ -6780,6 +6821,8 @@ public class Config {
         + profilingExceptionHistogramMaxCollectionSize
         + ", profilingExcludeAgentThreads="
         + profilingExcludeAgentThreads
+        + ", otelContextExposureEnabled="
+        + otelContextExposureEnabled
         + ", crashTrackingTags="
         + crashTrackingTags
         + ", crashTrackingAgentless="
