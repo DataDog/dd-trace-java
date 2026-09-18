@@ -26,7 +26,7 @@ repositories {
 }
 
 tasks.named("compileTestGroovy", GroovyCompile) {
-  configureCompiler(it, 17)
+  configureCompiler(it, 25, JavaVersion.VERSION_17)
 }
 
 dependencies {

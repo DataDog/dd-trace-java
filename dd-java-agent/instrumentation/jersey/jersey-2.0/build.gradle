@@ -23,11 +23,11 @@ addTestSuiteForDir('jersey3JettyTest', 'jersey3JettyTest')
 addTestSuiteForDir('latestDepTest', 'test')
 
 tasks.named("compileJersey3JettyTestGroovy", GroovyCompile) {
-  configureCompiler(it, 11)
+  configureCompiler(it, 25, JavaVersion.VERSION_11)
 }
 
 tasks.named("compileTestJava") {
-  configureCompiler(it, 11, JavaVersion.VERSION_11)
+  configureCompiler(it, 25, JavaVersion.VERSION_11)
 }
 
 tasks.named("jersey3JettyTest", Test) {

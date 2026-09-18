@@ -23,5 +23,5 @@ dependencies {
 }
 
 tasks.named("compileJava", JavaCompile) {
-  configureCompiler(it, 11, JavaVersion.VERSION_11)
+  configureCompiler(it, 25, JavaVersion.VERSION_11)
 }

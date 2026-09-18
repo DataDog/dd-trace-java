@@ -57,16 +57,16 @@ def configureRoutesCompilation(String sourceSetName) {
   }
 
   tasks.named("compile${capitalizedName}Java", JavaCompile) {
-    configureCompiler(it, 11)
+    configureCompiler(it, 25, JavaVersion.VERSION_11)
   }
 
   tasks.named("compile${capitalizedName}Scala", ScalaCompile) {
-    configureCompiler(it, 11)
+    configureCompiler(it, 11, JavaVersion.VERSION_11, "Scala bytecode target follows the launcher JDK, and Play tests run on Java 11")
     dependsOn buildRoutesTask
   }
 
   tasks.named("compile${capitalizedName}Groovy", GroovyCompile) {
-    configureCompiler(it, 11)
+    configureCompiler(it, 25, JavaVersion.VERSION_11)
     classpath += files(tasks.named("compile${capitalizedName}Scala"))
   }
 }

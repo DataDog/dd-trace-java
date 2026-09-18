@@ -20,7 +20,7 @@ java {
 }
 
 tasks.withType(JavaCompile).configureEach {
-  configureCompiler(it, 21, JavaVersion.VERSION_21)
+  configureCompiler(it, 25, JavaVersion.VERSION_21)
 }
 
 application {
