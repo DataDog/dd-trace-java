@@ -3,12 +3,6 @@ import datadog.trace.core.DDSpan
 
 class ScalaInstrumentationTest extends InstrumentationSpecification {
 
-  @Override
-  boolean useStrictTraceWrites() {
-    // TODO fix this by making sure that spans get closed properly
-    return false
-  }
-
   def "scala futures and callbacks"() {
     setup:
     ScalaConcurrentTests scalaTest = new ScalaConcurrentTests()
