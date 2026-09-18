@@ -118,6 +118,31 @@ public class ExtractedContext extends TagContext {
   }
 
   @Override
+  public CharSequence getLLMObsMlApp() {
+    return propagationTags.getLLMObsMlApp();
+  }
+
+  @Override
+  public CharSequence getLLMObsSessionId() {
+    return propagationTags.getLLMObsSessionId();
+  }
+
+  @Override
+  public CharSequence getLLMObsParentAgentSpanId() {
+    return propagationTags.getLLMObsParentAgentSpanId();
+  }
+
+  @Override
+  public CharSequence getLLMObsParentAgentName() {
+    return propagationTags.getLLMObsParentAgentName();
+  }
+
+  @Override
+  public CharSequence getLLMObsParentId() {
+    return propagationTags.getLLMObsParentId();
+  }
+
+  @Override
   public String toString() {
     StringBuilder builder = new StringBuilder("ExtractedContext{");
     if (traceId != null) {
