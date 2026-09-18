@@ -117,6 +117,10 @@ public final class AdviceScanner {
     if (className == null || className.equals(from.className)) {
       return;
     }
+    if (className.startsWith("[")) {
+      addTypeDependency(from, Type.getType(className));
+      return;
+    }
     MutableClassInfo target = discover(className, from.adviceClass);
     enqueue(target, false);
   }
