@@ -11,6 +11,7 @@ import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING_FORCE;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
+import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -19,11 +20,14 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.util.DDJavaSpecification;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.Test;
 
@@ -87,6 +91,40 @@ class SamplerTest extends DDJavaSpecification {
   @Test
   void apmTracesDroppedWhenApmTracingDisabledAndLlmObsEnabled() {
     assertApmTracesDropped();
+  }
+
+  /**
+   * AppSec can be activated by Remote Configuration after the sampler has been built, and that only
+   * flips {@link ActiveSubsystems#APPSEC_ACTIVE} — the immutable config the sampler was chosen from
+   * still says AppSec is off. Standalone ASM then needs its trickle of 1 APM trace per minute to
+   * keep the service in the service catalog, so the first trace has to be kept.
+   */
+  @WithConfig(key = APM_TRACING_ENABLED, value = "false")
+  @Test
+  void apmTracesKeptOncePerMinuteWhenAppSecIsActivatedAtRuntime() {
+    Sampler sampler = Sampler.Builder.forConfig(Config.get(), null);
+    assertInstanceOf(ApmTracingDisabledSampler.class, sampler);
+
+    // the trickle is one per minute, so only the first of the two traces is kept
+    withAppSecActive(
+        () ->
+            assertEquals(
+                asList((int) SAMPLER_KEEP, (int) SAMPLER_DROP),
+                samplingPrioritiesOfTraces(sampler, 2)));
+  }
+
+  /** Deactivating AppSec at runtime puts the drop back. */
+  @WithConfig(key = APM_TRACING_ENABLED, value = "false")
+  @Test
+  void apmTracesDroppedWhenAppSecIsDeactivatedAtRuntime() {
+    Sampler sampler = Sampler.Builder.forConfig(Config.get(), null);
+
+    withAppSecActive(
+        () ->
+            assertEquals(
+                singletonList((int) SAMPLER_KEEP), samplingPrioritiesOfTraces(sampler, 1)));
+
+    assertEquals(singletonList((int) SAMPLER_DROP), samplingPrioritiesOfTraces(sampler, 1));
   }
 
   @Test
@@ -189,6 +227,51 @@ class SamplerTest extends DDJavaSpecification {
   }
 
   /**
+   * Runs {@code assertions} with AppSec active, as Remote Configuration would leave it, always
+   * restoring the flag afterwards — it is global mutable state shared with every other test.
+   */
+  private static void withAppSecActive(Runnable assertions) {
+    boolean wasActive = ActiveSubsystems.APPSEC_ACTIVE;
+    ActiveSubsystems.APPSEC_ACTIVE = true;
+    try {
+      assertions.run();
+    } finally {
+      ActiveSubsystems.APPSEC_ACTIVE = wasActive;
+    }
+  }
+
+  /**
+   * Runs {@code traceCount} traces through a tracer using {@code sampler} and returns the priority
+   * each one was written with.
+   *
+   * <p>The sampler is left to vote from the publish path ({@code
+   * TraceCollector.setSamplingPriorityIfNecessary}) rather than being called directly: with APM
+   * tracing disabled, {@code SamplingMechanism.APPSEC} is exempt from the sampling priority lock,
+   * so an extra direct call would both consume a slot of the one-per-minute trickle and overwrite
+   * the priority the publish path went on to assign.
+   */
+  private static List<Integer> samplingPrioritiesOfTraces(Sampler sampler, int traceCount) {
+    ListWriter writer = new ListWriter();
+    CoreTracer tracer = CoreTracer.builder().writer(writer).sampler(sampler).build();
+    try {
+      for (int i = 0; i < traceCount; i++) {
+        tracer.buildSpan("datadog", "test").start().finish();
+      }
+      writer.waitForTraces(traceCount);
+
+      List<Integer> priorities = new ArrayList<>();
+      for (List<DDSpan> trace : writer) {
+        priorities.add(trace.get(0).getSamplingPriority());
+      }
+      return priorities;
+    } catch (InterruptedException | TimeoutException e) {
+      throw new AssertionError("the traces were never written", e);
+    } finally {
+      tracer.close();
+    }
+  }
+
+  /**
    * Asserts the trace is marked dropped but still written. Products that ride the tracer and ship
    * their spans elsewhere — LLM Observability sends them to its own intake — depend on the spans
    * still reaching the writers, so dropping APM traces must mean a drop priority, not a discarded
@@ -197,7 +280,7 @@ class SamplerTest extends DDJavaSpecification {
   private static void assertApmTracesDropped() {
     Sampler sampler = Sampler.Builder.forConfig(Config.get(), null);
 
-    assertInstanceOf(ForcePrioritySampler.class, sampler);
+    assertInstanceOf(ApmTracingDisabledSampler.class, sampler);
 
     ListWriter writer = new ListWriter();
     CoreTracer tracer = CoreTracer.builder().writer(writer).sampler(sampler).build();

@@ -66,8 +66,11 @@ public interface Sampler {
           // ASM is the only product needing a trickle of APM traces to stay in the service
           // catalog, so with it off we can drop every APM trace. Traces a product does want
           // (asm.keep, ai_guard.keep) are force-kept on the span, which no sampler can override.
-          log.debug("APM tracing is disabled. APM traces will be dropped.");
-          return new ForcePrioritySampler(PrioritySampling.SAMPLER_DROP, SamplingMechanism.DEFAULT);
+          // AppSec can still be activated later by Remote Configuration, so the drop is decided
+          // per trace rather than here.
+          log.debug(
+              "APM tracing is disabled. APM traces will be dropped, unless AppSec is activated at runtime.");
+          return new ApmTracingDisabledSampler(Clock.systemUTC());
         }
         final Map<String, String> serviceRules = config.getTraceSamplingServiceRules();
         final Map<String, String> operationRules = config.getTraceSamplingOperationRules();
@@ -141,6 +144,11 @@ public interface Sampler {
       return sampler;
     }
 
+    /**
+     * Whether any Application Security product is on at startup. Only AppSec can change after this:
+     * IAST instrumentation is installed in {@code premain} and SCA is read once, so neither has a
+     * Remote Configuration product to activate it with. See {@link ApmTracingDisabledSampler}.
+     */
     private static boolean isAsmEnabled(Config config) {
       return config.getAppSecActivation() == ProductActivation.FULLY_ENABLED
           || config.getIastActivation() == ProductActivation.FULLY_ENABLED
