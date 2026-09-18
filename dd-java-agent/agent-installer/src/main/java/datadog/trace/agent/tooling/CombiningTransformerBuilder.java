@@ -59,11 +59,16 @@ public final class CombiningTransformerBuilder
   private final Map<Map.Entry<String, String>, ElementMatcher<ClassLoader>> contextStoreInjection =
       new HashMap<>();
 
+  private final Map<String, List<LambdaMatchRecorder>> lambdaMatchers = new HashMap<>();
+  private final Map<Map.Entry<String, String>, List<LambdaMatchRecorder>>
+      lambdaContextStoreInjection = new HashMap<>();
+
   private final AgentBuilder agentBuilder;
   private final InstrumenterIndex instrumenterIndex;
   private final int knownTransformationCount;
   private final Set<InstrumenterModule.TargetSystem> enabledSystems;
   private final boolean adviceTransformationDiagnosticsEnabled;
+  private final boolean lambdaTransformationEnabled;
 
   private final List<MatchRecorder> matchers = new ArrayList<>();
   private final BitSet knownTypesMask;
@@ -91,7 +96,8 @@ public final class CombiningTransformerBuilder
       AgentBuilder agentBuilder,
       InstrumenterIndex instrumenterIndex,
       Set<InstrumenterModule.TargetSystem> enabledSystems,
-      boolean adviceTransformationDiagnosticsEnabled) {
+      boolean adviceTransformationDiagnosticsEnabled,
+      boolean lambdaTransformationEnabled) {
     this.agentBuilder = agentBuilder;
     this.instrumenterIndex = instrumenterIndex;
     int knownInstrumentationCount = instrumenterIndex.instrumentationCount();
@@ -102,6 +108,7 @@ public final class CombiningTransformerBuilder
     this.nextRuntimeTransformationId = knownTransformationCount;
     this.enabledSystems = enabledSystems;
     this.adviceTransformationDiagnosticsEnabled = adviceTransformationDiagnosticsEnabled;
+    this.lambdaTransformationEnabled = lambdaTransformationEnabled;
   }
 
   /** Builds matchers and transformers for an instrumentation module and its members. */
@@ -169,7 +176,39 @@ public final class CombiningTransformerBuilder
     }
 
     buildTypeMatcher(member, transformationId);
+    buildLambdaMatcher(member, transformationId);
     buildTypeAdvice(member, transformationId);
+  }
+
+  private void buildLambdaMatcher(Instrumenter member, int transformationId) {
+    if (!lambdaTransformationEnabled || !(member instanceof Instrumenter.ForLambda)) {
+      return;
+    }
+
+    Instrumenter.ForLambda lambdaInstrumenter = (Instrumenter.ForLambda) member;
+    ElementMatcher<TypeDescription> typeMatcher = lambdaInstrumenter.lambdaMatcher();
+    if (member instanceof Instrumenter.WithTypeStructure) {
+      typeMatcher =
+          new ElementMatcher.Junction.Conjunction<>(
+              typeMatcher, ((Instrumenter.WithTypeStructure) member).structureMatcher());
+    }
+
+    LambdaMatchRecorder recorder =
+        new LambdaMatchRecorder(
+            transformationId, typeMatcher, requireBoth(classLoaderMatcher, muzzle));
+    lambdaMatchers
+        .computeIfAbsent(lambdaInstrumenter.lambdaInterface(), ignored -> new ArrayList<>())
+        .add(recorder);
+
+    for (Map.Entry<String, String> store : contextStore.entrySet()) {
+      lambdaContextStoreInjection
+          .computeIfAbsent(store, ignored -> new ArrayList<>())
+          .add(recorder);
+    }
+  }
+
+  String[] lambdaInterfaces() {
+    return lambdaMatchers.keySet().toArray(new String[0]);
   }
 
   private void buildTypeMatcher(Instrumenter member, int transformationId) {
@@ -296,16 +335,18 @@ public final class CombiningTransformerBuilder
     advice.add(forAdvice.advice(not(ignoredMethods).and(matcher), adviceClass));
   }
 
-  public ClassFileTransformer installOn(Instrumentation instrumentation) {
+  public ClassFileTransformer installOn(
+      Instrumentation instrumentation, AgentBuilder.InstallationListener installationListener) {
     if (InstrumenterConfig.get().isRuntimeContextFieldInjection()) {
       applyContextStoreInjection();
     }
 
     return agentBuilder
-        .type(new CombiningMatcher(instrumentation, knownTypesMask, matchers))
+        .type(new CombiningMatcher(instrumentation, knownTypesMask, matchers, lambdaMatchers))
         .and(NOT_DECORATOR_MATCHER)
         .transform(defaultTransformers())
         .transform(new SplittingTransformer(transformers))
+        .with(installationListener)
         .installOn(instrumentation);
   }
 
@@ -371,6 +412,19 @@ public final class CombiningTransformerBuilder
 
     matchers.add(new MatchRecorder.ForContextStore(transformationId, activation, contextMatcher));
     transformers[transformationId] = new AdviceStack(new VisitingTransformer(contextAdvice));
+
+    List<LambdaMatchRecorder> lambdaRecorders = lambdaContextStoreInjection.get(contextStore);
+    if (null != lambdaRecorders) {
+      // Lambda transformation happens before definition, so its field injector can be selected
+      // along with the instrumentation that requested this context store. Keep the normal
+      // assignability check because a module may declare stores for unrelated context keys.
+      for (LambdaMatchRecorder recorder : lambdaRecorders) {
+        recorder.addTransformation(
+            transformationId,
+            target -> contextMatcher.matches(target, null),
+            contextMatcher.describe());
+      }
+    }
   }
 
   static final class VisitingTransformer implements AgentBuilder.Transformer {
