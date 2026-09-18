@@ -1,6 +1,7 @@
 package datadog.trace.api.datastreams;
 
 import datadog.trace.api.BaseHash;
+import datadog.trace.api.ProcessTags;
 import datadog.trace.util.FNV64Hash;
 import java.util.Objects;
 
@@ -325,7 +326,10 @@ public class DataStreamsTags {
         kafkaClusterId != null ? KAFKA_CLUSTER_ID_TAG + ":" + kafkaClusterId : null;
     this.partition = partition != null ? PARTITION_TAG + ":" + partition : null;
 
-    this.hash = BaseHash.getBaseHash();
+    // seeded from service+env+primaryTag only: process tags and the agent-reported
+    // container-tags hash vary per-pod/per-rollout and must not fragment pathway identity
+    // (see DSM2-335) — they're folded into aggregationHash below instead.
+    this.hash = BaseHash.getIdentityHash();
 
     if (DataStreamsTags.serviceNameOverride != null) {
       String val = DataStreamsTags.serviceNameOverride.get();
@@ -343,8 +347,25 @@ public class DataStreamsTags {
       }
     }
 
-    // aggregation tags are 7-11: datasetName, datasetNamespace, isManual, group, consumerGroup
     this.aggregationHash = this.hash;
+
+    // process tags and container-tags hash are decorative/volatile: they belong in the
+    // aggregation tier, not the primary pathway-identity hash. Applied independently of
+    // each other (unlike BaseHash.getBaseHash(), which is DBM-oriented and nests one under
+    // the other).
+    CharSequence processTags = ProcessTags.getTagsForSerialization();
+    if (processTags != null) {
+      this.aggregationHash =
+          FNV64Hash.continueHash(
+              this.aggregationHash, processTags.toString(), FNV64Hash.Version.v1);
+    }
+    String containerTagsHash = BaseHash.getLastContainerTagsHash();
+    if (containerTagsHash != null && !containerTagsHash.isEmpty()) {
+      this.aggregationHash =
+          FNV64Hash.continueHash(this.aggregationHash, containerTagsHash, FNV64Hash.Version.v1);
+    }
+
+    // aggregation tags are 7-11: datasetName, datasetNamespace, isManual, group, consumerGroup
     for (int i = 7; i < 12; i++) {
       String tag = this.tagByIndex(i);
       if (tag != null) {

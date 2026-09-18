@@ -1,11 +1,18 @@
 package datadog.trace.api.datastreams
 
 import datadog.trace.api.BaseHash
+import datadog.trace.api.Config
+import datadog.trace.api.ProcessTags
 import spock.lang.Specification
 import java.nio.ByteBuffer
 
 
 class DataStreamsTagsTest extends Specification {
+  def cleanup() {
+    BaseHash.recalcBaseHash(null)
+    ProcessTags.reset(Config.get())
+  }
+
   def getTags(int idx) {
     return new DataStreamsTags("bus" + idx, DataStreamsTags.Direction.OUTBOUND, "exchange" + idx, "topic" + idx, "type" + idx, "subscription" + idx,
       "dataset_name" + idx, "dataset_namespace" + idx, true, "group" + idx, "consumer_group" + idx, true,
@@ -80,7 +87,7 @@ class DataStreamsTagsTest extends Specification {
     DataStreamsTags.setServiceNameOverride(serviceName)
     def two = getTags(0)
 
-    BaseHash.updateBaseHash(12)
+    BaseHash.updateIdentityHash(12)
     def three = getTags(0)
 
     expect:
@@ -220,6 +227,40 @@ class DataStreamsTagsTest extends Specification {
     base.getHash() == withRoutingKey.getHash()
     base.getAggregationHash() == withRoutingKey.getAggregationHash()
     base != withRoutingKey
+  }
+
+  def 'test container tags hash does not fragment primary pathway hash (DSM2-335)'() {
+    setup: "simulate the Agent reporting the pod/container's tags hash at startup"
+    BaseHash.recalcBaseHash("container-tags-hash-1")
+    def base = getTags(0)
+
+    when: "a rolling deploy changes the container-tags hash the Agent reports"
+    BaseHash.recalcBaseHash("container-tags-hash-2")
+    def afterRollingDeploy = getTags(0)
+
+    then: "the primary pathway hash is unchanged, so block_on_hashes cardinality doesn't grow"
+    base.getHash() == afterRollingDeploy.getHash()
+
+    and: "the aggregation/complete hashes do still reflect the container-tags hash change"
+    base.getAggregationHash() != afterRollingDeploy.getAggregationHash()
+    base != afterRollingDeploy
+  }
+
+  def 'test process tags do not fragment primary pathway hash (DSM2-335)'() {
+    setup:
+    BaseHash.recalcBaseHash(null)
+    def base = getTags(0)
+
+    when: "a process tag is added (e.g. cluster.name discovered after startup)"
+    ProcessTags.addTag("cluster.name", "new-cluster")
+    def withProcessTag = getTags(0)
+
+    then: "the primary pathway hash is unchanged"
+    base.getHash() == withProcessTag.getHash()
+
+    and: "the aggregation/complete hashes do still reflect the process tag change"
+    base.getAggregationHash() != withProcessTag.getAggregationHash()
+    base != withProcessTag
   }
 
   def 'test all three hash levels are different when appropriate tags change'() {
