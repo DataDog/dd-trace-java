@@ -487,7 +487,7 @@ class ResponseServiceTest extends OpenAiTest {
             "gen_ai.usage.total_tokens" Double
             "gen_ai.usage.reasoning_output_tokens" Double
             "gen_ai.usage.cache_read_input_tokens" Double
-            "_dd.llmobs.artificial_gen_ai_tags" "True"
+            "_dd.llmobs.artificial_gen_ai_tags" "true"
             "$CommonTags.INTEGRATION" "openai"
             "_ml_obs_tag.service" String
             "$CommonTags.DDTRACE_VERSION" String

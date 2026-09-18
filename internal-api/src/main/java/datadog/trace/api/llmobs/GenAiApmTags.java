@@ -31,8 +31,6 @@ public final class GenAiApmTags {
    */
   public static final String ARTIFICIAL_TAGS = "_dd.llmobs.artificial_gen_ai_tags";
 
-  private static final String ARTIFICIAL_TAGS_VALUE = "True";
-
   private static final String LLMOBS_TAG_PREFIX = "_ml_obs_tag.";
   private static final String LLMOBS_METRIC_PREFIX = "_ml_obs_metric.";
 
@@ -102,7 +100,7 @@ public final class GenAiApmTags {
       }
     }
 
-    span.setTag(ARTIFICIAL_TAGS, ARTIFICIAL_TAGS_VALUE);
+    span.setTag(ARTIFICIAL_TAGS, "true");
   }
 
   /** The value of {@code key} as a non-empty string, or null. */
