@@ -1493,9 +1493,9 @@ public class Agent {
    */
   private static ProfilingContextIntegration createProfilingContextIntegration() {
     Config config = Config.get();
-    // isDatadogProfilerEnabled() is ORed in explicitly so an explicit
-    // DD_TRACE_OTEL_CONTEXT_EXPOSURE_ENABLED=false never disables ddprof for a user where real
-    // profiling already enabled it - the new flag is additive, not a replacement gate.
+    // isDatadogProfilerEnabled() is ORed in explicitly so a user with real profiling enabled keeps
+    // ddprof regardless of the AppSec activation level that otherwise drives
+    // isOtelContextExposureEnabled() - additive, not a replacement gate.
     if ((config.isDatadogProfilerEnabled() || config.isOtelContextExposureEnabled())
         && !OperatingSystem.isWindows()) {
       // When the ddprof integration is triggered by context exposure alone (profiling disabled),

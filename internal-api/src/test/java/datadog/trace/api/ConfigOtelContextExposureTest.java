@@ -1,7 +1,6 @@
 package datadog.trace.api;
 
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
-import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_CONTEXT_EXPOSURE_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -30,40 +29,6 @@ class ConfigOtelContextExposureTest {
 
   @Test
   void disabledByDefault() {
-    assertFalse(Config.get().isOtelContextExposureEnabled());
-  }
-
-  @Test
-  @WithConfig(key = TRACE_OTEL_CONTEXT_EXPOSURE_ENABLED, value = "false")
-  @WithConfig(key = PROFILING_ENABLED, value = "true")
-  @WithConfig(key = PROFILING_DATADOG_PROFILER_ENABLED, value = "true")
-  void explicitFalseOverridesConditionsThatWouldEnableIt() {
-    assertFalse(Config.get().isOtelContextExposureEnabled());
-  }
-
-  @Test
-  @WithConfig(key = TRACE_OTEL_CONTEXT_EXPOSURE_ENABLED, value = "true")
-  @WithConfig(key = PROFILING_ENABLED, value = "false")
-  @WithConfig(key = APPSEC_ENABLED, value = "false")
-  @WithConfig(key = PROFILING_DATADOG_PROFILER_ENABLED, value = "true")
-  void explicitTrueOverridesProfilingAndAppSecActivationLevel() {
-    assumeDatadogProfilerNotVetoed();
-
-    assertTrue(Config.get().isOtelContextExposureEnabled());
-  }
-
-  /**
-   * An explicit {@code true} overrides the profiling/AppSec activation-level conditions, but it
-   * must never bypass {@link Config#isDatadogProfilerSafeAndConfigured()} - that predicate carries
-   * the native-image/J9/JDK8-aarch64 exclusions, and a user-set flag must not be able to force
-   * ddprof context labeling on an environment where the Datadog profiler cannot run safely.
-   */
-  @Test
-  @WithConfig(key = TRACE_OTEL_CONTEXT_EXPOSURE_ENABLED, value = "true")
-  @WithConfig(key = PROFILING_ENABLED, value = "false")
-  @WithConfig(key = APPSEC_ENABLED, value = "false")
-  @WithConfig(key = PROFILING_DATADOG_PROFILER_ENABLED, value = "false")
-  void explicitTrueDoesNotBypassDatadogProfilerSafetyPredicate() {
     assertFalse(Config.get().isOtelContextExposureEnabled());
   }
 

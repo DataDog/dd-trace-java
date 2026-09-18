@@ -36,16 +36,6 @@ public final class OtlpConfig {
   public static final String TRACE_OTEL_ENABLED = "trace.otel.enabled";
   public static final String TRACE_OTEL_EXPORTER = "trace.otel.exporter";
 
-  /**
-   * Enables exposing the OpenTelemetry thread and process context to external consumers (eBPF/CWS)
-   * through the Datadog profiler native library, independently of profiling being enabled.
-   *
-   * <p>Environment variable: {@code DD_TRACE_OTEL_CONTEXT_EXPOSURE_ENABLED}. When unset, the value
-   * is computed dynamically from the profiling and AppSec activation levels.
-   */
-  public static final String TRACE_OTEL_CONTEXT_EXPOSURE_ENABLED =
-      "trace.otel.context-exposure.enabled";
-
   public static final String OTLP_TRACES_ENDPOINT = "otlp.traces.endpoint";
   public static final String OTLP_TRACES_HEADERS = "otlp.traces.headers";
   public static final String OTLP_TRACES_PROTOCOL = "otlp.traces.protocol";
