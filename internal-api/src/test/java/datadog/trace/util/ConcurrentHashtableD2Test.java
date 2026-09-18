@@ -45,8 +45,8 @@ class ConcurrentHashtableD2Test {
               return new PairEntry(k1, k2);
             });
     assertNotNull(created);
-    assertEquals("a", created.key1);
-    assertEquals(Integer.valueOf(1), created.key2);
+    assertEquals("a", created.key1());
+    assertEquals(Integer.valueOf(1), created.key2());
     assertEquals(1, table.size());
     assertEquals(1, createCount[0]);
     assertSame(created, table.get("a", 1));
@@ -78,7 +78,7 @@ class ConcurrentHashtableD2Test {
     table.tryGetOrCreateOrNull("a", 1, PairEntry::new);
     table.tryGetOrCreateOrNull("b", 2, PairEntry::new);
     Set<String> seen = new HashSet<>();
-    table.forEach(e -> seen.add(e.key1 + ":" + e.key2));
+    table.forEach(e -> seen.add(e.key1() + ":" + e.key2()));
     assertEquals(2, seen.size());
     assertTrue(seen.contains("a:1"));
     assertTrue(seen.contains("b:2"));
@@ -91,7 +91,7 @@ class ConcurrentHashtableD2Test {
     table.tryGetOrCreateOrNull("a", 1, PairEntry::new);
     table.tryGetOrCreateOrNull("b", 2, PairEntry::new);
     Set<String> seen = new HashSet<>();
-    table.forEach(seen, (ctx, e) -> ctx.add(e.key1 + ":" + e.key2));
+    table.forEach(seen, (ctx, e) -> ctx.add(e.key1() + ":" + e.key2()));
     assertEquals(2, seen.size());
     assertTrue(seen.contains("a:1"));
     assertTrue(seen.contains("b:2"));
@@ -246,11 +246,11 @@ class ConcurrentHashtableD2Test {
     for (int i = 0; i < 10; i++) {
       table.tryGetOrCreateOrNull("k", i, PairEntry::new);
     }
-    boolean removed = table.removeIf(e -> e.key2 % 2 == 0); // removes key2 0,2,4,6,8
+    boolean removed = table.removeIf(e -> e.key2() % 2 == 0); // removes key2 0,2,4,6,8
     assertTrue(removed);
     assertEquals(5, table.size());
     Set<String> seen = new HashSet<>();
-    table.forEach(e -> seen.add(e.key1 + ":" + e.key2));
+    table.forEach(e -> seen.add(e.key1() + ":" + e.key2()));
     assertEquals(5, seen.size());
   }
 
@@ -286,7 +286,7 @@ class ConcurrentHashtableD2Test {
     table.tryGetOrCreateOrNull("b", 1, PairEntry::new);
 
     Set<String> drained = new HashSet<>();
-    table.drain(e -> drained.add(e.key1 + ":" + e.key2));
+    table.drain(e -> drained.add(e.key1() + ":" + e.key2()));
 
     assertEquals(new HashSet<>(Arrays.asList("a:1", "a:2", "b:1")), drained);
     assertEquals(0, table.size());
@@ -304,7 +304,7 @@ class ConcurrentHashtableD2Test {
     table.tryGetOrCreateOrNull("b", 2, PairEntry::new);
 
     Set<String> drained = new HashSet<>();
-    table.drain(drained, (ctx, e) -> ctx.add(e.key1 + ":" + e.key2));
+    table.drain(drained, (ctx, e) -> ctx.add(e.key1() + ":" + e.key2()));
 
     assertEquals(new HashSet<>(Arrays.asList("a:1", "b:2")), drained);
     assertEquals(0, table.size());
@@ -348,7 +348,7 @@ class ConcurrentHashtableD2Test {
 
     Maybe<PairEntry> created = table.tryGetOrCreateOrEvict("new", 2, PairEntry::new, e -> true);
     assertTrue(created.isPresent());
-    assertEquals("new", created.getOrNull().key1);
+    assertEquals("new", created.getOrNull().key1());
     assertEquals(1, table.size());
     assertNull(table.get("old", 1));
     assertSame(created.getOrNull(), table.get("new", 2));
@@ -391,6 +391,7 @@ class ConcurrentHashtableD2Test {
     assertNull(table.get("new", 2));
   }
 
+  /** Entry with no payload beyond its two key parts, used to exercise the D2 identity/API. */
   private static final class PairEntry extends ConcurrentHashtable.D2.Entry<String, Integer> {
     PairEntry(String key1, Integer key2) {
       super(key1, key2);
