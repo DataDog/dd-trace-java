@@ -30,7 +30,7 @@ public class MessageAttributeInjector implements CarrierSetter<Map<String, Messa
           DATADOG_KEY,
           MessageAttributeValue.builder()
               .dataType("String")
-              .stringValue(String.format("{\"%s\": \"%s\"}", key, value))
+              .stringValue("{\"" + key + "\": \"" + value + "\"}")
               .build());
     } else {
       // _datadog was created by an earlier set() call in this same inject session; append to it.
@@ -41,7 +41,14 @@ public class MessageAttributeInjector implements CarrierSetter<Map<String, Messa
       int closingBrace = existing.lastIndexOf('}');
       if (closingBrace >= 0) {
         String updated =
-            existing.substring(0, closingBrace) + String.format(", \"%s\": \"%s\"}", key, value);
+            new StringBuilder()
+                .append(existing, 0, closingBrace)
+                .append(", \"")
+                .append(key)
+                .append("\": \"")
+                .append(value)
+                .append("\"}")
+                .toString();
         carrier.put(
             DATADOG_KEY,
             MessageAttributeValue.builder().dataType("String").stringValue(updated).build());
