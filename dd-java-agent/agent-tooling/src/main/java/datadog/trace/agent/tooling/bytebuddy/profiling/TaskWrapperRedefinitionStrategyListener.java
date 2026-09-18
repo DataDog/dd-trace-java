@@ -36,10 +36,12 @@ public final class TaskWrapperRedefinitionStrategyListener
     if (UnwrappingVisitor.ENABLED) {
       // logged once: the flag is one-way, so this branch cannot be re-entered
       LOGGER.info(
-          "Disabling queueing time profiling: retransformation failed for a batch of {} classes"
-              + " because adding the TaskWrapper interface is a structural change the JVM rejects"
-              + " for already loaded classes (e.g. materialized from a JDK 24+ AOT cache)."
-              + " Retrying the batch without it; all other instrumentation is preserved.",
+          "Disabling task unwrapping for queueing time profiling: retransformation failed for a"
+              + " batch of {} classes because adding the TaskWrapper interface is a structural"
+              + " change the JVM rejects for already loaded classes (e.g. materialized from a"
+              + " JDK 24+ AOT cache). Retrying the batch without it. Queueing time is still"
+              + " recorded, but the task type is reported as the wrapper class. All other"
+              + " instrumentation is preserved.",
           batch.size());
       UnwrappingVisitor.ENABLED = false;
       return Collections.singletonList(batch);

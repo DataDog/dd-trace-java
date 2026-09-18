@@ -26,7 +26,10 @@ public class UnwrappingVisitor implements AsmVisitorWrapper {
    * further instrumentation is installed.
    *
    * <p>When that happens {@link TaskWrapperRedefinitionStrategyListener} clears this flag and
-   * retries the batch, trading queueing-time profiling for a working install.
+   * retries the batch, trading task unwrapping for a working install. Queueing time itself keeps
+   * working, since {@code TaskWrapper} is only read by {@code QueueTimeEvent.setTask()} and {@code
+   * TaskWrapper.getUnwrappedType} falls back to the object's own class; only the reported task type
+   * loses its resolution.
    */
   public static volatile boolean ENABLED = true;
 
