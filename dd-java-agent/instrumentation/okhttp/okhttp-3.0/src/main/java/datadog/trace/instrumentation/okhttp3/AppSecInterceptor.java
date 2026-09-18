@@ -175,7 +175,7 @@ public class AppSecInterceptor implements Interceptor {
       BlockResponseFunction brf = ctx.getBlockResponseFunction();
       if (brf != null) {
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        brf.tryCommitBlockingResponse(ctx.getTraceSegment(), rba);
+        brf.tryCommitBlockingResponse(ctx, rba);
       }
       throw new BlockingException("Blocked request (for http downstream request)");
     }

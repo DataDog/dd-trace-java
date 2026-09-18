@@ -165,7 +165,8 @@ public class ExecutionStrategy {
       return false;
     }
 
-    return (!executionSettings.isFlakyTestsDataAvailable()
+    return (!config.isCiVisibilityFlakyRetryOnlyKnownFlakes()
+            || !executionSettings.isFlakyTestsDataAvailable()
             || executionSettings.isFlaky(test.toFQN()))
         && autoRetriesUsed.get() < config.getCiVisibilityTotalFlakyRetryCount();
   }

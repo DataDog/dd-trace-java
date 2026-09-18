@@ -159,7 +159,8 @@ class GlassFishBlockingHelperTest {
     RequestContext reqCtx = mockReqCtx(brf, segment);
     doThrow(new RuntimeException("commit failed"))
         .when(brf)
-        .tryCommitBlockingResponse(any(), any(Flow.Action.RequestBlockingAction.class));
+        .tryCommitBlockingResponse(
+            any(TraceSegment.class), any(Flow.Action.RequestBlockingAction.class));
 
     assertFalse(GlassFishBlockingHelper.tryBlock(reqCtx, null, null, rba(403)));
     verify(segment, never()).effectivelyBlocked();
