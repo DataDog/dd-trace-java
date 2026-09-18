@@ -10,7 +10,7 @@ shadow = "9.4.2"
 spotbugs_annotations = "4.10.3"
 
 # Source code formatters
-google-java-format = "1.36.1"
+palantir-java-format = "2.97.0"
 greclipse = "4.27" # Pinned. See: https://github.com/diffplug/spotless/issues/3013
 ktlint = "1.8.0"
 scalafmt = "3.11.5"
