@@ -3,7 +3,7 @@ package datadog.trace.agent.tooling.muzzle;
 import java.util.Collections;
 import net.bytebuddy.pool.TypePool;
 
-/** Fixtures for {@link MuzzleGeneratorTest}. */
+/** Fixtures for {@link HelperResolverTest}. */
 final class MuzzleGeneratorFixtures {
   private MuzzleGeneratorFixtures() {}
 
