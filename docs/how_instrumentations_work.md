@@ -824,11 +824,11 @@ methods.
 
 ## Continuations
 
-- [`TraceScope.Continuation`](https://github.com/DataDog/dd-trace-java/blob/09ac78ff0b54fbbbee0ab1c89c901d2043fda40b/dd-trace-api/src/main/java/datadog/trace/context/TraceScope.java#L47)
+- [`ContextContinuation`](https://github.com/DataDog/dd-trace-java/blob/b1db32e43c88eeab3c734c1826753bbc6fae9975/components/context/src/main/java/datadog/context/ContextContinuation.java)
   is used to pass context between threads.
-- Continuations must be either activated or canceled.
-- If a Continuation is activated it returns a TraceScope which must eventually be closed.
-- Only after all TraceScopes are closed and any non-activated Continuations are canceled may the Trace finally close.
+- Continuations must be either resumed or released.
+- If a Continuation is resumed it returns a `ContextScope` which must eventually be closed.
+- Only after all scopes are closed and any non-resumed continuations are released may the Trace finally close.
 
 Notice
 in [`HttpClientRequestTracingHandler`](https://github.com/DataDog/dd-trace-java/blob/3fe1b2d6010e50f61518fa25af3bdeb03ae7712b/dd-java-agent/instrumentation/netty-4.1/src/main/java/datadog/trace/instrumentation/netty41/client/HttpClientRequestTracingHandler.java#L56)
