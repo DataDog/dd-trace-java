@@ -6,6 +6,9 @@ import static datadog.trace.common.writer.ddagent.Utf8Workload.nextValue;
 
 import datadog.communication.serialization.GenerationalUtf8Cache;
 import datadog.communication.serialization.SimpleUtf8Cache;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
+import java.nio.charset.StandardCharsets;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Group;
@@ -29,12 +32,17 @@ import org.openjdk.jmh.infra.Blackhole;
  *
  * <p>The recalibrate thread runs continuously, which is deliberately more aggressive than a real
  * periodic cadence — it maximizes contention so this doubles as a concurrency guardrail.
+ *
+ * <p>{@link DDCache} has no recalibrate step, so its group uses 8 lookup threads (no dedicated
+ * recalibrate thread) against the same shared cache -- a pure contention/throughput comparison
+ * rather than a recalibrate-race guardrail.
  */
 @BenchmarkMode(Mode.Throughput)
 @State(Scope.Group)
 public class Utf8ConcurrentBenchmark {
   static final GenerationalUtf8Cache VALUE_CACHE = new GenerationalUtf8Cache(64, 128);
   static final SimpleUtf8Cache SIMPLE_VALUE_CACHE = new SimpleUtf8Cache(128);
+  static final DDCache<String, byte[]> DDCACHE_VALUE_CACHE = DDCaches.newFixedSizeCache(192);
 
   @Benchmark
   @Group("generational")
@@ -68,5 +76,17 @@ public class Utf8ConcurrentBenchmark {
   @GroupThreads(1)
   public void simple_recalibrate() {
     SIMPLE_VALUE_CACHE.recalibrate();
+  }
+
+  @Benchmark
+  @Group("ddcache")
+  @GroupThreads(8)
+  public void ddcache_lookup(Blackhole bh) {
+    for (int i = 0; i < NUM_LOOKUPS; ++i) {
+      String tag = nextTag();
+      String value = nextValue(tag);
+      bh.consume(
+          DDCACHE_VALUE_CACHE.computeIfAbsent(value, v -> v.getBytes(StandardCharsets.UTF_8)));
+    }
   }
 }
