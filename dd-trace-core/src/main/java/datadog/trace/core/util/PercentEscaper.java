@@ -115,7 +115,7 @@ public final class PercentEscaper {
     return escape(s, unsafeValOctets);
   }
 
-  private boolean needsEncoding(char c, boolean[] unsafeOctets) {
+  private static boolean needsEncoding(char c, boolean[] unsafeOctets) {
     if (c > '~' || c <= ' ' || c < unsafeOctets.length && unsafeOctets[c]) {
       return true;
     }
@@ -236,8 +236,7 @@ public final class PercentEscaper {
 
   private static int nextEscapeIndex(CharSequence csq, int index, int end, boolean[] unsafeOctets) {
     for (; index < end; index++) {
-      char c = csq.charAt(index);
-      if (c < unsafeOctets.length && unsafeOctets[c]) {
+      if (needsEncoding(csq.charAt(index), unsafeOctets)) {
         break;
       }
     }
