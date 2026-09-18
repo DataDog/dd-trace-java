@@ -49,6 +49,9 @@ resolution, scope, thread, timing, and callsite data needed to find the missing 
    - If a framework initializer creates a permanent sentinel with no context consumer, disable
      propagation only around that creation boundary. Match the exact type and method, and update
      `knownMatchingTypes()` when shortcut matching is used.
+     Check static initialization (`<clinit>`): first use under an active request can capture its
+     context in singleton tasks, including shaded Netty `GlobalEventExecutor` sentinels. Reproduce
+     first use in a fresh JVM; prewarming can hide the bug. Do not suppress all class initializers.
    - If an executor replaces a task before delegating, avoid capturing the discarded task while
      preserving capture for the task actually submitted.
    - For intentionally delayed work, wait for its documented terminal event rather than
@@ -78,6 +81,19 @@ Do not make the test green with `strictTraceWrites(false)` or
 a reason and is only for a proven diagnostic incompatibility. If the failure is genuinely
 intermittent, treat that as a flaky-test finding, keep diagnostics enabled, and link the `@Flaky`
 annotation to a tracked issue.
+
+## Assess production impact
+
+An unresolved continuation blocks normal reference-count completion, not necessarily publication.
+The production `PendingTrace` buffer can still write finished spans; strict tests remove that
+delayed-write fallback, but partial flush remains possible. Do not infer lost traces or a fixed
+UI delay from a diagnostic failure. Check the collector and configuration; see
+[continuation effects](../../../docs/how_instrumentations_work.md#continuation-effects).
+
+Memory retention requires a reachable owner of the continuation/context; it does not prove the
+whole trace remains retained or memory grows without bound. Wrong parentage requires activation
+of unrelated context or a leaked active scope. Separate the observed lifecycle defect from its
+possible production effects and from test-only cleanup failures.
 
 ## Explain it to a human
 

@@ -828,12 +828,46 @@ methods.
   is used to pass context between threads.
 - Continuations must be either activated or canceled.
 - If a Continuation is activated it returns a TraceScope which must eventually be closed.
-- Only after all TraceScopes are closed and any non-activated Continuations are canceled may the Trace finally close.
+- Resolve every continuation and close its activated scopes. A held continuation also needs its
+  hold released. Normal reference-count completion requires all spans and continuations to resolve;
+  publication can happen earlier through buffering or partial flush.
 
 Notice
 in [`HttpClientRequestTracingHandler`](https://github.com/DataDog/dd-trace-java/blob/3fe1b2d6010e50f61518fa25af3bdeb03ae7712b/dd-java-agent/instrumentation/netty-4.1/src/main/java/datadog/trace/instrumentation/netty41/client/HttpClientRequestTracingHandler.java#L56)
 how the AgentScope.Continuation is used to obtain the `parentScope` which is
 finally [closed](https://github.com/DataDog/dd-trace-java/blob/3fe1b2d6010e50f61518fa25af3bdeb03ae7712b/dd-java-agent/instrumentation/netty-4.1/src/main/java/datadog/trace/instrumentation/netty41/client/HttpClientRequestTracingHandler.java#L111).
+
+### Continuation effects
+
+An unresolved continuation keeps `PendingTrace`'s reference count positive and prevents its normal
+completion write. It does not by itself prove that a production trace is lost. The default delaying
+buffer can write finished spans despite pending references: it checks for 500 ms since the last
+trace reference or 5 seconds since the oldest finished span. These are worker eligibility thresholds,
+not hard latency bounds or guarantees about UI visibility. Partial flush, explicit flush and buffer
+pressure can publish earlier; long-running and streaming trace collectors have other paths.
+
+Strict writes replace the delaying buffer with a discarding buffer, exposing unresolved ownership
+in tests. Partial flush is still possible, so seeing spans arrive does not establish that all
+continuations were released. See [PendingTrace](../dd-trace-core/src/main/java/datadog/trace/core/PendingTrace.java),
+[PendingTraceBuffer](../dd-trace-core/src/main/java/datadog/trace/core/PendingTraceBuffer.java) and
+[CoreTracer](../dd-trace-core/src/main/java/datadog/trace/core/CoreTracer.java) for the publication paths.
+
+A reachable task or callback can retain its captured context even after finished spans are written.
+This does not establish that the entire trace stays in memory or that retention grows without bound.
+Wrong parentage requires unrelated work to activate that context, or a scope to remain active on the
+thread; an abandoned continuation alone does not contaminate another thread.
+
+### Static initialization
+
+Class initialization (`<clinit>`) runs on the thread triggering first use, which may carry request
+context. If it creates singleton workers, timers or permanent sentinels, generic async instrumentation
+can capture that request for infrastructure that outlives it. Netty's `GlobalEventExecutor`, including
+its Couchbase-shaded variant, is one example: its permanent sentinel does not run or cancel normally.
+
+Reproduce first use under an active span in a fresh JVM; prewarming during test setup can hide the
+capture. Where the task has no request-context consumer, suppress propagation only at the verified
+creation boundary, including the exact type initializer when appropriate. Do not suppress propagation
+for all static initializers or for legitimate request work.
 
 ## Naming
 
