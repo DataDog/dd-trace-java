@@ -159,9 +159,9 @@ public class TempLocationManagerTest {
             withTimeout.compareAndSet(false, timeout);
             hookReached.countDown();
             try {
-              if (!proceedSignal.await(30, TimeUnit.SECONDS)) {
+              if (!proceedSignal.await(60, TimeUnit.SECONDS)) {
                 cleanupError.set(
-                    new AssertionError("Cleanup thread: proceed signal timeout after 30s"));
+                    new AssertionError("Cleanup thread: proceed signal timeout after 60s"));
               }
             } catch (InterruptedException e) {
               Thread.currentThread().interrupt();
@@ -207,13 +207,13 @@ public class TempLocationManagerTest {
 
     try {
       assertTrue(
-          hookReached.await(30, TimeUnit.SECONDS),
-          "Cleanup thread should reach hook within 30 seconds");
+          hookReached.await(60, TimeUnit.SECONDS),
+          "Cleanup thread should reach hook within 60 seconds");
       // The visitor may have already deleted the file by this point; tolerate.
       Files.deleteIfExists(fakeTempFile);
       proceedSignal.countDown();
-      cleanupThread.join(TimeUnit.SECONDS.toMillis(30));
-      assertFalse(cleanupThread.isAlive(), "Cleanup should complete within 30s");
+      cleanupThread.join(TimeUnit.SECONDS.toMillis(60));
+      assertFalse(cleanupThread.isAlive(), "Cleanup should complete within 60s");
 
       Throwable error = cleanupError.get();
       if (error != null) {

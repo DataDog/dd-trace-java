@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
+import datadog.communication.otlp.OtlpPayload;
 import datadog.trace.api.time.ControllableTimeSource;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor;
@@ -30,7 +31,6 @@ import datadog.trace.bootstrap.otlp.metrics.OtlpHistogramPoint;
 import datadog.trace.bootstrap.otlp.metrics.OtlpLongPoint;
 import datadog.trace.bootstrap.otlp.metrics.OtlpMetricVisitor;
 import datadog.trace.bootstrap.otlp.metrics.OtlpScopedMetricsVisitor;
-import datadog.trace.core.otlp.common.OtlpPayload;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
