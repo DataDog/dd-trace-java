@@ -24,11 +24,11 @@ import org.apache.kafka.common.Cluster;
 import org.apache.kafka.common.requests.MetadataResponse;
 
 @AutoService(InstrumenterModule.class)
-public class MetadataInstrumentation extends InstrumenterModule.Tracing
+public class MetadataInstrumentation extends InstrumenterModule.DataStreams
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public MetadataInstrumentation() {
-    super("kafka", "kafka-0.11");
+    super(KafkaDecorator.INTEGRATION_NAME, KafkaDecorator.LEGACY_INTEGRATION_NAME);
   }
 
   @Override
@@ -58,6 +58,7 @@ public class MetadataInstrumentation extends InstrumenterModule.Tracing
       "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
       "datadog.trace.instrumentation.kafka_common.PendingConfig",
       "datadog.trace.instrumentation.kafka_common.MetadataState",
+      "datadog.trace.instrumentation.kafka_common.Utils",
     };
   }
 

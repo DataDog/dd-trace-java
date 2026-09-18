@@ -39,7 +39,10 @@ public class RecordsAdvice {
       }
     }
 
-    if (traceConfig().isDataStreamsEnabled()) {
+    if (traceConfig().isDataStreamsEnabled() && KafkaDecorator.TRACING_ENABLED) {
+      // DSM-only mode (tracing disabled) never creates a real poll span: TracingIterator carries
+      // its pathway context on a lightweight, never-collected span shim instead, so there's
+      // nothing here that needs wrapping/protecting from being force-dropped.
       final AgentSpan span = startSpan(JAVA_KAFKA.toString(), KAFKA_POLL);
       return activateSpan(span);
     }
