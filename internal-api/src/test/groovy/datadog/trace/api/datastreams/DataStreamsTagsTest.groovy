@@ -229,7 +229,7 @@ class DataStreamsTagsTest extends Specification {
     base != withRoutingKey
   }
 
-  def 'test container tags hash does not fragment primary pathway hash (DSM2-335)'() {
+  def 'test container tags hash does not affect any hash tier (DSM2-335)'() {
     setup: "simulate the Agent reporting the pod/container's tags hash at startup"
     BaseHash.recalcBaseHash("container-tags-hash-1")
     def base = getTags(0)
@@ -238,15 +238,13 @@ class DataStreamsTagsTest extends Specification {
     BaseHash.recalcBaseHash("container-tags-hash-2")
     def afterRollingDeploy = getTags(0)
 
-    then: "the primary pathway hash is unchanged, so block_on_hashes cardinality doesn't grow"
+    then: "no hash tier is affected - container-tags hash is dropped entirely from DSM"
     base.getHash() == afterRollingDeploy.getHash()
-
-    and: "the aggregation/complete hashes do still reflect the container-tags hash change"
-    base.getAggregationHash() != afterRollingDeploy.getAggregationHash()
-    base != afterRollingDeploy
+    base.getAggregationHash() == afterRollingDeploy.getAggregationHash()
+    base == afterRollingDeploy
   }
 
-  def 'test process tags do not fragment primary pathway hash (DSM2-335)'() {
+  def 'test process tags do not affect any hash tier (DSM2-335)'() {
     setup:
     BaseHash.recalcBaseHash(null)
     def base = getTags(0)
@@ -255,12 +253,10 @@ class DataStreamsTagsTest extends Specification {
     ProcessTags.addTag("cluster.name", "new-cluster")
     def withProcessTag = getTags(0)
 
-    then: "the primary pathway hash is unchanged"
+    then: "no hash tier is affected - process tags are dropped entirely from DSM"
     base.getHash() == withProcessTag.getHash()
-
-    and: "the aggregation/complete hashes do still reflect the process tag change"
-    base.getAggregationHash() != withProcessTag.getAggregationHash()
-    base != withProcessTag
+    base.getAggregationHash() == withProcessTag.getAggregationHash()
+    base == withProcessTag
   }
 
   def 'test all three hash levels are different when appropriate tags change'() {

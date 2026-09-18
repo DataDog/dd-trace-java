@@ -1,7 +1,6 @@
 package datadog.trace.api.datastreams;
 
 import datadog.trace.api.BaseHash;
-import datadog.trace.api.ProcessTags;
 import datadog.trace.util.FNV64Hash;
 import java.util.Objects;
 
@@ -349,21 +348,13 @@ public class DataStreamsTags {
 
     this.aggregationHash = this.hash;
 
-    // process tags and container-tags hash are decorative/volatile: they belong in the
-    // aggregation tier, not the primary pathway-identity hash. Applied independently of
-    // each other (unlike BaseHash.getBaseHash(), which is DBM-oriented and nests one under
-    // the other).
-    CharSequence processTags = ProcessTags.getTagsForSerialization();
-    if (processTags != null) {
-      this.aggregationHash =
-          FNV64Hash.continueHash(
-              this.aggregationHash, processTags.toString(), FNV64Hash.Version.v1);
-    }
-    String containerTagsHash = BaseHash.getLastContainerTagsHash();
-    if (containerTagsHash != null && !containerTagsHash.isEmpty()) {
-      this.aggregationHash =
-          FNV64Hash.continueHash(this.aggregationHash, containerTagsHash, FNV64Hash.Version.v1);
-    }
+    // DSM2-335: process tags and the agent-reported container-tags hash used to be folded in
+    // here (per-pod/per-process metadata inherited from DBM's BaseHash, see BaseHash.getBaseHash()
+    // and PR #9282). They're dropped entirely rather than moved to the aggregation tier: the
+    // backend never decodes them into discrete tags today, so they only added opaque cardinality
+    // with no user-visible benefit. @TODO tag a DSM backend owner to confirm there's no hidden
+    // reliance on aggregationHash/completeHash changing when these values change before this
+    // ships (see PR #9282 review thread, raphaelgavache's unanswered comment on this line).
 
     // aggregation tags are 7-11: datasetName, datasetNamespace, isManual, group, consumerGroup
     for (int i = 7; i < 12; i++) {

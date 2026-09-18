@@ -49,11 +49,6 @@ public final class BaseHash {
     return identityHash;
   }
 
-  /** The most recent container-tags hash reported by the Agent, or {@code null}/empty if none. */
-  public static String getLastContainerTagsHash() {
-    return lastContainerTagsHash;
-  }
-
   /** Test-only: lets tests set the identity hash without going through {@link Config}. */
   public static void updateIdentityHash(long hash) {
     identityHash = hash;
