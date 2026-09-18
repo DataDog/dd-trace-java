@@ -29,6 +29,7 @@ import test.SetupSpecHelper
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
+import static org.junit.jupiter.api.Assumptions.assumeTrue
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.LOGIN
@@ -261,6 +262,36 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     where:
     method = "GET"
     body = null
+  }
+
+  def 'test blocking of request for matrix parameters'() {
+    // This pins the unchanged blocking behavior for TemplateAndMatrixVariablesInstrumentation's
+    // matrix-variable path. reportBlockFailure() itself is not observable through this black-box
+    // HTTP test because spring-webmvc does not own its own BlockResponseFunction: it delegates to
+    // the underlying container's (Tomcat here), whose contract always returns true for a genuine
+    // attempt.
+    setup:
+    assumeTrue(testBlocking())
+
+    def request = request(MATRIX_PARAM, 'GET', null)
+      .header(IG_PARAMETERS_BLOCK_HEADER, 'true')
+      .build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.code() == 413
+    response.header('Content-type') =~ /(?i)\Aapplication\/json(?:;\s?charset=utf-8)?\z/
+    response.body().charStream().text.contains('"title":"You\'ve been blocked"')
+    TEST_WRITER.waitForTraces(1)
+    def trace = TEST_WRITER.get(0)
+    def rootSpan = trace.find {
+      it.parentId == 0
+    }
+    rootSpan != null
+    rootSpan.tags['http.status_code'] == 413
+    rootSpan.tags['appsec.blocked'] == 'true'
   }
 
   def 'template var is pushed to IG'() {

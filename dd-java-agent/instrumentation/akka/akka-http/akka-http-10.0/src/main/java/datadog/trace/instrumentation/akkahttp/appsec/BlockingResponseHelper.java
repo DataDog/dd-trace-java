@@ -42,7 +42,7 @@ public class BlockingResponseHelper {
     if (action instanceof Flow.Action.RequestBlockingAction) {
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
       if (brf instanceof AkkaBlockResponseFunction) {
-        brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
+        brf.tryCommitBlockingResponse(requestContext, rba);
         HttpResponse altResponse =
             ((AkkaBlockResponseFunction) brf).maybeCreateAlternativeResponse();
         if (altResponse != null) {
