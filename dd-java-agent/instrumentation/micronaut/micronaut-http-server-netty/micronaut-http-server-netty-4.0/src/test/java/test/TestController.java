@@ -1,5 +1,6 @@
 package test;
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED;
@@ -19,6 +20,7 @@ import io.micronaut.http.MediaType;
 import io.micronaut.http.MutableHttpResponse;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
+import java.util.InputMismatchException;
 import reactor.core.publisher.Mono;
 
 @Controller("/")
@@ -52,6 +54,18 @@ class TestController {
         new Closure<HttpResponse<String>>(null) {
           public HttpResponse<String> doCall() {
             return HttpResponse.serverError(ERROR.getBody());
+          }
+        });
+  }
+
+  // mapped to its custom status by CustomExceptionHandler
+  @Get(uri = "/custom-exception", produces = MediaType.TEXT_PLAIN)
+  public HttpResponse<String> custom_exception() {
+    return HttpServerTest.controller(
+        CUSTOM_EXCEPTION,
+        new Closure<HttpResponse<String>>(null) {
+          public HttpResponse<String> doCall() {
+            throw new InputMismatchException(CUSTOM_EXCEPTION.getBody());
           }
         });
   }

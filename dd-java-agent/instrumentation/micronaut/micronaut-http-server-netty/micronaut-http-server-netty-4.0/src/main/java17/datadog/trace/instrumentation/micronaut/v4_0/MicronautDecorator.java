@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -11,6 +12,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.web.router.UriRouteMatch;
+import java.util.concurrent.CompletionException;
 
 public class MicronautDecorator
     extends HttpServerDecorator<HttpRequest, HttpRequest, HttpResponse, Void> {
@@ -91,5 +93,25 @@ public class MicronautDecorator
       HTTP_RESOURCE_DECORATOR.withRoute(parent, request.getMethod().name(), route);
     }
     span.setResourceName(DECORATE.spanNameForMethod(uriRouteMatch.getTargetMethod()));
+  }
+
+  /**
+   * Records an exception that Micronaut is about to route to an error handler ({@code @Error} route
+   * or {@code ExceptionHandler} bean) or to the default error response. Uses the HTTP server
+   * decorator priority so the response status still decides whether the span is flagged as an
+   * error: a handled exception mapped to a 4xx keeps its error tags without marking the span.
+   */
+  public void onRoutedError(final HttpRequest<?> request, Throwable cause) {
+    if (request == null || cause == null) {
+      return;
+    }
+    AgentSpan span = request.getAttribute(SPAN_ATTRIBUTE, AgentSpan.class).orElse(null);
+    if (span == null) {
+      return;
+    }
+    if (cause instanceof CompletionException && cause.getCause() != null) {
+      cause = cause.getCause();
+    }
+    onError(span, cause, ErrorPriorities.HTTP_SERVER_DECORATOR);
   }
 }
