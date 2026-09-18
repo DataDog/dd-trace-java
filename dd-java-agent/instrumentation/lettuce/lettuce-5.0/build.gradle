@@ -5,6 +5,12 @@ plugins {
 
 muzzle {
   pass {
+    name = "async-propagation-suppression"
+    group = "io.lettuce"
+    module = "lettuce-core"
+    versions = "[5.0.0.RELEASE,)"
+  }
+  pass {
     group = "io.lettuce"
     module = "lettuce-core"
     versions = "[5.0.0.RELEASE,)"
