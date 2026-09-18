@@ -4,6 +4,7 @@ import static datadog.trace.api.DDTags.APM_ENABLED;
 import static datadog.trace.api.DDTags.DJM_ENABLED;
 import static datadog.trace.api.DDTags.DSM_ENABLED;
 import static datadog.trace.api.DDTags.PROFILING_CONTEXT_ENGINE;
+import static datadog.trace.api.DDTags.SDK_OTLP_EXPORT;
 import static datadog.trace.api.TracePropagationBehaviorExtract.IGNORE;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.BAGGAGE_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
@@ -2579,7 +2580,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
    */
   static TagMap withTracerTags(
       Map<String, ?> userSpanTags, Config config, TraceConfig traceConfig) {
-    final TagMap result = TagMap.create(userSpanTags.size() + 5);
+    final TagMap result = TagMap.create(userSpanTags.size() + 6);
     result.putAll(userSpanTags);
     // Version is conditionally managed by InternalTagsAdder (added only when service == DD_SERVICE
     // and not set during the request), so keep it OUT of the trace-level bundle. This matters under
@@ -2610,6 +2611,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       if (config.isDataStreamsEnabled()) {
         result.set(DSM_ENABLED, 1);
       }
+      result.set(SDK_OTLP_EXPORT, config.isOtlpTracesExportEnabled() ? "true" : "false");
     }
     if (null != traceConfig) { // dynamic
       if (traceConfig.isDataStreamsEnabled()) {
