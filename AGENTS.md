@@ -34,6 +34,7 @@ docs/                     Developer documentation (see below)
 | Contributing & PR guidelines | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | How instrumentations work | [docs/how_instrumentations_work.md](docs/how_instrumentations_work.md) |
 | Adding a new instrumentation | [docs/add_new_instrumentation.md](docs/add_new_instrumentation.md) |
+| Adding a new LLM instrumentation | [docs/add_new_llm_instrumentation.md](docs/add_new_llm_instrumentation.md) |
 | Adding a new configuration | [docs/add_new_configurations.md](docs/add_new_configurations.md) |
 | Testing guide (6 test types) | [docs/how_to_test.md](docs/how_to_test.md) |
 | Writing a smoke test | [docs/how_to_smoke_test.md](docs/how_to_smoke_test.md) |
