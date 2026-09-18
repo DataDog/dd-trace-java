@@ -16,8 +16,6 @@ public final class ScopeContinuationProbe {
    */
   static final int CANCELLED = Integer.MIN_VALUE >> 1;
 
-  private static volatile boolean recording = false;
-
   private static volatile Field sourceField;
 
   private static volatile Field scopeSourceField;
@@ -28,19 +26,9 @@ public final class ScopeContinuationProbe {
 
   private ScopeContinuationProbe() {}
 
-  /** Installs the transformer once and starts recording. */
-  static synchronized void enable() {
-    ScopeContinuationTransformer.install();
-    recording = true;
-  }
-
-  /** Stops recording without uninstalling the transformer. */
-  static void disable() {
-    recording = false;
-  }
-
   public static void onCapture(Object self) {
-    if (!recording) {
+    Object window = ScopeDiagnostics.recordingWindow();
+    if (window == null) {
       return;
     }
     try {
@@ -48,7 +36,12 @@ public final class ScopeContinuationProbe {
       AgentSpan span = AgentSpan.fromContext(continuation.context());
       if (span != null) {
         ScopeDiagnostics.recordCapture(
-            continuation, span.getTraceId(), span.getSpanId(), spanName(span), sourceOf(self));
+            window,
+            continuation,
+            span.getTraceId(),
+            span.getSpanId(),
+            spanName(span),
+            sourceOf(self));
       }
     } catch (Throwable ignored) {
       // Diagnostics must never affect the tracer.
@@ -56,19 +49,21 @@ public final class ScopeContinuationProbe {
   }
 
   public static void onActivate(Object self, Object returnedScope, long activateNanos) {
-    if (!recording) {
+    Object window = ScopeDiagnostics.recordingWindow();
+    if (window == null) {
       return;
     }
     try {
       ContextContinuation continuation = (ContextContinuation) self;
       if (returnedScope == NoopScope.INSTANCE) {
         // A noop result may indicate activation after resolution.
-        ScopeDiagnostics.recordActivateFailed(continuation);
+        ScopeDiagnostics.recordActivateFailed(window, continuation);
         return;
       }
       AgentSpan span = AgentSpan.fromContext(continuation.context());
       if (span != null) {
         ScopeDiagnostics.recordActivate(
+            window,
             continuation,
             span.getTraceId(),
             span.getSpanId(),
@@ -82,7 +77,8 @@ public final class ScopeContinuationProbe {
 
   public static void onResolve(
       Object self, String method, int countBefore, int countAfter, long resolveNanos) {
-    if (!recording) {
+    Object window = ScopeDiagnostics.recordingWindow();
+    if (window == null) {
       return;
     }
     if (countBefore != CANCELLED && countAfter != CANCELLED) {
@@ -94,23 +90,25 @@ public final class ScopeContinuationProbe {
     try {
       ContextContinuation continuation = (ContextContinuation) self;
       ScopeDiagnostics.recordResolve(
-          continuation, cancelled, resolveNanos, countBefore == CANCELLED);
+          window, continuation, cancelled, resolveNanos, countBefore == CANCELLED);
     } catch (Throwable ignored) {
     }
   }
 
   public static void onRootWritten(Object traceId) {
-    if (!recording) {
+    Object window = ScopeDiagnostics.recordingWindow();
+    if (window == null) {
       return;
     }
     try {
-      ScopeDiagnostics.recordRootWritten((DDTraceId) traceId);
+      ScopeDiagnostics.recordRootWritten(window, (DDTraceId) traceId);
     } catch (Throwable ignored) {
     }
   }
 
   public static void onScopeOpen(Object scope) {
-    if (!recording) {
+    Object window = ScopeDiagnostics.recordingWindow();
+    if (window == null) {
       return;
     }
     try {
@@ -119,39 +117,42 @@ public final class ScopeContinuationProbe {
       long spanId = span != null ? span.getSpanId() : 0L;
       String name = span != null ? spanName(span) : null;
       ScopeDiagnostics.recordScopeOpen(
-          scope, traceId, spanId, name, scopeSourceOf(scope), continuationOf(scope));
+          window, scope, traceId, spanId, name, scopeSourceOf(scope), continuationOf(scope));
     } catch (Throwable ignored) {
     }
   }
 
   public static void onScopeClose(Object scope) {
-    if (!recording) {
+    Object window = ScopeDiagnostics.recordingWindow();
+    if (window == null) {
       return;
     }
     try {
-      ScopeDiagnostics.recordScopeClose(scope);
+      ScopeDiagnostics.recordScopeClose(window, scope);
     } catch (Throwable ignored) {
     }
   }
 
   public static void onDeferredScopeCleanup(Object scope) {
-    if (!recording) {
+    Object window = ScopeDiagnostics.recordingWindow();
+    if (window == null) {
       return;
     }
     try {
-      ScopeDiagnostics.recordDeferredScopeCleanup(scope);
+      ScopeDiagnostics.recordDeferredScopeCleanup(window, scope);
     } catch (Throwable ignored) {
     }
   }
 
   /** Records an out-of-order close when the internal stack can be inspected. */
   public static void onScopeClosing(Object scope) {
-    if (!recording) {
+    Object window = ScopeDiagnostics.recordingWindow();
+    if (window == null) {
       return;
     }
     try {
       if (isNotOnTop(scope)) {
-        ScopeDiagnostics.recordScopeCloseWrongThread(scope);
+        ScopeDiagnostics.recordScopeCloseWrongThread(window, scope);
       }
     } catch (Throwable ignored) {
     }

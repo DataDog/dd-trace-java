@@ -133,7 +133,7 @@ public final class ContinuationRecord {
     if (!extraTerminals.isEmpty()) {
       failures.add(Failure.DOUBLE_FINISH);
     }
-    if (!failedActivations.isEmpty() || resumedAfterTerminal()) {
+    if ((terminal != null && !failedActivations.isEmpty()) || resumedAfterTerminal()) {
       failures.add(Failure.ACTIVATE_AFTER_RESOLVE);
     }
     if (rootWrittenNanos != null
