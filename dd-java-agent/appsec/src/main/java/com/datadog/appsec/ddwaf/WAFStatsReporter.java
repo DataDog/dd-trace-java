@@ -4,6 +4,7 @@ import com.datadog.appsec.config.TraceSegmentPostProcessor;
 import com.datadog.appsec.gateway.AppSecRequestContext;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.ddwaf.WafMetrics;
+import datadog.crashtracking.ConfigManager;
 import datadog.trace.api.internal.TraceSegment;
 import java.util.Collection;
 
@@ -57,5 +58,6 @@ public class WAFStatsReporter implements TraceSegmentPostProcessor {
 
   public void setRulesVersion(String rulesetVersion) {
     this.rulesVersion = rulesetVersion;
+    ConfigManager.updateCrashConfigEntry("waf_rules_version", rulesetVersion);
   }
 }
