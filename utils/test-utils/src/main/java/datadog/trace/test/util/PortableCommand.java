@@ -11,30 +11,11 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Builds command lines for a small set of command-line utilities so tests can spawn them without
- * depending on the host operating system.
- *
- * <p>On POSIX platforms the native utilities are used directly. Windows has no usable equivalent
- * for any of them — {@code echo} is a {@code cmd.exe} builtin rather than an executable, {@code
- * type} cannot read standard input, and {@code timeout} refuses to run when standard input is
- * redirected — so there the commands are emulated by {@link PortableCommandRunner} in a child JVM.
- *
- * <p>POSIX deliberately keeps the native utilities instead of emulating everywhere: forking a JVM
- * is far more expensive than spawning a small native binary, in both startup time and memory, and
- * effectively all CI runs on Linux — so the cheap path is the one that matters. It is also exactly
- * what these tests spawned before this class existed, which leaves CI behavior unchanged.
- *
- * <p>Both paths are observably identical: {@code cat} copies bytes exactly, {@code sleep} takes a
- * duration in seconds, and {@code echo} terminates its output with the platform line separator.
- * Callers therefore never need to branch on the operating system.
- *
- * <p>Supported commands:
+ * Builds portable command lines for simple test utilities.
  *
  * <ul>
- *   <li>{@link #echo(String)} writes a value followed by the platform line separator.
- *   <li>{@link #cat()} copies standard input to standard output.
- *   <li>{@link #sleep(long)} waits for the requested number of seconds, then exits with 0.
- *   <li>{@link #runForever()} never exits on its own and must be destroyed by the caller.
+ *   <li>POSIX uses native system commands.
+ *   <li>Windows uses {@link PortableCommandRunner} in a child JVM to emulate their behavior.
  * </ul>
  */
 public final class PortableCommand {
