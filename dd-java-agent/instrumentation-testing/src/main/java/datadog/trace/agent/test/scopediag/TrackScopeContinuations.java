@@ -6,7 +6,10 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-/** Configures the default-on scope and continuation diagnostic for a test class or method. */
+/**
+ * Configures the default-on scope and continuation diagnostic for a test class or method.
+ * Class-level configuration also applies to suite setup and cleanup.
+ */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Inherited

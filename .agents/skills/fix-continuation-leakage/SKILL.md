@@ -64,11 +64,12 @@ resolution, scope, thread, timing, and callsite data needed to find the missing 
    separately from trace-count or arrival-order assertions; fixing a leak may expose an unrelated
    flaky assertion.
 
-## Fixture setup failures
+## Fixture failures
 
-Automatic recording may start after `setupSpec()` or equivalent fixture initialization. For an
-initialization error or a trace wait inside setup, temporarily record around that setup block and
-remove the diagnostic scaffolding after finding the owner.
+Automatic recording covers Spock `setupSpec()` / `cleanupSpec()` and JUnit `@BeforeAll` /
+`@AfterAll`, in addition to per-test setup and cleanup. The failure output identifies whether the
+problem belongs to suite setup, one test, or suite cleanup. Code that runs before the
+instrumentation-test harness initializes the tracer remains outside this window.
 
 Apply process-wide configuration before starting servers, actor systems, executors, or other
 long-lived fixtures. Use a forked test or recreate the fixture when its static state cannot be
