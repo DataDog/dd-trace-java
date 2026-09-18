@@ -1,12 +1,13 @@
 package datadog.trace.llmobs.domain;
 
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObs;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -56,14 +57,14 @@ class DDLLMObsSpanAgentAttributionTest {
   }
 
   /** Starts a root APM span and activates it, so all LLMObs spans created within share a trace. */
-  private static AgentScope startRootApmScope() {
+  private static ContextScope startRootApmScope() {
     AgentSpan root = AgentTracer.get().buildSpan("apm", "http.server.request").start();
     return AgentTracer.activateSpan(root);
   }
 
   @Test
   void agentSpanStoresOwnIdAndNameAsPagent() throws Exception {
-    try (AgentScope apmScope = startRootApmScope()) {
+    try (ContextScope apmScope = startRootApmScope()) {
       DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "my-agent");
       try {
         AgentSpan inner = innerSpan(agentSpan);
@@ -74,7 +75,7 @@ class DDLLMObsSpanAgentAttributionTest {
         assertEquals("my-agent", parentAgentName);
       } finally {
         agentSpan.finish();
-        apmScope.span().finish();
+        spanFromScope(apmScope).finish();
       }
     }
   }
@@ -83,7 +84,7 @@ class DDLLMObsSpanAgentAttributionTest {
   void agentSpanNameIsPreservedRegardlessOfCharacters() throws Exception {
     // Agent names are stored as-is — no character restrictions since the only wire consumer
     // is the msgpack intake mapper, which accepts any string.
-    try (AgentScope apmScope = startRootApmScope()) {
+    try (ContextScope apmScope = startRootApmScope()) {
       DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "router~v2,résumé");
       try {
         AgentSpan inner = innerSpan(agentSpan);
@@ -91,7 +92,7 @@ class DDLLMObsSpanAgentAttributionTest {
         assertEquals("router~v2,résumé", inner.getTag(PAGENT_NAME_TAG));
       } finally {
         agentSpan.finish();
-        apmScope.span().finish();
+        spanFromScope(apmScope).finish();
       }
     }
   }
@@ -99,7 +100,7 @@ class DDLLMObsSpanAgentAttributionTest {
   @Test
   void innerAgentNameOverridesOuterAgentNameForDescendants() throws Exception {
     // Descendants of an inner agent must see the inner agent's name, not the outer agent's.
-    try (AgentScope apmScope = startRootApmScope()) {
+    try (ContextScope apmScope = startRootApmScope()) {
       DDLLMObsSpan outerAgent = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "outer-agent");
       try {
         DDLLMObsSpan innerAgent = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "inner-agent");
@@ -119,7 +120,7 @@ class DDLLMObsSpanAgentAttributionTest {
         }
       } finally {
         outerAgent.finish();
-        apmScope.span().finish();
+        spanFromScope(apmScope).finish();
       }
     }
   }
@@ -127,7 +128,7 @@ class DDLLMObsSpanAgentAttributionTest {
   @Test
   void nonAgentChildUnderAgentInheritsAttribution() throws Exception {
     // All LLMObs spans share the same APM trace so the trace-ID consistency gate passes.
-    try (AgentScope apmScope = startRootApmScope()) {
+    try (ContextScope apmScope = startRootApmScope()) {
       DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "parent-agent");
       try {
         AgentSpan agentInner = innerSpan(agentSpan);
@@ -144,14 +145,14 @@ class DDLLMObsSpanAgentAttributionTest {
         }
       } finally {
         agentSpan.finish();
-        apmScope.span().finish();
+        spanFromScope(apmScope).finish();
       }
     }
   }
 
   @Test
   void transitiveInheritanceAgentToLlmToTool() throws Exception {
-    try (AgentScope apmScope = startRootApmScope()) {
+    try (ContextScope apmScope = startRootApmScope()) {
       DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "root-agent");
       try {
         AgentSpan agentInner = innerSpan(agentSpan);
@@ -173,14 +174,14 @@ class DDLLMObsSpanAgentAttributionTest {
         }
       } finally {
         agentSpan.finish();
-        apmScope.span().finish();
+        spanFromScope(apmScope).finish();
       }
     }
   }
 
   @Test
   void noAgentAncestorProducesNoPagentTags() throws Exception {
-    try (AgentScope apmScope = startRootApmScope()) {
+    try (ContextScope apmScope = startRootApmScope()) {
       DDLLMObsSpan workflowSpan = newSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "standalone-workflow");
       try {
         AgentSpan inner = innerSpan(workflowSpan);
@@ -188,7 +189,7 @@ class DDLLMObsSpanAgentAttributionTest {
         assertNull(inner.getTag(PAGENT_NAME_TAG));
       } finally {
         workflowSpan.finish();
-        apmScope.span().finish();
+        spanFromScope(apmScope).finish();
       }
     }
   }
@@ -198,7 +199,7 @@ class DDLLMObsSpanAgentAttributionTest {
     // Outer agent's LLMObsContext is active. Inner agent starts (its own context pushed on top).
     // After inner agent finishes its context is popped, restoring outer agent's context.
     // A sibling span then sees outer agent's attribution via LLMObsContext.
-    try (AgentScope apmScope = startRootApmScope()) {
+    try (ContextScope apmScope = startRootApmScope()) {
       DDLLMObsSpan outerAgent = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "outer-agent");
       try {
         AgentSpan outerInner = innerSpan(outerAgent);
@@ -219,7 +220,7 @@ class DDLLMObsSpanAgentAttributionTest {
         }
       } finally {
         outerAgent.finish();
-        apmScope.span().finish();
+        spanFromScope(apmScope).finish();
       }
     }
   }
@@ -229,7 +230,7 @@ class DDLLMObsSpanAgentAttributionTest {
     // Create an agent span in one APM trace, then create a non-agent span in a different APM
     // trace. The stale LLMObsContext from the first trace must not leak pagent attribution.
     AgentSpan firstRoot = AgentTracer.get().buildSpan("apm", "http.request.1").start();
-    AgentScope firstScope = AgentTracer.activateSpan(firstRoot);
+    ContextScope firstScope = AgentTracer.activateSpan(firstRoot);
 
     DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "first-trace-agent");
     // agentSpan's LLMObsContext is now active in the current thread
@@ -240,7 +241,7 @@ class DDLLMObsSpanAgentAttributionTest {
 
     // Start a fresh APM root (different trace) while the first trace's LLMObsContext is active
     AgentSpan secondRoot = AgentTracer.get().buildSpan("apm", "http.request.2").start();
-    AgentScope secondScope = AgentTracer.activateSpan(secondRoot);
+    ContextScope secondScope = AgentTracer.activateSpan(secondRoot);
     try {
       DDLLMObsSpan toolInSecondTrace = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "second-trace-tool");
       try {
@@ -262,7 +263,7 @@ class DDLLMObsSpanAgentAttributionTest {
 
   @Test
   void manifestNameOverridesSpanNameForPagent() throws Exception {
-    try (AgentScope apmScope = startRootApmScope()) {
+    try (ContextScope apmScope = startRootApmScope()) {
       DDLLMObsSpan agentSpan = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "span-name");
       try {
         AgentSpan inner = innerSpan(agentSpan);
@@ -276,7 +277,7 @@ class DDLLMObsSpanAgentAttributionTest {
         assertEquals("manifest-name", inner.getTag(PAGENT_NAME_TAG));
       } finally {
         agentSpan.finish();
-        apmScope.span().finish();
+        spanFromScope(apmScope).finish();
       }
     }
   }

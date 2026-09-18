@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.bootstrap.instrumentation.rmi.RmiClientDecorator.DECORATE;
 import static datadog.trace.bootstrap.instrumentation.rmi.RmiClientDecorator.RMI_CLIENT;
 import static datadog.trace.bootstrap.instrumentation.rmi.RmiClientDecorator.RMI_INVOKE;
@@ -12,9 +13,9 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.reflect.Method;
 import net.bytebuddy.asm.Advice;
@@ -53,7 +54,7 @@ public final class RmiClientInstrumentation extends InstrumenterModule.Tracing
 
   public static class RmiClientAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(@Advice.Argument(value = 1) final Method method) {
+    public static ContextScope onEnter(@Advice.Argument(value = 1) final Method method) {
       if (activeSpan() == null) {
         return null;
       }
@@ -65,14 +66,14 @@ public final class RmiClientInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
       }
       DECORATE.onError(scope, throwable);
       DECORATE.beforeFinish(scope);
       scope.close();
-      scope.span().finish();
+      spanFromScope(scope).finish();
     }
   }
 }
