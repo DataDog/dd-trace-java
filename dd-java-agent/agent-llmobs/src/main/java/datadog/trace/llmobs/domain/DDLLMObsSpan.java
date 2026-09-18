@@ -568,7 +568,15 @@ public class DDLLMObsSpan implements LLMObsSpan {
 
     if (value instanceof Map) {
       Map<String, Object> mergedMetadata = copyStringKeyedMap((Map<?, ?>) value);
+      // Reserved entries already under _dd, such as the agent manifest, must survive a later
+      // annotation: putAll would replace the whole _dd map if the caller supplies one, so merge
+      // that namespace key by key instead, letting the caller win per key.
+      Map<String, Object> reservedDd = copyStringKeyedMap(mergedMetadata.get(METADATA_DD));
       mergedMetadata.putAll(metadata);
+      if (!reservedDd.isEmpty()) {
+        reservedDd.putAll(copyStringKeyedMap(mergedMetadata.get(METADATA_DD)));
+        mergedMetadata.put(METADATA_DD, reservedDd);
+      }
       span.setTag(METADATA, mergedMetadata);
     } else {
       LOGGER.debug(
