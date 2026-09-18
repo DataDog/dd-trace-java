@@ -25,6 +25,11 @@ public class ExternalAgentLauncher implements Closeable {
   public ExternalAgentLauncher(Config config) {
     if (config.isAzureAppServices()) {
       if (config.getTraceAgentPath() != null) {
+        log.info(
+            "[aas-repro] ExternalAgentLauncher: spawning trace-agent — path={} pipe={} jvm_pid={}",
+            config.getTraceAgentPath(),
+            config.getAgentNamedPipe(),
+            ProcessHandle.current().pid());
         ProcessBuilder traceProcessBuilder = new ProcessBuilder(config.getTraceAgentPath());
         traceProcessBuilder.redirectOutput(DISCARD);
         traceProcessBuilder.redirectError(DISCARD);
@@ -38,6 +43,11 @@ public class ExternalAgentLauncher implements Closeable {
       }
 
       if (config.getDogStatsDPath() != null) {
+        log.info(
+            "[aas-repro] ExternalAgentLauncher: spawning dogstatsd — path={} pipe={} jvm_pid={}",
+            config.getDogStatsDPath(),
+            config.getDogStatsDNamedPipe(),
+            ProcessHandle.current().pid());
         ProcessBuilder dogStatsDProcessBuilder = new ProcessBuilder(config.getDogStatsDPath());
         dogStatsDProcessBuilder.redirectOutput(DISCARD);
         dogStatsDProcessBuilder.redirectError(DISCARD);
@@ -71,6 +81,7 @@ public class ExternalAgentLauncher implements Closeable {
 
   static final class NamedPipeHealthCheck implements ProcessSupervisor.HealthCheck {
     private static final String NAMED_PIPE_PREFIX = "\\\\.\\pipe\\";
+    private static final Logger log = LoggerFactory.getLogger(NamedPipeHealthCheck.class);
 
     private final File pipe;
 
@@ -88,10 +99,15 @@ public class ExternalAgentLauncher implements Closeable {
 
       // first-time round do a more detailed check for existing bound named-pipe
       if (previousHealth == NEVER_CHECKED) {
+        log.info("[aas-repro] NamedPipeHealthCheck first-check pipe={}", pipe);
 
         double delayMillis = 50;
         for (int retries = 0; retries < 7; retries++) {
           if (!pipe.exists()) {
+            log.info(
+                "[aas-repro] NamedPipeHealthCheck pipe={} not found on retry {} → READY_TO_START",
+                pipe,
+                retries);
             return READY_TO_START; // no longer bound, start our own external process
           }
 
@@ -100,6 +116,11 @@ public class ExternalAgentLauncher implements Closeable {
           delayMillis = delayMillis * 1.75;
         }
 
+        // Pipe survived all retries — something already owns it
+        log.warn(
+            "[aas-repro] NamedPipeHealthCheck pipe={} still bound after all retries"
+                + " — assuming existing process is healthy (orphan risk!)",
+            pipe);
         return HEALTHY; // use existing external process
       }
 
@@ -107,6 +128,7 @@ public class ExternalAgentLauncher implements Closeable {
       if (pipe.exists()) {
         return HEALTHY; // keep using external process
       } else {
+        log.info("[aas-repro] NamedPipeHealthCheck pipe={} gone → READY_TO_START", pipe);
         return READY_TO_START; // start our own process
       }
     }
