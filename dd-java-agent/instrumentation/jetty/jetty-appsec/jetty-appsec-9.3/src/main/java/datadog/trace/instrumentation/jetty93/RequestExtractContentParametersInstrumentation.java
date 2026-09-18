@@ -111,6 +111,8 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
       if (action instanceof Flow.Action.RequestBlockingAction) {
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
         BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
+        // Unlike Netty (which calls effectivelyBlocked() internally in BlockingResponseHandler),
+        // Jetty advice must call it explicitly inside if (brf != null).
         if (blockResponseFunction != null) {
           blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
           if (t == null) {
