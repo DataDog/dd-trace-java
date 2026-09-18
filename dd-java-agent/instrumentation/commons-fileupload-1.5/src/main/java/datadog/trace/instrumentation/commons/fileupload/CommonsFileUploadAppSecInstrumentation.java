@@ -93,7 +93,7 @@ public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.A
           Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
           BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
           if (brf != null) {
-            brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+            brf.tryCommitBlockingResponse(reqCtx, rba);
             t = new BlockingException("Blocked request (multipart file upload)");
             reqCtx.getTraceSegment().effectivelyBlocked();
           }
@@ -107,7 +107,7 @@ public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.A
           Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) contentAction;
           BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
           if (brf != null) {
-            brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+            brf.tryCommitBlockingResponse(reqCtx, rba);
             t = new BlockingException("Blocked request (multipart file upload content)");
             reqCtx.getTraceSegment().effectivelyBlocked();
           }
