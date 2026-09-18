@@ -986,15 +986,34 @@ test_base_arm64:
     - if [ "$testJvm" == "8" ]; then export GRADLE_PARAMS="$GRADLE_PARAMS -PcheckCoverage"; fi
     - !reference [.test_job_common, script]
 
+.set_testcontainer_tests: &set_testcontainer_tests
+  - |
+    case "$RUNNER_TAG" in
+      "arch:amd64") export TESTCONTAINER_TESTS="skip" ;;
+      "docker-in-docker:amd64") export TESTCONTAINER_TESTS="only" ;;
+      *) echo "Unsupported RUNNER_TAG: $RUNNER_TAG" >&2; exit 1 ;;
+    esac
+    export GRADLE_PARAMS="$GRADLE_PARAMS -PtestcontainerTests=$TESTCONTAINER_TESTS"
+
 test_inst:
   extends: .test_job_amd64_with_test_agent
+  tags: [ "$RUNNER_TAG" ]
   needs: *needs_build_tests_inst
   variables:
     <<: *tier_l_variables
     GRADLE_TARGET: ":instrumentationTest"
     CACHE_TYPE: "inst"
   parallel:
-    matrix: *test_matrix_8
+    matrix:
+      - testJvm: *test_jvms
+        CI_SPLIT: ["1/8", "2/8", "3/8", "4/8", "5/8", "6/8", "7/8", "8/8"]
+        RUNNER_TAG: ["arch:amd64"]
+      - testJvm: *test_jvms
+        CI_SPLIT: ["1/4", "2/4", "3/4", "4/4"]
+        RUNNER_TAG: ["docker-in-docker:amd64"]
+  script:
+    - *set_testcontainer_tests
+    - !reference [.test_job_common, script]
 
 test_inst_arm64:
   extends: .test_job_arm64_with_test_agent
@@ -1007,6 +1026,7 @@ test_inst_arm64:
 
 test_inst_latest:
   extends: .test_job_amd64_with_test_agent
+  tags: [ "$RUNNER_TAG" ]
   # needs:parallel:matrix limits this job to a specific build_tests combination.
   # Keep matrix vars exact and in build_tests declaration order:
   # https://docs.gitlab.com/ci/yaml/#needsparallelmatrix
@@ -1026,6 +1046,13 @@ test_inst_latest:
         # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
         # This emulates "parallel" by including it in the matrix
         CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
+        RUNNER_TAG: ["arch:amd64"]
+      - testJvm: ["8", "17", "21", "25", "27", "tip"] # Java 27 TODO: remove 27 after GA (tip will move to 27)
+        CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4"]
+        RUNNER_TAG: ["docker-in-docker:amd64"]
+  script:
+    - *set_testcontainer_tests
+    - !reference [.test_job_common, script]
 
 test_inst_latest_arm64:
   extends: .test_job_arm64_with_test_agent
