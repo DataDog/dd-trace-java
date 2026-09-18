@@ -6,6 +6,7 @@ import java.util.concurrent.FutureTask
 import net.bytebuddy.jar.asm.ClassReader
 import net.bytebuddy.jar.asm.ClassVisitor
 import net.bytebuddy.jar.asm.ClassWriter
+import net.bytebuddy.jar.asm.MethodVisitor
 import net.bytebuddy.jar.asm.signature.SignatureReader
 import net.bytebuddy.jar.asm.signature.SignatureVisitor
 import org.apache.commons.io.IOUtils
@@ -55,6 +56,44 @@ class UnwrappingVisitorTest extends Specification {
     then:
     genericInterfaces == declaredInterfaces
     genericInterfaces.last() == 'datadog/trace/bootstrap/instrumentation/api/TaskWrapper'
+  }
+
+  void 'test the visitor backs off when disabled'(){
+    setup:
+    def classFile = readClassBytes(FutureTask)
+    def classReader = new ClassReader(classFile)
+    def classWriter = new ClassWriter(classReader, 0)
+
+    def declaredInterfaces = []
+    def methodNames = []
+
+    def classVisitor = new ClassVisitor(ASM_API, classWriter) {
+        @Override
+        void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
+          declaredInterfaces = interfaces
+          super.visit(version, access, name, signature, superName, interfaces)
+        }
+
+        @Override
+        MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
+          methodNames += name
+          return super.visitMethod(access, name, descriptor, signature, exceptions)
+        }
+      }
+
+    def taskVisitor = new UnwrappingVisitor.ImplementTaskWrapperClassVisitor(
+      classVisitor, 'java.util.concurrent.FutureTask', 'callable')
+
+    when:
+    UnwrappingVisitor.ENABLED = false
+    classReader.accept(taskVisitor, 0)
+
+    then: 'neither the interface nor the unwrap method is added'
+    !declaredInterfaces.contains('datadog/trace/bootstrap/instrumentation/api/TaskWrapper')
+    !methodNames.contains('$$DD$$__unwrap')
+
+    cleanup:
+    UnwrappingVisitor.ENABLED = true
   }
 
   static byte [] readClassBytes(Class<?> clazz){

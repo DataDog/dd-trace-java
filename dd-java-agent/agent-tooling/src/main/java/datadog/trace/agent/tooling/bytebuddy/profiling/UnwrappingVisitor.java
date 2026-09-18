@@ -18,6 +18,21 @@ import net.bytebuddy.utility.OpenedClassReader;
 
 public class UnwrappingVisitor implements AsmVisitorWrapper {
 
+  /**
+   * Adding the {@code TaskWrapper} interface changes the structure of a class, which the JVM
+   * rejects for classes that are already loaded ("attempted to change superclass or interfaces").
+   * That normally does not happen because the agent installs before those classes load, but a JDK
+   * 24+ AOT cache (JEP 483) materializes them up-front, so the whole retransform batch fails and no
+   * further instrumentation is installed.
+   *
+   * <p>When that happens {@link TaskWrapperRedefinitionStrategyListener} clears this flag and
+   * retries the batch, trading task unwrapping for a working install. Queueing time itself keeps
+   * working, since {@code TaskWrapper} is only read by {@code QueueTimeEvent.setTask()} and {@code
+   * TaskWrapper.getUnwrappedType} falls back to the object's own class; only the reported task type
+   * loses its resolution.
+   */
+  public static volatile boolean ENABLED = true;
+
   private final Map<String, String> classNameToDelegateFieldNames;
 
   public UnwrappingVisitor(String... classAndDelegateFieldNames) {
@@ -81,7 +96,7 @@ public class UnwrappingVisitor implements AsmVisitorWrapper {
         String signature,
         String superName,
         String[] interfaces) {
-      if (interfaces == null || !Arrays.asList(interfaces).contains(TASK_WRAPPER)) {
+      if (ENABLED && (interfaces == null || !Arrays.asList(interfaces).contains(TASK_WRAPPER))) {
         interfaces = append(interfaces, TASK_WRAPPER);
         if (signature != null) {
           signature += 'L' + TASK_WRAPPER + ';';
