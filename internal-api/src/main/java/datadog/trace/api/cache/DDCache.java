@@ -1,8 +1,15 @@
 package datadog.trace.api.cache;
 
+import datadog.trace.api.function.ForegroundSafe;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
+/**
+ * {@link ForegroundSafe}: every implementation looks up a key via a small, bounded number of probes
+ * (no growth, no eviction bookkeeping beyond overwriting a slot) -- cheap enough to call from an
+ * application thread.
+ */
+@ForegroundSafe
 public interface DDCache<K, V> {
   /**
    * Look up or create and store a value in the cache.
