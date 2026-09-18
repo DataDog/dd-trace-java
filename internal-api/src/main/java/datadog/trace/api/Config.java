@@ -4247,6 +4247,13 @@ public class Config {
     return profilingRecordExceptionMessage;
   }
 
+  /**
+   * Despite the name, this does NOT mean "the Datadog profiler engine is currently recording" - it
+   * means "profiling is enabled AND the ddprof engine is allowed to run" ({@link
+   * #isProfilingEnabled()} AND {@link #isDatadogProfilerSafeAndConfigured()}). The underlying
+   * {@code isDatadogProfilerEnabled} field is itself independent of profiling: see {@link
+   * #isDatadogProfilerSafeAndConfigured()}.
+   */
   public boolean isDatadogProfilerEnabled() {
     return isProfilingEnabled() && isDatadogProfilerEnabled;
   }

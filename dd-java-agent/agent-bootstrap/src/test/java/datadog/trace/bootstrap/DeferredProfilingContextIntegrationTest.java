@@ -37,6 +37,9 @@ class DeferredProfilingContextIntegrationTest {
     FakeProcessContext.registrations.set(0);
     FakeProcessContext.registered = new CountDownLatch(1);
     FakeDatadogProfilingIntegration.gate = new CountDownLatch(0);
+    FakeDatadogProfilingIntegration.onAttachCalls.set(0);
+    FakeDatadogProfilingIntegration.onDetachCalls.set(0);
+    FakeDatadogProfilingIntegration.onRootSpanFinishedCalls.set(0);
   }
 
   @Test
@@ -90,6 +93,17 @@ class DeferredProfilingContextIntegrationTest {
 
     assertSame(FakeDatadogProfilingIntegration.STATE, deferred.newScopeState(null));
     assertEquals("ddprof", deferred.name());
+
+    // every other pass-through method must reach the swapped-in delegate too, not just
+    // newScopeState/name — each is a distinct code path in DeferredProfilingContextIntegration.
+    deferred.onAttach();
+    deferred.onDetach();
+    assertEquals(1, FakeDatadogProfilingIntegration.onAttachCalls.get());
+    assertEquals(1, FakeDatadogProfilingIntegration.onDetachCalls.get());
+    assertEquals(42, deferred.encodeOperationName("op"));
+    assertEquals(43, deferred.encodeResourceName("resource"));
+    deferred.onRootSpanFinished(null, EndpointTracker.NO_OP);
+    assertEquals(1, FakeDatadogProfilingIntegration.onRootSpanFinishedCalls.get());
   }
 
   @Test
@@ -149,6 +163,9 @@ class DeferredProfilingContextIntegrationTest {
     static final AtomicInteger constructions = new AtomicInteger();
     static final AtomicReference<Thread> constructionThread = new AtomicReference<>();
     static volatile CountDownLatch gate = new CountDownLatch(0);
+    static final AtomicInteger onAttachCalls = new AtomicInteger();
+    static final AtomicInteger onDetachCalls = new AtomicInteger();
+    static final AtomicInteger onRootSpanFinishedCalls = new AtomicInteger();
 
     public FakeDatadogProfilingIntegration() {
       try {
@@ -174,7 +191,9 @@ class DeferredProfilingContextIntegrationTest {
     }
 
     @Override
-    public void onRootSpanFinished(final AgentSpan rootSpan, final EndpointTracker tracker) {}
+    public void onRootSpanFinished(final AgentSpan rootSpan, final EndpointTracker tracker) {
+      onRootSpanFinishedCalls.incrementAndGet();
+    }
 
     @Override
     public EndpointTracker onRootSpanStarted(final AgentSpan rootSpan) {
@@ -184,6 +203,26 @@ class DeferredProfilingContextIntegrationTest {
     @Override
     public Timing start(final TimerType type) {
       return Timing.NoOp.INSTANCE;
+    }
+
+    @Override
+    public void onAttach() {
+      onAttachCalls.incrementAndGet();
+    }
+
+    @Override
+    public void onDetach() {
+      onDetachCalls.incrementAndGet();
+    }
+
+    @Override
+    public int encodeOperationName(final CharSequence constant) {
+      return 42;
+    }
+
+    @Override
+    public int encodeResourceName(final CharSequence constant) {
+      return 43;
     }
   }
 }
