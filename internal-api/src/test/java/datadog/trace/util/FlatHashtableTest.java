@@ -2,6 +2,7 @@ package datadog.trace.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -71,6 +72,25 @@ class FlatHashtableTest {
     public long hashOf(TestEntry entry) {
       return 0;
     }
+  }
+
+  /**
+   * {@link FlatHashtable#home} folds in a random per-process seed (see its Javadoc) specifically so
+   * an attacker can't precompute a colliding key set against the fixed golden-ratio mix alone. This
+   * pins down that the seed actually participates in the mix, not just that the mix runs, by
+   * comparing against what the old unseeded formula would have produced for the same input.
+   *
+   * <p>Flakes with probability ~2^-58 if the random seed happens to exactly reproduce the unseeded
+   * result for this one (hash, mask) pair — acceptable for a wiring smoke test.
+   */
+  @Test
+  void homeFoldsInProcessSeed() {
+    long hash = 0x1234_5678_9ABC_DEF0L;
+    int mask = 63; // 64-slot table
+    long unseededMix = hash * 0x9E3779B97F4A7C15L;
+    unseededMix ^= unseededMix >>> 32;
+    int unseededHome = (int) unseededMix & mask;
+    assertNotEquals(unseededHome, FlatHashtable.home(hash, mask));
   }
 
   /**

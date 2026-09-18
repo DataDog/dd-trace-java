@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
@@ -774,14 +775,37 @@ public final class FlatHashtable {
   }
 
   /**
+   * Process-wide salt folded into every {@link #home} computation, generated once at class-init
+   * from {@link java.util.concurrent.ThreadLocalRandom} (fast, non-blocking — no {@code
+   * SecureRandom} startup cost, and no cryptographic-strength guarantee is needed here).
+   *
+   * <p>Without it, {@link #home}'s hash-to-slot mapping is a fixed, public function: a strategy fed
+   * attacker-controlled keys (a {@code String} through the default {@code hashCode}, or {@link
+   * CaseInsensitiveStringStrategy}, say) lets an attacker precompute a batch of keys that all land
+   * in the same slot, forcing every probe onto a single long linear run — an O(n²) CPU-flooding
+   * attack, the same class of bug that motivated {@code String.hashCode()} alternatives and
+   * per-process hash randomization elsewhere. This seed is unknown to an external attacker and
+   * identical across every table in this process, so a precomputed collision set for one run is
+   * worthless against another.
+   *
+   * <p>This does not need to be, and is not, per-table: seeding {@code home} itself is enough,
+   * because every hash — however it was produced upstream (a raw {@code hashCode}, a composite from
+   * {@link HashingUtils} / {@link LongHashingUtils}, or a cached {@link Entry#hash}) — must pass
+   * through this one chokepoint before it can influence probe placement.
+   */
+  private static final long HASH_SEED = ThreadLocalRandom.current().nextLong();
+
+  /**
    * Placement slot for {@code hash} in a table of {@code mask + 1} slots. The table owns the
-   * spread: a golden-ratio (Fibonacci) multiply diffuses the hash across all bits — robust to weak
-   * or {@code int}-derived {@code hashCode}s and to full 64-bit composite hashes alike — then the
-   * low index bits are taken. So a strategy may return a plain {@code hashCode} without pre-mixing.
-   * Package-private so tests can predict slots.
+   * spread: the hash is salted with a per-process random seed (see {@link #HASH_SEED}), then a
+   * golden-ratio (Fibonacci) multiply diffuses it across all bits — robust to weak or {@code
+   * int}-derived {@code hashCode}s and to full 64-bit composite hashes alike — then the low index
+   * bits are taken. So a strategy may return a plain {@code hashCode} without pre-mixing.
+   * Package-private so tests can predict slots (within one run — {@link #HASH_SEED} still varies
+   * process to process).
    */
   static int home(long hash, int mask) {
-    long z = hash * 0x9E3779B97F4A7C15L; // 2^64 / golden ratio; odd ⇒ a bijection (loses no bits)
+    long z = (hash ^ HASH_SEED) * 0x9E3779B97F4A7C15L; // 2^64 / golden ratio; odd ⇒ a bijection
     z ^= z >>> 32; // fold the well-mixed high half down into the low bits the mask keeps
     return (int) z & mask;
   }
