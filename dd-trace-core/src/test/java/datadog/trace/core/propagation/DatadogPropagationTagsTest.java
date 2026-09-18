@@ -232,6 +232,66 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
     assertNull(extracted.getLLMObsParentId());
   }
 
+  /**
+   * A single byte over the limit drops the whole {@code x-datadog-tags} header, so an agent name —
+   * the only user-supplied, unbounded value in the set — is degraded instead. Sizes below are the
+   * encoded entry lengths: {@code _dd.p.llmobs_pagent_span_id=1234} is 32 characters and a name
+   * entry costs 26 before its value.
+   */
+  @TableTest({
+    "scenario       | limit | agentName                    | expectedHeaderValue                                                     ",
+    "fits           | 512   | 'planner'                    | '_dd.p.llmobs_pagent_span_id=1234,_dd.p.llmobs_pagent_name=planner'     ",
+    "name truncated | 70    | 'abcdefghijklmnopqrstuvwxyz' | '_dd.p.llmobs_pagent_span_id=1234,_dd.p.llmobs_pagent_name=abcdefghijkl'",
+    "name dropped   | 58    | 'abcdefghijklmnopqrstuvwxyz' | '_dd.p.llmobs_pagent_span_id=1234'                                      "
+  })
+  void updatePropagationTagsDegradesAgentAttributionToFitTheLimit(
+      int limit, String agentName, String expectedHeaderValue) {
+    PropagationTags propagationTags = factory(limit).fromHeaderValue(DATADOG, "");
+
+    propagationTags.updateLLMObsContext(null, null, "1234", agentName, null, null, null);
+
+    assertEquals(expectedHeaderValue, propagationTags.headerValue(DATADOG));
+  }
+
+  /** The last rung: not even the agent span id fits, so attribution goes entirely. */
+  @Test
+  void updatePropagationTagsDropsAgentAttributionWhenNotEvenTheIdFits() {
+    PropagationTags propagationTags = factory(31).fromHeaderValue(DATADOG, "");
+
+    propagationTags.updateLLMObsContext(null, null, "1234", "planner", null, null, null);
+
+    // Nothing left to write, so no header rather than an over-budget one.
+    assertNull(propagationTags.headerValue(DATADOG));
+    assertNull(propagationTags.createTagMap().get("_dd.propagation_error"));
+  }
+
+  /**
+   * The point of degrading: an oversized agent name used to take ml_app, the session and parent_id
+   * down with it, along with every APM propagation tag in the same header.
+   */
+  @Test
+  void anOversizedAgentNameNoLongerDropsTheRestOfTheHeader() {
+    StringBuilder hugeName = new StringBuilder();
+    for (int i = 0; i < 600; i++) {
+      hugeName.append('a');
+    }
+    PropagationTags propagationTags = factory(512).fromHeaderValue(DATADOG, "");
+
+    propagationTags.updateLLMObsContext(
+        "checkout", "sess-1", "1234", hugeName.toString(), "99", null, null);
+
+    String header = propagationTags.headerValue(DATADOG);
+    assertEquals(512, header.length());
+    Map<String, String> tags = propagationTags.createTagMap();
+    assertEquals("checkout", tags.get("_dd.p.llmobs_ml_app"));
+    assertEquals("sess-1", tags.get("_dd.p.llmobs_sid"));
+    assertEquals("99", tags.get("_dd.p.llmobs_parent_id"));
+    assertEquals("1234", tags.get("_dd.p.llmobs_pagent_span_id"));
+    // Whatever room was left after the tags that matter more went to the name.
+    assertEquals(375, tags.get("_dd.p.llmobs_pagent_name").length());
+    assertNull(tags.get("_dd.propagation_error"));
+  }
+
   @Test
   void llmObsValueRejectionPreservesTraceIdHighOrderBits() {
     // An unchecked ',' fails the whole tagset with decoding_error at the next hop, taking

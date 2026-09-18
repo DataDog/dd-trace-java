@@ -97,6 +97,10 @@ public class PTagsFactory implements PropagationTags.Factory {
   static class PTags extends PropagationTags {
     private static final String EMPTY = "";
 
+    /** What a {@code _dd.p.llmobs_pagent_name=} entry costs before its value: {@code ,_dd.p.k=}. */
+    private static final int PAGENT_NAME_ENTRY_OVERHEAD =
+        1 + TagElement.Encoding.DATADOG.getPrefixLength() + LLMOBS_PAGENT_NAME_TAG.length() + 1;
+
     protected final PTagsFactory factory;
 
     // tags that don't require any modifications and propagated as-is
@@ -429,7 +433,74 @@ public class PTagsFactory implements PropagationTags.Factory {
       if (!updated.equals(llmObsTags)) {
         clearCachedHeaders();
         llmObsTags = updated;
+        degradeAgentAttributionToFit();
       }
+    }
+
+    /**
+     * Trims agent attribution until the {@code x-datadog-tags} tag set fits its configured limit.
+     *
+     * <p>{@link DatadogPTagsCodec} is all-or-nothing: one byte over the limit and {@code
+     * PTagsCodec#headerValue} returns {@code null}, dropping the whole header — the APM tags along
+     * with ml_app, session and parent_id. Agent attribution is the only part of the set with a
+     * user-supplied, unbounded value (an agent's name), so it is also the only part worth
+     * sacrificing to keep the rest. The ladder mirrors {@code _stamp_agent_attribution} in
+     * dd-trace-py:
+     *
+     * <ol>
+     *   <li>id and full name, when they fit;
+     *   <li>id and a name truncated to the remaining room;
+     *   <li>id alone, when no room is left for any of the name;
+     *   <li>neither, when even the id overflows.
+     * </ol>
+     *
+     * <p>If the set is still too large with attribution gone, the overflow is somewhere this can't
+     * help and the header drops as before. Unlike dd-trace-py, which reserves headroom for a {@code
+     * _dd.p.tid} that is added after its check runs, {@link #getXDatadogTagsSize()} already counts
+     * every tag, so the full limit is available here.
+     *
+     * <p>Only the Datadog encoding is guarded. {@link W3CPTagsCodec} rolls back any single tag that
+     * would overflow the tracestate and keeps going, so it degrades on its own.
+     */
+    private void degradeAgentAttributionToFit() {
+      LLMObsTagValues tags = llmObsTags;
+      if (tags.parentAgentSpanId == null) {
+        // Nothing to degrade: a name is only ever written alongside an id.
+        return;
+      }
+      int limit = getxDatadogTagsLimit();
+      if (getXDatadogTagsSize() <= limit) {
+        return;
+      }
+
+      if (tags.parentAgentName != null) {
+        // Measure without the name, then give whatever room is left back to a truncated one.
+        int sizeWithoutName = applyAgentAttribution(tags.parentAgentSpanId, null);
+        if (sizeWithoutName <= limit) {
+          int room = limit - sizeWithoutName - PAGENT_NAME_ENTRY_OVERHEAD;
+          CharSequence name = tags.parentAgentName.forType(TagElement.Encoding.DATADOG);
+          if (room > 0 && room < name.length()) {
+            TagValue truncated = toTagValue(name.subSequence(0, room));
+            if (truncated != null
+                && applyAgentAttribution(tags.parentAgentSpanId, truncated) > limit) {
+              // Encoding the truncated value can cost more than its characters; keep id only.
+              applyAgentAttribution(tags.parentAgentSpanId, null);
+            }
+          }
+          return;
+        }
+      }
+
+      // Either there was no name to sacrifice, or the id alone still overflows. Drop attribution
+      // rather than lose the whole header.
+      applyAgentAttribution(null, null);
+    }
+
+    /** Replaces the staged agent attribution and returns the resulting tag set size. */
+    private int applyAgentAttribution(TagValue parentAgentSpanId, TagValue parentAgentName) {
+      llmObsTags = llmObsTags.withAgentAttribution(parentAgentSpanId, parentAgentName);
+      clearCachedHeaders();
+      return getXDatadogTagsSize();
     }
 
     @Override

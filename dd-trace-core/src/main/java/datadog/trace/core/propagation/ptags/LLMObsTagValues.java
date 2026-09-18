@@ -50,6 +50,21 @@ final class LLMObsTagValues {
         samplingDecision);
   }
 
+  /**
+   * A copy with the agent attribution replaced. Used to degrade attribution when the full tag set
+   * would overflow the {@code x-datadog-tags} budget; every other value is preserved.
+   */
+  LLMObsTagValues withAgentAttribution(TagValue parentAgentSpanId, TagValue parentAgentName) {
+    return of(
+        mlApp,
+        sessionId,
+        parentAgentSpanId,
+        parentAgentName,
+        parentId,
+        sampleRate,
+        samplingDecision);
+  }
+
   private LLMObsTagValues(
       TagValue mlApp,
       TagValue sessionId,

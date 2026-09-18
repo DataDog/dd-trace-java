@@ -192,6 +192,16 @@ abstract class PTagsCodec {
           LLMOBS_PARENT_ID_TAG.forType(Encoding.DATADOG).toString(),
           llmObsTags.parentId.forType(Encoding.DATADOG).toString());
     }
+    if (llmObsTags.sampleRate != null) {
+      tagMap.put(
+          LLMOBS_SAMPLE_RATE_TAG.forType(Encoding.DATADOG).toString(),
+          llmObsTags.sampleRate.forType(Encoding.DATADOG).toString());
+    }
+    if (llmObsTags.samplingDecision != null) {
+      tagMap.put(
+          LLMOBS_SAMPLING_DECISION_TAG.forType(Encoding.DATADOG).toString(),
+          llmObsTags.samplingDecision.forType(Encoding.DATADOG).toString());
+    }
     if (propagationTags.getError() != null) {
       tagMap.put(PROPAGATION_ERROR_TAG_KEY, propagationTags.getError());
     }
