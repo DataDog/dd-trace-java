@@ -1,0 +1,42 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
+muzzle {
+  pass {
+    group = "io.r2dbc"
+    module = "r2dbc-spi"
+    versions = "[1.0.0.RELEASE,)"
+    // r2dbc-proxy is compileOnly and referenced directly by the injected
+    // listener/wrap-helper classes (R2dbcTracingSupport, TraceProxyExecutionListener).
+    // Muzzle only puts the pinned primary dependency (r2dbc-spi) on the test
+    // classpath by default, so the compileOnly interception library must be
+    // added explicitly or muzzle reports its classes as "missing".
+    extraDependency 'io.r2dbc:r2dbc-proxy:1.1.0.RELEASE'
+  }
+}
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'io.r2dbc', name: 'r2dbc-spi', version: '1.0.0.RELEASE'
+  // r2dbc-proxy must be bundled into the agent (implementation, NOT compileOnly):
+  // R2dbcTracingSupport/TraceProxyExecutionListener reference its types directly, and
+  // ordinary R2DBC apps do not depend on r2dbc-proxy themselves. compileOnly would leave
+  // those classes absent from the shaded agent jar, and the runtime muzzle safety check
+  // then blocks the whole module to avoid a NoClassDefFoundError once the target app's
+  // classloader is checked. r2dbc-spi stays compileOnly — target apps DO provide that one.
+  implementation group: 'io.r2dbc', name: 'r2dbc-proxy', version: '1.1.0.RELEASE'
+
+  testImplementation group: 'io.r2dbc', name: 'r2dbc-spi', version: '1.0.0.RELEASE'
+  testImplementation group: 'io.r2dbc', name: 'r2dbc-proxy', version: '1.1.0.RELEASE'
+  // H2 R2DBC driver for in-memory database testing
+  testImplementation group: 'io.r2dbc', name: 'r2dbc-h2', version: '1.0.0.RELEASE'
+  // Reactor for blocking on reactive types in tests
+  testImplementation group: 'io.projectreactor', name: 'reactor-core', version: '3.5.0'
+
+  latestDepTestImplementation group: 'io.r2dbc', name: 'r2dbc-spi', version: '1.+'
+  latestDepTestImplementation group: 'io.r2dbc', name: 'r2dbc-proxy', version: '1.+'
+  latestDepTestImplementation group: 'io.r2dbc', name: 'r2dbc-h2', version: '1.+'
+  latestDepTestImplementation group: 'io.projectreactor', name: 'reactor-core', version: '3.+'
+}
