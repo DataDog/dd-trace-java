@@ -1,9 +1,8 @@
 package datadog.trace.instrumentation.akkahttp106;
 
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
-
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.akkahttp106.AkkaHttpClientDecorator.AKKA_CLIENT_REQUEST;
 import static datadog.trace.instrumentation.akkahttp106.AkkaHttpClientDecorator.AKKA_HTTP_CLIENT;
 import static datadog.trace.instrumentation.akkahttp106.AkkaHttpClientDecorator.DECORATE;
