@@ -5,9 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.agent.tooling.HelperGenerationProcessor;
+import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.CatchModule;
 import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.PipelineModule;
 import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.ScanModule;
 import datadog.trace.agent.tooling.advice.AdviceScanningHelper.Dependency;
@@ -18,11 +21,14 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.stream.Stream;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.dynamic.loading.ByteArrayClassLoader;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -104,7 +110,52 @@ class AdviceProcessorPipelineTest {
           AdviceScanningHelper.MuzzleReferenceProvider.class
         }) {
       assertTrue(scan.getClassInfo(muzzleHelper.getName()).isScanned());
+      assertTrue(scan.getClassInfo(muzzleHelper.getName()).isReachableFromAdvice());
       assertFalse(asList(helpers).contains(muzzleHelper.getName()));
+    }
+    assertTrue(asList(helpers).contains(Dependency.class.getName()));
+  }
+
+  @Test
+  void generatesCatchOnlyHelpersThatLoadInIsolation(@TempDir Path temp) throws Exception {
+    ClassFileLocator locator = ClassFileLocator.ForClassLoader.of(getClass().getClassLoader());
+    Class<?> generatedModule =
+        new AdviceScanningGradlePlugin(temp.toFile())
+            .apply(
+                new ByteBuddy().redefine(CatchModule.class),
+                new TypeDescription.ForLoadedType(CatchModule.class),
+                locator)
+            .make()
+            .load(getClass().getClassLoader(), ClassLoadingStrategy.Default.CHILD_FIRST)
+            .getLoaded();
+    String[] helpers =
+        ((InstrumenterModule) generatedModule.getConstructor().newInstance()).helperClassNames();
+    Map<String, byte[]> helperClasses = new LinkedHashMap<>();
+    for (String helper : helpers) {
+      helperClasses.put(helper, locator.locate(helper).resolve());
+    }
+
+    ClassLoader isolated = new ByteArrayClassLoader(null, helperClasses);
+    Class<?> helper = isolated.loadClass(CatchOnlyHelper.class.getName());
+    assertSame(isolated, helper.getClassLoader());
+    helper.getMethod("run").invoke(null);
+    assertTrue(asList(helpers).contains(CatchOnlyException.class.getName()));
+  }
+
+  @Test
+  void excludesEnumerationOnlyNestedClassesAndTheirDependencies() {
+    ScanModule module = new ScanModule();
+    AdviceScanResult scan = AdviceScanner.scan(module);
+    String[] helpers = new HelperGenerationProcessor().resolveHelpers(scan, module);
+
+    for (Class<?> unused :
+        new Class<?>[] {
+          AdviceScanningHelper.DiagnosticPrinter.class,
+          AdviceScanningHelper.DiagnosticDependency.class
+        }) {
+      assertTrue(scan.getClassInfo(unused.getName()).isScanned());
+      assertFalse(scan.getClassInfo(unused.getName()).isReachableFromAdvice());
+      assertFalse(asList(helpers).contains(unused.getName()));
     }
     assertTrue(asList(helpers).contains(Dependency.class.getName()));
   }

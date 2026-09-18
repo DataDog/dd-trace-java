@@ -83,12 +83,25 @@ public final class AdviceScanner {
     while ((className = scanQueue.pollFirst()) != null) {
       scanClass(classes.get(className));
     }
+    markReachableClasses();
 
     Map<String, ClassInfo> frozenClasses = new LinkedHashMap<>();
     for (Map.Entry<String, MutableClassInfo> entry : classes.entrySet()) {
       frozenClasses.put(entry.getKey(), entry.getValue().freeze());
     }
     return new AdviceScanResult(adviceRoots, frozenClasses);
+  }
+
+  private void markReachableClasses() {
+    Deque<String> pending = new ArrayDeque<>(adviceRoots);
+    String className;
+    while ((className = pending.pollFirst()) != null) {
+      MutableClassInfo info = classes.get(className);
+      if (info != null && !info.reachableFromAdvice) {
+        info.reachableFromAdvice = true;
+        pending.addAll(info.dependencies);
+      }
+    }
   }
 
   private void collectAdviceRoots() {
@@ -162,6 +175,9 @@ public final class AdviceScanner {
     if (className.startsWith("[")) {
       addTypeDependency(from, Type.getType(className.substring(1)), traverseDependency);
       return;
+    }
+    if (traverseDependency) {
+      from.dependencies.add(className);
     }
     MutableClassInfo target = discover(className, from.adviceRoot);
     if (traverseDependency) {
@@ -571,6 +587,8 @@ public final class AdviceScanner {
     String adviceRoot;
     String sourceFile;
     boolean scanned;
+    boolean reachableFromAdvice;
+    final Set<String> dependencies = new LinkedHashSet<>();
     final Set<String> requiredDependencies = new LinkedHashSet<>();
     final List<Usage> usages = new ArrayList<>();
 
@@ -582,7 +600,8 @@ public final class AdviceScanner {
     }
 
     ClassInfo freeze() {
-      return new ClassInfo(className, fromModuleOutput, scanned, requiredDependencies, usages);
+      return new ClassInfo(
+          className, fromModuleOutput, scanned, reachableFromAdvice, requiredDependencies, usages);
     }
   }
 }

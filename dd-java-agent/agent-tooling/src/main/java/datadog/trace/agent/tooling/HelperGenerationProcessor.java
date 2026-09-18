@@ -36,6 +36,7 @@ public final class HelperGenerationProcessor {
     Set<String> helpers = new LinkedHashSet<>();
     for (ClassInfo info : scanResult.getClasses().values()) {
       if (info.isScanned()
+          && info.isReachableFromAdvice()
           && !adviceRoots.contains(info.getClassName())
           && isHelperClass(info.getClassName(), info.isFromModuleOutput())
           && !isBuildTimeOnly(info)) {
