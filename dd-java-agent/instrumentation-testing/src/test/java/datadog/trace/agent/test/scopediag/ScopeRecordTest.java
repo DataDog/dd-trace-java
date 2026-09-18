@@ -53,6 +53,35 @@ class ScopeRecordTest {
   }
 
   @Test
+  void timelineIncludesEveryWrongThreadCloseCallsite() {
+    ScopeRecord s = scope(0, null, "main", 1000);
+    s.addWrongThreadClose(
+        new ScopeEvent(
+            ScopeEvent.Type.SCOPE_CLOSE_WRONG_THREAD,
+            "worker-one",
+            2000,
+            new StackTraceElement[] {
+              new StackTraceElement("com.app.First", "close", "First.java", 12)
+            }));
+    s.addWrongThreadClose(
+        new ScopeEvent(
+            ScopeEvent.Type.SCOPE_CLOSE_WRONG_THREAD,
+            "worker-two",
+            3000,
+            new StackTraceElement[] {
+              new StackTraceElement("com.app.Second", "close", "Second.java", 34)
+            }));
+    s.setClose(event(ScopeEvent.Type.SCOPE_CLOSE, "main", 4000));
+
+    ScopeDiagnosticsReport report = report(s);
+    assertFalse(report.hasProblems(), "wrong-thread cleanup remains advisory");
+    String timeline = report.renderTimeline();
+    assertTrue(timeline.contains("wrong-thread close"));
+    assertTrue(timeline.contains("@ worker-one  at com.app.First.close(First.java:12)"));
+    assertTrue(timeline.contains("@ worker-two  at com.app.Second.close(Second.java:34)"));
+  }
+
+  @Test
   void openWithoutCloseIsNeverClosed() {
     ScopeRecord s = scope(0, null, "main", 1000);
 
