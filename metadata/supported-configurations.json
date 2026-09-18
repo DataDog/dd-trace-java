@@ -654,7 +654,7 @@
     "DD_CIVISIBILITY_DYNAMIC_ATR_BUCKETS": [
       {
         "version": "A",
-        "type": "string",
+        "type": "array",
         "default": null,
         "aliases": []
       }
