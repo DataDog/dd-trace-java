@@ -78,12 +78,25 @@ public final class AdviceScanner {
     while ((className = scanQueue.pollFirst()) != null) {
       scanClass(classes.get(className));
     }
+    markReachableClasses();
 
     Map<String, ClassInfo> immutableClasses = new LinkedHashMap<>();
     for (Map.Entry<String, MutableClassInfo> entry : classes.entrySet()) {
       immutableClasses.put(entry.getKey(), entry.getValue().freeze());
     }
     return new AdviceScanResult(adviceRoots, immutableClasses);
+  }
+
+  private void markReachableClasses() {
+    Deque<String> pending = new ArrayDeque<>(adviceRoots);
+    String className;
+    while ((className = pending.pollFirst()) != null) {
+      MutableClassInfo info = classes.get(className);
+      if (info != null && !info.reachableFromAdvice) {
+        info.reachableFromAdvice = true;
+        pending.addAll(info.dependencies);
+      }
+    }
   }
 
   private void collectAdviceRoots() {
@@ -152,6 +165,7 @@ public final class AdviceScanner {
       addTypeDependency(from, Type.getType(className));
       return;
     }
+    from.dependencies.add(className);
     MutableClassInfo target = discover(className, from.adviceClass);
     enqueue(target, false);
   }
@@ -398,6 +412,13 @@ public final class AdviceScanner {
     }
 
     @Override
+    public void visitTryCatchBlock(Label start, Label end, Label handler, String type) {
+      if (type != null) {
+        addDependency(info, binaryName(type));
+      }
+    }
+
+    @Override
     public void visitFieldInsn(int opcode, String owner, String name, String descriptor) {
       String binaryOwner = binaryName(owner);
       addDependency(info, binaryOwner);
@@ -520,6 +541,8 @@ public final class AdviceScanner {
     private final boolean fromModuleOutput;
     private String adviceClass;
     private boolean scanned;
+    private boolean reachableFromAdvice;
+    private final Set<String> dependencies = new LinkedHashSet<>();
     private final Set<String> requiredDependencies = new LinkedHashSet<>();
     private final List<Usage> usages = new ArrayList<>();
 
@@ -530,7 +553,8 @@ public final class AdviceScanner {
     }
 
     private ClassInfo freeze() {
-      return new ClassInfo(className, fromModuleOutput, scanned, requiredDependencies, usages);
+      return new ClassInfo(
+          className, fromModuleOutput, scanned, reachableFromAdvice, requiredDependencies, usages);
     }
   }
 }

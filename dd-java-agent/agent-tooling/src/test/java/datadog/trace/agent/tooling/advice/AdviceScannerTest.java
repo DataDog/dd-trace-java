@@ -77,10 +77,12 @@ class AdviceScannerTest {
     String enclosingHelper = AdviceScanningHelper.class.getName();
 
     assertTrue(result.getClassInfo(enclosingHelper).isScanned());
+    assertTrue(result.getClassInfo(enclosingHelper).isReachableFromAdvice());
     for (Class<?> nested :
         new Class<?>[] {
           Dependency.class, AdviceScanningHelper.localClass(), AdviceScanningHelper.anonymousClass()
         }) {
+      assertTrue(result.getClassInfo(nested.getName()).isReachableFromAdvice());
       assertTrue(
           result
               .getClassInfo(nested.getName())

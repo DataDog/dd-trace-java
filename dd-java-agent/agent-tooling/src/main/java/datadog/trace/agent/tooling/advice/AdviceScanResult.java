@@ -151,6 +151,7 @@ public final class AdviceScanResult {
     private final String className;
     private final boolean fromModuleOutput;
     private final boolean scanned;
+    private final boolean reachableFromAdvice;
     private final List<String> requiredDependencies;
     private final List<Usage> usages;
 
@@ -158,11 +159,13 @@ public final class AdviceScanResult {
         String className,
         boolean fromModuleOutput,
         boolean scanned,
+        boolean reachableFromAdvice,
         Collection<String> requiredDependencies,
         List<Usage> usages) {
       this.className = className;
       this.fromModuleOutput = fromModuleOutput;
       this.scanned = scanned;
+      this.reachableFromAdvice = reachableFromAdvice;
       this.requiredDependencies = immutableCopy(requiredDependencies);
       this.usages = immutableCopy(usages);
     }
@@ -177,6 +180,13 @@ public final class AdviceScanResult {
 
     public boolean isFromModuleOutput() {
       return fromModuleOutput;
+    }
+
+    /**
+     * Whether an advice root reaches this class through dependencies (i.e. not nested enumeration).
+     */
+    public boolean isReachableFromAdvice() {
+      return reachableFromAdvice;
     }
 
     public boolean isInstrumentationClass() {

@@ -40,6 +40,19 @@ final class AdviceScanningFixtures {
     }
   }
 
+  static class CatchAdvice {
+    static void apply() {
+      CatchOnlyHelper.run();
+    }
+  }
+
+  public static final class CatchModule extends ScanModule {
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+      transformer.applyAdvice(null, CatchAdvice.class.getName());
+    }
+  }
+
   public static class ScanModule extends InstrumenterModule
       implements Instrumenter.HasMethodAdvice {
     static int adviceRegistrations;

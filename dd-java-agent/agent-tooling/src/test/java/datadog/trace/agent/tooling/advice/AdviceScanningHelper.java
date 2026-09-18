@@ -32,6 +32,22 @@ final class AdviceScanningHelper {
     }
   }
 
+  static Class<?>[] muzzleHelpers() {
+    return new Class<?>[] {MuzzleHelper.class, MuzzleReferenceProvider.class};
+  }
+
+  static final class DiagnosticPrinter {
+    static Class<?> dependency() {
+      return DiagnosticDependency.class;
+    }
+  }
+
+  static final class DiagnosticDependency {
+    static Class<?> dependency() {
+      return DiagnosticPrinter.class;
+    }
+  }
+
   static Class<?> localClass() {
     class Local {}
     return Local.class;
