@@ -1,6 +1,8 @@
 package datadog.communication;
 
 import static java.util.Collections.emptyList;
+import static java.util.Collections.emptyMap;
+import static java.util.Collections.unmodifiableMap;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
@@ -8,9 +10,12 @@ import datadog.communication.http.HttpRetryPolicy;
 import datadog.trace.api.Config;
 import datadog.trace.api.intake.Intake;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
+import java.util.HashMap;
+import java.util.Map;
 import javax.annotation.Nullable;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
+import okhttp3.Request;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,23 +27,40 @@ public class BackendApiFactory {
 
   private final Config config;
   private final SharedCommunicationObjects sharedCommunicationObjects;
+  private final Map<String, String> requestHeaders;
   private final boolean sendOnce;
 
   public BackendApiFactory(Config config, SharedCommunicationObjects sharedCommunicationObjects) {
-    this(config, sharedCommunicationObjects, false);
+    this(config, sharedCommunicationObjects, emptyMap());
+  }
+
+  public BackendApiFactory(
+      Config config,
+      SharedCommunicationObjects sharedCommunicationObjects,
+      Map<String, String> requestHeaders) {
+    this(config, sharedCommunicationObjects, requestHeaders, false);
+  }
+
+  public BackendApiFactory(
+      Config config, SharedCommunicationObjects sharedCommunicationObjects, boolean sendOnce) {
+    this(config, sharedCommunicationObjects, emptyMap(), sendOnce);
   }
 
   /**
-   * Creates a backend factory with optional send-once transport semantics.
+   * Creates a backend factory with per-request headers and optional send-once transport semantics.
    *
    * <p>When {@code sendOnce} is true, both the explicit HTTP retry policy and OkHttp's automatic
    * connection retry are disabled. This is required for event payloads that do not carry an
    * idempotency key.
    */
   public BackendApiFactory(
-      Config config, SharedCommunicationObjects sharedCommunicationObjects, boolean sendOnce) {
+      Config config,
+      SharedCommunicationObjects sharedCommunicationObjects,
+      Map<String, String> requestHeaders,
+      boolean sendOnce) {
     this.config = config;
     this.sharedCommunicationObjects = sharedCommunicationObjects;
+    this.requestHeaders = unmodifiableMap(new HashMap<>(requestHeaders));
     this.sendOnce = sendOnce;
   }
 
@@ -181,7 +203,7 @@ public class BackendApiFactory {
    * Creates an EVP proxy client after Agent discovery, optionally forcing a fresh discovery and
    * requiring the Agent to advertise every specified forwarding header.
    *
-   * <p>Callers supply the forwarding capabilities their event protocol requires.
+   * <p>Required forwarding capabilities are independent of any headers configured on this factory.
    *
    * <p>The {@code forceDiscovery} form is intended for bounded unavailable-route recovery probes.
    */
@@ -250,7 +272,24 @@ public class BackendApiFactory {
   }
 
   OkHttpClient configureHttpClient(final OkHttpClient httpClient) {
-    return sendOnce ? httpClient.newBuilder().retryOnConnectionFailure(false).build() : httpClient;
+    if (requestHeaders.isEmpty() && !sendOnce) {
+      return httpClient;
+    }
+    final OkHttpClient.Builder builder = httpClient.newBuilder();
+    if (sendOnce) {
+      builder.retryOnConnectionFailure(false);
+    }
+    if (!requestHeaders.isEmpty()) {
+      builder.addInterceptor(
+          chain -> {
+            final Request.Builder requestBuilder = chain.request().newBuilder();
+            for (Map.Entry<String, String> header : requestHeaders.entrySet()) {
+              requestBuilder.header(header.getKey(), header.getValue());
+            }
+            return chain.proceed(requestBuilder.build());
+          });
+    }
+    return builder.build();
   }
 
   private HttpRetryPolicy.Factory retryPolicyFactory() {
