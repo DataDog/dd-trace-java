@@ -35,9 +35,6 @@ public class OpenFeatureAPIInstrumentation extends InstrumenterModule
   public String[] helperClassNames() {
     return new String[] {
       "datadog.trace.api.openfeature.Evaluator",
-      "datadog.trace.api.openfeature.DDEvaluator$1",
-      "datadog.trace.api.openfeature.DDEvaluator$CopyResult",
-      "datadog.trace.api.openfeature.DDEvaluator$FlattenEntry",
       "com.datadog.featureflag.core.EvaluationContext",
       "com.datadog.featureflag.core.EvaluationMetadata",
       "com.datadog.featureflag.core.EvaluationMetadata$EvaluationMetadataBuilder",
@@ -50,6 +47,9 @@ public class OpenFeatureAPIInstrumentation extends InstrumenterModule
       "com.datadog.featureflag.core.FlagEvaluator$1",
       "com.datadog.featureflag.core.FlagEvaluator$NumberComparator",
       "com.datadog.featureflag.core.FlagEvaluator$SemverComparator",
+      "datadog.trace.api.openfeature.DDEvaluator$1",
+      "datadog.trace.api.openfeature.DDEvaluator$CopyResult",
+      "datadog.trace.api.openfeature.DDEvaluator$FlattenEntry",
       "datadog.trace.api.openfeature.DDEvaluator",
       "datadog.trace.api.openfeature.FlagEvalLoggingHook",
       "datadog.trace.api.openfeature.FlagEvalMetrics",

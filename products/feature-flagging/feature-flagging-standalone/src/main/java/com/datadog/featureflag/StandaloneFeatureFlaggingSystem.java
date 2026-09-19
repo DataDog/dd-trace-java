@@ -25,9 +25,7 @@ public final class StandaloneFeatureFlaggingSystem {
   private static final Logger LOGGER =
       LoggerFactory.getLogger(StandaloneFeatureFlaggingSystem.class);
 
-  private static volatile ConfigurationSourceService CONFIG_SERVICE;
-  private static volatile ExposureWriter EXPOSURE_WRITER;
-  private static volatile FlagEvaluationWriter FLAG_EVAL_WRITER;
+  private static volatile ProviderRuntime RUNTIME;
   private static volatile boolean STARTED;
   private static final Object LIFECYCLE_LOCK = new Object();
   private static int consumers;
@@ -119,65 +117,34 @@ public final class StandaloneFeatureFlaggingSystem {
       final ExposureWriter exposureWriter,
       final Supplier<FlagEvaluationWriter> evalWriterFactory,
       final boolean evalCountsEnabled) {
-    initialize(configService, exposureWriter);
-
-    FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(evalCountsEnabled);
-    if (evalCountsEnabled) {
-      final FlagEvaluationWriter evalWriter = evalWriterFactory.get();
-      FLAG_EVAL_WRITER = evalWriter;
-      evalWriter.start();
-    } else {
-      FeatureFlaggingGateway.setFlagEvalWriter(null);
-    }
+    RUNTIME =
+        ProviderRuntime.start(configService, exposureWriter, evalWriterFactory, evalCountsEnabled);
   }
 
   static void initialize(
       final ConfigurationSourceService configService, final ExposureWriter exposureWriter) {
-    try {
-      configService.init();
-      exposureWriter.init();
-      CONFIG_SERVICE = configService;
-      EXPOSURE_WRITER = exposureWriter;
-    } catch (final RuntimeException | Error exception) {
-      try {
-        exposureWriter.close();
-      } finally {
-        configService.close();
-      }
-      throw exception;
-    }
+    initializeSystem(configService, exposureWriter, null, false);
   }
 
   public static boolean stop() {
     synchronized (LIFECYCLE_LOCK) {
       final boolean wasStarted = STARTED;
-      FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(false);
-      FeatureFlaggingGateway.setFlagEvalWriter(null);
-      final FlagEvaluationWriter flagEvalWriter = FLAG_EVAL_WRITER;
-      final ExposureWriter exposureWriter = EXPOSURE_WRITER;
-      final ConfigurationSourceService configService = CONFIG_SERVICE;
+      if (FeatureFlaggingGateway.activeRuntime() != RuntimeMode.AGENT) {
+        FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(false);
+        FeatureFlaggingGateway.setFlagEvalWriter(null);
+      }
+      final ProviderRuntime runtime = RUNTIME;
       STARTED = false;
       consumers = 0;
-      FLAG_EVAL_WRITER = null;
-      EXPOSURE_WRITER = null;
-      CONFIG_SERVICE = null;
-      closeQuietly(flagEvalWriter);
-      closeQuietly(exposureWriter);
-      closeQuietly(configService);
+      RUNTIME = null;
+      if (runtime != null) {
+        runtime.close();
+      }
       FeatureFlaggingGateway.releaseRuntime(RuntimeMode.STANDALONE);
       if (wasStarted) {
         LOGGER.debug("Standalone Feature Flagging runtime stopped");
       }
       return wasStarted;
-    }
-  }
-
-  private static void closeQuietly(final AutoCloseable resource) {
-    if (resource != null) {
-      try {
-        resource.close();
-      } catch (final Exception ignored) {
-      }
     }
   }
 

@@ -185,6 +185,18 @@ class StandaloneFeatureFlaggingSystemTest {
   }
 
   @Test
+  void stoppingInactiveStandaloneDoesNotClearAgentWriter() {
+    FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
+    assertTrue(FeatureFlaggingGateway.claimRuntime(RuntimeMode.AGENT));
+    FeatureFlaggingGateway.setFlagEvalWriter(writer);
+    FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(true);
+    StandaloneFeatureFlaggingSystem.stop();
+    assertSame(writer, FeatureFlaggingGateway.getFlagEvalWriter());
+    assertTrue(FeatureFlaggingGateway.isFlagEvaluationEnqueueEnabled());
+    assertSame(RuntimeMode.AGENT, FeatureFlaggingGateway.activeRuntime());
+  }
+
+  @Test
   void disablesEvaluationWriterWhenConfigured() {
     final ConfigurationSourceService configService = mock(ConfigurationSourceService.class);
     final ExposureWriter exposureWriter = mock(ExposureWriter.class);

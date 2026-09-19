@@ -234,6 +234,22 @@ class FeatureFlaggingSystemTest {
   }
 
   @Test
+  void stoppingInactiveAgentDoesNotClearStandaloneWriter() {
+    FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
+    assertTrue(FeatureFlaggingGateway.claimRuntime(RuntimeMode.STANDALONE));
+    FeatureFlaggingGateway.setFlagEvalWriter(writer);
+    FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(true);
+    try {
+      FeatureFlaggingSystem.stop();
+      assertSame(writer, FeatureFlaggingGateway.getFlagEvalWriter());
+      assertTrue(FeatureFlaggingGateway.isFlagEvaluationEnqueueEnabled());
+      assertSame(RuntimeMode.STANDALONE, FeatureFlaggingGateway.activeRuntime());
+    } finally {
+      FeatureFlaggingGateway.releaseRuntime(RuntimeMode.STANDALONE);
+    }
+  }
+
+  @Test
   @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "remote_config")
   @WithConfig(key = REMOTE_CONFIGURATION_ENABLED, value = "false")
   void failedStartRollsBackPartiallyInitializedState() {
@@ -400,8 +416,9 @@ class FeatureFlaggingSystemTest {
     doThrow(new IllegalStateException("exposure init failed")).when(exposureWriter).init();
     doThrow(new IllegalArgumentException("exposure close failed")).when(exposureWriter).close();
 
+    // Preserve the startup failure even if cleanup also fails.
     assertThrows(
-        IllegalArgumentException.class,
+        IllegalStateException.class,
         () -> FeatureFlaggingSystem.initialize(configService, exposureWriter));
 
     verify(configService).close();
