@@ -1580,6 +1580,14 @@
         "aliases": []
       }
     ],
+    "DD_FEATURE_FLAGS_SPAN_ENRICHMENT_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED": [
       {
         "version": "A",
@@ -12162,6 +12170,7 @@
     ]
   },
   "deprecations": {
-    "DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED": "DD_FEATURE_FLAGS_ENABLED"
+    "DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED": "DD_FEATURE_FLAGS_ENABLED",
+    "DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED": "DD_FEATURE_FLAGS_SPAN_ENRICHMENT_ENABLED"
   }
 }

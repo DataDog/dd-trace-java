@@ -1,6 +1,7 @@
 package com.datadog.featureflag;
 
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -19,11 +20,60 @@ import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway.RuntimeMode;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
 import datadog.trace.test.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
+@ExtendWith(WithConfigExtension.class)
 class StandaloneFeatureFlaggingSystemTest {
+
+  @Test
+  void manualRegistrationUsesDefaultDirectSource() {
+    final StandaloneFeatureFlaggingSystem.SystemInitializer initializer =
+        mock(StandaloneFeatureFlaggingSystem.SystemInitializer.class);
+    assertTrue(StandaloneFeatureFlaggingSystem.start(initializer));
+    verify(initializer).initialize(any(Config.class));
+  }
+
+  @Test
+  @WithConfig(key = FEATURE_FLAGS_ENABLED, value = "false")
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
+  void explicitDisablePreventsRuntimeStartup() {
+    final StandaloneFeatureFlaggingSystem.SystemInitializer initializer =
+        mock(StandaloneFeatureFlaggingSystem.SystemInitializer.class);
+    assertFalse(StandaloneFeatureFlaggingSystem.start(initializer));
+    verifyNoInteractions(initializer);
+    assertNull(FeatureFlaggingGateway.activeRuntime());
+  }
+
+  @Test
+  void closingOneConsumerKeepsTheOtherConsumerActive() throws Exception {
+    final StandaloneFeatureFlaggingSystem.SystemInitializer initializer =
+        mock(StandaloneFeatureFlaggingSystem.SystemInitializer.class);
+    final AutoCloseable first = StandaloneFeatureFlaggingSystem.acquire(initializer);
+    final AutoCloseable second = StandaloneFeatureFlaggingSystem.acquire(initializer);
+    first.close();
+    first.close();
+    assertSame(RuntimeMode.STANDALONE, FeatureFlaggingGateway.activeRuntime());
+    verify(initializer).initialize(any(Config.class));
+    second.close();
+    assertNull(FeatureFlaggingGateway.activeRuntime());
+  }
+
+  @Test
+  void closedGenerationDoesNotReleaseAReplacementRuntime() throws Exception {
+    final StandaloneFeatureFlaggingSystem.SystemInitializer initializer =
+        mock(StandaloneFeatureFlaggingSystem.SystemInitializer.class);
+    final AutoCloseable old = StandaloneFeatureFlaggingSystem.acquire(initializer);
+    StandaloneFeatureFlaggingSystem.stop();
+    final AutoCloseable replacement = StandaloneFeatureFlaggingSystem.acquire(initializer);
+    old.close();
+    assertSame(RuntimeMode.STANDALONE, FeatureFlaggingGateway.activeRuntime());
+    replacement.close();
+    assertNull(FeatureFlaggingGateway.activeRuntime());
+  }
 
   @AfterEach
   void tearDown() {

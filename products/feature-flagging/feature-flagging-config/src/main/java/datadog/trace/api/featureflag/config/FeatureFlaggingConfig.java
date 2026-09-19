@@ -20,6 +20,13 @@ public class FeatureFlaggingConfig {
    * #FEATURE_FLAGS_ENABLED} and OFF by default — enabling the provider does not enable span
    * enrichment.
    */
+  public static final String FEATURE_FLAGS_SPAN_ENRICHMENT_ENABLED =
+      "feature.flags.span.enrichment.enabled";
+
+  /**
+   * @deprecated Use {@link #FEATURE_FLAGS_SPAN_ENRICHMENT_ENABLED}.
+   */
+  @Deprecated
   public static final String EXPERIMENTAL_SPAN_ENRICHMENT_ENABLED =
       "experimental.flagging.provider.span.enrichment.enabled";
 

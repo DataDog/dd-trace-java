@@ -1,0 +1,11 @@
+# This is a Gradle generated file for dependency locking.
+# Manual edits can break the build and are not advised.
+# This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :products:feature-flagging:feature-flagging-core:dependencies --write-locks
+com.github.spotbugs:spotbugs-annotations:4.10.4=compileClasspath
+com.google.code.findbugs:jsr305:3.0.2=compileClasspath
+com.squareup.moshi:moshi:1.11.0=compileClasspath
+com.squareup.okio:okio:1.17.5=compileClasspath
+de.thetaphi:forbiddenapis:3.10=compileClasspath
+org.slf4j:slf4j-api:1.7.30=compileClasspath
+empty=annotationProcessor

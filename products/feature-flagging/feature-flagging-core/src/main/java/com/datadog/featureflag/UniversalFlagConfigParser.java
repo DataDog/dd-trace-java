@@ -6,7 +6,6 @@ import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
-import datadog.remoteconfig.ConfigurationDeserializer;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.ConditionConfiguration;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
@@ -34,7 +33,7 @@ import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class UniversalFlagConfigParser implements ConfigurationDeserializer<ServerConfiguration> {
+final class UniversalFlagConfigParser {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(UniversalFlagConfigParser.class);
 
@@ -65,7 +64,6 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
 
   private UniversalFlagConfigParser() {}
 
-  @Override
   public ServerConfiguration deserialize(final byte[] content) throws IOException {
     try (BufferedSource source = Okio.buffer(Okio.source(new ByteArrayInputStream(content)))) {
       final JsonReader reader = JsonReader.of(source);

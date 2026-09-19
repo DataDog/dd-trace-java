@@ -164,7 +164,7 @@ public class FeatureFlaggingSystem {
       return new RemoteConfigServiceImpl(sco, config);
     }
     if (CONFIGURATION_SOURCE_AGENTLESS.equals(configurationSource)) {
-      return new AgentlessConfigurationSource(config);
+      return new AgentlessConfigurationSource(config, AgentRuntimeServices.INSTANCE);
     }
     return null;
   }

@@ -1,9 +1,7 @@
 package com.datadog.featureflag;
 
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_AGENTLESS;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
 
-import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway.RuntimeMode;
@@ -32,6 +30,8 @@ public final class StandaloneFeatureFlaggingSystem {
   private static volatile ExposureWriter EXPOSURE_WRITER;
   private static volatile FlagEvaluationWriter FLAG_EVAL_WRITER;
   private static volatile boolean STARTED;
+  private static int consumers;
+  private static long generation;
 
   private StandaloneFeatureFlaggingSystem() {}
 
@@ -40,16 +40,51 @@ public final class StandaloneFeatureFlaggingSystem {
     return start(StandaloneFeatureFlaggingSystem::initializeSystem);
   }
 
+  /** Acquires one consumer; only the final consumer shuts down standalone delivery. */
+  public static synchronized AutoCloseable acquire() {
+    return acquire(StandaloneFeatureFlaggingSystem::initializeSystem);
+  }
+
+  static synchronized AutoCloseable acquire(final SystemInitializer initializer) {
+    if (!start(initializer)) {
+      return null;
+    }
+    consumers++;
+    final long acquiredGeneration = generation;
+    return new AutoCloseable() {
+      private boolean closed;
+
+      @Override
+      public void close() {
+        synchronized (StandaloneFeatureFlaggingSystem.class) {
+          if (closed) {
+            return;
+          }
+          closed = true;
+          if (acquiredGeneration == generation && consumers > 0 && --consumers == 0) {
+            stop();
+          }
+        }
+      }
+    };
+  }
+
   static synchronized boolean start(final SystemInitializer systemInitializer) {
     if (STARTED) {
       return FeatureFlaggingGateway.activeRuntime() == RuntimeMode.STANDALONE;
     }
 
     final Config config = Config.get();
-    final String explicitSource =
-        config.configProvider().getString(FEATURE_FLAGS_CONFIGURATION_SOURCE);
-    if (explicitSource == null
-        || !CONFIGURATION_SOURCE_AGENTLESS.equalsIgnoreCase(explicitSource.trim())) {
+    final FeatureFlaggingConfig.Resolution resolved =
+        FeatureFlaggingConfig.resolveConfiguration(
+            config.configProvider().getBoolean(FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED),
+            config
+                .configProvider()
+                .getString(FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE),
+            config
+                .configProvider()
+                .getBoolean(FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED));
+    if (!resolved.isEnabled() || !CONFIGURATION_SOURCE_AGENTLESS.equals(resolved.getSource())) {
       return false;
     }
     if (!FeatureFlaggingGateway.claimRuntime(RuntimeMode.STANDALONE)) {
@@ -60,6 +95,7 @@ public final class StandaloneFeatureFlaggingSystem {
     }
 
     STARTED = true;
+    generation++;
     try {
       systemInitializer.initialize(config);
       LOGGER.debug("Standalone Feature Flagging runtime started");
@@ -119,6 +155,7 @@ public final class StandaloneFeatureFlaggingSystem {
     final ExposureWriter exposureWriter = EXPOSURE_WRITER;
     final ConfigurationSourceService configService = CONFIG_SERVICE;
     STARTED = false;
+    consumers = 0;
     FLAG_EVAL_WRITER = null;
     EXPOSURE_WRITER = null;
     CONFIG_SERVICE = null;
@@ -144,20 +181,15 @@ public final class StandaloneFeatureFlaggingSystem {
   /** Composition root for the concrete standalone transports, validated by deployment tests. */
   private static final class DefaultRuntime {
     private static void initialize(final Config config) {
-      final SharedCommunicationObjects communicationObjects = new SharedCommunicationObjects();
-      communicationObjects.createRemaining(config);
-      final ConfigurationSourceService configService = new AgentlessConfigurationSource(config);
-      final ExposureWriter exposureWriter =
-          new ExposureWriterImpl(communicationObjects, config, false);
+      final DirectEventPipelines events = new DirectEventPipelines(config);
+      final ConfigurationSourceService configService =
+          new AgentlessConfigurationSource(config, RuntimeServices.STANDALONE);
+      final ExposureWriter exposureWriter = events.exposures();
       final boolean evalCountsEnabled =
           config
               .configProvider()
               .getBoolean(FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED, true);
-      initializeSystem(
-          configService,
-          exposureWriter,
-          () -> new FlagEvaluationWriterImpl(communicationObjects, config, false),
-          evalCountsEnabled);
+      initializeSystem(configService, exposureWriter, events::evaluations, evalCountsEnabled);
     }
   }
 }

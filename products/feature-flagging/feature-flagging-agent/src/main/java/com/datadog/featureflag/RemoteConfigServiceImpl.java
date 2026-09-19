@@ -23,7 +23,8 @@ public class RemoteConfigServiceImpl
   @Override
   public void init() {
     configurationPoller.addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
-    configurationPoller.addListener(Product.FFE_FLAGS, UniversalFlagConfigParser.INSTANCE, this);
+    configurationPoller.addListener(
+        Product.FFE_FLAGS, UniversalFlagConfigParser.INSTANCE::deserialize, this);
     configurationPoller.start();
   }
 

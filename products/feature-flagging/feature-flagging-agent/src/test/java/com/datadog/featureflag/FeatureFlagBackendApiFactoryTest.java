@@ -154,7 +154,7 @@ class FeatureFlagBackendApiFactoryTest {
     final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, "api-key");
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
     final BackendApi directApi = mock(BackendApi.class);
-    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false))
+    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false, false))
         .thenReturn(directApi);
 
     final BackendApi selected =

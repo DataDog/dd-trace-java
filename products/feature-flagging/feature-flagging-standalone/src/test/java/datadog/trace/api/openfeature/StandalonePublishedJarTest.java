@@ -14,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.jar.JarFile;
 import javax.tools.JavaCompiler;
 import javax.tools.ToolProvider;
 import org.junit.jupiter.api.Test;
@@ -47,6 +48,28 @@ class StandalonePublishedJarTest {
           + "\"variationKey\":\"treatment\",\"shards\":[]}],\"doLog\":false}]}}}}}";
 
   @TempDir Path temporaryDirectory;
+
+  @Test
+  void publishedJarContainsCoreButNoRcClientTracingImplementationOrTelemetrySdk() throws Exception {
+    try (JarFile jar = new JarFile(System.getProperty("datadog.test.dd-openfeature.jar"))) {
+      assertNotNull(
+          jar.getEntry("datadog/openfeature/internal/featureflag/core/FlagEvaluator.class"));
+      assertNotNull(jar.getEntry("datadog/trace/api/featureflag/ufc/v1/ServerConfiguration.class"));
+      assertTrue(
+          jar.stream()
+              .noneMatch(
+                  entry -> {
+                    String name = entry.getName();
+                    return name.contains("/datadog/remoteconfig/")
+                        || name.contains("/datadog/trace/core/")
+                        || name.startsWith("io/opentelemetry/")
+                        || name.startsWith("dev/openfeature/")
+                        || name.contains("/SharedCommunicationObjects")
+                        || name.contains("/RemoteConfigServiceImpl");
+                  }),
+          "Standalone must exclude RC, tracing implementation, and application-owned APIs");
+    }
+  }
 
   @Test
   void publishedJarPollsAndEvaluatesWithoutJavaAgent() throws Exception {

@@ -2,7 +2,6 @@ package com.datadog.featureflag;
 
 import static datadog.communication.http.OkHttpUtils.prepareRequest;
 import static datadog.communication.http.OkHttpUtils.sendWithRetries;
-import static datadog.trace.util.AgentThreadFactory.AgentThread.FEATURE_FLAG_CONFIGURATION_POLLER;
 import static datadog.trace.util.Strings.isBlank;
 
 import datadog.communication.http.HttpRetryPolicy;
@@ -11,7 +10,6 @@ import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
-import datadog.trace.util.AgentThreadFactory;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InterruptedIOException;
@@ -64,10 +62,15 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
   private volatile String etag;
 
   AgentlessConfigurationSource(final Config config) {
-    this(config, endpoint(config));
+    this(config, RuntimeServices.STANDALONE);
   }
 
-  private AgentlessConfigurationSource(final Config config, final HttpUrl endpoint) {
+  AgentlessConfigurationSource(final Config config, final RuntimeServices services) {
+    this(config, endpoint(config), services);
+  }
+
+  private AgentlessConfigurationSource(
+      final Config config, final HttpUrl endpoint, final RuntimeServices services) {
     this(
         endpoint,
         config,
@@ -80,7 +83,7 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
             TimeUnit.MILLISECONDS::sleep,
             () -> ThreadLocalRandom.current().nextDouble(1 - RETRY_JITTER, 1 + RETRY_JITTER)),
         Executors.newSingleThreadScheduledExecutor(
-            new AgentThreadFactory(FEATURE_FLAG_CONFIGURATION_POLLER)),
+            task -> services.newThread("configuration", task)),
         new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_WARNINGS, TimeUnit.MINUTES));
   }
 

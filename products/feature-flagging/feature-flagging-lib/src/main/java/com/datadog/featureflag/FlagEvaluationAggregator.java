@@ -1,8 +1,5 @@
 package com.datadog.featureflag;
 
-import static datadog.trace.util.HashingUtils.addToHash;
-import static datadog.trace.util.HashingUtils.hash;
-
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
 import java.util.HashMap;
 import java.util.Map;
@@ -12,6 +9,19 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 final class FlagEvaluationAggregator {
+  private static int hash(Object first, Object second, Object third) {
+    return 31 * 31 * java.util.Objects.hashCode(first)
+        + 31 * java.util.Objects.hashCode(second)
+        + java.util.Objects.hashCode(third);
+  }
+
+  private static int addToHash(int hash, Object value) {
+    return 31 * hash + java.util.Objects.hashCode(value);
+  }
+
+  private static int addToHash(int hash, boolean value) {
+    return 31 * hash + Boolean.hashCode(value);
+  }
 
   // Design assumptions — document the scale we sized for
   static final int EXPECTED_FLAG_COUNT = 2_500;

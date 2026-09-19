@@ -1,19 +1,10 @@
 package com.datadog.featureflag;
 
-import static datadog.trace.util.AgentThreadFactory.AgentThread.FEATURE_FLAG_EVALUATION_PROCESSOR;
-import static datadog.trace.util.AgentThreadFactory.newAgentThread;
-import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.common.queue.MessagePassingBlockingQueue;
 import datadog.common.queue.Queues;
-import datadog.communication.BackendApi;
-import datadog.communication.EvpProxy;
-import datadog.communication.ddagent.SharedCommunicationObjects;
-import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
-import datadog.trace.api.telemetry.CoreMetricCollector;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.List;
@@ -51,14 +42,14 @@ import org.slf4j.LoggerFactory;
  * close() sweeps the queue once the worker has been joined, counting any remainder as a closed drop
  * so shutdown loss is observable rather than silent.
  */
-public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
+public class FlagEvaluationPipeline implements FlagEvaluationWriter {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(FlagEvaluationWriterImpl.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(FlagEvaluationPipeline.class);
 
   static final int DEFAULT_CAPACITY = 1 << 12; // 4096 elements, per cross-SDK RFC
   static final int FLUSH_INTERVAL_SECONDS = 10;
 
-  static final int FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES = EvpProxy.PAYLOAD_SIZE_LIMIT_BYTES;
+  static final int FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES = 5 * 1024 * 1024;
   static final String FLAG_EVALUATION_DROPPED_METRIC = "flagevaluation.rows.dropped";
   static final String FLAG_EVALUATION_DEGRADED_METRIC = "flagevaluation.rows.degraded";
   static final String FLAG_EVALUATION_SPLITS_METRIC = "flagevaluation.payload.splits";
@@ -70,7 +61,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
   static final String DEGRADED_REASON_CARDINALITY_CAP = "cardinality_cap";
   static final String DEGRADED_REASON_PAYLOAD_LIMIT = "payload_limit";
   private static final String FLAG_EVALUATION_ROUTE = "flagevaluation";
-  private static final CoreMetricCollector CORE_METRICS = CoreMetricCollector.getInstance();
+  private final RuntimeServices services;
 
   private final MessagePassingBlockingQueue<FlagEvalEvent> queue;
   private final FlagEvaluationSerializingHandler serializer;
@@ -78,11 +69,11 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
   private final Object lifecycleLock = new Object();
   private final AtomicBoolean closed = new AtomicBoolean(false);
 
-  private static void countMetric(final String metricName, final long value, final String reason) {
+  private void countMetric(final String metricName, final long value, final String reason) {
     if (value <= 0) {
       return;
     }
-    CORE_METRICS.count(metricName, value, reason == null ? null : "reason:" + reason);
+    services.countMetric(metricName, value, reason);
   }
 
   /**
@@ -99,33 +90,14 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
   private final ConcurrentHashMap<String, AtomicLong> contextTruncatedCounts =
       new ConcurrentHashMap<>();
 
-  public FlagEvaluationWriterImpl(final SharedCommunicationObjects sco, final Config config) {
-    this(
-        DEFAULT_CAPACITY,
-        FLUSH_INTERVAL_SECONDS,
-        SECONDS,
-        new FeatureFlagBackendApiFactory(config, sco, FeatureFlagEventType.FLAG_EVALUATION)::create,
-        config);
-  }
-
-  FlagEvaluationWriterImpl(
-      final SharedCommunicationObjects sco, final Config config, final boolean agentProxyEnabled) {
-    this(
-        DEFAULT_CAPACITY,
-        FLUSH_INTERVAL_SECONDS,
-        SECONDS,
-        new FeatureFlagBackendApiFactory(
-                config, sco, FeatureFlagEventType.FLAG_EVALUATION, agentProxyEnabled)
-            ::create,
-        config);
-  }
-
-  FlagEvaluationWriterImpl(
+  public FlagEvaluationPipeline(
       final int capacity,
       final long flushInterval,
       final TimeUnit timeUnit,
-      final Supplier<BackendApi> backendApiSupplier,
-      final Config config) {
+      final Supplier<EventTransport> backendApiSupplier,
+      final Map<String, String> context,
+      final RuntimeServices services) {
+    this.services = services;
     this.queue = Queues.mpscBlockingConsumerArrayQueue(capacity);
     this.serializer =
         new FlagEvaluationSerializingHandler(
@@ -133,12 +105,13 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
             queue,
             flushInterval,
             timeUnit,
-            FeatureFlagEvpContext.from(config),
+            context,
             droppedQueueOverflow,
             contextTruncatedCounts,
             this::close,
-            FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES);
-    this.serializerThread = newAgentThread(FEATURE_FLAG_EVALUATION_PROCESSOR, serializer);
+            FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES,
+            services);
+    this.serializerThread = services.newThread("evaluations", serializer);
   }
 
   @Override
@@ -296,6 +269,14 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
   // ---- Serializing handler (background thread logic) ----
 
   static class FlagEvaluationSerializingHandler implements Runnable {
+    private final RuntimeServices services;
+
+    private void countMetric(String name, long value, String reason) {
+      if (value > 0) {
+        services.countMetric(name, value, reason);
+      }
+    }
+
     private final MessagePassingBlockingQueue<FlagEvalEvent> queue;
     private final long ticksRequiredToFlush;
 
@@ -304,8 +285,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
         justification = "the field is confined to the single serializer thread")
     private long lastTicks;
 
-    private final FeatureFlagEvpPublisher<FlagEvaluationPayloads.FlagEvaluationsRequest>
-        evpPublisher;
+    private final EventPublisher<FlagEvaluationPayloads.FlagEvaluationsRequest> evpPublisher;
     final Map<String, String> context;
     private final AtomicLong droppedQueueOverflow;
     private final ConcurrentHashMap<String, AtomicLong> contextTruncatedCounts;
@@ -318,7 +298,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     private final CountDownLatch finalFlushDone = new CountDownLatch(1);
 
     FlagEvaluationSerializingHandler(
-        final Supplier<BackendApi> backendApiSupplier,
+        final Supplier<EventTransport> backendApiSupplier,
         final MessagePassingBlockingQueue<FlagEvalEvent> queue,
         final long flushInterval,
         final TimeUnit timeUnit,
@@ -326,10 +306,12 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
         final AtomicLong droppedQueueOverflow,
         final ConcurrentHashMap<String, AtomicLong> contextTruncatedCounts,
         final Runnable errorCallback,
-        final int payloadSizeLimitBytes) {
+        final int payloadSizeLimitBytes,
+        final RuntimeServices services) {
+      this.services = services;
       this.queue = queue;
       this.evpPublisher =
-          new FeatureFlagEvpPublisher<>(
+          new EventPublisher<>(
               backendApiSupplier, FlagEvaluationPayloads.FlagEvaluationsRequest.class);
       this.context = context;
       this.droppedQueueOverflow = droppedQueueOverflow;
@@ -534,14 +516,17 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
   static class SerializingHandlerForTest extends FlagEvaluationSerializingHandler {
 
     SerializingHandlerForTest(
-        final Supplier<BackendApi> backendApiSupplier, final Map<String, String> context) {
-      this(backendApiSupplier, context, FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES);
+        final Supplier<EventTransport> backendApiSupplier,
+        final Map<String, String> context,
+        final RuntimeServices services) {
+      this(backendApiSupplier, context, FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES, services);
     }
 
     SerializingHandlerForTest(
-        final Supplier<BackendApi> backendApiSupplier,
+        final Supplier<EventTransport> backendApiSupplier,
         final Map<String, String> context,
-        final int payloadSizeLimitBytes) {
+        final int payloadSizeLimitBytes,
+        final RuntimeServices services) {
       super(
           backendApiSupplier,
           Queues.mpscBlockingConsumerArrayQueue(DEFAULT_CAPACITY),
@@ -551,7 +536,8 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
           new AtomicLong(0),
           new ConcurrentHashMap<>(),
           () -> {},
-          payloadSizeLimitBytes);
+          payloadSizeLimitBytes,
+          services);
     }
 
     private final List<FlagEvalEvent> staged = new ArrayList<>();
@@ -603,18 +589,5 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     int fullTierSizeForTest() {
       return aggregator.fullTierSize();
     }
-  }
-
-  /** Factory method for test use - creates a SerializingHandlerForTest. */
-  static SerializingHandlerForTest createHandlerForTest(
-      final Supplier<BackendApi> backendApiSupplier, final Map<String, String> context) {
-    return new SerializingHandlerForTest(backendApiSupplier, context);
-  }
-
-  static SerializingHandlerForTest createHandlerForTest(
-      final Supplier<BackendApi> backendApiSupplier,
-      final Map<String, String> context,
-      final int payloadSizeLimitBytes) {
-    return new SerializingHandlerForTest(backendApiSupplier, context, payloadSizeLimitBytes);
   }
 }

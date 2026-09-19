@@ -16,8 +16,12 @@ final class SpanEnrichmentGate {
 
   static boolean isEnabled() {
     try {
-      return ConfigProvider.getInstance()
-          .getBoolean(FeatureFlaggingConfig.EXPERIMENTAL_SPAN_ENRICHMENT_ENABLED, false);
+      final ConfigProvider config = ConfigProvider.getInstance();
+      final Boolean stable =
+          config.getBoolean(FeatureFlaggingConfig.FEATURE_FLAGS_SPAN_ENRICHMENT_ENABLED);
+      return stable != null
+          ? stable
+          : config.getBoolean(FeatureFlaggingConfig.EXPERIMENTAL_SPAN_ENRICHMENT_ENABLED, false);
     } catch (final Throwable t) {
       return false; // never let config reading break construction
     }

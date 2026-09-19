@@ -1,28 +1,24 @@
 package com.datadog.featureflag;
 
-import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
-import static datadog.trace.util.AgentThreadFactory.AgentThread.FEATURE_FLAG_EXPOSURE_PROCESSOR;
-import static datadog.trace.util.AgentThreadFactory.newAgentThread;
-import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.common.queue.MessagePassingBlockingQueue;
 import datadog.common.queue.Queues;
-import datadog.communication.ddagent.SharedCommunicationObjects;
-import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.exposure.ExposureEvent;
 import datadog.trace.api.featureflag.exposure.ExposuresRequest;
-import datadog.trace.api.internal.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.Marker;
+import org.slf4j.MarkerFactory;
 
-public class ExposureWriterImpl implements ExposureWriter {
+public class ExposurePipeline implements ExposureWriter {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(ExposureWriterImpl.class);
+  private static final Marker EXCLUDE_TELEMETRY = MarkerFactory.getMarker("EXCLUDE_TELEMETRY");
+  private static final Logger LOGGER = LoggerFactory.getLogger(ExposurePipeline.class);
   private static final int DEFAULT_CAPACITY = 1 << 16; // 65536 elements
   private static final int DEFAULT_FLUSH_INTERVAL_IN_SECONDS = 1;
   private static final int FLUSH_THRESHOLD = 100;
@@ -31,51 +27,18 @@ public class ExposureWriterImpl implements ExposureWriter {
   private final MessagePassingBlockingQueue<ExposureEvent> queue;
   private final Thread serializerThread;
 
-  public ExposureWriterImpl(final SharedCommunicationObjects sco, final Config config) {
-    this(DEFAULT_CAPACITY, DEFAULT_FLUSH_INTERVAL_IN_SECONDS, SECONDS, sco, config);
-  }
-
-  ExposureWriterImpl(
-      final SharedCommunicationObjects sco, final Config config, final boolean agentProxyEnabled) {
-    this(
-        DEFAULT_CAPACITY,
-        DEFAULT_FLUSH_INTERVAL_IN_SECONDS,
-        SECONDS,
-        new FeatureFlagBackendApiFactory(
-            config, sco, FeatureFlagEventType.EXPOSURE, agentProxyEnabled),
-        config);
-  }
-
-  ExposureWriterImpl(
+  public ExposurePipeline(
       final int capacity,
       final long flushInterval,
       final TimeUnit timeUnit,
-      final SharedCommunicationObjects sco,
-      final Config config) {
-    this(
-        capacity,
-        flushInterval,
-        timeUnit,
-        new FeatureFlagBackendApiFactory(config, sco, FeatureFlagEventType.EXPOSURE),
-        config);
-  }
-
-  ExposureWriterImpl(
-      final int capacity,
-      final long flushInterval,
-      final TimeUnit timeUnit,
-      final FeatureFlagBackendApiFactory backendApiFactory,
-      final Config config) {
+      final Supplier<EventTransport> transport,
+      final Map<String, String> context,
+      final RuntimeServices services) {
     this.queue = Queues.mpscBlockingConsumerArrayQueue(capacity);
     final ExposureSerializingHandler serializer =
         new ExposureSerializingHandler(
-            backendApiFactory,
-            queue,
-            flushInterval,
-            timeUnit,
-            FeatureFlagEvpContext.from(config),
-            this::close);
-    this.serializerThread = newAgentThread(FEATURE_FLAG_EXPOSURE_PROCESSOR, serializer);
+            transport, queue, flushInterval, timeUnit, context, this::close);
+    this.serializerThread = services.newThread("exposures", serializer);
   }
 
   @Override
@@ -97,12 +60,10 @@ public class ExposureWriterImpl implements ExposureWriter {
     queue.offer(event);
   }
 
-  @VisibleForTesting
   boolean isSerializerThreadAlive() {
     return serializerThread.isAlive();
   }
 
-  @VisibleForTesting
   int queueSize() {
     return queue.size();
   }
@@ -112,7 +73,7 @@ public class ExposureWriterImpl implements ExposureWriter {
     private final long ticksRequiredToFlush;
     private long lastTicks;
 
-    private final FeatureFlagEvpPublisher<ExposuresRequest> evpPublisher;
+    private final EventPublisher<ExposuresRequest> evpPublisher;
     private final Map<String, String> context;
     private final ExposureCache cache;
 
@@ -120,7 +81,7 @@ public class ExposureWriterImpl implements ExposureWriter {
     private final Runnable errorCallback;
 
     ExposureSerializingHandler(
-        final FeatureFlagBackendApiFactory backendApiFactory,
+        final Supplier<EventTransport> transport,
         final MessagePassingBlockingQueue<ExposureEvent> queue,
         final long flushInterval,
         final TimeUnit timeUnit,
@@ -128,8 +89,7 @@ public class ExposureWriterImpl implements ExposureWriter {
         final Runnable errorCallback) {
       this.queue = queue;
       this.cache = new LRUExposureCache(queue.capacity());
-      this.evpPublisher =
-          new FeatureFlagEvpPublisher<>(backendApiFactory::create, ExposuresRequest.class);
+      this.evpPublisher = new EventPublisher<>(transport, ExposuresRequest.class);
       this.context = context;
 
       this.lastTicks = System.nanoTime();

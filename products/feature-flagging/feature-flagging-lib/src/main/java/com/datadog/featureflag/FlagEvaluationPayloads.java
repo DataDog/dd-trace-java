@@ -11,8 +11,8 @@ import java.util.Map;
 
 final class FlagEvaluationPayloads {
 
-  private static final byte[] PAYLOAD_SUFFIX = FeatureFlagEvpPublisher.utf8Bytes("]}");
-  private static final byte[] JSON_COMMA = FeatureFlagEvpPublisher.utf8Bytes(",");
+  private static final byte[] PAYLOAD_SUFFIX = EventPublisher.utf8Bytes("]}");
+  private static final byte[] JSON_COMMA = EventPublisher.utf8Bytes(",");
 
   /**
    * Wire prefix identifying a privacy-preserving, hashed targeting key. Emitted for full-tier rows
@@ -92,12 +92,12 @@ final class FlagEvaluationPayloads {
   }
 
   private static byte[] payloadPrefix(final Map<String, String> context) {
-    return FeatureFlagEvpPublisher.utf8Bytes(
+    return EventPublisher.utf8Bytes(
         "{\"context\":" + CONTEXT_JSON_ADAPTER.toJson(context) + ",\"flagEvaluations\":[");
   }
 
   private static byte[] encodeEvent(final FlagEvaluationEvent event) {
-    return FeatureFlagEvpPublisher.utf8Bytes(EVENT_JSON_ADAPTER.toJson(event));
+    return EventPublisher.utf8Bytes(EVENT_JSON_ADAPTER.toJson(event));
   }
 
   static final class EncodedPayloads {
