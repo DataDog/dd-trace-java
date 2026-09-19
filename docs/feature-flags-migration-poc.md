@@ -5,6 +5,7 @@ It does not replace or rewrite PRs #12250, #12251, or #12252.
 
 ## Baseline
 
+- Branch: `poc/java-feature-flags-migration` in a dedicated worktree.
 - Master: `7b903a53644abc39f55b2fb21283546ae9801f35`.
 - Imported combined prototype: `f5a7e45801c0c43ea03fb0f56eda415615186a58`.
 - Existing dogfood evidence: `JAVA_FEATURE_FLAGS_ADVERSARIAL_VALIDATION_20260918.md` in the parent workspace.
@@ -16,13 +17,13 @@ It does not replace or rewrite PRs #12250, #12251, or #12252.
 - [x] Import the existing standalone and injection implementation.
 - [x] Extract shared evaluation, parsing, and configuration state into core.
 - [x] Separate direct HTTP, agent adapters, and the standalone distribution.
-- [x] Implement activation, global disable, shared-consumer lifecycle, and bridge compatibility fixes.
+- [x] Implement activation, global disable, shared-consumer lifecycle, and matching-artifact bridge fixes.
 - [x] Use a normal OTel API dependency for the POC without installing an SDK or exporters.
 - [x] Preserve late application OTel SDK registration in a forked test.
 - [x] Add stable span-enrichment naming and retain legacy aliases and bridge shims.
 - [x] Build both distributions and generate the customer POM.
 - [x] Run canonical, lifecycle, artifact-boundary, and injection tests.
-- [ ] Run no-agent, OTel-only, injection, and RC dogfood cases against the same artifacts.
+- [x] Run no-agent, OTel-only, injection, and RC dogfood cases against the same artifacts.
 - [ ] Record actual SSI deployment and rollback separately from manual attachment.
 
 ## Non-negotiable behavior
@@ -48,7 +49,7 @@ Actual SSI certification needs a named deployment target. Manual `-javaagent` te
 | `feature-flagging-bootstrap` | Shared payloads and runtime bridge. These types remain unshaded. |
 | `feature-flagging-core` | Current UFC parser, configuration snapshot, and the single evaluator implementation. No OpenFeature or transport dependency. |
 | `feature-flagging-api` | Unbundled OpenFeature adapter, hooks, and OTel API metrics. |
-| `feature-flagging-lib` | Event queues, exposure deduplication, and evaluation aggregation. Inject transport, thread creation, and diagnostics through interfaces. |
+| `feature-flagging-lib` | Shared `ProviderRuntime` resource lifecycle, event queues, exposure deduplication, and evaluation aggregation. Inject transport, thread creation, and diagnostics through interfaces. |
 | `feature-flagging-http` | Direct CDN polling and direct EVP composition. |
 | `feature-flagging-agent` | RC, EVP proxy routing and fallback policy, agent diagnostics, and Datadog span enrichment. |
 | `feature-flagging-standalone` | Standalone lifecycle and shaded `dd-openfeature` publication. |
@@ -72,6 +73,16 @@ It preserves endpoint validation, response compression, redirect control, and re
 Standalone no longer creates shared agent communication objects.
 An artifact test rejects bundled RC clients, tracing implementation, OpenFeature classes, and OTel classes.
 
+Both composition roots use `ProviderRuntime` for source and writer startup, rollback, and close-once shutdown.
+Standalone owns reference-counted consumer handles. The agent owns process-lifetime activation and span enrichment.
+Stopping an inactive assembly does not clear the other assembly's writer.
+
+The core module also produces an internal evaluator-only JAR for injection.
+The parser remains in the agent's Feature Flags subsystem. The evaluator remains in its instrumentation section.
+This separation prevents the agent's package index from routing the subsystem to the wrong section.
+Injection defines core interfaces before provider helpers that implement them.
+An isolated-classloader test checks that order without falling back to application copies.
+
 ## Compatibility and deprecation
 
 - Keep RC and manual provider registration.
@@ -88,14 +99,85 @@ The POC does not establish arbitrary application-classloader isolation.
 The Java team must approve the ownership scope and oldest supported mixed-artifact pair.
 Historical agent 1.64.0 lacks the activation bridge used by the candidate provider.
 Do not label that pair supported without a separate compatibility decision and test.
+The candidate now reports this incompatibility with an actionable error.
 
-## Validation in progress
+OTel agent 2.17 predates the new global lookup. The POC detects its injected API bridge before using the older lookup.
+This restores metric export without registering a no-op global provider in an uninstrumented application.
+The detection uses an OTel agent helper class. Java Language Tools must approve this compatibility mechanism or select a supported agent minimum.
 
-Feature Flags suites pass on JDK 11, including canonical fixtures and explicit injection forked tests.
+The core still uses the existing unshaded UFC payload types from bootstrap.
+This preserves the current parser and cross-loader payload identity while the compatibility window remains undecided.
+This POC does not remove those types or claim they are no longer implementation dependencies.
+
+## Validation
+
+The scoped Feature Flags suites report 860 tests with no failures or skips on JDK 11.
+They include canonical fixtures, shared lifecycle, publication boundaries, helper definition order, and explicit injection forked tests.
 Both distributions build on this branch. The generated POM retains `com.datadoghq:dd-openfeature`.
 Its external compile dependencies are OpenFeature 1.20.1 and OTel API 1.57.0.
 No SDK or exporter is declared.
+An external Gradle consumer resolves this POM without agent or unpublished internal-module dependencies.
+Module-level `check` tasks pass for core, API, lib, HTTP, agent, and standalone.
+The agent build graph contains no standalone build or publication task.
 
 The companion dogfood branch uses main `a9f046c7f0fa8e47b02d8ba3ac580048f0e7116b`.
 It preserves the original failing baseline worktree and evidence.
-Record controlled and live runtime results before calling this POC validated.
+The final runtime artifacts use Java source `23c20094ebec8f3c960873792212d9143919b32f` and label `poc-v3`.
+Their harness uses dogfood source `3a02727c127e2f683222c7f10e717aebf4a08827`.
+The runtime matrix checks the actual `STANDALONE` or `AGENT` owner, not only successful evaluation.
+
+| Runtime evidence | Result |
+| --- | --- |
+| Controlled matrix | 11 of 12 pass. The candidate-provider/agent-1.64.0 comparison fails as documented above. |
+| Supplemental matrix | 12 of 13 pass. The unchanged provider-1.64.0/agent-1.64.0 direct-source control remains unready. |
+| No Java agent | Evaluation, refresh, exposures, evaluation aggregates, and standalone ownership pass. |
+| Default activation and disable | Registration without an explicit source works. Global disable and no registration produce no CDN requests. |
+| Shared consumers | Closing one provider leaves the other provider refreshing. |
+| OTel application SDK | Registration before and after provider startup works. Both test exporters receive metrics. |
+| OTel agent 2.17 only | Evaluation, refresh, both EVP streams, and `feature_flag.evaluations` export pass. |
+| Candidate mixed installation | Both candidate artifacts share agent runtime ownership. |
+| Provider injection | An OpenFeature-only application passes with tracing enabled and disabled. |
+| Injection controls | No activation, global disable, and integration disable produce no configuration requests or product events. |
+| Manual registration with injection disabled | The candidate provider and candidate agent evaluate, refresh, and deliver both EVP streams under agent ownership. |
+| Delayed readiness | Evaluations return the default before configuration arrives, then return the configured value. |
+| Source and intake outages | Cached evaluation, source recovery, independent refresh, and resumed EVP delivery pass. |
+| Collector outage | Configuration refresh and both EVP streams continue while both OTel receivers are stopped. |
+| Final provider shutdown | Configuration polling stops. |
+| Harness and dashboard | Wrong-value, withheld-refresh, and missing-event negative controls pass. The dashboard shows the expected configured value. |
+| Staging direct paths | Standalone, OTel-only, and injected provider pass known-flag evaluation and both EVP intake acceptance checks. |
+| Staging RC | Stable and legacy settings pass. The application has no API key. RC and both EVP streams use the Agent proxy. |
+| RC outage | Cached evaluation and polling recovery pass. No direct fallback occurs. |
+
+The five staging cases all pass. They read existing flags and do not change configuration.
+Across both controlled matrices, 23 of 25 cases pass. The two failures involve the historical 1.64.0 agent.
+The unchanged 1.64.0 pair also failed the earlier baseline; it does not establish a migration regression.
+The released provider with the candidate agent passes with injection enabled.
+That result does not prove the historical evaluator implementation ran or establish general old-provider compatibility.
+Staging EVP evidence is HTTP acceptance, not downstream event queryability.
+The controlled fixture proves changed-revision refresh. Staging does not prove a changed RC revision.
+
+Frozen distribution SHA-256 values:
+
+```text
+dd-openfeature.jar  de9e82faddcd53ed431a3361087d40258a7c792b8814f18bf2646395906d7757
+dd-java-agent.jar   23a88598be6ab74e5c7500c37ec17d70b3b2f5a249092670028ea7d24e276e20
+```
+
+The companion worktree stores exact manifests and logs under `local/java-validation/results/`.
+Use `poc-v3/manifest.json`, `poc-v3-supplemental/manifest.json`, and `poc-v3-staging/manifest.json` for the final matrices.
+The README in that directory contains reproduction commands.
+
+Earlier runs remain under `poc-v1` and `poc-v2` in the companion worktree.
+They captured the OTel-agent lookup gap, agent package-index collision, and injected-helper ordering error.
+The first mixed-installation success did not prove agent ownership. Do not use it as evidence for that requirement.
+
+## Before production extraction
+
+1. Approve OTel API packaging and the older-agent compatibility mechanism.
+2. Define the supported provider/agent version pairs and application-classloader scope.
+3. Set alias and bridge deprecation windows. Keep RC and manual registration.
+4. Select an actual SSI deployment target and prove attachment and rollback there.
+5. Extract shared code, standalone publication, and injection changes from this integrated POC.
+
+SSI can remain the final PR in the extraction stack. Its release gate must remain separate from standalone rollout.
+This POC does not certify platform SSI, arbitrary application servers, or the full repository CI matrix.
