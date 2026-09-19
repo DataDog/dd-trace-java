@@ -94,7 +94,8 @@ public class FeatureFlaggingSystem {
       LOGGER.debug("Feature Flagging system disabled by unsupported configuration source");
       return;
     }
-    final ExposureWriter exposureWriter = new ExposureWriterImpl(sco, config);
+    final FeatureFlagRouteSelector routeSelector = new FeatureFlagRouteSelector();
+    final ExposureWriter exposureWriter = new ExposureWriterImpl(sco, config, routeSelector);
     initialize(configService, exposureWriter);
 
     final boolean evalCountsEnabled =
@@ -103,7 +104,8 @@ public class FeatureFlaggingSystem {
             .getBoolean(FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED, true);
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(evalCountsEnabled);
     if (evalCountsEnabled) {
-      final FlagEvaluationWriterImpl evalWriter = new FlagEvaluationWriterImpl(sco, config);
+      final FlagEvaluationWriterImpl evalWriter =
+          new FlagEvaluationWriterImpl(sco, config, routeSelector);
       // Publish before start() so a failed start is still reachable by the rollback in stop().
       FLAG_EVAL_WRITER = evalWriter;
       evalWriter.start();
