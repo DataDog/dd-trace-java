@@ -149,6 +149,24 @@ class FeatureFlagBackendApiFactoryTest {
     assertNull(selected);
   }
 
+  @Test
+  void standaloneUsesOnlyDirectIntake() {
+    final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, "api-key");
+    final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
+    final BackendApi directApi = mock(BackendApi.class);
+    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false))
+        .thenReturn(directApi);
+
+    final BackendApi selected =
+        new FeatureFlagBackendApiFactory(config, backendApiFactory, FLAG_EVALUATION, false)
+            .create();
+
+    assertSame(directApi, selected);
+    verify(backendApiFactory, never())
+        .createEvpProxyApi(Intake.EVENT_PLATFORM, false, HttpRetryPolicy.Factory.NEVER_RETRY);
+    verify(backendApiFactory, never()).createEvpProxyApi(Intake.EVENT_PLATFORM, false);
+  }
+
   private static Config config(final String source, final String apiKey) {
     final Config config = mock(Config.class);
     when(config.getFeatureFlaggingConfigurationSource()).thenReturn(source);
