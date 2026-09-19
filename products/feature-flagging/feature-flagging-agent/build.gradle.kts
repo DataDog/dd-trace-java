@@ -32,6 +32,8 @@ dependencies {
 }
 
 tasks.named<ShadowJar>("shadowJar") {
+  // The injected evaluator has one home in inst/. The parser stays in this subsystem.
+  exclude("com/datadog/featureflag/core/**")
   dependencies {
     val deps = project.extra["deps"] as Map<*, *>
     val excludeShared = deps["excludeShared"] as Action<DependencyFilter>

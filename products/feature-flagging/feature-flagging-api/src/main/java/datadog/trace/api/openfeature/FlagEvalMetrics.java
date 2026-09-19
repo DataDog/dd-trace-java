@@ -34,6 +34,7 @@ class FlagEvalMetrics implements Closeable {
   private volatile LongCounter counter;
   private volatile OpenTelemetry telemetry;
   private volatile boolean closed;
+  private volatile Boolean legacyAgentBridge;
   private final boolean suppliedCounter;
 
   FlagEvalMetrics() {
@@ -45,7 +46,12 @@ class FlagEvalMetrics implements Closeable {
       return counter;
     }
     try {
-      final OpenTelemetry current = GlobalOpenTelemetry.getOrNoop();
+      OpenTelemetry current = GlobalOpenTelemetry.getOrNoop();
+      if (current == OpenTelemetry.noop() && hasLegacyAgentBridge()) {
+        // Older OTel agents bridge get(), but predate getOrNoop(). Only use get() when the
+        // agent has injected its API bridge. Mere agent-JAR presence is not sufficient.
+        current = GlobalOpenTelemetry.get();
+      }
       if (current == telemetry) {
         return counter;
       }
@@ -57,6 +63,23 @@ class FlagEvalMetrics implements Closeable {
       log.error("Failed to initialize flag evaluation metrics", e);
     }
     return null;
+  }
+
+  private boolean hasLegacyAgentBridge() {
+    Boolean available = legacyAgentBridge;
+    if (available == null) {
+      try {
+        Class.forName(
+            "io.opentelemetry.javaagent.instrumentation.opentelemetryapi.ApplicationOpenTelemetry",
+            false,
+            GlobalOpenTelemetry.class.getClassLoader());
+        available = true;
+      } catch (ClassNotFoundException | LinkageError | SecurityException ignored) {
+        available = false;
+      }
+      legacyAgentBridge = available;
+    }
+    return available;
   }
 
   private synchronized LongCounter initializeCounter(final OpenTelemetry current) {

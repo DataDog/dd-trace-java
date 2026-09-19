@@ -117,6 +117,14 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     }
     initialized = true;
     try {
+      try {
+        FeatureFlaggingGateway.class.getMethod("activate");
+      } catch (NoSuchMethodException incompatibleBridge) {
+        throw new IllegalStateException(
+            "The installed dd-java-agent bridge is incompatible with this dd-openfeature POC. "
+                + "Use matching POC artifacts, or run standalone without dd-java-agent.",
+            incompatibleBridge);
+      }
       FeatureFlaggingGateway.addConfigListener(this);
       // Give an installed Java agent first refusal. Its activation listener claims AGENT
       // synchronously, which keeps transport, lifecycle, and span enrichment in the agent. With no
