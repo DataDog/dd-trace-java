@@ -1,7 +1,9 @@
 # Feature Flags migration POC
 
 This branch is an integration prototype, not a production release candidate.
-It does not replace or rewrite PRs #12250, #12251, or #12252.
+[Draft PR #12576](https://github.com/DataDog/dd-trace-java/pull/12576) is the Java-team discussion baseline.
+It supersedes the earlier stack for this discussion. The old PRs remain unchanged.
+Start with the [short RFC](feature-flags-migration-rfc.md) and [assembly notes](feature-flags-assembly-notes.md).
 
 ## Baseline
 
@@ -43,6 +45,9 @@ Legacy setting names and bridge types remain compatibility shims. Their removal 
 Actual SSI certification needs a named deployment target. Manual `-javaagent` tests do not satisfy that requirement.
 
 ## Implemented division
+
+These are the current POC projects, not approved permanent module boundaries.
+The assembly notes propose consolidating core/lib/HTTP while preserving the evaluator-only helper artifact and compatibility boundaries.
 
 | Module | Responsibility |
 | --- | --- |
@@ -172,6 +177,30 @@ They captured the OTel-agent lookup gap, agent package-index collision, and inje
 The first mixed-installation success did not prove agent ownership. Do not use it as evidence for that requirement.
 
 ## Before production extraction
+
+### Simultaneous local deployments: Sep 19, 2026
+
+The companion dogfood branch also runs standalone and injected Java deployments together in its normal dashboard.
+Both use direct configuration and direct EVP delivery, without a Datadog Agent or telemetry collector.
+The controlled fixture passes 27/27 checks at dogfood revision `28daba7c683063d3831b4c356de7f068c6813316`.
+Java artifacts were prepared at `ba25269395db76a627be0217e90de4f6ae4edc44`; changes after runtime revision `23c20094eb` were documentation-only.
+Both providers report READY and resolve all six rows under both selectable prefixes.
+Configuration refresh, both event streams, missing-flag errors, and the no-agent injection negative control pass.
+The dashboard explicitly labels local fixture data and does not hide evaluation errors.
+
+This later build has separate artifact hashes from the earlier matrices:
+
+```text
+dd-openfeature.jar  6d7b68e74925791b935b8e2255b3550f450832f869397ceb396c2fb0157927ac
+dd-java-agent.jar   73ca36200aa3ef5ec072b2703df4a606478f13d84786e402543f34129880a884
+```
+
+The reproduction commands and source manifest locations are in the companion `local/java-migration/README.md`.
+Raw generated artifacts and local manifests are ignored, not published in either PR.
+The simultaneous staging run has not run. Earlier sequential staging evidence does not replace it.
+Compose-owned attachment does not certify platform-managed SSI installation or rollback.
+
+### Remaining release decisions
 
 1. Approve OTel API packaging and the older-agent compatibility mechanism.
 2. Define the supported provider/agent version pairs and application-classloader scope.
