@@ -1,6 +1,9 @@
 package com.datadog.featureflag;
 
+import static datadog.communication.EvpProxy.ORIGIN_HEADER;
+import static datadog.communication.EvpProxy.ORIGIN_VERSION_HEADER;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_AGENTLESS;
+import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -507,7 +510,11 @@ class ExposureWriterTests {
     final BackendApi proxyApi = mock(BackendApi.class);
     final BackendApi directApi = mock(BackendApi.class);
     when(backendApiFactory.createEvpProxyApi(
-            Intake.EVENT_PLATFORM, true, HttpRetryPolicy.Factory.NEVER_RETRY, false, true))
+            Intake.EVENT_PLATFORM,
+            true,
+            HttpRetryPolicy.Factory.NEVER_RETRY,
+            false,
+            asList(ORIGIN_HEADER, ORIGIN_VERSION_HEADER)))
         .thenReturn(proxyApi);
     when(backendApiFactory.createDirectIntakeApi(eq(Intake.EVENT_PLATFORM), eq(true), eq(false)))
         .thenReturn(directApi);
