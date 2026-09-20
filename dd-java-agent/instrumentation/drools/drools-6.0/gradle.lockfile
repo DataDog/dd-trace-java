@@ -145,7 +145,6 @@ org.junit.platform:junit-platform-runner:1.14.1=latest7TestRuntimeClasspath,late
 org.junit.platform:junit-platform-suite-api:1.14.1=latest7TestRuntimeClasspath,latest8TestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 org.junit.platform:junit-platform-suite-commons:1.14.1=latest7TestRuntimeClasspath,latest8TestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 org.junit:junit-bom:5.14.1=latest7TestCompileClasspath,latest7TestRuntimeClasspath,latest8TestCompileClasspath,latest8TestRuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
-org.junit:junit-bom:6.1.2=spotbugs
 org.kie.soup:kie-soup-commons:7.74.1.Final=latest7TestCompileClasspath,latest7TestRuntimeClasspath
 org.kie.soup:kie-soup-maven-support:7.74.1.Final=latest7TestCompileClasspath,latest7TestRuntimeClasspath
 org.kie.soup:kie-soup-project-datamodel-api:7.74.1.Final=latest7TestCompileClasspath,latest7TestRuntimeClasspath
