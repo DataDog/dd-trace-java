@@ -445,7 +445,6 @@ org.junit.platform:junit-platform-runner:1.14.1=latestDepForkedTestRuntimeClassp
 org.junit.platform:junit-platform-suite-api:1.14.1=latestDepForkedTestRuntimeClasspath,mule46ForkedTestRuntimeClasspath,testRuntimeClasspath
 org.junit.platform:junit-platform-suite-commons:1.14.1=latestDepForkedTestRuntimeClasspath,mule46ForkedTestRuntimeClasspath,testRuntimeClasspath
 org.junit:junit-bom:5.14.1=latestDepForkedTestCompileClasspath,latestDepForkedTestRuntimeClasspath,mule46ForkedTestCompileClasspath,mule46ForkedTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
-org.junit:junit-bom:6.1.2=spotbugs
 org.mockito:mockito-core:4.4.0=latestDepForkedTestRuntimeClasspath,mule46ForkedTestRuntimeClasspath,testRuntimeClasspath
 org.mozilla:rhino-engine:1.9.1=latestMuleServices
 org.mozilla:rhino:1.7.12=compileClasspath,mule46ForkedTestCompileClasspath,mule46ForkedTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath

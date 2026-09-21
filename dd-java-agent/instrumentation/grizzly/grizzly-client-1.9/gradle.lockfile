@@ -117,7 +117,6 @@ org.junit.platform:junit-platform-runner:1.14.1=latest5DepTestRuntimeClasspath,l
 org.junit.platform:junit-platform-suite-api:1.14.1=latest5DepTestRuntimeClasspath,latestDepTestRuntimeClasspath,muleLatestDepTestRuntimeClasspath,testRuntimeClasspath
 org.junit.platform:junit-platform-suite-commons:1.14.1=latest5DepTestRuntimeClasspath,latestDepTestRuntimeClasspath,muleLatestDepTestRuntimeClasspath,testRuntimeClasspath
 org.junit:junit-bom:5.14.1=latest5DepTestCompileClasspath,latest5DepTestRuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,muleLatestDepTestCompileClasspath,muleLatestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
-org.junit:junit-bom:6.1.2=spotbugs
 org.mockito:mockito-core:4.4.0=latest5DepTestRuntimeClasspath,latestDepTestRuntimeClasspath,muleLatestDepTestRuntimeClasspath,testRuntimeClasspath
 org.mule.glassfish.grizzly:connection-pool:2.3.36-MULE-028=muleLatestDepTestCompileClasspath,muleLatestDepTestRuntimeClasspath
 org.mule.glassfish.grizzly:grizzly-framework:2.3.36-MULE-028=muleLatestDepTestCompileClasspath,muleLatestDepTestRuntimeClasspath
