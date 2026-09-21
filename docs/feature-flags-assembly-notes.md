@@ -1,6 +1,6 @@
 # Feature Flags assembly notes
 
-Status: discussion input for the integrated POC, not an approved module refactor.
+Status: combined library implemented in the integrated POC on September 20, 2026; production review remains open.
 
 ## Start with the constraints
 
@@ -20,35 +20,40 @@ It does not define `core` and `lib` as separate architectural layers.
 Gradle's [Java Library plugin](https://docs.gradle.org/current/userguide/java_library_plugin.html) is the normal build mechanism.
 An `implementation` dependency stays on a consumer's runtime dependency graph; it is not automatically removed from a binary.
 
-## What the extra POC modules buy
+## Six product projects, one shared implementation
 
 The existing product had API, bootstrap, config, lib, and agent projects.
-The POC adds core, HTTP, and standalone.
+The first integrated POC added core, HTTP, and standalone.
+The current POC combines core and HTTP with lib. Only standalone remains a new product project.
 
-| Boundary | Current reason | Recommendation for discussion |
+| Boundary | Reason | Current organization |
 | --- | --- | --- |
 | API versus implementation | OpenFeature and OTel dependencies; application-visible provider helpers | Keep this boundary. Do not infer its dependency contract from the generic zero-dependency API convention. |
-| Core versus lib | Evaluator/parser/state versus lifecycle and event queues | Names alone do not justify separate projects. Keep a separate project only if it simplifies evaluator dependency enforcement. |
-| HTTP versus lib | Direct transport versus runtime interfaces | A package and injected transport interfaces may be sufficient. Both assemblies already consume this code. |
+| Evaluation versus full runtime | The application adapter and injection need evaluation without polling or event delivery | One library project produces full and evaluator-only artifacts. |
+| HTTP versus runtime interfaces | Transport policy must remain replaceable | Direct HTTP code and runtime interfaces share the library project. |
 | Standalone versus agent | Different entrypoints, dependency exclusions, and publication | Keep separate assembly boundaries. |
 | Bootstrap payloads | Shared class identity across loaders and historical provider/agent pairs | Keep until a tested compatibility transition removes the need. |
 | Config | Existing settings resolution shared across assemblies | Reuse the existing boundary for this migration. Do not add another settings framework. |
 | Instrumentation | Agent-specific transformation and helper injection | Keep in the existing OpenFeature instrumentation project. |
 
-The first simplification candidate is to merge `core` and `http` into `feature-flagging-lib`.
-Use packages for evaluation, configuration, events, and HTTP.
-Retain the API, bootstrap, config, agent, and standalone boundaries.
-That reduces eight product projects to six, without introducing another customer artifact.
-
-This is a proposal, not a validated merge.
-If a separate evaluator project makes the classloader and dependency rules simpler, retain that project and merge only HTTP.
-Prefer a justified extra project over complicated build variants that only reduce the directory count.
+`feature-flagging-lib` now owns evaluation, configuration, lifecycle, events, and direct HTTP.
+Existing Java packages and class names remain unchanged. This is a build-boundary change, not a runtime rewrite.
+API, bootstrap, config, agent, and standalone remain separate projects.
+The product now has six projects instead of eight, without another customer artifact.
+The removed projects' source and tests moved into lib; their build scripts and lockfiles were removed.
 
 ## Preserve the real binary boundaries
 
-The POC already produces two internal artifacts from the core project: its normal output and an evaluator-only JAR.
+The library produces two internal artifacts: its normal output and an evaluator-only JAR.
 The existing `evaluatorElements` configuration exposes only `com/datadog/featureflag/core/**`.
 This shows that project count and artifact count need not match.
+
+Both the OpenFeature adapter and instrumentation select `feature-flagging-lib:evaluatorElements`.
+That configuration publishes selected class files without the full library's transport dependencies.
+The standalone assembly consumes the full library and a non-transitive adapter dependency.
+It supplies application API dependencies explicitly and does not bundle the evaluator twice.
+The agent subsystem excludes evaluator classes; instrumentation retains their existing location.
+`SharedEvaluatorArtifactTest` checks the selected artifact and rejects full-runtime classes on the adapter classpath.
 
 Agent package indexing routes whole packages.
 The parser's `com.datadog.featureflag` package belongs to the Feature Flags subsystem.
@@ -56,8 +61,8 @@ Evaluator helpers belong to the instrumentation section and are defined in appli
 Putting both copies of a package in different agent sections caused a runtime failure.
 Moving interfaces after implementing helpers also caused a loading failure.
 
-A consolidated project must preserve those selected outputs and dependency rules.
-It must not turn the injected helper set into the whole product runtime.
+The consolidated project preserves those selected outputs and dependency rules.
+The injected helper set does not become the whole product runtime.
 Continue to test the complete agent, not only an unbundled helper JAR.
 
 ```text
@@ -75,6 +80,12 @@ Reducing that dependency reach is a separate task from merging directories.
 Shading relocates implementation classes. Minimization removes classes considered unreachable.
 Reflective entrypoints need explicit retention and artifact tests.
 Do not use minimization as a substitute for narrow dependencies.
+
+The first consolidation build retained RC accidentally: excluding a project from minimization also retains its dependency graph.
+The standalone assembly now supplies the adapter and library JARs as Shadow minimization entrypoints through `apiJars`.
+This retains product classes and follows their references without retaining the entire communication graph.
+This Shadow task setting does not add Maven API dependencies or another Gradle project.
+This follows [Shadow's project-exclusion behavior](https://gradleup.com/shadow/configuration/minimizing/).
 
 Acceptance criteria for simplification:
 
@@ -122,4 +133,3 @@ Before release, decide:
 
 No SDK and no collector is a supported product scenario.
 No OTel API dependency is a different packaging choice and is not what this POC publishes.
-

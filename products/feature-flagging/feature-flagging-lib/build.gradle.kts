@@ -5,7 +5,18 @@ plugins {
   id("me.champeau.jmh")
 }
 
-description = "Shared Feature Flags lifecycle, queues, and event aggregation."
+description = "Shared Feature Flags evaluation, configuration, lifecycle, and event delivery."
+
+// The application adapter and injected helpers need evaluation, not the full runtime. Agent JAR
+// indexing routes whole packages, so keep parser and HTTP classes in the product subsystem.
+val evaluatorJar = tasks.register<Jar>("evaluatorJar") {
+  archiveClassifier = "evaluator"
+  from(sourceSets.main.get().output)
+  include("com/datadog/featureflag/core/**")
+}
+configurations.consumable("evaluatorElements") {
+  outgoing.artifact(evaluatorJar)
+}
 
 extra["excludedClassesCoverage"] = listOf(
   // POJOs
@@ -20,14 +31,17 @@ dependencies {
   api(libs.moshi)
   api(libs.jctools)
   api(project(":products:feature-flagging:feature-flagging-bootstrap"))
-  api(project(":products:feature-flagging:feature-flagging-core"))
   api(project(":utils:queue-utils")) { isTransitive = false }
   implementation(project(":components:environment"))
-
-  // Platform JSON writer for the ffe_* tag values.
+  implementation(project(":products:feature-flagging:feature-flagging-config"))
+  implementation(project(":internal-api"))
+  implementation(project(":communication"))
+  implementation(project(":utils:logging-utils"))
 
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)
+  testImplementation(project(":utils:test-utils"))
+  testImplementation(project(":dd-java-agent:testing"))
 }
 
 jmh {

@@ -11,7 +11,7 @@ configure<TestJvmConstraintsExtension> { minJavaVersion.set(JavaVersion.VERSION_
 java { toolchain { languageVersion = JavaLanguageVersion.of(11) } }
 dependencies {
   api("dev.openfeature:sdk:1.20.1")
-  implementation(project(":products:feature-flagging:feature-flagging-core"))
+  implementation(project(path = ":products:feature-flagging:feature-flagging-lib", configuration = "evaluatorElements"))
   implementation(project(":products:feature-flagging:feature-flagging-bootstrap"))
   implementation(project(":products:feature-flagging:feature-flagging-config"))
   implementation(project(":utils:config-utils"))

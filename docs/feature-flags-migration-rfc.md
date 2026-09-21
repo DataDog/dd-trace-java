@@ -1,7 +1,7 @@
 # Java Feature Flags: organize as customer-standalone and SSI
 
 Author: Leo Romanovsky  
-Updated: Sep 19, 2026  
+Updated: Sep 20, 2026
 Status: integrated POC for Java Language Tools discussion; not a release candidate.
 
 ## Motivation and proposal
@@ -10,7 +10,7 @@ Customers must be able to adopt Feature Flags without changing their instrumenta
 
 Deliver two installation paths from one implementation in `dd-trace-java`: standalone `dd-openfeature`, and provider injection through `dd-java-agent`. Keep the existing repository, public provider API, Maven coordinates, and release process.
 
-[Integrated Java POC #12576](https://github.com/DataDog/dd-trace-java/pull/12576) is the discussion baseline. It replaces the earlier stack as the proposed starting point. Both assemblies work in controlled dogfooding. The module layout remains provisional.
+[Integrated Java POC #12576](https://github.com/DataDog/dd-trace-java/pull/12576) is the discussion baseline. It replaces the earlier stack as the proposed starting point. The POC combines evaluation, runtime, and HTTP code in one shared library. Both assemblies remain subject to Java-team review.
 
 **Standalone publication must not block SSI. SSI certification must not block standalone.** SSI can be last in the extraction stack without coupling their release approvals.
 
@@ -40,17 +40,16 @@ Exposures and aggregated flag-evaluation events use Datadog's event platform (EV
 
 Use Java packages for related code. Use Gradle subprojects when dependency, classloader, or publication boundaries require them. An internal module does not require a separately published customer artifact.
 
-The POC has the following ownership. This table records working code, not approval for eight permanent modules.
+The POC uses six product projects: the five existing boundaries plus the standalone assembly. Evaluation and HTTP no longer have separate Gradle projects.
 
 | Responsibility | Current POC location |
 | --- | --- |
 | OpenFeature adapter and hooks | `feature-flagging-api`; shared unbundled classes |
-| Evaluation, parsing, and configuration state | `feature-flagging-core`; one evaluator implementation |
-| Lifecycle, queues, deduplication, and aggregation | `feature-flagging-lib`; shared `ProviderRuntime` |
-| Direct CDN and EVP transport | `feature-flagging-http` |
+| Evaluation, parsing, configuration, lifecycle, events, and direct HTTP | `feature-flagging-lib`; one evaluator and shared `ProviderRuntime` |
 | Standalone composition and shaded publication | `feature-flagging-standalone`; produces `dd-openfeature` |
 | RC, Agent proxy, tracing integration, and injection | `feature-flagging-agent` plus OpenFeature instrumentation |
-| Shared payload identity and settings | Existing `feature-flagging-bootstrap` and `feature-flagging-config` |
+| Shared payload identity | Existing `feature-flagging-bootstrap` |
+| Settings resolution | Existing `feature-flagging-config` |
 
 ```mermaid
 flowchart LR
@@ -63,7 +62,7 @@ flowchart LR
   A --> R["RC + Agent EVP proxy"]
 ```
 
-The repository uses `-lib` for core implementation. There is no Java requirement for separate `core`, `lib`, and `http` projects. Consider consolidating them before production extraction. Preserve an evaluator-only artifact for injection; do not inject HTTP clients, parsers, or runtime threads into applications.
+The repository uses `-lib` for core implementation. The combined library preserves existing package names and behavior. It produces a full runtime artifact and a selected evaluator-only artifact. The OpenFeature adapter and injection consume only the evaluator artifact. HTTP clients, parsers, and runtime lifecycle classes stay outside the injected helper set.
 
 Standalone must exclude RC and Datadog tracing. The agent must not depend on standalone shading or publication. Bootstrap payloads remain active implementation dependencies, not only unused compatibility shims.
 
@@ -71,7 +70,7 @@ Standalone must exclude RC and Datadog tracing. The agent must not depend on sta
 
 The integrated branch fixes source-default activation, global disable, shared-consumer shutdown, matching-artifact payload identity, and late OTel SDK registration.
 
-The simultaneous dogfood fixture passes **27/27 checks**. Both Java deployments refresh configuration and deliver both EVP streams without an Agent or collector. All dashboard rows resolve configured values. Missing flags still fail.
+Before module consolidation, the simultaneous dogfood fixture passed **27/27 checks**. Both Java deployments refreshed configuration and delivered both EVP streams without an Agent or collector. All dashboard rows resolved configured values. Missing flags still failed. The evidence record tracks validation of each artifact revision separately.
 
 The wider controlled matrices pass **23/25 cases**. Two historical agent-1.64.0 cases remain limitations, including the missing activation bridge. Earlier sequential staging checks pass five direct/RC cases. Intake acceptance is not downstream analytics proof.
 
@@ -103,12 +102,11 @@ Legacy enablement is not a simple rename. Migrate legacy `true` with both `DD_FE
 
 ## Extraction and release plan
 
-1. **Shared implementation:** Agree the smallest module layout. Extract evaluation/state and compatibility boundaries with no installation change.
+1. **Shared implementation:** Extract the combined library and evaluator-only artifact. Preserve API, bootstrap, settings, and classloader boundaries without an installation change.
 2. **Shared runtime:** Extract lifecycle and event pipelines. Preserve transport policy, ownership, and mixed-installation behavior.
 3. **Standalone:** Move publication and direct composition. Approve OTel packaging, supported dependencies, and external-consumer behavior.
 4. **SSI:** Package provider/evaluator helpers independently of standalone publication. Validate actual platform attachment, disable behavior, and rollback.
 
 Keep the integrated POC as the comparison baseline. Define supported provider/agent pairs and classloader scope before removing bridges. Give each deliverable separate owners and release gates.
 
-The [evidence record](feature-flags-migration-poc.md) and [assembly notes](feature-flags-assembly-notes.md) contain details for review. Open decisions are module boundaries, OTel integration, compatibility windows, and the first platform SSI target.
-
+The [evidence record](feature-flags-migration-poc.md) and [assembly notes](feature-flags-assembly-notes.md) contain details for review. Review the combined layout, OTel integration, compatibility windows, and the first platform SSI target.

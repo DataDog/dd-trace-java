@@ -62,4 +62,7 @@ No compatibility shim is removed before the Java team defines its support window
 ```
 
 The API module is internal and unbundled. The standalone module owns Maven publication.
+`feature-flagging-lib` contains evaluation, configuration, lifecycle, events, and direct HTTP.
+Its evaluator-only artifact serves the API and injection without including the full runtime.
+The standalone assembly consumes the full library. The agent assembly does not depend on standalone publication.
 The repository's shadow publication uses POM metadata, not Gradle module metadata.

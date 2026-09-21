@@ -21,7 +21,7 @@ dependencies {
   implementation(project(':products:feature-flagging:feature-flagging-api')) {
     transitive = false
   }
-  implementation(project(path: ':products:feature-flagging:feature-flagging-core', configuration: 'evaluatorElements')) {
+  implementation(project(path: ':products:feature-flagging:feature-flagging-lib', configuration: 'evaluatorElements')) {
     transitive = false
   }
 

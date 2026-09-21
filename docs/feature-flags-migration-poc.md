@@ -17,8 +17,9 @@ Start with the [short RFC](feature-flags-migration-rfc.md) and [assembly notes](
 
 - [x] Create an isolated branch from current master.
 - [x] Import the existing standalone and injection implementation.
-- [x] Extract shared evaluation, parsing, and configuration state into core.
-- [x] Separate direct HTTP, agent adapters, and the standalone distribution.
+- [x] Extract shared evaluation, parsing, and configuration state.
+- [x] Separate agent adapters and the standalone distribution.
+- [x] Combine evaluation, direct HTTP, and runtime code in one library project.
 - [x] Implement activation, global disable, shared-consumer lifecycle, and matching-artifact bridge fixes.
 - [x] Use a normal OTel API dependency for the POC without installing an SDK or exporters.
 - [x] Preserve late application OTel SDK registration in a forked test.
@@ -46,16 +47,15 @@ Actual SSI certification needs a named deployment target. Manual `-javaagent` te
 
 ## Implemented division
 
-These are the current POC projects, not approved permanent module boundaries.
-The assembly notes propose consolidating core/lib/HTTP while preserving the evaluator-only helper artifact and compatibility boundaries.
+The September 20 consolidation combines core/lib/HTTP into one implementation project.
+The evaluator-only helper artifact, compatibility boundaries, and separate assemblies remain.
 
 | Module | Responsibility |
 | --- | --- |
 | `feature-flagging-bootstrap` | Shared payloads and runtime bridge. These types remain unshaded. |
-| `feature-flagging-core` | Current UFC parser, configuration snapshot, and the single evaluator implementation. No OpenFeature or transport dependency. |
 | `feature-flagging-api` | Unbundled OpenFeature adapter, hooks, and OTel API metrics. |
-| `feature-flagging-lib` | Shared `ProviderRuntime` resource lifecycle, event queues, exposure deduplication, and evaluation aggregation. Inject transport, thread creation, and diagnostics through interfaces. |
-| `feature-flagging-http` | Direct CDN polling and direct EVP composition. |
+| `feature-flagging-lib` | Parser, configuration state, single evaluator, shared `ProviderRuntime`, event queues, and direct CDN/EVP transport. Its evaluator-only artifact excludes parser, HTTP, and runtime classes. |
+| `feature-flagging-config` | Shared settings resolution. |
 | `feature-flagging-agent` | RC, EVP proxy routing and fallback policy, agent diagnostics, and Datadog span enrichment. |
 | `feature-flagging-standalone` | Standalone lifecycle and shaded `dd-openfeature` publication. |
 | OpenFeature instrumentation | Inject the unbundled API and core into an OpenFeature-only application. |
@@ -82,7 +82,7 @@ Both composition roots use `ProviderRuntime` for source and writer startup, roll
 Standalone owns reference-counted consumer handles. The agent owns process-lifetime activation and span enrichment.
 Stopping an inactive assembly does not clear the other assembly's writer.
 
-The core module also produces an internal evaluator-only JAR for injection.
+The library also produces an internal evaluator-only JAR for the adapter and injection.
 The parser remains in the agent's Feature Flags subsystem. The evaluator remains in its instrumentation section.
 This separation prevents the agent's package index from routing the subsystem to the wrong section.
 Injection defines core interfaces before provider helpers that implement them.
@@ -114,7 +114,17 @@ The core still uses the existing unshaded UFC payload types from bootstrap.
 This preserves the current parser and cross-loader payload identity while the compatibility window remains undecided.
 This POC does not remove those types or claim they are no longer implementation dependencies.
 
-## Validation
+## Module consolidation: Sep 20, 2026
+
+The product now has six Gradle projects instead of eight.
+All 14 source and test files moved from core/HTTP to lib are byte-for-byte unchanged.
+The API and instrumentation consume lib's evaluator-only artifact, not its full runtime dependencies.
+Two new artifact tests check that boundary.
+All six product `check` tasks and OpenFeature instrumentation tests pass on JDK 11: 862 tests, no failures or skips.
+The standalone artifact tests verify no-agent startup and exclusion of RC, tracing implementation, and bundled application APIs.
+The remaining sections preserve the earlier runtime evidence by source revision.
+
+## Validation before module consolidation
 
 The scoped Feature Flags suites report 860 tests with no failures or skips on JDK 11.
 They include canonical fixtures, shared lifecycle, publication boundaries, helper definition order, and explicit injection forked tests.
@@ -206,7 +216,7 @@ Compose-owned attachment does not certify platform-managed SSI installation or r
 2. Define the supported provider/agent version pairs and application-classloader scope.
 3. Set alias and bridge deprecation windows. Keep RC and manual registration.
 4. Select an actual SSI deployment target and prove attachment and rollback there.
-5. Extract shared code, standalone publication, and injection changes from this integrated POC.
+5. Extract the combined library, standalone publication, and injection changes from this integrated POC.
 
 SSI can remain the final PR in the extraction stack. Its release gate must remain separate from standalone rollout.
 This POC does not certify platform SSI, arbitrary application servers, or the full repository CI matrix.

@@ -48,8 +48,9 @@ dependencies {
 
   api("dev.openfeature:sdk:1.20.1")
   api("io.opentelemetry:opentelemetry-api:1.57.0")
-  implementation(project(":products:feature-flagging:feature-flagging-api"))
-  implementation(project(":products:feature-flagging:feature-flagging-http"))
+  // This assembly supplies the full shared library and application APIs explicitly. Do not also
+  // include the adapter's evaluator-only artifact, which would duplicate the evaluator classes.
+  implementation(project(":products:feature-flagging:feature-flagging-api")) { isTransitive = false }
 
   implementation(project(":products:feature-flagging:feature-flagging-bootstrap"))
   implementation(project(":products:feature-flagging:feature-flagging-config"))
@@ -80,9 +81,7 @@ tasks.jar {
 // Publish the sources behind the customer artifact, not only its composition root.
 tasks.named<Jar>("sourcesJar") {
   from(project(":products:feature-flagging:feature-flagging-api").file("src/main/java"))
-  from(project(":products:feature-flagging:feature-flagging-core").file("src/main/java"))
   from(project(":products:feature-flagging:feature-flagging-lib").file("src/main/java"))
-  from(project(":products:feature-flagging:feature-flagging-http").file("src/main/java"))
 }
 
 tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
@@ -111,14 +110,14 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
     exclude("datadog.trace.api.openfeature.*")
   }
 
-  // Keep the Feature Flagging implementation because DDEvaluator loads its standalone entrypoint
-  // reflectively. Minimize the rest of the agent dependency graph to the classes that runtime
-  // actually reaches instead of publishing unrelated agent products in dd-openfeature.
-  minimize {
-    exclude(project(":products:feature-flagging:feature-flagging-lib"))
-    exclude(project(":products:feature-flagging:feature-flagging-api"))
-    exclude(project(":products:feature-flagging:feature-flagging-core"))
-  }
+  // These JARs are minimization entrypoints, not Maven API dependencies. Follow references from
+  // their classes, including reflectively loaded provider/evaluator classes, without retaining
+  // the whole communication/RC graph as minimize { exclude(project(...)) } would.
+  apiJars.from(
+    project(":products:feature-flagging:feature-flagging-api").tasks.named<Jar>("jar").flatMap { it.archiveFile },
+    project(":products:feature-flagging:feature-flagging-lib").tasks.named<Jar>("jar").flatMap { it.archiveFile }
+  )
+  minimize()
 
   duplicatesStrategy = DuplicatesStrategy.FAIL
   exclude("**/META-INF/maven/**/pom.xml")
