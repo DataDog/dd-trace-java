@@ -14,6 +14,7 @@ import com.couchbase.client.java.ClusterOptions
 import com.couchbase.client.java.env.ClusterEnvironment
 import com.couchbase.client.java.json.JsonObject
 import com.couchbase.client.java.query.QueryOptions
+import datadog.environment.OperatingSystem
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.Config
@@ -29,10 +30,14 @@ import org.slf4j.LoggerFactory
 import org.testcontainers.couchbase.BucketDefinition
 import org.testcontainers.couchbase.CouchbaseContainer
 import reactor.core.publisher.Mono
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 
 import java.time.Duration
 
+@IgnoreIf(reason = "Requires a Docker environment capable of running Linux Testcontainers", inherited = true, value = {
+  OperatingSystem.isWindows()
+})
 abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
   static final String BUCKET = 'test-bucket'
   static final Logger LOGGER = LoggerFactory.getLogger(CouchbaseClient32Test)

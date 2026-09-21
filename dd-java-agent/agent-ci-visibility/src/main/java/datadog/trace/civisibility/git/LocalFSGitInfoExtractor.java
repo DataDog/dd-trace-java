@@ -411,11 +411,16 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     }
 
     final String content = new String(Files.readAllBytes(filepath));
-    if (content.endsWith("\n")) {
-      return content.substring(0, content.length() - 1);
+    // Git metadata can end with either LF or CRLF, regardless of the host platform.
+    int end = content.length();
+    while (end > 0) {
+      char last = content.charAt(end - 1);
+      if (last != '\r' && last != '\n') {
+        break;
+      }
+      end--;
     }
-
-    return content;
+    return content.substring(0, end);
   }
 
   private static VersionedPackGitInfoExtractor lookupExtractor(final short packVersion) {

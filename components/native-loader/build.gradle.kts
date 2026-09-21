@@ -5,4 +5,6 @@ plugins {
 
 dependencies {
   implementation(project(":components:environment"))
+
+  testImplementation("com.google.jimfs:jimfs:1.1")
 }
