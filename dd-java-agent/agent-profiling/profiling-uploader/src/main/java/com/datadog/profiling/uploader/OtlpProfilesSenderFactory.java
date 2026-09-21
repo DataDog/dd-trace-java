@@ -41,7 +41,10 @@ final class OtlpProfilesSenderFactory {
             config.getOtlpProfilesTimeout(),
             config.getOtlpProfilesCompression());
       default:
-        return null;
+        // unreachable with the current enum but guards against future values silently
+        // producing a null sender that would only fail at first upload
+        throw new IllegalStateException(
+            "Unsupported OTLP profiles protocol: " + config.getOtlpProfilesProtocol());
     }
   }
 }
