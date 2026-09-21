@@ -13,6 +13,9 @@ RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && \
     sdk install java 17.0.10-tem && \
     sdk flush"
 
+# copy maven dependencies settings
+COPY maven_deps_settings.xml ~/.m2/settings.xml
+
 RUN mkdir exploration-tests
 WORKDIR /exploration-tests
 # jsoup
