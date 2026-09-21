@@ -184,7 +184,7 @@ class MuzzleMavenRepoUtilsTest {
       addException(
         IllegalStateException(
           "metadata failure",
-          IOException("download failure")
+          IOException()
         )
       )
     }
@@ -203,7 +203,7 @@ class MuzzleMavenRepoUtilsTest {
       .hasMessageContaining("Attempt 1:")
       .hasMessageContaining("Attempt 4:")
       .hasMessageContaining("java.lang.IllegalStateException: metadata failure")
-      .hasMessageContaining("Caused by: java.io.IOException: download failure")
+      .hasMessageContaining("Caused by: java.io.IOException: <no message>")
     assertThat(attempts).hasValue(4)
   }
 
