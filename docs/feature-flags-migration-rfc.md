@@ -12,16 +12,12 @@ Deliver two installation paths from one implementation in `dd-trace-java`: stand
 
 [Integrated Java POC #12576](https://github.com/DataDog/dd-trace-java/pull/12576) is the discussion baseline. It replaces the earlier stack as the proposed starting point. The POC combines evaluation, runtime, and HTTP code in one shared library. Both assemblies remain subject to Java-team review.
 
-**Standalone publication must not block SSI. SSI certification must not block standalone.** SSI can be last in the extraction stack without coupling their release approvals.
+**Standalone publication must not block SSI. SSI certification must not block standalone.**
 
 ## Customer paths and entrypoints
 
-| Installation | Application entrypoint | Runtime owner |
-| --- | --- | --- |
-| No Java agent | Add `dd-openfeature`; register the Datadog provider. | Library owns configuration polling, evaluation, and direct product-event delivery. |
-| OTel Java agent only | Register the same standalone provider. | Same library runtime; preserve the customer's OTel setup. |
-| SSI | Depend on OpenFeature only; enable Feature Flags. | Attached `dd-java-agent` installs the provider and owns delivery. |
-| Existing explicit registration with Datadog instrumentation | Keep provider registration. | Compatible provider/agent pairs use the agent runtime. |
+OTel-only applications use the standalone provider.
+Existing manual registration remains supported with Datadog instrumentation; compatible provider/agent pairs use the agent runtime.
 
 ```mermaid
 flowchart TB
@@ -73,15 +69,6 @@ Use Java packages for related code. Use Gradle subprojects when dependency, clas
 
 The POC uses six product projects: the five existing boundaries plus the standalone assembly. Evaluation and HTTP no longer have separate Gradle projects.
 
-| Responsibility | Current POC location |
-| --- | --- |
-| OpenFeature adapter and hooks | `feature-flagging-api`; shared unbundled classes |
-| Evaluation, parsing, configuration, lifecycle, events, and direct HTTP | `feature-flagging-lib`; one evaluator and shared `ProviderRuntime` |
-| Standalone composition and shaded publication | `feature-flagging-standalone`; produces `dd-openfeature` |
-| RC, Agent proxy, tracing integration, and injection | `feature-flagging-agent` plus OpenFeature instrumentation |
-| Shared payload identity | Existing `feature-flagging-bootstrap` |
-| Settings resolution | Existing `feature-flagging-config` |
-
 ```mermaid
 flowchart TB
   subgraph Shared["dd-trace-java: shared implementation"]
@@ -109,9 +96,11 @@ flowchart TB
 
 Arrows show selected packaging inputs; transitive dependencies are omitted. The evaluator-only artifact is an output of `-lib`, not another project.
 
-The repository uses `-lib` for core implementation. The combined library preserves existing package names and behavior. It produces a full runtime artifact and a selected evaluator-only artifact. The OpenFeature adapter and injection consume only the evaluator artifact. HTTP clients, parsers, and runtime lifecycle classes stay outside the injected helper set.
+The repository uses `-lib` for core implementation. The combined library preserves package names and behavior and shares `ProviderRuntime` across assemblies.
+The OpenFeature adapter remains unbundled. HTTP clients, parsers, and runtime lifecycle classes stay outside the injected helper set.
 
-Standalone must exclude RC and Datadog tracing. The agent must not depend on standalone shading or publication. Bootstrap payloads remain active implementation dependencies, not only unused compatibility shims.
+Standalone owns shaded publication and must exclude RC and Datadog tracing.
+The agent must not depend on standalone shading or publication. Bootstrap payloads remain active implementation dependencies, not only unused compatibility shims.
 
 ## What the POC established
 
@@ -145,7 +134,7 @@ Keep RC and manual provider registration. Preserve local synchronous evaluation,
 | Experimental designation | Remove separately for each deliverable after its release gates pass. |
 | Experimental provider enablement setting | Use `DD_FEATURE_FLAGS_ENABLED`. Retain legacy behavior and documented precedence during an agreed support window. |
 | Duplicate evaluators, parsers, stores, and lifecycle implementations | Shared implementations replace them after parity validation. |
-| Legacy bridge APIs and typed payloads | Define supported provider/agent pairs first. Retain compatible types until replacement and removal gates pass. |
+| Legacy bridge APIs and typed payloads | Define supported provider/agent pairs and classloader scope first. Retain compatible types until replacement and removal gates pass. |
 
 Legacy enablement is not a simple rename. Migrate legacy `true` with both `DD_FEATURE_FLAGS_ENABLED=true` and `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=remote_config`. Keep RC prerequisites. Migrate legacy `false` to explicit global disable.
 
@@ -154,11 +143,11 @@ Do not rename it in this migration. It matches the current cross-SDK setting.
 
 ## Extraction and release plan
 
+Assign an owner and release gates to each deliverable.
+
 1. **Shared implementation:** Extract the combined library and evaluator-only artifact. Preserve API, bootstrap, settings, and classloader boundaries without an installation change.
 2. **Shared runtime:** Extract lifecycle and event pipelines. Preserve transport policy, ownership, and mixed-installation behavior.
-3. **Standalone:** Move publication and direct composition. Approve OTel packaging, supported dependencies, and external-consumer behavior.
-4. **SSI:** Package provider/evaluator helpers independently of standalone publication. Validate actual platform attachment, disable behavior, and rollback.
+3. **Standalone:** Move publication and direct composition. Validate external consumers against the agreed OTel contract.
+4. **SSI:** Package provider/evaluator helpers. Select the first platform target and validate attachment, disable behavior, and rollback.
 
-Keep the integrated POC as the comparison baseline. Define supported provider/agent pairs and classloader scope before removing bridges. Give each deliverable separate owners and release gates.
-
-The [evidence record](feature-flags-migration-poc.md) and [assembly notes](feature-flags-assembly-notes.md) contain details for review. Review the combined layout, OTel integration, compatibility windows, and the first platform SSI target.
+See the [evidence record](feature-flags-migration-poc.md) and [assembly notes](feature-flags-assembly-notes.md) for supporting details.
