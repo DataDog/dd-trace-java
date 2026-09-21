@@ -1,6 +1,6 @@
 # Feature Flags assembly notes
 
-Status: combined library implemented in the integrated POC on September 20, 2026; production review remains open.
+Status: combined library and optional RC assembly implemented in the integrated POC on September 21, 2026; production review remains open.
 
 ## Start with the constraints
 
@@ -24,7 +24,7 @@ An `implementation` dependency stays on a consumer's runtime dependency graph; i
 
 The existing product had API, bootstrap, config, lib, and agent projects.
 The first integrated POC added core, HTTP, and standalone.
-The current POC combines core and HTTP with lib. Only standalone remains a new product project.
+The current POC combines core and HTTP with lib. It adds standalone and optional RC assembly projects.
 
 | Boundary | Reason | Current organization |
 | --- | --- | --- |
@@ -32,6 +32,7 @@ The current POC combines core and HTTP with lib. Only standalone remains a new p
 | Evaluation versus full runtime | The application adapter and injection need evaluation without polling or event delivery | One library project produces full and evaluator-only artifacts. |
 | HTTP versus runtime interfaces | Transport policy must remain replaceable | Direct HTTP code and runtime interfaces share the library project. |
 | Standalone versus agent | Different entrypoints, dependency exclusions, and publication | Keep separate assembly boundaries. |
+| Optional RC transport | Customers must opt into the RC dependency cost without requiring a Java agent | Publish a separate RC assembly that reuses the existing client. |
 | Bootstrap payloads | Shared class identity across loaders and historical provider/agent pairs | Keep until a tested compatibility transition removes the need. |
 | Config | Existing settings resolution shared across assemblies | Reuse the existing boundary for this migration. Do not add another settings framework. |
 | Instrumentation | Agent-specific transformation and helper injection | Keep in the existing OpenFeature instrumentation project. |
@@ -79,6 +80,8 @@ The optional RC assembly reuses `remote-config-core` and supplies Agent-proxy de
 The agent keeps its own RC adapter and never depends on the add-on's publication.
 The version-aligned `RemoteConfigTransport` interface exposes configuration bytes and serialized events, not RC protocol types.
 Parsing, evaluation, lifecycle ownership, and event queues stay in the base implementation.
+The RC request must advertise the owning SDK version. Standalone cannot read an absent Java-agent version resource.
+The shared factory accepts that version explicitly; its existing agent entrypoint retains the agent version.
 Standalone RC uses the Datadog Agent's EVP proxy, never direct-intake fallback.
 Its HTTP path still consumes broad internal configuration and communication projects.
 Reducing that dependency reach is a separate task from merging directories.
@@ -94,6 +97,8 @@ Artifact tests reject RC implementation and native connection dependencies in th
 Another test rejects duplicate classes across the two customer JARs, and provider/evaluator copies in the add-on.
 The published base POM must not acquire an RC dependency. The add-on POM depends on the matching base version.
 Native socket packaging and classpath isolation remain release checks; the dogfood RC proof uses HTTP over TCP.
+The optional JAR is approximately 4.17 MB. Its private dependencies include configuration and HTTP classes also used by the base.
+This split protects the default download size. It does not prove the optional combination has the smallest possible total size.
 The standalone assembly now supplies the adapter and library JARs as Shadow minimization entrypoints through `apiJars`.
 This retains product classes and follows their references without retaining the entire communication graph.
 This Shadow task setting does not add Maven API dependencies or another Gradle project.
@@ -108,7 +113,7 @@ Acceptance criteria for simplification:
 - No tracing implementation, OTel SDK, or exporters in either customer artifact.
 - Missing RC implementation causes a clear initialization error, not CDN fallback.
 - No standalone publication task in the agent build graph.
-- No new customer-visible artifacts or incompatible payload identities.
+- No additional customer artifacts beyond the optional RC add-on; preserve compatible payload identities.
 - Compare JAR contents and size before and after; do not infer a smaller binary from fewer projects.
 
 ## OTel constraints found during the POC

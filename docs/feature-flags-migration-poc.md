@@ -121,6 +121,50 @@ The core still uses the existing unshaded UFC payload types from bootstrap.
 This preserves the current parser and cross-loader payload identity while the compatibility window remains undecided.
 This POC does not remove those types or claim they are no longer implementation dependencies.
 
+## Optional Remote Configuration: Sep 21, 2026
+
+Java commit `0efcb0be687c46353b3f533b0b56dcd0e663c22a` keeps RC outside the default customer JAR.
+Dogfood commit `91d290b031bb7fc06fd576a93b50219e191c29ee` passes **5/5 real staging RC scenarios and 76/76 assertions**.
+The manifest is `local/java-validation/results/optional-rc-v2-staging/manifest.json` in the companion checkout.
+
+| Application | RC owner | Add-on | Result |
+| --- | --- | --- | --- |
+| Manual registration, no Java agent | Standalone | Required | Pass |
+| Manual registration, OTel Java agent 2.17 | Standalone | Required | Pass |
+| OpenFeature only, Datadog provider injection | Java agent | Absent | Pass |
+| Manual registration, stable settings with Datadog Java agent | Java agent | Absent | Pass |
+| Manual registration, legacy enablement with Datadog Java agent | Java agent | Absent | Pass |
+
+All cases evaluate existing staging flags and send exposures and evaluation events through the Datadog Agent's EVP proxy.
+The application has no API key. Tests verify runtime ownership, cached evaluation during an RC interruption, polling recovery, and no CDN fallback.
+No staging flag configuration was changed. This is HTTP/TCP proof, not native transport or platform SSI certification.
+Intake acceptance does not prove downstream analytics, and this run does not prove a changed staging RC revision.
+
+The first optional build passed only the three Java-agent cases.
+Its reused RC factory read the absent Java-agent version resource and advertised `0.0.0`.
+The standalone cases polled successfully but received no flag configuration.
+Passing the owning SDK version to the existing factory restored both standalone paths.
+A request-level test now checks the advertised version from the actual published JAR.
+The original `optional-rc-v1-staging` failure record remains unchanged.
+
+The same corrected artifacts pass four direct-delivery controls and all 13 assertions without the add-on.
+Those results are in `local/java-validation/results/optional-rc-v2/manifest.json`.
+External Gradle consumers verify the base POM excludes RC and the add-on POM selects the matching base version.
+Neither graph exposes unpublished internal projects, a Java agent, an OTel SDK, or exporters.
+Published-artifact tests reject RC in the base, duplicate classes between JARs, and provider/evaluator copies in the add-on.
+They also verify missing-add-on errors, an inactive add-on in direct mode, and no CDN fallback when RC is unavailable.
+Focused tests and the complete agent build pass. This is not a full CI or historical compatibility-matrix rerun.
+
+| Artifact | Size | SHA-256 |
+| --- | --- | --- |
+| `dd-openfeature.jar` | 1,840,638 bytes | `99bf11355e5e6725bc73717ea755d585adda305ce352e133f7799570e1c60f0f` |
+| `dd-openfeature-remote-config.jar` | 4,167,419 bytes | `ad63aed09d01613c203145eabb6c72adb077db129f3bbe9a4614156a38e7394f` |
+| `dd-java-agent.jar` | 35,067,302 bytes | `a37aedee03c8fa3be73dc60520e3d034e8a36c915572ab0af45d99baaaa1df2e` |
+
+The rejected all-in-one candidate was approximately 4.39 MB. The revised base remains approximately 1.84 MB.
+Private dependencies increase the combined optional installation size. Further minimization and native dependency isolation remain release work.
+Later documentation commits do not change these recorded artifact bytes.
+
 ## Product configuration controls: Sep 21, 2026
 
 Java commit `135218006ae10d6f6edbecd3abdcbb6d8e507abe` retains the experimental span-enrichment name.

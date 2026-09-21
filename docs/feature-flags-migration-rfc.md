@@ -46,7 +46,7 @@ flowchart TB
 ```
 
 Arrows show setup and runtime ownership, not a network call for each evaluation. Evaluations use cached configuration.
-The two agent configuration paths are alternatives. The [dogfood POC #124](https://github.com/ddoghq/ffe-dogfooding/pull/124) demonstrates both installation shapes with direct delivery.
+The two agent configuration paths are alternatives. The [dogfood POC #124](https://github.com/ddoghq/ffe-dogfooding/pull/124) demonstrates both installation shapes with direct delivery and explicit RC.
 
 `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless` selects direct configuration. It does not mean the Java agent is absent.
 Standalone direct delivery requires credentials and network access to the CDN and event intake, but neither agent nor a collector.
@@ -123,13 +123,16 @@ The agent must not depend on standalone shading or publication. Bootstrap payloa
 
 The integrated branch fixes source-default activation, global disable, shared-consumer shutdown, matching-artifact payload identity, and late OTel SDK registration.
 
-After module consolidation, the simultaneous dogfood fixture again passes **27/27 checks**. Both Java deployments refresh configuration and deliver both EVP streams without an Agent or collector. All dashboard rows resolve configured values. Missing flags still fail.
+The September 21 optional-RC build passes **5/5 staging scenarios and 76/76 assertions**: no Java agent, OTel-only, injected provider, and manual stable/legacy agent registration.
+All receive real RC configuration and send both EVP streams through the Datadog Agent, without application API keys. Cached evaluation and polling recovery pass without CDN fallback.
+The base JAR remains **1.84 MB**; the optional RC JAR is **4.17 MB**. External consumers verify both published dependency graphs.
+Four direct-delivery controls pass without the add-on. Artifact tests cover missing-add-on errors, inactive add-on behavior, and the SDK version advertised to RC.
 
-The standalone JAR decreases from 2.69 MB to 1.84 MB. The agent retains all 17,604 classes with identical class bytes. The agent build still excludes standalone publication. Fewer projects did not require a larger runtime.
+Earlier consolidated artifacts passed 27/27 simultaneous fixture checks and 23/25 wider cases. Two historical agent-1.64.0 comparisons remain limitations.
+Those dated results are not a full rerun of this build. Intake acceptance is not downstream analytics proof.
 
-The rebuilt artifacts reproduce **23/25 passing cases** in the wider controlled matrices. Two historical agent-1.64.0 cases remain limitations, including the missing activation bridge. Earlier sequential staging checks passed five direct/RC cases; they predate consolidation. Intake acceptance is not downstream analytics proof.
-
-Compose attaches the agent to an OpenFeature-only application. This proves provider injection, not platform-managed SSI installation. Full-agent testing also required package-index separation and interface-before-implementation helper loading. Preserve those boundaries when simplifying modules.
+Compose attachment proves provider injection, not platform-managed SSI installation. Native Agent connections and platform SSI remain release gates.
+The agent build excludes standalone publication. Preserve package-index separation and interface-before-implementation helper loading.
 
 ## OTel contract and remaining constraints
 
