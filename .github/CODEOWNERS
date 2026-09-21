@@ -167,10 +167,11 @@
 /dd-trace-core/src/*/*/datadog/trace/lambda/                            @DataDog/apm-serverless
 /utils/container-utils/                                                 @DataDog/apm-serverless
 **/InferredProxy*                                                       @DataDog/apm-serverless
-/dd-java-agent/instrumentation/**/*InferredProxy*                       @DataDog/apm-serverless @DataDog/apm-idm-java
-/dd-java-agent/instrumentation/aws-java/aws-java-lambda-handler-1.2/    @DataDog/apm-serverless @DataDog/apm-idm-java
-/dd-java-agent/instrumentation/azure-functions/                         @DataDog/apm-serverless @DataDog/apm-idm-java
-/dd-java-agent/instrumentation/azure-functions-1.2.2/                   @DataDog/apm-serverless @DataDog/apm-idm-java
+/dd-java-agent/instrumentation/**/*InferredProxy*                       @DataDog/apm-serverless
+/dd-java-agent/instrumentation/aws-java/                                @DataDog/apm-serverless
+/dd-java-agent/instrumentation/aws-java/aws-java-lambda-handler-1.2/    @DataDog/apm-serverless
+/dd-java-agent/instrumentation/azure-functions/                         @DataDog/apm-serverless
+/dd-java-agent/instrumentation/azure-functions-1.2.2/                   @DataDog/apm-serverless
 
 # @DataDog/apm-lang-platform-java
 /.editorconfig                          @DataDog/apm-lang-platform-java
@@ -320,10 +321,10 @@
 /dd-java-agent/instrumentation/**/dsmTest/**                                                @DataDog/data-streams-monitoring @DataDog/apm-idm-java
 
 /dd-java-agent/instrumentation/armeria/armeria-grpc-0.84/       @DataDog/data-streams-monitoring @DataDog/apm-idm-java
-/dd-java-agent/instrumentation/aws-java/aws-java-sns-1.0/       @DataDog/data-streams-monitoring @DataDog/apm-idm-java
-/dd-java-agent/instrumentation/aws-java/aws-java-sns-2.0/       @DataDog/data-streams-monitoring @DataDog/apm-idm-java
-/dd-java-agent/instrumentation/aws-java/aws-java-sqs-1.0/       @DataDog/data-streams-monitoring @DataDog/apm-idm-java
-/dd-java-agent/instrumentation/aws-java/aws-java-sqs-2.0/       @DataDog/data-streams-monitoring @DataDog/apm-idm-java
+/dd-java-agent/instrumentation/aws-java/aws-java-sns-1.0/       @DataDog/data-streams-monitoring @DataDog/apm-serverless
+/dd-java-agent/instrumentation/aws-java/aws-java-sns-2.0/       @DataDog/data-streams-monitoring @DataDog/apm-serverless
+/dd-java-agent/instrumentation/aws-java/aws-java-sqs-1.0/       @DataDog/data-streams-monitoring @DataDog/apm-serverless
+/dd-java-agent/instrumentation/aws-java/aws-java-sqs-2.0/       @DataDog/data-streams-monitoring @DataDog/apm-serverless
 /dd-java-agent/instrumentation/confluent-schema-registry/       @DataDog/data-streams-monitoring @DataDog/apm-idm-java
 /dd-java-agent/instrumentation/google-pubsub-1.116/             @DataDog/data-streams-monitoring @DataDog/apm-idm-java
 /dd-java-agent/instrumentation/grpc-1.5/                        @DataDog/data-streams-monitoring @DataDog/apm-idm-java
