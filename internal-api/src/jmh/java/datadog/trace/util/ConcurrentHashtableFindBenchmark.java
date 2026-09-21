@@ -17,7 +17,7 @@ import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 
 /**
- * Measures the lock-free hash-bucket scan used by {@link LogCollector#find}: a {@code for} loop
+ * Measures the lock-free hash-bucket scan used by {@code LogCollector.find}: a {@code for} loop
  * over {@link ConcurrentHashtable#hashIterable}, matching by key hash then a per-entry predicate.
  *
  * <p>Run with {@code -Pjmh.profilers=gc} to confirm the {@link Iterable}/{@link java.util.Iterator}
