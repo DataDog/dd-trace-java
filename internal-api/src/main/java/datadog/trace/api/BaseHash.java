@@ -6,7 +6,12 @@ public final class BaseHash {
   private static volatile long baseHash;
   private static volatile String baseHashStr;
   private static volatile String lastContainerTagsHash;
-  private static volatile long identityHash;
+
+  // service/env/primaryTag are fixed for the JVM's lifetime once Config is built, so this only
+  // needs to be calculated once rather than every time recalcBaseHash()/recalc() runs.
+  private static volatile long identityHash =
+      calcIdentity(
+          Config.get().getServiceName(), Config.get().getEnv(), Config.get().getPrimaryTag());
 
   private BaseHash() {}
 
@@ -21,9 +26,6 @@ public final class BaseHash {
 
   private static void recalc() {
     updateBaseHash(calc(lastContainerTagsHash));
-    identityHash =
-        calcIdentity(
-            Config.get().getServiceName(), Config.get().getEnv(), Config.get().getPrimaryTag());
   }
 
   public static void updateBaseHash(long hash) {
@@ -63,7 +65,7 @@ public final class BaseHash {
         containerTagsHash);
   }
 
-  private static long calcIdentity(CharSequence serviceName, CharSequence env, String primaryTag) {
+  static long calcIdentity(CharSequence serviceName, CharSequence env, String primaryTag) {
     long hash = FNV64Hash.generateHash(serviceName.toString(), FNV64Hash.Version.v1);
     hash = FNV64Hash.continueHash(hash, env.toString(), FNV64Hash.Version.v1);
     if (primaryTag != null) {

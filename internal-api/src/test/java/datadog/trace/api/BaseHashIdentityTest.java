@@ -1,7 +1,5 @@
 package datadog.trace.api;
 
-import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
-import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
@@ -25,15 +23,16 @@ class BaseHashIdentityTest {
   }
 
   @Test
-  void identityHashTracksServiceEnvPrimaryTagLikeBaseHash() {
-    BaseHash.recalcBaseHash(null);
-    long firstIdentityHash = BaseHash.getIdentityHash();
+  void identityHashDependsOnServiceEnvAndPrimaryTag() {
+    // identityHash is calculated once (service/env/primaryTag are fixed for the JVM's
+    // lifetime), so this exercises the underlying hashing function directly rather than
+    // via Config + recalcBaseHash.
+    long base = BaseHash.calcIdentity("service", "env", "region-1");
 
-    injectSysConfig(SERVICE_NAME, "service-1");
-    BaseHash.recalcBaseHash(null);
-    long secondIdentityHash = BaseHash.getIdentityHash();
-
-    assertNotEquals(firstIdentityHash, secondIdentityHash);
+    assertNotEquals(base, BaseHash.calcIdentity("service-2", "env", "region-1"));
+    assertNotEquals(base, BaseHash.calcIdentity("service", "env-2", "region-1"));
+    assertNotEquals(base, BaseHash.calcIdentity("service", "env", "region-2"));
+    assertEquals(base, BaseHash.calcIdentity("service", "env", "region-1"));
   }
 
   @Test
