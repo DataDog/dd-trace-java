@@ -230,6 +230,10 @@ public final class ProtobufEncoder {
   public void writeBytesField(int fieldNumber, InputStream inputStream, long length)
       throws IOException {
     if (inputStream == null || length == 0) {
+      // the stream is caller-supplied; close it here so the early-return path cannot leak it
+      if (inputStream != null) {
+        inputStream.close();
+      }
       return;
     }
 
