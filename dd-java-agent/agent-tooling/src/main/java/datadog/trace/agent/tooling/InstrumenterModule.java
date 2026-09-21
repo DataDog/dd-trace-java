@@ -333,11 +333,6 @@ public abstract class InstrumenterModule implements Instrumenter {
       return enabledSystems.contains(TargetSystem.TRACING)
           || enabledSystems.contains(TargetSystem.DATA_STREAMS);
     }
-
-    @Override
-    public boolean isEnabled() {
-      return super.isEnabled() || InstrumenterConfig.get().isDataStreamsEnabled();
-    }
   }
 
   /** Parent class for all CI related instrumentations */
