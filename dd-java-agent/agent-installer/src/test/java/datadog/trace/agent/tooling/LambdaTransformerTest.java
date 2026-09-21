@@ -9,7 +9,6 @@ import datadog.application.LambdaTarget;
 import datadog.trace.bootstrap.instrumentation.java.lang.invoke.LambdaTransformer;
 import datadog.trace.bootstrap.instrumentation.java.lang.invoke.LambdaTransformerHolder;
 import java.util.concurrent.atomic.AtomicBoolean;
-import net.bytebuddy.agent.builder.AgentBuilder;
 import org.junit.jupiter.api.Test;
 
 class LambdaTransformerTest {
@@ -19,7 +18,7 @@ class LambdaTransformerTest {
     LambdaTransformer previous = (className, targetClass, classBytes, interfaceName) -> classBytes;
     LambdaTransformerHolder.set(previous);
     try {
-      AgentInstaller.registerLambdaTransformer(false, null, new String[0]);
+      new LambdaTransformerInstaller(false, new String[0]).onBeforeInstall(null, null);
 
       assertNull(LambdaTransformerHolder.get());
     } finally {
@@ -29,14 +28,14 @@ class LambdaTransformerTest {
 
   @Test
   void publishesTransformerBeforeInstallationAndClearsItOnError() {
-    AgentBuilder.InstallationListener listener =
-        AgentInstaller.lambdaInstallationListener(true, new String[] {Runnable.class.getName()});
+    LambdaTransformerInstaller installer =
+        new LambdaTransformerInstaller(true, new String[] {Runnable.class.getName()});
     Throwable failure = new IllegalStateException("installation failed");
     try {
-      listener.onBeforeInstall(null, null);
+      installer.onBeforeInstall(null, null);
 
       assertNotNull(LambdaTransformerHolder.get());
-      assertSame(failure, listener.onError(null, null, failure));
+      assertSame(failure, installer.onError(null, null, failure));
       assertNull(LambdaTransformerHolder.get());
     } finally {
       LambdaTransformerHolder.set(null);
@@ -53,7 +52,8 @@ class LambdaTransformerTest {
           return transformedBytes;
         };
     LambdaTransformer transformer =
-        AgentInstaller.filterLambdaTransformer(delegate, new String[] {Runnable.class.getName()});
+        LambdaTransformerInstaller.filterLambdaTransformer(
+            delegate, new String[] {Runnable.class.getName()});
 
     assertSame(
         transformedBytes,
@@ -74,7 +74,8 @@ class LambdaTransformerTest {
           return classBytes;
         };
     LambdaTransformer transformer =
-        AgentInstaller.filterLambdaTransformer(delegate, new String[] {Runnable.class.getName()});
+        LambdaTransformerInstaller.filterLambdaTransformer(
+            delegate, new String[] {Runnable.class.getName()});
 
     assertNull(
         transformer.transform(

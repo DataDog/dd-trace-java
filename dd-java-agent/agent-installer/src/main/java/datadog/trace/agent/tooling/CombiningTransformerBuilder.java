@@ -207,7 +207,7 @@ public final class CombiningTransformerBuilder
     }
   }
 
-  String[] lambdaInterfaces() {
+  private String[] lambdaInterfaces() {
     return lambdaMatchers.keySet().toArray(new String[0]);
   }
 
@@ -335,8 +335,7 @@ public final class CombiningTransformerBuilder
     advice.add(forAdvice.advice(not(ignoredMethods).and(matcher), adviceClass));
   }
 
-  public ClassFileTransformer installOn(
-      Instrumentation instrumentation, AgentBuilder.InstallationListener installationListener) {
+  public ClassFileTransformer installOn(Instrumentation instrumentation) {
     if (InstrumenterConfig.get().isRuntimeContextFieldInjection()) {
       applyContextStoreInjection();
     }
@@ -346,7 +345,7 @@ public final class CombiningTransformerBuilder
         .and(NOT_DECORATOR_MATCHER)
         .transform(defaultTransformers())
         .transform(new SplittingTransformer(transformers))
-        .with(installationListener)
+        .with(new LambdaTransformerInstaller(lambdaTransformationEnabled, lambdaInterfaces()))
         .installOn(instrumentation);
   }
 
