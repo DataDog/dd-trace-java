@@ -59,6 +59,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
   Map<String, String> capturedHeaders;
   Object capturedBody;
   boolean appSecEnded;
+  int appSecEndCount;
 
   Integer capturedResponseStatus;
   Map<String, String> capturedResponseHeaders;
@@ -82,6 +83,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     capturedHeaders = new HashMap<>();
     capturedBody = null;
     appSecEnded = false;
+    appSecEndCount = 0;
     capturedResponseStatus = null;
     capturedResponseHeaders = new HashMap<>();
     capturedResponseBody = null;
@@ -121,6 +123,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
         (BiFunction<RequestContext, IGSpanInfo, Flow<Void>>)
             (ctx2, spanInfo) -> {
               appSecEnded = true;
+              appSecEndCount++;
               return Flow.ResultFlow.empty();
             });
 
@@ -201,6 +204,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
                 .tags(
                     defaultTags(),
                     tag("request_id", is(REQUEST_ID)),
+                    tag("_dd.appsec.unsupported_event_type", is(1)),
                     error(Error.class, "Some error"))));
   }
 
@@ -487,7 +491,24 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
                     tag(Tags.HTTP_USER_AGENT, is("test-agent")),
                     tag(Tags.HTTP_ROUTE, is("/api/users/{id}")),
                     tag(Tags.HTTP_HOSTNAME, is("api.example.com")),
+                    tag(Tags.COMPONENT, is("aws-lambda")),
                     tag(Tags.HTTP_STATUS, is(200)))));
+  }
+
+  @Test
+  void nestedHandlerFinalizesAppSecRequestOnce() throws IOException {
+    String eventJson =
+        "{" + "\"path\": \"/api/nested\"," + "\"requestContext\": {\"httpMethod\": \"GET\"}" + "}";
+    ByteArrayInputStream input =
+        new ByteArrayInputStream(eventJson.getBytes(StandardCharsets.UTF_8));
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+    new HandlerStreamingNested().handleRequest(input, output, newContext());
+
+    assertTrue(appSecStarted);
+    assertTrue(appSecEnded);
+    assertEquals(1, appSecEndCount);
+    assertTraces(trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
   }
 
   @Test
@@ -555,13 +576,21 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
 
   @Test
   void responseCallbacksReceiveNoDataWhenHandlerThrows() {
-    ByteArrayInputStream input = new ByteArrayInputStream("Hello".getBytes(StandardCharsets.UTF_8));
+    String eventJson =
+        "{" + "\"path\": \"/api/failure\"," + "\"requestContext\": {\"httpMethod\": \"GET\"}" + "}";
+    ByteArrayInputStream input =
+        new ByteArrayInputStream(eventJson.getBytes(StandardCharsets.UTF_8));
     ByteArrayOutputStream output = new ByteArrayOutputStream();
 
     assertThrows(
         Error.class,
-        () -> new HandlerStreamingWithError().handleRequest(input, output, newContext()));
+        () ->
+            new HandlerStreamingWritesResponseThenThrows()
+                .handleRequest(input, output, newContext()));
 
+    assertTrue(appSecStarted, "request callbacks should run before the handler throws");
+    assertTrue(appSecEnded, "requestEnded should run after the handler throws");
+    assertEquals(1, appSecEndCount);
     assertNull(capturedResponseStatus, "response status should not be set when handler throws");
     assertNull(capturedResponseBody, "response body should not be set when handler throws");
     assertTraces(
@@ -572,6 +601,8 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
                 .tags(
                     defaultTags(),
                     tag("request_id", is(REQUEST_ID)),
+                    tag(Tags.HTTP_METHOD, is("GET")),
+                    tag(Tags.COMPONENT, is("aws-lambda")),
                     error(Error.class, "Some error"))));
   }
 

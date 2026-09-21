@@ -21,6 +21,7 @@ import datadog.trace.api.function.TriFunction
 import datadog.appsec.api.blocking.BlockingContentType
 import datadog.trace.bootstrap.blocking.BlockingActionHelper
 import datadog.trace.api.gateway.BlockResponseFunction
+import datadog.trace.api.gateway.CallbackProvider
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.IGSpanInfo
 import datadog.trace.api.gateway.RequestContext
@@ -33,9 +34,11 @@ import datadog.trace.api.telemetry.LoginEvent
 import datadog.trace.api.telemetry.RuleType
 import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase
+import datadog.trace.lambda.LambdaAppSecHandler
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 
@@ -213,6 +216,35 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * wafMetricCollector.wafRequest(_, _, _, _, _, _, _, _) // call waf request metric
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
+  }
+
+  void 'lambda request end reaches shared waf telemetry with its framework'() {
+    given:
+    AgentTracer.TracerAPI originalTracer = AgentTracer.get()
+    CallbackProvider callbackProvider = Stub() {
+      getCallback(EVENTS.requestEnded()) >> requestEndedCB
+    }
+    AgentTracer.TracerAPI tracer = Stub() {
+      getCallbackProvider(RequestContextSlot.APPSEC) >> callbackProvider
+    }
+    AgentSpan span = Mock() {
+      getRequestContext() >> ctx
+      getTags() >> TagMap.fromMap([(Tags.COMPONENT): 'aws-lambda'])
+    }
+    AgentTracer.forceRegister(tracer)
+
+    when:
+    LambdaAppSecHandler.processRequestEnd(span)
+
+    then:
+    1 * requestSampler.preSampleRequest(arCtx, 'aws-lambda') >> false
+    1 * span.setMetric('_dd.appsec.enabled', 1)
+    1 * span.setTag('_dd.runtime_family', 'jvm')
+    1 * pp.processTraceSegment(traceSegment, arCtx, [])
+    1 * wafMetricCollector.wafRequest(false, false, false, false, false, false, false, false)
+
+    cleanup:
+    AgentTracer.forceRegister(originalTracer)
   }
 
   void 'actor ip calculated from headers'() {

@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -48,11 +49,13 @@ import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.lambda.LambdaEventParser.LambdaResponseData;
 import datadog.trace.lambda.LambdaEventParser.LambdaTriggerType;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.Closeable;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -1216,13 +1219,14 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void processRequestEndDoesNothingWhenAppSecIsDisabled() {
+  void processRequestEndDoesNothingWithoutAttachedContextWhenAppSecIsDisabled() {
     ActiveSubsystems.APPSEC_ACTIVE = false;
     AgentSpan span = mock(AgentSpan.class);
 
     LambdaAppSecHandler.processRequestEnd(span);
 
-    verifyNoInteractions(span);
+    verify(span).getRequestContext();
+    verifyNoMoreInteractions(span);
   }
 
   @Test
@@ -1266,9 +1270,57 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
+  void processRequestEndFinalizesAttachedContextWhenAppSecBecomesInactive() {
+    ActiveSubsystems.APPSEC_ACTIVE = false;
+    Object appSecContext = new Object();
+    RequestContext requestContext = mock(RequestContext.class);
+    when(requestContext.getData(RequestContextSlot.APPSEC)).thenReturn(appSecContext);
+    AgentSpan span = mock(AgentSpan.class);
+    when(span.getRequestContext()).thenReturn(requestContext);
+
+    BiFunction<RequestContext, IGSpanInfo, Flow<Void>> requestEndedCallback =
+        mock(BiFunction.class);
+    when(requestEndedCallback.apply(any(), any())).thenReturn(Flow.ResultFlow.empty());
+    CallbackProvider callbackProvider = mock(CallbackProvider.class);
+    when(callbackProvider.getCallback(EVENTS.requestEnded())).thenReturn(requestEndedCallback);
+    AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
+    when(tracer.getCallbackProvider(RequestContextSlot.APPSEC)).thenReturn(callbackProvider);
+    AgentTracer.forceRegister(tracer);
+
+    LambdaAppSecHandler.processRequestEnd(span);
+
+    verify(requestEndedCallback).apply(requestContext, span);
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void processRequestEndFinalizesAttachedContextWithoutRecordedTrigger() {
+    Object appSecContext = new Object();
+    RequestContext requestContext = mock(RequestContext.class);
+    when(requestContext.getData(RequestContextSlot.APPSEC)).thenReturn(appSecContext);
+    AgentSpan span = mock(AgentSpan.class);
+    when(span.getRequestContext()).thenReturn(requestContext);
+
+    BiFunction<RequestContext, IGSpanInfo, Flow<Void>> requestEndedCallback =
+        mock(BiFunction.class);
+    when(requestEndedCallback.apply(any(), any())).thenReturn(Flow.ResultFlow.empty());
+    CallbackProvider callbackProvider = mock(CallbackProvider.class);
+    when(callbackProvider.getCallback(EVENTS.requestEnded())).thenReturn(requestEndedCallback);
+    AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
+    when(tracer.getCallbackProvider(RequestContextSlot.APPSEC)).thenReturn(callbackProvider);
+    AgentTracer.forceRegister(tracer);
+
+    LambdaAppSecHandler.processRequestEnd(span);
+
+    verify(requestEndedCallback).apply(requestContext, span);
+  }
+
+  @Test
   void processRequestEndHandlesNullRequestEndedCallbackGracefully() {
     LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
     RequestContext mockRequestContext = mock(RequestContext.class);
+    when(mockRequestContext.getData(RequestContextSlot.APPSEC)).thenReturn(new Object());
     AgentSpan span = mock(AgentSpan.class);
     when(span.getRequestContext()).thenReturn(mockRequestContext);
 
@@ -1324,6 +1376,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     LambdaAppSecHandler.processRequestEnd(span);
 
+    verify(span).getRequestContext();
     verify(span).setMetric("_dd.appsec.unsupported_event_type", 1);
     verifyNoMoreInteractions(span);
   }
@@ -1339,14 +1392,16 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void processRequestEndSetsNoUnsupportedEventTypeMetricWhenAppSecIsDisabled() {
+  void processRequestEndPreservesUnsupportedMetricWhenAppSecBecomesDisabled() {
     ActiveSubsystems.APPSEC_ACTIVE = false;
     LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.UNKNOWN);
     AgentSpan span = mock(AgentSpan.class);
 
     LambdaAppSecHandler.processRequestEnd(span);
 
-    verifyNoInteractions(span);
+    verify(span).getRequestContext();
+    verify(span).setMetric("_dd.appsec.unsupported_event_type", 1);
+    verifyNoMoreInteractions(span);
   }
 
   @Test
@@ -1354,6 +1409,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   void processRequestEndSetsNoUnsupportedEventTypeMetricForHttpTrigger() {
     LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
     RequestContext mockRequestContext = mock(RequestContext.class);
+    when(mockRequestContext.getData(RequestContextSlot.APPSEC)).thenReturn(new Object());
     when(mockRequestContext.getTraceSegment()).thenReturn(mock(TraceSegment.class));
     AgentSpan span = mock(AgentSpan.class);
     when(span.getRequestContext()).thenReturn(mockRequestContext);
@@ -1375,6 +1431,44 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void processRequestEndDoesNotReportHttpTriggerWithoutAttachedAppSecContextAsUnsupported() {
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
+    RequestContext requestContext = mock(RequestContext.class);
+    AgentSpan span = mock(AgentSpan.class);
+    when(span.getRequestContext()).thenReturn(requestContext);
+
+    LambdaAppSecHandler.processRequestEnd(span);
+
+    verify(span, never()).setMetric(anyString(), anyInt());
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void processRequestEndClearsTriggerAfterSuccessfulFinalization() {
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
+    RequestContext requestContext = mock(RequestContext.class);
+    when(requestContext.getData(RequestContextSlot.APPSEC)).thenReturn(new Object());
+    AgentSpan span = mock(AgentSpan.class);
+    when(span.getRequestContext()).thenReturn(requestContext);
+
+    BiFunction<RequestContext, IGSpanInfo, Flow<Void>> requestEndedCallback =
+        mock(BiFunction.class);
+    when(requestEndedCallback.apply(any(), any())).thenReturn(Flow.ResultFlow.empty());
+    CallbackProvider callbackProvider = mock(CallbackProvider.class);
+    when(callbackProvider.getCallback(EVENTS.requestEnded())).thenReturn(requestEndedCallback);
+    AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
+    when(tracer.getCallbackProvider(RequestContextSlot.APPSEC)).thenReturn(callbackProvider);
+    AgentTracer.forceRegister(tracer);
+
+    LambdaAppSecHandler.processRequestEnd(span);
+
+    AgentSpan nextSpan = mock(AgentSpan.class);
+    LambdaAppSecHandler.processRequestEnd(nextSpan);
+    verify(requestEndedCallback).apply(requestContext, span);
+    verify(nextSpan, never()).setMetric(anyString(), anyInt());
+  }
+
+  @Test
   void processRequestEndSetsUnsupportedEventTypeMetricAfterAnUnparseablePayload() {
     ByteArrayInputStream event = createInputStream("{invalid json");
     assertNull(LambdaAppSecHandler.processRequestStart(event));
@@ -1382,6 +1476,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     AgentSpan span = mock(AgentSpan.class);
     LambdaAppSecHandler.processRequestEnd(span);
 
+    verify(span).getRequestContext();
     verify(span).setMetric("_dd.appsec.unsupported_event_type", 1);
     verifyNoMoreInteractions(span);
   }
@@ -1436,6 +1531,33 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
         extensionContext, LambdaAppSecHandler.mergeContexts(extensionContext, appSecContext));
   }
 
+  @Test
+  void mergeContextsClosesAppSecDataWhenExtensionContextIsIncompatible() throws IOException {
+    Closeable appSecData = mock(Closeable.class);
+    TagContext appSecContext = new TagContext();
+    appSecContext.withRequestContextDataAppSec(appSecData);
+    AgentSpanContext extensionContext = mock(AgentSpanContext.class);
+
+    assertSame(
+        extensionContext, LambdaAppSecHandler.mergeContexts(extensionContext, appSecContext));
+
+    verify(appSecData).close();
+  }
+
+  @Test
+  void mergeContextsDoesNotCloseTransferredAppSecData() throws IOException {
+    Closeable appSecData = mock(Closeable.class);
+    TagContext appSecContext = new TagContext();
+    appSecContext.withRequestContextDataAppSec(appSecData);
+    TagContext extensionContext = new TagContext();
+
+    assertSame(
+        extensionContext, LambdaAppSecHandler.mergeContexts(extensionContext, appSecContext));
+
+    assertSame(appSecData, extensionContext.getRequestContextDataAppSec());
+    verify(appSecData, never()).close();
+  }
+
   // ============================================================================
   // Error Handling and Null Callback Tests
   // ============================================================================
@@ -1455,6 +1577,29 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     AgentTracer.forceRegister(mockTracer);
 
     assertNull(LambdaAppSecHandler.processRequestStart(event));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void processRequestStartClosesAppSecDataWhenRequestProcessingFails() throws IOException {
+    String eventJson = "{\"path\": \"/test\", \"requestContext\": {\"httpMethod\": \"GET\"}}";
+    Closeable appSecData = mock(Closeable.class);
+    Supplier<Flow<Object>> requestStartedCallback = mock(Supplier.class);
+    when(requestStartedCallback.get()).thenReturn(new Flow.ResultFlow<>(appSecData));
+    TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> methodUriCallback =
+        mock(TriFunction.class);
+    when(methodUriCallback.apply(any(), anyString(), any(URIDataAdapter.class)))
+        .thenThrow(new IllegalStateException("request processing failed"));
+    CallbackProvider callbackProvider = mock(CallbackProvider.class);
+    when(callbackProvider.getCallback(EVENTS.requestStarted())).thenReturn(requestStartedCallback);
+    when(callbackProvider.getCallback(EVENTS.requestMethodUriRaw())).thenReturn(methodUriCallback);
+    AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
+    when(tracer.getCallbackProvider(RequestContextSlot.APPSEC)).thenReturn(callbackProvider);
+    AgentTracer.forceRegister(tracer);
+
+    assertNull(LambdaAppSecHandler.processRequestStart(createInputStream(eventJson)));
+
+    verify(appSecData).close();
   }
 
   @Test
@@ -1658,12 +1803,48 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   // ============================================================================
 
   @Test
-  void processResponseDataDoesNothingWhenAppSecIsDisabled() {
+  void processResponseDataProcessesAttachedContextWhenAppSecBecomesDisabled() {
     ActiveSubsystems.APPSEC_ACTIVE = false;
-    AgentSpan span = mock(AgentSpan.class);
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
+    Integer[] capturedStatus = {null};
+    AgentSpan span =
+        setupMockResponseCallbacks(status -> capturedStatus[0] = status, null, null, null);
     ByteArrayOutputStream result = createOutputStream("{\"statusCode\": 200, \"body\": \"ok\"}");
+
     LambdaAppSecHandler.processResponseData(span, result);
-    verify(span, never()).getRequestContext();
+
+    assertEquals(200, capturedStatus[0]);
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void notifyAppSecEndFinalizesRequestWhenResponseProcessingThrows() {
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
+    RequestContext requestContext = mock(RequestContext.class);
+    when(requestContext.getData(RequestContextSlot.APPSEC)).thenReturn(new Object());
+    AgentSpan span = mock(AgentSpan.class);
+    when(span.getRequestContext()).thenReturn(requestContext);
+
+    BiFunction<RequestContext, IGSpanInfo, Flow<Void>> requestEndedCallback =
+        mock(BiFunction.class);
+    when(requestEndedCallback.apply(any(), any())).thenReturn(Flow.ResultFlow.empty());
+    CallbackProvider callbackProvider = mock(CallbackProvider.class);
+    when(callbackProvider.getCallback(EVENTS.requestEnded())).thenReturn(requestEndedCallback);
+    AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
+    when(tracer.getCallbackProvider(RequestContextSlot.APPSEC)).thenReturn(callbackProvider);
+    AgentTracer.forceRegister(tracer);
+
+    ByteArrayOutputStream result =
+        new ByteArrayOutputStream() {
+          @Override
+          public synchronized byte[] toByteArray() {
+            throw new AssertionError("response processing failed");
+          }
+        };
+
+    CoreTracer coreTracer = tracerBuilder().build();
+    assertThrows(AssertionError.class, () -> coreTracer.notifyAppSecEnd(span, result));
+    verify(requestEndedCallback).apply(requestContext, span);
   }
 
   @Test
@@ -2377,6 +2558,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
                     + " \"api.example.com\"}}"));
 
     Map<String, Object> tags = tagsOf(context);
+    assertEquals("aws-lambda", tags.get(Tags.COMPONENT));
     assertEquals("GET", tags.get(Tags.HTTP_METHOD));
     assertEquals("https://api.example.com/users/42", tags.get(Tags.HTTP_URL));
     assertEquals("q=hello", tags.get(DDTags.HTTP_QUERY));
@@ -2624,6 +2806,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   @Test
   void mergeContextsCopiesHttpTagsIntoExtensionContext() {
     TagContext appSecContext = new TagContext();
+    appSecContext.putTag(Tags.COMPONENT, "aws-lambda");
     appSecContext.putTag(Tags.HTTP_URL, "https://api.example.com/users/42");
     appSecContext.putTag(Tags.HTTP_ROUTE, "/users/{id}");
     TagContext extensionContext = new TagContext();
@@ -2632,8 +2815,12 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     assertSame(extensionContext, merged);
     Map<String, Object> tags = tagsOf(merged);
+    assertEquals("aws-lambda", tags.get(Tags.COMPONENT));
     assertEquals("https://api.example.com/users/42", tags.get(Tags.HTTP_URL));
     assertEquals("/users/{id}", tags.get(Tags.HTTP_ROUTE));
+
+    ((TagContext) merged).putTag(Tags.COMPONENT, "spring-web-controller");
+    assertEquals("spring-web-controller", tagsOf(merged).get(Tags.COMPONENT));
   }
 
   @Test
@@ -2866,6 +3053,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
       Consumer<Object> onResponseBody) {
 
     RequestContext mockRequestContext = mock(RequestContext.class);
+    when(mockRequestContext.getData(RequestContextSlot.APPSEC)).thenReturn(new Object());
     AgentSpan mockSpan = mock(AgentSpan.class);
     when(mockSpan.getRequestContext()).thenReturn(mockRequestContext);
 
