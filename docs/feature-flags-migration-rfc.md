@@ -23,6 +23,32 @@ Deliver two installation paths from one implementation in `dd-trace-java`: stand
 | SSI | Depend on OpenFeature only; enable Feature Flags. | Attached `dd-java-agent` installs the provider and owns delivery. |
 | Existing explicit registration with Datadog instrumentation | Keep provider registration. | Compatible provider/agent pairs use the agent runtime. |
 
+```mermaid
+flowchart TB
+  subgraph Standalone["Customer-standalone"]
+    direction TB
+    APP1["Application + dd-openfeature"] --> REG["Register Datadog Provider"]
+    REG --> OF1["OpenFeature client + evaluator"]
+    OF1 --> SR["Standalone runtime"]
+    SR --> DIRECT1["Managed CDN + direct EVP"]
+    OF1 -. "Optional metrics" .-> OTEL["Application OTel SDK<br/>or OTel Java agent"]
+  end
+
+  subgraph SSI["SSI / provider injection"]
+    direction TB
+    APP2["Application + OpenFeature only"] --> OF2["OpenFeature client + injected evaluator"]
+    JAGENT["Attached dd-java-agent<br/>Feature Flags enabled"] --> INSTALL["Provider installer"]
+    INSTALL --> OF2
+    JAGENT --> AR["Agent runtime"]
+    OF2 --> AR
+    AR -->|agentless| DIRECT2["Managed CDN + EVP routing"]
+    AR -->|remote_config| RC["Remote Configuration + EVP proxy<br/>through Datadog Agent"]
+  end
+```
+
+Arrows show setup and runtime ownership, not a network call for each evaluation. Evaluations use cached configuration.
+The two agent configuration paths are alternatives. The [dogfood POC #124](https://github.com/ddoghq/ffe-dogfooding/pull/124) demonstrates both installation shapes with direct delivery.
+
 `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless` selects direct configuration. It does not mean the Java agent is absent. Standalone requires credentials and network access to the CDN and direct event intake, but no collector.
 
 Remote Configuration (RC) remains an agent capability:
@@ -52,15 +78,31 @@ The POC uses six product projects: the five existing boundaries plus the standal
 | Settings resolution | Existing `feature-flagging-config` |
 
 ```mermaid
-flowchart LR
-  M["Manual provider registration"] --> S["Standalone assembly"]
-  I["Agent activation + OpenFeature use"] --> A["Agent assembly + injection"]
-  S --> C["Shared evaluator, lifecycle, and events"]
-  A --> C
-  S --> D["Direct CDN + EVP"]
-  A --> D
-  A --> R["RC + Agent EVP proxy"]
+flowchart TB
+  subgraph Shared["dd-trace-java: shared implementation"]
+    BOOT["feature-flagging-bootstrap<br/>shared payloads + bridge"] --> LIB
+    CONFIG["feature-flagging-config<br/>settings"] --> LIB
+    LIB["feature-flagging-lib<br/>evaluator, runtime, CDN + EVP"]
+    LIB -->|evaluator-only artifact| API["feature-flagging-api<br/>OpenFeature adapter + hooks"]
+  end
+
+  subgraph StandaloneAssembly["Standalone assembly"]
+    STANDALONE["feature-flagging-standalone"] --> JAR["dd-openfeature.jar"]
+  end
+
+  subgraph AgentAssembly["Agent assembly"]
+    AGENT["feature-flagging-agent<br/>RC + agent integration"] --> DDJAR["dd-java-agent.jar"]
+    INSTR["OpenFeature instrumentation<br/>provider + evaluator helpers"] --> DDJAR
+  end
+
+  LIB -->|runtime + transport| STANDALONE
+  API --> STANDALONE
+  LIB -->|runtime + transport| AGENT
+  LIB -->|evaluator-only artifact| INSTR
+  API --> INSTR
 ```
+
+Arrows show selected packaging inputs; transitive dependencies are omitted. The evaluator-only artifact is an output of `-lib`, not another project.
 
 The repository uses `-lib` for core implementation. The combined library preserves existing package names and behavior. It produces a full runtime artifact and a selected evaluator-only artifact. The OpenFeature adapter and injection consume only the evaluator artifact. HTTP clients, parsers, and runtime lifecycle classes stay outside the injected helper set.
 
