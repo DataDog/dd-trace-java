@@ -111,6 +111,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
       "tool_results".getBytes(StandardCharsets.UTF_8);
   private static final byte[] LLM_TOOL_RESULT_RESULT = "result".getBytes(StandardCharsets.UTF_8);
 
+  private static final String TRACE_ID_TAG_INTERNAL_FULL = LLMOBS_TAG_PREFIX + "trace_id";
   private static final String PARENT_ID_TAG_INTERNAL_FULL = LLMOBS_TAG_PREFIX + "parent_id";
   private static final String SESSION_ID_TAG_INTERNAL_FULL =
       LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID;
@@ -138,6 +139,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
       Collections.unmodifiableSet(
           new HashSet<>(
               Arrays.asList(
+                  TRACE_ID_TAG_INTERNAL_FULL,
                   PARENT_ID_TAG_INTERNAL_FULL,
                   SAMPLING_DECISION_TAG_INTERNAL_FULL,
                   SAMPLE_RATE_TAG_INTERNAL_FULL,
@@ -214,6 +216,18 @@ public class LLMObsSpanMapper implements RemoteMapper {
       String samplingDecision = stamped ? (String) rawSamplingDecision : SAMPLING_DECISION_SAMPLED;
       String sampleRate = stamped ? (String) rawSampleRate : SAMPLE_RATE_ALL;
 
+      // The LLMObs trace id, which is not the APM trace id: a span that inherited its LLMObs
+      // context from another service reports the caller's id so the LLMObs trace stays whole
+      // across a boundary that starts a fresh APM trace. DDLLMObsSpan stamps it on every span it
+      // creates, seeded from the APM trace id at the root, so the two agree for a trace that
+      // never leaves this process. The fallback covers a span that reached the mapper without
+      // the tag, which then behaves exactly as it did before the tag existed.
+      Object rawLLMObsTraceId = span.getTag(TRACE_ID_TAG_INTERNAL_FULL);
+      String llmObsTraceId =
+          rawLLMObsTraceId instanceof String && !((String) rawLLMObsTraceId).isEmpty()
+              ? (String) rawLLMObsTraceId
+              : span.getTraceId().toHexString();
+
       writable.startMap(hasSessionId ? 12 : 11);
       // 1
       writable.writeUTF8(SPAN_ID);
@@ -221,7 +235,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
 
       // 2
       writable.writeUTF8(TRACE_ID);
-      writable.writeString(span.getTraceId().toHexString(), null);
+      writable.writeString(llmObsTraceId, null);
 
       // 3
       writable.writeUTF8(PARENT_ID);
@@ -249,7 +263,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
       writable.writeUTF8(SPAN_ID);
       writable.writeString(String.valueOf(span.getSpanId()), null);
       writable.writeUTF8(TRACE_ID);
-      writable.writeString(span.getTraceId().toHexString(), null);
+      writable.writeString(llmObsTraceId, null);
       writable.writeUTF8(APM_TRACE_ID);
       writable.writeString(span.getTraceId().toHexString(), null);
       writable.writeUTF8(SAMPLING_DECISION);

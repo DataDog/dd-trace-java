@@ -68,10 +68,19 @@ public interface AgentSpanContext {
    * Gets the LLM Observability {@code ml_app} that arrived on the inbound headers, or {@code null}
    * if none did or this context implementation doesn't have propagation-tags access.
    *
-   * <p>These five getters describe the caller, so they report only what was extracted — never what
-   * a local injection staged onto the same tags for an outbound call.
+   * <p>These getters describe the caller, so they report only what was extracted — never what a
+   * local injection staged onto the same tags for an outbound call.
    */
   default CharSequence getLLMObsMlApp() {
+    return null;
+  }
+
+  /**
+   * Gets the LLM Observability trace id that arrived on the inbound headers, or {@code null} if
+   * none did or this context implementation doesn't have propagation-tags access. Distinct from the
+   * APM trace id, and carried on the wire as an unsigned 128-bit decimal integer.
+   */
+  default CharSequence getLLMObsTraceId() {
     return null;
   }
 
@@ -134,6 +143,7 @@ public interface AgentSpanContext {
    * default.
    */
   default void updateLLMObsContext(
+      CharSequence traceId,
       CharSequence mlApp,
       CharSequence sessionId,
       CharSequence parentAgentSpanId,

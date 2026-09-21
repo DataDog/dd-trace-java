@@ -181,7 +181,7 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
     PropagationTags propagationTags = factory().fromHeaderValue(DATADOG, "");
 
     propagationTags.updateLLMObsContext(
-        mlApp, sessionId, pagentSpanId, pagentName, parentId, null, null);
+        null, mlApp, sessionId, pagentSpanId, pagentName, parentId, null, null);
 
     assertEquals(expectedHeaderValue, propagationTags.headerValue(DATADOG));
     assertEquals(tags, propagationTags.createTagMap());
@@ -196,7 +196,7 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
   void updatePropagationTagsLLMObsContextRejectsControlCharacters(String mlApp) {
     PropagationTags propagationTags = factory().fromHeaderValue(DATADOG, "");
 
-    propagationTags.updateLLMObsContext(mlApp, "sess-1", null, null, null, null, null);
+    propagationTags.updateLLMObsContext(null, mlApp, "sess-1", null, null, null, null, null);
 
     assertEquals("_dd.p.llmobs_sid=sess-1", propagationTags.headerValue(DATADOG));
   }
@@ -213,7 +213,8 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
       String sampleRate, String samplingDecision, String expectedHeaderValue) {
     PropagationTags propagationTags = factory().fromHeaderValue(DATADOG, "");
 
-    propagationTags.updateLLMObsContext(null, null, null, null, null, sampleRate, samplingDecision);
+    propagationTags.updateLLMObsContext(
+        null, null, null, null, null, null, sampleRate, samplingDecision);
 
     assertEquals(expectedHeaderValue, propagationTags.headerValue(DATADOG));
   }
@@ -248,7 +249,7 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
       int limit, String agentName, String expectedHeaderValue) {
     PropagationTags propagationTags = factory(limit).fromHeaderValue(DATADOG, "");
 
-    propagationTags.updateLLMObsContext(null, null, "1234", agentName, null, null, null);
+    propagationTags.updateLLMObsContext(null, null, null, "1234", agentName, null, null, null);
 
     assertEquals(expectedHeaderValue, propagationTags.headerValue(DATADOG));
   }
@@ -258,7 +259,7 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
   void updatePropagationTagsDropsAgentAttributionWhenNotEvenTheIdFits() {
     PropagationTags propagationTags = factory(31).fromHeaderValue(DATADOG, "");
 
-    propagationTags.updateLLMObsContext(null, null, "1234", "planner", null, null, null);
+    propagationTags.updateLLMObsContext(null, null, null, "1234", "planner", null, null, null);
 
     // Nothing left to write, so no header rather than an over-budget one.
     assertNull(propagationTags.headerValue(DATADOG));
@@ -278,7 +279,7 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
     PropagationTags propagationTags = factory(512).fromHeaderValue(DATADOG, "");
 
     propagationTags.updateLLMObsContext(
-        "checkout", "sess-1", "1234", hugeName.toString(), "99", null, null);
+        null, "checkout", "sess-1", "1234", hugeName.toString(), "99", null, null);
 
     String header = propagationTags.headerValue(DATADOG);
     assertEquals(512, header.length());
@@ -299,7 +300,8 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
     PropagationTags propagationTags =
         factory().fromHeaderValue(DATADOG, "_dd.p.tid=1234567890abcdef");
 
-    propagationTags.updateLLMObsContext("planner,west", "sess-1", null, null, null, null, null);
+    propagationTags.updateLLMObsContext(
+        null, "planner,west", "sess-1", null, null, null, null, null);
     PropagationTags reparsed =
         factory().fromHeaderValue(DATADOG, propagationTags.headerValue(DATADOG));
 

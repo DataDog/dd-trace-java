@@ -7,6 +7,7 @@ import datadog.context.propagation.Propagator;
 import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.llmobs.domain.LLMObsTraceId;
 
 /**
  * Stages the LLM Observability propagation tags onto the span context being injected, so that every
@@ -54,6 +55,8 @@ public class LLMObsContextPropagator implements Propagator {
     }
 
     spanContext.updateLLMObsContext(
+        // Stored as hex in-process and in the span payload, carried as decimal on the wire.
+        LLMObsTraceId.toWire(LLMObsContext.currentTraceId()),
         LLMObsContext.currentMlApp(),
         LLMObsContext.currentSessionId(),
         LLMObsContext.currentParentAgentSpanId(),

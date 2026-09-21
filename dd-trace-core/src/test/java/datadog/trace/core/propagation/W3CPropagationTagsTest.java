@@ -418,7 +418,7 @@ class W3CPropagationTagsTest extends DDCoreJavaSpecification {
   void llmObsSamplingRoundTripsThroughTracestate() {
     PropagationTags propagationTags = factory().fromHeaderValue(W3C, "");
 
-    propagationTags.updateLLMObsContext(null, null, null, null, null, "0.25", "0");
+    propagationTags.updateLLMObsContext(null, null, null, null, null, null, "0.25", "0");
     String header = propagationTags.headerValue(W3C);
     PropagationTags reparsed = factory().fromHeaderValue(W3C, header);
 

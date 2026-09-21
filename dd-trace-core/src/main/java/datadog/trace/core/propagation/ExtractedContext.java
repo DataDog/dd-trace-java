@@ -123,6 +123,11 @@ public class ExtractedContext extends TagContext {
   }
 
   @Override
+  public CharSequence getLLMObsTraceId() {
+    return propagationTags.getLLMObsTraceId();
+  }
+
+  @Override
   public CharSequence getLLMObsSessionId() {
     return propagationTags.getLLMObsSessionId();
   }

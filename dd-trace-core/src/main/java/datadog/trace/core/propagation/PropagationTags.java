@@ -178,13 +178,25 @@ public abstract class PropagationTags {
    * Returns the LLM Observability {@code ml_app} that arrived on the inbound headers as {@code
    * _dd.p.llmobs_ml_app}, or {@code null} if none did.
    *
-   * <p>These five getters read what was <em>extracted</em>, never what a local injection staged
-   * over it. The two live in the same object — an extracted context's tags become the local root's
-   * — but only the extracted half is a statement about the caller. A local LLMObs span's tags stay
-   * staged until the next injection resets them, so a sibling span opened in that window would
-   * otherwise read a finished span's attribution as if it had come from upstream.
+   * <p>These getters read what was <em>extracted</em>, never what a local injection staged over it.
+   * The two live in the same object — an extracted context's tags become the local root's — but
+   * only the extracted half is a statement about the caller. A local LLMObs span's tags stay staged
+   * until the next injection resets them, so a sibling span opened in that window would otherwise
+   * read a finished span's attribution as if it had come from upstream.
    */
   public abstract CharSequence getLLMObsMlApp();
+
+  /**
+   * Returns the LLM Observability trace id that arrived on the inbound headers as {@code
+   * _dd.p.llmobs_trace_id}, or {@code null} if none did. See {@link #getLLMObsMlApp()}.
+   *
+   * <p>The LLMObs trace id is distinct from the APM trace id: an LLMObs trace spans only the
+   * services that produce LLMObs spans, so it survives intermediate hops that start a new APM trace
+   * and it stays stable when one APM trace carries several LLMObs traces. The value is carried on
+   * the wire as an unsigned 128-bit <em>decimal</em> integer, the format dd-trace-py writes and
+   * parses.
+   */
+  public abstract CharSequence getLLMObsTraceId();
 
   /**
    * Returns the LLM Observability {@code session_id} that arrived on the inbound headers as {@code
@@ -230,6 +242,7 @@ public abstract class PropagationTags {
 
   /** Sets the whole LLM Observability tag set to propagate with this trace. */
   public abstract void updateLLMObsContext(
+      CharSequence traceId,
       CharSequence mlApp,
       CharSequence sessionId,
       CharSequence parentAgentSpanId,

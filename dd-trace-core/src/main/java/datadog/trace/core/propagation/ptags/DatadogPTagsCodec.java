@@ -64,6 +64,7 @@ final class DatadogPTagsCodec extends PTagsCodec {
     TagValue traceIdTagValue = null;
     int traceSource = 0;
     TagValue orgPropagationMarkerTagValue = null;
+    TagValue llmObsTraceIdTagValue = null;
     TagValue llmObsMlAppTagValue = null;
     TagValue llmObsSessionIdTagValue = null;
     TagValue llmObsParentAgentSpanIdTagValue = null;
@@ -109,6 +110,8 @@ final class DatadogPTagsCodec extends PTagsCodec {
             traceSource = ProductTraceSource.parseBitfieldHex(tagValue.toString());
           } else if (tagKey.equals(ORG_PROPAGATION_MARKER_TAG)) {
             orgPropagationMarkerTagValue = tagValue;
+          } else if (tagKey.equals(LLMOBS_TRACE_ID_TAG)) {
+            llmObsTraceIdTagValue = tagValue;
           } else if (tagKey.equals(LLMOBS_ML_APP_TAG)) {
             llmObsMlAppTagValue = tagValue;
           } else if (tagKey.equals(LLMOBS_SESSION_ID_TAG)) {
@@ -142,6 +145,7 @@ final class DatadogPTagsCodec extends PTagsCodec {
         traceSource,
         orgPropagationMarkerTagValue,
         LLMObsTagValues.of(
+            llmObsTraceIdTagValue,
             llmObsMlAppTagValue,
             llmObsSessionIdTagValue,
             llmObsParentAgentSpanIdTagValue,

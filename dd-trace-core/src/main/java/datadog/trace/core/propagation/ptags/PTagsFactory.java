@@ -11,6 +11,7 @@ import static datadog.trace.core.propagation.ptags.PTagsCodec.LLMOBS_PARENT_ID_T
 import static datadog.trace.core.propagation.ptags.PTagsCodec.LLMOBS_SAMPLE_RATE_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.LLMOBS_SAMPLING_DECISION_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.LLMOBS_SESSION_ID_TAG;
+import static datadog.trace.core.propagation.ptags.PTagsCodec.LLMOBS_TRACE_ID_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.ORG_PROPAGATION_MARKER_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_ID_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_SOURCE_TAG;
@@ -414,6 +415,7 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     @Override
     public void updateLLMObsContext(
+        CharSequence traceId,
         CharSequence mlApp,
         CharSequence sessionId,
         CharSequence parentAgentSpanId,
@@ -423,6 +425,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         CharSequence samplingDecision) {
       LLMObsTagValues updated =
           LLMObsTagValues.of(
+              toTagValue(traceId),
               toTagValue(mlApp),
               toTagValue(sessionId),
               toTagValue(parentAgentSpanId),
@@ -509,6 +512,11 @@ public class PTagsFactory implements PropagationTags.Factory {
         clearCachedHeaders();
         llmObsTags = extractedLLMObsTags;
       }
+    }
+
+    @Override
+    public CharSequence getLLMObsTraceId() {
+      return decoded(extractedLLMObsTags.traceId);
     }
 
     @Override
@@ -744,6 +752,8 @@ public class PTagsFactory implements PropagationTags.Factory {
             PTagsCodec.calcXDatadogTagsSize(
                 size, ORG_PROPAGATION_MARKER_TAG, getOrgPropagationMarkerTagValue());
         LLMObsTagValues currentLLMObsTags = llmObsTags;
+        size =
+            PTagsCodec.calcXDatadogTagsSize(size, LLMOBS_TRACE_ID_TAG, currentLLMObsTags.traceId);
         size = PTagsCodec.calcXDatadogTagsSize(size, LLMOBS_ML_APP_TAG, currentLLMObsTags.mlApp);
         size =
             PTagsCodec.calcXDatadogTagsSize(

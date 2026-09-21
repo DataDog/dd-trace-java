@@ -171,7 +171,7 @@ public class LLMObsSystem {
       if (mlApp == null || mlApp.isEmpty()) {
         mlApp = defaultMLApp;
       }
-      String traceID = llmObsSpan.getTraceId().toHexString();
+      String traceID = llmObsTraceId(llmObsSpan);
       long spanID = llmObsSpan.getSpanId();
       LLMObsEval.Score score =
           new LLMObsEval.Score(
@@ -207,7 +207,7 @@ public class LLMObsSystem {
       if (mlApp == null || mlApp.isEmpty()) {
         mlApp = defaultMLApp;
       }
-      String traceID = llmObsSpan.getTraceId().toHexString();
+      String traceID = llmObsTraceId(llmObsSpan);
       long spanID = llmObsSpan.getSpanId();
       LLMObsEval.Categorical category =
           new LLMObsEval.Categorical(
@@ -220,6 +220,18 @@ public class LLMObsSystem {
             spanID,
             label);
       }
+    }
+
+    /**
+     * The LLMObs trace id to join the evaluation on. This is not the APM trace id: once a trace
+     * crosses a process boundary the span adopts its caller's LLMObs trace id, and an evaluation
+     * carrying the APM one would not join to the span it scores. Only {@link DDLLMObsSpan} tracks
+     * it, so any other implementation falls back to the APM trace id, which is what it reports.
+     */
+    private static String llmObsTraceId(LLMObsSpan llmObsSpan) {
+      return llmObsSpan instanceof DDLLMObsSpan
+          ? ((DDLLMObsSpan) llmObsSpan).getLLMObsTraceId()
+          : llmObsSpan.getTraceId().toHexString();
     }
   }
 

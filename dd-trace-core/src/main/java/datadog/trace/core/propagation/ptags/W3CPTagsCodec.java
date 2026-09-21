@@ -123,6 +123,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     int maxUnknownSize = 0;
     CharSequence lastParentId = null;
     TagValue orgPropagationMarkerTagValue = null;
+    TagValue llmObsTraceIdTagValue = null;
     TagValue llmObsMlAppTagValue = null;
     TagValue llmObsSessionIdTagValue = null;
     TagValue llmObsParentAgentSpanIdTagValue = null;
@@ -205,6 +206,8 @@ public class W3CPTagsCodec extends PTagsCodec {
               traceSource = ProductTraceSource.parseBitfieldHex(tagValue.toString());
             } else if (tagKey.equals(ORG_PROPAGATION_MARKER_TAG)) {
               orgPropagationMarkerTagValue = tagValue;
+            } else if (tagKey.equals(LLMOBS_TRACE_ID_TAG)) {
+              llmObsTraceIdTagValue = tagValue;
             } else if (tagKey.equals(LLMOBS_ML_APP_TAG)) {
               llmObsMlAppTagValue = tagValue;
             } else if (tagKey.equals(LLMOBS_SESSION_ID_TAG)) {
@@ -254,6 +257,7 @@ public class W3CPTagsCodec extends PTagsCodec {
         lastParentId,
         orgPropagationMarkerTagValue,
         LLMObsTagValues.of(
+            llmObsTraceIdTagValue,
             llmObsMlAppTagValue,
             llmObsSessionIdTagValue,
             llmObsParentAgentSpanIdTagValue,

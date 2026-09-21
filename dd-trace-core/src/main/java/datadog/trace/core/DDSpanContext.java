@@ -1554,6 +1554,11 @@ public class DDSpanContext
   }
 
   @Override
+  public CharSequence getLLMObsTraceId() {
+    return getPropagationTags().getLLMObsTraceId();
+  }
+
+  @Override
   public CharSequence getLLMObsSessionId() {
     return getPropagationTags().getLLMObsSessionId();
   }
@@ -1585,6 +1590,7 @@ public class DDSpanContext
 
   @Override
   public void updateLLMObsContext(
+      CharSequence traceId,
       CharSequence mlApp,
       CharSequence sessionId,
       CharSequence parentAgentSpanId,
@@ -1594,6 +1600,7 @@ public class DDSpanContext
       CharSequence samplingDecision) {
     getPropagationTags()
         .updateLLMObsContext(
+            traceId,
             mlApp,
             sessionId,
             parentAgentSpanId,

@@ -19,6 +19,7 @@ public final class LLMObsContext {
   }
 
   private static final ContextKey<AgentSpanContext> CONTEXT_KEY = ContextKey.named("llmobs_span");
+  private static final ContextKey<String> TRACE_ID_KEY = ContextKey.named("llmobs_trace_id");
   private static final ContextKey<String> ML_APP_KEY = ContextKey.named("llmobs_ml_app");
   private static final ContextKey<String> SESSION_ID_KEY = ContextKey.named("llmobs_session_id");
   private static final ContextKey<String> AGENT_VERSION_KEY =
@@ -68,17 +69,24 @@ public final class LLMObsContext {
   }
 
   /**
-   * Attach an LLMObs span context, propagating an ml_app, a session_id, an agent_version, a
-   * sampling decision, and agent attribution to descendant LLMObs spans. See {@link
-   * #attach(AgentSpanContext, String, String)} — the same clears-if-null-or-empty semantics apply
-   * to every value, so callers are expected to pass already-resolved effective values.
+   * Attach an LLMObs span context, propagating an LLMObs trace id, an ml_app, a session_id, an
+   * agent_version, a sampling decision, and agent attribution to descendant LLMObs spans. See
+   * {@link #attach(AgentSpanContext, String, String)} — the same clears-if-null-or-empty semantics
+   * apply to every value, so callers are expected to pass already-resolved effective values.
    *
    * <p>This overload carries every propagated value at once because a span's scope is attached
-   * exactly once: four independent mechanisms (application, session, sampling, attribution) share
-   * one context, so they cannot be attached by separate calls without nesting redundant scopes.
+   * exactly once: five independent mechanisms (trace, application, session, sampling, attribution)
+   * share one context, so they cannot be attached by separate calls without nesting redundant
+   * scopes.
    *
    * <p>ml_app is stored here so that distributed propagation can read the innermost active LLMObs
    * span's ml_app when injecting, without needing a reference to the span itself.
+   *
+   * <p>traceId is the LLMObs trace id, as 32 lowercase hex characters. It is deliberately not the
+   * APM trace id: an LLMObs trace covers only the services that produce LLMObs spans, so it has to
+   * survive a hop that starts a fresh APM trace, and one APM trace may carry several LLMObs traces.
+   * The root of an LLMObs trace seeds it from its APM trace id, so a trace that never leaves this
+   * process reports exactly what it did before.
    *
    * <p>The sampling decision is computed once at the root of an LLMObs trace and inherited
    * unchanged by every descendant, so that a trace is retained or dropped as a whole. Both sampling
@@ -97,15 +105,14 @@ public final class LLMObsContext {
    *       children pick up a pagent ID that belongs to a different trace.
    * </ol>
    *
-   * <p><strong>In-process only.</strong> This context is not serialized into distributed trace
-   * headers, so each service in a distributed trace decides independently. Because the decision is
-   * a pure function of the APM trace ID and the configured rate, services configured at the same
-   * rate agree; services configured at different rates disagree and the trace is retained in part.
-   * A decision propagated by an upstream dd-trace-py or dd-trace-js service is likewise not read
-   * here. Closing that gap needs propagated trace tags mirroring the existing {@code _dd.p.ksr}.
+   * <p>This context is not itself a carrier — {@code LLMObsContextPropagator} reads it at injection
+   * time and stages the values onto the span context's propagation tags, which travel as {@code
+   * _dd.p.llmobs_*}. So a value set here reaches the next service, and a value that arrived from
+   * the previous one is resolved into it by {@code DDLLMObsSpan} before the scope is attached.
    */
   public static ContextScope attach(
       AgentSpanContext ctx,
+      String traceId,
       String mlApp,
       String sessionId,
       String agentVersion,
@@ -116,6 +123,7 @@ public final class LLMObsContext {
     String decision = emptyToNull(samplingDecision);
     return Context.current()
         .with(CONTEXT_KEY, ctx)
+        .with(TRACE_ID_KEY, emptyToNull(traceId))
         .with(ML_APP_KEY, emptyToNull(mlApp))
         .with(SESSION_ID_KEY, emptyToNull(sessionId))
         .with(AGENT_VERSION_KEY, emptyToNull(agentVersion))
@@ -128,6 +136,14 @@ public final class LLMObsContext {
 
   public static AgentSpanContext current() {
     return Context.current().get(CONTEXT_KEY);
+  }
+
+  /**
+   * Return the LLMObs trace id of the innermost active LLMObs span as 32 lowercase hex characters,
+   * or null if none is active.
+   */
+  public static String currentTraceId() {
+    return Context.current().get(TRACE_ID_KEY);
   }
 
   /** Return the ml_app of the innermost active LLMObs span, or null if none is active. */

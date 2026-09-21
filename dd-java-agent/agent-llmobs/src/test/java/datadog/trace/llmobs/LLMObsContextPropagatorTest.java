@@ -1,6 +1,7 @@
 package datadog.trace.llmobs;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -17,6 +18,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.llmobs.domain.DDLLMObsSpan;
+import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.AfterAll;
@@ -29,6 +31,7 @@ import org.junit.jupiter.api.Test;
  */
 class LLMObsContextPropagatorTest {
 
+  private static final String TRACE_ID_TAG = "_dd.p.llmobs_trace_id";
   private static final String ML_APP_TAG = "_dd.p.llmobs_ml_app";
   private static final String SESSION_ID_TAG = "_dd.p.llmobs_sid";
   private static final String PAGENT_SPAN_ID_TAG = "_dd.p.llmobs_pagent_span_id";
@@ -224,6 +227,79 @@ class LLMObsContextPropagatorTest {
   }
 
   /**
+   * An LLMObs trace is not the APM trace: it starts at the first LLMObs span and can outlive or
+   * skip whole APM traces, so it carries an id of its own. With no upstream id to adopt, this
+   * service is that start, and seeds the id from the APM trace it is already on — which is what
+   * keeps a Java-only trace reporting exactly the id it reported before this tag existed.
+   *
+   * <p>On the wire the id is the unsigned 128-bit decimal integer that dd-trace-py parses with
+   * {@code int()}, even though it is hex everywhere else.
+   */
+  @Test
+  void stagesTheLlmObsTraceIdAsTheDecimalTheWireCarries() {
+    Map<String, String> carrier;
+    String llmObsTraceId;
+    String apmTraceId;
+    try (AgentScope apmScope = startRootApmScope()) {
+      DDLLMObsSpan producer = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "dispatcher", "checkout", null);
+      llmObsTraceId = producer.getLLMObsTraceId();
+      apmTraceId = producer.getTraceId().toHexString();
+      try {
+        carrier = autoInject(AgentTracer.activeSpan());
+      } finally {
+        producer.finish();
+      }
+    }
+
+    assertEquals(apmTraceId, llmObsTraceId, "an LLMObs trace root should seed from its APM trace");
+    String wire = new BigInteger(llmObsTraceId, 16).toString();
+    assertTrue(
+        carrier.get("x-datadog-tags").contains(TRACE_ID_TAG + "=" + wire),
+        () -> "llmobs trace id missing from " + carrier.get("x-datadog-tags"));
+  }
+
+  /**
+   * The cross-language case this tag exists for. An upstream tracer runs an LLMObs trace whose id
+   * is unrelated to the APM trace id — it began at an LLMObs span several hops back. Reading the
+   * APM trace id instead, as this tracer used to, would report the hop as a separate LLMObs trace
+   * and split the distributed trace in the UI.
+   */
+  @Test
+  void workerAdoptsAnLlmObsTraceIdThatDiffersFromTheApmTrace() {
+    String upstreamTraceId = "6d0b1e9c00000000a1b2c3d4e5f60718";
+    Map<String, String> inbound = producerCarrier("checkout", null);
+    inbound.put(
+        "x-datadog-tags",
+        inbound
+            .get("x-datadog-tags")
+            .replaceAll(
+                "_dd\\.p\\.llmobs_trace_id=[0-9]+",
+                TRACE_ID_TAG + "=" + new BigInteger(upstreamTraceId, 16)));
+
+    try (AgentScope consumeScope = startLocalChildScope(extractSpan(inbound))) {
+      DDLLMObsSpan worker = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "handler", null, null);
+      try {
+        assertEquals(upstreamTraceId, worker.getLLMObsTraceId());
+        assertEquals(upstreamTraceId, LLMObsContext.currentTraceId());
+        assertNotEquals(
+            upstreamTraceId,
+            worker.getTraceId().toHexString(),
+            "precondition: the local APM trace id should differ from the adopted LLMObs one");
+
+        // Descendants keep the adopted id rather than falling back to the local APM trace.
+        DDLLMObsSpan child = newSpan(Tags.LLMOBS_LLM_SPAN_KIND, "generate", null, null);
+        try {
+          assertEquals(upstreamTraceId, child.getLLMObsTraceId());
+        } finally {
+          child.finish();
+        }
+      } finally {
+        worker.finish();
+      }
+    }
+  }
+
+  /**
    * A pass-through service — a proxy, a router, or any hop that opens no LLMObs span of its own —
    * must keep forwarding the context it received. The staged and the extracted tags share one
    * object, so resetting what this hop staged must restore what arrived rather than clear outright.
@@ -264,6 +340,7 @@ class LLMObsContextPropagatorTest {
         }) {
       assertTrue(tags.contains(tag), () -> tag + " dropped by the pass-through hop: " + tags);
     }
+    assertTrue(tags.contains(TRACE_ID_TAG + "="), () -> "llmobs trace id dropped: " + tags);
     assertTrue(tags.contains(PARENT_ID_TAG + "="), () -> "parent_id dropped: " + tags);
     assertTrue(tags.contains(PAGENT_SPAN_ID_TAG + "="), () -> "pagent_span_id dropped: " + tags);
   }

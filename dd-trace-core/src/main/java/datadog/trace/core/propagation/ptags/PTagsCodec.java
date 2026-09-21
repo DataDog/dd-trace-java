@@ -23,6 +23,7 @@ abstract class PTagsCodec {
   protected static final String PROPAGATION_ERROR_MALFORMED_TID = "malformed_tid ";
   protected static final String PROPAGATION_ERROR_INCONSISTENT_TID = "inconsistent_tid ";
   protected static final TagKey UPSTREAM_SERVICES_DEPRECATED_TAG = TagKey.from("upstream_services");
+  protected static final TagKey LLMOBS_TRACE_ID_TAG = TagKey.from("llmobs_trace_id");
   protected static final TagKey LLMOBS_ML_APP_TAG = TagKey.from("llmobs_ml_app");
   protected static final TagKey LLMOBS_SESSION_ID_TAG = TagKey.from("llmobs_sid");
   protected static final TagKey LLMOBS_PAGENT_SPAN_ID_TAG = TagKey.from("llmobs_pagent_span_id");
@@ -73,6 +74,9 @@ abstract class PTagsCodec {
                 sb, ORG_PROPAGATION_MARKER_TAG, ptags.getOrgPropagationMarkerTagValue(), size);
       }
       LLMObsTagValues llmObsTags = ptags.getLLMObsTagValues();
+      if (llmObsTags.traceId != null) {
+        size = codec.appendTag(sb, LLMOBS_TRACE_ID_TAG, llmObsTags.traceId, size);
+      }
       if (llmObsTags.mlApp != null) {
         size = codec.appendTag(sb, LLMOBS_ML_APP_TAG, llmObsTags.mlApp, size);
       }
@@ -167,6 +171,11 @@ abstract class PTagsCodec {
               .toString());
     }
     LLMObsTagValues llmObsTags = propagationTags.getLLMObsTagValues();
+    if (llmObsTags.traceId != null) {
+      tagMap.put(
+          LLMOBS_TRACE_ID_TAG.forType(Encoding.DATADOG).toString(),
+          llmObsTags.traceId.forType(Encoding.DATADOG).toString());
+    }
     if (llmObsTags.mlApp != null) {
       tagMap.put(
           LLMOBS_ML_APP_TAG.forType(Encoding.DATADOG).toString(),

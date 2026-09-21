@@ -178,6 +178,7 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
               null,
               null,
               null,
+              null,
               "0.25",
               LLMObsContext.SAMPLING_DECISION_DROPPED,
               null,
@@ -207,6 +208,7 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
       try (ContextScope ignored2 =
           LLMObsContext.attach(
               parentSpan.spanContext(),
+              null,
               null,
               null,
               null,
@@ -260,6 +262,7 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
     try (ContextScope ignored =
         LLMObsContext.attach(
             staleParent.spanContext(),
+            null,
             null,
             "stale-session",
             "stale-version",
