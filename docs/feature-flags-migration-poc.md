@@ -155,6 +155,13 @@ Published-artifact tests reject RC in the base, duplicate classes between JARs, 
 They also verify missing-add-on errors, an inactive add-on in direct mode, and no CDN fallback when RC is unavailable.
 Focused tests and the complete agent build pass. This is not a full CI or historical compatibility-matrix rerun.
 
+An additional browser check uses the dogfood dashboard's **Agent / Remote Config** mode with these artifacts.
+Standalone with the optional add-on and the agent-injected installation each pass **6/6 displayed Java flags** and report `READY`.
+The runtime owners are `STANDALONE` and `AGENT`, respectively. Neither application has an API key.
+All Java evaluation reasons are `STATIC` or `SPLIT`. Route counts confirm real RC polling, accepted evaluation events, and no CDN fallback.
+The local dashboard EVP counters are not staging-intake counters. Other language applications were not started.
+See the [dashboard validation record](https://github.com/ddoghq/ffe-dogfooding/blob/poc/java-feature-flags-migration/local/java-validation/README.md#agent-mode-dashboard-validation-2026-09-21).
+
 | Artifact | Size | SHA-256 |
 | --- | --- | --- |
 | `dd-openfeature.jar` | 1,840,638 bytes | `99bf11355e5e6725bc73717ea755d585adda305ce352e133f7799570e1c60f0f` |

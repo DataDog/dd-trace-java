@@ -125,6 +125,8 @@ The integrated branch fixes source-default activation, global disable, shared-co
 
 The September 21 optional-RC build passes **5/5 staging scenarios and 76/76 assertions**: no Java agent, OTel-only, injected provider, and manual stable/legacy agent registration.
 All receive real RC configuration and send both EVP streams through the Datadog Agent, without application API keys. Cached evaluation and polling recovery pass without CDN fallback.
+An additional dashboard check uses **Agent / Remote Config** mode with real staging flags.
+Standalone with the add-on and agent-injected installations each pass **6/6 flags** and report `READY`.
 The base JAR remains **1.84 MB**; the optional RC JAR is **4.17 MB**. External consumers verify both published dependency graphs.
 Four direct-delivery controls pass without the add-on. Artifact tests cover missing-add-on errors, inactive add-on behavior, and the SDK version advertised to RC.
 
