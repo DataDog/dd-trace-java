@@ -4,8 +4,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import org.junit.jupiter.api.Test;
@@ -365,5 +371,58 @@ class ConcurrentHashtableReservationTest {
     }
     assertNull(result);
     assertEquals(3, ConcurrentHashtable.estimateSize(state));
+  }
+
+  @Test
+  void tryReserveWaitsForAnInFlightReservationOnTheSameKeyBeforeRejecting() throws Exception {
+    // Capacity 1: the first reservation claims the table's only slot (so isFull() flips true)
+    // without yet linking its entry into the bucket -- exactly the window a lock-free "full +
+    // empty bucket" peek must not trust, since a concurrent duplicate could land there.
+    ConcurrentHashtable.State<TestEntry> state =
+        ConcurrentHashtable.createBounded(TestEntry.class, 1);
+
+    ConcurrentHashtable.Reservation<TestEntry> first = ConcurrentHashtable.tryReserve(state, 1);
+    assertTrue(first.isReserved());
+    assertTrue(ConcurrentHashtable.isFull(state));
+
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    try {
+      Future<TestEntry> secondFuture =
+          executor.submit(
+              () -> {
+                try (ConcurrentHashtable.Reservation<TestEntry> second =
+                    ConcurrentHashtable.tryReserve(state, 1)) {
+                  return second.tryGetOrInsertOrNull(new TestEntry(1));
+                }
+              });
+
+      // A buggy fast-reject would complete this immediately (with a null result) instead of
+      // blocking on the still-held write lock.
+      assertThrows(TimeoutException.class, () -> secondFuture.get(200, TimeUnit.MILLISECONDS));
+
+      TestEntry inserted;
+      try {
+        inserted = first.tryGetOrInsertOrNull(new TestEntry(1));
+      } finally {
+        first.close();
+      }
+
+      TestEntry secondResult = secondFuture.get(5, TimeUnit.SECONDS);
+      assertSame(inserted, secondResult);
+      assertEquals(1, ConcurrentHashtable.estimateSize(state));
+    } finally {
+      executor.shutdown();
+    }
+  }
+
+  @Test
+  void reusingAReservationForASecondCompletionThrows() {
+    ConcurrentHashtable.State<TestEntry> state =
+        ConcurrentHashtable.createBounded(TestEntry.class, 2);
+    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state, 1)) {
+      r.tryGetOrInsertOrNull(1, TestEntry::new);
+      assertThrows(IllegalStateException.class, () -> r.tryGetOrInsertOrNull(2, TestEntry::new));
+    }
+    assertEquals(1, ConcurrentHashtable.estimateSize(state));
   }
 }

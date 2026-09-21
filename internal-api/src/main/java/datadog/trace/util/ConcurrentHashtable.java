@@ -2,6 +2,7 @@ package datadog.trace.util;
 
 import datadog.trace.api.function.Strategy;
 import datadog.trace.api.function.StrategyConsumer;
+import datadog.trace.api.function.TriFunction;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -181,9 +182,8 @@ public final class ConcurrentHashtable {
 
     /**
      * Creates a fixed-size table holding at most {@code maxCapacity} entries. {@code entryClass} is
-     * used only to allocate the backing array with the right component type; entries themselves are
-     * created by the {@code creator}/{@code evictable} functions passed to the insertion methods.
-     * The table does not resize.
+     * used only to infer {@code TEntry}; entries are created by the {@code creator} functions
+     * passed to the insertion methods. The table does not resize.
      */
     @Nonnull
     @SuppressWarnings("unchecked")
@@ -402,8 +402,9 @@ public final class ConcurrentHashtable {
      * snapshot: an entry inserted into a not-yet-visited bucket while the drain is in progress is
      * swept up too, and each bucket's capacity slot is released immediately before its consumer
      * invocation runs, rather than once for the whole sweep at the end. The consumer should be
-     * quick and must not throw; entries not yet reached are left in the table with their capacity
-     * still counted, but entries already detached keep their capacity released regardless.
+     * quick and must not throw. If it does, later entries in the detached bucket remain counted but
+     * are no longer reachable from the table. Buckets not yet visited remain intact, and capacity
+     * already released is not restored.
      *
      * <p>Use {@link #drain(Object, BiConsumer)} to avoid a capturing lambda.
      *
@@ -524,9 +525,8 @@ public final class ConcurrentHashtable {
 
     /**
      * Creates a fixed-size table holding at most {@code maxCapacity} entries. {@code entryClass} is
-     * used only to allocate the backing array with the right component type; entries themselves are
-     * created by the {@code creator}/{@code evictable} functions passed to the insertion methods.
-     * The table does not resize.
+     * used only to infer {@code TEntry}; entries are created by the {@code creator} functions
+     * passed to the insertion methods. The table does not resize.
      */
     @Nonnull
     @SuppressWarnings("unchecked")
@@ -751,8 +751,9 @@ public final class ConcurrentHashtable {
      * snapshot: an entry inserted into a not-yet-visited bucket while the drain is in progress is
      * swept up too, and each bucket's capacity slot is released immediately before its consumer
      * invocation runs, rather than once for the whole sweep at the end. The consumer should be
-     * quick and must not throw; entries not yet reached are left in the table with their capacity
-     * still counted, but entries already detached keep their capacity released regardless.
+     * quick and must not throw. If it does, later entries in the detached bucket remain counted but
+     * are no longer reachable from the table. Buckets not yet visited remain intact, and capacity
+     * already released is not restored.
      *
      * <p>Use {@link #drain(Object, BiConsumer)} to avoid a capturing lambda.
      *
@@ -847,9 +848,9 @@ public final class ConcurrentHashtable {
      * cannot both acquire the last slot. Returns {@code false} with the count unchanged when the
      * table is full.
      *
-     * <p>Prefer {@link #cancelReservation()} plus deferred entry construction (see {@link
-     * ConcurrentHashtable#reserve}) over abandoning a reservation outright: this method by itself
-     * still has no way to give back a slot once claimed.
+     * <p>Every successful claim must be filled or released with {@link #decrement()}. Prefer {@link
+     * ConcurrentHashtable#tryReserve(State, long)}, whose {@link Reservation#close()} gives back an
+     * unused claim automatically.
      */
     public boolean tryReserve() {
       if (size.incrementAndGet() > capacity) {
@@ -857,27 +858,6 @@ public final class ConcurrentHashtable {
         return false;
       }
       return true;
-    }
-
-    /**
-     * Gives back a slot claimed by {@link #tryReserve()} that was never filled — e.g. a concurrent
-     * match was found under the write lock instead of inserting. Lock-free, symmetric with {@link
-     * #decrement()}.
-     *
-     * <p>Caller must call this at most once per successful {@link #tryReserve()}; double-cancelling
-     * corrupts the count the same way double-incrementing would. {@link Reservation#close()}
-     * handles this bookkeeping automatically and should be preferred over calling this directly.
-     *
-     * <p>Under heavy contention on the same logical duplicate, multiple threads can each reserve a
-     * slot for what turns out to be the same entry before any of them cancels, transiently
-     * inflating {@code size} above the table's true occupancy. This can cause an unrelated,
-     * genuinely distinct concurrent insert to see the table as full when it isn't, until the losing
-     * reservations cancel. The effect is self-correcting (bounded by in-flight reservations, not
-     * sustained) and considered an acceptable tradeoff for tables expecting bursts of identical
-     * inserts (e.g. deduplication).
-     */
-    public void cancelReservation() {
-      size.decrementAndGet();
     }
 
     /**
@@ -1032,9 +1012,9 @@ public final class ConcurrentHashtable {
 
     /**
      * The table's write lock. Unlike the bare-array helpers' opaque {@code synchronized} monitor,
-     * this is a real {@link ReentrantLock} so a {@link Reservation} can acquire it in {@link
-     * #tryReserve} and release it later in {@link Reservation#finish}/{@link Reservation#close},
-     * across separate calls -- something a lexically-scoped {@code synchronized} block cannot do.
+     * this is a real {@link ReentrantLock}. A {@link Reservation} can acquire it in {@link
+     * ConcurrentHashtable#tryReserve(State, long)} and release it later in {@link
+     * Reservation#close()}, unlike a lexically scoped {@code synchronized} block.
      */
     final ReentrantLock writeLock = new ReentrantLock();
 
@@ -1084,21 +1064,25 @@ public final class ConcurrentHashtable {
    * already visible lock-free.
    *
    * <p>Checks {@link SizeManager#isFull()} lock-free first. If the table looks full, {@code
-   * keyHash}'s bucket is checked too: if it's empty, nothing could possibly match this key, so this
-   * returns a definitively empty reservation without ever taking the write lock. Otherwise it
-   * acquires the write lock, re-checks (the lock-free peek may be stale), and either reserves the
-   * slot -- returning a real reservation that <em>holds the lock open</em> across this call, to be
-   * released later by {@link Reservation#finish}/{@link Reservation#close} -- or, if the table is
-   * genuinely still full, keeps the lock open anyway (rather than releasing it immediately) so
-   * {@link Reservation#finish} can still scan {@code keyHash}'s bucket the next time the caller
-   * supplies a candidate entry. That's what closes the race where a concurrent insert for the same
-   * logical duplicate lands in the exact window between this caller's own lock-free scan and its
-   * reservation attempt: without the lock held open here, that concurrent duplicate would go
-   * uncounted. Holding the lock for the reservation's whole lifetime (rather than just across this
-   * call, the way {@link SizeManager#tryReserve()} does) is also what lets {@link
-   * Reservation#tryGetOrInsertOrNull} skip a second, separately-locked comparison pass: the
-   * reserve-then-insert-or-discard sequence is one uninterrupted critical section, so no concurrent
-   * reservation for the same logical duplicate can slip in between.
+   * keyHash}'s bucket is checked too: if it's empty, nothing could possibly match this key --
+   * <em>unless</em> a concurrent reservation for this exact key is in flight, having already
+   * claimed the table's last slot (so {@code isFull()} is genuinely {@code true}) without yet
+   * linking its entry (so the bucket still looks empty). That window is confirmed away under the
+   * write lock before this returns a definitively empty reservation without ever taking it --
+   * otherwise the concurrent duplicate landing in that exact window would be dropped instead of
+   * counted. Once the lock is held (either because the fast peek above couldn't rule out a match,
+   * or because the locked recheck couldn't either), this reserves the slot -- returning a real
+   * reservation that <em>holds the lock open</em> across this call, to be released later by {@link
+   * Reservation#close()} -- or, if the table is genuinely still full, keeps the lock open anyway
+   * (rather than releasing it immediately) so {@link Reservation#finish} can still scan {@code
+   * keyHash}'s bucket the next time the caller supplies a candidate entry. That's what closes the
+   * race where a concurrent insert for the same logical duplicate lands in the exact window between
+   * this caller's own lock-free scan and its reservation attempt: without the lock held open here,
+   * that concurrent duplicate would go uncounted. Holding the lock for the reservation's whole
+   * lifetime (rather than just across this call, the way {@link SizeManager#tryReserve()} does) is
+   * also what lets {@link Reservation#tryGetOrInsertOrNull} skip a second, separately-locked
+   * comparison pass: the reserve-then-insert-or-discard sequence is one uninterrupted critical
+   * section, so no concurrent reservation for the same logical duplicate can slip in between.
    *
    * <p>Always returns a non-null handle — even when the table is full — so the caller must check
    * {@link Reservation#isReserved()} (or simply call {@link Reservation#tryGetOrInsertOrNull},
@@ -1111,13 +1095,31 @@ public final class ConcurrentHashtable {
    * @param keyHash hash of the key the caller is about to look up or insert
    */
   @Nonnull
+  @SuppressFBWarnings(
+      value = "UL_UNRELEASED_LOCK",
+      justification =
+          "Every path either unlocks before returning (the confirmed-empty case) or hands the"
+              + " held lock off to the returned Reservation, released later by Reservation#close;"
+              + " SpotBugs can't correlate that transfer across the two lock() call sites here.")
   public static <TEntry extends Entry<TEntry>> Reservation<TEntry> tryReserve(
       @Nonnull State<TEntry> state, long keyHash) {
-    if (state.sizeManager.isFull()
-        && bucketAt(state, bucketIndex(state.buckets, keyHash)) == null) {
-      return new Reservation<>(null, false);
-    }
+    int index = bucketIndex(state.buckets, keyHash);
     ReentrantLock lock = state.writeLock;
+    if (state.sizeManager.isFull() && bucketAt(state, index) == null) {
+      lock.lock();
+      // The lock-free peek above can be stale: a concurrent reservation for this exact key may
+      // have already claimed the table's last slot (isFull() true) without yet linking its entry
+      // (bucket still looks empty). Recheck under the lock before trusting it, or that concurrent
+      // duplicate would be dropped instead of counted.
+      if (state.sizeManager.isFull() && bucketAt(state, index) == null) {
+        lock.unlock();
+        return new Reservation<>(null, false);
+      }
+      if (state.sizeManager.tryReserve()) {
+        return new Reservation<>(state, true);
+      }
+      return new Reservation<>(state, false);
+    }
     lock.lock();
     if (state.sizeManager.tryReserve()) {
       return new Reservation<>(state, true);
@@ -1128,22 +1130,21 @@ public final class ConcurrentHashtable {
   /**
    * Handle returned by {@link #tryReserve}, gating {@link #tryGetOrInsertOrNull} behind a claimed
    * slot and auto-cancelling it on {@link #close} if it's never consumed. A single {@code
-   * Reservation} must be used for at most one {@code tryGetOrInsertOrNull} call.
+   * Reservation} must be used for at most one {@code tryGetOrInsertOrNull}/{@code tryGetOrInsert}
+   * call -- a second call throws {@link IllegalStateException} rather than silently linking a
+   * second entry while the size counter only reflects the first.
    *
    * <p>Overloaded up to 4 key components ({@link #tryGetOrInsertOrNull(Object, Function)} through
    * {@link #tryGetOrInsertOrNull(Object, Object, Object, Object, Function4)}) so a non-capturing
    * method reference can build the entry directly from its natural constructor arguments, without
    * an intermediate holder object or a capturing lambda.
    *
-   * <p>A real (non-empty) reservation holds the table's write lock from the moment {@link
-   * #tryReserve} returns until {@link #finish} or {@link #close} releases it -- unlike a
-   * lexically-scoped {@code synchronized} block, whose acquisition and release can't span two
-   * separate calls. Keep a reservation's lifetime short: nothing else can write to the table while
-   * one is open, and (having deliberately dropped the CAS-based fast path that would let two
-   * threads race for the same slot) nothing else can even reserve.
+   * <p>A non-empty reservation holds the table's write lock until {@link #close()}, even after
+   * insertion or a matching entry is returned. Keep its lifetime short: other writers using this
+   * lock must wait until the reservation is closed.
    *
-   * <p>Confined to the thread that opened it, like any other short-lived {@code AutoCloseable}
-   * resource -- create it, use it, close it, all without letting it escape to another thread.
+   * <p>Create, use, and close the reservation on the same thread: its {@link ReentrantLock} must be
+   * released by the thread that acquired it.
    *
    * @param <TEntry> the table's entry type, itself self-bound (see {@link
    *     ConcurrentHashtable.Entry})
@@ -1152,6 +1153,7 @@ public final class ConcurrentHashtable {
   public static final class Reservation<TEntry extends Entry<TEntry>> implements AutoCloseable {
     @Nullable private final State<TEntry> state;
     private final boolean slotClaimed;
+    private boolean completed;
     private boolean consumed;
 
     private Reservation(@Nullable State<TEntry> state, boolean slotClaimed) {
@@ -1213,10 +1215,8 @@ public final class ConcurrentHashtable {
      * full even under the lock and no concurrent match was found either; otherwise always returns a
      * real entry (the newly built one, or the concurrent match).
      *
-     * <p>Building the entry here, after the reservation already succeeded, keeps the write lock's
-     * critical section limited to the comparison/link/discard decision rather than whatever
-     * construction cost {@code factory} pays. See {@link ConcurrentHashtable.Entry#matches} — the
-     * under-lock comparison is entry-to-entry, so it needs {@code newEntry} already built.
+     * <p>The factory runs while the reservation holds the write lock. Its result is required for
+     * the entry-to-entry comparison, including when the table is full and no slot was claimed.
      */
     @StrategyConsumer
     @Nullable
@@ -1235,7 +1235,7 @@ public final class ConcurrentHashtable {
         A a,
         B b,
         C c,
-        @Strategy @Nonnull Function3<? super A, ? super B, ? super C, ? extends TEntry> factory) {
+        @Strategy @Nonnull TriFunction<? super A, ? super B, ? super C, ? extends TEntry> factory) {
       return state == null ? null : finish(factory.apply(a, b, c));
     }
 
@@ -1283,7 +1283,7 @@ public final class ConcurrentHashtable {
         A a,
         B b,
         C c,
-        @Strategy @Nonnull Function3<? super A, ? super B, ? super C, ? extends TEntry> factory) {
+        @Strategy @Nonnull TriFunction<? super A, ? super B, ? super C, ? extends TEntry> factory) {
       return Maybe.of(tryGetOrInsertOrNull(a, b, c, factory));
     }
 
@@ -1308,9 +1308,18 @@ public final class ConcurrentHashtable {
      * #tryReserve} reservation with no slot still holds the lock specifically so this scan can run.
      * Only links {@code newEntry} when a slot was claimed; otherwise a miss here means there really
      * is nothing to return, so this returns {@code null}.
+     *
+     * @throws IllegalStateException if this reservation was already used for a prior {@code
+     *     tryGetOrInsertOrNull}/{@code tryGetOrInsert} call -- reusing one could link a second,
+     *     distinct entry into the table while the size counter only reflects the first.
      */
     @Nullable
     private TEntry finish(@Nonnull TEntry newEntry) {
+      if (completed) {
+        throw new IllegalStateException(
+            "Reservation already used for tryGetOrInsertOrNull/tryGetOrInsert");
+      }
+      completed = true;
       int index = bucketIndex(state.buckets, newEntry.keyHash);
       for (TEntry curEntry = bucketAt(state, index); curEntry != null; curEntry = curEntry.next()) {
         if (curEntry.keyHash == newEntry.keyHash && curEntry.matches(newEntry)) {
@@ -1343,13 +1352,6 @@ public final class ConcurrentHashtable {
         state.writeLock.unlock();
       }
     }
-  }
-
-  /** Three-argument analogue of {@link java.util.function.BiFunction}. */
-  @Strategy
-  @FunctionalInterface
-  public interface Function3<A, B, C, R> {
-    R apply(A a, B b, C c);
   }
 
   /** Four-argument analogue of {@link java.util.function.BiFunction}. */
@@ -1901,9 +1903,9 @@ public final class ConcurrentHashtable {
    * and each bucket's capacity slot is released immediately before its consumer invocation runs,
    * rather than once for the whole sweep at the end. Outstanding reservations remain counted.
    *
-   * <p>The consumer should be quick and must not throw; if it throws, entries not yet reached are
-   * left in the table with their capacity still counted, but entries already detached keep their
-   * capacity released regardless.
+   * <p>The consumer should be quick and must not throw. If it does, later entries in the detached
+   * bucket remain counted but are no longer reachable from the table. Buckets not yet visited
+   * remain intact, and capacity already released is not restored.
    *
    * @param <TEntry> entry type
    * @param state table state to drain
@@ -1949,9 +1951,9 @@ public final class ConcurrentHashtable {
    * and each bucket's capacity slot is released immediately before its consumer invocation runs,
    * rather than once for the whole sweep at the end. Outstanding reservations remain counted.
    *
-   * <p>The consumer should be quick and must not throw; if it throws, entries not yet reached are
-   * left in the table with their capacity still counted, but entries already detached keep their
-   * capacity released regardless.
+   * <p>The consumer should be quick and must not throw. If it does, later entries in the detached
+   * bucket remain counted but are no longer reachable from the table. Buckets not yet visited
+   * remain intact, and capacity already released is not restored.
    *
    * @param <C> context type
    * @param <TEntry> entry type
