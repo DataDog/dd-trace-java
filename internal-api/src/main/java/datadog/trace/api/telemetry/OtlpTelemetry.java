@@ -31,6 +31,8 @@ public class OtlpTelemetry implements MetricCollector<OtlpTelemetry.OtlpMetric> 
   // JFR→OTLP conversion timings, reported as avg/max gauges per flush window
   private final LongAdder profilesConversionNanosTotal = new LongAdder();
   private final LongAdder profilesConversionCount = new LongAdder();
+  // guards the (nanosTotal, count) pair so window snapshots are consistent
+  private final Object conversionMetricsLock = new Object();
   private final LongAccumulator profilesConversionNanosMax = new LongAccumulator(Long::max, 0);
 
   private final ExportCounters tracesExport = new ExportCounters("traces");
@@ -67,8 +69,12 @@ public class OtlpTelemetry implements MetricCollector<OtlpTelemetry.OtlpMetric> 
 
   /** Records the duration of a single JFR→OTLP profile conversion. */
   public void onProfilesConversion(long nanos) {
-    profilesConversionNanosTotal.add(nanos);
-    profilesConversionCount.increment();
+    // (total, count) must stay a consistent pair for the per-window average; the conversion
+    // metrics lock also guards the pair reset in prepareMetrics()
+    synchronized (conversionMetricsLock) {
+      profilesConversionNanosTotal.add(nanos);
+      profilesConversionCount.increment();
+    }
     profilesConversionNanosMax.accumulate(nanos);
   }
 
@@ -89,9 +95,15 @@ public class OtlpTelemetry implements MetricCollector<OtlpTelemetry.OtlpMetric> 
     tracesExport.stageInto(telemetryQueue, tracesTags);
     metricsExport.stageInto(telemetryQueue, metricsTags);
     profilesExport.stageInto(telemetryQueue, profilesTags);
-    long conversionCount = profilesConversionCount.sumThenReset();
+    long conversionCount;
+    long conversionNanosTotal;
+    synchronized (conversionMetricsLock) {
+      // snapshot (count, total) atomically so the window average is computed from a consistent pair
+      conversionCount = profilesConversionCount.sumThenReset();
+      conversionNanosTotal = profilesConversionNanosTotal.sumThenReset();
+    }
     if (conversionCount > 0) {
-      double avgNanos = profilesConversionNanosTotal.sumThenReset() / (double) conversionCount;
+      double avgNanos = conversionNanosTotal / (double) conversionCount;
       long maxNanos = profilesConversionNanosMax.getThenReset();
       telemetryQueue.offer(
           new OtlpMetric(

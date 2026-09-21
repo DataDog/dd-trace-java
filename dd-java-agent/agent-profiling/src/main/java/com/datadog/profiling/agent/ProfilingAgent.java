@@ -59,7 +59,6 @@ public class ProfilingAgent {
   private static volatile ProfilingSystem profiler;
   private static volatile ProfileUploader uploader;
   private static volatile OtlpProfileUploader otlpUploader;
-  private static volatile DataDumper dumper;
 
   private static class DataDumper implements RecordingDataListener {
     private final Path path;
@@ -149,7 +148,9 @@ public class ProfilingAgent {
         final Controller controller = CompositeController.build(configProvider, context);
 
         String dumpPath = configProvider.getString(ProfilingConfig.PROFILING_DEBUG_DUMP_PATH);
-        dumper = dumpPath != null ? new DataDumper(Paths.get(dumpPath)) : null;
+        // local: only the listener chain below consumes the dumper; unlike otlpUploader there is
+        // no shutdown-time use, so it does not need to be a field
+        DataDumper dumper = dumpPath != null ? new DataDumper(Paths.get(dumpPath)) : null;
 
         uploader = new ProfileUploader(config, configProvider);
 
@@ -183,14 +184,22 @@ public class ProfilingAgent {
           RecordingDataListener downstream = listener;
           listener =
               (type, data, sync) -> {
-                data.retain(); // OTLP uploader gets an extra reference
+                // downstream owns the base reference and must always run, otherwise the
+                // underlying recording file/handle leaks; the extra OTLP reference is only
+                // retained when retain() itself succeeds
+                boolean retained = false;
                 try {
+                  data.retain(); // OTLP uploader gets an extra reference
+                  retained = true;
                   otlp.upload(type, data, sync, null);
                 } catch (Exception e) {
                   log.warn(SEND_TELEMETRY, "OTLP upload failed, JFR upload will continue", e);
-                  data.release(); // undo retain; downstream releases the base reference
+                  if (retained) {
+                    data.release(); // undo retain; downstream releases the base reference
+                  }
+                } finally {
+                  downstream.onNewData(type, data, sync);
                 }
-                downstream.onNewData(type, data, sync);
               };
         }
 
