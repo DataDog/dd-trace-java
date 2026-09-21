@@ -66,7 +66,9 @@ public final class BaseHash {
   private static long calcIdentity(CharSequence serviceName, CharSequence env, String primaryTag) {
     long hash = FNV64Hash.generateHash(serviceName.toString(), FNV64Hash.Version.v1);
     hash = FNV64Hash.continueHash(hash, env.toString(), FNV64Hash.Version.v1);
-    if (primaryTag != null) hash = FNV64Hash.continueHash(hash, primaryTag, FNV64Hash.Version.v1);
+    if (primaryTag != null) {
+      hash = FNV64Hash.continueHash(hash, primaryTag, FNV64Hash.Version.v1);
+    }
     return hash;
   }
 
