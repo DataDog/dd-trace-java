@@ -10,12 +10,13 @@ import java.util.List;
  */
 public final class LinkTable {
 
-  /** Open-addressing map keyed on two longs (traceIdLow, spanId). */
+  /** Open-addressing map keyed on three longs (traceIdHigh, traceIdLow, spanId). */
   private static final class LongLongToIntMap {
-    private static final long EMPTY = Long.MIN_VALUE;
     private long[] keys1;
     private long[] keys2;
+    private long[] keys3;
     private int[] values;
+    private byte[] used;
     private int mask;
     private int size;
 
@@ -23,56 +24,60 @@ public final class LinkTable {
       int cap = Integer.highestOneBit(Math.max(initialCapacity * 2, 16) - 1) << 1;
       keys1 = new long[cap];
       keys2 = new long[cap];
+      keys3 = new long[cap];
       values = new int[cap];
-      Arrays.fill(keys1, EMPTY);
+      used = new byte[cap];
       mask = cap - 1;
     }
 
-    int get(long k1, long k2) {
-      if (k1 == EMPTY) k1 = EMPTY + 1; // perturb to avoid sentinel collision
-      int slot = (int) (mix(k1 ^ k2) & mask);
-      while (keys1[slot] != EMPTY) {
-        if (keys1[slot] == k1 && keys2[slot] == k2) return values[slot];
+    int get(long k1, long k2, long k3) {
+      int slot = (int) (mix(mix(k1) ^ k2) ^ mix(k3)) & mask;
+      while (used[slot] != 0) {
+        if (keys1[slot] == k1 && keys2[slot] == k2 && keys3[slot] == k3) return values[slot];
         slot = (slot + 1) & mask;
       }
       return -1;
     }
 
-    void put(long k1, long k2, int value) {
-      if (k1 == EMPTY) k1 = EMPTY + 1; // perturb to avoid sentinel collision
+    void put(long k1, long k2, long k3, int value) {
       if (size * 2 >= mask) resize();
-      int slot = (int) (mix(k1 ^ k2) & mask);
-      while (keys1[slot] != EMPTY) {
-        if (keys1[slot] == k1 && keys2[slot] == k2) {
+      int slot = (int) (mix(mix(k1) ^ k2) ^ mix(k3)) & mask;
+      while (used[slot] != 0) {
+        if (keys1[slot] == k1 && keys2[slot] == k2 && keys3[slot] == k3) {
           values[slot] = value;
           return;
         }
         slot = (slot + 1) & mask;
       }
+      used[slot] = 1;
       keys1[slot] = k1;
       keys2[slot] = k2;
+      keys3[slot] = k3;
       values[slot] = value;
       size++;
     }
 
     void clear() {
-      Arrays.fill(keys1, EMPTY);
+      Arrays.fill(used, (byte) 0);
       size = 0;
     }
 
     private void resize() {
       long[] oldKeys1 = keys1;
       long[] oldKeys2 = keys2;
+      long[] oldKeys3 = keys3;
       int[] oldValues = values;
+      byte[] oldUsed = used;
       int newCap = (mask + 1) * 2;
       keys1 = new long[newCap];
       keys2 = new long[newCap];
+      keys3 = new long[newCap];
       values = new int[newCap];
-      Arrays.fill(keys1, EMPTY);
+      used = new byte[newCap];
       mask = newCap - 1;
       size = 0;
       for (int i = 0; i < oldKeys1.length; i++) {
-        if (oldKeys1[i] != EMPTY) put(oldKeys1[i], oldKeys2[i], oldValues[i]);
+        if (oldUsed[i] != 0) put(oldKeys1[i], oldKeys2[i], oldKeys3[i], oldValues[i]);
       }
     }
 
@@ -112,21 +117,23 @@ public final class LinkTable {
     if (traceId == null || spanId == null) {
       return 0;
     }
-    // Extract key longs from byte arrays (traceId lower 64 bits = bytes 8-15)
+    // Key on the full 128-bit trace id plus the span id so distinct trace ids sharing the
+    // low 64 bits never alias to the same link
+    long traceIdHigh = bytesToLong(traceId, 0);
     long traceIdLow = bytesToLong(traceId, 8);
     long spanIdLong = bytesToLong(spanId, 0);
-    if (traceIdLow == 0 && spanIdLong == 0) {
+    if (traceIdHigh == 0 && traceIdLow == 0 && spanIdLong == 0) {
       return 0;
     }
 
-    int cached = linkToIndex.get(traceIdLow, spanIdLong);
+    int cached = linkToIndex.get(traceIdHigh, traceIdLow, spanIdLong);
     if (cached != -1) return cached;
 
     int index = links.size();
     byte[] traceIdCopy = Arrays.copyOf(traceId, traceId.length);
     byte[] spanIdCopy = Arrays.copyOf(spanId, spanId.length);
     links.add(new LinkEntry(traceIdCopy, spanIdCopy));
-    linkToIndex.put(traceIdLow, spanIdLong, index);
+    linkToIndex.put(traceIdHigh, traceIdLow, spanIdLong, index);
     return index;
   }
 
@@ -135,7 +142,8 @@ public final class LinkTable {
       return 0;
     }
 
-    int cached = linkToIndex.get(traceIdLow, spanId);
+    // the long overload only carries the low 64 bits of the trace id; the high bits key as 0
+    int cached = linkToIndex.get(0, traceIdLow, spanId);
     if (cached != -1) return cached;
 
     // Cache miss — allocate byte arrays only once per unique link
@@ -155,7 +163,7 @@ public final class LinkTable {
 
     int index = links.size();
     links.add(new LinkEntry(traceIdBytes, spanIdBytes));
-    linkToIndex.put(traceIdLow, spanId, index);
+    linkToIndex.put(0, traceIdLow, spanId, index);
     return index;
   }
 

@@ -33,7 +33,7 @@ import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -48,26 +48,28 @@ public final class JfrToOtlpConverter {
     JSON_PRETTY
   }
 
-  // open-addressing long→int map; avoids boxing in the stack-trace and frame caches
+  // open-addressing long→int map; avoids boxing in the stack-trace and frame caches.
+  // Occupancy is tracked in a separate flag array so any long value is a legal key
+  // (an in-band sentinel cannot represent Long.MIN_VALUE and Long.MIN_VALUE + 1
+  // distinctly).
   private static final class LongIntMap {
-    private static final long EMPTY = Long.MIN_VALUE;
     private static final int INITIAL_CAPACITY = 1024; // power of 2
 
     private long[] keys;
     private int[] values;
+    private byte[] used;
     private int mask;
 
     LongIntMap() {
       keys = new long[INITIAL_CAPACITY];
       values = new int[INITIAL_CAPACITY];
+      used = new byte[INITIAL_CAPACITY];
       mask = INITIAL_CAPACITY - 1;
-      java.util.Arrays.fill(keys, EMPTY);
     }
 
     int get(long key) {
-      if (key == EMPTY) key = EMPTY + 1; // perturb to avoid sentinel collision
       int slot = (int) (mix(key) & mask);
-      while (keys[slot] != EMPTY) {
+      while (used[slot] != 0) {
         if (keys[slot] == key) return values[slot];
         slot = (slot + 1) & mask;
       }
@@ -75,19 +77,21 @@ public final class JfrToOtlpConverter {
     }
 
     void put(long key, int value) {
-      if (key == EMPTY) key = EMPTY + 1; // perturb to avoid sentinel collision
       if (size * 2 >= keys.length) rehash();
       int slot = (int) (mix(key) & mask);
-      while (keys[slot] != EMPTY && keys[slot] != key) {
+      while (used[slot] != 0 && keys[slot] != key) {
         slot = (slot + 1) & mask;
       }
-      if (keys[slot] == EMPTY) size++;
+      if (used[slot] == 0) {
+        used[slot] = 1;
+        size++;
+      }
       keys[slot] = key;
       values[slot] = value;
     }
 
     void clear() {
-      java.util.Arrays.fill(keys, EMPTY);
+      java.util.Arrays.fill(used, (byte) 0);
       size = 0;
     }
 
@@ -96,13 +100,14 @@ public final class JfrToOtlpConverter {
     private void rehash() {
       long[] oldKeys = keys;
       int[] oldValues = values;
+      byte[] oldUsed = used;
       keys = new long[oldKeys.length * 2];
       values = new int[oldKeys.length * 2];
+      used = new byte[oldKeys.length * 2];
       mask = keys.length - 1;
-      java.util.Arrays.fill(keys, EMPTY);
       size = 0;
       for (int i = 0; i < oldKeys.length; i++) {
-        if (oldKeys[i] != EMPTY) put(oldKeys[i], oldValues[i]);
+        if (oldUsed[i] != 0) put(oldKeys[i], oldValues[i]);
       }
     }
 
@@ -123,16 +128,19 @@ public final class JfrToOtlpConverter {
       this.ephemeral = ephemeral;
     }
 
+    // ephemeral participates in identity: the same path added as a caller file (addFile) and as a
+    // stream copy (addStream) must stay distinct entries, otherwise reset() could delete a
+    // caller-owned file
     @Override
     public boolean equals(Object o) {
       if (o == null || getClass() != o.getClass()) return false;
       PathEntry pathEntry = (PathEntry) o;
-      return Objects.equals(path, pathEntry.path);
+      return ephemeral == pathEntry.ephemeral && Objects.equals(path, pathEntry.path);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hashCode(path);
+      return Objects.hash(path, ephemeral);
     }
   }
 
@@ -183,13 +191,16 @@ public final class JfrToOtlpConverter {
   private final List<SampleData> allocSamples = new ArrayList<>();
   private final List<SampleData> lockSamples = new ArrayList<>();
 
-  private final Set<PathEntry> pathEntries = new HashSet<>();
+  // insertion-ordered so the concatenated original_payload and the emitted sample order are
+  // deterministic for identical inputs
+  private final Set<PathEntry> pathEntries = new LinkedHashSet<>();
   private final ProtobufEncoder protoEncoder = new ProtobufEncoder(64 * 1024);
   private ParsingContext parsingContext = new ParsingContextImpl();
 
   // Profile metadata
   private long startTimeNanos;
   private long endTimeNanos;
+  private boolean timeRangeInitialized;
 
   // Original payload support
   private boolean includeOriginalPayload = false;
@@ -241,7 +252,9 @@ public final class JfrToOtlpConverter {
     return addPathEntry(new PathEntry(jfrFile, false), start, end);
   }
 
-  // the parser requires file access, so the stream is copied to a temporary file
+  // the parser requires file access, so the stream is copied to a temporary file;
+  // the copy is reclaimed by reset(), which runs in convert()'s finally block — a caller that
+  // registers a stream but never calls convert() leaks the temp file
   public JfrToOtlpConverter addStream(InputStream jfrStream, Instant start, Instant end)
       throws IOException {
     Path tempFile = Files.createTempFile("jfr-convert-", ".jfr");
@@ -315,6 +328,7 @@ public final class JfrToOtlpConverter {
     lockSamples.clear();
     startTimeNanos = 0;
     endTimeNanos = 0;
+    timeRangeInitialized = false;
   }
 
   // chains the added JFR files into a single stream; JFR parsers process concatenated
@@ -354,8 +368,10 @@ public final class JfrToOtlpConverter {
     long startNanos = start.getEpochSecond() * 1_000_000_000L + start.getNano();
     long endNanos = end.getEpochSecond() * 1_000_000_000L + end.getNano();
 
-    if (startTimeNanos == 0 || startNanos < startTimeNanos) {
+    // 0 is a legitimate timestamp (Instant.EPOCH), so track the unset state explicitly
+    if (!timeRangeInitialized || startNanos < startTimeNanos) {
       startTimeNanos = startNanos;
+      timeRangeInitialized = true;
     }
     if (endNanos > endTimeNanos) {
       endTimeNanos = endNanos;
@@ -496,6 +512,8 @@ public final class JfrToOtlpConverter {
   }
 
   private int getChunkIdentityHash(Control ctl) {
+    // jafar TypedJafarParser invokes the handle* callbacks on a single thread per parser run,
+    // so this check-then-act update needs no synchronization
     Object chunk = ctl.chunkInfo();
     if (chunk != lastChunk) {
       lastChunk = chunk;
@@ -519,8 +537,10 @@ public final class JfrToOtlpConverter {
       Control ctl) {
     // Create cache key from stackTraceId + chunk identity.
     // Chunk identity hash is cached to avoid per-event native call to System.identityHashCode.
+    // The tuple is combined with distinct multiplicative mixing instead of a raw XOR so
+    // distinct (stackTraceId, chunkHash) pairs cannot cancel each other's bits.
     int chunkHash = getChunkIdentityHash(ctl);
-    long cacheKey = stackTraceId ^ ((long) chunkHash << 32);
+    long cacheKey = mixKey(stackTraceId, ((long) chunkHash << 32) ^ chunkHash);
 
     // Check cache first - avoid resolving stack trace if cached
     int cachedIndex = stackTraceCache.get(cacheKey);
@@ -565,9 +585,11 @@ public final class JfrToOtlpConverter {
     long methodId = frame.methodId();
 
     // Cache key mirrors the stackTraceCache pattern: tag methodId with chunk identity
-    // so per-chunk CP indices don't collide across chunks.
+    // so per-chunk CP indices don't collide across chunks. Mixed the same way to keep
+    // distinct (methodId, chunkHash, lineNumber) tuples apart.
     int chunkHash = getChunkIdentityHash(ctl);
-    long cacheKey = methodId ^ ((long) chunkHash << 32) ^ (lineNumber * 1000003L);
+    long cacheKey =
+        mixKey(methodId, ((long) chunkHash << 32) ^ chunkHash ^ (lineNumber * 1000003L));
     int cached = frameCache.get(cacheKey);
     if (cached != -1) {
       return cached;
@@ -595,6 +617,14 @@ public final class JfrToOtlpConverter {
 
     frameCache.put(cacheKey, locationIndex);
     return locationIndex;
+  }
+
+  private static long mixKey(long primary, long secondary) {
+    long h = primary * 0x9E3779B97F4A7C15L;
+    h ^= (h >>> 31) ^ secondary;
+    h *= 0xff51afd7ed558ccdL;
+    h ^= h >>> 33;
+    return h;
   }
 
   private int extractLinkIndex(long spanId, long localRootSpanId) {
@@ -732,7 +762,9 @@ public final class JfrToOtlpConverter {
     encoder.writeFixed64Field(OtlpProtoFields.Profile.TIME_UNIX_NANO, startTimeNanos);
 
     // Field 4: duration_nano
-    encoder.writeVarintField(OtlpProtoFields.Profile.DURATION_NANO, endTimeNanos - startTimeNanos);
+    // clamped so a reversed caller-supplied window cannot underflow to a huge unsigned varint
+    encoder.writeVarintField(
+        OtlpProtoFields.Profile.DURATION_NANO, Math.max(0, endTimeNanos - startTimeNanos));
 
     // Field 5: period_type (same as sample_type for now)
     encoder.writeNestedMessage(
@@ -817,8 +849,15 @@ public final class JfrToOtlpConverter {
     }
 
     // Field 5: string_table (repeated strings)
+    // Every entry must be written, including the empty index-0 sentinel: the table indices are
+    // assigned by StringTable.intern() and all strindex references assume the full table order.
+    // writeStringField silently skips empty strings, which would shift every subsequent index,
+    // so the tag/length pair is written unconditionally here.
     for (String s : stringTable.getStrings()) {
-      encoder.writeStringField(OtlpProtoFields.ProfilesDictionary.STRING_TABLE, s);
+      encoder.writeTag(
+          OtlpProtoFields.ProfilesDictionary.STRING_TABLE,
+          ProtobufEncoder.WIRETYPE_LENGTH_DELIMITED);
+      encoder.writeString(s);
     }
 
     // Field 6: attribute_table
@@ -903,7 +942,9 @@ public final class JfrToOtlpConverter {
               enc.writeBoolField(OtlpProtoFields.AnyValue.BOOL_VALUE, (Boolean) entry.value);
               break;
             case INT:
-              enc.writeSignedVarintField(OtlpProtoFields.AnyValue.INT_VALUE, (Long) entry.value);
+              // AnyValue.int_value is a plain int64 in the OTLP common.proto, so it uses
+              // standard (non-zigzag) varint encoding
+              enc.writeVarintField(OtlpProtoFields.AnyValue.INT_VALUE, (Long) entry.value);
               break;
             case DOUBLE:
               // Note: protobuf doubles are fixed64, not varint
@@ -932,6 +973,8 @@ public final class JfrToOtlpConverter {
 
   // JSON encoding methods
 
+  // JSON output is a debug/inspection format: unlike the PROTO path it does not carry
+  // original_payload / original_payload_format, even when includeOriginalPayload is set
   private byte[] encodeProfilesDataAsJson(boolean prettyPrint) {
     JsonWriter json = new JsonWriter();
     json.beginObject();
@@ -1141,6 +1184,15 @@ public final class JfrToOtlpConverter {
 
     // values array
     json.name("values").beginArray().value(sample.value).endArray();
+
+    // attribute_indices array (mirrors the packed proto field; carries sample.type and alloc.class)
+    if (sample.attributeIndices.length > 0) {
+      json.name("attribute_indices").beginArray();
+      for (int attributeIndex : sample.attributeIndices) {
+        json.value(attributeIndex);
+      }
+      json.endArray();
+    }
 
     // timestamps_unix_nano array
     if (sample.timestampNanos > 0) {
