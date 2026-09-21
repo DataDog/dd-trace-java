@@ -33,7 +33,6 @@ import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingInputStream;
 import datadog.trace.api.profiling.RecordingType;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -41,7 +40,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
-import java.util.zip.GZIPInputStream;
 import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -133,11 +131,6 @@ public class OtlpProfileUploaderTest {
   }
 
   @Test
-  public void testConfigurationReading() throws Exception {
-    assertTrue(uploader != null);
-  }
-
-  @Test
   public void testLightweightUploadCarriesResourceAttributes() throws Exception {
     // OtlpHttpSender retries up to 5 times (HttpRetryPolicy.Factory(5, ...)). Serve an endless
     // stream of 200s so a retried attempt never blocks on an empty response queue (which would
@@ -181,15 +174,5 @@ public class OtlpProfileUploaderTest {
     when(recordingData.getKind()).thenReturn(ProfilingSnapshot.Kind.PERIODIC);
     when(recordingData.getPath()).thenReturn(null); // Force stream-based conversion
     return recordingData;
-  }
-
-  private byte[] decompress(byte[] compressed) throws IOException {
-    try (GZIPInputStream gzipIn = new GZIPInputStream(new ByteArrayInputStream(compressed))) {
-      byte[] buffer = new byte[compressed.length * 10]; // Assume max 10x expansion
-      int bytesRead = gzipIn.read(buffer);
-      byte[] result = new byte[bytesRead];
-      System.arraycopy(buffer, 0, result, 0, bytesRead);
-      return result;
-    }
   }
 }

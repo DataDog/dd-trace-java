@@ -35,6 +35,7 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.AgentThreadFactory;
 import datadog.trace.util.TempLocationManager;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -72,7 +73,10 @@ public final class OtlpProfileUploader implements RecordingDataListener {
     this.enabled =
         configProvider.getBoolean(PROFILING_OTLP_ENABLED, PROFILING_OTLP_ENABLED_DEFAULT);
     this.terminationTimeout = terminationTimeout;
-    this.sender = OtlpProfilesSenderFactory.create(config);
+    // the sender owns OkHttp clients and connection pools, so it is only built when the uploader
+    // is actually enabled; an unknown protocol value fails fast here instead of NPE-ing at first
+    // send on an executor thread
+    this.sender = enabled ? createSender(config) : null;
     this.mode =
         configProvider.getEnum(
             PROFILING_OTLP_MODE, ProfilingConfig.OtlpMode.class, PROFILING_OTLP_MODE_DEFAULT);
@@ -92,6 +96,15 @@ public final class OtlpProfileUploader implements RecordingDataListener {
         config.getOtlpProfilesProtocol());
   }
 
+  private static OtlpSender createSender(Config config) {
+    OtlpSender created = OtlpProfilesSenderFactory.create(config);
+    if (created == null) {
+      throw new IllegalStateException(
+          "Unsupported OTLP profiles protocol: " + config.getOtlpProfilesProtocol());
+    }
+    return created;
+  }
+
   @Override
   public void onNewData(RecordingType type, RecordingData data, boolean handleSynchronously) {
     upload(type, data, handleSynchronously, null);
@@ -106,6 +119,10 @@ public final class OtlpProfileUploader implements RecordingDataListener {
       return;
     }
     try {
+      // Note: conversion intentionally runs synchronously on the profiling scheduler thread
+      // before dispatch; only the network send is offloaded to the executor. This keeps at most
+      // one full JFR parse in flight at a time (bounding agent-heap amplification) at the cost
+      // of blocking the profiling pipeline for the duration of the conversion.
       long conversionStartNanos = System.nanoTime();
       byte[] otlpBytes = convertToOtlp(data);
       long conversionNanos = System.nanoTime() - conversionStartNanos;
@@ -131,8 +148,10 @@ public final class OtlpProfileUploader implements RecordingDataListener {
           }
         }
       }
-    } catch (Exception e) {
-      // not rethrown so that the classic JFR upload continues independently
+    } catch (Exception | LinkageError e) {
+      // not rethrown so that the classic JFR upload continues independently;
+      // LinkageError covers JVMs where the jafar parser classes cannot link (e.g. OTLP FULL/
+      // CONVERTED modes enabled on a JVM older than the parser's minimum class file version)
       log.error("Failed to upload OTLP profile", e);
       data.release();
       if (onCompletion != null) {
@@ -203,8 +222,11 @@ public final class OtlpProfileUploader implements RecordingDataListener {
 
     Path tempDir = TempLocationManager.getInstance().getTempDir();
     Path temp = Files.createTempFile(tempDir, "dd-otlp-", ".jfr");
+    // data.getStream() hands out a fresh stream per call that nobody else closes
+    try (InputStream stream = data.getStream()) {
+      Files.copy(stream, temp, StandardCopyOption.REPLACE_EXISTING);
+    }
     try {
-      Files.copy(data.getStream(), temp, StandardCopyOption.REPLACE_EXISTING);
       converter.addFile(temp, data.getStart(), data.getEnd());
       return converter.convert(JfrToOtlpConverter.Kind.PROTO);
     } finally {
@@ -222,8 +244,11 @@ public final class OtlpProfileUploader implements RecordingDataListener {
     // Fallback: save stream to temp file, then encode
     Path tempDir = TempLocationManager.getInstance().getTempDir();
     Path temp = Files.createTempFile(tempDir, "dd-otlp-", ".jfr");
+    // data.getStream() hands out a fresh stream per call that nobody else closes
+    try (InputStream stream = data.getStream()) {
+      Files.copy(stream, temp, StandardCopyOption.REPLACE_EXISTING);
+    }
     try {
-      Files.copy(data.getStream(), temp, StandardCopyOption.REPLACE_EXISTING);
       return LightweightOtlpEncoder.encode(
           temp, data.getStart(), data.getEnd(), resourceAttributes);
     } finally {
@@ -243,6 +268,8 @@ public final class OtlpProfileUploader implements RecordingDataListener {
       Thread.currentThread().interrupt();
       executor.shutdownNow();
     }
-    sender.shutdown();
+    if (sender != null) {
+      sender.shutdown();
+    }
   }
 }
