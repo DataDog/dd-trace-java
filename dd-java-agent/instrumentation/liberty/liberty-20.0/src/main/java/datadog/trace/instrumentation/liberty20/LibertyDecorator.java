@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.liberty20;
 
+import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 import static datadog.trace.instrumentation.liberty20.HttpServletExtractAdapter.Request;
 import static datadog.trace.instrumentation.liberty20.HttpServletExtractAdapter.Response;
 
@@ -112,7 +113,7 @@ public class LibertyDecorator
       String servletPath = request.getServletPath();
 
       if (null != contextPath && !contextPath.isEmpty()) {
-        span.setTag("servlet.context", contextPath);
+        HTTP_RESOURCE_DECORATOR.withServletContext(span, contextPath);
       }
       if (null != servletPath && !servletPath.isEmpty()) {
         span.setTag("servlet.path", servletPath);

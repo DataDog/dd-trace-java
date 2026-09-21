@@ -42,19 +42,35 @@ public class HttpResourceDecorator {
   public final void withRoute(
       final AgentSpan span, final CharSequence method, final CharSequence route, boolean encoded) {
     CharSequence routeTag = route;
-    if (encoded) {
+    if (encoded && route != null) {
       routeTag = URIUtils.decode(route.toString());
     }
     // Framework route templates are relative to the servlet application. Include the deployment
     // context here so every servlet-hosted framework reports the same externally visible route.
     final String servletContext = servletContext(span);
-    routeTag = withServletContext(servletContext, routeTag);
+    final String decodedServletContext = URIUtils.decode(servletContext);
+    routeTag = prependServletContext(decodedServletContext, routeTag);
     span.setTag(Tags.HTTP_ROUTE, routeTag);
     if (Config.get().isHttpServerRouteBasedNaming()) {
       final CharSequence resourceRoute =
-          encoded ? withServletContext(servletContext, route) : routeTag;
+          encoded ? prependServletContext(servletContext, route) : routeTag;
       final CharSequence resourceName = HttpResourceNames.join(method, resourceRoute);
       span.setResourceName(resourceName, ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE);
+    }
+  }
+
+  public final void withServletContext(final AgentSpan span, final String contextPath) {
+    final String previousServletContext = servletContext(span);
+    span.setTag(SERVLET_CONTEXT, contextPath);
+    if (previousServletContext == null && servletContext(span) != null) {
+      final Object route = span.getTag(Tags.HTTP_ROUTE);
+      final Object method = span.getTag(Tags.HTTP_METHOD);
+      if (route instanceof CharSequence) {
+        withRoute(
+            span,
+            method instanceof CharSequence ? (CharSequence) method : null,
+            (CharSequence) route);
+      }
     }
   }
 
@@ -68,8 +84,10 @@ public class HttpResourceDecorator {
     return (String) contextPath;
   }
 
-  private static CharSequence withServletContext(
+  private static CharSequence prependServletContext(
       final String servletContext, final CharSequence route) {
-    return servletContext == null ? route : servletContext.concat(route.toString());
+    return servletContext == null || route == null
+        ? route
+        : servletContext.concat(route.toString());
   }
 }

@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.decorator.http
 import datadog.trace.api.normalize.HttpResourceNames
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.CoreTracer
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
@@ -67,28 +68,66 @@ class HttpResourceDecoratorTest extends DDSpecification {
     given:
     injectSysConfig("http.server.route-based-naming", "true")
     AgentSpan span = tracer.startSpan("test", "test")
-    span.setTag(SERVLET_CONTEXT, "/application")
+    span.setTag(SERVLET_CONTEXT, "/my%20application")
 
     when:
     decorator().withRoute(span, "GET", "/items/{id}")
 
     then:
-    span.getTag(Tags.HTTP_ROUTE) == "/application/items/{id}"
-    span.resourceName.toString() == "GET /application/items/{id}"
+    span.getTag(Tags.HTTP_ROUTE) == "/my application/items/{id}"
+    span.resourceName.toString() == "GET /my application/items/{id}"
   }
 
   def "preserves encoded resource naming while prefixing servlet context"() {
     given:
     injectSysConfig("http.server.route-based-naming", "true")
     AgentSpan span = tracer.startSpan("test", "test")
-    span.setTag(SERVLET_CONTEXT, "/application")
+    span.setTag(SERVLET_CONTEXT, "/my%20application")
 
     when:
     decorator().withRoute(span, "GET", "/items%20list", true)
 
     then:
-    span.getTag(Tags.HTTP_ROUTE) == "/application/items list"
-    span.resourceName.toString() == "GET /application/items%20list"
+    span.getTag(Tags.HTTP_ROUTE) == "/my application/items list"
+    span.resourceName.toString() == "GET /my%20application/items%20list"
+  }
+
+  def "preserves null route with servlet context when encoded is #encoded"() {
+    given:
+    injectSysConfig("http.server.route-based-naming", "true")
+    AgentSpan span = tracer.startSpan("test", "test")
+    span.setTag(SERVLET_CONTEXT, "/application")
+
+    when:
+    decorator().withRoute(span, "GET", null, encoded)
+
+    then:
+    span.getTag(Tags.HTTP_ROUTE) == null
+    span.resourceName.toString() == "/"
+
+    where:
+    encoded << [false, true]
+  }
+
+  def "prefixes an existing route when servlet context becomes available"() {
+    given:
+    injectSysConfig("http.server.route-based-naming", "true")
+    AgentSpan span = tracer.startSpan("test", "test")
+    span.setTag(Tags.HTTP_METHOD, "GET")
+    decorator().withRoute(span, "GET", "/resource")
+
+    when:
+    decorator().withServletContext(span, "/application")
+
+    then:
+    span.getTag(Tags.HTTP_ROUTE) == "/application/resource"
+    span.resourceName.toString() == "GET /application/resource"
+
+    when:
+    decorator().withServletContext(span, "/application")
+
+    then:
+    span.getTag(Tags.HTTP_ROUTE) == "/application/resource"
   }
 
   def "still uses the simple normalizer by default"() {
