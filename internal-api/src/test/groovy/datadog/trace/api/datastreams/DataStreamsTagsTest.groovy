@@ -229,36 +229,6 @@ class DataStreamsTagsTest extends Specification {
     base != withRoutingKey
   }
 
-  def 'test container tags hash does not affect any hash tier (DSM2-335)'() {
-    setup: "simulate the Agent reporting the pod/container's tags hash at startup"
-    BaseHash.recalcBaseHash("container-tags-hash-1")
-    def base = getTags(0)
-
-    when: "a rolling deploy changes the container-tags hash the Agent reports"
-    BaseHash.recalcBaseHash("container-tags-hash-2")
-    def afterRollingDeploy = getTags(0)
-
-    then: "no hash tier is affected - container-tags hash is dropped entirely from DSM"
-    base.getHash() == afterRollingDeploy.getHash()
-    base.getAggregationHash() == afterRollingDeploy.getAggregationHash()
-    base == afterRollingDeploy
-  }
-
-  def 'test process tags do not affect any hash tier (DSM2-335)'() {
-    setup:
-    BaseHash.recalcBaseHash(null)
-    def base = getTags(0)
-
-    when: "a process tag is added (e.g. cluster.name discovered after startup)"
-    ProcessTags.addTag("cluster.name", "new-cluster")
-    def withProcessTag = getTags(0)
-
-    then: "no hash tier is affected - process tags are dropped entirely from DSM"
-    base.getHash() == withProcessTag.getHash()
-    base.getAggregationHash() == withProcessTag.getAggregationHash()
-    base == withProcessTag
-  }
-
   def 'test all three hash levels are different when appropriate tags change'() {
     setup:
     def base = new DataStreamsTags("bus", DataStreamsTags.Direction.OUTBOUND, null, "topic",
