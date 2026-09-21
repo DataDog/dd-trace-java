@@ -35,6 +35,8 @@ public final class LambdaTransformerHelper {
         log.debug("Lambda {} skipped: no target class", lambdaClassName);
         return classBytes;
       }
+      // Transformation may itself link arbitrary lambdas. Re-entry would overwrite the outer
+      // matcher's thread-local state, so nested lambda classes deliberately remain uninstrumented.
       if (Boolean.TRUE.equals(TRANSFORMING.get())) {
         log.debug("Lambda {} skipped: re-entrant transform", lambdaClassName);
         return classBytes;

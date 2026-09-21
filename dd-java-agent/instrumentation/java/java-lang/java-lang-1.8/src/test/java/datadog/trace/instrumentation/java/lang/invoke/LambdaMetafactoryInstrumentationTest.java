@@ -253,6 +253,40 @@ class LambdaMetafactoryInstrumentationTest {
   }
 
   @Test
+  void reentrantTransformSkipsNestedLambdaWithoutPoisoningLaterTransforms() {
+    byte[] outerBytes = new byte[0];
+    byte[] nestedBytes = new byte[1];
+    byte[] transformedBytes = new byte[2];
+    AtomicInteger calls = new AtomicInteger();
+    LambdaTransformerHolder.set(
+        (className, targetClass, classBytes, interfaceClassName) -> {
+          calls.incrementAndGet();
+          if (className.equals("test/OuterLambda")) {
+            assertSame(
+                nestedBytes,
+                LambdaTransformerHelper.transform(
+                    nestedBytes, "test/NestedLambda", Object.class, Runnable.class));
+          }
+          return transformedBytes;
+        });
+    try {
+      assertSame(
+          transformedBytes,
+          LambdaTransformerHelper.transform(
+              outerBytes, "test/OuterLambda", Object.class, Runnable.class));
+      assertEquals(1, calls.get());
+
+      assertSame(
+          transformedBytes,
+          LambdaTransformerHelper.transform(
+              outerBytes, "test/LaterLambda", Object.class, Runnable.class));
+      assertEquals(2, calls.get());
+    } finally {
+      LambdaTransformerHolder.set(null);
+    }
+  }
+
+  @Test
   void transformerFailureFallsBackAndDoesNotPoisonNextLambda() {
     byte[] originalBytes = new byte[0];
     byte[] transformedBytes = new byte[1];
