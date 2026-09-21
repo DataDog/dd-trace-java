@@ -25,9 +25,11 @@ dependencies {
   }
   testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-util-9.4.31')
 
-  testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.3.0.M1'
-  testImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '9.3.0.M1'
-  testImplementation group: 'org.eclipse.jetty', name: 'jetty-continuation', version: '9.3.0.M1'
+  // Keep M1 as the compile/muzzle floor. Jetty 452465 makes its test runtime spin on peer EOF
+  // after request recycling; behavioral tests use the first stable 9.3 release containing the fix.
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.3.0.v20150612'
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '9.3.0.v20150612'
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-continuation', version: '9.3.0.v20150612'
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
   testImplementation testFixtures(project(":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0"))
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
