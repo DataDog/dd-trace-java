@@ -4,8 +4,8 @@
 # To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8:dependencies --write-locks
 cafe.cryptography:curve25519-elisabeth:0.1.0=latestDepTestRuntimeClasspath,testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=latestDepTestRuntimeClasspath,testRuntimeClasspath
-ch.qos.logback:logback-classic:1.2.13=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
-ch.qos.logback:logback-core:1.2.13=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
+ch.qos.logback:logback-classic:1.2.13=latestDepTestCompileClasspath,testCompileClasspath
+ch.qos.logback:logback-core:1.2.13=latestDepTestCompileClasspath,testCompileClasspath
 com.blogspot.mydailyjava:weak-lock-free:0.17=buildTimeInstrumentationPlugin,compileClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,muzzleTooling,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.datadoghq.okhttp3:okhttp:3.12.15=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.datadoghq.okio:okio:1.17.6=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
@@ -115,10 +115,11 @@ org.ow2.asm:asm:9.10.1=buildTimeInstrumentationPlugin,compileClasspath,latestDep
 org.slf4j:jcl-over-slf4j:1.7.30=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.slf4j:jul-to-slf4j:1.7.30=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.slf4j:log4j-over-slf4j:1.7.30=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
-org.slf4j:slf4j-api:1.7.30=buildTimeInstrumentationPlugin,compileClasspath,muzzleBootstrap,muzzleTooling,runtimeClasspath
-org.slf4j:slf4j-api:1.7.32=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
+org.slf4j:slf4j-api:1.7.30=buildTimeInstrumentationPlugin,compileClasspath,latestDepTestRuntimeClasspath,muzzleBootstrap,muzzleTooling,runtimeClasspath,testRuntimeClasspath
+org.slf4j:slf4j-api:1.7.32=latestDepTestCompileClasspath,testCompileClasspath
 org.slf4j:slf4j-api:2.0.17=spotbugsSlf4j
 org.slf4j:slf4j-api:2.0.18=spotbugs
+org.slf4j:slf4j-simple:1.7.30=latestDepTestRuntimeClasspath,testRuntimeClasspath
 org.slf4j:slf4j-simple:2.0.17=spotbugsSlf4j
 org.snakeyaml:snakeyaml-engine:2.9=buildTimeInstrumentationPlugin,latestDepTestRuntimeClasspath,muzzleTooling,runtimeClasspath,testRuntimeClasspath
 org.spockframework:spock-bom:2.4-groovy-3.0=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath

@@ -1,5 +1,7 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  // Use the same Logback deadlock mitigation as the Java 21+ concurrency tests.
+  id 'dd-trace-java.conventions.testing.slf4j-simple'
 }
 
 muzzle {
