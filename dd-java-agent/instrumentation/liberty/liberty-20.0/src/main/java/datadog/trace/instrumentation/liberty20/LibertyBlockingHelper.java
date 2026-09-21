@@ -131,6 +131,10 @@ public class LibertyBlockingHelper {
       thiz.finishResponseMessage(bufferArray);
     } catch (Exception e) {
       log.warn("Error committing blocking response", e);
+      Object rawAppSecCtx = requestContext.getData(RequestContextSlot.APPSEC);
+      if (rawAppSecCtx instanceof AppSecContext) {
+        ((AppSecContext) rawAppSecCtx).reportBlockFailure();
+      }
     }
 
     requestContext.getTraceSegment().effectivelyBlocked();
