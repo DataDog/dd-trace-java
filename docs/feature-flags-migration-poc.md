@@ -122,6 +122,31 @@ The API and instrumentation consume lib's evaluator-only artifact, not its full 
 Two new artifact tests check that boundary.
 All six product `check` tasks and OpenFeature instrumentation tests pass on JDK 11: 862 tests, no failures or skips.
 The standalone artifact tests verify no-agent startup and exclusion of RC, tracing implementation, and bundled application APIs.
+Both distributions were rebuilt from signed Java commit `93603ccffed8e1b9e41626658a401005c5f4ee79`.
+The simultaneous dogfood fixture again passes 27/27 checks at dogfood commit `4d7db0fb03c25b5da7ec6389657b7192a998e332`.
+Its manifest is `local/java-migration/results/modules-consolidated-v1/manifest.json` in the companion checkout.
+The external Gradle consumer resolves the generated POM without agent or unpublished internal-project dependencies.
+Full-agent content and integration-index checks pass. Its task graph still excludes standalone assembly and publication.
+The wider controlled matrices rerun with the same artifacts: 11/12 primary cases and 12/13 supplemental cases pass.
+All 25 scenario outcomes match the pre-consolidation baseline.
+The candidate-provider/agent-1.64.0 and unchanged provider-1.64.0/agent-1.64.0 comparisons remain failures.
+Lifecycle, OTel export and initialization order, injection controls, outages, and shutdown pass.
+Use `local/java-validation/results/modules-consolidated-v1/manifest.json` and `modules-consolidated-v1-supplemental/manifest.json` for these runs.
+No new staging or platform-managed SSI run was performed for this consolidation.
+
+| Distribution | Before | After | Class comparison |
+| --- | --- | --- | --- |
+| `dd-openfeature` | 2,687,655 bytes; 1,659 classes | 1,836,799 bytes; 1,076 classes | All common classes are byte-identical. Minimization removes 584 classes; the retained product library adds `FeatureFlagEventType`. |
+| `dd-java-agent` | 35,066,057 bytes; 17,604 classes | 35,065,617 bytes; 17,604 classes | Identical class entries and bytes. |
+
+Consolidated distribution SHA-256 values:
+
+```text
+dd-openfeature.jar  4afe8186e4c952d1828321149af327ffcd890a72879f8fb28b9506dffea0e7d5
+dd-java-agent.jar   a2dbdb54c80d2e74c5b29821ca10292fad167dc4c37c0ca07727b2056b1648df
+```
+
+Later documentation commits do not change these tested artifacts.
 The remaining sections preserve the earlier runtime evidence by source revision.
 
 ## Validation before module consolidation

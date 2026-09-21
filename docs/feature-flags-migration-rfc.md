@@ -70,9 +70,11 @@ Standalone must exclude RC and Datadog tracing. The agent must not depend on sta
 
 The integrated branch fixes source-default activation, global disable, shared-consumer shutdown, matching-artifact payload identity, and late OTel SDK registration.
 
-Before module consolidation, the simultaneous dogfood fixture passed **27/27 checks**. Both Java deployments refreshed configuration and delivered both EVP streams without an Agent or collector. All dashboard rows resolved configured values. Missing flags still failed. The evidence record tracks validation of each artifact revision separately.
+After module consolidation, the simultaneous dogfood fixture again passes **27/27 checks**. Both Java deployments refresh configuration and deliver both EVP streams without an Agent or collector. All dashboard rows resolve configured values. Missing flags still fail.
 
-The wider controlled matrices pass **23/25 cases**. Two historical agent-1.64.0 cases remain limitations, including the missing activation bridge. Earlier sequential staging checks pass five direct/RC cases. Intake acceptance is not downstream analytics proof.
+The standalone JAR decreases from 2.69 MB to 1.84 MB. The agent retains all 17,604 classes with identical class bytes. The agent build still excludes standalone publication. Fewer projects did not require a larger runtime.
+
+The rebuilt artifacts reproduce **23/25 passing cases** in the wider controlled matrices. Two historical agent-1.64.0 cases remain limitations, including the missing activation bridge. Earlier sequential staging checks passed five direct/RC cases; they predate consolidation. Intake acceptance is not downstream analytics proof.
 
 Compose attaches the agent to an OpenFeature-only application. This proves provider injection, not platform-managed SSI installation. Full-agent testing also required package-index separation and interface-before-implementation helper loading. Preserve those boundaries when simplifying modules.
 
