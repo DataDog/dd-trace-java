@@ -11,6 +11,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.util.AgentTaskScheduler;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Callable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +39,11 @@ import org.slf4j.LoggerFactory;
  * <em>exposure</em> (eBPF/CWS reading the current span off a thread), but not for profiling
  * accuracy, so users with the Datadog profiler actually enabled keep the synchronous construction
  * path.
+ *
+ * <p>Because the deferred construction can also fail outright, this wrapper never claims to be the
+ * real engine until it is: {@link #whenAvailable(Runnable)} only fires after a successful swap, so
+ * consumers (such as the tracer stamping the {@code _dd.profiling.ctx} tag) do not advertise an
+ * engine that never materialized.
  */
 final class DeferredProfilingContextIntegration implements ProfilingContextIntegration {
   private static final Logger log =
@@ -64,6 +71,13 @@ final class DeferredProfilingContextIntegration implements ProfilingContextInteg
    * the swap happens.
    */
   private volatile ProfilingContextIntegration delegate = ProfilingContextIntegration.NoOp.INSTANCE;
+
+  /**
+   * Callbacks registered through {@link #whenAvailable(Runnable)} before the swap happened, to be
+   * run once it does. Guarded by {@code this}, together with the {@link #delegate} write, so that a
+   * callback registered concurrently with the swap is neither run twice nor dropped.
+   */
+  private final List<Runnable> pendingAvailabilityCallbacks = new ArrayList<>(1);
 
   /**
    * @param name the name reported by {@link #name()}, i.e. the name of the integration being
@@ -95,12 +109,44 @@ final class DeferredProfilingContextIntegration implements ProfilingContextInteg
   void initialize() {
     try {
       final ProfilingContextIntegration integration = factory.call();
-      if (integration != null) {
+      if (integration == null) {
+        return;
+      }
+      final List<Runnable> callbacks;
+      synchronized (this) {
         delegate = integration;
+        callbacks = new ArrayList<>(pendingAvailabilityCallbacks);
+        pendingAvailabilityCallbacks.clear();
+      }
+      for (final Runnable callback : callbacks) {
+        try {
+          callback.run();
+        } catch (final Throwable t) {
+          log.debug("Availability callback for {} profiling context failed.", name, t);
+        }
       }
     } catch (final Throwable t) {
-      log.debug("Deferred {} profiling context labeling not available. {}", name, t.getMessage());
+      // Reaching this point means context exposure was requested and is silently not happening,
+      // and there is no other signal for it. The throwable is rendered with toString() because
+      // the common failures here (UnsatisfiedLinkError and friends) carry no message.
+      log.info("Deferred {} profiling context labeling not available. {}", name, t.toString());
     }
+  }
+
+  /**
+   * Runs {@code callback} once the real integration has been swapped in, or immediately if that
+   * already happened. If the deferred construction fails, the callback is never run: consumers must
+   * treat "not yet available" and "never available" the same way.
+   */
+  @Override
+  public void whenAvailable(final Runnable callback) {
+    synchronized (this) {
+      if (delegate == ProfilingContextIntegration.NoOp.INSTANCE) {
+        pendingAvailabilityCallbacks.add(callback);
+        return;
+      }
+    }
+    callback.run();
   }
 
   /**

@@ -200,10 +200,17 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   /** Maintains dynamic configuration associated with the tracer */
   private final DynamicConfig<ConfigSnapshot> dynamicConfig;
 
-  /** A set of tags that are added only to the application's root span */
-  private final TagMap localRootSpanTags;
+  /**
+   * A set of tags that are added only to the application's root span.
+   *
+   * <p>Written once in the constructor and, for a profiling context integration whose construction
+   * is deferred, once more when that construction succeeds (see {@link
+   * #stampProfilingContextEngine()}), hence volatile. The map itself is always frozen, so readers
+   * only ever see a fully built, immutable snapshot.
+   */
+  private volatile TagMap localRootSpanTags;
 
-  private final boolean localRootSpanTagsNeedIntercept;
+  private volatile boolean localRootSpanTagsNeedIntercept;
 
   /**
    * When {@code false}, every exported span is stamped with the {@code _dd.apm.enabled:0} billing
@@ -924,16 +931,15 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     this.injectLinksAsTags = injectLinksAsTags;
     this.flushOnClose = flushOnClose;
     this.allowInferredServices = SpanNaming.instance().namingSchema().allowInferredServices();
-    if (profilingContextIntegration != ProfilingContextIntegration.NoOp.INSTANCE) {
-      TagMap tmp = TagMap.fromMap(localRootSpanTags);
-      tmp.set(PROFILING_CONTEXT_ENGINE, profilingContextIntegration.name());
-      this.localRootSpanTags = tmp.freeze();
-    } else {
-      this.localRootSpanTags = TagMap.fromMapImmutable(localRootSpanTags);
-    }
-
+    this.localRootSpanTags = TagMap.fromMapImmutable(localRootSpanTags);
     this.localRootSpanTagsNeedIntercept =
         this.tagInterceptor.needsIntercept(this.localRootSpanTags);
+    if (profilingContextIntegration != ProfilingContextIntegration.NoOp.INSTANCE) {
+      // The engine tag is stamped only once the integration can really label context. Integrations
+      // that are ready when they are handed out run this inline, right here; an integration whose
+      // construction is deferred runs it later, and not at all if that construction fails.
+      profilingContextIntegration.whenAvailable(this::stampProfilingContextEngine);
+    }
     if (serviceDiscoveryFactory != null) {
       AgentTaskScheduler.get()
           .schedule(
@@ -949,6 +955,22 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               1,
               SECONDS);
     }
+  }
+
+  /**
+   * Adds the profiling context engine tag to the local root span tags.
+   *
+   * <p>Runs at most once per tracer, either inline from the constructor (integration already
+   * available) or on the thread that completes a deferred integration's construction. The tag is
+   * kept in the pre-frozen {@link #localRootSpanTags} rather than evaluated per span, so root span
+   * creation pays nothing beyond the volatile read it already does.
+   */
+  private void stampProfilingContextEngine() {
+    TagMap tags = TagMap.fromMap(this.localRootSpanTags);
+    tags.set(PROFILING_CONTEXT_ENGINE, this.profilingContextIntegration.name());
+    this.localRootSpanTags = tags.freeze();
+    this.localRootSpanTagsNeedIntercept =
+        this.tagInterceptor.needsIntercept(this.localRootSpanTags);
   }
 
   private void startMetricsAggregation(Config config, SharedCommunicationObjects sco) {

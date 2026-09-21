@@ -54,6 +54,9 @@ tasks.withType(Test).configureEach {
 
 tasks.register('testRuntimeActivation', Test) {
   def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  // Without this, the task keeps Gradle's default JUnit 4 runner, which discovers none of the
+  // Spock specs in this module, so the task passes without running anything.
+  useJUnitPlatform()
   jvmArgs '-Dsmoke_test.appsec.enabled=inactive'
   jvmArgumentProviders.add(new CommandLineArgumentProvider() {
       @Override

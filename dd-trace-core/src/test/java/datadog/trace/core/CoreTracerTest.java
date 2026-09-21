@@ -24,12 +24,16 @@ import datadog.remoteconfig.state.ParsedConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.TracerConfig;
+import datadog.trace.api.profiling.Timer.TimerType;
+import datadog.trace.api.profiling.Timing;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.time.ControllableTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ServiceNameSources;
 import datadog.trace.common.sampling.AllSampler;
 import datadog.trace.common.sampling.RateByServiceTraceSampler;
@@ -58,6 +62,8 @@ import org.tabletest.junit.TableTest;
 
 @Timeout(value = 10, unit = TimeUnit.SECONDS)
 public class CoreTracerTest extends DDCoreJavaSpecification {
+
+  private static final String FAKE_ENGINE = "fake-engine";
 
   @BeforeAll
   static void checkJvm() {
@@ -340,6 +346,39 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     } finally {
       child.finish();
       root.finish();
+      tracer.close();
+    }
+  }
+
+  @Test
+  void profilingContextEngineTagStampedWhenTheIntegrationIsAlreadyAvailable() {
+    CoreTracer tracer =
+        tracerBuilder().profilingContextIntegration(new FakeContextIntegration()).build();
+    AgentSpan root = tracer.buildSpan("datadog", "my_root").start();
+    try {
+      assertEquals(FAKE_ENGINE, root.getTags().get(DDTags.PROFILING_CONTEXT_ENGINE));
+    } finally {
+      root.finish();
+      tracer.close();
+    }
+  }
+
+  @Test
+  void profilingContextEngineTagWithheldUntilTheIntegrationBecomesAvailable() {
+    FakeContextIntegration integration = new FakeContextIntegration();
+    integration.deferAvailability = true;
+    CoreTracer tracer = tracerBuilder().profilingContextIntegration(integration).build();
+    try {
+      AgentSpan beforeSwap = tracer.buildSpan("datadog", "before").start();
+      assertFalse(beforeSwap.getTags().containsKey(DDTags.PROFILING_CONTEXT_ENGINE));
+      beforeSwap.finish();
+
+      integration.becomeAvailable();
+
+      AgentSpan afterSwap = tracer.buildSpan("datadog", "after").start();
+      assertEquals(FAKE_ENGINE, afterSwap.getTags().get(DDTags.PROFILING_CONTEXT_ENGINE));
+      afterSwap.finish();
+    } finally {
       tracer.close();
     }
   }
@@ -755,6 +794,50 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
   }
 
   // --- inner classes ---
+
+  /**
+   * A profiling context integration whose availability can be released after the tracer has been
+   * built, the way an integration whose construction is deferred off the premain thread does.
+   */
+  static class FakeContextIntegration implements ProfilingContextIntegration {
+    boolean deferAvailability;
+    private Runnable availabilityCallback;
+
+    @Override
+    public String name() {
+      return FAKE_ENGINE;
+    }
+
+    @Override
+    public void onRootSpanFinished(AgentSpan rootSpan, EndpointTracker tracker) {}
+
+    @Override
+    public EndpointTracker onRootSpanStarted(AgentSpan rootSpan) {
+      return EndpointTracker.NO_OP;
+    }
+
+    @Override
+    public Timing start(TimerType type) {
+      return Timing.NoOp.INSTANCE;
+    }
+
+    @Override
+    public void whenAvailable(Runnable callback) {
+      if (deferAvailability) {
+        this.availabilityCallback = callback;
+      } else {
+        callback.run();
+      }
+    }
+
+    void becomeAvailable() {
+      Runnable callback = this.availabilityCallback;
+      this.availabilityCallback = null;
+      if (callback != null) {
+        callback.run();
+      }
+    }
+  }
 
   static class WriterWithExplicitFlush implements datadog.trace.common.writer.Writer {
     final List<List<DDSpan>> writtenTraces = new CopyOnWriteArrayList<>();

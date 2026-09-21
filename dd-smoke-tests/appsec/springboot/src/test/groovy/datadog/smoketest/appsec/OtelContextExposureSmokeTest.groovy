@@ -32,10 +32,6 @@ class OtelContextExposureSmokeTest extends AbstractAppSecServerSmokeTest {
     processBuilder.directory(new File(buildDirectory))
   }
 
-  // TODO(APPSEC-70254): the `testRuntimeActivation` Gradle task (which sets
-  // `smoke_test.appsec.enabled=inactive`) does not discover this or any other Spock spec today,
-  // so the `appSecFullyEnabled == false` branch below is not actually exercised in CI. See the
-  // ticket for the pre-existing root cause (missing `useJUnitPlatform()` on that task).
   void 'OTel process context registration follows AppSec activation, not profiling'() {
     given:
     boolean appSecFullyEnabled = System.getProperty('smoke_test.appsec.enabled') != 'inactive'

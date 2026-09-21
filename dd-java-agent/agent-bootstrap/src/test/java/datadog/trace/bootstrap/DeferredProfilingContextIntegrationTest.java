@@ -125,6 +125,39 @@ class DeferredProfilingContextIntegrationTest {
     assertEquals("ddprof", deferred.name());
   }
 
+  @Test
+  void availabilityCallbacksRunOnlyOnceTheRealIntegrationIsIn() {
+    DeferredProfilingContextIntegration deferred =
+        new DeferredProfilingContextIntegration("ddprof", FakeDatadogProfilingIntegration::new);
+    AtomicInteger callbacks = new AtomicInteger();
+
+    deferred.whenAvailable(callbacks::incrementAndGet);
+    assertEquals(0, callbacks.get());
+
+    deferred.initialize();
+    assertEquals(1, callbacks.get());
+
+    // registering after the swap runs the callback straight away, without waiting for anything
+    deferred.whenAvailable(callbacks::incrementAndGet);
+    assertEquals(2, callbacks.get());
+  }
+
+  @Test
+  void availabilityCallbacksNeverRunWhenTheDeferredConstructionFails() {
+    DeferredProfilingContextIntegration deferred =
+        new DeferredProfilingContextIntegration(
+            "ddprof",
+            () -> {
+              throw new UnsatisfiedLinkError("no native library here");
+            });
+    AtomicInteger callbacks = new AtomicInteger();
+
+    deferred.whenAvailable(callbacks::incrementAndGet);
+    deferred.initialize();
+
+    assertEquals(0, callbacks.get());
+  }
+
   private static ClassLoader fakeProfilingClassLoader() {
     return new ClassLoader(null) {
       @Override
