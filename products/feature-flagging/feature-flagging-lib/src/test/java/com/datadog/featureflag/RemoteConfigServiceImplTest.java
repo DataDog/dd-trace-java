@@ -21,13 +21,11 @@ import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
-import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.Capabilities;
 import datadog.remoteconfig.ConfigurationDeserializer;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.PollingRateHinter;
 import datadog.remoteconfig.Product;
-import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
@@ -61,10 +59,8 @@ class RemoteConfigServiceImplTest {
   @Test
   void testNewConfigReceived() throws Exception {
     final ConfigurationPoller poller = mock(ConfigurationPoller.class);
-    final SharedCommunicationObjects sco = mock(SharedCommunicationObjects.class);
-    when(sco.configurationPoller(any(Config.class))).thenReturn(poller);
     FeatureFlaggingGateway.addConfigListener(listener);
-    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(sco, Config.get());
+    final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(poller);
 
     service.init();
 

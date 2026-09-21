@@ -34,6 +34,8 @@ Start with the [short RFC](feature-flags-migration-rfc.md) and [assembly notes](
 Manual registration activates standalone delivery by default unless explicitly disabled.
 Explicit RC never falls back to direct CDN polling.
 RC and manual provider registration remain supported.
+Both installation paths support explicitly selected RC through a compatible Datadog Agent service.
+Standalone RC does not require `dd-java-agent` or an OTel collector.
 Closing one consumer must not stop another consumer's refresh.
 An application-selected provider must not be replaced by injection.
 Configuration and product events must work without an OTel collector.
@@ -54,10 +56,10 @@ The evaluator-only helper artifact, compatibility boundaries, and separate assem
 | --- | --- |
 | `feature-flagging-bootstrap` | Shared payloads and runtime bridge. These types remain unshaded. |
 | `feature-flagging-api` | Unbundled OpenFeature adapter, hooks, and OTel API metrics. |
-| `feature-flagging-lib` | Parser, configuration state, single evaluator, shared `ProviderRuntime`, event queues, and direct CDN/EVP transport. Its evaluator-only artifact excludes parser, HTTP, and runtime classes. |
+| `feature-flagging-lib` | Parser, configuration state, single evaluator, shared `ProviderRuntime`, RC adapter, event queues, and HTTP transport. Its evaluator-only artifact excludes parser, RC, HTTP, and runtime classes. |
 | `feature-flagging-config` | Shared settings resolution. |
-| `feature-flagging-agent` | RC, EVP proxy routing and fallback policy, agent diagnostics, and Datadog span enrichment. |
-| `feature-flagging-standalone` | Standalone lifecycle and shaded `dd-openfeature` publication. |
+| `feature-flagging-agent` | Agent runtime composition, EVP routing policy, diagnostics, and Datadog span enrichment. |
+| `feature-flagging-standalone` | Standalone lifecycle, CDN/RC composition, and shaded `dd-openfeature` publication. |
 | OpenFeature instrumentation | Inject the unbundled API and core into an OpenFeature-only application. |
 
 ```text
@@ -70,13 +72,13 @@ manual Provider registration                 agent provider injection
                   shared event pipelines
                     /                  \
        standalone assembly           agent assembly
-       CDN + direct EVP              CDN or RC + EVP routing
+       CDN or RC + EVP routing       CDN or RC + EVP routing
 ```
 
 The direct intake factory was extracted from the existing communication factory.
 It preserves endpoint validation, response compression, redirect control, and retry policy.
 Standalone no longer creates shared agent communication objects.
-An artifact test rejects bundled RC clients, tracing implementation, OpenFeature classes, and OTel classes.
+Artifact tests require the RC client and reject tracing implementation, OpenFeature classes, and OTel classes.
 
 Both composition roots use `ProviderRuntime` for source and writer startup, rollback, and close-once shutdown.
 Standalone owns reference-counted consumer handles. The agent owns process-lifetime activation and span enrichment.

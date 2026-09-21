@@ -18,6 +18,7 @@ Deliver two installation paths from one implementation in `dd-trace-java`: stand
 
 OTel-only applications use the standalone provider.
 Existing manual registration remains supported with Datadog instrumentation; compatible provider/agent pairs use the agent runtime.
+Installation and configuration delivery are separate choices. Both standalone and SSI support direct CDN delivery or explicitly selected Remote Configuration.
 
 ```mermaid
 flowchart TB
@@ -26,7 +27,8 @@ flowchart TB
     APP1["Application + dd-openfeature"] --> REG["Register Datadog Provider"]
     REG --> OF1["OpenFeature client + evaluator"]
     OF1 --> SR["Standalone runtime"]
-    SR --> DIRECT1["Managed CDN + direct EVP"]
+    SR -->|agentless| DIRECT1["Managed CDN + direct EVP"]
+    SR -->|remote_config| RC1["Remote Configuration + EVP proxy<br/>through Datadog Agent"]
     OF1 -. "Optional metrics" .-> OTEL["Application OTel SDK<br/>or OTel Java agent"]
   end
 
@@ -45,21 +47,25 @@ flowchart TB
 Arrows show setup and runtime ownership, not a network call for each evaluation. Evaluations use cached configuration.
 The two agent configuration paths are alternatives. The [dogfood POC #124](https://github.com/ddoghq/ffe-dogfooding/pull/124) demonstrates both installation shapes with direct delivery.
 
-`DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless` selects direct configuration. It does not mean the Java agent is absent. Standalone requires credentials and network access to the CDN and direct event intake, but no collector.
+`DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless` selects direct configuration. It does not mean the Java agent is absent.
+Standalone direct delivery requires credentials and network access to the CDN and event intake, but neither agent nor a collector.
 
 `DD_FEATURE_FLAGS_ENABLED=true` enables automatic provider installation when the Datadog Java agent is attached.
 `DD_FEATURE_FLAGS_ENABLED=false` disables both automatic installation and runtime startup from manual registration.
 This is a product switch, not an injection-only switch. Tracing integration switches do not control provider installation.
 Without explicit Feature Flags settings, manual registration starts standalone delivery; the agent does not automatically install a provider.
 
-Remote Configuration (RC) remains an agent capability:
+Select Remote Configuration (RC) in either installation:
 
 ```shell
 DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=remote_config
 DD_REMOTE_CONFIGURATION_ENABLED=true
 ```
 
-RC requires `dd-java-agent` and a compatible Datadog Agent. The Datadog Agent holds the API key and proxies product events. Explicit RC must not silently fall back to direct polling. An OTel Java agent does not replace this RC client.
+RC requires a compatible Datadog Agent service, which holds the API key and proxies product events.
+Without `dd-java-agent`, the standalone runtime owns the RC client. With a compatible `dd-java-agent`, the provider uses its runtime instead.
+The same standalone RC path works with an OTel Java agent. No OTel collector is required.
+Explicit RC must not fall back to CDN polling or direct event intake when RC or the Datadog Agent is unavailable.
 
 Exposures and aggregated flag-evaluation events use Datadog's event platform (EVP). They are independent of OTel export. `feature_flag.evaluations` is an additional OTel metric.
 
@@ -74,7 +80,7 @@ flowchart TB
   subgraph Shared["dd-trace-java: shared implementation"]
     BOOT["feature-flagging-bootstrap<br/>shared payloads + bridge"] --> LIB
     CONFIG["feature-flagging-config<br/>settings"] --> LIB
-    LIB["feature-flagging-lib<br/>evaluator, runtime, CDN + EVP"]
+    LIB["feature-flagging-lib<br/>evaluator, runtime, CDN, RC + EVP"]
     LIB -->|evaluator-only artifact| API["feature-flagging-api<br/>OpenFeature adapter + hooks"]
   end
 
@@ -83,7 +89,7 @@ flowchart TB
   end
 
   subgraph AgentAssembly["Agent assembly"]
-    AGENT["feature-flagging-agent<br/>RC + agent integration"] --> DDJAR["dd-java-agent.jar"]
+    AGENT["feature-flagging-agent<br/>agent lifecycle + tracing integration"] --> DDJAR["dd-java-agent.jar"]
     INSTR["OpenFeature instrumentation<br/>provider + evaluator helpers"] --> DDJAR
   end
 
@@ -99,7 +105,7 @@ Arrows show selected packaging inputs; transitive dependencies are omitted. The 
 The repository uses `-lib` for core implementation. The combined library preserves package names and behavior and shares `ProviderRuntime` across assemblies.
 The OpenFeature adapter remains unbundled. HTTP clients, parsers, and runtime lifecycle classes stay outside the injected helper set.
 
-Standalone owns shaded publication and must exclude RC and Datadog tracing.
+Standalone owns shaded publication and includes the existing RC client, but excludes Datadog tracing implementation.
 The agent must not depend on standalone shading or publication. Bootstrap payloads remain active implementation dependencies, not only unused compatibility shims.
 
 ## What the POC established
@@ -146,8 +152,9 @@ Do not rename it in this migration. It matches the current cross-SDK setting.
 Assign an owner and release gates to each deliverable.
 
 1. **Shared implementation:** Extract the combined library and evaluator-only artifact. Preserve API, bootstrap, settings, and classloader boundaries without an installation change.
-2. **Shared runtime:** Extract lifecycle and event pipelines. Preserve transport policy, ownership, and mixed-installation behavior.
-3. **Standalone:** Move publication and direct composition. Validate external consumers against the agreed OTel contract.
+2. **Shared runtime:** Extract lifecycle, RC integration, and event pipelines. Preserve transport policy, ownership, and mixed-installation behavior.
+3. **Standalone:** Move publication and CDN/RC composition. Validate both sources without a Java agent and with OTel-only instrumentation.
+   Validate external consumers against the agreed OTel contract.
 4. **SSI:** Package provider/evaluator helpers. Select the first platform target and validate attachment, disable behavior, and rollback.
 
 See the [evidence record](feature-flags-migration-poc.md) and [assembly notes](feature-flags-assembly-notes.md) for supporting details.

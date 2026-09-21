@@ -27,6 +27,21 @@ Exposures and aggregated flag evaluations use direct EVP delivery.
 They do not depend on OTel.
 The optional `feature_flag.evaluations` metric uses the application's OTel configuration.
 
+## Remote Configuration, with or without a Java agent
+
+Set `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=remote_config` and `DD_REMOTE_CONFIGURATION_ENABLED=true`.
+Set `DD_TRACE_AGENT_URL` to a compatible Datadog Agent service, for example `http://localhost:8126`.
+The Datadog Agent holds the API key. The application does not need one.
+Without `dd-java-agent`, manual provider registration starts the standalone RC client and EVP proxy delivery.
+This also works with the OTel Java agent as the only Java agent. No OTel collector is required.
+With a compatible `dd-java-agent`, the provider uses the agent runtime instead. It does not start a second poller.
+
+Explicit RC never falls back to CDN configuration or direct product-event delivery.
+If RC is unavailable before initial configuration, evaluations use caller defaults.
+If RC becomes unavailable after initial configuration, evaluations continue to use cached configuration.
+Disabling Remote Configuration while selecting `remote_config` prevents standalone startup.
+Installation and configuration delivery are separate choices. Standalone does not mean direct delivery only.
+
 ## Java agent and injection
 
 The agent distribution uses the same evaluator and shared event pipelines.
@@ -38,10 +53,7 @@ Injection also works when `DD_TRACE_ENABLED=false`.
 Tracing integration switches do not control provider installation. There is no injection-only switch.
 Injection preserves an application-selected provider.
 
-For Remote Configuration, set `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=remote_config`.
-This mode requires `dd-java-agent` and a compatible local Datadog Agent.
-It uses the agent's RC client and EVP proxy. It never falls back to direct configuration.
-The local Datadog Agent holds the API key.
+Injection supports either configuration source. RC uses the Datadog Agent service described above.
 
 Manual `-javaagent` attachment tests provider injection, not platform SSI deployment.
 Actual SSI attachment and rollback remain a separate certification gate.
@@ -64,7 +76,7 @@ No compatibility shim is removed before the Java team defines its support window
 ```
 
 The API module is internal and unbundled. The standalone module owns Maven publication.
-`feature-flagging-lib` contains evaluation, configuration, lifecycle, events, and direct HTTP.
+`feature-flagging-lib` contains evaluation, CDN and RC integration, lifecycle, events, and HTTP.
 Its evaluator-only artifact serves the API and injection without including the full runtime.
 The standalone assembly consumes the full library. The agent assembly does not depend on standalone publication.
 The repository's shadow publication uses POM metadata, not Gradle module metadata.

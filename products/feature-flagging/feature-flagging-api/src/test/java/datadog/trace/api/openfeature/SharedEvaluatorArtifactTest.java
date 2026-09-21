@@ -33,7 +33,8 @@ class SharedEvaluatorArtifactTest {
     assertNull(loader.getResource("com/datadog/featureflag/UniversalFlagConfigParser.class"));
     assertNull(loader.getResource("com/datadog/featureflag/AgentlessConfigurationSource.class"));
     assertNull(loader.getResource("com/datadog/featureflag/ProviderRuntime.class"));
-    assertNull(loader.getResource("com/datadog/featureflag/DirectEventPipelines.class"));
+    assertNull(loader.getResource("com/datadog/featureflag/StandaloneEventPipelines.class"));
+    assertNull(loader.getResource("com/datadog/featureflag/RemoteConfigServiceImpl.class"));
     assertNull(loader.getResource("okhttp3/OkHttpClient.class"));
   }
 }

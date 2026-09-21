@@ -134,7 +134,7 @@ public class FeatureFlaggingSystem {
       if (!config.isRemoteConfigEnabled()) {
         throw new IllegalStateException("Feature Flagging system started without RC");
       }
-      return new RemoteConfigServiceImpl(sco, config);
+      return new RemoteConfigServiceImpl(sco.configurationPoller(config));
     }
     if (CONFIGURATION_SOURCE_AGENTLESS.equals(configurationSource)) {
       return new AgentlessConfigurationSource(config, AgentRuntimeServices.INSTANCE);

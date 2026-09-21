@@ -13,7 +13,7 @@ configure<TestJvmConstraintsExtension> {
   minJavaVersion.set(JavaVersion.VERSION_11)
 }
 
-description = "Standalone Datadog OpenFeature provider and direct delivery runtime."
+description = "Standalone Datadog OpenFeature provider with direct or Remote Configuration delivery."
 
 // Set both JAR and Maven artifact name
 val openFeatureArtifactId = "dd-openfeature"
@@ -58,6 +58,7 @@ dependencies {
   implementation(project(":utils:config-utils"))
   implementation(project(":internal-api"))
   implementation(project(":communication"))
+  implementation(project(":remote-config:remote-config-core"))
   // OpenFeature SDK classes retain @lombok.Generated in their bytecode. Supplying the annotation
   // on the analysis classpath keeps SpotBugs from treating that optional SDK build detail as a
   // missing class; Lombok is neither bundled nor published as a dependency.
@@ -91,13 +92,9 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
     exclude(dependency("dev.openfeature:sdk:.*"))
     exclude(dependency("io.opentelemetry:.*:.*"))
     exclude(dependency("org.slf4j:.*:.*"))
-    // These are optional agent capabilities reachable from the shared Config/communication
-    // modules but not from standalone HTTP polling or direct EVP delivery.
-    exclude(dependency("cafe.cryptography:.*:.*"))
+    // Metrics implementations are not part of standalone Feature Flags delivery.
     exclude(dependency("com.datadoghq:java-dogstatsd-client:.*"))
     exclude(dependency("com.datadoghq:sketches-java:.*"))
-    exclude(dependency("com.github.jnr:.*:.*"))
-    exclude(dependency("org.ow2.asm:.*:.*"))
   }
 
   relocate("com.datadog.featureflag.", "datadog.openfeature.internal.featureflag.")
@@ -105,6 +102,7 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
   relocate("okhttp3.", "datadog.openfeature.internal.okhttp3.")
   relocate("okio.", "datadog.openfeature.internal.okio.")
   relocate("org.jctools.", "datadog.openfeature.internal.org.jctools.")
+  relocate("cafe.cryptography.", "datadog.openfeature.internal.cafe.cryptography.")
   relocate("datadog.", "datadog.openfeature.internal.datadog.") {
     exclude("datadog.trace.api.featureflag.**")
     exclude("datadog.trace.api.openfeature.*")

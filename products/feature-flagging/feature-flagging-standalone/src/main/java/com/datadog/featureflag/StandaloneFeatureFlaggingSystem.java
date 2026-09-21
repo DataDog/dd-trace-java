@@ -1,7 +1,8 @@
 package com.datadog.featureflag;
 
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_AGENTLESS;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_REMOTE_CONFIG;
 
+import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway.RuntimeMode;
@@ -12,8 +13,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Owns agentless configuration and event delivery when {@code dd-openfeature} runs without an
- * agent.
+ * Owns CDN or Remote Configuration and event delivery when {@code dd-openfeature} runs without the
+ * Datadog Java agent.
  */
 public final class StandaloneFeatureFlaggingSystem {
 
@@ -33,7 +34,7 @@ public final class StandaloneFeatureFlaggingSystem {
 
   private StandaloneFeatureFlaggingSystem() {}
 
-  /** Starts standalone delivery when the configured source is {@code agentless}. */
+  /** Starts standalone delivery through the requested configuration source. */
   public static boolean start() {
     return start(StandaloneFeatureFlaggingSystem::initializeSystem);
   }
@@ -85,8 +86,13 @@ public final class StandaloneFeatureFlaggingSystem {
               config
                   .configProvider()
                   .getBoolean(FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED));
-      if (!resolved.isEnabled() || !CONFIGURATION_SOURCE_AGENTLESS.equals(resolved.getSource())) {
+      if (!resolved.isEnabled()) {
         return false;
+      }
+      if (CONFIGURATION_SOURCE_REMOTE_CONFIG.equals(resolved.getSource())
+          && !config.isRemoteConfigEnabled()) {
+        throw new IllegalStateException(
+            "Feature Flags remote_config requires DD_REMOTE_CONFIGURATION_ENABLED=true");
       }
       if (!FeatureFlaggingGateway.claimRuntime(RuntimeMode.STANDALONE)) {
         LOGGER.debug(
@@ -151,9 +157,18 @@ public final class StandaloneFeatureFlaggingSystem {
   /** Composition root for the concrete standalone transports, validated by deployment tests. */
   private static final class DefaultRuntime {
     private static void initialize(final Config config) {
-      final DirectEventPipelines events = new DirectEventPipelines(config);
-      final ConfigurationSourceService configService =
-          new AgentlessConfigurationSource(config, RuntimeServices.STANDALONE);
+      final StandaloneEventPipelines events;
+      final ConfigurationSourceService configService;
+      if (CONFIGURATION_SOURCE_REMOTE_CONFIG.equals(
+          config.getFeatureFlaggingConfigurationSource())) {
+        final SharedCommunicationObjects sco = new SharedCommunicationObjects();
+        sco.createRemaining(config);
+        configService = new RemoteConfigServiceImpl(sco.configurationPoller(config));
+        events = StandaloneEventPipelines.remoteConfig(config, sco);
+      } else {
+        configService = new AgentlessConfigurationSource(config, RuntimeServices.STANDALONE);
+        events = StandaloneEventPipelines.direct(config);
+      }
       final ExposureWriter exposureWriter = events.exposures();
       final boolean evalCountsEnabled =
           config

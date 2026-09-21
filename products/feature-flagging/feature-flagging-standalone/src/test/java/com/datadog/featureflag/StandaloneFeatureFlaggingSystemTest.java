@@ -97,14 +97,50 @@ class StandaloneFeatureFlaggingSystemTest {
 
   @Test
   @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "remote_config")
-  void leavesRemoteConfigForTheAgentRuntime() {
+  @WithConfig(key = "remote_configuration.enabled", value = "true")
+  void startsStandaloneRemoteConfigWhenRequested() {
     final StandaloneFeatureFlaggingSystem.SystemInitializer initializer =
         mock(StandaloneFeatureFlaggingSystem.SystemInitializer.class);
 
-    assertFalse(StandaloneFeatureFlaggingSystem.start(initializer));
+    assertTrue(StandaloneFeatureFlaggingSystem.start(initializer));
+    verify(initializer).initialize(any(Config.class));
+    assertSame(RuntimeMode.STANDALONE, FeatureFlaggingGateway.activeRuntime());
+  }
 
-    verify(initializer, never()).initialize(any(Config.class));
+  @Test
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "remote_config")
+  @WithConfig(key = "remote_configuration.enabled", value = "false")
+  void rejectsRemoteConfigDisabledInsteadOfFallingBackToDirect() {
+    final StandaloneFeatureFlaggingSystem.SystemInitializer initializer =
+        mock(StandaloneFeatureFlaggingSystem.SystemInitializer.class);
+    assertThrows(
+        IllegalStateException.class, () -> StandaloneFeatureFlaggingSystem.start(initializer));
+    verifyNoInteractions(initializer);
     assertNull(FeatureFlaggingGateway.activeRuntime());
+  }
+
+  @Test
+  @WithConfig(key = FEATURE_FLAGS_ENABLED, value = "false")
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "remote_config")
+  @WithConfig(key = "remote_configuration.enabled", value = "false")
+  void globalDisablePreventsRemoteConfigStartup() {
+    final StandaloneFeatureFlaggingSystem.SystemInitializer initializer =
+        mock(StandaloneFeatureFlaggingSystem.SystemInitializer.class);
+    assertFalse(StandaloneFeatureFlaggingSystem.start(initializer));
+    verifyNoInteractions(initializer);
+    assertNull(FeatureFlaggingGateway.activeRuntime());
+  }
+
+  @Test
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "remote_config")
+  @WithConfig(key = "remote_configuration.enabled", value = "true")
+  void remoteConfigDoesNotStartASecondRuntimeWhenAgentOwnsIt() {
+    final StandaloneFeatureFlaggingSystem.SystemInitializer initializer =
+        mock(StandaloneFeatureFlaggingSystem.SystemInitializer.class);
+    assertTrue(FeatureFlaggingGateway.claimRuntime(RuntimeMode.AGENT));
+    assertNull(StandaloneFeatureFlaggingSystem.acquire(initializer));
+    verifyNoInteractions(initializer);
+    assertSame(RuntimeMode.AGENT, FeatureFlaggingGateway.activeRuntime());
   }
 
   @Test

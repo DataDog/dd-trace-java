@@ -36,6 +36,7 @@ dependencies {
   implementation(project(":products:feature-flagging:feature-flagging-config"))
   implementation(project(":internal-api"))
   implementation(project(":communication"))
+  api(project(":remote-config:remote-config-api"))
   implementation(project(":utils:logging-utils"))
 
   testImplementation(libs.bundles.junit5)
