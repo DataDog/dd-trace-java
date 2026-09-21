@@ -2227,8 +2227,14 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       if (!tracer.allowInferredServices) {
         final DDSpan rootSpan = parentTraceCollector.getRootSpan();
         if (rootSpan != null) {
-          serviceName = rootSpan.getServiceName();
-          serviceNameSource = rootSpan.getServiceNameSource();
+          // An inferred proxy represents the gateway, not the application service.
+          // Preserve the service and source already resolved for spans beneath it.
+          // Avoid the synchronized tag lookup when inferred proxies are disabled.
+          if (!tracer.initialConfig.isInferredProxyPropagationEnabled()
+              || rootSpan.getTag("_dd.inferred_span") == null) {
+            serviceName = rootSpan.getServiceName();
+            serviceNameSource = rootSpan.getServiceNameSource();
+          }
         } else {
           serviceName = null;
         }
