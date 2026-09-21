@@ -58,19 +58,31 @@ class InstrumenterModuleTest {
   @Test
   @WithConfig(key = "trace.test-kafka-module.enabled", value = "false")
   @WithConfig(key = "data.streams.enabled", value = "true")
-  void testDataStreamsIsEnabledHonorsPerIntegrationDisableEvenWithDsmEnabled() {
-    // Users must still be able to disable this integration individually (e.g. for triage)
-    // even when DSM is enabled globally.
+  void testDataStreamsIsEnabledWhenDataStreamsEnabledOverridesFalse() {
+    // When tracing for this integration is disabled but DSM is explicitly enabled,
+    // isEnabled() should still return true.
     InstrumenterModule.DataStreams module =
         new InstrumenterModule.DataStreams("test-kafka-module") {};
 
-    assertFalse(module.isEnabled());
+    assertTrue(module.isEnabled());
   }
 
   @Test
   @WithConfig(key = "trace.test-kafka-module.enabled", value = "true")
   @WithConfig(key = "data.streams.enabled", value = "false")
   void testDataStreamsIsEnabledWhenSuperEnabledIsTrue() {
+    // When super.isEnabled() is true, isEnabled() should return true regardless of DSM state.
+    InstrumenterModule.DataStreams module =
+        new InstrumenterModule.DataStreams("test-kafka-module") {};
+
+    assertTrue(module.isEnabled());
+  }
+
+  @Test
+  @WithConfig(key = "trace.test-kafka-module.enabled", value = "true")
+  @WithConfig(key = "data.streams.enabled", value = "true")
+  void testDataStreamsIsEnabledWhenBothEnabled() {
+    // When both super.isEnabled() and DSM are enabled, isEnabled() should return true.
     InstrumenterModule.DataStreams module =
         new InstrumenterModule.DataStreams("test-kafka-module") {};
 
@@ -81,6 +93,7 @@ class InstrumenterModuleTest {
   @WithConfig(key = "trace.test-kafka-module.enabled", value = "false")
   @WithConfig(key = "data.streams.enabled", value = "false")
   void testDataStreamsIsEnabledWhenBothDisabled() {
+    // When both super.isEnabled() and DSM are disabled, isEnabled() should return false.
     InstrumenterModule.DataStreams module =
         new InstrumenterModule.DataStreams("test-kafka-module") {};
 
