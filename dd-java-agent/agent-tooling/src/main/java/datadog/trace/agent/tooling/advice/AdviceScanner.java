@@ -138,6 +138,7 @@ public final class AdviceScanner {
 
   private void addHandleDependencies(MutableClassInfo from, Handle handle) {
     addDependency(from, binaryName(handle.getOwner()));
+    addTypeDependency(from, Type.getType(handle.getDesc()));
   }
 
   @SuppressForbidden
@@ -282,6 +283,13 @@ public final class AdviceScanner {
     }
 
     @Override
+    public void visitTryCatchBlock(Label start, Label end, Label handler, String type) {
+      if (type != null) {
+        addDependency(info, binaryName(type));
+      }
+    }
+
+    @Override
     public void visitFieldInsn(int opcode, String owner, String name, String descriptor) {
       String binaryOwner = binaryName(owner);
       addDependency(info, binaryOwner);
@@ -313,11 +321,14 @@ public final class AdviceScanner {
     @Override
     public void visitInvokeDynamicInsn(
         String name, String descriptor, Handle bootstrapMethodHandle, Object... arguments) {
+      addTypeDependency(info, Type.getMethodType(descriptor));
       List<HandleUse> handles = new ArrayList<>();
       addHandle(handles, bootstrapMethodHandle);
       for (Object argument : arguments) {
         if (argument instanceof Handle) {
           addHandle(handles, (Handle) argument);
+        } else if (argument instanceof Type) {
+          addTypeDependency(info, (Type) argument);
         }
       }
       info.usages.add(

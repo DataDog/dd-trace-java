@@ -22,6 +22,10 @@ import java.util.Arrays;
 import java.util.List;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.jar.asm.ClassReader;
+import net.bytebuddy.jar.asm.ClassWriter;
+import net.bytebuddy.jar.asm.Handle;
+import net.bytebuddy.jar.asm.Label;
+import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.Type;
 import org.junit.jupiter.api.Test;
@@ -81,6 +85,36 @@ class AdviceScannerTest {
   }
 
   @Test
+  void discoversInvokeDynamicAndCatchTypeDependencies() {
+    String adviceClass = "generated.Advice";
+    class GeneratedAdviceModule extends InstrumenterModule implements Instrumenter.HasMethodAdvice {
+      GeneratedAdviceModule() {
+        super("generated-advice");
+      }
+
+      @Override
+      public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(null, adviceClass);
+      }
+    }
+
+    AdviceScanResult result =
+        AdviceScanner.scan(
+            new GeneratedAdviceModule(),
+            ClassFileLocator.Simple.of(adviceClass, generatedAdvice(adviceClass)));
+
+    for (String dependency :
+        Arrays.asList(
+            "callsite.Only",
+            "bootstrap.Only",
+            "bootstrapArgument.Only",
+            "handle.Only",
+            "catch.Only")) {
+      assertNotNull(result.getClassInfo(dependency), dependency);
+    }
+  }
+
+  @Test
   void skipsMissingTransitiveInstrumentationClasses() {
     ClassFileLocator delegate = ClassFileLocator.ForClassLoader.of(getClass().getClassLoader());
     ClassFileLocator locator =
@@ -135,5 +169,44 @@ class AdviceScannerTest {
 
   private static Usage firstUsage(ClassInfo info, UsageKind kind) {
     return info.getUsages().stream().filter(use -> use.getKind() == kind).findFirst().orElse(null);
+  }
+
+  private static byte[] generatedAdvice(String className) {
+    ClassWriter writer = new ClassWriter(0);
+    writer.visit(
+        Opcodes.V1_8,
+        Opcodes.ACC_PUBLIC,
+        className.replace('.', '/'),
+        null,
+        "java/lang/Object",
+        null);
+
+    MethodVisitor method =
+        writer.visitMethod(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC, "apply", "()V", null, null);
+    Label start = new Label();
+    Label end = new Label();
+    Label handler = new Label();
+    Label done = new Label();
+    method.visitTryCatchBlock(start, end, handler, "catch/Only");
+    method.visitCode();
+    method.visitLabel(start);
+    method.visitInvokeDynamicInsn(
+        "apply",
+        "()Lcallsite/Only;",
+        new Handle(
+            Opcodes.H_INVOKESTATIC, "bootstrap/Owner", "bootstrap", "(Lbootstrap/Only;)V", false),
+        Type.getMethodType("()LbootstrapArgument/Only;"),
+        new Handle(Opcodes.H_INVOKESTATIC, "handle/Owner", "apply", "(Lhandle/Only;)V", false));
+    method.visitInsn(Opcodes.POP);
+    method.visitLabel(end);
+    method.visitJumpInsn(Opcodes.GOTO, done);
+    method.visitLabel(handler);
+    method.visitInsn(Opcodes.POP);
+    method.visitLabel(done);
+    method.visitInsn(Opcodes.RETURN);
+    method.visitMaxs(1, 0);
+    method.visitEnd();
+    writer.visitEnd();
+    return writer.toByteArray();
   }
 }
