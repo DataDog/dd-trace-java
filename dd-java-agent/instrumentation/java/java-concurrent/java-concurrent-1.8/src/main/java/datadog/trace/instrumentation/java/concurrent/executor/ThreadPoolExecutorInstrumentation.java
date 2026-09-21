@@ -113,7 +113,7 @@ public final class ThreadPoolExecutorInstrumentation
           // queue time needs to be handled separately because there are RunnableFutures which are
           // excluded as
           // Runnables but it is not until now that they will be put on the executor's queue
-          if (!exclude(EXECUTOR, tpe)) {
+          if (QueueTimerHelper.isReady() && !exclude(EXECUTOR, tpe)) {
             if (!exclude(RUNNABLE, task)) {
               Queue<?> queue = tpe.getQueue();
               QueueTimerHelper.startQueuingTimer(
