@@ -34,6 +34,20 @@ build-exploration-tests-image:
     - when: manual
       allow_failure: true
   before_script:
+    - |
+      mkdir -p "$HOME/.m2"
+      cat > "$HOME/.m2/settings.xml" <<EOF
+      <settings>
+        <mirrors>
+          <mirror>
+            <id>env-proxy</id>
+            <mirrorOf>*</mirrorOf>
+            <url>${MAVEN_REPOSITORY_PROXY}</url>
+          </mirror>
+        </mirrors>
+      </settings>
+      EOF
+    - export MVNW_REPOURL=${MAVEN_REPOSITORY_PROXY%/}
     - cp workspace/dd-java-agent/build/libs/*.jar /exploration-tests/dd-java-agent.jar
     - cp dd-java-agent/agent-debugger/exploration-tests/run-exploration-tests.sh /exploration-tests
     - cp dd-java-agent/agent-debugger/exploration-tests/exclude_*.txt /exploration-tests
