@@ -1,5 +1,6 @@
 package com.datadog.openfeature.remoteconfig;
 
+import datadog.common.version.VersionInfo;
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
 import datadog.communication.ddagent.SharedCommunicationObjects;
@@ -44,7 +45,7 @@ public final class RemoteConfigExtension implements RemoteConfigTransport {
     communication.createRemaining(config);
     final BackendApiFactory factory = new BackendApiFactory(config, communication);
     return new RemoteConfigExtension(
-        communication.configurationPoller(config),
+        communication.configurationPoller(config, VersionInfo.VERSION),
         compression -> factory.createEvpProxyApi(Intake.EVENT_PLATFORM, compression));
   }
 

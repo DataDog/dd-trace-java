@@ -18,7 +18,9 @@ import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.util.Base64;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.jar.JarFile;
+import java.util.regex.Pattern;
 import javax.tools.JavaCompiler;
 import javax.tools.ToolProvider;
 import org.junit.jupiter.api.Test;
@@ -130,6 +132,7 @@ class StandalonePublishedJarTest {
     final String expectedValue = unavailable || missingExtension ? "default" : "treatment";
     final AtomicInteger configRequests = new AtomicInteger();
     final AtomicInteger rcRequests = new AtomicInteger();
+    final AtomicReference<String> lastRcRequest = new AtomicReference<>();
     final HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
     server.createContext(
         "/config",
@@ -155,7 +158,7 @@ class StandalonePublishedJarTest {
         "/v0.7/config",
         exchange -> {
           rcRequests.incrementAndGet();
-          exchange.getRequestBody().readAllBytes();
+          lastRcRequest.set(new String(exchange.getRequestBody().readAllBytes(), UTF_8));
           exchange.sendResponseHeaders(unavailable ? 503 : 200, rcResponse.length);
           exchange.getResponseBody().write(rcResponse);
           exchange.close();
@@ -234,6 +237,15 @@ class StandalonePublishedJarTest {
           assertEquals(0, rcRequests.get(), "Missing extension must not start RC polling");
         } else {
           assertTrue(rcRequests.get() > 0, "standalone runtime did not poll Remote Configuration");
+          assertTrue(
+              Pattern.compile(
+                      "\"tracer_version\":\""
+                          + Pattern.quote(System.getProperty("datadog.test.provider.version"))
+                          + "(?:\\+[^\"]+)?\"")
+                  .matcher(lastRcRequest.get())
+                  .find(),
+              "RC must advertise the provider version, not the absent Java agent's version: "
+                  + lastRcRequest.get());
         }
         assertEquals(0, configRequests.get(), "explicit RC must not fall back to CDN polling");
       } else {

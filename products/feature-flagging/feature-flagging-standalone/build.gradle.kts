@@ -134,6 +134,7 @@ tasks.test {
     val shadowJar =
       tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar").get()
     systemProperty("datadog.test.dd-openfeature.jar", shadowJar.archiveFile.get().asFile.absolutePath)
+    systemProperty("datadog.test.provider.version", project.version.toString().replace('~', '+'))
     val rcJar = project(":products:feature-flagging:feature-flagging-remote-config")
       .tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar").get()
     systemProperty("datadog.test.dd-openfeature-remote-config.jar", rcJar.archiveFile.get().asFile.absolutePath)

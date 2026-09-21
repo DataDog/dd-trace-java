@@ -23,6 +23,7 @@ dependencies {
   implementation(project(":internal-api"))
   implementation(project(":communication"))
   implementation(project(":remote-config:remote-config-core"))
+  implementation(project(":utils:version-utils"))
   testImplementation(project(":products:feature-flagging:feature-flagging-bootstrap"))
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)
