@@ -31,9 +31,11 @@ The optional `feature_flag.evaluations` metric uses the application's OTel confi
 
 The agent distribution uses the same evaluator and shared event pipelines.
 An OpenFeature-only application can use provider injection after explicit Feature Flags activation.
+Set `DD_FEATURE_FLAGS_ENABLED=true` to enable injection.
 Set `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless` for direct configuration.
 Injection also works when `DD_TRACE_ENABLED=false`.
-`DD_TRACE_OPENFEATURE_ENABLED=false` disables injection without disabling manual registration.
+`DD_FEATURE_FLAGS_ENABLED=false` disables injection and runtime startup from manual registration.
+Tracing integration switches do not control provider installation. There is no injection-only switch.
 Injection preserves an application-selected provider.
 
 For Remote Configuration, set `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=remote_config`.
@@ -46,8 +48,8 @@ Actual SSI attachment and rollback remain a separate certification gate.
 
 ## Compatibility and deprecation
 
-Stable names replace the experimental provider and span-enrichment settings.
-Legacy names remain supported. A stable span-enrichment setting overrides its legacy alias.
+Use `DD_FEATURE_FLAGS_ENABLED` for provider enablement. The legacy provider setting remains supported.
+Keep `DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED` for span enrichment, off by default.
 Legacy provider activation continues to select RC.
 RC and manual registration are not deprecated.
 Bootstrap bridge payloads remain unshaded for mixed installations.

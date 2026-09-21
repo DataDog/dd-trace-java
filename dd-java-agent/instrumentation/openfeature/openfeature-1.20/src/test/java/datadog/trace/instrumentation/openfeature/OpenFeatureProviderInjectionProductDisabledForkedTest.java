@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.openfeature;
 
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
@@ -12,9 +13,8 @@ import org.junit.jupiter.api.Test;
 
 @WithConfig(key = "trace.enabled", value = "false")
 @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
-@WithConfig(key = "trace.openfeature.enabled", value = "false")
-class OpenFeatureProviderInjectionIntegrationDisabledForkedTest
-    extends AbstractInstrumentationTest {
+@WithConfig(key = FEATURE_FLAGS_ENABLED, value = "false")
+class OpenFeatureProviderInjectionProductDisabledForkedTest extends AbstractInstrumentationTest {
 
   @AfterEach
   void resetOpenFeature() {
@@ -22,7 +22,7 @@ class OpenFeatureProviderInjectionIntegrationDisabledForkedTest
   }
 
   @Test
-  void honorsOpenFeatureInstrumentationKillswitch() {
+  void honorsFeatureFlagsKillswitchEvenWithAnExplicitSource() {
     final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
 
     assertSame(NoOpProvider.class, api.getProvider().getClass());

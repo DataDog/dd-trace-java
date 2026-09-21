@@ -23,7 +23,7 @@ Start with the [short RFC](feature-flags-migration-rfc.md) and [assembly notes](
 - [x] Implement activation, global disable, shared-consumer lifecycle, and matching-artifact bridge fixes.
 - [x] Use a normal OTel API dependency for the POC without installing an SDK or exporters.
 - [x] Preserve late application OTel SDK registration in a forked test.
-- [x] Add stable span-enrichment naming and retain legacy aliases and bridge shims.
+- [x] Retain the experimental span-enrichment setting, legacy provider behavior, and bridge shims.
 - [x] Build both distributions and generate the customer POM.
 - [x] Run canonical, lifecycle, artifact-boundary, and injection tests.
 - [x] Run no-agent, OTel-only, injection, and RC dogfood cases against the same artifacts.
@@ -91,8 +91,9 @@ An isolated-classloader test checks that order without falling back to applicati
 ## Compatibility and deprecation
 
 - Keep RC and manual provider registration.
-- Replace experimental setting names with stable names. Keep their legacy behavior as compatibility aliases.
-- Add `DD_FEATURE_FLAGS_SPAN_ENRICHMENT_ENABLED`. Its explicit value wins over the experimental spelling.
+- Use `DD_FEATURE_FLAGS_ENABLED` for product enablement and automatic provider installation. Keep legacy provider behavior.
+- Keep `DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED`, off by default. No span-enrichment rename is part of this migration.
+- Remove the separate trace-integration gate from provider installation. Product disable also prevents runtime startup through manual registration.
 - Keep bridge payloads unshaded until the Java team defines the supported provider/agent version window.
 - Use one evaluator implementation. Do not retain a standalone evaluator fork.
 - Reference-count standalone consumers within one runtime classloader. Closing one provider does not stop another.
@@ -115,6 +116,9 @@ This preserves the current parser and cross-loader payload identity while the co
 This POC does not remove those types or claim they are no longer implementation dependencies.
 
 ## Module consolidation: Sep 20, 2026
+
+These results describe the September 20 artifacts. They include an injection-only switch that the September 21 revision removes.
+Do not use those results as validation of the revised controls.
 
 The product now has six Gradle projects instead of eight.
 All 14 source and test files moved from core/HTTP to lib are byte-for-byte unchanged.

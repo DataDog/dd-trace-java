@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.InstrumenterConfig;
 import dev.openfeature.sdk.OpenFeatureAPI;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
@@ -19,6 +20,12 @@ public class OpenFeatureAPIInstrumentation extends InstrumenterModule
 
   public OpenFeatureAPIInstrumentation() {
     super("openfeature");
+  }
+
+  @Override
+  public boolean isEnabled() {
+    // Provider installation belongs to Feature Flags, not tracing integrations.
+    return InstrumenterConfig.get().isFeatureFlaggingInstrumentationEnabled();
   }
 
   @Override

@@ -1,7 +1,7 @@
 # Java Feature Flags: organize as customer-standalone and SSI
 
 Author: Leo Romanovsky  
-Updated: Sep 20, 2026
+Updated: Sep 21, 2026
 Status: integrated POC for Java Language Tools discussion; not a release candidate.
 
 ## Motivation and proposal
@@ -50,6 +50,11 @@ Arrows show setup and runtime ownership, not a network call for each evaluation.
 The two agent configuration paths are alternatives. The [dogfood POC #124](https://github.com/ddoghq/ffe-dogfooding/pull/124) demonstrates both installation shapes with direct delivery.
 
 `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless` selects direct configuration. It does not mean the Java agent is absent. Standalone requires credentials and network access to the CDN and direct event intake, but no collector.
+
+`DD_FEATURE_FLAGS_ENABLED=true` enables automatic provider installation when the Datadog Java agent is attached.
+`DD_FEATURE_FLAGS_ENABLED=false` disables both automatic installation and runtime startup from manual registration.
+This is a product switch, not an injection-only switch. Tracing integration switches do not control provider installation.
+Without explicit Feature Flags settings, manual registration starts standalone delivery; the agent does not automatically install a provider.
 
 Remote Configuration (RC) remains an agent capability:
 
@@ -138,11 +143,14 @@ Keep RC and manual provider registration. Preserve local synchronous evaluation,
 | Retire | Gate |
 | --- | --- |
 | Experimental designation | Remove separately for each deliverable after its release gates pass. |
-| Experimental enablement and span-enrichment setting names | Use `DD_FEATURE_FLAGS_ENABLED` and `DD_FEATURE_FLAGS_SPAN_ENRICHMENT_ENABLED`. Retain aliases and documented precedence during an agreed support window. |
+| Experimental provider enablement setting | Use `DD_FEATURE_FLAGS_ENABLED`. Retain legacy behavior and documented precedence during an agreed support window. |
 | Duplicate evaluators, parsers, stores, and lifecycle implementations | Shared implementations replace them after parity validation. |
 | Legacy bridge APIs and typed payloads | Define supported provider/agent pairs first. Retain compatible types until replacement and removal gates pass. |
 
 Legacy enablement is not a simple rename. Migrate legacy `true` with both `DD_FEATURE_FLAGS_ENABLED=true` and `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=remote_config`. Keep RC prerequisites. Migrate legacy `false` to explicit global disable.
+
+Keep `DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED`, separately controlled and off by default.
+Do not rename it in this migration. It matches the current cross-SDK setting.
 
 ## Extraction and release plan
 

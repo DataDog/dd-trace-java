@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.openfeature;
 
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
 import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -17,7 +17,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 @WithConfig(key = "trace.enabled", value = "false")
-@WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
+@WithConfig(key = FEATURE_FLAGS_ENABLED, value = "true")
+@WithConfig(key = "trace.openfeature.enabled", value = "false")
+@WithConfig(key = "integrations.enabled", value = "false")
 class OpenFeatureProviderInjectionTest extends AbstractInstrumentationTest {
 
   @BeforeEach
@@ -32,7 +34,7 @@ class OpenFeatureProviderInjectionTest extends AbstractInstrumentationTest {
   }
 
   @Test
-  void injectsWithTracingDisabledAndPreservesCustomerReplacement() {
+  void injectsWithProductEnabledDespiteTracingControlsAndPreservesCustomerReplacement() {
     final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
 
     assertEquals("datadog-openfeature-provider", api.getProvider().getMetadata().getName());
