@@ -16,6 +16,7 @@ public class EmbeddingModule extends InstrumenterModule.Tracing {
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".CommonTags",
+      packageName + ".TokenUsage",
       packageName + ".EmbeddingDecorator",
       packageName + ".OpenAiDecorator",
       packageName + ".HttpResponseWrapper",

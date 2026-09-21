@@ -199,6 +199,24 @@ class GenAiApmTagsTest {
     assertTrue(tags.keySet().stream().noneMatch(key -> key.startsWith("gen_ai.")));
   }
 
+  @Test
+  void usageWritesTheMappedGenAiMetric() {
+    GenAiApmTags.usage(span, LLMOBS_METRIC_PREFIX + "input_tokens", 11L);
+    GenAiApmTags.usage(span, LLMOBS_METRIC_PREFIX + "cache_read_input_tokens", 4);
+
+    assertEquals(11.0, tags.get(GenAiApmTags.USAGE_INPUT_TOKENS));
+    assertEquals(4.0, tags.get(GenAiApmTags.USAGE_CACHE_READ_INPUT_TOKENS));
+  }
+
+  @Test
+  void usageIgnoresUnknownMetricsAndNulls() {
+    GenAiApmTags.usage(span, LLMOBS_METRIC_PREFIX + "time_to_first_token", 5L);
+    GenAiApmTags.usage(span, LLMOBS_METRIC_PREFIX + "input_tokens", null);
+    GenAiApmTags.usage(null, LLMOBS_METRIC_PREFIX + "input_tokens", 11L);
+
+    assertTrue(tags.keySet().stream().noneMatch(key -> key.startsWith("gen_ai.")));
+  }
+
   private void llmObsTag(String key, String value) {
     tags.put(LLMOBS_TAG_PREFIX + key, value);
   }

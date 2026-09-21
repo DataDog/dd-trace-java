@@ -1,8 +1,12 @@
 package datadog.trace.api.llmobs;
 
+import static java.util.Collections.unmodifiableMap;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Emits the scalar {@code gen_ai.*} attributes of an LLM Observability span onto the APM span, so
@@ -43,15 +47,19 @@ public final class GenAiApmTags {
   /** Matches the fallback the LLM Observability event uses. */
   private static final String DEFAULT_MODEL = "custom";
 
-  /** LLM Observability metric name paired with the {@code gen_ai.usage.*} key it maps to. */
-  private static final String[][] TOKEN_METRICS = {
-    {LLMOBS_METRIC_PREFIX + "input_tokens", USAGE_INPUT_TOKENS},
-    {LLMOBS_METRIC_PREFIX + "output_tokens", USAGE_OUTPUT_TOKENS},
-    {LLMOBS_METRIC_PREFIX + "total_tokens", USAGE_TOTAL_TOKENS},
-    {LLMOBS_METRIC_PREFIX + "cache_read_input_tokens", USAGE_CACHE_READ_INPUT_TOKENS},
-    {LLMOBS_METRIC_PREFIX + "cache_write_input_tokens", USAGE_CACHE_WRITE_INPUT_TOKENS},
-    {LLMOBS_METRIC_PREFIX + "reasoning_output_tokens", USAGE_REASONING_OUTPUT_TOKENS},
-  };
+  /** LLM Observability metric name mapped to the {@code gen_ai.usage.*} key it feeds. */
+  private static final Map<String, String> USAGE_KEYS;
+
+  static {
+    Map<String, String> keys = new HashMap<>();
+    keys.put(LLMOBS_METRIC_PREFIX + "input_tokens", USAGE_INPUT_TOKENS);
+    keys.put(LLMOBS_METRIC_PREFIX + "output_tokens", USAGE_OUTPUT_TOKENS);
+    keys.put(LLMOBS_METRIC_PREFIX + "total_tokens", USAGE_TOTAL_TOKENS);
+    keys.put(LLMOBS_METRIC_PREFIX + "cache_read_input_tokens", USAGE_CACHE_READ_INPUT_TOKENS);
+    keys.put(LLMOBS_METRIC_PREFIX + "cache_write_input_tokens", USAGE_CACHE_WRITE_INPUT_TOKENS);
+    keys.put(LLMOBS_METRIC_PREFIX + "reasoning_output_tokens", USAGE_REASONING_OUTPUT_TOKENS);
+    USAGE_KEYS = unmodifiableMap(keys);
+  }
 
   public static void apply(AgentSpan span) {
     apply(span, null, null, null);
@@ -97,15 +105,30 @@ public final class GenAiApmTags {
 
     // Other kinds carry unrelated metrics that a gen_ai.usage.* key would misrepresent.
     if (modelBacked) {
-      for (String[] metric : TOKEN_METRICS) {
-        Object value = span.getTag(metric[0]);
+      for (Map.Entry<String, String> metric : USAGE_KEYS.entrySet()) {
+        Object value = span.getTag(metric.getKey());
         if (value instanceof Number) {
-          span.setMetric(metric[1], ((Number) value).doubleValue());
+          span.setMetric(metric.getValue(), ((Number) value).doubleValue());
         }
       }
     }
 
     span.setTag(ARTIFICIAL_TAGS, "true");
+  }
+
+  /**
+   * Writes the {@code gen_ai.usage.*} metric that {@code llmObsMetric} maps to, for instrumentation
+   * that has the token counts but does not tag them because LLM Observability is disabled. No-op
+   * for an unknown metric name.
+   */
+  public static void usage(AgentSpan span, String llmObsMetric, Number value) {
+    if (span == null || value == null) {
+      return;
+    }
+    String key = USAGE_KEYS.get(llmObsMetric);
+    if (key != null) {
+      span.setMetric(key, value.doubleValue());
+    }
   }
 
   /** The value of {@code key} as a non-empty string, or null. */
