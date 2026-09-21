@@ -67,7 +67,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
     @Override
     void start() {
-      app.setDefaultProperties(["server.port": 0, "server.context-path": "/$servletContext",
+      app.setDefaultProperties(["server.port": 0, "server.servlet.context-path": "/$servletContext",
         "spring.mvc.throw-exception-if-no-handler-found": false,
         "spring.web.resources.add-mappings"             : false,
         "server.forward-headers-strategy": "NONE"])
@@ -236,10 +236,14 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
       case NOT_FOUND:
         return null
       case PATH_PARAM:
-        return testPathParam()
+        return withServletContext(testPathParam())
       default:
-        return endpoint.path
+        return withServletContext(endpoint.path)
     }
+  }
+
+  private String withServletContext(String path) {
+    servletContext ? "/$servletContext$path" : path
   }
 
   @Override
@@ -253,10 +257,11 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     if (endpoint.status == 404 && endpoint.path == "/not-found") {
       return "404"
     } else if (endpoint.hasPathParam) {
-      return "$method ${testPathParam()}"
+      return "$method ${withServletContext(testPathParam())}"
     }
     def base = endpoint == LOGIN ? address : address.resolve("/")
-    return "$method ${endpoint.resolve(base).path}"
+    def path = endpoint.resolve(base).path
+    return "$method ${endpoint == LOGIN ? path : withServletContext(path)}"
   }
 
   int spanCount(ServerEndpoint endpoint) {
@@ -460,7 +465,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
     then:
     response.code() == 500
-    span.getResourceName().toString() == "GET " + testPathParam()
+    span.getResourceName().toString() == expectedResourceName(PATH_PARAM, "GET", address)
     span.isError()
   }
 
@@ -515,6 +520,18 @@ class SpringBootRumInjectionForkedTest extends SpringBootBasedTest {
   @Override
   boolean testRumInjection() {
     true
+  }
+}
+
+class SpringBootContextPathTest extends SpringBootBasedTest {
+  @Override
+  String getServletContext() {
+    return "boot-context"
+  }
+
+  @Override
+  String expectedServiceName() {
+    return servletContext
   }
 }
 

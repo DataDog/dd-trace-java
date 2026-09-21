@@ -141,10 +141,14 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
       case NOT_FOUND:
         return null
       case PATH_PARAM:
-        return testPathParam()
+        return withServletContext(testPathParam())
       default:
-        return endpoint.path
+        return withServletContext(endpoint.path)
     }
+  }
+
+  private String withServletContext(String path) {
+    servletContext ? "/$servletContext$path" : path
   }
 
   @Override
@@ -158,10 +162,11 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     if (endpoint.status == 404 && endpoint.path == "/not-found") {
       return "404"
     } else if (endpoint.hasPathParam) {
-      return "$method ${testPathParam()}"
+      return "$method ${withServletContext(testPathParam())}"
     }
     def base = endpoint == LOGIN ? address : address.resolve("/")
-    return "$method ${endpoint.resolve(base).path}"
+    def path = endpoint.resolve(base).path
+    return "$method ${endpoint == LOGIN ? path : withServletContext(path)}"
   }
 
   int spanCount(ServerEndpoint endpoint) {
@@ -291,7 +296,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     DDSpan span = TEST_WRITER.flatten().find { "servlet.request".contentEquals(it.operationName) }
 
     then:
-    span.getResourceName().toString() == "GET " + testPathParam()
+    span.getResourceName().toString() == expectedResourceName(PATH_PARAM, "GET", address)
   }
 
   boolean hasResponseSpan(ServerEndpoint endpoint) {
@@ -392,15 +397,16 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
   protected void trailingSpans(TraceAssert traceAssert, ServerEndpoint serverEndpoint) {
     if (serverEndpoint == NOT_FOUND) {
+      def errorRoute = withServletContext('/error')
       traceAssert.with {
         span {
           spanType 'web'
           serviceName expectedServiceName()
           operationName 'servlet.forward'
-          resourceName 'GET /error'
+          resourceName "GET $errorRoute"
           tags {
             "$Tags.COMPONENT" 'java-web-servlet-dispatcher'
-            "$Tags.HTTP_ROUTE" '/error'
+            "$Tags.HTTP_ROUTE" errorRoute
             'servlet.context' "/$servletContext"
             'servlet.path' '/not-found'
             "$DDTags.PATHWAY_HASH" String
