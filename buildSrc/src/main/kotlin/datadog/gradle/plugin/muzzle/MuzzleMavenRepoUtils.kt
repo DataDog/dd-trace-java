@@ -158,21 +158,18 @@ internal object MuzzleMavenRepoUtils {
     val resultExceptions = mutableListOf<Pair<Int, List<Exception>>>()
     fun attemptResolve(): VersionRangeResult? {
       attemptCount++
-      return try {
-        range = system.resolveVersionRange(session, rangeRequest)
+      val result = try {
         failure = null
-        range?.exceptions?.takeIf { it.isNotEmpty() }?.let { exceptions ->
-          resultExceptions += attemptCount to exceptions.toList()
-        }
-        range?.takeIf { it.hasBounds() }
+        system.resolveVersionRange(session, rangeRequest)
       } catch (e: VersionRangeResolutionException) {
         failure = e
-        range = e.result ?: range
-        e.result?.exceptions?.takeIf { it.isNotEmpty() }?.let { exceptions ->
-          resultExceptions += attemptCount to exceptions.toList()
-        }
-        null
+        e.result ?: return null
       }
+      range = result
+      if (result.exceptions.isNotEmpty()) {
+        resultExceptions += attemptCount to result.exceptions.toList()
+      }
+      return result.takeIf { failure == null && it.hasBounds() }
     }
 
     repeat(4) {

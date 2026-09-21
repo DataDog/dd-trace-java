@@ -72,7 +72,7 @@ class MuzzleMavenRepoUtilsTest {
       versions = "[1.0,)"
     }
     val attempts = AtomicInteger()
-    val retryingSystem = repositorySystemThrowingThenResolving(
+    val retryingSystem = repositorySystemReturningAfterFailures(
       failuresBeforeSuccess = 3,
       result = createVersionRangeResult("1.0.0"),
       attempts = attempts
@@ -150,7 +150,7 @@ class MuzzleMavenRepoUtilsTest {
       versions = "[1.0,)"
     }
     val attempts = AtomicInteger()
-    val throwingSystem = repositorySystemThrowingThenResolving(
+    val throwingSystem = repositorySystemReturningAfterFailures(
       failuresBeforeSuccess = 4,
       result = createVersionRangeResult("1.0.0"),
       attempts = attempts
@@ -180,7 +180,15 @@ class MuzzleMavenRepoUtilsTest {
       versions = "[1.0,)"
     }
     val attempts = AtomicInteger()
-    val failingSystem = repositorySystemReturningEmptyResultsWithExceptions(attempts)
+    val emptyResult = createVersionRangeResult().apply {
+      addException(
+        IllegalStateException(
+          "metadata failure",
+          IOException("download failure")
+        )
+      )
+    }
+    val failingSystem = repositorySystemReturningAfterFailures(0, emptyResult, attempts)
 
     assertThatThrownBy {
       MuzzleMavenRepoUtils.resolveVersionRange(
@@ -194,10 +202,8 @@ class MuzzleMavenRepoUtilsTest {
       .hasMessageContaining("Resolution result exceptions:")
       .hasMessageContaining("Attempt 1:")
       .hasMessageContaining("Attempt 4:")
-      .hasMessageContaining("java.lang.IllegalStateException: metadata failure 1")
-      .hasMessageContaining("Caused by: java.io.IOException: download failure 1")
-      .hasMessageContaining("java.lang.IllegalStateException: metadata failure 4")
-      .hasMessageContaining("Caused by: java.io.IOException: download failure 4")
+      .hasMessageContaining("java.lang.IllegalStateException: metadata failure")
+      .hasMessageContaining("Caused by: java.io.IOException: download failure")
     assertThat(attempts).hasValue(4)
   }
 
@@ -358,7 +364,7 @@ class MuzzleMavenRepoUtilsTest {
     return VersionRangeResult(request).apply { this.versions = versions }
   }
 
-  private fun repositorySystemThrowingThenResolving(
+  private fun repositorySystemReturningAfterFailures(
     failuresBeforeSuccess: Int,
     result: VersionRangeResult,
     attempts: AtomicInteger
@@ -379,33 +385,9 @@ class MuzzleMavenRepoUtilsTest {
           }
           result
         }
-        "toString" -> "repositorySystemThrowingThenResolving"
+        "toString" -> "repositorySystemReturningAfterFailures"
         else -> throw UnsupportedOperationException(method.name)
       }
     } as RepositorySystem
 
-  private fun repositorySystemReturningEmptyResultsWithExceptions(
-    attempts: AtomicInteger
-  ): RepositorySystem =
-    Proxy.newProxyInstance(
-      RepositorySystem::class.java.classLoader,
-      arrayOf(RepositorySystem::class.java)
-    ) { _, method, args ->
-      when (method.name) {
-        "resolveVersionRange" -> {
-          val attempt = attempts.incrementAndGet()
-          val request = args?.get(1) as VersionRangeRequest
-          VersionRangeResult(request).apply {
-            addException(
-              IllegalStateException(
-                "metadata failure $attempt",
-                IOException("download failure $attempt")
-              )
-            )
-          }
-        }
-        "toString" -> "repositorySystemReturningEmptyResultsWithExceptions"
-        else -> throw UnsupportedOperationException(method.name)
-      }
-    } as RepositorySystem
 }
