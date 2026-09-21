@@ -10,7 +10,6 @@ plugins {
 extra["excludedClassesCoverage"] = listOf(
   "com.datadog.profiling.otel.JfrToOtlpConverter*",
   "com.datadog.profiling.otel.JfrToOtlpConverterCLI",
-  "com.datadog.profiling.otel.OtlpProfileWriter",
   "com.datadog.profiling.otel.jfr.*",
   "com.datadog.profiling.otel.proto.*",
   "com.datadog.profiling.otel.proto.dictionary.*",
@@ -58,6 +57,9 @@ repositories {
     url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
     mavenContent {
       snapshotsOnly()
+      // jafar 0.26.2 is only published as a snapshot; restrict resolution to that group so no
+      // other dependency of this module can silently resolve a mutable snapshot artifact
+      includeGroup("io.btrace")
     }
   }
 }
