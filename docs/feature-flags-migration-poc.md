@@ -115,6 +115,21 @@ The core still uses the existing unshaded UFC payload types from bootstrap.
 This preserves the current parser and cross-loader payload identity while the compatibility window remains undecided.
 This POC does not remove those types or claim they are no longer implementation dependencies.
 
+## Product configuration controls: Sep 21, 2026
+
+Java commit `135218006ae10d6f6edbecd3abdcbb6d8e507abe` retains the experimental span-enrichment name.
+Provider injection uses the existing Feature Flags product gate instead of the generic tracing integration gate.
+`DD_FEATURE_FLAGS_ENABLED=false` prevents injection and runtime startup through manual registration.
+No explicit Feature Flags settings means no automatic installation; manual standalone registration still selects direct delivery.
+
+The focused JDK 11 suites pass 528 tests. Both distributions rebuild successfully.
+Dogfood commit `bdb491f2022f4d849e2bf5580e1692cf7cb7c7cc` passes 10/10 scoped scenarios and all 40 assertions.
+These cover standalone defaults, no registration, product enablement alone, product disable in both assemblies, tracing independence, and legacy source precedence.
+Positive cases verify runtime ownership, configuration refresh, and both EVP streams.
+Disabled agent cases verify zero configuration requests, caller defaults, and no product events.
+See the [dogfood validation record](https://github.com/ddoghq/ffe-dogfooding/blob/poc/java-feature-flags-migration/local/java-validation/README.md#product-switch-validation-2026-09-21).
+This scoped run does not rerun the full matrix, staging, platform SSI, or CI.
+
 ## Module consolidation: Sep 20, 2026
 
 These results describe the September 20 artifacts. They include an injection-only switch that the September 21 revision removes.
