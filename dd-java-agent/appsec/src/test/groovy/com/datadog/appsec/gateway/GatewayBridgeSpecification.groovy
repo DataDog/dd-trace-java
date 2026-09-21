@@ -221,13 +221,13 @@ class GatewayBridgeSpecification extends DDSpecification {
   void 'lambda request end reaches shared waf telemetry with its framework'() {
     given:
     AgentTracer.TracerAPI originalTracer = AgentTracer.get()
-    CallbackProvider callbackProvider = Stub() {
+    CallbackProvider callbackProvider = Stub {
       getCallback(EVENTS.requestEnded()) >> requestEndedCB
     }
-    AgentTracer.TracerAPI tracer = Stub() {
+    AgentTracer.TracerAPI tracer = Stub {
       getCallbackProvider(RequestContextSlot.APPSEC) >> callbackProvider
     }
-    AgentSpan span = Mock() {
+    AgentSpan span = Mock {
       getRequestContext() >> ctx
       getTags() >> TagMap.fromMap([(Tags.COMPONENT): 'aws-lambda'])
     }
