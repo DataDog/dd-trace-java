@@ -131,7 +131,7 @@ public class LambdaAppSecHandler {
     LambdaTriggerType triggerType = CURRENT_TRIGGER_TYPE.get();
     CURRENT_TRIGGER_TYPE.remove();
 
-    if (span == null) {
+    if (!ActiveSubsystems.APPSEC_ACTIVE || span == null) {
       return;
     }
 
@@ -178,7 +178,9 @@ public class LambdaAppSecHandler {
    * @param result the Lambda handler result (expected to be a ByteArrayOutputStream)
    */
   public static void processResponseData(AgentSpan span, Object result) {
-    if (span == null || !(result instanceof ByteArrayOutputStream)) {
+    if (!ActiveSubsystems.APPSEC_ACTIVE
+        || span == null
+        || !(result instanceof ByteArrayOutputStream)) {
       return;
     }
 
