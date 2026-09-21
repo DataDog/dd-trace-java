@@ -1,6 +1,7 @@
 package datadog.trace.api.cache;
 
 import datadog.trace.api.Pair;
+import datadog.trace.api.function.BackgroundOnly;
 import datadog.trace.api.function.ForegroundSafe;
 import java.util.Arrays;
 import java.util.function.BiConsumer;
@@ -17,18 +18,17 @@ import java.util.function.Function;
  * computeIfAbsent</code> is idempotent, or otherwise you might not get back the value you expect
  * from a cache lookup.
  *
- * <p>{@link ForegroundSafe}: the cache's own bookkeeping -- {@code computeIfAbsent}'s probing,
- * {@code clear()}, {@code visit()}'s traversal -- always does a small, bounded amount of work
- * against a fixed-size array: no growth, no eviction sweep. This guarantee covers only that
- * bookkeeping, not the caller-supplied {@code producer} passed to {@code computeIfAbsent} or the
- * {@code consumer} passed to {@code visit()} -- their cost is the caller's responsibility, exactly
- * as with any higher-order method; a slow or blocking producer/consumer is not made safe by this
- * annotation.
+ * <p>{@link ForegroundSafe} applies to {@code computeIfAbsent}'s probing -- at most 3 slot checks
+ * against a fixed-size array, no growth, no eviction sweep -- and to {@code clear()}, a plain array
+ * fill over the same fixed size. Neither covers the caller-supplied {@code producer} passed to
+ * {@code computeIfAbsent}, whose cost is the caller's responsibility exactly as with any
+ * higher-order method. {@code visit()} is {@link BackgroundOnly}: it invokes an arbitrary
+ * caller-supplied {@code consumer} once per entry, so its cost is unbounded regardless of the
+ * cache's own (bounded) scan.
  *
  * @param <K> key type
  * @param <V> value type
  */
-@ForegroundSafe
 abstract class FixedSizeCache<K, V> implements DDCache<K, V> {
 
   static final int MAXIMUM_CAPACITY = 1 << 30;
@@ -76,6 +76,7 @@ abstract class FixedSizeCache<K, V> implements DDCache<K, V> {
    * @param producer how to create a cached value base on the key if the lookup fails
    * @return the cached or created and stored value
    */
+  @ForegroundSafe
   @Override
   public final V computeIfAbsent(K key, Function<K, ? extends V> producer) {
     if (key == null) {
@@ -109,11 +110,13 @@ abstract class FixedSizeCache<K, V> implements DDCache<K, V> {
     return value;
   }
 
+  @ForegroundSafe
   @Override
   public void clear() {
     Arrays.fill(elements, null);
   }
 
+  @BackgroundOnly
   @Override
   public void visit(BiConsumer<K, V> consumer) {
     for (Pair<K, V> e : elements) {

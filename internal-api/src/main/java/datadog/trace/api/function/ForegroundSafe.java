@@ -30,12 +30,13 @@ import java.lang.annotation.Target;
  * regardless of what the enclosing type declares -- a method-level marker always wins over the
  * type-level one.
  *
- * <p><b>Inheritance direction:</b> an override may narrow a {@link BackgroundOnly} supertype/
- * interface method to {@code @ForegroundSafe} (a cheaper override can't surprise a caller who
- * already assumed the worse case) but may never widen a {@code @ForegroundSafe} or unannotated
- * supertype method to {@link BackgroundOnly} -- see {@link BackgroundOnly}'s "Inheritance
- * direction" for the full rule and why the reverse direction is a declaration-site violation on its
- * own.
+ * <p><b>Inheritance direction:</b> like a behavioral-subtyping (LSP) contract, only an actual
+ * promise from the supertype can be broken -- an override may narrow a {@link BackgroundOnly}
+ * supertype/interface method to {@code @ForegroundSafe} (a cheaper override can't surprise a caller
+ * who already assumed the worse case) but may never widen an explicitly {@code @ForegroundSafe}
+ * supertype method to {@link BackgroundOnly}. An <em>unannotated</em> supertype method makes no
+ * promise either way, so marking an override {@link BackgroundOnly} is not a violation -- see
+ * {@link BackgroundOnly}'s "Inheritance direction" for the full rule.
  *
  * <p><b>Checker contract.</b> This annotation is not itself a trigger -- it is what makes a call
  * site <em>not</em> suspect. See {@link BackgroundOnly}'s checker contract for the actual rule:
