@@ -13,9 +13,10 @@ muzzle {
 
 addTestSuiteForDir('latestDepTest', 'test')
 
+def mavenRepositoryProxy = providers.gradleProperty('mavenRepositoryProxy')
 tasks.withType(Test).configureEach {
-  if (project.hasProperty('mavenRepositoryProxy')) {
-    environment 'MAVEN_REPOSITORY_PROXY', project.property('mavenRepositoryProxy')
+  if (mavenRepositoryProxy.isPresent()) {
+    environment 'MAVEN_REPOSITORY_PROXY', mavenRepositoryProxy.get()
   }
 }
 
