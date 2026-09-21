@@ -20,7 +20,7 @@ It does not define `core` and `lib` as separate architectural layers.
 Gradle's [Java Library plugin](https://docs.gradle.org/current/userguide/java_library_plugin.html) is the normal build mechanism.
 An `implementation` dependency stays on a consumer's runtime dependency graph; it is not automatically removed from a binary.
 
-## Six product projects, one shared implementation
+## One shared implementation, optional transport packaging
 
 The existing product had API, bootstrap, config, lib, and agent projects.
 The first integrated POC added core, HTTP, and standalone.
@@ -36,10 +36,11 @@ The current POC combines core and HTTP with lib. Only standalone remains a new p
 | Config | Existing settings resolution shared across assemblies | Reuse the existing boundary for this migration. Do not add another settings framework. |
 | Instrumentation | Agent-specific transformation and helper injection | Keep in the existing OpenFeature instrumentation project. |
 
-`feature-flagging-lib` owns evaluation, CDN and RC integration, lifecycle, events, and HTTP.
+`feature-flagging-lib` owns evaluation, CDN delivery, lifecycle, events, and HTTP.
 Existing Java packages and class names remain unchanged. This is a build-boundary change, not a runtime rewrite.
 API, bootstrap, config, agent, and standalone remain separate projects.
-The product now has six projects instead of eight, without another customer artifact.
+The consolidation reduced eight projects to six. The optional RC assembly adds one justified publication boundary.
+It publishes `dd-openfeature-remote-config`; only customers selecting RC without the Java agent need it.
 The removed projects' source and tests moved into lib; their build scripts and lockfiles were removed.
 
 ## Preserve the real binary boundaries
@@ -73,9 +74,11 @@ Shared implementation source
 ```
 
 Minimal binaries depend on their reachable classes, dependencies, resources, and classloader placement.
-The standalone assembly includes the existing RC client for explicitly selected `remote_config` delivery.
-It excludes tracing implementation, bundled OpenFeature, and bundled OTel.
-The shared RC adapter accepts a `ConfigurationPoller`; each assembly supplies its own communication objects.
+The default standalone assembly excludes the RC client, its optional dependencies, tracing implementation, bundled OpenFeature, and bundled OTel.
+The optional RC assembly reuses `remote-config-core` and supplies Agent-proxy delivery.
+The agent keeps its own RC adapter and never depends on the add-on's publication.
+The version-aligned `RemoteConfigTransport` interface exposes configuration bytes and serialized events, not RC protocol types.
+Parsing, evaluation, lifecycle ownership, and event queues stay in the base implementation.
 Standalone RC uses the Datadog Agent's EVP proxy, never direct-intake fallback.
 Its HTTP path still consumes broad internal configuration and communication projects.
 Reducing that dependency reach is a separate task from merging directories.
@@ -85,8 +88,12 @@ Reflective entrypoints need explicit retention and artifact tests.
 Do not use minimization as a substitute for narrow dependencies.
 
 The first consolidation build retained RC accidentally: excluding a project from minimization also retains its dependency graph.
-The September 21 RC extension retains the RC client intentionally. The earlier direct-only exclusion no longer applies.
-RC also requires its cryptography dependency. Its classes are relocated in the standalone JAR.
+The first September 21 RC candidate bundled RC into the default JAR and grew from 1.84 MB to 4.39 MB.
+That candidate was rejected. The revised assembly puts the client and cryptography in the optional add-on.
+Artifact tests reject RC implementation and native connection dependencies in the default JAR, and enforce a 2 MB POC budget.
+Another test rejects duplicate classes across the two customer JARs, and provider/evaluator copies in the add-on.
+The published base POM must not acquire an RC dependency. The add-on POM depends on the matching base version.
+Native socket packaging and classpath isolation remain release checks; the dogfood RC proof uses HTTP over TCP.
 The standalone assembly now supplies the adapter and library JARs as Shadow minimization entrypoints through `apiJars`.
 This retains product classes and follows their references without retaining the entire communication graph.
 This Shadow task setting does not add Maven API dependencies or another Gradle project.
@@ -97,7 +104,9 @@ Acceptance criteria for simplification:
 - Same fixture results, lifecycle behavior, and direct/RC routing.
 - Same manual registration and injection controls.
 - Evaluator-only helper set; correct full-agent package routing and helper definition order.
-- RC available without a Java agent; no tracing implementation, OTel SDK, or exporters in the standalone distribution.
+- RC available through an opt-in artifact without a Java agent; no RC implementation in the default JAR.
+- No tracing implementation, OTel SDK, or exporters in either customer artifact.
+- Missing RC implementation causes a clear initialization error, not CDN fallback.
 - No standalone publication task in the agent build graph.
 - No new customer-visible artifacts or incompatible payload identities.
 - Compare JAR contents and size before and after; do not infer a smaller binary from fewer projects.

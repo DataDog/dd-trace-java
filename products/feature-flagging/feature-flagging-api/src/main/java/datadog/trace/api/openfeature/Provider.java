@@ -139,7 +139,8 @@ public class Provider extends EventProvider implements Metadata {
       throw e;
     } catch (final Throwable e) {
       markInitializationError();
-      throw new FatalError("Failed to initialize provider, is the tracer configured?", e);
+      throw new FatalError(
+          "Failed to initialize Datadog Feature Flags provider: " + e.getMessage(), e);
     }
   }
 

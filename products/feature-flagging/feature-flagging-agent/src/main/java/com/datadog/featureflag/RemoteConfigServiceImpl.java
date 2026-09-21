@@ -1,5 +1,7 @@
 package com.datadog.featureflag;
 
+import static java.util.Objects.requireNonNull;
+
 import datadog.remoteconfig.Capabilities;
 import datadog.remoteconfig.ConfigurationChangesTypedListener;
 import datadog.remoteconfig.ConfigurationPoller;
@@ -15,7 +17,7 @@ public class RemoteConfigServiceImpl
   private final ConfigurationPoller configurationPoller;
 
   public RemoteConfigServiceImpl(final ConfigurationPoller configurationPoller) {
-    this.configurationPoller = java.util.Objects.requireNonNull(configurationPoller);
+    this.configurationPoller = requireNonNull(configurationPoller);
   }
 
   @Override

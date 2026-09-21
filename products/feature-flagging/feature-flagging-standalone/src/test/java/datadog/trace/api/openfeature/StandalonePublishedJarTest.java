@@ -4,6 +4,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sun.net.httpserver.HttpServer;
@@ -23,7 +24,7 @@ import javax.tools.ToolProvider;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.slf4j.Logger;
 
 class StandalonePublishedJarTest {
@@ -38,7 +39,7 @@ class StandalonePublishedJarTest {
           + "    OpenFeatureAPI api = OpenFeatureAPI.getInstance();\n"
           + "    String expected = args[0];\n"
           + "    try { api.setProviderAndWait(new Provider(new Provider.Options().initTimeout(2, SECONDS))); }\n"
-          + "    catch (RuntimeException failure) { if (!\"default\".equals(expected)) throw failure; }\n"
+          + "    catch (RuntimeException failure) { failure.printStackTrace(); if (!\"default\".equals(expected)) throw failure; }\n"
           + "    String value = api.getClient().getStringValue(\"standalone_flag\", \"default\", new MutableContext(\"user-1\"));\n"
           + "    if (!expected.equals(value)) throw new AssertionError(value);\n"
           + "    System.out.println(\"RESULT=\" + value);\n"
@@ -61,35 +62,72 @@ class StandalonePublishedJarTest {
   @TempDir Path temporaryDirectory;
 
   @Test
-  void publishedJarContainsCoreAndRcButNoTracingImplementationOrTelemetrySdk() throws Exception {
+  void defaultJarExcludesRcAndItsOptionalDependencyGraph() throws Exception {
     try (JarFile jar = new JarFile(System.getProperty("datadog.test.dd-openfeature.jar"))) {
       assertNotNull(
           jar.getEntry("datadog/openfeature/internal/featureflag/core/FlagEvaluator.class"));
       assertNotNull(jar.getEntry("datadog/trace/api/featureflag/ufc/v1/ServerConfiguration.class"));
-      assertNotNull(
-          jar.getEntry(
-              "datadog/openfeature/internal/datadog/remoteconfig/DefaultConfigurationPoller.class"));
-      assertNotNull(
-          jar.getEntry("datadog/openfeature/internal/featureflag/RemoteConfigServiceImpl.class"));
       assertTrue(
           jar.stream()
               .noneMatch(
                   entry -> {
                     String name = entry.getName();
                     return name.contains("/datadog/trace/core/")
+                        || name.contains("/datadog/remoteconfig/")
+                        || name.contains("/cryptography/")
+                        || name.contains("RemoteConfigServiceImpl")
+                        || name.startsWith("jnr/")
+                        || name.startsWith("com/kenai/")
+                        || name.startsWith("org/objectweb/asm/")
                         || name.startsWith("io/opentelemetry/")
                         || name.startsWith("dev/openfeature/");
                   }),
-          "Standalone must exclude tracing implementation and application-owned APIs");
+          "Default standalone must exclude RC, native RC connection dependencies, tracing, and application APIs");
+      assertTrue(
+          new File(jar.getName()).length() < 2_000_000,
+          "Default standalone exceeded the POC's 2 MB packaging regression budget");
+    }
+  }
+
+  @Test
+  void extensionContainsRcButNoProviderEvaluatorOrBridgeCopy() throws Exception {
+    try (JarFile jar =
+            new JarFile(System.getProperty("datadog.test.dd-openfeature-remote-config.jar"));
+        JarFile base = new JarFile(System.getProperty("datadog.test.dd-openfeature.jar"))) {
+      assertNotNull(
+          jar.getEntry(
+              "com/datadog/openfeature/remoteconfig/internal/datadog/remoteconfig/DefaultConfigurationPoller.class"));
+      jar.stream()
+          .filter(entry -> entry.getName().endsWith(".class"))
+          .forEach(
+              entry -> {
+                final String name = entry.getName();
+                assertNull(base.getEntry(name), "Duplicate class in extension: " + name);
+                assertTrue(
+                    (!name.contains("/featureflag/")
+                            || name.contains("/internal/datadog/trace/api/featureflag/config/"))
+                        && !name.contains("/datadog/trace/core/")
+                        && !name.startsWith("io/opentelemetry/")
+                        && !name.startsWith("dev/openfeature/"),
+                    name);
+              });
     }
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"agentless", "remote_config", "remote_config_unavailable"})
-  void publishedJarPollsAndEvaluatesWithoutJavaAgent(String sourceMode) throws Exception {
+  @CsvSource({
+    "agentless,false",
+    "agentless,true",
+    "remote_config,true",
+    "remote_config_unavailable,true",
+    "remote_config,false"
+  })
+  void publishedJarPollsAndEvaluatesWithoutJavaAgent(String sourceMode, boolean withExtension)
+      throws Exception {
     final boolean unavailable = "remote_config_unavailable".equals(sourceMode);
     final boolean remoteConfig = sourceMode.startsWith("remote_config");
-    final String expectedValue = unavailable ? "default" : "treatment";
+    final boolean missingExtension = remoteConfig && !withExtension;
+    final String expectedValue = unavailable || missingExtension ? "default" : "treatment";
     final AtomicInteger configRequests = new AtomicInteger();
     final AtomicInteger rcRequests = new AtomicInteger();
     final HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
@@ -129,12 +167,17 @@ class StandalonePublishedJarTest {
       Files.write(source, APP_SOURCE.getBytes(UTF_8));
       final String ddOpenFeatureJar = System.getProperty("datadog.test.dd-openfeature.jar");
       assertNotNull(ddOpenFeatureJar);
-      final String dependencyClasspath =
+      String dependencyClasspath =
           String.join(
               File.pathSeparator,
               ddOpenFeatureJar,
               classLocation(OpenFeatureAPI.class),
               classLocation(Logger.class));
+      if (withExtension) {
+        dependencyClasspath +=
+            File.pathSeparator
+                + System.getProperty("datadog.test.dd-openfeature-remote-config.jar");
+      }
       final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
       assertNotNull(compiler);
       assertEquals(
@@ -183,7 +226,15 @@ class StandalonePublishedJarTest {
           output + System.lineSeparator() + "configuration requests=" + configRequests.get());
       assertTrue(output.contains("RESULT=" + expectedValue), output);
       if (remoteConfig) {
-        assertTrue(rcRequests.get() > 0, "standalone runtime did not poll Remote Configuration");
+        if (missingExtension) {
+          assertTrue(
+              output.contains(
+                  "requires dd-openfeature-remote-config or a compatible dd-java-agent"),
+              output);
+          assertEquals(0, rcRequests.get(), "Missing extension must not start RC polling");
+        } else {
+          assertTrue(rcRequests.get() > 0, "standalone runtime did not poll Remote Configuration");
+        }
         assertEquals(0, configRequests.get(), "explicit RC must not fall back to CDN polling");
       } else {
         assertTrue(configRequests.get() > 0, "standalone runtime did not poll CDN configuration");

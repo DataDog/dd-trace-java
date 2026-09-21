@@ -165,6 +165,7 @@ include(
   ":products:feature-flagging:feature-flagging-api",
   ":products:feature-flagging:feature-flagging-bootstrap",
   ":products:feature-flagging:feature-flagging-standalone",
+  ":products:feature-flagging:feature-flagging-remote-config",
   ":products:feature-flagging:feature-flagging-config",
   ":products:feature-flagging:feature-flagging-lib"
 )

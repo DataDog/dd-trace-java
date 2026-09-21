@@ -2,10 +2,10 @@ package com.datadog.featureflag;
 
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_REMOTE_CONFIG;
 
-import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway.RuntimeMode;
+import datadog.trace.api.featureflag.RemoteConfigTransport;
 import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
 import java.util.function.Supplier;
@@ -161,10 +161,25 @@ public final class StandaloneFeatureFlaggingSystem {
       final ConfigurationSourceService configService;
       if (CONFIGURATION_SOURCE_REMOTE_CONFIG.equals(
           config.getFeatureFlaggingConfigurationSource())) {
-        final SharedCommunicationObjects sco = new SharedCommunicationObjects();
-        sco.createRemaining(config);
-        configService = new RemoteConfigServiceImpl(sco.configurationPoller(config));
-        events = StandaloneEventPipelines.remoteConfig(config, sco);
+        final RemoteConfigTransport transport = loadRemoteConfigTransport();
+        configService =
+            new ConfigurationSourceService() {
+              @Override
+              public void init() {
+                transport.start(
+                    bytes ->
+                        FeatureFlaggingGateway.dispatch(
+                            bytes == null
+                                ? null
+                                : UniversalFlagConfigParser.INSTANCE.deserialize(bytes)));
+              }
+
+              @Override
+              public void close() {
+                transport.close();
+              }
+            };
+        events = StandaloneEventPipelines.remoteConfig(config, transport);
       } else {
         configService = new AgentlessConfigurationSource(config, RuntimeServices.STANDALONE);
         events = StandaloneEventPipelines.direct(config);
@@ -175,6 +190,26 @@ public final class StandaloneFeatureFlaggingSystem {
               .configProvider()
               .getBoolean(FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED, true);
       initializeSystem(configService, exposureWriter, events::evaluations, evalCountsEnabled);
+    }
+  }
+
+  private static RemoteConfigTransport loadRemoteConfigTransport() {
+    try {
+      final Class<?> extension =
+          Class.forName(
+              "com.datadog.openfeature.remoteconfig.RemoteConfigExtension",
+              true,
+              StandaloneFeatureFlaggingSystem.class.getClassLoader());
+      return (RemoteConfigTransport) extension.getMethod("create").invoke(null);
+    } catch (ClassNotFoundException missing) {
+      throw new IllegalStateException(
+          "Feature Flags remote_config requires dd-openfeature-remote-config or a compatible dd-java-agent. "
+              + "Add the RC artifact at the same version as dd-openfeature; CDN fallback is disabled.",
+          missing);
+    } catch (ReflectiveOperationException | LinkageError incompatible) {
+      throw new IllegalStateException(
+          "Cannot initialize the Feature Flags RC extension. Use matching dd-openfeature and dd-openfeature-remote-config versions.",
+          incompatible);
     }
   }
 }

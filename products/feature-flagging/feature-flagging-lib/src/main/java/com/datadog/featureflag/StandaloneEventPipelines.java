@@ -1,11 +1,9 @@
 package com.datadog.featureflag;
 
-import datadog.communication.BackendApi;
-import datadog.communication.BackendApiFactory;
 import datadog.communication.DirectIntakeApiFactory;
-import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
+import datadog.trace.api.featureflag.RemoteConfigTransport;
 import datadog.trace.api.intake.Intake;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -17,9 +15,10 @@ import org.slf4j.LoggerFactory;
 final class StandaloneEventPipelines {
   private static final Logger LOGGER = LoggerFactory.getLogger(StandaloneEventPipelines.class);
   private final Config config;
-  private final Function<Boolean, BackendApi> backend;
+  private final Function<Boolean, Supplier<EventTransport>> backend;
 
-  private StandaloneEventPipelines(Config config, Function<Boolean, BackendApi> backend) {
+  private StandaloneEventPipelines(
+      Config config, Function<Boolean, Supplier<EventTransport>> backend) {
     this.config = config;
     this.backend = backend;
   }
@@ -36,19 +35,20 @@ final class StandaloneEventPipelines {
                 config.isForceClearTextHttpForIntakeClient(), null, null, timeout));
     return new StandaloneEventPipelines(
         config,
-        compression -> {
-          if (config.getApiKey() == null || config.getApiKey().isEmpty()) {
-            LOGGER.warn("Feature Flags event delivery requires a direct intake API key");
-            return null;
-          }
-          return factory.create(Intake.EVENT_PLATFORM, compression, false);
-        });
+        compression ->
+            BackendEventTransport.adapt(
+                () -> {
+                  if (config.getApiKey() == null || config.getApiKey().isEmpty()) {
+                    LOGGER.warn("Feature Flags event delivery requires a direct intake API key");
+                    return null;
+                  }
+                  return factory.create(Intake.EVENT_PLATFORM, compression, false);
+                }));
   }
 
-  static StandaloneEventPipelines remoteConfig(Config config, SharedCommunicationObjects sco) {
-    final BackendApiFactory factory = new BackendApiFactory(config, sco);
+  static StandaloneEventPipelines remoteConfig(Config config, RemoteConfigTransport transport) {
     return new StandaloneEventPipelines(
-        config, compression -> factory.createEvpProxyApi(Intake.EVENT_PLATFORM, compression));
+        config, compression -> () -> (route, json) -> transport.post(route, json, compression));
   }
 
   ExposureWriter exposures() {
@@ -72,6 +72,6 @@ final class StandaloneEventPipelines {
   }
 
   private Supplier<EventTransport> transport(boolean compression) {
-    return BackendEventTransport.adapt(() -> backend.apply(compression));
+    return backend.apply(compression);
   }
 }

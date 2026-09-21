@@ -28,7 +28,8 @@ flowchart TB
     REG --> OF1["OpenFeature client + evaluator"]
     OF1 --> SR["Standalone runtime"]
     SR -->|agentless| DIRECT1["Managed CDN + direct EVP"]
-    SR -->|remote_config| RC1["Remote Configuration + EVP proxy<br/>through Datadog Agent"]
+    SR -->|remote_config| ADDON["Optional dd-openfeature-remote-config"]
+    ADDON --> RC1["Remote Configuration + EVP proxy<br/>through Datadog Agent"]
     OF1 -. "Optional metrics" .-> OTEL["Application OTel SDK<br/>or OTel Java agent"]
   end
 
@@ -63,9 +64,13 @@ DD_REMOTE_CONFIGURATION_ENABLED=true
 ```
 
 RC requires a compatible Datadog Agent service, which holds the API key and proxies product events.
-Without `dd-java-agent`, the standalone runtime owns the RC client. With a compatible `dd-java-agent`, the provider uses its runtime instead.
+With a compatible `dd-java-agent`, the provider receives configuration through the existing bridge. The RC client stays in the Java agent.
+Without it, add `com.datadoghq:dd-openfeature-remote-config` at the same version as `dd-openfeature`.
+This optional artifact supplies the existing RC client and Agent-proxy delivery. The base JAR does not bundle it or depend on it.
 The same standalone RC path works with an OTel Java agent. No OTel collector is required.
 Explicit RC must not fall back to CDN polling or direct event intake when RC or the Datadog Agent is unavailable.
+Selecting RC without an agent-owned runtime or the add-on must produce a clear initialization error.
+Adding the artifact alone must not activate RC. Exactly one runtime owns polling and event delivery.
 
 Exposures and aggregated flag-evaluation events use Datadog's event platform (EVP). They are independent of OTel export. `feature_flag.evaluations` is an additional OTel metric.
 
@@ -73,19 +78,21 @@ Exposures and aggregated flag-evaluation events use Datadog's event platform (EV
 
 Use Java packages for related code. Use Gradle subprojects when dependency, classloader, or publication boundaries require them. An internal module does not require a separately published customer artifact.
 
-The POC uses six product projects: the five existing boundaries plus the standalone assembly. Evaluation and HTTP no longer have separate Gradle projects.
+The POC keeps the five existing projects, the standalone assembly, and one optional RC assembly.
+The RC project is a customer dependency and publication boundary. Evaluation and HTTP do not need separate projects.
 
 ```mermaid
 flowchart TB
   subgraph Shared["dd-trace-java: shared implementation"]
     BOOT["feature-flagging-bootstrap<br/>shared payloads + bridge"] --> LIB
     CONFIG["feature-flagging-config<br/>settings"] --> LIB
-    LIB["feature-flagging-lib<br/>evaluator, runtime, CDN, RC + EVP"]
+    LIB["feature-flagging-lib<br/>evaluator, runtime, CDN + EVP"]
     LIB -->|evaluator-only artifact| API["feature-flagging-api<br/>OpenFeature adapter + hooks"]
   end
 
   subgraph StandaloneAssembly["Standalone assembly"]
     STANDALONE["feature-flagging-standalone"] --> JAR["dd-openfeature.jar"]
+    OPTIONAL["feature-flagging-remote-config"] --> RCJAR["Optional dd-openfeature-remote-config.jar"]
   end
 
   subgraph AgentAssembly["Agent assembly"]
@@ -98,6 +105,8 @@ flowchart TB
   LIB -->|runtime + transport| AGENT
   LIB -->|evaluator-only artifact| INSTR
   API --> INSTR
+  RCCLIENT["Existing remote-config client"] --> OPTIONAL
+  RCCLIENT --> AGENT
 ```
 
 Arrows show selected packaging inputs; transitive dependencies are omitted. The evaluator-only artifact is an output of `-lib`, not another project.
@@ -105,7 +114,9 @@ Arrows show selected packaging inputs; transitive dependencies are omitted. The 
 The repository uses `-lib` for core implementation. The combined library preserves package names and behavior and shares `ProviderRuntime` across assemblies.
 The OpenFeature adapter remains unbundled. HTTP clients, parsers, and runtime lifecycle classes stay outside the injected helper set.
 
-Standalone owns shaded publication and includes the existing RC client, but excludes Datadog tracing implementation.
+The default standalone JAR excludes the RC client, RC-only dependencies, and Datadog tracing implementation.
+The RC add-on has private implementation dependencies and a small version-aligned interface for configuration bytes and serialized events.
+The base retains the parser, evaluator, and shared lifecycle. The add-on contains no second provider or evaluator.
 The agent must not depend on standalone shading or publication. Bootstrap payloads remain active implementation dependencies, not only unused compatibility shims.
 
 ## What the POC established
@@ -152,9 +163,9 @@ Do not rename it in this migration. It matches the current cross-SDK setting.
 Assign an owner and release gates to each deliverable.
 
 1. **Shared implementation:** Extract the combined library and evaluator-only artifact. Preserve API, bootstrap, settings, and classloader boundaries without an installation change.
-2. **Shared runtime:** Extract lifecycle, RC integration, and event pipelines. Preserve transport policy, ownership, and mixed-installation behavior.
-3. **Standalone:** Move publication and CDN/RC composition. Validate both sources without a Java agent and with OTel-only instrumentation.
-   Validate external consumers against the agreed OTel contract.
+2. **Shared runtime:** Extract lifecycle and event pipelines. Preserve agent-owned RC, transport policy, ownership, and mixed-installation behavior.
+3. **Standalone:** Publish the small default JAR and optional RC add-on. Validate CDN without the add-on, explicit RC with it, and missing-add-on errors.
+   Test no-agent and OTel-only consumers, dependency metadata, artifact size, and the agreed OTel contract.
 4. **SSI:** Package provider/evaluator helpers. Select the first platform target and validate attachment, disable behavior, and rollback.
 
 See the [evidence record](feature-flags-migration-poc.md) and [assembly notes](feature-flags-assembly-notes.md) for supporting details.

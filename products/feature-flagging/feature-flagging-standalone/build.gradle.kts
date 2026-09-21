@@ -13,7 +13,7 @@ configure<TestJvmConstraintsExtension> {
   minJavaVersion.set(JavaVersion.VERSION_11)
 }
 
-description = "Standalone Datadog OpenFeature provider with direct or Remote Configuration delivery."
+description = "Standalone Datadog OpenFeature provider; Remote Configuration is an optional extension."
 
 // Set both JAR and Maven artifact name
 val openFeatureArtifactId = "dd-openfeature"
@@ -58,7 +58,6 @@ dependencies {
   implementation(project(":utils:config-utils"))
   implementation(project(":internal-api"))
   implementation(project(":communication"))
-  implementation(project(":remote-config:remote-config-core"))
   // OpenFeature SDK classes retain @lombok.Generated in their bytecode. Supplying the annotation
   // on the analysis classpath keeps SpotBugs from treating that optional SDK build detail as a
   // missing class; Lombok is neither bundled nor published as a dependency.
@@ -92,7 +91,12 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
     exclude(dependency("dev.openfeature:sdk:.*"))
     exclude(dependency("io.opentelemetry:.*:.*"))
     exclude(dependency("org.slf4j:.*:.*"))
-    // Metrics implementations are not part of standalone Feature Flags delivery.
+    // RC and Agent connection dependencies belong only to the opt-in RC extension.
+    exclude(project(":remote-config:remote-config-api"))
+    exclude(project(":remote-config:remote-config-core"))
+    exclude(dependency("cafe.cryptography:.*:.*"))
+    exclude(dependency("com.github.jnr:.*:.*"))
+    exclude(dependency("org.ow2.asm:.*:.*"))
     exclude(dependency("com.datadoghq:java-dogstatsd-client:.*"))
     exclude(dependency("com.datadoghq:sketches-java:.*"))
   }
@@ -102,7 +106,6 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
   relocate("okhttp3.", "datadog.openfeature.internal.okhttp3.")
   relocate("okio.", "datadog.openfeature.internal.okio.")
   relocate("org.jctools.", "datadog.openfeature.internal.org.jctools.")
-  relocate("cafe.cryptography.", "datadog.openfeature.internal.cafe.cryptography.")
   relocate("datadog.", "datadog.openfeature.internal.datadog.") {
     exclude("datadog.trace.api.featureflag.**")
     exclude("datadog.trace.api.openfeature.*")
@@ -126,10 +129,14 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
 
 tasks.test {
   dependsOn(tasks.named("shadowJar"))
+  dependsOn(":products:feature-flagging:feature-flagging-remote-config:shadowJar")
   doFirst {
     val shadowJar =
       tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar").get()
     systemProperty("datadog.test.dd-openfeature.jar", shadowJar.archiveFile.get().asFile.absolutePath)
+    val rcJar = project(":products:feature-flagging:feature-flagging-remote-config")
+      .tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar").get()
+    systemProperty("datadog.test.dd-openfeature-remote-config.jar", rcJar.archiveFile.get().asFile.absolutePath)
   }
 }
 

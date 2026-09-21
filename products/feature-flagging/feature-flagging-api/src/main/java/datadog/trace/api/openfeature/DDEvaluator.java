@@ -166,7 +166,18 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     } catch (final ClassNotFoundException ignored) {
       return null;
     }
-    return (AutoCloseable) runtime.getMethod("acquire").invoke(null);
+    try {
+      return (AutoCloseable) runtime.getMethod("acquire").invoke(null);
+    } catch (InvocationTargetException failure) {
+      final Throwable cause = failure.getCause();
+      if (cause instanceof Exception) {
+        throw (Exception) cause;
+      }
+      if (cause instanceof Error) {
+        throw (Error) cause;
+      }
+      throw failure;
+    }
   }
 
   static boolean invokeRuntime(final Class<?> runtime, final String methodName)

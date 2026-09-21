@@ -33,8 +33,12 @@ Set `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=remote_config` and `DD_REMOTE_CONFIGU
 Set `DD_TRACE_AGENT_URL` to a compatible Datadog Agent service, for example `http://localhost:8126`.
 The Datadog Agent holds the API key. The application does not need one.
 Without `dd-java-agent`, manual provider registration starts the standalone RC client and EVP proxy delivery.
+For that path, add `com.datadoghq:dd-openfeature-remote-config` at the same version as `dd-openfeature`.
+The base JAR and its published dependencies contain no RC client. The optional artifact supplies it.
 This also works with the OTel Java agent as the only Java agent. No OTel collector is required.
 With a compatible `dd-java-agent`, the provider uses the agent runtime instead. It does not start a second poller.
+That path does not need the RC add-on. Merely adding the artifact does not enable RC.
+Selecting RC without either implementation produces a clear initialization error.
 
 Explicit RC never falls back to CDN configuration or direct product-event delivery.
 If RC is unavailable before initial configuration, evaluations use caller defaults.
@@ -72,11 +76,15 @@ No compatibility shim is removed before the Java team defines its support window
 ```sh
 ./gradlew :products:feature-flagging:feature-flagging-standalone:shadowJar \
   :products:feature-flagging:feature-flagging-standalone:generatePomFileForMavenPublication \
+  :products:feature-flagging:feature-flagging-remote-config:shadowJar \
+  :products:feature-flagging:feature-flagging-remote-config:generatePomFileForMavenPublication \
   :dd-java-agent:shadowJar
 ```
 
 The API module is internal and unbundled. The standalone module owns Maven publication.
-`feature-flagging-lib` contains evaluation, CDN and RC integration, lifecycle, events, and HTTP.
+`feature-flagging-lib` contains evaluation, CDN delivery, lifecycle, events, and HTTP.
+`feature-flagging-remote-config` is an optional assembly, not another evaluator or RC protocol implementation.
+Its internal interface accepts configuration bytes and serialized events, with no RC or HTTP types.
 Its evaluator-only artifact serves the API and injection without including the full runtime.
 The standalone assembly consumes the full library. The agent assembly does not depend on standalone publication.
 The repository's shadow publication uses POM metadata, not Gradle module metadata.
