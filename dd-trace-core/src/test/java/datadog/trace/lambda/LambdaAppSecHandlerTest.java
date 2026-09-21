@@ -55,7 +55,6 @@ import datadog.trace.lambda.LambdaEventParser.LambdaResponseData;
 import datadog.trace.lambda.LambdaEventParser.LambdaTriggerType;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.Closeable;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -1531,33 +1530,6 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
         extensionContext, LambdaAppSecHandler.mergeContexts(extensionContext, appSecContext));
   }
 
-  @Test
-  void mergeContextsClosesAppSecDataWhenExtensionContextIsIncompatible() throws IOException {
-    Closeable appSecData = mock(Closeable.class);
-    TagContext appSecContext = new TagContext();
-    appSecContext.withRequestContextDataAppSec(appSecData);
-    AgentSpanContext extensionContext = mock(AgentSpanContext.class);
-
-    assertSame(
-        extensionContext, LambdaAppSecHandler.mergeContexts(extensionContext, appSecContext));
-
-    verify(appSecData).close();
-  }
-
-  @Test
-  void mergeContextsDoesNotCloseTransferredAppSecData() throws IOException {
-    Closeable appSecData = mock(Closeable.class);
-    TagContext appSecContext = new TagContext();
-    appSecContext.withRequestContextDataAppSec(appSecData);
-    TagContext extensionContext = new TagContext();
-
-    assertSame(
-        extensionContext, LambdaAppSecHandler.mergeContexts(extensionContext, appSecContext));
-
-    assertSame(appSecData, extensionContext.getRequestContextDataAppSec());
-    verify(appSecData, never()).close();
-  }
-
   // ============================================================================
   // Error Handling and Null Callback Tests
   // ============================================================================
@@ -1577,29 +1549,6 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     AgentTracer.forceRegister(mockTracer);
 
     assertNull(LambdaAppSecHandler.processRequestStart(event));
-  }
-
-  @Test
-  @SuppressWarnings("unchecked")
-  void processRequestStartClosesAppSecDataWhenRequestProcessingFails() throws IOException {
-    String eventJson = "{\"path\": \"/test\", \"requestContext\": {\"httpMethod\": \"GET\"}}";
-    Closeable appSecData = mock(Closeable.class);
-    Supplier<Flow<Object>> requestStartedCallback = mock(Supplier.class);
-    when(requestStartedCallback.get()).thenReturn(new Flow.ResultFlow<>(appSecData));
-    TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> methodUriCallback =
-        mock(TriFunction.class);
-    when(methodUriCallback.apply(any(), anyString(), any(URIDataAdapter.class)))
-        .thenThrow(new IllegalStateException("request processing failed"));
-    CallbackProvider callbackProvider = mock(CallbackProvider.class);
-    when(callbackProvider.getCallback(EVENTS.requestStarted())).thenReturn(requestStartedCallback);
-    when(callbackProvider.getCallback(EVENTS.requestMethodUriRaw())).thenReturn(methodUriCallback);
-    AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
-    when(tracer.getCallbackProvider(RequestContextSlot.APPSEC)).thenReturn(callbackProvider);
-    AgentTracer.forceRegister(tracer);
-
-    assertNull(LambdaAppSecHandler.processRequestStart(createInputStream(eventJson)));
-
-    verify(appSecData).close();
   }
 
   @Test

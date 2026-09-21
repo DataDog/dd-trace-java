@@ -124,40 +124,29 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
         if (throwable != null) {
           span.addThrowable(throwable);
         }
+
+        AgentTracer.get().notifyAppSecEnd(span, throwable == null ? result : null);
+
+        // Force the resource name back to the literal placeholder marker right
+        // before finish so that the Datadog Lambda Extension's filter
+        // (filter_span_from_lambda_library_or_runtime in
+        // bottlecap/src/traces/trace_processor.rs, which compares
+        // span.resource == "dd-tracer-serverless-span") drops the placeholder.
+        // Other instrumentation (HTTP/JAX-RS) may have overwritten it with the
+        // route ("POST /") during the invocation, in which case the extension
+        // would fail to dedup, leading to the placeholder leaking to the backend
+        // with parent_id=0 and detaching the inferred apigateway root from the
+        // rest of the trace.
+        // Use TAG_INTERCEPTOR priority because DDSpanContext.setResourceName
+        // ignores writes whose priority is below the current resource priority,
+        // and the HTTP/JAX-RS instrumentation will already have written
+        // HTTP_FRAMEWORK_ROUTE (3) by this point.
+        span.setResourceName(INVOCATION_SPAN_NAME, ResourceNamePriorities.TAG_INTERCEPTOR);
       } finally {
-        try {
-          AgentTracer.get().notifyAppSecEnd(span, throwable == null ? result : null);
-        } finally {
-          try {
-            // Force the resource name back to the literal placeholder marker right
-            // before finish so that the Datadog Lambda Extension's filter
-            // (filter_span_from_lambda_library_or_runtime in
-            // bottlecap/src/traces/trace_processor.rs, which compares
-            // span.resource == "dd-tracer-serverless-span") drops the placeholder.
-            // Other instrumentation (HTTP/JAX-RS) may have overwritten it with the
-            // route ("POST /") during the invocation, in which case the extension
-            // would fail to dedup, leading to the placeholder leaking to the backend
-            // with parent_id=0 and detaching the inferred apigateway root from the
-            // rest of the trace.
-            // Use TAG_INTERCEPTOR priority because DDSpanContext.setResourceName
-            // ignores writes whose priority is below the current resource priority,
-            // and the HTTP/JAX-RS instrumentation will already have written
-            // HTTP_FRAMEWORK_ROUTE (3) by this point.
-            span.setResourceName(INVOCATION_SPAN_NAME, ResourceNamePriorities.TAG_INTERCEPTOR);
-          } finally {
-            try {
-              scope.close();
-            } finally {
-              try {
-                span.finish();
-              } finally {
-                AgentTracer.get()
-                    .notifyExtensionEnd(
-                        span, result, null != throwable, awsContext.getAwsRequestId());
-              }
-            }
-          }
-        }
+        scope.close();
+        span.finish();
+        AgentTracer.get()
+            .notifyExtensionEnd(span, result, null != throwable, awsContext.getAwsRequestId());
       }
     }
   }

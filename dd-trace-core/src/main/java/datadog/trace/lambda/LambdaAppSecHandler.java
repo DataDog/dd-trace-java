@@ -36,7 +36,6 @@ import datadog.trace.lambda.LambdaEventParser.LambdaResponseData;
 import datadog.trace.lambda.LambdaEventParser.LambdaTriggerType;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.Closeable;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -111,16 +110,11 @@ public class LambdaAppSecHandler {
       }
       LambdaURIDataAdapter uriAdapter =
           new LambdaURIDataAdapter(fullPath, eventData.headers, eventData.host);
-      AgentSpanContext appSecContext = processAppSecRequestData(eventData, uriAdapter);
-      try {
-        if (appSecContext instanceof TagContext) {
-          applyHttpTags((TagContext) appSecContext, eventData, uriAdapter);
-        }
-        return appSecContext;
-      } catch (Exception e) {
-        closeAppSecData(appSecContext);
-        throw e;
+      AgentSpanContext context = processAppSecRequestData(eventData, uriAdapter);
+      if (context instanceof TagContext) {
+        applyHttpTags((TagContext) context, eventData, uriAdapter);
       }
+      return context;
     } catch (Exception e) {
       log.debug("Failed to process AppSec request data", e);
       return null;
@@ -296,33 +290,24 @@ public class LambdaAppSecHandler {
 
       if (extensionContext instanceof TagContext) {
         TagContext merged = (TagContext) extensionContext;
-        boolean transferred = false;
-        try {
-          // The extension context is the one that survives, so the HTTP tags applied to the AppSec
-          // context have to be carried over: CoreTracer copies them onto the span at creation.
-          // The AppSec-derived values win on a key collision. No collision is reachable today: the
-          // extension context only carries tags for headers mapped through
-          // DD_TRACE_REQUEST_HEADER_TAGS
-          // (ContextInterpreter.handleTags), and those would have to be mapped onto an http.* key.
-          for (TagMap.EntryReader tag : extracted.getTags()) {
-            merged.putTag(tag.tag(), tag.stringValue());
-          }
-          if (appSecData != null) {
-            merged.withRequestContextDataAppSec(appSecData);
-          }
-          transferred = true;
-          return merged;
-        } finally {
-          if (!transferred) {
-            closeAppSecData(appSecData);
-          }
+        if (appSecData != null) {
+          merged.withRequestContextDataAppSec(appSecData);
         }
+        // The extension context is the one that survives, so the HTTP tags applied to the AppSec
+        // context have to be carried over: CoreTracer copies them onto the span at creation.
+        // The AppSec-derived values win on a key collision. No collision is reachable today: the
+        // extension context only carries tags for headers mapped through
+        // DD_TRACE_REQUEST_HEADER_TAGS
+        // (ContextInterpreter.handleTags), and those would have to be mapped onto an http.* key.
+        for (TagMap.EntryReader tag : extracted.getTags()) {
+          merged.putTag(tag.tag(), tag.stringValue());
+        }
+        return merged;
       }
 
       rlLog.warn(
           "Cannot merge AppSec data: extension context is not a TagContext: {}",
           extensionContext.getClass());
-      closeAppSecData(appSecData);
     }
     return extensionContext;
   }
@@ -386,134 +371,111 @@ public class LambdaAppSecHandler {
     }
 
     TagContext tagContext = new TagContext();
-    Object appSecRequestContext = null;
-    boolean transferred = false;
-    try {
-      // Call requestStarted
-      appSecRequestContext = requestStartedCallback.get().getResult();
-      tagContext.withRequestContextDataAppSec(appSecRequestContext);
+    Object appSecRequestContext;
 
-      if (appSecRequestContext != null) {
-        TemporaryRequestContext requestContext = new TemporaryRequestContext(appSecRequestContext);
+    // Call requestStarted
+    appSecRequestContext = requestStartedCallback.get().getResult();
+    tagContext.withRequestContextDataAppSec(appSecRequestContext);
 
-        // Call requestMethodUriRaw
-        if (eventData.method != null && eventData.path != null) {
-          datadog.trace.api.function.TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>>
-              methodUriCallback =
-                  tracer
-                      .getCallbackProvider(RequestContextSlot.APPSEC)
-                      .getCallback(EVENTS.requestMethodUriRaw());
-          if (methodUriCallback != null) {
-            methodUriCallback.apply(requestContext, eventData.method, uriAdapter);
-          } else {
-            log.debug("requestMethodUriRaw callback is null");
-          }
+    if (appSecRequestContext != null) {
+      TemporaryRequestContext requestContext = new TemporaryRequestContext(appSecRequestContext);
+
+      // Call requestMethodUriRaw
+      if (eventData.method != null && eventData.path != null) {
+        datadog.trace.api.function.TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>>
+            methodUriCallback =
+                tracer
+                    .getCallbackProvider(RequestContextSlot.APPSEC)
+                    .getCallback(EVENTS.requestMethodUriRaw());
+        if (methodUriCallback != null) {
+          methodUriCallback.apply(requestContext, eventData.method, uriAdapter);
+        } else {
+          log.debug("requestMethodUriRaw callback is null");
         }
+      }
 
-        // Call requestHeader for each header
-        if (eventData.headers != null && !eventData.headers.isEmpty()) {
-          TriConsumer<RequestContext, String, String> headerCallback =
-              tracer
-                  .getCallbackProvider(RequestContextSlot.APPSEC)
-                  .getCallback(EVENTS.requestHeader());
-          if (headerCallback != null) {
-            for (Map.Entry<String, String> header : eventData.headers.entrySet()) {
-              headerCallback.accept(requestContext, header.getKey(), header.getValue());
-            }
-          } else {
-            log.debug("requestHeader callback is null");
-          }
-        }
-
-        // Call requestClientSocketAddress
-        if (eventData.sourceIp != null) {
-          datadog.trace.api.function.TriFunction<RequestContext, String, Integer, Flow<Void>>
-              socketAddrCallback =
-                  tracer
-                      .getCallbackProvider(RequestContextSlot.APPSEC)
-                      .getCallback(EVENTS.requestClientSocketAddress());
-          if (socketAddrCallback != null) {
-            Integer port = eventData.sourcePort != null ? eventData.sourcePort : 0;
-            socketAddrCallback.apply(requestContext, eventData.sourceIp, port);
-          } else {
-            log.debug("requestClientSocketAddress callback is null");
-          }
-        }
-
-        // Call requestHeaderDone
-        Function<RequestContext, Flow<Void>> headerDoneCallback =
+      // Call requestHeader for each header
+      if (eventData.headers != null && !eventData.headers.isEmpty()) {
+        TriConsumer<RequestContext, String, String> headerCallback =
             tracer
                 .getCallbackProvider(RequestContextSlot.APPSEC)
-                .getCallback(EVENTS.requestHeaderDone());
-        if (headerDoneCallback != null) {
-          headerDoneCallback.apply(requestContext);
+                .getCallback(EVENTS.requestHeader());
+        if (headerCallback != null) {
+          for (Map.Entry<String, String> header : eventData.headers.entrySet()) {
+            headerCallback.accept(requestContext, header.getKey(), header.getValue());
+          }
         } else {
-          log.debug("requestHeaderDone callback is null");
-        }
-
-        // Call requestPathParams
-        if (eventData.pathParameters != null && !eventData.pathParameters.isEmpty()) {
-          BiFunction<RequestContext, Map<String, ?>, Flow<Void>> pathParamsCallback =
-              tracer
-                  .getCallbackProvider(RequestContextSlot.APPSEC)
-                  .getCallback(EVENTS.requestPathParams());
-          if (pathParamsCallback != null) {
-            pathParamsCallback.apply(requestContext, eventData.pathParameters);
-          } else {
-            log.debug("requestPathParams callback is null");
-          }
-        }
-
-        // Call requestBodyProcessed
-        if (eventData.body != null) {
-          BiFunction<RequestContext, Object, Flow<Void>> bodyCallback =
-              tracer
-                  .getCallbackProvider(RequestContextSlot.APPSEC)
-                  .getCallback(EVENTS.requestBodyProcessed());
-          if (bodyCallback != null) {
-            bodyCallback.apply(requestContext, eventData.body);
-          } else {
-            log.debug("requestBodyProcessed callback is null");
-          }
-        }
-
-        // Call requestFilesFilenames. Only the names are reported: the file content shares the
-        // body's UTF-8 decode, so for anything that is not text it is already lossy.
-        if (!eventData.filenames.isEmpty()) {
-          BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCallback =
-              tracer
-                  .getCallbackProvider(RequestContextSlot.APPSEC)
-                  .getCallback(EVENTS.requestFilesFilenames());
-          if (filenamesCallback != null) {
-            filenamesCallback.apply(requestContext, eventData.filenames);
-          } else {
-            log.debug("requestFilesFilenames callback is null");
-          }
+          log.debug("requestHeader callback is null");
         }
       }
-      transferred = true;
-      return tagContext;
-    } finally {
-      if (!transferred) {
-        closeAppSecData(appSecRequestContext);
+
+      // Call requestClientSocketAddress
+      if (eventData.sourceIp != null) {
+        datadog.trace.api.function.TriFunction<RequestContext, String, Integer, Flow<Void>>
+            socketAddrCallback =
+                tracer
+                    .getCallbackProvider(RequestContextSlot.APPSEC)
+                    .getCallback(EVENTS.requestClientSocketAddress());
+        if (socketAddrCallback != null) {
+          Integer port = eventData.sourcePort != null ? eventData.sourcePort : 0;
+          socketAddrCallback.apply(requestContext, eventData.sourceIp, port);
+        } else {
+          log.debug("requestClientSocketAddress callback is null");
+        }
+      }
+
+      // Call requestHeaderDone
+      Function<RequestContext, Flow<Void>> headerDoneCallback =
+          tracer
+              .getCallbackProvider(RequestContextSlot.APPSEC)
+              .getCallback(EVENTS.requestHeaderDone());
+      if (headerDoneCallback != null) {
+        headerDoneCallback.apply(requestContext);
+      } else {
+        log.debug("requestHeaderDone callback is null");
+      }
+
+      // Call requestPathParams
+      if (eventData.pathParameters != null && !eventData.pathParameters.isEmpty()) {
+        BiFunction<RequestContext, Map<String, ?>, Flow<Void>> pathParamsCallback =
+            tracer
+                .getCallbackProvider(RequestContextSlot.APPSEC)
+                .getCallback(EVENTS.requestPathParams());
+        if (pathParamsCallback != null) {
+          pathParamsCallback.apply(requestContext, eventData.pathParameters);
+        } else {
+          log.debug("requestPathParams callback is null");
+        }
+      }
+
+      // Call requestBodyProcessed
+      if (eventData.body != null) {
+        BiFunction<RequestContext, Object, Flow<Void>> bodyCallback =
+            tracer
+                .getCallbackProvider(RequestContextSlot.APPSEC)
+                .getCallback(EVENTS.requestBodyProcessed());
+        if (bodyCallback != null) {
+          bodyCallback.apply(requestContext, eventData.body);
+        } else {
+          log.debug("requestBodyProcessed callback is null");
+        }
+      }
+
+      // Call requestFilesFilenames. Only the names are reported: the file content shares the
+      // body's UTF-8 decode, so for anything that is not text it is already lossy.
+      if (!eventData.filenames.isEmpty()) {
+        BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCallback =
+            tracer
+                .getCallbackProvider(RequestContextSlot.APPSEC)
+                .getCallback(EVENTS.requestFilesFilenames());
+        if (filenamesCallback != null) {
+          filenamesCallback.apply(requestContext, eventData.filenames);
+        } else {
+          log.debug("requestFilesFilenames callback is null");
+        }
       }
     }
-  }
-
-  private static void closeAppSecData(AgentSpanContext context) {
-    if (context instanceof TagContext) {
-      closeAppSecData(((TagContext) context).getRequestContextDataAppSec());
-    }
-  }
-
-  private static void closeAppSecData(Object appSecData) {
-    if (appSecData instanceof Closeable) {
-      try {
-        ((Closeable) appSecData).close();
-      } catch (Exception e) {
-        log.debug("Failed to close abandoned AppSec request context", e);
-      }
-    }
+    return tagContext;
   }
 
   /** Sets the current trigger type thread-local. Package-private for use in tests only. */
