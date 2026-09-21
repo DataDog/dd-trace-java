@@ -19,9 +19,6 @@ excludedClassesCoverage += [
   // When running on Java 8 without `jfr`, no code is executed
   'com.datadog.profiling.uploader.util.JfrCliHelper',
   'com.datadog.profiling.uploader.util.JfrCliHelper.Event',
-  // OTLP uploader — network/IO class, exercised via integration tests
-  'com.datadog.profiling.uploader.OtlpProfileUploader',
-  'com.datadog.profiling.uploader.OtlpProfilesSenderFactory',
   // Pre-existing borderline coverage — HTTP/upload plumbing, hard to unit test
   'com.datadog.profiling.uploader.CompressingRequestBody',
   'com.datadog.profiling.uploader.ProfileUploader',

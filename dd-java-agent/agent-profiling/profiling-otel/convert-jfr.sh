@@ -45,17 +45,6 @@ log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 log_diagnostic() { echo -e "${CYAN}[DIAG]${NC} $1"; }
 
-# Get file size in human-readable format
-get_file_size() {
-    local file="$1"
-    if [ -f "$file" ]; then
-        # Use du for cross-platform compatibility
-        du -h "$file" | cut -f1
-    else
-        echo "N/A"
-    fi
-}
-
 # Get file size in bytes
 get_file_size_bytes() {
     local file="$1"
@@ -255,9 +244,6 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Convert all arguments to a space-separated string for Gradle --args
-ARGS="${CONVERTER_ARGS[*]}"
-
 # Calculate total input size if diagnostics enabled
 TOTAL_INPUT_SIZE=0
 if [ "$SHOW_DIAGNOSTICS" = true ]; then
@@ -280,8 +266,10 @@ FAT_JAR=$(ensure_fat_jar)
 # Suppress SLF4J warnings (it defaults to NOP logger which is fine for CLI)
 # Use a temp file to capture output so the java process exit code is not masked by grep
 _CONVERTER_TMP=$(mktemp)
-java -jar "$FAT_JAR" "${CONVERTER_ARGS[@]}" >"$_CONVERTER_TMP" 2>&1
-CONVERTER_EXIT=$?
+# guard against set -e: capture the java exit code instead of letting errexit abort the script
+# before the cleanup and error handling below can run
+CONVERTER_EXIT=0
+java -jar "$FAT_JAR" "${CONVERTER_ARGS[@]}" >"$_CONVERTER_TMP" 2>&1 || CONVERTER_EXIT=$?
 CONVERTER_OUTPUT=$(grep -vE "^SLF4J:|SLF4JServiceProvider" "$_CONVERTER_TMP")
 rm -f "$_CONVERTER_TMP"
 

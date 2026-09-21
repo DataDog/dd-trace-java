@@ -73,7 +73,6 @@ com.datadog.profiling.otel/
 │   └── JfrClass          # Class descriptor
 │
 ├── JfrToOtlpConverter    # Main converter (JFR -> OTLP)
-├── OtlpProfileWriter     # Profile writer interface
 └── test/
     ├── JfrTools          # Test utilities for synthetic JFR event creation
     └── validation/       # OTLP profile validation utilities

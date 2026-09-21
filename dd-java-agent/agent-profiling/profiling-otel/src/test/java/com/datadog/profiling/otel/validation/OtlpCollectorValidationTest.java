@@ -56,7 +56,7 @@ class OtlpCollectorValidationTest {
   @TempDir Path tempDir;
 
   // Using the official OTel Collector Contrib image which has more receivers/exporters
-  private static final String OTEL_COLLECTOR_IMAGE = "otel/opentelemetry-collector-contrib:latest";
+  private static final String OTEL_COLLECTOR_IMAGE = "otel/opentelemetry-collector-contrib:0.116.0";
   private static final int OTLP_HTTP_PORT = 4318;
 
   @Container
