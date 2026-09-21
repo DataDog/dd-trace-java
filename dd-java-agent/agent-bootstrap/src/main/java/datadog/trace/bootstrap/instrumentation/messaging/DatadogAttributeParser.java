@@ -15,6 +15,9 @@ public final class DatadogAttributeParser {
 
   private static final Base64.Decoder BASE_64 = Base64.getDecoder();
 
+  private static final String TAGS_KEY = "x-datadog-tags";
+  private static final String LLMOBS_TAG_PREFIX = "_dd.p.llmobs_";
+
   /** Parses trace context properties from the given JSON and passes them to the classifier. */
   public static void forEachProperty(AgentPropagation.KeyClassifier classifier, String json) {
     if (null == json) {
@@ -24,10 +27,7 @@ public final class DatadogAttributeParser {
       if (acceptJsonProperty(classifier, json, "x-datadog-trace-id")) {
         acceptJsonProperty(classifier, json, "x-datadog-parent-id");
         acceptJsonProperty(classifier, json, "x-datadog-sampling-priority");
-        // Propagation tags travel in x-datadog-tags. Without this the whole _dd.p.* set is
-        // silently dropped at a messaging boundary — including _dd.p.tid, which truncates a
-        // 128-bit trace id to 64 bits downstream, and the _dd.p.llmobs_* attribution tags.
-        acceptJsonProperty(classifier, json, "x-datadog-tags");
+        acceptLlmObsPropagationTags(classifier, json);
       }
       if (Config.get().isDataStreamsEnabled()) {
         acceptJsonProperty(classifier, json, "dd-pathway-ctx-base64");
@@ -60,9 +60,57 @@ public final class DatadogAttributeParser {
     }
   }
 
-  // Simple parser that assumes values are JSON strings that don't contain escaped quotes
+  /**
+   * Forwards the {@code _dd.p.llmobs_*} propagation tags out of {@code x-datadog-tags}, dropping
+   * the rest.
+   *
+   * <p>This parser's callers never read {@code x-datadog-tags} at all, so a messaging boundary
+   * currently drops every {@code _dd.p.*} tag — which is why an LLMObs producer and consumer either
+   * side of a queue land in two different LLMObs traces. Forwarding the header wholesale would fix
+   * that, but it would also restore behaviour other products key off: {@code _dd.p.ts} makes {@code
+   * TraceCollector.setSamplingPriorityIfNecessary()} honour an upstream ASM decision rather than
+   * re-sample locally, and {@code _dd.p.tid} flips a joined span's {@code dd.trace_id} in logs from
+   * decimal to 32-character hex. Both are observable changes on upgrade for customers who never
+   * asked for one, so widening this to the full set is left to a follow-up those owners can weigh.
+   * The LLMObs tags are self-contained by comparison — they feed only LLMObs span attribution.
+   */
+  private static void acceptLlmObsPropagationTags(
+      AgentPropagation.KeyClassifier classifier, String json) {
+    String tags = jsonPropertyValue(json, TAGS_KEY);
+    // Nothing to forward is the common case, and it costs a scan rather than a parse.
+    if (null == tags || !tags.contains(LLMOBS_TAG_PREFIX)) {
+      return;
+    }
+    StringBuilder filtered = null;
+    int start = 0;
+    while (start < tags.length()) {
+      int end = tags.indexOf(',', start);
+      if (end < 0) {
+        end = tags.length();
+      }
+      if (tags.startsWith(LLMOBS_TAG_PREFIX, start)) {
+        if (null == filtered) {
+          filtered = new StringBuilder(tags.length());
+        } else {
+          filtered.append(',');
+        }
+        filtered.append(tags, start, end);
+      }
+      start = end + 1;
+    }
+    if (null != filtered) {
+      classifier.accept(TAGS_KEY, filtered.toString());
+    }
+  }
+
   private static boolean acceptJsonProperty(
       AgentPropagation.KeyClassifier classifier, String json, String key) {
+    String value = jsonPropertyValue(json, key);
+    return null != value && classifier.accept(key, value);
+  }
+
+  // Simple parser that assumes values are JSON strings that don't contain escaped quotes
+  private static String jsonPropertyValue(String json, String key) {
     int keyStart = json.indexOf(key);
     if (keyStart > 0) {
       int separator = json.indexOf(':', keyStart + key.length());
@@ -71,11 +119,11 @@ public final class DatadogAttributeParser {
         if (valueStart > 0) {
           int valueEnd = json.indexOf('"', valueStart + 1);
           if (valueEnd > 0) {
-            return classifier.accept(key, json.substring(valueStart + 1, valueEnd));
+            return json.substring(valueStart + 1, valueEnd);
           }
         }
       }
     }
-    return false;
+    return null;
   }
 }
