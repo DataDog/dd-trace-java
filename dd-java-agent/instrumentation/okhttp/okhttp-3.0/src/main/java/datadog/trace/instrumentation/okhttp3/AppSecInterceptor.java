@@ -14,6 +14,7 @@ import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -232,6 +233,7 @@ public class AppSecInterceptor implements Interceptor {
     return buffer.toByteArray();
   }
 
+  @VisibleForTesting
   static Map<String, List<String>> mapHeaders(final Headers headers) {
     if (headers == null) {
       return Collections.emptyMap();
