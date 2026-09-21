@@ -109,6 +109,7 @@ class AdviceScannerTest {
             "bootstrap.Only",
             "bootstrapArgument.Only",
             "handle.Only",
+            "array.Only",
             "catch.Only")) {
       assertNotNull(result.getClassInfo(dependency), dependency);
     }
@@ -174,12 +175,13 @@ class AdviceScannerTest {
   private static byte[] generatedAdvice(String className) {
     ClassWriter writer = new ClassWriter(0);
     writer.visit(
-        Opcodes.V1_8,
+        Opcodes.V17,
         Opcodes.ACC_PUBLIC,
         className.replace('.', '/'),
         null,
         "java/lang/Object",
         null);
+    writer.visitPermittedSubclass("generated/Subclass");
 
     MethodVisitor method =
         writer.visitMethod(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC, "apply", "()V", null, null);
@@ -197,6 +199,10 @@ class AdviceScannerTest {
             Opcodes.H_INVOKESTATIC, "bootstrap/Owner", "bootstrap", "(Lbootstrap/Only;)V", false),
         Type.getMethodType("()LbootstrapArgument/Only;"),
         new Handle(Opcodes.H_INVOKESTATIC, "handle/Owner", "apply", "(Lhandle/Only;)V", false));
+    method.visitInsn(Opcodes.POP);
+    method.visitInsn(Opcodes.ACONST_NULL);
+    method.visitMethodInsn(
+        Opcodes.INVOKEVIRTUAL, "[Larray/Only;", "clone", "()Ljava/lang/Object;", false);
     method.visitInsn(Opcodes.POP);
     method.visitLabel(end);
     method.visitJumpInsn(Opcodes.GOTO, done);

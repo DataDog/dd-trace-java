@@ -3,6 +3,7 @@ package datadog.trace.agent.tooling.advice;
 import static java.util.Collections.addAll;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
+import static net.bytebuddy.utility.OpenedClassReader.ASM_API;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -117,6 +118,10 @@ public final class AdviceScanner {
     if (className == null || className.equals(from.className)) {
       return;
     }
+    if (className.startsWith("[")) {
+      addTypeDependency(from, Type.getType(className));
+      return;
+    }
     MutableClassInfo target = discover(className, from.adviceClass);
     enqueue(target, false);
   }
@@ -228,7 +233,7 @@ public final class AdviceScanner {
     private final MutableClassInfo info;
 
     private ScanningVisitor(MutableClassInfo info) {
-      super(Opcodes.ASM7);
+      super(ASM_API);
       this.info = info;
     }
 
@@ -273,7 +278,7 @@ public final class AdviceScanner {
     private int line = UNDEFINED_LINE;
 
     private ScanningMethodVisitor(MutableClassInfo info) {
-      super(Opcodes.ASM7);
+      super(ASM_API);
       this.info = info;
     }
 
