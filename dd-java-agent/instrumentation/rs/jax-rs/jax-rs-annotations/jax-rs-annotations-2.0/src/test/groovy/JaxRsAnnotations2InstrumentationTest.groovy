@@ -1,5 +1,6 @@
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.config.TraceInstrumentationConfig
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator
 import io.dropwizard.jersey.PATCH
@@ -13,6 +14,7 @@ import javax.ws.rs.PUT
 import javax.ws.rs.Path
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_CONTEXT
 
 class JaxRsAnnotations2InstrumentationTest extends InstrumentationSpecification {
 
@@ -35,6 +37,48 @@ class JaxRsAnnotations2InstrumentationTest extends InstrumentationSpecification 
           tags {
             "$Tags.COMPONENT" "jax-rs-controller"
             "$Tags.HTTP_ROUTE" "/a"
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  def "servlet context prefixes route and resource name"() {
+    setup:
+    def obj = new Jax() {
+        @GET
+        @Path("/resource")
+        void call() {
+        }
+      }
+    runUnderTrace("test") {
+      AgentSpan.current().setTag(SERVLET_CONTEXT, "/context")
+      obj.call()
+    }
+
+    expect:
+    assertTraces(1) {
+      trace(2) {
+        span {
+          operationName "test"
+          resourceName "GET /context/resource"
+          parent()
+          tags {
+            "$Tags.COMPONENT" "jax-rs"
+            "$Tags.HTTP_ROUTE" "/context/resource"
+            "$SERVLET_CONTEXT" "/context"
+            withCustomIntegrationName(null)
+            defaultTags()
+          }
+        }
+        span {
+          operationName "jax-rs.request"
+          resourceName "${JaxRsAnnotationsDecorator.DECORATE.className(obj.class)}.call"
+          spanType "web"
+          childOf span(0)
+          tags {
+            "$Tags.COMPONENT" "jax-rs-controller"
             defaultTags()
           }
         }

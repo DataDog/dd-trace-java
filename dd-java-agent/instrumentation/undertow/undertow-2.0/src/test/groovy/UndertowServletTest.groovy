@@ -228,13 +228,14 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
     if (endpoint.status == 404 && endpoint.path == "/not-found") {
       return "404"
     } else if (endpoint.hasPathParam) {
-      return "$method ${testPathParam()}"
+      return "$method /$CONTEXT${testPathParam()}"
     } else if (endpoint == WEBSOCKET) {
       // the route is not set on websocket handlers
       return "$method ${endpoint.resolve(address).path}"
+    } else if (endpoint != LOGIN) {
+      return "$method /$CONTEXT${endpoint.path}"
     }
-    def base = endpoint == LOGIN ? address : address.resolve("/")
-    return "$method ${endpoint.resolve(base).path}"
+    return "$method ${endpoint.resolve(address).path}"
   }
 
   @Override
@@ -284,9 +285,9 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
       case WEBSOCKET:
       return null
       case PATH_PARAM:
-      return testPathParam()
+      return "/$CONTEXT${testPathParam()}"
       default:
-      return endpoint.path
+      return "/$CONTEXT${endpoint.path}"
     }
   }
 

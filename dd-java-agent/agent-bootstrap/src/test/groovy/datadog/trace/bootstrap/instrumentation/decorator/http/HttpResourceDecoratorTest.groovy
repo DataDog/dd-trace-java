@@ -9,6 +9,7 @@ import spock.lang.Shared
 
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_CONTEXT
 
 class HttpResourceDecoratorTest extends DDSpecification {
 
@@ -36,6 +37,58 @@ class HttpResourceDecoratorTest extends DDSpecification {
 
     then:
     span.resourceName == "test"
+  }
+
+  def "prefixes route with servlet context '#contextPath'"() {
+    given:
+    AgentSpan span = tracer.startSpan("test", "test")
+    if (contextPath != null) {
+      span.setTag(SERVLET_CONTEXT, contextPath)
+    }
+
+    when:
+    decorator().withRoute(span, "GET", route)
+
+    then:
+    span.getTag(Tags.HTTP_ROUTE).toString() == expectedRoute
+    (span.getTag(Tags.HTTP_ROUTE).is(route)) == sameReference
+
+    where:
+    contextPath | route         | expectedRoute         | sameReference
+    null        | "/save"       | "/save"               | true
+    ""          | "/save"       | "/save"               | true
+    "/"         | "/save"       | "/save"               | true
+    "/cache"    | "/save"       | "/cache/save"         | false
+    "/cache"    | "/cache/save" | "/cache/cache/save"   | false
+    "/cache"    | "/items/{id}" | "/cache/items/{id}"   | false
+  }
+
+  def "uses servlet context in route-based resource name"() {
+    given:
+    injectSysConfig("http.server.route-based-naming", "true")
+    AgentSpan span = tracer.startSpan("test", "test")
+    span.setTag(SERVLET_CONTEXT, "/application")
+
+    when:
+    decorator().withRoute(span, "GET", "/items/{id}")
+
+    then:
+    span.getTag(Tags.HTTP_ROUTE) == "/application/items/{id}"
+    span.resourceName.toString() == "GET /application/items/{id}"
+  }
+
+  def "preserves encoded resource naming while prefixing servlet context"() {
+    given:
+    injectSysConfig("http.server.route-based-naming", "true")
+    AgentSpan span = tracer.startSpan("test", "test")
+    span.setTag(SERVLET_CONTEXT, "/application")
+
+    when:
+    decorator().withRoute(span, "GET", "/items%20list", true)
+
+    then:
+    span.getTag(Tags.HTTP_ROUTE) == "/application/items list"
+    span.resourceName.toString() == "GET /application/items%20list"
   }
 
   def "still uses the simple normalizer by default"() {

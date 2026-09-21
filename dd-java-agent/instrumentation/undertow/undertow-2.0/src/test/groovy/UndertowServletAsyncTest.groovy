@@ -345,10 +345,11 @@ class UndertowServletAsyncTest extends HttpServerTest<Undertow> {
     if (endpoint.status == 404 && endpoint.path == "/not-found") {
       return "404"
     } else if (endpoint.hasPathParam) {
-      return "$method ${testPathParam()}"
+      return "$method /$CONTEXT${testPathParam()}"
+    } else if (endpoint != LOGIN) {
+      return "$method /$CONTEXT${endpoint.path}"
     }
-    def base = endpoint == LOGIN ? address : address.resolve("/")
-    "$method ${endpoint.resolve(base).path}"
+    "$method ${endpoint.resolve(address).path}"
   }
 
   @Override
@@ -390,9 +391,9 @@ class UndertowServletAsyncTest extends HttpServerTest<Undertow> {
       case NOT_FOUND:
         return null
       case PATH_PARAM:
-        return testPathParam()
+        return "/$CONTEXT${testPathParam()}"
       default:
-        return endpoint.path
+        return "/$CONTEXT${endpoint.path}"
     }
   }
 

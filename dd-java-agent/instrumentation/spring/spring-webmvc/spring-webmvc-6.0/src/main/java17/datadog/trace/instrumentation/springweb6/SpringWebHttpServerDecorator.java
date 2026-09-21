@@ -130,18 +130,9 @@ public class SpringWebHttpServerDecorator
           request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
       if (method != null && bestMatchingPattern != null && !bestMatchingPattern.equals("/**")) {
         request.setAttribute(DD_FILTERED_SPRING_ROUTE_ALREADY_APPLIED, true);
-        HTTP_RESOURCE_DECORATOR.withRoute(
-            span, method, withContextPath(request, bestMatchingPattern.toString()));
+        HTTP_RESOURCE_DECORATOR.withRoute(span, method, bestMatchingPattern.toString());
       }
     }
-  }
-
-  static CharSequence withContextPath(HttpServletRequest request, String pattern) {
-    String contextPath = request.getContextPath();
-    if (contextPath == null || contextPath.isEmpty() || "/".equals(contextPath)) {
-      return pattern;
-    }
-    return contextPath + pattern;
   }
 
   public void onHandle(final AgentSpan span, final Object handler) {

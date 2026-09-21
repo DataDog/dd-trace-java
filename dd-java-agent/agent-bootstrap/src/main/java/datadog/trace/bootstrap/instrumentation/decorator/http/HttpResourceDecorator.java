@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.decorator.http;
 
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_CONTEXT;
+
 import datadog.trace.api.Config;
 import datadog.trace.api.normalize.HttpResourceNames;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -43,10 +45,31 @@ public class HttpResourceDecorator {
     if (encoded) {
       routeTag = URIUtils.decode(route.toString());
     }
+    // Framework route templates are relative to the servlet application. Include the deployment
+    // context here so every servlet-hosted framework reports the same externally visible route.
+    final String servletContext = servletContext(span);
+    routeTag = withServletContext(servletContext, routeTag);
     span.setTag(Tags.HTTP_ROUTE, routeTag);
     if (Config.get().isHttpServerRouteBasedNaming()) {
-      final CharSequence resourceName = HttpResourceNames.join(method, route);
+      final CharSequence resourceRoute =
+          encoded ? withServletContext(servletContext, route) : routeTag;
+      final CharSequence resourceName = HttpResourceNames.join(method, resourceRoute);
       span.setResourceName(resourceName, ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE);
     }
+  }
+
+  private static String servletContext(final AgentSpan span) {
+    final Object contextPath = span.getTag(SERVLET_CONTEXT);
+    if (!(contextPath instanceof String)
+        || ((String) contextPath).isEmpty()
+        || "/".equals(contextPath)) {
+      return null;
+    }
+    return (String) contextPath;
+  }
+
+  private static CharSequence withServletContext(
+      final String servletContext, final CharSequence route) {
+    return servletContext == null ? route : servletContext.concat(route.toString());
   }
 }
