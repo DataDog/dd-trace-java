@@ -38,7 +38,11 @@ public class MessageAttributeInjector implements CarrierSetter<Map<String, Messa
       int closingBrace = existing.lastIndexOf('}');
       if (closingBrace >= 0) {
         String updated =
-            new StringBuilder()
+            new StringBuilder(
+                    closingBrace
+                        + String.valueOf(key).length()
+                        + String.valueOf(value).length()
+                        + 9)
                 .append(existing, 0, closingBrace)
                 .append(", \"")
                 .append(key)
