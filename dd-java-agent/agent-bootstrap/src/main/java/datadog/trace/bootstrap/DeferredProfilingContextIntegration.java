@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.Stateful;
 import datadog.trace.api.profiling.ProfilingContextAttribute;
@@ -24,6 +26,13 @@ import org.slf4j.LoggerFactory;
  * work by delegating to {@link ProfilingContextIntegration.NoOp} until the deferred construction
  * completes, then swapping in the real integration.
  *
+ * <p>Moving the work to another thread is not enough on its own, because that thread would still
+ * run concurrently with the rest of {@code premain}, i.e. still before {@code main} gets to set
+ * {@code java.nio.file.spi.DefaultFileSystemProvider}. The construction is therefore also delayed
+ * by {@link #INITIALIZATION_DELAY_MILLIS}. That delay is a mitigation, not a guarantee: the JVM
+ * offers no hook for "the application has entered {@code main}", so an application whose start-up
+ * is slower than the delay can still be racing with it.
+ *
  * <p>Scope events happening before the swap are silently dropped. That is acceptable for context
  * <em>exposure</em> (eBPF/CWS reading the current span off a thread), but not for profiling
  * accuracy, so users with the Datadog profiler actually enabled keep the synchronous construction
@@ -32,6 +41,19 @@ import org.slf4j.LoggerFactory;
 final class DeferredProfilingContextIntegration implements ProfilingContextIntegration {
   private static final Logger log =
       LoggerFactory.getLogger(DeferredProfilingContextIntegration.class);
+
+  /**
+   * How long to wait before running the deferred construction, so that the rest of {@code premain}
+   * has returned and the application has had a chance to run the top of {@code main} (where an
+   * application that cares about it installs its own {@code
+   * java.nio.file.spi.DefaultFileSystemProvider}).
+   *
+   * <p>Same magnitude as the longest delay {@code Agent} already applies for the analogous "let the
+   * application get there first" problem with OkHttp and a custom log manager, and hardcoded for
+   * the same reason: this is context <em>exposure</em> for eBPF/CWS consumers, where losing the
+   * first second of thread context is not observable, so there is nothing for a user to tune.
+   */
+  private static final long INITIALIZATION_DELAY_MILLIS = 1_000;
 
   private final String name;
   private final Callable<ProfilingContextIntegration> factory;
@@ -54,9 +76,16 @@ final class DeferredProfilingContextIntegration implements ProfilingContextInteg
     this.factory = factory;
   }
 
-  /** Schedules the deferred construction so that it runs off the calling (premain) thread. */
+  /**
+   * Schedules the deferred construction so that it runs off the calling (premain) thread, after
+   * {@link #INITIALIZATION_DELAY_MILLIS}.
+   *
+   * <p>The delay is the same order of magnitude as the one {@code Agent} already uses to let the
+   * application reach a given point before starting OkHttp when a custom log manager is in play. It
+   * is a heuristic, not a handshake: nothing here observes {@code main} actually starting.
+   */
   void scheduleInitialization() {
-    AgentTaskScheduler.get().execute(this::initialize);
+    AgentTaskScheduler.get().schedule(this::initialize, INITIALIZATION_DELAY_MILLIS, MILLISECONDS);
   }
 
   /**
