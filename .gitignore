@@ -95,3 +95,8 @@ mise*.local.toml
 
 # Exclude kotlin build files
 .kotlin
+
+# LLM Validation local/CI artifacts
+.llm-validation/results.json
+.llm-validation/report.md
+.llm-validation/details.json
