@@ -48,6 +48,11 @@ build-exploration-tests-image:
       </settings>
       EOF
     - export MVNW_REPOURL=${MAVEN_REPOSITORY_PROXY%/}
+    - export ORG_GRADLE_PROJECT_mavenRepositoryProxy="$MAVEN_REPOSITORY_PROXY"
+    - export ORG_GRADLE_PROJECT_gradlePluginProxy="$GRADLE_PLUGIN_PROXY"
+    # TODO: Centralize Gradle repository proxy initialization instead of reusing a smoke-test resource.
+    - mkdir -p "$HOME/.gradle/init.d"
+    - cp build-logic/smoke-test/src/main/resources/datadog/buildlogic/smoketest/proxy-repositories.init.gradle.kts "$HOME/.gradle/init.d/"
     - cp workspace/dd-java-agent/build/libs/*.jar /exploration-tests/dd-java-agent.jar
     - cp dd-java-agent/agent-debugger/exploration-tests/run-exploration-tests.sh /exploration-tests
     - cp dd-java-agent/agent-debugger/exploration-tests/exclude_*.txt /exploration-tests
