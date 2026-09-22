@@ -27,8 +27,8 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
    * Binds {@code context} to profiler state associated with the current carrier thread.
    *
    * <p>The default implementation is a no-op. Integrations that return {@code true} from {@link
-   * #isThreadContextBindingRequired()} must override this method and treat {@link Context#root()} as
-   * clearing the current binding.
+   * #isThreadContextBindingRequired()} must override this method and treat {@link Context#root()}
+   * as clearing the current binding.
    *
    * @param context context to bind
    */
