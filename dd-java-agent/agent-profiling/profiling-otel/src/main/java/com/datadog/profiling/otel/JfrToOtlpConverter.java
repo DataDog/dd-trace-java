@@ -531,19 +531,15 @@ public final class JfrToOtlpConverter {
       java.util.function.Supplier<JfrStackTrace> stackTraceSupplier,
       long stackTraceId,
       Control ctl) {
-    // Create cache key from stackTraceId + chunk identity.
-    // Chunk identity hash is cached to avoid per-event native call to System.identityHashCode.
-    // Multiplicative mixing keeps distinct (stackTraceId, chunkHash) pairs apart
+    // tag the cache key with the chunk identity so per-chunk ids don't collide across chunks
     int chunkHash = getChunkIdentityHash(ctl);
     long cacheKey = mixKey(stackTraceId, chunkHash);
 
-    // Check cache first - avoid resolving stack trace if cached
     int cachedIndex = stackTraceCache.get(cacheKey);
     if (cachedIndex != -1) {
       return cachedIndex;
     }
 
-    // Cache miss - resolve and process stack trace
     JfrStackTrace stackTrace = safeGetStackTrace(stackTraceSupplier);
     if (stackTrace == null) {
       stackTraceCache.put(cacheKey, 0);
@@ -588,7 +584,6 @@ public final class JfrToOtlpConverter {
       return cached;
     }
 
-    // Cache miss — full processing
     String methodName = method.name();
     JfrClass type = method.type();
     String className = type != null ? type.name() : null;
@@ -773,13 +768,11 @@ public final class JfrToOtlpConverter {
     if (includeOriginalPayload && !pathEntries.isEmpty()) {
       encoder.writeStringField(OtlpProtoFields.Profile.ORIGINAL_PAYLOAD_FORMAT, "jfr");
 
-      // Calculate total size of all JFR files
       long totalSize = 0;
       for (PathEntry entry : pathEntries) {
         totalSize += Files.size(entry.path);
       }
 
-      // Write original_payload from concatenated stream
       encoder.writeBytesField(
           OtlpProtoFields.Profile.ORIGINAL_PAYLOAD, createJfrPayloadStream(), totalSize);
     }
@@ -815,9 +808,9 @@ public final class JfrToOtlpConverter {
 
   private void encodeDictionary(ProtobufEncoder encoder) {
     // ProfilesDictionary message
+    // every table must carry at least its index-0 (null/unset sentinel) entry per the OTLP spec
 
     // Field 2: location_table
-    // Note: Include index 0 (null/unset sentinel) required by OTLP spec
     for (int i = 0; i < locationTable.size(); i++) {
       final int idx = i;
       encoder.writeNestedMessage(
@@ -825,7 +818,6 @@ public final class JfrToOtlpConverter {
     }
 
     // Field 3: function_table
-    // Note: Include index 0 (null/unset sentinel) required by OTLP spec
     for (int i = 0; i < functionTable.size(); i++) {
       final int idx = i;
       encoder.writeNestedMessage(
@@ -833,7 +825,6 @@ public final class JfrToOtlpConverter {
     }
 
     // Field 4: link_table
-    // Note: Include index 0 (null/unset sentinel) required by OTLP spec
     for (int i = 0; i < linkTable.size(); i++) {
       final int idx = i;
       encoder.writeNestedMessage(
@@ -851,7 +842,6 @@ public final class JfrToOtlpConverter {
     }
 
     // Field 6: attribute_table
-    // Note: Must always include at least index 0 (null/unset sentinel) required by OTLP spec
     for (int i = 0; i < attributeTable.size(); i++) {
       final int idx = i;
       encoder.writeNestedMessage(
@@ -859,7 +849,6 @@ public final class JfrToOtlpConverter {
     }
 
     // Field 7: stack_table
-    // Note: Include index 0 (null/unset sentinel) required by OTLP spec
     for (int i = 0; i < stackTable.size(); i++) {
       final int idx = i;
       encoder.writeNestedMessage(
@@ -980,7 +969,6 @@ public final class JfrToOtlpConverter {
     json.endObject();
     byte[] compactJson = json.toByteArray();
 
-    // Pretty-print if requested
     return prettyPrint ? prettyPrintJson(compactJson) : compactJson;
   }
 
@@ -1194,8 +1182,9 @@ public final class JfrToOtlpConverter {
   private void encodeDictionaryJson(JsonWriter json) {
     json.beginObject();
 
+    // every table must carry at least its index-0 (null/unset sentinel) entry per the OTLP spec
+
     // location_table array
-    // Note: Include index 0 (null/unset sentinel) required by OTLP spec
     json.name("location_table").beginArray();
     for (int i = 0; i < locationTable.size(); i++) {
       encodeLocationJson(json, i);
@@ -1203,7 +1192,6 @@ public final class JfrToOtlpConverter {
     json.endArray();
 
     // function_table array
-    // Note: Include index 0 (null/unset sentinel) required by OTLP spec
     json.name("function_table").beginArray();
     for (int i = 0; i < functionTable.size(); i++) {
       encodeFunctionJson(json, i);
@@ -1211,7 +1199,6 @@ public final class JfrToOtlpConverter {
     json.endArray();
 
     // link_table array
-    // Note: Include index 0 (null/unset sentinel) required by OTLP spec
     json.name("link_table").beginArray();
     for (int i = 0; i < linkTable.size(); i++) {
       encodeLinkJson(json, i);
@@ -1226,7 +1213,6 @@ public final class JfrToOtlpConverter {
     json.endArray();
 
     // attribute_table array
-    // Note: Must always include at least index 0 (null/unset sentinel) required by OTLP spec
     json.name("attribute_table").beginArray();
     for (int i = 0; i < attributeTable.size(); i++) {
       encodeAttributeJson(json, i);
@@ -1234,7 +1220,6 @@ public final class JfrToOtlpConverter {
     json.endArray();
 
     // stack_table array
-    // Note: Include index 0 (null/unset sentinel) required by OTLP spec
     json.name("stack_table").beginArray();
     for (int i = 0; i < stackTable.size(); i++) {
       encodeStackJson(json, i);
