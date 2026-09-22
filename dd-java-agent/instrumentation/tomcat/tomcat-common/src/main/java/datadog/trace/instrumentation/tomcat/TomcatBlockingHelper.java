@@ -83,6 +83,10 @@ public class TomcatBlockingHelper {
     }
     int httpCode = BlockingActionHelper.getHttpCode(statusCode);
     if (!start(resp, httpCode)) {
+      // Relies on the caller (TomcatDecorator.TomcatBlockResponseFunction) short-circuiting
+      // repeat calls for a request that already blocked successfully, so reaching here always
+      // means the response was committed by something other than us: a genuine block failure.
+      reportBlockFailure(request);
       return true;
     }
 
@@ -100,9 +104,16 @@ public class TomcatBlockingHelper {
       } catch (IllegalStateException ise) {
         tryWriteWithWriter(request, resp, templateType, securityResponseId);
       }
-      segment.effectivelyBlocked();
     } catch (Throwable e) {
       log.info("Error sending error page", e);
+      reportBlockFailure(request);
+      return true;
+    }
+    try {
+      segment.effectivelyBlocked();
+    } catch (Throwable ignored) {
+      // span/segment already finished - response was already sent successfully, blocking
+      // succeeded
     }
     return true;
   }
