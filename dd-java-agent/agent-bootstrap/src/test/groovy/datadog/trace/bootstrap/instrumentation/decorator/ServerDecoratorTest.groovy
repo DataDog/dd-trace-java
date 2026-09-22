@@ -2,6 +2,8 @@ package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 
+import static datadog.trace.bootstrap.instrumentation.decorator.ExpectedSpanState.expectedSpan
+
 class ServerDecoratorTest extends BaseDecoratorTest {
 
   def span = Mock(AgentSpan)
@@ -15,7 +17,7 @@ class ServerDecoratorTest extends BaseDecoratorTest {
     decorator.afterStart(recordingSpan)
 
     then:
-    ExpectedSpanState.expected()
+    expectedSpan()
       .spanType(decorator.spanType())
       .component("test-component")
       .spanKind("server")

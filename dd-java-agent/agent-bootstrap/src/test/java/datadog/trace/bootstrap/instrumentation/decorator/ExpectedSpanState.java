@@ -16,8 +16,12 @@ import java.util.Map;
 /**
  * The span state a decorator's {@code afterStart} is expected to apply, built up level by level to
  * mirror the {@code buildSpanPrototype()} extension chain (base identity, then server/client kind,
- * then any specialization). {@link #assertAppliedTo(RecordingSpan)} verifies the whole accumulated
- * state at once instead of asserting individual mock interactions.
+ * then any specialization).
+ *
+ * <p>To get an {@code ExpectedSpanState}, use the static factory method {@link #expectedSpan()} and
+ * use it as a fluent builder to define the expected state, mirroring {@code SpanMatcher} in the
+ * smoke tests. {@link #assertAppliedTo(RecordingSpan)} verifies the whole accumulated state at once
+ * instead of asserting individual mock interactions.
  */
 final class ExpectedSpanState {
   private CharSequence spanType;
@@ -33,7 +37,12 @@ final class ExpectedSpanState {
   // null => expect setMetric(null); non-null => expect the analytics-rate metric entry.
   private Double analyticsSampleRate;
 
-  static ExpectedSpanState expected() {
+  /**
+   * Checks a span's expected {@code afterStart} state.
+   *
+   * @return A new {@link ExpectedSpanState} instance to configure the expected state.
+   */
+  static ExpectedSpanState expectedSpan() {
     return new ExpectedSpanState();
   }
 

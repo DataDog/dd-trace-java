@@ -11,6 +11,8 @@ import datadog.trace.test.util.DDSpecification
 import javax.annotation.Nonnull
 import spock.lang.Shared
 
+import static datadog.trace.bootstrap.instrumentation.decorator.ExpectedSpanState.expectedSpan
+
 class BaseDecoratorTest extends DDSpecification {
 
   def setupSpec() {
@@ -37,7 +39,7 @@ class BaseDecoratorTest extends DDSpecification {
     // The base spec runs polymorphically against every subclass decorator, so it only asserts the
     // baseline identity every decorator applies, tolerating the tags subclasses layer on. Each
     // level's exact tag set is asserted by its own afterStart spec.
-    ExpectedSpanState.expected()
+    expectedSpan()
       .spanType(decorator.spanType())
       .component("test-component")
       .assertIdentityAppliedTo(recordingSpan)

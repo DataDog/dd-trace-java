@@ -6,6 +6,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_HOST
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX
+import static datadog.trace.bootstrap.instrumentation.decorator.ExpectedSpanState.expectedSpan
 
 class DatabaseClientDecoratorTest extends ClientDecoratorTest {
 
@@ -20,7 +21,7 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
     decorator.afterStart(recordingSpan)
 
     then:
-    def expected = ExpectedSpanState.expected()
+    def expected = expectedSpan()
       .spanType("test-type")
       .component("test-component")
       .spanKind("client")
