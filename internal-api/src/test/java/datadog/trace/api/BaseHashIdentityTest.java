@@ -20,6 +20,7 @@ class BaseHashIdentityTest {
   @AfterEach
   void cleanup() {
     ProcessTags.reset();
+    BaseHash.resetIdentityHashEnsuredForTesting();
   }
 
   @Test
@@ -49,5 +50,21 @@ class BaseHashIdentityTest {
     // DSM2-335: identity hash must not be perturbed by per-pod/per-rollout inputs
     assertEquals(baseIdentityHash, withContainerTagsHash);
     assertEquals(baseIdentityHash, withProcessTags);
+  }
+
+  @Test
+  void ensureIdentityHashRecalculatesFromConfigOnlyOnce() {
+    // simulate identityHash's field initializer having captured a stale/premature snapshot
+    BaseHash.updateIdentityHash(0L);
+
+    BaseHash.ensureIdentityHash();
+    long ensured = BaseHash.getIdentityHash();
+    assertNotEquals(0L, ensured);
+
+    // a later caller mutating the hash directly (e.g. via BaseHash.updateIdentityHash) must not
+    // be clobbered by a second ensureIdentityHash() call - it only ever recalculates once
+    BaseHash.updateIdentityHash(42L);
+    BaseHash.ensureIdentityHash();
+    assertEquals(42L, BaseHash.getIdentityHash());
   }
 }

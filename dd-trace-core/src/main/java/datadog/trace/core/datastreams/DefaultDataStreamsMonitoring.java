@@ -17,6 +17,7 @@ import datadog.common.queue.Queues;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.context.propagation.Propagator;
+import datadog.trace.api.BaseHash;
 import datadog.trace.api.Config;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.datastreams.Backlog;
@@ -357,6 +358,10 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       log.warn("SetProduceCheckpoint is called with no active span");
       return;
     }
+    // BaseHash.identityHash may have been calculated prematurely as a side effect of unrelated
+    // static initialization (e.g. DataStreamsTags.EMPTY); give it one chance to recompute from a
+    // settled Config before it's baked into this outbound checkpoint's tags.
+    BaseHash.ensureIdentityHash();
     DataStreamsTags tags;
     if (manualCheckpoint) {
       tags = createManual(type, OUTBOUND, target);

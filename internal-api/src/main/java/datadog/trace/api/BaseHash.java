@@ -13,6 +13,12 @@ public final class BaseHash {
       calcIdentity(
           Config.get().getServiceName(), Config.get().getEnv(), Config.get().getPrimaryTag());
 
+  // Guards ensureIdentityHash(): this class can be loaded as a side effect of unrelated static
+  // initialization (e.g. DataStreamsTags.EMPTY) well before Config's values have settled, so
+  // identityHash's field initializer above may capture a premature snapshot. ensureIdentityHash()
+  // gets one chance to recalculate it from a (hopefully by-then-settled) Config.
+  private static volatile boolean identityHashEnsured;
+
   private BaseHash() {}
 
   public static void recalcBaseHash(String containerTagsHash) {
@@ -51,9 +57,36 @@ public final class BaseHash {
     return identityHash;
   }
 
+  /**
+   * Recalculates {@link #identityHash} from the current {@link Config}, but only the first time
+   * it's called. Callers should invoke this right before the first outbound DSM checkpoint is set,
+   * so that if {@link #identityHash}'s field initializer ran prematurely (before {@link Config}'s
+   * values settled), it gets one chance to pick up the settled values before any pathway hash is
+   * actually reported.
+   */
+  public static void ensureIdentityHash() {
+    if (!identityHashEnsured) {
+      synchronized (BaseHash.class) {
+        if (!identityHashEnsured) {
+          identityHash =
+              calcIdentity(
+                  Config.get().getServiceName(),
+                  Config.get().getEnv(),
+                  Config.get().getPrimaryTag());
+          identityHashEnsured = true;
+        }
+      }
+    }
+  }
+
   /** Test-only: lets tests set the identity hash without going through {@link Config}. */
   public static void updateIdentityHash(long hash) {
     identityHash = hash;
+  }
+
+  /** Test-only: lets tests re-exercise {@link #ensureIdentityHash()}'s one-time guard. */
+  static void resetIdentityHashEnsuredForTesting() {
+    identityHashEnsured = false;
   }
 
   public static long calc(String containerTagsHash) {
