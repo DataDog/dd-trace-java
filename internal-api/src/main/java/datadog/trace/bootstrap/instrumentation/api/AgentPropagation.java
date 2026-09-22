@@ -24,10 +24,6 @@ public final class AgentPropagation {
   // TODO into the span context for now. Remove priority after the migration is complete.
   public static final Concern DSM_CONCERN = withPriority("data-stream-monitoring", 110);
 
-  // LLM Observability registers no Concern of its own: it contributes no headers, only the
-  // _dd.p.llmobs_* propagation tags, which the tracing codecs obtain from
-  // LLMObsInternal.getPropagationSource() while serializing x-datadog-tags / tracestate.
-
   private AgentPropagation() {}
 
   /**

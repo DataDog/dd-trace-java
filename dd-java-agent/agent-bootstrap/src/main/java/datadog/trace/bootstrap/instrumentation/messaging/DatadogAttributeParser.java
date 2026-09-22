@@ -63,16 +63,6 @@ public final class DatadogAttributeParser {
   /**
    * Forwards the {@code _dd.p.llmobs_*} propagation tags out of {@code x-datadog-tags}, dropping
    * the rest.
-   *
-   * <p>This parser's callers never read {@code x-datadog-tags} at all, so a messaging boundary
-   * currently drops every {@code _dd.p.*} tag — which is why an LLMObs producer and consumer either
-   * side of a queue land in two different LLMObs traces. Forwarding the header wholesale would fix
-   * that, but it would also restore behaviour other products key off: {@code _dd.p.ts} makes {@code
-   * TraceCollector.setSamplingPriorityIfNecessary()} honour an upstream ASM decision rather than
-   * re-sample locally, and {@code _dd.p.tid} flips a joined span's {@code dd.trace_id} in logs from
-   * decimal to 32-character hex. Both are observable changes on upgrade for customers who never
-   * asked for one, so widening this to the full set is left to a follow-up those owners can weigh.
-   * The LLMObs tags are self-contained by comparison — they feed only LLMObs span attribution.
    */
   private static void acceptLlmObsPropagationTags(
       AgentPropagation.KeyClassifier classifier, String json) {

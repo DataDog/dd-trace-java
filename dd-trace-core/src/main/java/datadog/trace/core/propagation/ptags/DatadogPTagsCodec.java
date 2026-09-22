@@ -164,6 +164,9 @@ final class DatadogPTagsCodec extends PTagsCodec {
     return pTags.getXDatadogTagsSize();
   }
 
+  /**
+   * Counts them up front, because this codec's {@code size} is a total rather than a running sum.
+   */
   @Override
   protected int addLLMObsSize(int size, LLMObsTagValues llmObsTags) {
     return calcLLMObsSize(size, llmObsTags);

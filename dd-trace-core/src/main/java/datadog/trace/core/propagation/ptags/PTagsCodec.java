@@ -51,6 +51,11 @@ abstract class PTagsCodec {
       PTags ptags,
       CharSequence lastParentIdOverride,
       LLMObsPropagationValues llmObsValues) {
+    // Neither branch extracts anything: extraction already happened in fromHeaderValue. This picks
+    // which already-resolved set to write. Null means the injecting span has no LLMObs context of
+    // its own — either LLM Observability is off, or no LLMObs span is active on this trace — so
+    // the inbound values are forwarded untouched. Non-null replaces them with the injecting span's
+    // own, which need a fit check because they have never been through a size limit.
     LLMObsTagValues llmObsTags =
         llmObsValues == null
             ? ptags.getExtractedLLMObsTagValues()

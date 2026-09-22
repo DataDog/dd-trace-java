@@ -73,10 +73,7 @@ final class LLMObsTagValues {
    * represented in {@code x-datadog-tags}.
    *
    * <p>Unlike every other {@code _dd.p.*} tag, these values come from the application rather than
-   * the tracer, so they have to be checked before they reach the wire. A value the receiving codec
-   * rejects doesn't just lose itself: it fails the whole tagset with {@code decoding_error} and
-   * takes {@code _dd.p.tid} with it, leaving the two services disagreeing about the upper 64 bits
-   * of the trace id. Dropping the one tag is the cheaper loss.
+   * the tracer, so they have to be checked before they reach the wire.
    */
   static TagValue toTagValue(CharSequence value) {
     if (value == null || value.length() == 0 || !isRepresentable(value)) {

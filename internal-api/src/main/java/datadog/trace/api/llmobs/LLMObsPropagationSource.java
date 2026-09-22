@@ -7,7 +7,8 @@ import javax.annotation.Nullable;
  * Supplies the LLM Observability propagation tag values for an outbound request.
  *
  * <p>Lets the injection codecs obtain those values without knowing how LLM Observability tracks
- * them. Registered by {@code LLMObsSystem} at startup through {@link
+ * them. Implemented by {@code datadog.trace.llmobs.LLMObsContextPropagationSource} in {@code
+ * agent-llmobs}, which {@code LLMObsSystem} registers at startup through {@link
  * LLMObsInternal#setPropagationSource}; when LLM Observability is disabled nothing registers one
  * and the codecs skip the lookup entirely.
  */
