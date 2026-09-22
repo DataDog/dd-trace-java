@@ -20,6 +20,7 @@ public final class ContinuationRecord {
   private final List<ScopeEvent> resumes = new ArrayList<>(1);
   private final List<ScopeEvent> failedActivations = new ArrayList<>(0);
   private ScopeEvent terminal;
+  private boolean duplicateTerminalAttempt;
   private final List<ScopeEvent> extraTerminals = new ArrayList<>(0);
   private final List<Long> scopeRecordSeqs = new ArrayList<>(1);
 
@@ -50,6 +51,12 @@ public final class ContinuationRecord {
 
   /** First terminal sets {@link #terminal}; any subsequent terminal is a double-finish signal. */
   synchronized void setTerminalOrExtra(ScopeEvent event) {
+    setTerminalOrExtra(event, false);
+  }
+
+  synchronized void setTerminalOrExtra(ScopeEvent event, boolean duplicateAttempt) {
+    // Counter underflow can prove duplicate cleanup before the first close's advice arrives.
+    duplicateTerminalAttempt |= duplicateAttempt;
     if (terminal == null) {
       terminal = event;
     } else {
@@ -84,6 +91,7 @@ public final class ContinuationRecord {
       copy.extraTerminals.add(event.snapshot());
     }
     copy.scopeRecordSeqs.addAll(scopeRecordSeqs);
+    copy.duplicateTerminalAttempt = duplicateTerminalAttempt;
     return copy;
   }
 
@@ -130,7 +138,7 @@ public final class ContinuationRecord {
     if (terminal == null) {
       failures.add(Failure.LEAKED);
     }
-    if (!extraTerminals.isEmpty()) {
+    if (duplicateTerminalAttempt || !extraTerminals.isEmpty()) {
       failures.add(Failure.DOUBLE_FINISH);
     }
     if ((terminal != null && !failedActivations.isEmpty()) || resumedAfterTerminal()) {
