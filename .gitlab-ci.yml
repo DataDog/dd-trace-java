@@ -5,7 +5,7 @@ include:
   - local: ".gitlab/ci-visibility-tests.yml"
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-spring-petclinic-parallel.yml'
-    ref: &apm_sdks_benchmarks_sha '0899730be7696774b222937adfc6583932c050e1' # pinned by "Update apm-sdks-benchmarks reference" workflow
+    ref: &apm_sdks_benchmarks_sha '5e416ea523f39bbdf9e44f39e6895a07d3715ff5' # pinned by .github/workflows/update-apm-sdks-benchmarks-reference.yaml
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-load-parallel.yml'
     ref: *apm_sdks_benchmarks_sha
@@ -47,8 +47,8 @@ stages:
 variables:
   APM_SDKS_BENCHMARKS_SHA: *apm_sdks_benchmarks_sha
   # Test the OpenTelemetry Operator-compatible Java image jobs from one-pipeline.
-  OTEL_OPERATOR_IMAGES_ENABLED: "true"
-  OTEL_OPERATOR_LANGUAGE: java
+  CI_OTEL_OPERATOR_IMAGES_ENABLED: "true"
+  CI_OTEL_OPERATOR_LANGUAGE: java
   # Gitlab runner features; see https://docs.gitlab.com/runner/configuration/feature-flags.html
   # Fold and time all script sections
   FF_SCRIPT_SECTIONS: 1

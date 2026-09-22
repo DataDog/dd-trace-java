@@ -9,9 +9,9 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.grpc.Status;
 import io.grpc.internal.ClientStreamListener;
@@ -68,7 +68,7 @@ public class ClientStreamListenerImplInstrumentation
   public static final class RecordActivity {
 
     @Advice.OnMethodEnter
-    public static AgentScope before(@Advice.This ClientStreamListener listener) {
+    public static ContextScope before(@Advice.This ClientStreamListener listener) {
       // activate the span so serialisation work is accounted for, whichever thread the work is done
       // on
       AgentSpan span =
@@ -80,7 +80,7 @@ public class ClientStreamListenerImplInstrumentation
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter AgentScope scope) {
+    public static void after(@Advice.Enter ContextScope scope) {
       if (null != scope) {
         scope.close();
       }
@@ -96,7 +96,7 @@ public class ClientStreamListenerImplInstrumentation
   public static final class RecordHeaders {
 
     @Advice.OnMethodEnter
-    public static AgentScope before(@Advice.This ClientStreamListener listener) {
+    public static ContextScope before(@Advice.This ClientStreamListener listener) {
       // activate the span so serialisation work is accounted for, whichever thread the work is done
       // on
       AgentSpan span =
@@ -108,7 +108,7 @@ public class ClientStreamListenerImplInstrumentation
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter AgentScope scope) {
+    public static void after(@Advice.Enter ContextScope scope) {
       if (null != scope) {
         scope.close();
       }

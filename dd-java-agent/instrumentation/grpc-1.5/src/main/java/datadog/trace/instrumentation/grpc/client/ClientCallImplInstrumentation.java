@@ -10,10 +10,10 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.grpc.ClientCall;
 import io.grpc.Grpc;
@@ -67,7 +67,7 @@ public final class ClientCallImplInstrumentation
 
   public static final class Start {
     @Advice.OnMethodEnter
-    public static AgentScope before(
+    public static ContextScope before(
         @Advice.This ClientCall<?, ?> call,
         @Advice.Argument(1) Metadata headers,
         @Advice.Local("$$ddSpan") AgentSpan span) {
@@ -80,7 +80,7 @@ public final class ClientCallImplInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void after(
-        @Advice.Enter AgentScope scope,
+        @Advice.Enter ContextScope scope,
         @Advice.Thrown Throwable error,
         @Advice.Local("$$ddSpan") AgentSpan span)
         throws Throwable {
@@ -110,7 +110,7 @@ public final class ClientCallImplInstrumentation
 
   public static final class ActivateSpan {
     @Advice.OnMethodEnter
-    public static AgentScope before(@Advice.This ClientCall<?, ?> call) {
+    public static ContextScope before(@Advice.This ClientCall<?, ?> call) {
       AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
       if (null != span) {
         return activateSpan(span);
@@ -119,7 +119,7 @@ public final class ClientCallImplInstrumentation
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter AgentScope scope) {
+    public static void after(@Advice.Enter ContextScope scope) {
       if (null != scope) {
         scope.close();
       }
@@ -128,7 +128,7 @@ public final class ClientCallImplInstrumentation
 
   public static final class SendMessage {
     @Advice.OnMethodEnter
-    public static AgentScope before(@Advice.This ClientCall<?, ?> call) {
+    public static ContextScope before(@Advice.This ClientCall<?, ?> call) {
       // could create a message span here for the request
       AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
       if (span != null) {
@@ -138,7 +138,7 @@ public final class ClientCallImplInstrumentation
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter AgentScope scope) {
+    public static void after(@Advice.Enter ContextScope scope) {
       if (null != scope) {
         scope.close();
       }

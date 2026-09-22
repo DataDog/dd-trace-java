@@ -4,10 +4,11 @@
 # To regenerate this file, run: ./gradlew :dd-java-agent:agent-profiling:profiling-controller-jfr:dependencies --write-locks
 ch.qos.logback:logback-classic:1.2.13=testCompileClasspath,testRuntimeClasspath
 ch.qos.logback:logback-core:1.2.13=testCompileClasspath,testRuntimeClasspath
+com.datadoghq:dd-instrument-java:0.0.5=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 com.datadoghq:dd-javac-plugin-client:0.2.2=compileClasspath,runtimeClasspath,testCompileClasspath,testFixturesCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 com.github.javaparser:javaparser-core:3.25.6=codenarc
-com.github.spotbugs:spotbugs-annotations:4.10.3=compileClasspath,spotbugs
-com.github.spotbugs:spotbugs:4.10.3=spotbugs
+com.github.spotbugs:spotbugs-annotations:4.10.4=compileClasspath,spotbugs
+com.github.spotbugs:spotbugs:4.10.4=spotbugs
 com.github.stephenc.jcip:jcip-annotations:1.0-1=spotbugs
 com.google.auto.service:auto-service-annotations:1.1.1=annotationProcessor,compileClasspath
 com.google.auto.service:auto-service:1.1.1=annotationProcessor
@@ -64,7 +65,6 @@ org.junit.platform:junit-platform-commons:1.14.1=testCompileClasspath,testRuntim
 org.junit.platform:junit-platform-engine:1.14.1=testCompileClasspath,testRuntimeClasspath
 org.junit.platform:junit-platform-launcher:1.14.1=testRuntimeClasspath
 org.junit:junit-bom:5.14.1=testCompileClasspath,testRuntimeClasspath
-org.junit:junit-bom:6.1.2=spotbugs
 org.lz4:lz4-java:1.7.1=testCompileClasspath,testRuntimeClasspath
 org.mockito:mockito-core:4.4.0=testCompileClasspath,testRuntimeClasspath
 org.mockito:mockito-junit-jupiter:4.4.0=testCompileClasspath,testRuntimeClasspath
