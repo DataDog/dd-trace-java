@@ -104,18 +104,22 @@ The major remedies are:
   resolution.
 - Correct the target artifact/module when the directive follows a relocated or obsolete coordinate.
 - Set per-directive `javaVersion = "<N>"` when a valid resolved dependency requires that JDK to
-  load. Split at a known JDK boundary when useful. Generated `assertInverse` directives do not inherit
-  `javaVersion`; if an inverse check requires another JDK, replace the generated inverse with explicit
-  `fail` directives that select suitable JDKs and preserve coverage outside the supported range.
-  Verify the original failing version and both sides of each boundary.
+  load. Split at a known JDK boundary when useful and verify both sides of each boundary.
 - Change the expected compatibility outcome of a `fail` block or `assertInverse` only when
   `MUZZLE PASSED ... BUT FAILURE WAS EXPECTED` demonstrates that the expectation is false. Replacing
-  generated inverses with equivalent explicit checks to select a suitable JDK must preserve the
-  expected outcomes and version coverage.
+  generated inverses with equivalent explicit checks must preserve the expected outcomes and
+  version coverage.
 - Repair helper completeness, ordering, linkage, or visibility for `FAILED HELPER INJECTION`; cap a
   range only when the helper failure proves a real target-library compatibility boundary.
 - Repair Muzzle tooling or CI toolchain provisioning for worker, parser, or JVM failures; do not
   change the dependency support range.
+
+Generated `assertInverse` directives do not inherit `javaVersion`, `extraDependency`, or
+`extraRepository`. When inverse checks need these inputs, replace the generated inverse with explicit
+`fail` directives covering the same unsupported ranges, with suitable JDKs, dependencies, and
+repositories for those versions. Disable `assertInverse` only after providing equivalent coverage.
+Ensure Gradle can also resolve the dependencies. Verify that each negative check fails for the
+intended compatibility mismatch, not a missing classpath input or a repository/JDK failure.
 
 Never broaden support, remove an inverse assertion, or exclude a dependency solely because it makes
 the task pass. `javaVersion` changes only the worker JDK; it does not fix library linkage or change
@@ -145,8 +149,16 @@ assumption where useful. Avoid comments that only say `fix muzzle`, `CI failure`
 
 ## Verify
 
-Rerun the module `muzzle` task and confirm that the exact failing generated version task ran. Then
-run the affected module's relevant tests when executable code, helper requirements, or claimed
+Rerun the module `muzzle` task and verify according to the selected remedy:
+
+- **Restored support:** confirm that the exact previously failing version ran and passed; use a
+  temporary local diagnostic directive if range sampling omits it.
+- **Containment by cap or skip:** the original pass task is deliberately removed. Confirm the revised
+  range or skip, exercise retained supported versions around the boundary or isolated skip, and run
+  applicable inverse or explicit negative checks on resolvable classpaths. Report the excluded version
+  as unsupported; an unavailable or defective publication cannot establish a binary mismatch.
+
+Run the affected module's relevant tests when executable code, helper requirements, or claimed
 support changed. For `javaVersion`, confirm the selected worker JDK and test both sides of any split.
 Inspect the diff, then report the exact commands and results; do not call an infrastructure-only
 retry a code validation.
