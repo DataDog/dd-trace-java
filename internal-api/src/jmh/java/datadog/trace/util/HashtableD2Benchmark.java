@@ -80,7 +80,7 @@ import org.openjdk.jmh.infra.Blackhole;
  * JMH auto-detected the cheap "compiler" Blackhole mode on Java 17 (its log explicitly warns that
  * Blackhole-mode differences between JVMs can swing results significantly), which JDK 8 cannot use
  * — so absolute numbers below are <b>not</b> comparable to the JDK 8 tables above; only within-run
- * ratios are, since both benchmark methods in a given run get identical Blackhole treatment. M
+ * ratios are, since both benchmark methods in a given run get identical Blackhole treatment.
  * ops/us, 8 threads:
  *
  * <pre>{@code

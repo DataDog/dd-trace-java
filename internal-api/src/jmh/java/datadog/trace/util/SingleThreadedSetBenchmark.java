@@ -70,11 +70,14 @@ import org.openjdk.jmh.infra.Blackhole;
  *       {@code contains} is ~48% slower synchronized (1421 → 746M ops/s on JDK 8, vs. ~37% on Java
  *       17) — same story, somewhat larger tax. {@code iterate}'s tax stays small either way (~4%
  *       here): one monitor acquire amortized over the walk.
- *   <li>Type-profile pollution didn't change the qualitative story from the original Java 17 run —
- *       {@code contains_hashSet} and {@code iterate_hashSet} land in the same range (1291 vs 1421M,
- *       91 vs 134M) rather than collapsing, unlike {@link ImmutableSetBenchmark}'s {@code hitFresh}
- *       case. Construction numbers remain the noisiest (several {@code @Fork(2)} error bars exceed
- *       half the mean); {@code TreeSet} stays the slowest to build across both runs.
+ *   <li>{@code contains_hashSet} and {@code iterate_hashSet} land in the same range as the original
+ *       Java 17 run (1291 vs 1421M, 91 vs 134M) rather than collapsing, unlike {@link
+ *       ImmutableSetBenchmark}'s {@code hitFresh} case -- but that run is also on a different JDK,
+ *       so it isn't a clean pollution-only comparison (same caveat as {@link
+ *       HashtableD1Benchmark}'s Javadoc); read it as weak, not decisive, evidence that pollution
+ *       didn't change the qualitative story. Construction numbers remain the noisiest (several
+ *       {@code @Fork(2)} error bars exceed half the mean); {@code TreeSet} stays the slowest to
+ *       build across both runs.
  * </ul>
  */
 @Fork(2)

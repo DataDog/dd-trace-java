@@ -75,7 +75,7 @@ public final class BenchmarkUtils {
 
   public static void populateTypeProfile(Collection<Object> populated, Object... decoyKeys) {
     for (Object key : decoyKeys) {
-      populated.contains(key);
+      populated.contains(distinctEqualCopy(key));
     }
   }
 
@@ -83,7 +83,7 @@ public final class BenchmarkUtils {
   public static void populateTypeProfileMutable(Collection<Object> scratch, Object... decoyKeys) {
     for (Object key : decoyKeys) {
       scratch.add(key);
-      scratch.contains(key);
+      scratch.contains(distinctEqualCopy(key));
     }
   }
 
@@ -98,7 +98,7 @@ public final class BenchmarkUtils {
 
   public static void populateTypeProfileMap(Map<Object, Object> populated, Object... decoyKeys) {
     for (Object key : decoyKeys) {
-      populated.get(key);
+      populated.get(distinctEqualCopy(key));
     }
   }
 
@@ -110,7 +110,34 @@ public final class BenchmarkUtils {
       Map<Object, Object> scratch, Object... decoyKeys) {
     for (Object key : decoyKeys) {
       scratch.put(key, key);
-      scratch.get(key);
+      scratch.get(distinctEqualCopy(key));
+    }
+  }
+
+  /**
+   * Returns a distinct instance that's {@code .equals()} to {@code key} but never {@code ==} it, so
+   * the lookup that follows can't take {@code HashMap}/{@code ConcurrentHashMap}'s internal {@code
+   * key == storedKey || key.equals(storedKey)} identity fast path and skip calling {@code equals()}
+   * -- which is exactly the dispatch this class exists to pollute. {@code Object}'s own {@code
+   * equals()} is identity, so a decoy of that type has no distinct-but-equal instance to make; it's
+   * returned as-is, and the identity fast path is then indistinguishable from a genuine {@code
+   * equals()} call anyway.
+   */
+  @SuppressWarnings(
+      "deprecation") // boxed-type constructors: only way to force a non-cached instance
+  private static Object distinctEqualCopy(Object key) {
+    if (key instanceof String) {
+      return new String((String) key);
+    } else if (key instanceof Integer) {
+      return new Integer((Integer) key);
+    } else if (key instanceof Long) {
+      return new Long((Long) key);
+    } else if (key instanceof Double) {
+      return new Double((Double) key);
+    } else if (key instanceof Boolean) {
+      return new Boolean((Boolean) key);
+    } else {
+      return key;
     }
   }
 }

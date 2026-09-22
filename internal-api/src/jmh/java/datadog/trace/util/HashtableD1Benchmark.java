@@ -77,7 +77,7 @@ import org.openjdk.jmh.infra.Blackhole;
  * <p>Separately rerun on Zulu 17.0.7 (native AArch64, same machine, pollution wiring unchanged; JMH
  * auto-detected the cheap "compiler" Blackhole mode here, unlike JDK 8, so absolute numbers below
  * are not comparable to the JDK 8 tables above — see {@code HashtableD2Benchmark}'s javadoc for the
- * full caveat). M ops/us, 8 threads:
+ * full caveat). ops/us, 8 threads:
  *
  * <pre>{@code
  * add_hashMap        1502.6   add_hashtable      1377.3
