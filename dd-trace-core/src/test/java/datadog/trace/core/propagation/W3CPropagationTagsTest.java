@@ -10,6 +10,7 @@ import static java.util.Collections.singletonMap;
 import static java.util.stream.IntStream.concat;
 import static java.util.stream.IntStream.rangeClosed;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -428,6 +429,35 @@ class W3CPropagationTagsTest extends DDCoreJavaSpecification {
 
     assertEquals("0.25", reparsed.getLLMObsSampleRate().toString());
     assertEquals("0", reparsed.getLLMObsSamplingDecision().toString());
+  }
+
+  @Test
+  void llmObsJoinKeysSurviveWhenTheTracestateOverflows() {
+    PropagationTags propagationTags = factory().fromHeaderValue(W3C, "");
+
+    // Realistic worst case: a 39-digit decimal trace id, a uuid session and a long agent name push
+    // the set past the 256-character dd member, so the codec has to leave some of it behind.
+    String header =
+        propagationTags.headerValue(
+            W3C,
+            null,
+            new LLMObsPropagationValues(
+                "340282366920938463463374607431768211455",
+                "checkout-assistant",
+                "3f2504e0-4f89-11d3-9a0c-0305e82c3301",
+                "9876543210123456789",
+                repeat("a", 64),
+                "1122334455667788990",
+                "0.25",
+                "1"));
+
+    assertTrue(header.length() <= 256, header);
+    // Whatever had to go, the keys that place the span in its LLMObs trace stay.
+    assertTrue(
+        header.contains("t.llmobs_trace_id:340282366920938463463374607431768211455"), header);
+    assertTrue(header.contains("t.llmobs_parent_id:1122334455667788990"), header);
+    // Agent attribution is enrichment, and is written last so it is what gets dropped.
+    assertFalse(header.contains("t.llmobs_pagent_name:"), header);
   }
 
   private static String buildHeader(int memberCount) {

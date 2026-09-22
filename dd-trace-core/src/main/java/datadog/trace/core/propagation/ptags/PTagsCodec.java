@@ -97,8 +97,17 @@ abstract class PTagsCodec {
             codec.appendTag(
                 sb, ORG_PROPAGATION_MARKER_TAG, ptags.getOrgPropagationMarkerTagValue(), size);
       }
+      // Ordered by how much the receiver loses without each one, because W3CPTagsCodec drops any
+      // single tag that would overflow the tracestate and carries on with the next: what is
+      // appended last is what goes first under pressure. The two join keys lead, then the
+      // attributes that identify the trace, then the sampling verdict the receiver can recompute,
+      // then agent attribution — which is pure enrichment, and is likewise what
+      // DatadogPTagsCodec#degradeLLMObsToFit sacrifices first.
       if (llmObsTags.traceId != null) {
         size = codec.appendTag(sb, LLMOBS_TRACE_ID_TAG, llmObsTags.traceId, size);
+      }
+      if (llmObsTags.parentId != null) {
+        size = codec.appendTag(sb, LLMOBS_PARENT_ID_TAG, llmObsTags.parentId, size);
       }
       if (llmObsTags.mlApp != null) {
         size = codec.appendTag(sb, LLMOBS_ML_APP_TAG, llmObsTags.mlApp, size);
@@ -106,20 +115,17 @@ abstract class PTagsCodec {
       if (llmObsTags.sessionId != null) {
         size = codec.appendTag(sb, LLMOBS_SESSION_ID_TAG, llmObsTags.sessionId, size);
       }
-      if (llmObsTags.parentAgentSpanId != null) {
-        size = codec.appendTag(sb, LLMOBS_PAGENT_SPAN_ID_TAG, llmObsTags.parentAgentSpanId, size);
-      }
-      if (llmObsTags.parentAgentName != null) {
-        size = codec.appendTag(sb, LLMOBS_PAGENT_NAME_TAG, llmObsTags.parentAgentName, size);
-      }
-      if (llmObsTags.parentId != null) {
-        size = codec.appendTag(sb, LLMOBS_PARENT_ID_TAG, llmObsTags.parentId, size);
-      }
       if (llmObsTags.sampleRate != null) {
         size = codec.appendTag(sb, LLMOBS_SAMPLE_RATE_TAG, llmObsTags.sampleRate, size);
       }
       if (llmObsTags.samplingDecision != null) {
         size = codec.appendTag(sb, LLMOBS_SAMPLING_DECISION_TAG, llmObsTags.samplingDecision, size);
+      }
+      if (llmObsTags.parentAgentSpanId != null) {
+        size = codec.appendTag(sb, LLMOBS_PAGENT_SPAN_ID_TAG, llmObsTags.parentAgentSpanId, size);
+      }
+      if (llmObsTags.parentAgentName != null) {
+        size = codec.appendTag(sb, LLMOBS_PAGENT_NAME_TAG, llmObsTags.parentAgentName, size);
       }
       Iterator<TagElement> it = ptags.getTagPairs().iterator();
       while (it.hasNext() && !codec.isTooLarge(sb, size)) {
@@ -257,14 +263,15 @@ abstract class PTagsCodec {
 
   /** Adds what the eight LLM Observability tags cost in {@code x-datadog-tags} to {@code size}. */
   static int calcLLMObsSize(int size, LLMObsTagValues llmObsTags) {
+    // Same order as headerValue appends them; the total is the same either way.
     size = calcXDatadogTagsSize(size, LLMOBS_TRACE_ID_TAG, llmObsTags.traceId);
+    size = calcXDatadogTagsSize(size, LLMOBS_PARENT_ID_TAG, llmObsTags.parentId);
     size = calcXDatadogTagsSize(size, LLMOBS_ML_APP_TAG, llmObsTags.mlApp);
     size = calcXDatadogTagsSize(size, LLMOBS_SESSION_ID_TAG, llmObsTags.sessionId);
-    size = calcXDatadogTagsSize(size, LLMOBS_PAGENT_SPAN_ID_TAG, llmObsTags.parentAgentSpanId);
-    size = calcXDatadogTagsSize(size, LLMOBS_PAGENT_NAME_TAG, llmObsTags.parentAgentName);
-    size = calcXDatadogTagsSize(size, LLMOBS_PARENT_ID_TAG, llmObsTags.parentId);
     size = calcXDatadogTagsSize(size, LLMOBS_SAMPLE_RATE_TAG, llmObsTags.sampleRate);
     size = calcXDatadogTagsSize(size, LLMOBS_SAMPLING_DECISION_TAG, llmObsTags.samplingDecision);
+    size = calcXDatadogTagsSize(size, LLMOBS_PAGENT_SPAN_ID_TAG, llmObsTags.parentAgentSpanId);
+    size = calcXDatadogTagsSize(size, LLMOBS_PAGENT_NAME_TAG, llmObsTags.parentAgentName);
     return size;
   }
 
