@@ -4,8 +4,8 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_
 import static datadog.trace.api.config.TracerConfig.TRACE_128_BIT_TRACEID_GENERATION_ENABLED;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import datadog.context.ContextScope;
 import datadog.trace.api.DDTraceId;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.test.junit.utils.config.WithConfigExtension;
@@ -25,7 +25,7 @@ public class TraceCorrelationTest extends DDCoreJavaSpecification {
 
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     AgentSpan span = tracer.buildSpan("datadog", "test").start();
-    AgentScope scope = tracer.activateSpan(span);
+    ContextScope scope = tracer.activateSpan(span);
     scope.close();
 
     assertEquals("0", tracer.getTraceId());
@@ -44,9 +44,9 @@ public class TraceCorrelationTest extends DDCoreJavaSpecification {
 
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     AgentSpan span = tracer.buildSpan("datadog", "test").start();
-    AgentScope scope = tracer.activateSpan(span);
+    ContextScope scope = tracer.activateSpan(span);
 
-    DDTraceId traceId = ((DDSpan) scope.span()).getTraceId();
+    DDTraceId traceId = ((DDSpan) AgentSpan.fromScope(scope)).getTraceId();
     String formattedTraceId = log128bTraceId ? traceId.toHexString() : traceId.toString();
     assertEquals(formattedTraceId, tracer.getTraceId());
 
@@ -59,7 +59,7 @@ public class TraceCorrelationTest extends DDCoreJavaSpecification {
   void getSpanIdWithoutSpan() {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     AgentSpan span = tracer.buildSpan("datadog", "test").start();
-    AgentScope scope = tracer.activateSpan(span);
+    ContextScope scope = tracer.activateSpan(span);
     scope.close();
 
     assertEquals("0", tracer.getSpanId());
@@ -72,9 +72,10 @@ public class TraceCorrelationTest extends DDCoreJavaSpecification {
   void getSpanIdWithTrace() {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     AgentSpan span = tracer.buildSpan("datadog", "test").start();
-    AgentScope scope = tracer.activateSpan(span);
+    ContextScope scope = tracer.activateSpan(span);
 
-    assertEquals(Long.toString(((DDSpan) scope.span()).getSpanId()), tracer.getSpanId());
+    assertEquals(
+        Long.toString(((DDSpan) AgentSpan.fromScope(scope)).getSpanId()), tracer.getSpanId());
 
     scope.close();
     span.finish();

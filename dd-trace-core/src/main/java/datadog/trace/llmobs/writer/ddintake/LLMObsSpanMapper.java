@@ -87,8 +87,6 @@ public class LLMObsSpanMapper implements RemoteMapper {
   private static final byte[] PAGENT_NAME = "pagent_name".getBytes(StandardCharsets.UTF_8);
   private static final byte[] PAGENT_SPAN_ID = "pagent_span_id".getBytes(StandardCharsets.UTF_8);
   private static final byte[] METADATA = "metadata".getBytes(StandardCharsets.UTF_8);
-  private static final byte[] AGENT_MANIFEST_KEY =
-      "agent_manifest".getBytes(StandardCharsets.UTF_8);
   private static final byte[] PROMPT = "prompt".getBytes(StandardCharsets.UTF_8);
   private static final byte[] SPAN_KIND = "span.kind".getBytes(StandardCharsets.UTF_8);
   private static final byte[] SPANS = "spans".getBytes(StandardCharsets.UTF_8);
@@ -398,7 +396,6 @@ public class LLMObsSpanMapper implements RemoteMapper {
                     LLMOBS_TAG_PREFIX + LLMObsTags.MODEL_VERSION,
                     LLMOBS_TAG_PREFIX + LLMObsTags.TOOL_DEFINITIONS,
                     LLMOBS_TAG_PREFIX + LLMObsTags.METADATA,
-                    LLMOBS_TAG_PREFIX + LLMObsTags.AGENT_MANIFEST,
                     PAGENT_SPAN_ID_TAG_INTERNAL_FULL,
                     PAGENT_NAME_TAG_INTERNAL_FULL)));
 
@@ -616,14 +613,6 @@ public class LLMObsSpanMapper implements RemoteMapper {
           writable.startMap(metadataMap.size());
           for (Map.Entry<String, Object> entry : metadataMap.entrySet()) {
             writable.writeString(entry.getKey(), null);
-            writable.writeObject(entry.getValue(), null);
-          }
-        } else if (key.equals(LLMObsTags.AGENT_MANIFEST) && val instanceof Map) {
-          Map<?, ?> manifestMap = (Map<?, ?>) val;
-          writable.writeUTF8(AGENT_MANIFEST_KEY);
-          writable.startMap(manifestMap.size());
-          for (Map.Entry<?, ?> entry : manifestMap.entrySet()) {
-            writable.writeString(String.valueOf(entry.getKey()), null);
             writable.writeObject(entry.getValue(), null);
           }
         } else {
