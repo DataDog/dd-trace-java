@@ -12,7 +12,6 @@ import datadog.trace.api.llmobs.LLMObsSampler;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.api.llmobs.LLMObsTags;
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -77,7 +76,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
   // Non-null only for agent-kind spans started without an ambient APM root. Activating the
   // agent's APM span keeps children in the same APM trace so the trace-ID gate passes and
   // they inherit agent attribution correctly.
-  private final AgentScope standaloneApmScope;
+  private final ContextScope standaloneApmScope;
 
   private boolean finished = false;
 
