@@ -1,11 +1,11 @@
 package datadog.trace.core;
 
-import static datadog.trace.api.DDTags.SDK_OTLP_EXPORT;
 import static datadog.trace.api.DDTags.SPAN_EVENTS;
 import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_TAG_KEYS;
+import static datadog.trace.common.writer.ddagent.TraceMapper.SDK_OTLP_EXPORT;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

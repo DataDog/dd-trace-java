@@ -105,5 +105,4 @@ public class DDTags {
   public static final String PROCESS_TAGS = "_dd.tags.process";
   public static final String DD_INTEGRATION = "_dd.integration";
   public static final String DD_SVC_SRC = "_dd.svc_src";
-  public static final String SDK_OTLP_EXPORT = "_dd.sdk.otlp_export";
 }

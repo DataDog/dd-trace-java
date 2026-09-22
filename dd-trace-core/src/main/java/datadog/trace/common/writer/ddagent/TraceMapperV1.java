@@ -669,7 +669,7 @@ public final class TraceMapperV1 implements TraceMapper {
     // attributes = 10, a collection of key to value pairs common in all `chunks`
     CharSequence processTags = ProcessTags.getTagsForSerialization();
     Map<String, Object> tags = new HashMap<>(4);
-    tags.put(DDTags.SDK_OTLP_EXPORT, otlpExportMarker);
+    tags.put(SDK_OTLP_EXPORT, otlpExportMarker);
     if (processTags != null) {
       tags.put(DDTags.PROCESS_TAGS, processTags);
     }

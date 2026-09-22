@@ -25,7 +25,6 @@ import datadog.metrics.api.statsd.StatsDClient;
 import datadog.metrics.impl.MonitoringImpl;
 import datadog.trace.agent.test.server.http.JavaTestHttpServer;
 import datadog.trace.api.Config;
-import datadog.trace.api.DDTags;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.ProtocolVersion;
 import datadog.trace.api.config.OtlpConfig;
@@ -254,7 +253,7 @@ public class DDAgentApiTest extends DDCoreJavaSpecification {
         meta.put("_dd.tags.process", ProcessTags.getTagsForSerialization().toString());
       }
       // payload-scoped marker, written on the first span of the first non-empty chunk
-      meta.put(DDTags.SDK_OTLP_EXPORT, "false");
+      meta.put(TraceMapper.SDK_OTLP_EXPORT, "false");
       Map<String, Object> metrics = new TreeMap<>();
       metrics.put(DDSpanContext.PRIORITY_SAMPLING_KEY, 1);
       metrics.put(InstrumentationTags.DD_TOP_LEVEL.toString(), 1);
@@ -332,7 +331,7 @@ public class DDAgentApiTest extends DDCoreJavaSpecification {
         meta.put("_dd.tags.process", ProcessTags.getTagsForSerialization().toString());
       }
       // payload-scoped marker, written on the first span of the first non-empty chunk
-      meta.put(DDTags.SDK_OTLP_EXPORT, "false");
+      meta.put(TraceMapper.SDK_OTLP_EXPORT, "false");
       Map<String, Object> metrics = new TreeMap<>();
       metrics.put(DDSpanContext.PRIORITY_SAMPLING_KEY, 1);
       metrics.put(InstrumentationTags.DD_TOP_LEVEL.toString(), 1);
