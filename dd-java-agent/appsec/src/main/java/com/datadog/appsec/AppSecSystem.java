@@ -118,7 +118,9 @@ public class AppSecSystem {
   }
 
   public static void setActive(boolean status) {
-    ActiveSubsystems.APPSEC_ACTIVE = status;
+    // Goes through the setter rather than the field so that components outside the AppSec module,
+    // which cannot see this class, still observe a runtime (remote-config driven) activation.
+    ActiveSubsystems.setAppSecActive(status);
     // Report to the product change via telemetry
     log.debug("AppSec is now {}", status ? "active" : "inactive");
     ProductChangeCollector.get()

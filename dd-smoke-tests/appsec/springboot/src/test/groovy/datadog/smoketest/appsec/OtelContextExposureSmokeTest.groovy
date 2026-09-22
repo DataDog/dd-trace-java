@@ -43,6 +43,8 @@ class OtelContextExposureSmokeTest extends AbstractAppSecServerSmokeTest {
         assert new File(logFilePath).text.contains(PROCESS_CONTEXT_LOG_LINE)
       }
     } else {
+      // AppSec is only "inactive-enabled" here and no remote config ever activates it, so the
+      // integration stays armed and never registers anything.
       // Give the agent the same startup time as the positive case before asserting absence,
       // so a slow-starting agent can't produce a false negative.
       conditions.eventually {

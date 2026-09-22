@@ -1081,6 +1081,7 @@ public class Config {
   private final boolean profilingAgentless;
   private final boolean isDatadogProfilerEnabled;
   private final boolean otelContextExposureEnabled;
+  private final boolean otelContextExposurePendingAppSecActivation;
   @Deprecated private final String profilingUrl;
   private final Map<String, String> profilingTags;
   private final int profilingStartDelay;
@@ -2652,6 +2653,14 @@ public class Config {
         isDatadogProfilerSafeAndConfigured()
             && (isProfilingEnabled()
                 || instrumenterConfig.getAppSecActivation() == ProductActivation.FULLY_ENABLED);
+
+    // AppSec started as ENABLED_INACTIVE is the standard "one-click" flow: the activation level
+    // itself never changes afterwards, only the runtime flag AppSec flips when remote config
+    // turns it on. Context exposure therefore cannot be decided here, it can only be armed.
+    this.otelContextExposurePendingAppSecActivation =
+        isDatadogProfilerSafeAndConfigured()
+            && !otelContextExposureEnabled
+            && instrumenterConfig.getAppSecActivation() == ProductActivation.ENABLED_INACTIVE;
 
     this.traceResourceRenamingAlwaysSimplifiedEndpoint =
         configProvider.getBoolean(TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT, false);
@@ -4279,6 +4288,19 @@ public class Config {
    */
   public boolean isOtelContextExposureEnabled() {
     return otelContextExposureEnabled;
+  }
+
+  /**
+   * Whether OpenTelemetry context exposure is not enabled at boot but must be armed so it can start
+   * later, when AppSec is activated at runtime through remote config.
+   *
+   * <p>{@link #isOtelContextExposureEnabled()} can only look at {@code getAppSecActivation()},
+   * which is read once from {@code InstrumenterConfig} and never changes. The "one-click" AppSec
+   * activation flow leaves it at {@link ProductActivation#ENABLED_INACTIVE} forever and flips a
+   * separate runtime flag instead, so that flow would never be observed without this.
+   */
+  public boolean isOtelContextExposurePendingAppSecActivation() {
+    return otelContextExposurePendingAppSecActivation;
   }
 
   public static boolean isDatadogProfilerEnablementOverridden() {
@@ -6823,6 +6845,8 @@ public class Config {
         + profilingExcludeAgentThreads
         + ", otelContextExposureEnabled="
         + otelContextExposureEnabled
+        + ", otelContextExposurePendingAppSecActivation="
+        + otelContextExposurePendingAppSecActivation
         + ", crashTrackingTags="
         + crashTrackingTags
         + ", crashTrackingAgentless="

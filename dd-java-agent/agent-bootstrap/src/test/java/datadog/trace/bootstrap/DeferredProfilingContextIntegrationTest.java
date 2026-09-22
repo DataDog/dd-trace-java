@@ -26,7 +26,9 @@ import org.junit.jupiter.api.Test;
 /**
  * Covers the premain-timing contract of the ddprof profiling context integration: the AppSec-only
  * trigger must not construct it (nor register the process context) on the calling thread, while the
- * profiler-enabled path must keep doing exactly that.
+ * profiler-enabled path must keep constructing it there and must leave the process context
+ * registration to the profiler agent. Also covers the AppSec runtime-activation trigger, where the
+ * construction only happens once remote config turns AppSec on.
  */
 class DeferredProfilingContextIntegrationTest {
 
@@ -78,8 +80,51 @@ class DeferredProfilingContextIntegrationTest {
 
     assertTrue(integration instanceof FakeDatadogProfilingIntegration);
     assertEquals(1, FakeDatadogProfilingIntegration.constructions.get());
-    assertEquals(1, FakeProcessContext.registrations.get());
     assertSame(Thread.currentThread(), FakeDatadogProfilingIntegration.constructionThread.get());
+  }
+
+  /**
+   * The synchronous path is only taken when the Datadog profiler is actually enabled, and in that
+   * case {@code ProfilingAgent.run()} registers the process context on its own, as it always has.
+   * Registering it here as well would log "Registering process context for OTel profiler" twice and
+   * call into the native library twice for every user that already has profiling on.
+   */
+  @Test
+  void synchronousConstructionLeavesTheProcessContextToTheProfilerAgent() {
+    Agent.createDdprofContextIntegration(fakeProfilingClassLoader(), false);
+
+    assertEquals(0, FakeProcessContext.registrations.get());
+  }
+
+  @Test
+  void appSecActivatedConstructionWaitsForTheRuntimeActivation() throws Exception {
+    boolean originalAppSecActive = ActiveSubsystems.APPSEC_ACTIVE;
+    ActiveSubsystems.APPSEC_ACTIVE = false;
+    try {
+      ProfilingContextIntegration integration =
+          Agent.createAppSecActivatedDdprofContextIntegration(fakeProfilingClassLoader());
+
+      // AppSec is only "inactive-enabled" so far: nothing may be constructed yet
+      assertNotNull(integration);
+      assertEquals("ddprof", integration.name());
+      assertEquals(0, FakeDatadogProfilingIntegration.constructions.get());
+      assertEquals(0, FakeProcessContext.registrations.get());
+      assertSame(Stateful.DEFAULT, integration.newScopeState(null));
+
+      ActiveSubsystems.setAppSecActive(true);
+
+      assertTrue(
+          FakeProcessContext.registered.await(30, TimeUnit.SECONDS),
+          "the activation never triggered the deferred construction");
+      assertEquals(1, FakeDatadogProfilingIntegration.constructions.get());
+      // nothing else registers the process context here, because the profiler never starts
+      assertEquals(1, FakeProcessContext.registrations.get());
+      assertNotSame(
+          Thread.currentThread(), FakeDatadogProfilingIntegration.constructionThread.get());
+      assertSame(FakeDatadogProfilingIntegration.STATE, integration.newScopeState(null));
+    } finally {
+      ActiveSubsystems.APPSEC_ACTIVE = originalAppSecActive;
+    }
   }
 
   @Test
