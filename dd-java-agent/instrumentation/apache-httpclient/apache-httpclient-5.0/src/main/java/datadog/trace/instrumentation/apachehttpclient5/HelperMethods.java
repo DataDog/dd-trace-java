@@ -3,13 +3,14 @@ package datadog.trace.instrumentation.apachehttpclient5;
 import static datadog.context.Context.current;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.APACHE_HTTP_CLIENT;
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.HTTP_REQUEST;
 import static datadog.trace.instrumentation.apachehttpclient5.HttpHeadersInjectAdapter.SETTER;
 
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.apache.hc.client5.http.classic.HttpClient;
 import org.apache.hc.core5.http.HttpHost;
@@ -17,7 +18,7 @@ import org.apache.hc.core5.http.HttpRequest;
 import org.apache.hc.core5.http.HttpResponse;
 
 public class HelperMethods {
-  public static AgentScope doMethodEnter(final HttpRequest request) {
+  public static ContextScope doMethodEnter(final HttpRequest request) {
     final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
     if (callDepth > 0) {
       return null;
@@ -26,7 +27,7 @@ public class HelperMethods {
     return activateHttpSpan(request);
   }
 
-  public static AgentScope doMethodEnter(HttpHost host, HttpRequest request) {
+  public static ContextScope doMethodEnter(HttpHost host, HttpRequest request) {
     final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
     if (callDepth > 0) {
       return null;
@@ -35,9 +36,9 @@ public class HelperMethods {
     return activateHttpSpan(new HostAndRequestAsHttpUriRequest(host, request));
   }
 
-  private static AgentScope activateHttpSpan(final HttpRequest request) {
+  private static ContextScope activateHttpSpan(final HttpRequest request) {
     final AgentSpan span = startSpan(APACHE_HTTP_CLIENT.toString(), HTTP_REQUEST);
-    final AgentScope scope = activateSpan(span);
+    final ContextScope scope = activateSpan(span);
 
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request);
@@ -53,11 +54,11 @@ public class HelperMethods {
   }
 
   public static void doMethodExit(
-      final AgentScope scope, final Object result, final Throwable throwable) {
+      final ContextScope scope, final Object result, final Throwable throwable) {
     if (scope == null) {
       return;
     }
-    final AgentSpan span = scope.span();
+    final AgentSpan span = spanFromScope(scope);
     if (result instanceof HttpResponse) {
       DECORATE.onResponse(span, (HttpResponse) result);
     } // else they probably provided a ResponseHandler.

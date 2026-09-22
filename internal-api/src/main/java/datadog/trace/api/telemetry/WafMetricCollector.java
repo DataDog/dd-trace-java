@@ -3,6 +3,7 @@ package datadog.trace.api.telemetry;
 import datadog.trace.api.aiguard.AIGuard;
 import datadog.trace.util.TagsHelper;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -34,6 +35,19 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
 
   private static final String NAMESPACE = "appsec";
 
+  /**
+   * AI Guard metrics live in their own telemetry namespace. The namespace and the metric name are
+   * reported as separate fields and joined downstream, so {@code ai_guard} + {@code requests} is
+   * what surfaces the {@code ai_guard.requests} metric the AI Guard RFC specifies.
+   */
+  private static final String AI_GUARD_NAMESPACE = "ai_guard";
+
+  /** Hoisted because {@link Enum#values()} clones its backing array on every call. */
+  private static final AIGuardRedaction[] REDACTION_VALUES = AIGuardRedaction.values();
+
+  /** Hoisted because {@link Enum#values()} clones its backing array on every call. */
+  private static final AIGuardError[] AI_GUARD_ERROR_VALUES = AIGuardError.values();
+
   private static final BlockingQueue<WafMetric> rawMetricsQueue =
       new ArrayBlockingQueue<>(RAW_QUEUE_SIZE);
 
@@ -64,8 +78,13 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   private static final AtomicInteger wafConfigErrorCounter = new AtomicInteger();
   private static final AtomicInteger contextClosedRaceCounter = new AtomicInteger();
   private static final AtomicLongArray aiGuardRequests =
-      new AtomicLongArray(AIGuard.Action.values().length * 2); // 3 actions * block
+      new AtomicLongArray(
+          AIGuard.Action.values().length
+              * 2
+              * REDACTION_VALUES.length); // actions * block * redaction state
   private static final AtomicInteger aiGuardErrors = new AtomicInteger();
+  private static final AtomicLongArray aiGuardErrorTypes =
+      new AtomicLongArray(AI_GUARD_ERROR_VALUES.length);
   private static final AtomicLongArray aiGuardTruncated =
       new AtomicLongArray(AIGuardTruncationType.values().length);
 
@@ -246,12 +265,33 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     appSecSdkEventQueue.incrementAndGet(index);
   }
 
-  public void aiGuardRequest(final AIGuard.Action action, final boolean block) {
-    aiGuardRequests.incrementAndGet(action.ordinal() * 2 + (block ? 1 : 0));
+  public void aiGuardRequest(
+      final AIGuard.Action action, final boolean block, final AIGuardRedaction redaction) {
+    aiGuardRequests.incrementAndGet(aiGuardRequestIndex(action, block, redaction));
   }
 
-  public void aiGuardError() {
+  private static int aiGuardRequestIndex(
+      final AIGuard.Action action, final boolean block, final AIGuardRedaction redaction) {
+    return (action.ordinal() * 2 + (block ? 1 : 0)) * REDACTION_VALUES.length + redaction.ordinal();
+  }
+
+  /**
+   * Reports an evaluation that failed. The failure is counted twice on purpose, mirroring every
+   * other tracer: as {@code error:true} on {@code ai_guard.requests}, which keeps the request count
+   * complete, and under {@code ai_guard.error} with the {@code type} that classifies it.
+   */
+  public void aiGuardError(final AIGuardError type) {
     aiGuardErrors.incrementAndGet();
+    aiGuardErrorTypes.incrementAndGet(type.ordinal());
+  }
+
+  /**
+   * Reports {@code count} replacements that redaction could not apply. Unlike {@link
+   * #aiGuardError(AIGuardError)} this does not count a failed request: redaction is best effort and
+   * never fails the evaluation it rode in on.
+   */
+  public void aiGuardRedactionErrors(final long count) {
+    aiGuardErrorTypes.addAndGet(AIGuardError.REDACTION_ERROR.ordinal(), count);
   }
 
   public void aiGuardTruncated(final AIGuardTruncationType type) {
@@ -521,17 +561,18 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     }
 
     // AI Guard successful requests
+    aiGuardSuccesses:
     for (final AIGuard.Action action : AIGuard.Action.values()) {
-      final long blocked = aiGuardRequests.getAndSet(action.ordinal() * 2 + 1, 0);
-      if (blocked > 0) {
-        if (!rawMetricsQueue.offer(AIGuardRequests.success(blocked, action, true))) {
-          break;
-        }
-      }
-      final long nonBlocked = aiGuardRequests.getAndSet(action.ordinal() * 2, 0);
-      if (nonBlocked > 0) {
-        if (!rawMetricsQueue.offer(AIGuardRequests.success(nonBlocked, action, false))) {
-          break;
+      for (int blockFlag = 1; blockFlag >= 0; blockFlag--) {
+        final boolean block = blockFlag == 1;
+        for (final AIGuardRedaction redaction : REDACTION_VALUES) {
+          final long count =
+              aiGuardRequests.getAndSet(aiGuardRequestIndex(action, block, redaction), 0);
+          if (count > 0) {
+            if (!rawMetricsQueue.offer(AIGuardRequests.success(count, action, block, redaction))) {
+              break aiGuardSuccesses;
+            }
+          }
         }
       }
     }
@@ -541,6 +582,16 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     if (aiGuardErrorRequests > 0) {
       if (!rawMetricsQueue.offer(AIGuardRequests.error(aiGuardErrorRequests))) {
         return;
+      }
+    }
+
+    // AI Guard errors, per type
+    for (final AIGuardError type : AI_GUARD_ERROR_VALUES) {
+      final long count = aiGuardErrorTypes.getAndSet(type.ordinal(), 0);
+      if (count > 0) {
+        if (!rawMetricsQueue.offer(new AIGuardErrors(count, type))) {
+          return;
+        }
       }
     }
 
@@ -589,7 +640,11 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   public abstract static class WafMetric extends MetricCollector.Metric {
 
     public WafMetric(String metricName, long counter, String... tags) {
-      super(NAMESPACE, true, metricName, "count", counter, tags);
+      this(NAMESPACE, metricName, counter, tags);
+    }
+
+    protected WafMetric(String namespace, String metricName, long counter, String... tags) {
+      super(namespace, true, metricName, "count", counter, tags);
     }
   }
 
@@ -823,14 +878,48 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     }
   }
 
-  public static class AIGuardRequests extends WafMetric {
+  /** Base class for the metrics reported under the {@code ai_guard} namespace. */
+  public abstract static class AIGuardMetric extends WafMetric {
+
+    /**
+     * Call-path tags the AI Guard specification requires on every metric in this namespace. Both
+     * are constant here: the JVM tracer only reaches an evaluation through a direct SDK call, so
+     * there is no auto-instrumented integration to name. They become dimensional once AI Guard
+     * auto-instrumentation lands.
+     */
+    private static final String[] CALL_PATH_TAGS = {"source:sdk", "integration:none"};
+
+    protected AIGuardMetric(final String metricName, final long counter, final String... tags) {
+      super(AI_GUARD_NAMESPACE, metricName, counter, withCallPath(tags));
+    }
+
+    private static String[] withCallPath(final String[] tags) {
+      final String[] result = Arrays.copyOf(tags, tags.length + CALL_PATH_TAGS.length);
+      System.arraycopy(CALL_PATH_TAGS, 0, result, tags.length, CALL_PATH_TAGS.length);
+      return result;
+    }
+  }
+
+  public static class AIGuardRequests extends AIGuardMetric {
     private AIGuardRequests(final long count, final String... tags) {
-      super("ai_guard.requests", count, tags);
+      super("requests", count, tags);
     }
 
     public static AIGuardRequests success(
-        final long count, final AIGuard.Action action, final boolean block) {
-      return new AIGuardRequests(count, "action:" + action, "block:" + block, "error:false");
+        final long count,
+        final AIGuard.Action action,
+        final boolean block,
+        final AIGuardRedaction redaction) {
+      if (redaction == AIGuardRedaction.DISABLED) {
+        // No redacted tag at all, so its absence stays distinguishable from a false value.
+        return new AIGuardRequests(count, "action:" + action, "block:" + block, "error:false");
+      }
+      return new AIGuardRequests(
+          count,
+          "action:" + action,
+          "block:" + block,
+          "error:false",
+          "redacted:" + (redaction == AIGuardRedaction.APPLIED));
     }
 
     public static AIGuardRequests error(final long count) {
@@ -838,9 +927,20 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     }
   }
 
-  public static class AIGuardTruncated extends WafMetric {
+  /**
+   * Failures reported under {@code ai_guard.error}, classified by {@link AIGuardError}. An
+   * evaluation failure is reported here <em>and</em> as {@code error:true} on {@code
+   * ai_guard.requests}; a redaction error is reported only here.
+   */
+  public static class AIGuardErrors extends AIGuardMetric {
+    public AIGuardErrors(final long count, final AIGuardError type) {
+      super("error", count, "type:" + type.tagValue);
+    }
+  }
+
+  public static class AIGuardTruncated extends AIGuardMetric {
     public AIGuardTruncated(final long count, final AIGuardTruncationType type) {
-      super("ai_guard.truncated", count, "type:" + type.tagValue);
+      super("truncated", count, "type:" + type.tagValue);
     }
   }
 
@@ -859,6 +959,40 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   public static class ApiSecurityRequestNoSchema extends WafMetric {
     public ApiSecurityRequestNoSchema(final long counter, final String framework) {
       super("api_security.request.no_schema", counter, "framework:" + framework);
+    }
+  }
+
+  /**
+   * Whether an evaluation redacted anything, as reported by the {@code redacted} tag on {@code
+   * ai_guard.requests}. {@link #DISABLED} reports no tag at all, so an absent tag means "redaction
+   * is off" and stays distinguishable from {@code redacted:false}.
+   */
+  public enum AIGuardRedaction {
+    /** Redaction is disabled locally, so nothing was even attempted. */
+    DISABLED,
+    /** Redaction is enabled and at least one replacement was applied. */
+    APPLIED,
+    /** Redaction is enabled but nothing was redacted. */
+    NOT_APPLIED
+  }
+
+  /**
+   * Classification of the failures reported under {@code ai_guard.error}, as the {@code type} tag.
+   */
+  public enum AIGuardError {
+    /** A transport failure, or any error the tracer could not attribute to the response. */
+    CLIENT_ERROR("client_error"),
+    /** The service answered with a status code that explains the failure on its own. */
+    BAD_STATUS("bad_status"),
+    /** The service answered successfully, with a body the tracer cannot use. */
+    BAD_RESPONSE("bad_response"),
+    /** A redaction replacement the tracer could not apply. Never fails the evaluation. */
+    REDACTION_ERROR("redaction_error");
+
+    public final String tagValue;
+
+    AIGuardError(final String tagValue) {
+      this.tagValue = tagValue;
     }
   }
 

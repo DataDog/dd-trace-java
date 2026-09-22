@@ -13,6 +13,8 @@ muzzle {
 
 addTestSuiteForDir('latestDep4Test', 'test')
 addTestSuiteForDir('latestDepTest', 'test')
+addForkedTestTask('latestDep4Test')
+addForkedTestTask('latestDepTest')
 addTestSuiteForDir('netty4144Test', 'test')
 addTestSuiteForDir('legacyNettyTest', 'test')
 

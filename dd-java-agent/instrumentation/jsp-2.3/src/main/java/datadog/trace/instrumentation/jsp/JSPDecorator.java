@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.jsp;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
+
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
@@ -30,9 +32,10 @@ public class JSPDecorator extends BaseDecorator {
     return JSP_HTTP_SERVLET;
   }
 
-  public void onCompile(final AgentScope scope, final JspCompilationContext jspCompilationContext) {
+  public void onCompile(
+      final ContextScope scope, final JspCompilationContext jspCompilationContext) {
     if (jspCompilationContext != null) {
-      final AgentSpan span = scope.span();
+      final AgentSpan span = spanFromScope(scope);
       span.setResourceName(jspCompilationContext.getJspFile());
 
       if (jspCompilationContext.getServletContext() != null) {

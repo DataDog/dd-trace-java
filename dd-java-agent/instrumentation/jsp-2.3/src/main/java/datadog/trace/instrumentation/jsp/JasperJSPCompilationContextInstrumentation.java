@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.jsp;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.jsp.JSPDecorator.DECORATE;
 import static datadog.trace.instrumentation.jsp.JSPDecorator.JSP_COMPILE;
 import static datadog.trace.instrumentation.jsp.JSPDecorator.JSP_HTTP_SERVLET;
@@ -10,9 +11,9 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.apache.jasper.JspCompilationContext;
@@ -48,7 +49,7 @@ public final class JasperJSPCompilationContextInstrumentation extends Instrument
   public static class JasperJspCompilationContext {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter() {
+    public static ContextScope onEnter() {
       final AgentSpan span = startSpan(JSP_HTTP_SERVLET.toString(), JSP_COMPILE);
       DECORATE.afterStart(span);
       return activateSpan(span);
@@ -57,7 +58,7 @@ public final class JasperJSPCompilationContextInstrumentation extends Instrument
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
         @Advice.This final JspCompilationContext jspCompilationContext,
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Thrown final Throwable throwable) {
       DECORATE.onCompile(scope, jspCompilationContext);
       // ^ Decorate on return because additional properties are available
@@ -65,7 +66,7 @@ public final class JasperJSPCompilationContextInstrumentation extends Instrument
       DECORATE.onError(scope, throwable);
       DECORATE.beforeFinish(scope);
       scope.close();
-      scope.span().finish();
+      spanFromScope(scope).finish();
     }
   }
 }

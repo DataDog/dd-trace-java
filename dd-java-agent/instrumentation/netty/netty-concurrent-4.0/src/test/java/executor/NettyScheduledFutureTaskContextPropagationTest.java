@@ -10,9 +10,9 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.Trace;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import io.netty.util.concurrent.EventExecutor;
@@ -31,7 +31,7 @@ class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumenta
 
       // Netty 4.1.44+ calls ScheduledFutureTask.run() once while enqueueing a delayed task and
       // again when the delay expires. Context must only activate when runTask() executes.
-      try (AgentScope ignored = activateSpan(parent)) {
+      try (ContextScope ignored = activateSpan(parent)) {
         executor.schedule(task, 50, MILLISECONDS);
       } finally {
         parent.finish();
@@ -66,7 +66,7 @@ class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumenta
       TraceableTask task = new TraceableTask();
       AgentSpan parent = startSpan("test", "parent");
 
-      try (AgentScope ignored = activateSpan(parent)) {
+      try (ContextScope ignored = activateSpan(parent)) {
         executor.schedule(task, 50, MILLISECONDS);
       } finally {
         parent.finish();
@@ -91,7 +91,7 @@ class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumenta
       TraceableTask task = new TraceableTask();
       AgentSpan parent = startSpan("test", "parent");
 
-      try (AgentScope ignored = activateSpan(parent)) {
+      try (ContextScope ignored = activateSpan(parent)) {
         executor.schedule(task, 0, MILLISECONDS);
       } finally {
         parent.finish();

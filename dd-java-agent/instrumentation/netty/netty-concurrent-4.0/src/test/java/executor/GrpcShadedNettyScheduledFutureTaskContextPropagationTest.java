@@ -10,9 +10,9 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.Trace;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.grpc.netty.shaded.io.netty.util.concurrent.DefaultEventExecutorGroup;
 import io.grpc.netty.shaded.io.netty.util.concurrent.EventExecutor;
@@ -34,7 +34,7 @@ class GrpcShadedNettyScheduledFutureTaskContextPropagationTest extends AbstractI
       TraceableTask task = new TraceableTask();
       AgentSpan parent = startSpan("test", "parent");
 
-      try (AgentScope ignored = activateSpan(parent)) {
+      try (ContextScope ignored = activateSpan(parent)) {
         executor.schedule(task, 50, MILLISECONDS);
       } finally {
         parent.finish();
