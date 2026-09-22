@@ -106,6 +106,8 @@ public final class VirtualThreadInstrumentation extends InstrumenterModule.Conte
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
+    // JDK 22+ enters run(Runnable) after the first mount with the virtual thread current. JDK 21
+    // update releases differ, so they retain context swaps on every mount and unmount.
     if (JavaVirtualMachine.isJavaVersionAtLeast(22)) {
       transformer.applyAdvice(
           isMethod().and(named("run")).and(takesArguments(Runnable.class)).and(returns(void.class)),

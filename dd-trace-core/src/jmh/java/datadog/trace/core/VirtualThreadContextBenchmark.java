@@ -31,9 +31,11 @@ import org.openjdk.jmh.annotations.Warmup;
 /**
  * Java allocation and control-flow cost of virtual-thread context propagation: the current full
  * {@link ContinuableScopeManager#swap(Context)} on every mount/unmount versus the proposed
- * seed-once path (nothing when profiling is off, a profiler rebind/unbind when it is on). ddprof's
- * native {@code setContext} is modelled by a shared stub {@link ProfilingContextIntegration} backed
- * by thread-local slots. The stub matches ddprof's integration lifetime, per-thread isolation, and
+ * seed-once path (nothing when profiling is off, a profiler rebind/unbind when it is on). The
+ * current path retains the context returned by each reverse swap, matching repeated mounts after
+ * the first rather than reconstructing the virtual-thread context on every cycle. ddprof's native
+ * {@code setContext} is modelled by a shared stub {@link ProfilingContextIntegration} backed by
+ * thread-local slots. The stub matches ddprof's integration lifetime, per-thread isolation, and
  * set/clear call pattern, but does not model native-call cost; profiling-on throughput is therefore
  * not an estimate of production performance.
  *
@@ -70,11 +72,15 @@ public class VirtualThreadContextBenchmark {
   public static class ThreadState {
     AgentSpan span;
     Context spanContext;
+    Context plainContext;
+    Context profiledContext;
 
     @Setup(Level.Trial)
     public void setup(VirtualThreadContextBenchmark bench) {
       span = TRACER.startSpan("benchmark", "vt");
       spanContext = span;
+      plainContext = spanContext;
+      profiledContext = spanContext;
       bench.stubProfiling.initializeThread();
     }
 
@@ -87,14 +93,14 @@ public class VirtualThreadContextBenchmark {
 
   @Benchmark
   public void currentCycle_profilingOff(ThreadState t) {
-    Context previous = plainManager.swap(t.spanContext);
-    plainManager.swap(previous);
+    Context previous = plainManager.swap(t.plainContext);
+    t.plainContext = plainManager.swap(previous);
   }
 
   @Benchmark
   public long currentCycle_profilingOn_javaStub(ThreadState t) {
-    Context previous = profiledManager.swap(t.spanContext);
-    profiledManager.swap(previous);
+    Context previous = profiledManager.swap(t.profiledContext);
+    t.profiledContext = profiledManager.swap(previous);
     return stubProfiling.currentValue();
   }
 

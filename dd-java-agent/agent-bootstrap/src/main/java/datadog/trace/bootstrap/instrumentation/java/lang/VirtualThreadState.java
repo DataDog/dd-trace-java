@@ -56,13 +56,13 @@ public final class VirtualThreadState {
     return USE_PER_MOUNT_CONTEXT;
   }
 
-  /** Seeds context once at the start of the virtual thread's continuation. */
+  /** Seeds context before the JDK invokes the virtual thread's task on JDK 22 and later. */
   public void onRun() {
     previousContext = context.swap();
     context = null;
   }
 
-  /** Restores the context that preceded this virtual thread's continuation. */
+  /** Restores the preceding context after the virtual thread's task exits. */
   public void afterRun() {
     if (previousContext != null) {
       previousContext.swap();
@@ -70,7 +70,7 @@ public final class VirtualThreadState {
     }
   }
 
-  /** Rebinds carrier-local profiler state from context already owned by the virtual thread. */
+  /** Rebinds carrier-local profiler state after the virtual thread mounts. */
   public static void onMountWithoutStore() {
     ProfilingContextIntegration profilingContext = AgentTracer.get().getProfilingContext();
     if (profilingContext.isThreadContextBindingRequired()) {
@@ -86,12 +86,12 @@ public final class VirtualThreadState {
     }
   }
 
-  /** Activates the virtual thread's context for the state-backed per-mount path. */
+  /** Activates the virtual thread's context after it mounts on the state-backed path. */
   public void onMount() {
     previousContext = context.swap();
   }
 
-  /** Restores the context that preceded the state-backed mount. */
+  /** Restores the preceding context before the virtual thread unmounts. */
   public void onUnmount() {
     if (previousContext != null) {
       context = previousContext.swap();
@@ -99,6 +99,7 @@ public final class VirtualThreadState {
     }
   }
 
+  /** Releases the retained continuation as virtual-thread termination begins. */
   public void onTerminate() {
     if (this.continuation != null) {
       this.continuation.release();
