@@ -16,6 +16,7 @@ import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -39,7 +40,7 @@ public final class AdviceScanner {
   private final LinkedHashSet<String> adviceRoots = new LinkedHashSet<>();
   private final LinkedHashMap<String, MutableClassInfo> classes = new LinkedHashMap<>();
   private final Deque<String> scanQueue = new ArrayDeque<>();
-  private final Set<String> queued = new LinkedHashSet<>();
+  private final Set<String> visited = new HashSet<>();
 
   private AdviceScanner(InstrumenterModule module, ClassFileLocator classFileLocator) {
     this.module = module;
@@ -47,8 +48,11 @@ public final class AdviceScanner {
   }
 
   public static AdviceScanResult scan(InstrumenterModule module) {
-    return scan(
-        module, ClassFileLocator.ForClassLoader.of(Thread.currentThread().getContextClassLoader()));
+    return scan(module, Thread.currentThread().getContextClassLoader());
+  }
+
+  public static AdviceScanResult scan(InstrumenterModule module, ClassLoader classLoader) {
+    return scan(module, ClassFileLocator.ForClassLoader.of(classLoader));
   }
 
   static AdviceScanResult scan(InstrumenterModule module, ClassFileLocator classFileLocator) {
@@ -67,11 +71,11 @@ public final class AdviceScanner {
       scanClass(classes.get(className));
     }
 
-    Map<String, ClassInfo> immutableClasses = new LinkedHashMap<>();
+    Map<String, ClassInfo> frozenClasses = new LinkedHashMap<>();
     for (Map.Entry<String, MutableClassInfo> entry : classes.entrySet()) {
-      immutableClasses.put(entry.getKey(), entry.getValue().freeze());
+      frozenClasses.put(entry.getKey(), entry.getValue().freeze());
     }
-    return new AdviceScanResult(adviceRoots, immutableClasses);
+    return new AdviceScanResult(adviceRoots, frozenClasses);
   }
 
   private void collectAdviceRoots() {
@@ -90,26 +94,28 @@ public final class AdviceScanner {
     }
   }
 
-  private MutableClassInfo discover(String className, String adviceClass) {
+  private MutableClassInfo discover(String className, String adviceRoot) {
     if (className == null) {
       return null;
     }
     MutableClassInfo existing = classes.get(className);
     if (existing != null) {
-      if (adviceClass != null && existing.adviceClass == null) {
-        existing.adviceClass = adviceClass;
+      if (adviceRoot != null && existing.adviceRoot == null) {
+        existing.adviceRoot = adviceRoot;
       }
       return existing;
     }
-    MutableClassInfo created = new MutableClassInfo(className, adviceClass);
+    MutableClassInfo created = new MutableClassInfo(className, adviceRoot);
     classes.put(className, created);
     return created;
   }
 
   private void enqueue(MutableClassInfo info, boolean adviceRoot) {
-    if (info != null
-        && (adviceRoot || AdviceScanResult.isInstrumentationClass(info.className))
-        && queued.add(info.className)) {
+    if (info == null) {
+      return;
+    }
+    if ((adviceRoot || AdviceScanResult.isInstrumentationClass(info.className))
+        && visited.add(info.className)) {
       scanQueue.addLast(info.className);
     }
   }
@@ -119,10 +125,10 @@ public final class AdviceScanner {
       return;
     }
     if (className.startsWith("[")) {
-      addTypeDependency(from, Type.getType(className));
+      addTypeDependency(from, Type.getType(className.substring(1)));
       return;
     }
-    MutableClassInfo target = discover(className, from.adviceClass);
+    MutableClassInfo target = discover(className, from.adviceRoot);
     enqueue(target, false);
   }
 
@@ -176,23 +182,21 @@ public final class AdviceScanner {
 
   private String owningAdvice(String className) {
     MutableClassInfo info = classes.get(className);
-    return info == null || info.adviceClass == null ? "<none>" : info.adviceClass;
+    return info == null || info.adviceRoot == null ? "<none>" : info.adviceRoot;
   }
 
   private IllegalStateException scanFailure(
-      String className, String adviceClass, String detail, Throwable cause) {
+      String className, String adviceRoot, String detail, Throwable cause) {
     String message =
         "Advice scan failed for module "
             + module.getClass().getName()
             + ", advice "
-            + adviceClass
+            + adviceRoot
             + ", class "
             + className
             + ": "
             + detail;
-    return cause == null
-        ? new IllegalStateException(message)
-        : new IllegalStateException(message, cause);
+    return new IllegalStateException(message, cause);
   }
 
   private static String binaryName(String internalName) {
@@ -207,7 +211,7 @@ public final class AdviceScanner {
   }
 
   private static Usage createUsage(
-      String sourceClassName,
+      MutableClassInfo source,
       UsageKind kind,
       int line,
       int opcode,
@@ -219,7 +223,7 @@ public final class AdviceScanner {
       List<HandleUse> handles) {
     return new Usage(
         kind,
-        new SourceLocation(sourceClassName, line),
+        new SourceLocation(source.className, source.sourceFile, line),
         opcode,
         owner,
         name,
@@ -231,6 +235,7 @@ public final class AdviceScanner {
 
   private final class ScanningVisitor extends ClassVisitor {
     private final MutableClassInfo info;
+    private String[] interfaces;
 
     private ScanningVisitor(MutableClassInfo info) {
       super(ASM_API);
@@ -245,17 +250,36 @@ public final class AdviceScanner {
         String signature,
         String superName,
         String[] interfaces) {
+      this.interfaces = interfaces;
       if (interfaces != null) {
         for (String interfaceName : interfaces) {
-          String binaryInterface = binaryName(interfaceName);
-          addDependency(info, binaryInterface);
+          addDependency(info, binaryName(interfaceName));
+        }
+      }
+      // Preserve superclass constructor calls as METHOD usages so consumers can check signatures.
+    }
+
+    @Override
+    public void visitSource(String source, String debug) {
+      if (source != null) {
+        info.sourceFile = source;
+      }
+    }
+
+    @Override
+    public void visitEnd() {
+      // SourceFile follows the class header. Prepend header usages once its filename is known.
+      if (interfaces != null) {
+        int index = 0;
+        for (String interfaceName : interfaces) {
           info.usages.add(
+              index++,
               createUsage(
-                  info.className,
+                  info,
                   UsageKind.TYPE,
                   UNDEFINED_LINE,
                   -1,
-                  binaryInterface,
+                  binaryName(interfaceName),
                   null,
                   null,
                   true,
@@ -263,7 +287,6 @@ public final class AdviceScanner {
                   emptyList()));
         }
       }
-      // The superclass is captured by the invokespecial instruction in each constructor.
     }
 
     @Override
@@ -390,16 +413,7 @@ public final class AdviceScanner {
         boolean interfaceOwner,
         List<HandleUse> handles) {
       return createUsage(
-          info.className,
-          kind,
-          line,
-          opcode,
-          owner,
-          name,
-          descriptor,
-          interfaceOwner,
-          false,
-          handles);
+          info, kind, line, opcode, owner, name, descriptor, interfaceOwner, false, handles);
     }
   }
 
@@ -413,17 +427,19 @@ public final class AdviceScanner {
   }
 
   private static final class MutableClassInfo {
-    private final String className;
-    private String adviceClass;
-    private boolean scanned;
-    private final List<Usage> usages = new ArrayList<>();
+    final String className;
+    String adviceRoot;
+    String sourceFile;
+    boolean scanned;
+    final List<Usage> usages = new ArrayList<>();
 
-    private MutableClassInfo(String className, String adviceClass) {
+    MutableClassInfo(String className, String adviceRoot) {
       this.className = className;
-      this.adviceClass = adviceClass;
+      this.adviceRoot = adviceRoot;
+      this.sourceFile = className;
     }
 
-    private ClassInfo freeze() {
+    ClassInfo freeze() {
       return new ClassInfo(className, scanned, usages);
     }
   }

@@ -14,10 +14,13 @@ import datadog.trace.agent.tooling.advice.AdviceScanResult.Usage;
 import datadog.trace.agent.tooling.advice.AdviceScanResult.UsageKind;
 import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.AdditionalAdvice;
 import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.AdviceRoot;
+import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.AdviceSuperclass;
 import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.Dependency;
 import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.ScanModule;
 import datadog.trace.instrumentation.testing.ExternalHelper;
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import net.bytebuddy.dynamic.ClassFileLocator;
@@ -33,8 +36,10 @@ import org.junit.jupiter.api.Test;
 class AdviceScannerTest {
   @Test
   void scansNeutralUsesAndAdditionalClasses() {
+    int registrationsBefore = ScanModule.adviceRegistrations;
     AdviceScanResult result = AdviceScanner.scan(new ScanModule());
 
+    assertEquals(registrationsBefore + 1, ScanModule.adviceRegistrations);
     assertEquals(
         Arrays.asList(AdviceRoot.class.getName(), AdditionalAdvice.class.getName()),
         result.getAdviceRoots());
@@ -66,6 +71,7 @@ class AdviceScannerTest {
             .allMatch(
                 use ->
                     use.getSource().getClassName().equals(AdviceRoot.class.getName())
+                        && use.getSource().getSourceFile().equals("AdviceScanningFixtures.java")
                         && use.getSource().getLine() > 0));
 
     assertFalse(result.getClassInfo(ClassReader.class.getName()).isScanned());
@@ -85,23 +91,8 @@ class AdviceScannerTest {
   }
 
   @Test
-  void discoversInvokeDynamicAndCatchTypeDependencies() {
-    String adviceClass = "generated.Advice";
-    class GeneratedAdviceModule extends InstrumenterModule implements Instrumenter.HasMethodAdvice {
-      GeneratedAdviceModule() {
-        super("generated-advice");
-      }
-
-      @Override
-      public void methodAdvice(MethodTransformer transformer) {
-        transformer.applyAdvice(null, adviceClass);
-      }
-    }
-
-    AdviceScanResult result =
-        AdviceScanner.scan(
-            new GeneratedAdviceModule(),
-            ClassFileLocator.Simple.of(adviceClass, generatedAdvice(adviceClass)));
+  void discoversBytecodeOnlyDependencies() {
+    AdviceScanResult result = scanGeneratedAdvice(null);
 
     for (String dependency :
         Arrays.asList(
@@ -110,9 +101,83 @@ class AdviceScannerTest {
             "bootstrapArgument.Only",
             "handle.Only",
             "array.Only",
+            "multidimensional.Only",
+            "field.Only",
+            "fieldHandle.Only",
             "catch.Only")) {
       assertNotNull(result.getClassInfo(dependency), dependency);
     }
+    assertFalse(result.getClasses().keySet().stream().anyMatch(name -> name.startsWith("[")));
+    assertFalse(result.getClasses().containsKey("int"));
+  }
+
+  @Test
+  void recordsSourceFilesForHeaderAndMethodUsages() {
+    ClassInfo advice =
+        scanGeneratedAdvice("DifferentSource.groovy").getClassInfo("generated.Advice");
+
+    assertTrue(advice.getUsages().get(0).isImplementedInterface());
+    for (Usage usage : advice.getUsages()) {
+      assertEquals("generated.Advice", usage.getSource().getClassName());
+      assertEquals("DifferentSource.groovy", usage.getSource().getSourceFile());
+      assertEquals(usage.isImplementedInterface() ? -1 : 42, usage.getSource().getLine());
+    }
+  }
+
+  @Test
+  void fallsBackToClassNameWhenSourceFileIsMissing() {
+    ClassInfo advice = scanGeneratedAdvice(null).getClassInfo("generated.Advice");
+
+    assertFalse(advice.getUsages().isEmpty());
+    for (Usage usage : advice.getUsages()) {
+      assertEquals("generated.Advice", usage.getSource().getSourceFile());
+    }
+  }
+
+  @Test
+  void usesProvidedClassLoader() {
+    List<String> resources = new ArrayList<>();
+    ClassLoader loader =
+        new ClassLoader(getClass().getClassLoader()) {
+          @Override
+          public InputStream getResourceAsStream(String name) {
+            resources.add(name);
+            return super.getResourceAsStream(name);
+          }
+        };
+
+    AdviceScanResult result = AdviceScanner.scan(new ScanModule(), loader);
+
+    assertTrue(result.getClassInfo(AdviceRoot.class.getName()).isScanned());
+    assertTrue(resources.contains(AdviceRoot.class.getName().replace('.', '/') + ".class"));
+  }
+
+  @Test
+  void retainsNonObjectSuperclassConstructorRequirements() {
+    AdviceScanResult result = AdviceScanner.scan(new ScanModule());
+    ClassInfo root = result.getClassInfo(AdviceRoot.class.getName());
+
+    assertNotNull(result.getClassInfo(AdviceSuperclass.class.getName()));
+    assertTrue(
+        root.getUsages().stream()
+            .anyMatch(
+                usage ->
+                    usage.getKind() == UsageKind.METHOD
+                        && usage.getOpcode() == Opcodes.INVOKESPECIAL
+                        && usage.getOwner().equals(AdviceSuperclass.class.getName())
+                        && usage.getName().equals("<init>")
+                        && usage.getDescriptor().equals("(Ljava/lang/String;)V")));
+  }
+
+  @Test
+  void returnsImmutableResults() {
+    AdviceScanResult result = AdviceScanner.scan(new ScanModule());
+
+    assertThrows(UnsupportedOperationException.class, () -> result.getClasses().clear());
+    assertThrows(UnsupportedOperationException.class, () -> result.getAdviceRoots().clear());
+    assertThrows(
+        UnsupportedOperationException.class,
+        () -> result.getClassInfo(AdviceRoot.class.getName()).getUsages().clear());
   }
 
   @Test
@@ -172,7 +237,25 @@ class AdviceScannerTest {
     return info.getUsages().stream().filter(use -> use.getKind() == kind).findFirst().orElse(null);
   }
 
-  private static byte[] generatedAdvice(String className) {
+  private static AdviceScanResult scanGeneratedAdvice(String sourceFile) {
+    String adviceClass = "generated.Advice";
+    class GeneratedAdviceModule extends InstrumenterModule implements Instrumenter.HasMethodAdvice {
+      GeneratedAdviceModule() {
+        super("generated-advice");
+      }
+
+      @Override
+      public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(null, adviceClass);
+      }
+    }
+
+    return AdviceScanner.scan(
+        new GeneratedAdviceModule(),
+        ClassFileLocator.Simple.of(adviceClass, generatedAdvice(adviceClass, sourceFile)));
+  }
+
+  private static byte[] generatedAdvice(String className, String sourceFile) {
     ClassWriter writer = new ClassWriter(0);
     writer.visit(
         Opcodes.V17,
@@ -180,7 +263,10 @@ class AdviceScannerTest {
         className.replace('.', '/'),
         null,
         "java/lang/Object",
-        null);
+        new String[] {"declared/Contract"});
+    if (sourceFile != null) {
+      writer.visitSource(sourceFile, null);
+    }
     writer.visitPermittedSubclass("generated/Subclass");
 
     MethodVisitor method =
@@ -192,6 +278,7 @@ class AdviceScannerTest {
     method.visitTryCatchBlock(start, end, handler, "catch/Only");
     method.visitCode();
     method.visitLabel(start);
+    method.visitLineNumber(42, start);
     method.visitInvokeDynamicInsn(
         "apply",
         "()Lcallsite/Only;",
@@ -203,6 +290,19 @@ class AdviceScannerTest {
     method.visitInsn(Opcodes.ACONST_NULL);
     method.visitMethodInsn(
         Opcodes.INVOKEVIRTUAL, "[Larray/Only;", "clone", "()Ljava/lang/Object;", false);
+    method.visitInsn(Opcodes.POP);
+    method.visitInsn(Opcodes.ACONST_NULL);
+    method.visitMethodInsn(
+        Opcodes.INVOKEVIRTUAL, "[[Lmultidimensional/Only;", "clone", "()Ljava/lang/Object;", false);
+    method.visitInsn(Opcodes.POP);
+    method.visitInsn(Opcodes.ACONST_NULL);
+    method.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "[I", "clone", "()Ljava/lang/Object;", false);
+    method.visitInsn(Opcodes.POP);
+    method.visitFieldInsn(Opcodes.GETSTATIC, "field/Owner", "value", "[[Lfield/Only;");
+    method.visitInsn(Opcodes.POP);
+    method.visitLdcInsn(
+        new Handle(
+            Opcodes.H_GETSTATIC, "fieldHandle/Owner", "value", "[[LfieldHandle/Only;", false));
     method.visitInsn(Opcodes.POP);
     method.visitLabel(end);
     method.visitJumpInsn(Opcodes.GOTO, done);

@@ -22,15 +22,22 @@ public final class AdviceScanResult {
   /** Source location of a bytecode use. */
   public static final class SourceLocation {
     private final String className;
+    private final String sourceFile;
     private final int line;
 
-    SourceLocation(String className, int line) {
+    SourceLocation(String className, String sourceFile, int line) {
       this.className = className;
+      this.sourceFile = sourceFile;
       this.line = line;
     }
 
     public String getClassName() {
       return className;
+    }
+
+    /** Source filename, falling back to the binary class name when unavailable. */
+    public String getSourceFile() {
+      return sourceFile;
     }
 
     public int getLine() {
@@ -180,7 +187,7 @@ public final class AdviceScanResult {
 
   AdviceScanResult(Collection<String> adviceRoots, Map<String, ClassInfo> classes) {
     this.adviceRoots = immutableCopy(adviceRoots);
-    this.classes = Collections.unmodifiableMap(new LinkedHashMap<>(classes));
+    this.classes = immutableCopy(classes);
   }
 
   public List<String> getAdviceRoots() {
@@ -201,5 +208,9 @@ public final class AdviceScanResult {
 
   private static <T> List<T> immutableCopy(Collection<T> values) {
     return Collections.unmodifiableList(new ArrayList<>(values));
+  }
+
+  private static <K, V> Map<K, V> immutableCopy(Map<K, V> values) {
+    return Collections.unmodifiableMap(new LinkedHashMap<>(values));
   }
 }

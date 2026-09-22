@@ -21,7 +21,15 @@ final class AdviceScanningFixtures {
     }
   }
 
-  static class AdviceRoot {
+  static class AdviceSuperclass {
+    AdviceSuperclass(String value) {}
+  }
+
+  static class AdviceRoot extends AdviceSuperclass {
+    AdviceRoot() {
+      super("advice");
+    }
+
     static String apply(String value) {
       Dependency.field = value;
       Dependency dependency = new Dependency();
