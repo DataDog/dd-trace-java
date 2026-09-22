@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.notExcludedByName;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.cancelTask;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.startTaskScope;
@@ -93,10 +94,7 @@ public final class JavaForkJoinTaskInstrumentation
   public static final class Cancel {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static <T> void cancel(@Advice.This ForkJoinTask<T> task) {
-      State state = InstrumentationContext.get(ForkJoinTask.class, State.class).get(task);
-      if (null != state) {
-        state.closeContinuation();
-      }
+      cancelTask(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
     }
   }
 
@@ -104,10 +102,7 @@ public final class JavaForkJoinTaskInstrumentation
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void complete(@Advice.This ForkJoinTask<?> task) {
       if (task.isDone()) {
-        State state = InstrumentationContext.get(ForkJoinTask.class, State.class).get(task);
-        if (state != null) {
-          state.closeContinuation();
-        }
+        cancelTask(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
       }
     }
   }
