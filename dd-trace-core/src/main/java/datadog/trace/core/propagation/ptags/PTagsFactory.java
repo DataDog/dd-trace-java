@@ -269,7 +269,6 @@ public class PTagsFactory implements PropagationTags.Factory {
         int samplingPriority,
         int samplingMechanism,
         double sampleRate,
-        boolean probabilitySamplingResult,
         long traceIdLowOrderBits,
         boolean allowOverride) {
       synchronized (samplingStateLock) {
@@ -277,15 +276,16 @@ public class PTagsFactory implements PropagationTags.Factory {
         if (!allowOverride && current.getSamplingPriority() != PrioritySampling.UNSET) {
           return false;
         }
+        boolean rateLimiterRejected = SamplingMechanism.isRateLimiterRejected(samplingMechanism);
+        samplingMechanism = SamplingMechanism.clearRateLimiterRejected(samplingMechanism);
         OtelTraceState nextOtelTraceState = getOtelTraceState();
         if (nextOtelTraceState == null) {
-          boolean limiterDemotion = probabilitySamplingResult && samplingPriority <= 0;
-          if (!limiterDemotion) {
+          if (!rateLimiterRejected) {
             nextOtelTraceState =
                 OtelTraceState.fromProbabilityDecision(
-                    traceIdLowOrderBits, sampleRate, probabilitySamplingResult);
+                    traceIdLowOrderBits, sampleRate, samplingPriority);
           }
-        } else if (probabilitySamplingResult && samplingPriority <= 0) {
+        } else if (rateLimiterRejected) {
           nextOtelTraceState = nextOtelTraceState.withoutThreshold();
         }
         TagValue nextKnuthSamplingRate = knuthSamplingRateTagValue(sampleRate);

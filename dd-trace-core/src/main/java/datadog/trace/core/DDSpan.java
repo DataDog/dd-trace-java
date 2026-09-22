@@ -647,17 +647,9 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
 
   @Override
   public DDSpan setSamplingPriority(
-      int samplingPriority,
-      CharSequence rate,
-      double sampleRate,
-      boolean probabilitySamplingResult,
-      int samplingMechanism) {
+      int samplingPriority, CharSequence rate, double sampleRate, int samplingMechanism) {
     if (context.setSamplingPriority(
-        samplingPriority,
-        samplingMechanism,
-        sampleRate,
-        probabilitySamplingResult,
-        getTraceId().toLong())) {
+        samplingPriority, samplingMechanism, sampleRate, getTraceId().toLong())) {
       setMetric(rate, sampleRate);
     }
     return this;

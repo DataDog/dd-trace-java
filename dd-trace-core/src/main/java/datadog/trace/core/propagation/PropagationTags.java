@@ -113,7 +113,6 @@ public abstract class PropagationTags {
       int samplingPriority,
       int samplingMechanism,
       double sampleRate,
-      boolean probabilitySamplingResult,
       long traceIdLowOrderBits,
       boolean allowOverride);
 

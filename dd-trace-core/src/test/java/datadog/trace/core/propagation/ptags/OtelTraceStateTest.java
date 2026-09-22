@@ -1,5 +1,7 @@
 package datadog.trace.core.propagation.ptags;
 
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -15,7 +17,8 @@ class OtelTraceStateTest {
 
   @Test
   void convertsDatadogProbabilityDecision() {
-    OtelTraceState state = OtelTraceState.fromProbabilityDecision(0xfff972474538efffL, 0.1, true);
+    OtelTraceState state =
+        OtelTraceState.fromProbabilityDecision(0xfff972474538efffL, 0.1, SAMPLER_KEEP);
 
     assertFalse(state.isMaterialized());
     assertEquals("rv:ef284ace7a91e1;th:e6666666666668", state.toString());
@@ -35,7 +38,7 @@ class OtelTraceStateTest {
 
   @Test
   void rateZeroUsesLargestWireThresholdAndRemainsDropConsistent() {
-    OtelTraceState state = OtelTraceState.fromProbabilityDecision(0L, 0.0, false);
+    OtelTraceState state = OtelTraceState.fromProbabilityDecision(0L, 0.0, SAMPLER_DROP);
 
     assertEquals("rv:fffffffffffffe;th:ffffffffffffff", state.toString());
     assertTrue(state.isConsistentWith(false));
@@ -43,7 +46,8 @@ class OtelTraceStateTest {
 
   @Test
   void correctsOnlySerializedRandomValueAtKeepBoundary() {
-    OtelTraceState state = OtelTraceState.fromProbabilityDecision(0x03a93ee8b1999f00L, 0.1, true);
+    OtelTraceState state =
+        OtelTraceState.fromProbabilityDecision(0x03a93ee8b1999f00L, 0.1, SAMPLER_KEEP);
 
     assertEquals("rv:e6666666666668;th:e6666666666668", state.toString());
     assertTrue(state.isConsistentWith(true));
@@ -53,7 +57,7 @@ class OtelTraceStateTest {
   void correctsOnlySerializedRandomValueAtDropBoundary() {
     OtelTraceState state =
         OtelTraceState.fromProbabilityDecision(
-            DROP_PRECISION_BOUNDARY_TRACE_ID, DROP_PRECISION_BOUNDARY_RATE, false);
+            DROP_PRECISION_BOUNDARY_TRACE_ID, DROP_PRECISION_BOUNDARY_RATE, SAMPLER_DROP);
 
     assertEquals(
         "rv:" + DROP_PRECISION_BOUNDARY_RANDOM_VALUE + ";th:" + DROP_PRECISION_BOUNDARY_THRESHOLD,
@@ -63,7 +67,7 @@ class OtelTraceStateTest {
 
   @Test
   void removesLocalRandomnessForNonProbabilityDecision() {
-    OtelTraceState state = OtelTraceState.fromProbabilityDecision(1L, 1.0, true);
+    OtelTraceState state = OtelTraceState.fromProbabilityDecision(1L, 1.0, SAMPLER_KEEP);
 
     assertNull(state.forNonProbabilityDecision());
   }
@@ -79,7 +83,8 @@ class OtelTraceStateTest {
   }
 
   private static void assertThreshold(double rate, String expectedThreshold) {
-    OtelTraceState state = OtelTraceState.fromProbabilityDecision(1L, rate, rate > 0.0);
+    int samplingPriority = rate > 0.0 ? SAMPLER_KEEP : SAMPLER_DROP;
+    OtelTraceState state = OtelTraceState.fromProbabilityDecision(1L, rate, samplingPriority);
     String value = state.toString();
     assertEquals(expectedThreshold, value.substring(value.indexOf(";th:") + 4));
   }

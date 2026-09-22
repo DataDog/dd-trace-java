@@ -653,9 +653,8 @@ class OtlpTraceProtoTest {
         .getPropagationTags()
         .tryUpdateProbabilitySamplingDecision(
             PrioritySampling.SAMPLER_DROP,
-            SamplingMechanism.AGENT_RATE,
+            SamplingMechanism.markRateLimiterRejected(SamplingMechanism.AGENT_RATE),
             1.0,
-            true,
             limiterDrop.getTraceId().toLong(),
             true);
     EncodedSamplingState limiter = exportSamplingState(limiterDrop);
@@ -766,7 +765,6 @@ class OtlpTraceProtoTest {
             sampled ? PrioritySampling.SAMPLER_KEEP : PrioritySampling.SAMPLER_DROP,
             SamplingMechanism.AGENT_RATE,
             rate,
-            sampled,
             span.getTraceId().toLong(),
             true);
     return span;

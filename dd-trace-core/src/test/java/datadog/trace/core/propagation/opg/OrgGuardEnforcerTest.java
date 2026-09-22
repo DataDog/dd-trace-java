@@ -173,7 +173,7 @@ class OrgGuardEnforcerTest {
     assertTrue(
         stripped
             .getPropagationTags()
-            .tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 1.0, true, 1L, false));
+            .tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 1.0, 1L, false));
 
     String reEncoded = stripped.getPropagationTags().headerValue(W3C);
     assertNotNull(reEncoded);

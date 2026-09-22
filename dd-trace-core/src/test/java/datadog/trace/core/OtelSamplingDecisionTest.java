@@ -121,7 +121,7 @@ class OtelSamplingDecisionTest extends DDCoreJavaSpecification {
   void manualOverrideRemovesLocallyGeneratedProbabilityState() {
     withRootSpan(
         span -> {
-          span.setSamplingPriority(USER_KEEP, SAMPLING_RULE_RATE, HALF_RATE, true, LOCAL_USER_RULE);
+          span.setSamplingPriority(USER_KEEP, SAMPLING_RULE_RATE, HALF_RATE, LOCAL_USER_RULE);
           assertTrue(w3cHeader(span).contains(OTEL_RANDOM_VALUE_PREFIX));
 
           span.spanContext().forceKeep();

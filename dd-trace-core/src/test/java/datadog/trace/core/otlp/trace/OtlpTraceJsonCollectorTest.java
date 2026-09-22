@@ -208,9 +208,8 @@ class OtlpTraceJsonCollectorTest {
         .getPropagationTags()
         .tryUpdateProbabilitySamplingDecision(
             PrioritySampling.SAMPLER_DROP,
-            SamplingMechanism.AGENT_RATE,
+            SamplingMechanism.markRateLimiterRejected(SamplingMechanism.AGENT_RATE),
             1.0,
-            true,
             limiterDrop.getTraceId().toLong(),
             true);
     Map<String, Object> limiter = exportSamplingSpan(limiterDrop);
@@ -340,7 +339,6 @@ class OtlpTraceJsonCollectorTest {
             sampled ? PrioritySampling.SAMPLER_KEEP : PrioritySampling.SAMPLER_DROP,
             SamplingMechanism.AGENT_RATE,
             rate,
-            sampled,
             span.getTraceId().toLong(),
             true);
     return span;

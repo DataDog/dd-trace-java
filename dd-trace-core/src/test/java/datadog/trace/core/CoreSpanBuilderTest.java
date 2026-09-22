@@ -408,7 +408,7 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
         span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
     assertTrue(initialTraceState == null || !initialTraceState.contains(OTEL_MEMBER));
 
-    span.setSamplingPriority(USER_KEEP, SAMPLING_RULE_RATE, SAMPLE_RATE_0_5, true, LOCAL_USER_RULE);
+    span.setSamplingPriority(USER_KEEP, SAMPLING_RULE_RATE, SAMPLE_RATE_0_5, LOCAL_USER_RULE);
 
     String freshTraceState =
         span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
@@ -442,7 +442,7 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
         span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
     assertTrue(initialTraceState == null || !initialTraceState.contains(OTEL_MEMBER));
 
-    span.setSamplingPriority(USER_KEEP, SAMPLING_RULE_RATE, SAMPLE_RATE_0_5, true, LOCAL_USER_RULE);
+    span.setSamplingPriority(USER_KEEP, SAMPLING_RULE_RATE, SAMPLE_RATE_0_5, LOCAL_USER_RULE);
 
     String freshTraceState =
         span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);

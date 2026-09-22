@@ -165,16 +165,16 @@ final class OtelTraceState implements CharSequence {
   }
 
   static OtelTraceState fromProbabilityDecision(
-      long traceIdLowOrderBits, double rate, boolean sampled) {
+      long traceIdLowOrderBits, double rate, int samplingPriority) {
     long hash = traceIdLowOrderBits * HASH_MULTIPLIER;
     long randomValue = (~hash) >>> 8;
     long threshold = Math.round((1.0 - rate) * TWO_TO_56);
     if (threshold > MAX_56_BIT_VALUE) {
       threshold = MAX_56_BIT_VALUE;
     }
-    if (sampled && randomValue < threshold) {
+    if (samplingPriority > 0 && randomValue < threshold) {
       randomValue = threshold;
-    } else if (!sampled && randomValue >= threshold) {
+    } else if (samplingPriority <= 0 && randomValue >= threshold) {
       randomValue = threshold == 0 ? 0 : threshold - 1;
     }
 

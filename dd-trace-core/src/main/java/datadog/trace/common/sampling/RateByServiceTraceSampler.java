@@ -65,7 +65,6 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
         samplingPriority,
         SAMPLING_AGENT_RATE,
         sampler.getSampleRate(),
-        sampled,
         SamplingMechanism.AGENT_RATE);
   }
 
