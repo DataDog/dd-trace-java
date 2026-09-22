@@ -61,7 +61,7 @@ class SpringBootTomcatSmokeTest extends AbstractServerSmokeTest {
 
   @Override
   protected Set<String> expectedTraces() {
-    return ["[smoke:servlet.request:GET /hello[smoke:spring.handler:TestSuite.hello]]"].toSet()
+    return ["[smoke:servlet.request:GET /smoke/hello[smoke:spring.handler:TestSuite.hello]]"].toSet()
   }
 
   @Override
