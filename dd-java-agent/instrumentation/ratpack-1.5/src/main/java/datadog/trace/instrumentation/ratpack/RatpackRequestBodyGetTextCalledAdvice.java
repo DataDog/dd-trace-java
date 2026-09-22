@@ -19,8 +19,7 @@ public class RatpackRequestBodyGetTextCalledAdvice {
   static void after(
       @Advice.This ByteBufBackedTypedData thiz,
       @Advice.Return String str,
-      @ActiveRequestContext RequestContext reqCtx,
-      @Advice.Thrown(readOnly = false) Throwable throwable) {
+      @ActiveRequestContext RequestContext reqCtx) {
     Boolean bodyPublished =
         InstrumentationContext.get(ByteBufBackedTypedData.class, Boolean.class).get(thiz);
     if (bodyPublished == Boolean.TRUE) {
@@ -39,9 +38,7 @@ public class RatpackRequestBodyGetTextCalledAdvice {
       // effectivelyBlocked() is intentionally absent: Ratpack blocks through Netty's
       // BlockResponseFunction, whose BlockingResponseHandler already marks the segment.
       blockResponseFunction.tryCommitBlockingResponse(reqCtx, rba);
-      if (throwable == null) {
-        throwable = new BlockingException("Blocked request (for ByteBufBackedTypedData/getText)");
-      }
+      throw new BlockingException("Blocked request (for ByteBufBackedTypedData/getText)");
     }
   }
 

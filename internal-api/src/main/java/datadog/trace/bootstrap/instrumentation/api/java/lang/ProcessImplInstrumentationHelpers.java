@@ -240,13 +240,7 @@ public class ProcessImplInstrumentationHelpers {
       Flow<Void> flow = execCmdCallback.apply(ctx, cmdArray);
       Flow.Action action = flow.getAction();
       if (action instanceof Flow.Action.RequestBlockingAction) {
-        BlockResponseFunction brf = ctx.getBlockResponseFunction();
-        if (brf != null) {
-          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-          if (brf.tryCommitBlockingResponse(ctx, rba)) {
-            ctx.getTraceSegment().effectivelyBlocked();
-          }
-        }
+        commitBlockingResponse(ctx, (Flow.Action.RequestBlockingAction) action);
         // Thrown even without a BlockResponseFunction: RASP must abort the exec attempt even when
         // no blocking response can be committed.
         throw new BlockingException("Blocked request (for CMDI attempt)");
@@ -257,6 +251,14 @@ public class ProcessImplInstrumentationHelpers {
     } catch (final Throwable e) {
       // suppress anything else
       LOGGER.debug("Exception during CMDI rasp callback", e);
+    }
+  }
+
+  private static void commitBlockingResponse(
+      RequestContext ctx, Flow.Action.RequestBlockingAction rba) {
+    BlockResponseFunction brf = ctx.getBlockResponseFunction();
+    if (brf != null && brf.tryCommitBlockingResponse(ctx, rba)) {
+      ctx.getTraceSegment().effectivelyBlocked();
     }
   }
 
@@ -295,13 +297,7 @@ public class ProcessImplInstrumentationHelpers {
       Flow<Void> flow = shellCmdCallback.apply(ctx, cmd);
       Flow.Action action = flow.getAction();
       if (action instanceof Flow.Action.RequestBlockingAction) {
-        BlockResponseFunction brf = ctx.getBlockResponseFunction();
-        if (brf != null) {
-          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-          if (brf.tryCommitBlockingResponse(ctx, rba)) {
-            ctx.getTraceSegment().effectivelyBlocked();
-          }
-        }
+        commitBlockingResponse(ctx, (Flow.Action.RequestBlockingAction) action);
         // Thrown even without a BlockResponseFunction: RASP must abort the shell command attempt
         // even when no blocking response can be committed.
         throw new BlockingException("Blocked request (for SHI attempt)");

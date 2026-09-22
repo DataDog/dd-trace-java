@@ -2117,13 +2117,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
    * be closed without a complete HTTP response.
    */
   protected Response executeIgnoringIoErrors(Request request) {
+    Response response = null
     try {
-      def response = client.newCall(request).execute()
+      response = client.newCall(request).execute()
       response.body().bytes()
-      response.close()
       response
     } catch (IOException ignored) {
       null
+    } finally {
+      response?.close()
     }
   }
 

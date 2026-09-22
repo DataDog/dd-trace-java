@@ -281,7 +281,9 @@
 /dd-java-agent/instrumentation/vertx/vertx-web/*/src/main/java/**/FileUploadHelper.java              @DataDog/asm-java
 /dd-java-agent/instrumentation/vertx/vertx-web/*/src/main/java/**/PathParameterPublishingHelper.java @DataDog/asm-java
 /dd-java-agent/instrumentation/vertx/vertx-web/*/src/main/java/**/BlockingExceptionHandler.java      @DataDog/asm-java
-/dd-java-agent/instrumentation/vertx/vertx-web/*/src/main/java/**/Vertx*Instrumentation.java         @DataDog/asm-java
+/dd-java-agent/instrumentation/vertx/vertx-web/vertx-web-3.4/src/main/java/**/Vertx*Instrumentation.java @DataDog/asm-java
+/dd-java-agent/instrumentation/vertx/vertx-web/vertx-web-4.0/src/main/java/**/Vertx*Instrumentation.java @DataDog/asm-java
+/dd-java-agent/instrumentation/vertx/vertx-web/vertx-web-5.0/src/main/java/**/Vertx*Instrumentation.java @DataDog/asm-java
 
 # ratpack-1.5 (flat package, no appsec/ subpackage)
 /dd-java-agent/instrumentation/ratpack-1.5/src/main/java/**/ContextParseAdvice.java                  @DataDog/asm-java
