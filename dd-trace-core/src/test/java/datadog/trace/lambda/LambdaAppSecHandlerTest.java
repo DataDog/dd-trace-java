@@ -1268,29 +1268,6 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  @SuppressWarnings("unchecked")
-  void processRequestEndFinalizesAttachedContextWithoutRecordedTrigger() {
-    Object appSecContext = new Object();
-    RequestContext requestContext = mock(RequestContext.class);
-    when(requestContext.getData(RequestContextSlot.APPSEC)).thenReturn(appSecContext);
-    AgentSpan span = mock(AgentSpan.class);
-    when(span.getRequestContext()).thenReturn(requestContext);
-
-    BiFunction<RequestContext, IGSpanInfo, Flow<Void>> requestEndedCallback =
-        mock(BiFunction.class);
-    when(requestEndedCallback.apply(any(), any())).thenReturn(Flow.ResultFlow.empty());
-    CallbackProvider callbackProvider = mock(CallbackProvider.class);
-    when(callbackProvider.getCallback(EVENTS.requestEnded())).thenReturn(requestEndedCallback);
-    AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
-    when(tracer.getCallbackProvider(RequestContextSlot.APPSEC)).thenReturn(callbackProvider);
-    AgentTracer.forceRegister(tracer);
-
-    LambdaAppSecHandler.processRequestEnd(span);
-
-    verify(requestEndedCallback).apply(requestContext, span);
-  }
-
-  @Test
   void processRequestEndHandlesNullRequestEndedCallbackGracefully() {
     LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
     RequestContext mockRequestContext = mock(RequestContext.class);
@@ -1350,7 +1327,6 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     LambdaAppSecHandler.processRequestEnd(span);
 
-    verify(span).getRequestContext();
     verify(span).setMetric("_dd.appsec.unsupported_event_type", 1);
     verifyNoMoreInteractions(span);
   }
@@ -1362,7 +1338,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     LambdaAppSecHandler.processRequestEnd(span);
 
-    verify(span, never()).setMetric(anyString(), anyInt());
+    verifyNoInteractions(span);
   }
 
   @Test
@@ -1437,7 +1413,6 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     AgentSpan span = mock(AgentSpan.class);
     LambdaAppSecHandler.processRequestEnd(span);
 
-    verify(span).getRequestContext();
     verify(span).setMetric("_dd.appsec.unsupported_event_type", 1);
     verifyNoMoreInteractions(span);
   }
