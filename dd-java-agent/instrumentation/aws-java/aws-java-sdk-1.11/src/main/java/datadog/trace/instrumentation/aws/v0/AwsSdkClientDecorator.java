@@ -153,6 +153,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     String topicName = null;
     String topicArn = access.getTopicArn(originalRequest);
     if (null != topicArn) {
+      span.setTag(InstrumentationTags.AWS_TOPIC_ARN, topicArn);
+      span.setTag(InstrumentationTags.SNS_TOPIC_ARN, topicArn);
       topicName = topicArn.substring(topicArn.lastIndexOf(':') + 1);
       span.setTag(InstrumentationTags.AWS_TOPIC_NAME, topicName);
       span.setTag(InstrumentationTags.TOPIC_NAME, topicName);
@@ -168,6 +170,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     }
     String streamArn = access.getStreamARN(originalRequest);
     if (null != streamArn) {
+      span.setTag(InstrumentationTags.AWS_STREAM_ARN, streamArn);
       int streamNameStart = streamArn.indexOf(":stream/");
       if (streamNameStart >= 0) {
         streamName = streamArn.substring(streamNameStart + 8);
@@ -183,6 +186,22 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       span.setTag(InstrumentationTags.TABLE_NAME, tableName);
       bestPrecursor = InstrumentationTags.AWS_TABLE_NAME;
       bestPeerService = tableName;
+    }
+    String stateMachineArn = access.getStateMachineArn(originalRequest);
+    if (null != stateMachineArn) {
+      span.setTag(InstrumentationTags.AWS_STATE_MACHINE_ARN, stateMachineArn);
+      span.setTag(InstrumentationTags.STATE_MACHINE_ARN, stateMachineArn);
+    }
+    String executionArn = access.getExecutionArn(originalRequest);
+    if (null != executionArn) {
+      span.setTag(InstrumentationTags.AWS_EXECUTION_ARN, executionArn);
+    }
+    if ("AWSLambda".equalsIgnoreCase(awsServiceName)) {
+      String functionName = access.getFunctionName(originalRequest);
+      if (null != functionName) {
+        span.setTag(InstrumentationTags.AWS_FUNCTION_NAME, functionName);
+        span.setTag(InstrumentationTags.FUNCTION_NAME, functionName);
+      }
     }
 
     // Set peer.service based on Config for serverless functions
