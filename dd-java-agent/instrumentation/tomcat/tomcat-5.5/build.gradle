@@ -57,6 +57,13 @@ addTestSuite("tomcat9Test")
 addTestSuiteForDir('latest10Test', 'latestDepTest')
 addTestSuiteExtendingForDir('latest10ForkedTest', 'latest10Test', 'latestDepTest')
 
+// Exercise the shared header lookup against each supported Tomcat test version.
+["tomcat9Test", "latest10Test", "latestDepTest"].each { suite ->
+  sourceSets.named(suite) {
+    java.srcDir 'src/test/java'
+  }
+}
+
 def tomcatVersion = '5.5.12' // earliest 5.5.x available in maven central (with all needed dependencies).
 
 configurations.configureEach {
