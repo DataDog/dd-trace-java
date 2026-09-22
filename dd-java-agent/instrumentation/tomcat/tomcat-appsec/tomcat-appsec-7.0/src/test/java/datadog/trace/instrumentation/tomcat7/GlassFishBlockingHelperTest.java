@@ -241,7 +241,8 @@ class GlassFishBlockingHelperTest {
     AppSecContext appSecCtx = mockAppSecCtx(reqCtx);
     doThrow(new RuntimeException("commit failed"))
         .when(brf)
-        .tryCommitBlockingResponse(any(), any(Flow.Action.RequestBlockingAction.class));
+        .tryCommitBlockingResponse(
+            any(TraceSegment.class), any(Flow.Action.RequestBlockingAction.class));
 
     assertFalse(GlassFishBlockingHelper.tryBlock(reqCtx, null, null, rba(403)));
 
@@ -412,7 +413,8 @@ class GlassFishBlockingHelperTest {
   /** A {@link BlockResponseFunction} whose commit attempt succeeds. */
   private static BlockResponseFunction mockCommittingBrf() {
     BlockResponseFunction brf = mock(BlockResponseFunction.class);
-    when(brf.tryCommitBlockingResponse(any(), any(Flow.Action.RequestBlockingAction.class)))
+    when(brf.tryCommitBlockingResponse(
+            any(TraceSegment.class), any(Flow.Action.RequestBlockingAction.class)))
         .thenReturn(true);
     return brf;
   }
