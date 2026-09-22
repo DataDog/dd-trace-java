@@ -378,3 +378,5 @@
 **/build.gradle.kts                                @DataDog/apm-lang-platform-java
 **/gradle.lockfile                                 @DataDog/apm-lang-platform-java
 /dd-java-agent/instrumentation/**/gradle.lockfile  @DataDog/apm-idm-java
+
+/dd-java-agent/instrumentation/netty/netty-concurrent-4.0/src/main/java/datadog/trace/instrumentation/netty40/concurrent/ScheduledTaskScope.java @DataDog/apm-java @DataDog/apm-idm-java

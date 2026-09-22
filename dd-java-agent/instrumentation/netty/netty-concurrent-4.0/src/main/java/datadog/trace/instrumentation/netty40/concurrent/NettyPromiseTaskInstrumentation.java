@@ -1,13 +1,17 @@
 package datadog.trace.instrumentation.netty40.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEndsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.startTaskScope;
 import static java.util.Collections.singletonMap;
+import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
@@ -40,9 +44,9 @@ public final class NettyPromiseTaskInstrumentation extends InstrumenterModule.Co
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return nameEndsWith(".netty.util.concurrent.PromiseTask")
+    return extendsClass(nameEndsWith(".netty.util.concurrent.PromiseTask"))
         .and(implementsInterface(named(RunnableFuture.class.getName())))
-        .and(declaresMethod(named("runTask")));
+        .and(hasSuperType(declaresMethod(named("runTask"))));
   }
 
   @Override
@@ -51,21 +55,63 @@ public final class NettyPromiseTaskInstrumentation extends InstrumenterModule.Co
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {packageName + ".ScheduledTaskScope"};
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isMethod().and(named("runTask")), getClass().getName() + "$RunTask");
+    transformer.applyAdvice(
+        isMethod().and(named("runTask")).and(takesNoArguments()),
+        getClass().getName() + "$RunTask");
+    transformer.applyAdvice(
+        isMethod()
+            .and(named("run"))
+            .and(takesNoArguments())
+            .and(isDeclaredBy(nameEndsWith(".netty.util.concurrent.ScheduledFutureTask"))),
+        getClass().getName() + "$Run");
   }
 
   public static final class RunTask {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope activate(@Advice.This RunnableFuture<?> task) {
-      return task instanceof ScheduledFuture
-          ? startTaskScope(InstrumentationContext.get(RunnableFuture.class, State.class), task)
-          : null;
+    public static void activate(@Advice.This RunnableFuture<?> task) {
+      if (task instanceof ScheduledFuture) {
+        ContextScope scope =
+            startTaskScope(InstrumentationContext.get(RunnableFuture.class, State.class), task);
+        if (scope != null) {
+          ScheduledTaskScope state = ScheduledTaskScope.CURRENT.get();
+          if (state == null) {
+            state = new ScheduledTaskScope();
+            ScheduledTaskScope.CURRENT.set(state);
+          }
+          state.scope = scope;
+          state.depth++;
+        }
+      }
+    }
+  }
+
+  public static final class Run {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ContextScope before(@Advice.Local("depth") int depth) {
+      ScheduledTaskScope state = ScheduledTaskScope.CURRENT.get();
+      if (state != null) {
+        depth = state.depth;
+        return state.scope;
+      }
+      return null;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void close(@Advice.Enter ContextScope scope) {
-      endTaskScope(scope);
+    public static void after(
+        @Advice.Enter ContextScope previous, @Advice.Local("depth") int depth) {
+      ScheduledTaskScope state = ScheduledTaskScope.CURRENT.get();
+      if (state != null && state.depth > depth) {
+        ContextScope scope = state.scope;
+        state.scope = previous;
+        state.depth = depth;
+        endTaskScope(scope);
+      }
     }
   }
 }

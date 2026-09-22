@@ -8,6 +8,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.context.ContextScope;
@@ -16,8 +18,10 @@ import datadog.trace.api.Trace;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.netty.util.concurrent.DefaultEventExecutorGroup;
 import io.netty.util.concurrent.EventExecutor;
+import io.netty.util.concurrent.ScheduledFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumentationTest {
@@ -104,6 +108,62 @@ class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumenta
               SORT_BY_START_TIME,
               span().root().operationName("parent"),
               span().childOfPrevious().operationName("asyncChild")));
+    }
+  }
+
+  @Test
+  void testSuccessListenerKeepsSchedulingContext() throws Exception {
+    assertCompletionListenerContext(false);
+  }
+
+  @Test
+  void testFailureListenerKeepsSchedulingContext() throws Exception {
+    assertCompletionListenerContext(true);
+  }
+
+  private void assertCompletionListenerContext(boolean fail) throws Exception {
+    try (CloseableDefaultEventExecutorGroup group = new CloseableDefaultEventExecutorGroup()) {
+      EventExecutor executor = group.next();
+      // Start the worker before capturing the scheduling span.
+      executor.submit(() -> {}).sync();
+      CountDownLatch proceed = new CountDownLatch(1);
+      CountDownLatch completed = new CountDownLatch(1);
+      AtomicReference<AgentSpan> listenerSpan = new AtomicReference<>();
+      AgentSpan parent = startSpan("test", "parent");
+      ScheduledFuture<?> future;
+      try (ContextScope ignored = activateSpan(parent)) {
+        future =
+            executor.schedule(
+                () -> {
+                  try {
+                    if (!proceed.await(5, SECONDS)) {
+                      throw new AssertionError("Listener was not registered");
+                    }
+                  } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new AssertionError(e);
+                  }
+                  if (fail) {
+                    throw new IllegalStateException("expected task failure");
+                  }
+                },
+                50,
+                MILLISECONDS);
+      } finally {
+        parent.finish();
+      }
+      // Register without a span so listener instrumentation cannot mask early scope closure.
+      future.addListener(
+          done -> {
+            listenerSpan.set(activeSpan());
+            completed.countDown();
+          });
+      proceed.countDown();
+      assertTrue(completed.await(5, SECONDS));
+      assertSame(parent, listenerSpan.get());
+      assertTrue(fail != future.isSuccess());
+      assertNull(executor.submit(() -> (Object) activeSpan()).get(5, SECONDS));
+      assertTraces(trace(span().root().operationName("parent")));
     }
   }
 
