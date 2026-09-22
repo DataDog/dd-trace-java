@@ -248,10 +248,10 @@ public class BodyParserHelpers {
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
       BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
       if (brf != null) {
-        boolean success = brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-        if (success) {
-          throw new BlockingException("Blocked request (multipart file upload)");
-        }
+        // play runs on netty, which commits the blocking response synchronously and calls
+        // TraceSegment#effectivelyBlocked() itself: never call it here
+        brf.tryCommitBlockingResponse(reqCtx, rba);
+        throw new BlockingException("Blocked request (multipart file upload)");
       }
     }
   }
@@ -333,10 +333,10 @@ public class BodyParserHelpers {
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
       BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
       if (brf != null) {
-        boolean success = brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-        if (success) {
-          throw new BlockingException("Blocked request (multipart file upload content)");
-        }
+        // play runs on netty, which commits the blocking response synchronously and calls
+        // TraceSegment#effectivelyBlocked() itself: never call it here
+        brf.tryCommitBlockingResponse(reqCtx, rba);
+        throw new BlockingException("Blocked request (multipart file upload content)");
       }
     }
   }
@@ -370,11 +370,10 @@ public class BodyParserHelpers {
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
       BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
       if (blockResponseFunction != null) {
-        boolean success =
-            blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-        if (success) {
-          throw new BlockingException("Blocked request (for " + details + ")");
-        }
+        // play runs on netty, which commits the blocking response synchronously and calls
+        // TraceSegment#effectivelyBlocked() itself: never call it here
+        blockResponseFunction.tryCommitBlockingResponse(reqCtx, rba);
+        throw new BlockingException("Blocked request (for " + details + ")");
       }
     }
   }
