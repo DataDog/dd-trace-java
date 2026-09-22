@@ -49,6 +49,7 @@ dependencies {
   testImplementation group: 'com.amazonaws', name: 'aws-java-sdk-sqs', version: '[1.11,1.11.106]'
   testImplementation group: 'com.amazonaws', name: 'aws-java-sdk-sns', version: '[1.11,1.11.106]'
   testImplementation group: 'com.amazonaws', name: 'aws-java-sdk-dynamodb', version: '[1.11,1.11.106]'
+  testImplementation group: 'com.amazonaws', name: 'aws-java-sdk-stepfunctions', version: '[1.11,1.11.106]'
 
   // needed for kinesis:
   testImplementation group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-cbor', version: null
@@ -90,6 +91,13 @@ dependencies {
       strictly '1.11.0'
     }
   }
+  // aws-java-sdk-stepfunctions (test dependency below 1.11.106) only exists from 1.11.63 and would
+  // otherwise pull a newer core than the 1.11.0 clients pinned above.
+  test_before_1_11_106Implementation(group: 'com.amazonaws', name: 'aws-java-sdk-core') {
+    version {
+      strictly '1.11.0'
+    }
+  }
 
   dsmTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-kinesis', version: '1.12.366'
   // no batch publish before v1.12
@@ -104,6 +112,7 @@ dependencies {
   latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-sqs', version: '+'
   latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-sns', version: '+'
   latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-dynamodb', version: '+'
+  latestDepTestImplementation group: 'com.amazonaws', name: 'aws-java-sdk-stepfunctions', version: '+'
 }
 
 tasks.named("test", Test) {

@@ -227,7 +227,7 @@ class LegacyAWS1ClientForkedTest extends InstrumentationSpecification {
             <ResponseMetadata><RequestId>27daac76-34dd-47df-bd01-1f6e873584a0</RequestId></ResponseMetadata>
         </SendMessageResponse>
       """ | "/SendMessageResponse/SendMessageResult"
-    "SNS"        | "Publish"           | "sns"          | "POST" | "/"                   | AmazonSNSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.publish(new PublishRequest("arn:aws:sns::123:some-topic", "")) }       | ["aws.topic.name": "some-topic", "topicname": "some-topic"]  | """
+    "SNS"        | "Publish"           | "sns"          | "POST" | "/"                   | AmazonSNSClientBuilder.standard().withEndpointConfiguration(endpoint).withCredentials(credentialsProvider).build()                                 | { c -> c.publish(new PublishRequest("arn:aws:sns::123:some-topic", "")) }       | ["aws.topic.name": "some-topic", "topicname": "some-topic", "aws.topic.arn": "arn:aws:sns::123:some-topic", "aws.sns.topic_arn": "arn:aws:sns::123:some-topic"]  | """
         <PublishResponse xmlns="https://sns.amazonaws.com/doc/2010-03-31/">
             <PublishResult>
                 <MessageId>567910cd-659e-55d4-8ccb-5aaf14679dc0</MessageId>
