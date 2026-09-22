@@ -33,6 +33,8 @@ testJvmConstraints {
 }
 
 dependencies {
+  testImplementation project(':dd-java-agent:instrumentation:netty:netty-concurrent-4.0')
+
   compileOnly group: 'org.apache.spark', name: 'spark-core_2.12', version: '2.4.0'
   compileOnly group: 'org.apache.spark', name: 'spark-sql_2.12', version: '2.4.0'
 

@@ -102,6 +102,7 @@ dependencies {
   routeGeneratorImplementation libs.scala213
   routeGeneratorImplementation group: 'com.typesafe.play', name: "routes-compiler_2.13", version: '2.+'
 
+  testImplementation project(':dd-java-agent:instrumentation:netty:netty-concurrent-4.0')
   testImplementation libs.scala213
   testImplementation project(':dd-java-agent:instrumentation:play:play-2.6')
   // Inherited tests needs play-appsec-2.6 instrumentation

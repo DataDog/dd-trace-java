@@ -29,6 +29,7 @@ tasks.named("latestDepTest", Test) {
 dependencies {
   compileOnly group: 'io.vertx', name: 'vertx-pg-client', version: '4.1.1'
 
+  testImplementation project(':dd-java-agent:instrumentation:netty:netty-concurrent-4.0')
   testImplementation group: 'io.vertx', name: 'vertx-pg-client', version: '4.1.1'
   testRuntimeOnly project(':dd-java-agent:instrumentation:vertx:vertx-sql-client-3.9')
   testRuntimeOnly project(':dd-java-agent:instrumentation:vertx:vertx-pg-client:vertx-pg-client-4.4.2')

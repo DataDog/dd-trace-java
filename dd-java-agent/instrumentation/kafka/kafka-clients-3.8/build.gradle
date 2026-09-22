@@ -42,6 +42,7 @@ dependencies {
   main_java17CompileOnly group: 'org.apache.kafka', name: 'kafka-clients', version: '3.8.0'
   main_java17Implementation project(':dd-java-agent:instrumentation:kafka:kafka-common')
 
+  testImplementation project(':dd-java-agent:instrumentation:netty:netty-concurrent-4.0')
   testImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '3.3.4', {
     exclude group: 'org.apache.kafka'
   }

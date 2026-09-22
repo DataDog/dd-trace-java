@@ -76,6 +76,7 @@ dependencies {
   jetty9LatestDepTestImplementation "org.eclipse.jetty:jetty-servlet:9.+",  {
     exclude group: 'org.slf4j', module: 'slf4j-api'
   }
+  testImplementation project(':dd-java-agent:instrumentation:netty:netty-concurrent-4.0')
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0'))
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0'))
