@@ -25,6 +25,8 @@ import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
+import datadog.trace.instrumentation.aws.AwsAccountIdentity;
+import datadog.trace.instrumentation.aws.AwsArn;
 import java.net.URI;
 import java.util.List;
 import java.util.Locale;
@@ -179,12 +181,26 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     }
     String tableName = access.getTableName(originalRequest);
     if (null != tableName) {
+      // A DynamoDB TableName given as an ARN carries the owning account. SDK v1 does not expose
+      // the signing credentials to request handlers, so a bare name yields no account here. The
+      // existing table name tags keep the value as given, ARN or not. Other services with a
+      // TableName member (Timestream, Keyspaces, ...) only get the plain table name tags.
+      AwsArn arn =
+          awsSimplifiedServiceName != null && awsSimplifiedServiceName.startsWith("dynamodb")
+              ? AwsArn.parse(tableName)
+              : null;
+      if (arn != null) {
+        span.setTag(InstrumentationTags.AWS_TABLE_ARN, arn.raw());
+        String account = arn.account();
+        if (account != null) {
+          span.setTag(InstrumentationTags.AWS_ACCOUNT, account);
+        }
+      }
       span.setTag(InstrumentationTags.AWS_TABLE_NAME, tableName);
       span.setTag(InstrumentationTags.TABLE_NAME, tableName);
       bestPrecursor = InstrumentationTags.AWS_TABLE_NAME;
       bestPeerService = tableName;
     }
-
     // Set peer.service based on Config for serverless functions
     if (Config.get().isAwsServerless()) {
       URI uri = request.getEndpoint();
@@ -244,6 +260,23 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
             break;
         }
       }
+    }
+  }
+
+  /**
+   * Tags derived from the request that are only trustworthy once the service accepted it. S3
+   * enforces {@code ExpectedBucketOwner} (403 on mismatch), so the asserted owner names the bucket
+   * owner only on a successful response.
+   */
+  public void onSuccessfulRequest(final AgentSpan span, final Request<?> request) {
+    if (!"s3".equalsIgnoreCase(simplifyServiceName(request.getServiceName()))) {
+      return;
+    }
+    final AmazonWebServiceRequest originalRequest = request.getOriginalRequest();
+    final String expectedBucketOwner =
+        GetterAccess.of(originalRequest).getExpectedBucketOwner(originalRequest);
+    if (AwsAccountIdentity.isAccountId(expectedBucketOwner)) {
+      span.setTag(InstrumentationTags.AWS_ACCOUNT, expectedBucketOwner);
     }
   }
 

@@ -20,7 +20,9 @@ public final class AwsSdkModule extends InstrumenterModule.Tracing {
   public String[] helperClassNames() {
     return new String[] {
       "datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator",
-      "datadog.trace.instrumentation.aws.v2.TracingExecutionInterceptor"
+      "datadog.trace.instrumentation.aws.v2.TracingExecutionInterceptor",
+      "datadog.trace.instrumentation.aws.AwsAccountIdentity",
+      "datadog.trace.instrumentation.aws.AwsArn"
     };
   }
 
