@@ -150,6 +150,7 @@ public class TomcatDecorator
 
   public static class TomcatBlockResponseFunction implements BlockResponseFunction {
     private final Request request;
+    private volatile boolean blockingResponseInitiated;
 
     public TomcatBlockResponseFunction(Request request) {
       this.request = request;
@@ -162,14 +163,27 @@ public class TomcatDecorator
         BlockingContentType bct,
         Map<String, String> extraHeaders,
         String securityResponseId) {
-      return TomcatBlockingHelper.commitBlockingResponse(
-          segment,
-          request,
-          request.getResponse(),
-          statusCode,
-          bct,
-          extraHeaders,
-          securityResponseId);
+      // A single request can trigger multiple blocking evaluations (e.g. one per multipart
+      // part / body-parsing pass). Once a block has already been committed successfully, the
+      // response being committed on a later call is expected, not a failure - treat later
+      // calls as already handled rather than re-evaluating and reporting a spurious
+      // block_failure for a block that actually succeeded.
+      if (blockingResponseInitiated) {
+        return true;
+      }
+      boolean committed =
+          TomcatBlockingHelper.commitBlockingResponse(
+              segment,
+              request,
+              request.getResponse(),
+              statusCode,
+              bct,
+              extraHeaders,
+              securityResponseId);
+      if (committed) {
+        blockingResponseInitiated = true;
+      }
+      return committed;
     }
   }
 }
