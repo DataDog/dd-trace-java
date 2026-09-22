@@ -243,8 +243,12 @@ public class ProcessImplInstrumentationHelpers {
         BlockResponseFunction brf = ctx.getBlockResponseFunction();
         if (brf != null) {
           Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-          brf.tryCommitBlockingResponse(ctx.getTraceSegment(), rba);
+          if (brf.tryCommitBlockingResponse(ctx, rba)) {
+            ctx.getTraceSegment().effectivelyBlocked();
+          }
         }
+        // Thrown even without a BlockResponseFunction: RASP must abort the exec attempt even when
+        // no blocking response can be committed.
         throw new BlockingException("Blocked request (for CMDI attempt)");
       }
     } catch (final BlockingException e) {
@@ -294,8 +298,12 @@ public class ProcessImplInstrumentationHelpers {
         BlockResponseFunction brf = ctx.getBlockResponseFunction();
         if (brf != null) {
           Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-          brf.tryCommitBlockingResponse(ctx.getTraceSegment(), rba);
+          if (brf.tryCommitBlockingResponse(ctx, rba)) {
+            ctx.getTraceSegment().effectivelyBlocked();
+          }
         }
+        // Thrown even without a BlockResponseFunction: RASP must abort the shell command attempt
+        // even when no blocking response can be committed.
         throw new BlockingException("Blocked request (for SHI attempt)");
       }
     } catch (final BlockingException e) {
