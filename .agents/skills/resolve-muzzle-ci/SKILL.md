@@ -13,6 +13,12 @@ description: >
 Treat the failing task and its first causal exception as the routing evidence. A failed job that
 happens to download dependencies is not necessarily a muzzle failure.
 
+Match the user's requested scope. For investigation-only requests, gather evidence and report the
+classification, root cause, and proposed remedy; stop before editing repository files, retrying CI,
+or creating Jira issues unless those actions are also authorized. Requests to fix or resolve the
+failure proceed through implementation and verification without another confirmation for already
+authorized work. Apply the separate CI-retry and Jira authorization rules below.
+
 ## Confirm and chime in
 
 For GitLab job logs, read [CI log access](references/ci-log-access.md) when CLI authentication or

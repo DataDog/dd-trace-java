@@ -21,6 +21,12 @@ created. When they do, use the Jira project/board they supplied or established r
 context. If it is unknown, ask: `Which Jira project or board should receive the muzzle follow-up?`
 Continue safe local work while waiting, but do not guess a project key.
 
+Before creating a ticket, check supplied issue links and search the selected project for the same
+integration, artifact, and unsupported version or version line. Reuse a ticket that already covers
+restoring this support and report its key; do not create a duplicate. Updating an existing ticket
+requires authorization for that update. If search is unavailable, report that duplicate detection
+could not be completed and provide a draft rather than claiming no matching issue exists.
+
 Use `.github/CODEOWNERS` and nearby ownership metadata to suggest the related team. If ownership is
 ambiguous, leave assignment open and state the candidate teams rather than guessing an assignee.
 
