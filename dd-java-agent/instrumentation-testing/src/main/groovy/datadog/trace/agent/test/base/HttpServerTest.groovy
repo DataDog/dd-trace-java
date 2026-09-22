@@ -12,6 +12,7 @@ import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.ProductActivation
+import datadog.trace.api.appsec.AppSecContext
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.datastreams.DataStreamsContext
@@ -26,6 +27,7 @@ import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.api.iast.IastContext
+import datadog.trace.api.internal.TraceSegment
 import datadog.trace.api.normalize.SimpleHttpPathNormalizer
 import datadog.trace.api.rum.RumInjector
 import datadog.trace.api.telemetry.Endpoint
@@ -414,6 +416,21 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   boolean testBlockingErrorTypeSet() {
     true
+  }
+
+  /**
+   * Whether the server instrumentation reports a block failure (see {@code
+   * AppSecContext#reportBlockFailure()}) when the blocking response cannot be committed. Opt in by
+   * overriding this once the framework call sites go through {@code
+   * BlockResponseFunction#tryCommitBlockingResponse(RequestContext, RequestBlockingAction)}.
+   */
+  boolean testBlockFailure() {
+    false
+  }
+
+  /** The blocking point exercised by the block failure test. */
+  BlockFailureVariant blockFailureVariant() {
+    BlockFailureVariant.REQUEST_HEADERS
   }
 
   /** Tomcat 5.5 can't seem to handle the encoded URIs */
@@ -2072,6 +2089,44 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
+  def 'test block failure is reported when the blocking response cannot be committed'() {
+    setup:
+    assumeTrue(testBlockFailure())
+    def variant = blockFailureVariant()
+    assumeTrue(variant != BlockFailureVariant.PATH_PARAMS || testPathParam() != null)
+    IGCallbacks.Context.blockFailureReported = false
+
+    def request = request(variant.endpoint, 'GET', null)
+    .header(variant.header, variant.headerValue)
+    .header(IG_BLOCK_FAIL_HEADER, 'true')
+    .build()
+
+    when:
+    def response = executeIgnoringIoErrors(request)
+
+    then: 'no blocking response was committed'
+    response == null || !(response.code() in [301, 413, 418])
+
+    and: 'the failure to block was reported to the AppSec context'
+    IGCallbacks.Context.blockFailureReported
+  }
+
+  /**
+   * Executes a request that is expected not to produce a blocking response. When the blocking
+   * response cannot be committed the server may have nothing left to write, so the connection can
+   * be closed without a complete HTTP response.
+   */
+  protected Response executeIgnoringIoErrors(Request request) {
+    try {
+      def response = client.newCall(request).execute()
+      response.body().bytes()
+      response.close()
+      response
+    } catch (IOException ignored) {
+      null
+    }
+  }
+
   @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/7061", suites = ["JettyContinuationHandlerV0ForkedTest", "JettyContinuationHandlerV1ForkedTest"])
   def 'test blocking of request for request body variant #variant'() {
     setup:
@@ -2699,6 +2754,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   static final String IG_EXTRA_SPAN_NAME_HEADER = "x-ig-write-tags"
   static final String IG_TEST_HEADER = "x-ig-test-header"
   static final String IG_BLOCK_HEADER = "x-block"
+  static final String IG_BLOCK_FAIL_HEADER = "x-block-fail"
   static final String IG_BLOCK_RESPONSE_HEADER = "x-block-response"
   static final String IG_PARAMETERS_BLOCK_HEADER = "x-block-parameters"
   static final String IG_BODY_END_BLOCK_HEADER = "x-block-body-end"
@@ -2714,8 +2770,60 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   static final String IG_PATH_PARAMS_TAG = "ig-path-params"
   static final String IG_SESSION_ID_TAG = "ig-session-id"
 
+  /**
+   * The blocking point at which a test suite wants the block failure test to be exercised. Each
+   * variant pairs the endpoint to hit with the instrumentation gateway header that makes the fake
+   * AppSec callbacks block there.
+   */
+  static enum BlockFailureVariant {
+    /** Blocks on {@code requestHeaderDone}, supported by every blocking instrumentation. */
+    REQUEST_HEADERS(SUCCESS, IG_BLOCK_HEADER, 'json'),
+    /** Blocks on {@code requestPathParams}, for instrumentations that only publish path params. */
+    PATH_PARAMS(PATH_PARAM, IG_PARAMETERS_BLOCK_HEADER, 'true')
+
+    final ServerEndpoint endpoint
+    final String header
+    final String headerValue
+
+    private BlockFailureVariant(ServerEndpoint endpoint, String header, String headerValue) {
+      this.endpoint = endpoint
+      this.header = header
+      this.headerValue = headerValue
+    }
+  }
+
+  /** Simulates a server that cannot commit the blocking response. */
+  static enum FailingBlockResponseFunction implements BlockResponseFunction {
+    INSTANCE
+
+    @Override
+    boolean tryCommitBlockingResponse(TraceSegment segment, int statusCode,
+    BlockingContentType templateType, Map<String, String> extraHeaders, String securityResponseId) {
+      false
+    }
+  }
+
   class IGCallbacks {
-    static class Context {
+    static class Context implements AppSecContext {
+      /**
+       * Set by the last request that reported a block failure. Tests that read it reset it first;
+       * it has to be static because the assertion happens outside the request context.
+       */
+      static volatile boolean blockFailureReported
+
+      /** Replaces the server's block response function with one that fails to commit. */
+      boolean failBlocking
+
+      @Override
+      boolean isManuallyKept() {
+        false
+      }
+
+      @Override
+      void reportBlockFailure() {
+        blockFailureReported = true
+      }
+
       String matchingHeaderValue
       String doneHeaderValue
       String extraSpanName
@@ -2737,6 +2845,20 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     static final String stringOrEmpty(String string) {
       string == null ? "" : string
+    }
+
+    /**
+     * Builds the blocking flow for a blocking point. When the request asked for a block failure
+     * (see {@link HttpServerTest#IG_BLOCK_FAIL_HEADER}), the server's block response function is
+     * first replaced by one that cannot commit, so the instrumentation is expected to report a
+     * block failure on the AppSec context.
+     */
+    static final Flow<Void> blockingFlow(RequestContext rqCtxt, Flow.Action.RequestBlockingAction action) {
+      Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
+      if (context?.failBlocking) {
+        rqCtxt.blockResponseFunction = FailingBlockResponseFunction.INSTANCE
+      }
+      new RbaFlow(action)
     }
 
     final Supplier<Flow<Context>> requestStartedCb =
@@ -2779,6 +2901,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       if (IG_BLOCK_HEADER.equalsIgnoreCase(key)) {
         context.blockingContentType = value
       }
+      if (IG_BLOCK_FAIL_HEADER.equalsIgnoreCase(key)) {
+        context.failBlocking = true
+      }
       if (IG_BLOCK_RESPONSE_HEADER.equalsIgnoreCase(key)) {
         context.responseBlock = value
       }
@@ -2808,11 +2933,11 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
 
       if (context.blockingContentType && context.blockingContentType != 'none') {
-        new RbaFlow(
+        blockingFlow(rqCtxt,
         new Flow.Action.RequestBlockingAction(418,
         BlockingContentType.valueOf(context.blockingContentType.toUpperCase(Locale.ROOT))))
       } else if (context.blockingContentType && context.blockingContentType == 'none') {
-        new RbaFlow(
+        blockingFlow(rqCtxt,
         Flow.Action.RequestBlockingAction.forRedirect(301, 'https://www.google.com/'))
       } else {
         Flow.ResultFlow.empty()
@@ -2862,7 +2987,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       }
       activeSpan().localRootSpan.setTag('request.body', supplier.get() as String)
       if (context.bodyEndBlock) {
-        new RbaFlow(
+        blockingFlow(rqCtxt,
         new Flow.Action.RequestBlockingAction(413, BlockingContentType.JSON)
         )
       } else {
@@ -2892,7 +3017,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       rqCtxt.traceSegment.setTagTop('request.body.converted', obj as String)
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
       if (context.bodyConvertedBlock) {
-        new RbaFlow(
+        blockingFlow(rqCtxt,
         new Flow.Action.RequestBlockingAction(413, BlockingContentType.JSON)
         )
       } else {
@@ -2936,7 +3061,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
       context.responseBody = body
       if (context.responseBlock) {
-        new RbaFlow(
+        blockingFlow(rqCtxt,
         new Flow.Action.RequestBlockingAction(413, BlockingContentType.JSON)
         )
       } else {
@@ -2971,12 +3096,12 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         context.tags.put(IG_RESPONSE_HEADER_TAG, context.igResponseHeaderValue)
       }
       if (context.responseBlock == 'none') {
-        new RbaFlow(
+        blockingFlow(rqCtxt,
         new Flow.Action.RequestBlockingAction(301, BlockingContentType.NONE,
         [Location: 'https://www.google.com/'])
         )
       } else if (context.responseBlock == 'json') {
-        new RbaFlow(
+        blockingFlow(rqCtxt,
         new Flow.Action.RequestBlockingAction(413, BlockingContentType.JSON)
         )
       } else {
@@ -2988,7 +3113,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       RequestContext rqCtxt, Map<String, ?> map ->
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
       if (context.parametersBlock) {
-        return new RbaFlow(
+        return blockingFlow(rqCtxt,
         new Flow.Action.RequestBlockingAction(413, BlockingContentType.JSON)
         )
       }
