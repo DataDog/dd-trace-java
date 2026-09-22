@@ -105,8 +105,63 @@ class ScopeResolutionTest {
     assertResolvedOnce();
   }
 
+  @Test
+  void duplicateScopeClosesWithBothExitsBelowSentinelAreNotReportedAsLeaked() {
+    ScopeContinuationProbe.ResolveAttempt first = enter("cancelFromContinuedScopeClose", 1);
+    ScopeContinuationProbe.ResolveAttempt second = enter("cancelFromContinuedScopeClose", 1);
+    ScopeContinuationProbe.onResolveExit(second, CANCELLED - 1);
+    ScopeContinuationProbe.onResolveExit(first, CANCELLED - 1);
+    assertDuplicateWithoutLeak();
+  }
+
+  @Test
+  void duplicateScopeCloseAfterSuccessfulCloseIsReported() {
+    ScopeContinuationProbe.ResolveAttempt first = enter("cancelFromContinuedScopeClose", 1);
+    ScopeContinuationProbe.ResolveAttempt second = enter("cancelFromContinuedScopeClose", 1);
+    ScopeContinuationProbe.onResolveExit(second, CANCELLED);
+    ScopeContinuationProbe.onResolveExit(first, CANCELLED - 1);
+    assertDuplicateWithoutLeak();
+  }
+
+  @Test
+  void underflowBeforeSuccessfulCloseAdviceIsAlreadyDuplicateEvidence() {
+    ScopeContinuationProbe.ResolveAttempt first = enter("cancelFromContinuedScopeClose", 1);
+    ScopeContinuationProbe.ResolveAttempt second = enter("cancelFromContinuedScopeClose", 1);
+    ScopeContinuationProbe.onResolveExit(second, CANCELLED - 1);
+    try {
+      assertDuplicateWithoutLeak();
+    } finally {
+      // The successful close sampled CANCELLED, but its recorder callback was delayed.
+      ScopeContinuationProbe.onResolveExit(first, CANCELLED);
+    }
+    assertDuplicateWithoutLeak();
+  }
+
+  @Test
+  void furtherCloseAfterCounterUnderflowRemainsAReportedDuplicate() {
+    ScopeContinuationProbe.onResolveExit(enter("cancelFromContinuedScopeClose", 1), CANCELLED);
+    ScopeContinuationProbe.onResolveExit(
+        enter("cancelFromContinuedScopeClose", CANCELLED - 1), CANCELLED - 2);
+    assertDuplicateWithoutLeak();
+  }
+
+  @Test
+  void legitimateScopeClosesObservingTheSameTerminalStateAreNotDuplicates() {
+    ScopeContinuationProbe.ResolveAttempt first = enter("cancelFromContinuedScopeClose", 2);
+    ScopeContinuationProbe.ResolveAttempt second = enter("cancelFromContinuedScopeClose", 1);
+    ScopeContinuationProbe.onResolveExit(second, CANCELLED);
+    ScopeContinuationProbe.onResolveExit(first, CANCELLED);
+    assertResolvedOnce();
+  }
+
   private ScopeContinuationProbe.ResolveAttempt enter(String method, int count) {
     return ScopeContinuationProbe.onResolveEnter(continuation, method, count);
+  }
+
+  private void assertDuplicateWithoutLeak() {
+    ScopeDiagnosticsReport report = ScopeDiagnostics.report();
+    assertEquals(0, report.leakCount());
+    assertEquals(1, report.doubleCount());
   }
 
   private void assertResolvedOnce() {

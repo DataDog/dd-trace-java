@@ -113,7 +113,7 @@ public final class ScopeContinuationProbe {
       return;
     }
     try {
-      if (attempt.countBefore != CANCELLED && countAfter != CANCELLED) {
+      if (attempt.countBefore > CANCELLED && countAfter > CANCELLED) {
         return;
       }
       // Scope cleanup's slow path calls release(): only the outer close owns that event.
@@ -131,7 +131,7 @@ public final class ScopeContinuationProbe {
           attempt.continuation,
           attempt.release,
           attempt.nanos,
-          attempt.countBefore == CANCELLED);
+          attempt.countBefore <= CANCELLED || countAfter < CANCELLED);
     } catch (Throwable ignored) {
     } finally {
       if (attempt.previous == null) {
