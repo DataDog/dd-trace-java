@@ -117,4 +117,11 @@ class SamplingMechanismTest extends DDSpecification {
     DATA_JOBS         | SAMPLER_KEEP | false
     EXTERNAL_OVERRIDE | SAMPLER_KEEP | false
   }
+
+  void 'rate limiter rejection marker ignores negative mechanisms'() {
+    expect:
+    markRateLimiterRejected(EXTERNAL_OVERRIDE) == EXTERNAL_OVERRIDE
+    !isRateLimiterRejected(EXTERNAL_OVERRIDE)
+    clearRateLimiterRejected(EXTERNAL_OVERRIDE) == EXTERNAL_OVERRIDE
+  }
 }

@@ -52,14 +52,20 @@ public class SamplingMechanism {
   public static final byte EXTERNAL_OVERRIDE = Byte.MIN_VALUE;
 
   public static int markRateLimiterRejected(int mechanism) {
+    if (mechanism < 0) {
+      return mechanism;
+    }
     return mechanism | RATE_LIMITER_REJECTED;
   }
 
   public static boolean isRateLimiterRejected(int mechanism) {
-    return (mechanism & RATE_LIMITER_REJECTED) != 0;
+    return mechanism >= 0 && (mechanism & RATE_LIMITER_REJECTED) != 0;
   }
 
   public static int clearRateLimiterRejected(int mechanism) {
+    if (mechanism < 0) {
+      return mechanism;
+    }
     return mechanism & ~RATE_LIMITER_REJECTED;
   }
 
