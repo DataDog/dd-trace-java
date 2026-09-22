@@ -204,7 +204,6 @@ org.junit.platform:junit-platform-runner:1.14.1=latestDepTestRuntimeClasspath,te
 org.junit.platform:junit-platform-suite-api:1.14.1=latestDepTestRuntimeClasspath,testRuntimeClasspath
 org.junit.platform:junit-platform-suite-commons:1.14.1=latestDepTestRuntimeClasspath,testRuntimeClasspath
 org.junit:junit-bom:5.14.1=latestDepTestCompileClasspath,latestDepTestImplementationDependenciesMetadata,latestDepTestRuntimeClasspath,testCompileClasspath,testImplementationDependenciesMetadata,testRuntimeClasspath
-org.junit:junit-bom:6.1.2=spotbugs
 org.lz4:lz4-java:1.8.0=latestDepTestRuntimeClasspath,testRuntimeClasspath
 org.mockito:mockito-core:4.4.0=latestDepTestRuntimeClasspath,testRuntimeClasspath
 org.objenesis:objenesis:3.3=latestDepTestCompileClasspath,latestDepTestImplementationDependenciesMetadata,latestDepTestRuntimeClasspath,testCompileClasspath,testImplementationDependenciesMetadata,testRuntimeClasspath

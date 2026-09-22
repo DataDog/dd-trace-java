@@ -6,6 +6,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.APACHE_HTTP_CLIENT;
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.HTTP_REQUEST;
@@ -15,10 +16,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.context.ContextContinuation;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import net.bytebuddy.asm.Advice;
@@ -109,14 +110,14 @@ public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tra
   public static class ClientAdvice {
     @SuppressFBWarnings("UC_USELESS_OBJECT")
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter(
+    public static ContextScope methodEnter(
         @Advice.Argument(value = 0, readOnly = false) AsyncRequestProducer requestProducer,
         @Advice.Argument(value = 3, readOnly = false) HttpContext context,
         @Advice.Argument(value = 4, readOnly = false) FutureCallback<?> futureCallback) {
 
       final ContextContinuation parentContinuation = currentContext().capture();
       final AgentSpan clientSpan = startSpan(APACHE_HTTP_CLIENT.toString(), HTTP_REQUEST);
-      final AgentScope clientScope = activateSpan(clientSpan);
+      final ContextScope clientScope = activateSpan(clientSpan);
       DECORATE.afterStart(clientSpan);
 
       if (context == null) {
@@ -137,13 +138,13 @@ public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tra
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Return final Object result,
         @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
       }
-      final AgentSpan span = scope.span();
+      final AgentSpan span = spanFromScope(scope);
       if (throwable != null) {
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);

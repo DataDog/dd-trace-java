@@ -66,7 +66,6 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
@@ -1226,12 +1225,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
-  public AgentScope activateSpan(AgentSpan span) {
+  public ContextScope activateSpan(AgentSpan span) {
     return scopeManager.activateSpan(span);
   }
 
   @Override
-  public AgentScope activateManualSpan(final AgentSpan span) {
+  public ContextScope activateManualSpan(final AgentSpan span) {
     return scopeManager.activateManualSpan(span);
   }
 
@@ -1261,7 +1260,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
-  public AgentScope activateNext(AgentSpan span) {
+  public ContextScope activateNext(AgentSpan span) {
     if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
       throw new IllegalStateException(
           "activateNext must not be called when context swap based logic is enabled");
@@ -1302,7 +1301,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   @Override
   public void closeActive() {
-    AgentScope activeScope = this.scopeManager.active();
+    ContextScope activeScope = this.scopeManager.active();
     if (activeScope != null) {
       activeScope.close();
     }
@@ -1502,7 +1501,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   @Override
   public TraceScope muteTracing() {
-    return activateSpan(blackholeSpan());
+    return activateSpan(blackholeSpan())::close;
   }
 
   @Override
@@ -2227,8 +2226,14 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       if (!tracer.allowInferredServices) {
         final DDSpan rootSpan = parentTraceCollector.getRootSpan();
         if (rootSpan != null) {
-          serviceName = rootSpan.getServiceName();
-          serviceNameSource = rootSpan.getServiceNameSource();
+          // An inferred proxy represents the gateway, not the application service.
+          // Preserve the service and source already resolved for spans beneath it.
+          // Avoid the synchronized tag lookup when inferred proxies are disabled.
+          if (!tracer.initialConfig.isInferredProxyPropagationEnabled()
+              || rootSpan.getTag("_dd.inferred_span") == null) {
+            serviceName = rootSpan.getServiceName();
+            serviceNameSource = rootSpan.getServiceNameSource();
+          }
         } else {
           serviceName = null;
         }
