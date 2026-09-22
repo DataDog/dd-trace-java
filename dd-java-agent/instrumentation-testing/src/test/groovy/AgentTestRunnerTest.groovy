@@ -5,7 +5,7 @@ import datadog.trace.agent.test.BootstrapClasspathSetupListener
 import datadog.trace.api.GlobalTracer
 import datadog.trace.api.Platform
 import datadog.trace.bootstrap.Constants
-import datadog.trace.bootstrap.instrumentation.api.AgentScope
+import datadog.context.ContextScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import spock.lang.Shared
@@ -114,7 +114,7 @@ class AgentTestRunnerTest extends InstrumentationSpecification {
 
   def "waiting for noop span returns immediately"() {
     when:
-    AgentScope scope
+    ContextScope scope
     runUnderTrace("parent") {
       scope = TEST_TRACER.activateManualSpan(noopSpan())
 

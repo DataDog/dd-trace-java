@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.rediscala.RediscalaClientDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -13,12 +14,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import akka.actor.ActorRef;
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Collections;
 import java.util.Map;
@@ -83,7 +84,7 @@ public final class RediscalaInstrumentation extends InstrumenterModule.Tracing
   public static class RediscalaAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(@Advice.Argument(0) final RedisCommand cmd) {
+    public static ContextScope onEnter(@Advice.Argument(0) final RedisCommand cmd) {
       final AgentSpan span = startSpan("redis-command", RediscalaClientDecorator.OPERATION_NAME);
       DECORATE.afterStart(span);
       DECORATE.onStatement(span, DECORATE.className(cmd.getClass()));
@@ -92,13 +93,13 @@ public final class RediscalaInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Thrown final Throwable throwable,
         @Advice.This final Object thiz,
         @Advice.FieldValue("executionContext") final ExecutionContext ctx,
         @Advice.Return(readOnly = false) final Future<Object> responseFuture) {
 
-      final AgentSpan span = scope.span();
+      final AgentSpan span = spanFromScope(scope);
       final ContextStore<ActorRef, RedisConnectionInfo> contextStore =
           InstrumentationContext.get(ActorRef.class, RedisConnectionInfo.class);
       ActorRef connection = null;

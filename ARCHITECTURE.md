@@ -157,7 +157,8 @@ Core tracing abstractions:
 
 - `AgentTracer` — Static tracer facade. Instrumentations call `AgentTracer.startSpan()`,
   `AgentTracer.activateSpan()`, etc.
-- `AgentSpan` / `AgentScope` / `AgentSpanContext` — Internal span/scope/context interfaces.
+- `AgentSpan` / `AgentSpanContext` — Internal span/context interfaces. Scopes use the tracer-agnostic
+  `ContextScope` (`components/context`); `AgentSpan.fromScope(scope)` extracts the active span from one.
 - `AgentPropagation` — Context propagation interfaces (`Getter`, `Setter`) that instrumentations
   implement to inject/extract trace context from framework-specific carriers (HTTP headers, message
   properties, etc.).

@@ -58,6 +58,7 @@ public final class ClassLoaderMatchers {
       case "org.drools.core.rule.PackageClassLoader":
       case "org.drools.wiring.dynamic.PackageClassLoader":
       case "org.drools.core.rule.JavaDialectRuntimeData$PackageClassLoader":
+      case "org.drools.wiring.dynamic.DynamicProjectClassLoader$DefaultInternalTypesClassLoader":
         return true;
     }
     if (CHECK_EXCLUDES) {

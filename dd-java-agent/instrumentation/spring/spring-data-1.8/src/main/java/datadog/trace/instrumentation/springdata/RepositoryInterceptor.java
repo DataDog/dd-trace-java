@@ -5,7 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.springdata.SpringDataDecorator.DECORATOR;
 import static datadog.trace.instrumentation.springdata.SpringDataDecorator.REPOSITORY_OPERATION;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.reflect.Method;
 import org.aopalliance.intercept.MethodInterceptor;
@@ -35,7 +35,7 @@ final class RepositoryInterceptor implements MethodInterceptor {
     DECORATOR.afterStart(span);
     DECORATOR.onOperation(span, invokedMethod, repositoryInterface);
 
-    final AgentScope scope = activateSpan(span);
+    final ContextScope scope = activateSpan(span);
 
     Object result = null;
     try {

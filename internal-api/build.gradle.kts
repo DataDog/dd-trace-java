@@ -58,6 +58,8 @@ extra["excludedClassesCoverage"] = listOf(
   // These are almost fully abstract classes so nothing to test
   "datadog.trace.api.profiling.RecordingData",
   "datadog.trace.api.appsec.AppSecEventTracker",
+  // Anonymous EventTrackerService adapter; covered by AppSecEventTrackerTest in dd-java-agent:appsec
+  "datadog.trace.api.appsec.AppSecEventTracker.1",
   // POJOs
   "datadog.trace.api.appsec.HttpClientPayload",
   "datadog.trace.api.appsec.HttpClientRequest",
@@ -85,8 +87,6 @@ extra["excludedClassesCoverage"] = listOf(
   // Caused by empty 'default' interface method
   "datadog.trace.bootstrap.instrumentation.api.AgentPropagation",
   "datadog.trace.bootstrap.instrumentation.api.AgentPropagation.ContextVisitor",
-  "datadog.trace.bootstrap.instrumentation.api.AgentScope",
-  "datadog.trace.bootstrap.instrumentation.api.AgentScope.Continuation",
   "datadog.trace.bootstrap.instrumentation.api.AgentSpan",
   "datadog.trace.bootstrap.instrumentation.api.AgentSpanContext",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer",
@@ -105,7 +105,6 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.bootstrap.instrumentation.api.InstrumentationTags",
   "datadog.trace.bootstrap.instrumentation.api.InternalContextKeys",
   "datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes",
-  "datadog.trace.bootstrap.instrumentation.api.NoopAgentScope",
   "datadog.trace.bootstrap.instrumentation.api.NoopAgentSpan",
   "datadog.trace.bootstrap.instrumentation.api.NoopContinuation",
   "datadog.trace.bootstrap.instrumentation.api.NoopScope",
