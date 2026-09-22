@@ -5,27 +5,32 @@ import io.r2dbc.proxy.core.ConnectionInfo;
 import io.r2dbc.proxy.listener.ProxyExecutionListener;
 import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryOptions;
+import java.util.Collections;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.WeakHashMap;
 
 /**
  * Wraps a {@link ConnectionFactory} with r2dbc-proxy to install a tracing listener. Also maintains
- * a mapping from {@link ConnectionInfo} to {@link ConnectionFactoryOptions} so that DBM SQL comment
- * injection can access connection metadata (host, database, driver type).
+ * a mapping from {@link ConnectionInfo} to the {@link ConnectionFactoryOptions} used to create it,
+ * so that DBM SQL comment injection can access connection metadata (host, database, driver type).
  */
 public final class R2dbcTracingSupport {
 
   /**
    * Maps R2DBC proxy {@link ConnectionInfo} instances to the {@link ConnectionFactoryOptions} used
-   * to create the connection factory. This allows the DBM SQL comment injector to resolve
-   * connection metadata (hostname, database name, db type) when intercepting {@code
-   * createStatement} calls.
+   * to create the connection factory. Read by {@link R2dbcConnectionCallbackInstrumentation} and
+   * {@link R2dbcBatchCallbackInstrumentation} to resolve connection metadata (hostname, database
+   * name, db type) when injecting DBM SQL comments.
    *
-   * <p>Entries are added when the proxy listener's {@code afterMethod} fires for {@code create()}
-   * (connection creation), and removed when the connection is closed.
+   * <p>This is a {@link WeakHashMap} keyed by {@link ConnectionInfo}: entries are evicted
+   * automatically once a {@link ConnectionInfo} becomes unreachable (i.e. its connection is no
+   * longer referenced), so a connection that is dropped abruptly — pool eviction, timeout, an
+   * unclean disconnect that never fires {@code close()} — does not leak its entry. Wrapped with
+   * {@link Collections#synchronizedMap} because r2dbc-proxy listener callbacks can fire from
+   * multiple threads.
    */
   static final Map<ConnectionInfo, ConnectionFactoryOptions> CONNECTION_OPTIONS =
-      new ConcurrentHashMap<>();
+      Collections.synchronizedMap(new WeakHashMap<>());
 
   private R2dbcTracingSupport() {}
 
@@ -50,9 +55,10 @@ public final class R2dbcTracingSupport {
   }
 
   /**
-   * A lightweight listener that tracks connection creation and close events to maintain the {@link
-   * #CONNECTION_OPTIONS} map. This allows {@link R2dbcConnectionCallbackInstrumentation} to look up
-   * connection metadata when injecting SQL comments.
+   * A lightweight listener that tracks connection creation events to associate {@link
+   * ConnectionInfo} with the {@link ConnectionFactoryOptions} used to create it. This allows {@link
+   * R2dbcConnectionCallbackInstrumentation} and {@link R2dbcBatchCallbackInstrumentation} to look
+   * up connection metadata when injecting SQL comments.
    */
   static final class ConnectionMetadataListener implements ProxyExecutionListener {
     private final ConnectionFactoryOptions options;
@@ -69,11 +75,9 @@ public final class R2dbcTracingSupport {
         return;
       }
       if ("create".equals(methodName) && execInfo.getThrown() == null) {
-        // Connection was successfully created — register the metadata
+        // Connection was successfully created — register the metadata. No explicit removal on
+        // close(): the WeakHashMap evicts the entry once this ConnectionInfo is unreachable.
         CONNECTION_OPTIONS.put(connInfo, options);
-      } else if ("close".equals(methodName)) {
-        // Connection closed — clean up
-        CONNECTION_OPTIONS.remove(connInfo);
       }
     }
   }

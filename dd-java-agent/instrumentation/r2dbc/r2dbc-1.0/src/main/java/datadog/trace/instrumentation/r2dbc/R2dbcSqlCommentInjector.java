@@ -1,18 +1,26 @@
 package datadog.trace.instrumentation.r2dbc;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.DECORATE;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.propagation.W3CTraceParent;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter;
+import io.r2dbc.proxy.core.ConnectionInfo;
+import io.r2dbc.spi.ConnectionFactoryOptions;
 
 /**
  * Injects DBM SQL comments into R2DBC queries. Reuses {@link SharedDBCommenter} to build the
- * comment content (service metadata, trace context) and wraps it in SQL comment delimiters.
+ * comment content (service metadata) and wraps it in SQL comment delimiters.
  *
  * <p>This is the R2DBC equivalent of JDBC's {@code SQLCommenter}. It is intentionally simpler
  * because R2DBC does not have the same edge cases (callable statements, pg_hint_plan) as JDBC.
+ *
+ * <p>Unlike JDBC, R2DBC has no interception point between statement creation and actual execution
+ * against the driver — by the time a query span exists (see {@link
+ * TraceProxyExecutionListener#beforeQuery}), the SQL has already been sent. Injection here
+ * therefore only ever embeds static, per-connection metadata (service, db type, host, db name),
+ * never a per-execution traceparent — the same split JDBC uses for its {@code
+ * Connection#prepareStatement} advice, which also injects with {@code traceParent=null} and defers
+ * dynamic trace context to execute-time.
  */
 public final class R2dbcSqlCommentInjector {
 
@@ -20,6 +28,47 @@ public final class R2dbcSqlCommentInjector {
   private static final String CLOSE_COMMENT = "*/";
 
   private R2dbcSqlCommentInjector() {}
+
+  /**
+   * Resolves connection metadata for {@code connectionInfo} (via {@link
+   * R2dbcTracingSupport#CONNECTION_OPTIONS}) and injects a DBM SQL comment into {@code sql} if DBM
+   * propagation is enabled. Shared by both {@link R2dbcConnectionCallbackInstrumentation} ({@code
+   * createStatement}) and {@link R2dbcBatchCallbackInstrumentation} ({@code Batch#add}) so the two
+   * statement-creation paths stay in sync.
+   *
+   * @return the SQL with injected comment, or the original SQL if DBM is disabled or metadata is
+   *     unavailable
+   */
+  public static String injectForConnection(String sql, ConnectionInfo connectionInfo) {
+    String dbmMode = Config.get().getDbmPropagationMode();
+    boolean injectComment =
+        Config.DBM_PROPAGATION_MODE_FULL.equals(dbmMode)
+            || Config.DBM_PROPAGATION_MODE_STATIC.equals(dbmMode)
+            || Config.DBM_PROPAGATION_MODE_DYNAMIC_SERVICE.equals(dbmMode);
+    if (!injectComment) {
+      return sql;
+    }
+
+    ConnectionFactoryOptions options = R2dbcTracingSupport.CONNECTION_OPTIONS.get(connectionInfo);
+    if (options == null) {
+      return sql;
+    }
+
+    String dbType = DECORATE.extractDbType(options);
+    String dbService = DECORATE.getDbService(options);
+    String hostname = null;
+    if (options.hasOption(ConnectionFactoryOptions.HOST)) {
+      Object host = options.getValue(ConnectionFactoryOptions.HOST);
+      hostname = host != null ? host.toString() : null;
+    }
+    String dbName = null;
+    if (options.hasOption(ConnectionFactoryOptions.DATABASE)) {
+      Object db = options.getValue(ConnectionFactoryOptions.DATABASE);
+      dbName = db != null ? db.toString() : null;
+    }
+
+    return inject(sql, dbService, dbType, hostname, dbName);
+  }
 
   /**
    * Injects a DBM SQL comment into the given query string if DBM propagation is enabled.
@@ -47,20 +96,10 @@ public final class R2dbcSqlCommentInjector {
       return sql;
     }
 
-    // Generate traceparent only in full mode
-    String traceParent = null;
-    if (Config.DBM_PROPAGATION_MODE_FULL.equals(dbmMode)) {
-      AgentSpan activeSpan = activeSpan();
-      if (activeSpan != null) {
-        Integer priority = activeSpan.forceSamplingDecision();
-        if (priority != null) {
-          traceParent = W3CTraceParent.from(activeSpan);
-        }
-      }
-    }
-
+    // No traceparent: see the class-level javadoc for why per-execution trace context can't
+    // be injected at this point.
     String commentContent =
-        SharedDBCommenter.buildComment(dbService, dbType, hostname, dbName, traceParent);
+        SharedDBCommenter.buildComment(dbService, dbType, hostname, dbName, null);
     if (commentContent == null) {
       return sql;
     }

@@ -105,7 +105,7 @@ class R2dbcPeerServiceTest extends AbstractInstrumentationTest {
             span()
                 .childOfPrevious()
                 .operationName(H2_QUERY)
-                .resourceName("SELECT * FROM peer_test")
+                .resourceName(Pattern.compile(Pattern.quote("SELECT * FROM peer_test")))
                 .type(DDSpanTypes.SQL)
                 .measured()
                 .tags(
@@ -140,7 +140,9 @@ class R2dbcPeerServiceTest extends AbstractInstrumentationTest {
             span()
                 .childOfPrevious()
                 .operationName(H2_QUERY)
-                .resourceName("INSERT INTO peer_test (id, name) VALUES (1, 'test')")
+                .resourceName(
+                    Pattern.compile(
+                        Pattern.quote("INSERT INTO peer_test (id, name) VALUES (?, ?)")))
                 .type(DDSpanTypes.SQL)
                 .measured()
                 .tags(
@@ -182,7 +184,9 @@ class R2dbcPeerServiceTest extends AbstractInstrumentationTest {
             span()
                 .childOfPrevious()
                 .operationName(H2_QUERY)
-                .resourceName("INSERT INTO peer_test (id, name) VALUES (1, 'first')")
+                .resourceName(
+                    Pattern.compile(
+                        Pattern.quote("INSERT INTO peer_test (id, name) VALUES (?, ?)")))
                 .type(DDSpanTypes.SQL)
                 .measured()
                 .tags(
@@ -197,7 +201,7 @@ class R2dbcPeerServiceTest extends AbstractInstrumentationTest {
             span()
                 .childOfIndex(0)
                 .operationName(H2_QUERY)
-                .resourceName("SELECT * FROM peer_test")
+                .resourceName(Pattern.compile(Pattern.quote("SELECT * FROM peer_test")))
                 .type(DDSpanTypes.SQL)
                 .measured()
                 .tags(
@@ -235,7 +239,8 @@ class R2dbcPeerServiceTest extends AbstractInstrumentationTest {
             span()
                 .childOfPrevious()
                 .operationName(H2_QUERY)
-                .resourceName("SELECT * FROM nonexistent_peer_table")
+                .resourceName(
+                    Pattern.compile(Pattern.quote("SELECT * FROM nonexistent_peer_table")))
                 .type(DDSpanTypes.SQL)
                 .error()
                 .measured()

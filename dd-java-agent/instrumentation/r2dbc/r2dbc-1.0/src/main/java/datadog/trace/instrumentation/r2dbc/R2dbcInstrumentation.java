@@ -46,12 +46,17 @@ public class R2dbcInstrumentation extends InstrumenterModule.Tracing
       // classloader. This is a genuine topological sort of the class's extends/implements
       // graph (computed from javap output, not just grouped by package/alphabetized —
       // alphabetizing within a package breaks e.g. ValueStore-before-DefaultValueStore).
+      //
+      // ConnectionCallbackHandler and BatchCallbackHandler are intentionally NOT in this list
+      // even though they are part of the same r2dbc-proxy class graph: they are the
+      // instrumentedType()s of R2dbcConnectionCallbackInstrumentation and
+      // R2dbcBatchCallbackInstrumentation. A helper-injected class is loaded untransformed, so
+      // listing an instrumented type as a helper (in ANY module) prevents its advice from
+      // being applied.
       "io.r2dbc.proxy.callback.AfterQueryCallbackInvoker",
       "io.r2dbc.proxy.callback.CallbackHandler",
       "io.r2dbc.proxy.callback.CallbackHandlerSupport",
-      "io.r2dbc.proxy.callback.BatchCallbackHandler",
       "io.r2dbc.proxy.callback.CallbackHandlerSupport$MethodInvocationStrategy",
-      "io.r2dbc.proxy.callback.ConnectionCallbackHandler",
       "io.r2dbc.proxy.callback.ConnectionFactoryCallbackHandler",
       "io.r2dbc.proxy.callback.MethodInvocationSubscriber",
       "io.r2dbc.proxy.callback.ConnectionFactoryCreateMethodInvocationSubscriber",

@@ -13,26 +13,23 @@ import java.lang.reflect.Method;
 import net.bytebuddy.asm.Advice;
 
 /**
- * Instruments {@code io.r2dbc.proxy.callback.ConnectionCallbackHandler} to inject DBM SQL comments
- * into queries before they reach the database driver. This is the R2DBC equivalent of JDBC's {@code
- * DBMCompatibleConnectionInstrumentation}.
- *
- * <p>The r2dbc-proxy library uses JDK dynamic proxies for Connection objects, so we cannot
- * instrument them with ByteBuddy directly. Instead, we intercept the callback handler's {@code
- * invoke} method which is called for every method on the proxied Connection. When {@code
- * createStatement(String)} is invoked, we inject the SQL comment into the first argument.
+ * Instruments {@code io.r2dbc.proxy.callback.BatchCallbackHandler} to inject DBM SQL comments into
+ * queries added to a {@link io.r2dbc.spi.Batch} before they reach the database driver. This mirrors
+ * {@link R2dbcConnectionCallbackInstrumentation}'s handling of {@code createStatement}, but for the
+ * {@code Batch#add(String)} path, which {@link R2dbcConnectionCallbackInstrumentation} does not see
+ * (batches are a separate proxied object, not a method on the proxied {@code Connection}).
  */
 @AutoService(InstrumenterModule.class)
-public class R2dbcConnectionCallbackInstrumentation extends InstrumenterModule.Tracing
+public class R2dbcBatchCallbackInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public R2dbcConnectionCallbackInstrumentation() {
+  public R2dbcBatchCallbackInstrumentation() {
     super("r2dbc");
   }
 
   @Override
   public String instrumentedType() {
-    return "io.r2dbc.proxy.callback.ConnectionCallbackHandler";
+    return "io.r2dbc.proxy.callback.BatchCallbackHandler";
   }
 
   @Override
@@ -44,12 +41,12 @@ public class R2dbcConnectionCallbackInstrumentation extends InstrumenterModule.T
       "io.r2dbc.proxy.callback.AfterQueryCallbackInvoker",
       "io.r2dbc.proxy.callback.CallbackHandler",
       "io.r2dbc.proxy.callback.CallbackHandlerSupport",
-      "io.r2dbc.proxy.callback.CallbackHandlerSupport$MethodInvocationStrategy",
-      // ConnectionCallbackHandler and BatchCallbackHandler are intentionally excluded from
+      // BatchCallbackHandler and ConnectionCallbackHandler are intentionally excluded from
       // ALL r2dbc helper lists: they are instrumentedType()s of this module and
-      // R2dbcBatchCallbackInstrumentation. A class that is helper-injected is loaded
+      // R2dbcConnectionCallbackInstrumentation. A class that is helper-injected is loaded
       // untransformed, so listing an instrumented type as a helper (in any module) prevents
       // its advice from ever being applied.
+      "io.r2dbc.proxy.callback.CallbackHandlerSupport$MethodInvocationStrategy",
       "io.r2dbc.proxy.callback.ConnectionFactoryCallbackHandler",
       "io.r2dbc.proxy.callback.MethodInvocationSubscriber",
       "io.r2dbc.proxy.callback.ConnectionFactoryCreateMethodInvocationSubscriber",
@@ -150,7 +147,7 @@ public class R2dbcConnectionCallbackInstrumentation extends InstrumenterModule.T
       if (args == null || args.length == 0) {
         return;
       }
-      if (!"createStatement".equals(method.getName())) {
+      if (!"add".equals(method.getName())) {
         return;
       }
       if (!(args[0] instanceof String)) {

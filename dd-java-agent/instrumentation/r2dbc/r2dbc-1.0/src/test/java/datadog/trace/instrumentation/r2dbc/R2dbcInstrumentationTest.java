@@ -112,7 +112,7 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
             span()
                 .childOfPrevious()
                 .operationName(H2_QUERY)
-                .resourceName("SELECT * FROM test_table")
+                .resourceName(Pattern.compile(Pattern.quote("SELECT * FROM test_table")))
                 .type(DDSpanTypes.SQL)
                 .measured()
                 .tags(
@@ -196,7 +196,7 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
             span()
                 .childOfIndex(0)
                 .operationName(H2_QUERY)
-                .resourceName("SELECT * FROM test_table")
+                .resourceName(Pattern.compile(Pattern.quote("SELECT * FROM test_table")))
                 .type(DDSpanTypes.SQL)
                 .measured()
                 .tags(
@@ -231,7 +231,7 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
             span()
                 .childOfPrevious()
                 .operationName(H2_QUERY)
-                .resourceName("SELECT * FROM nonexistent_table")
+                .resourceName(Pattern.compile(Pattern.quote("SELECT * FROM nonexistent_table")))
                 .type(DDSpanTypes.SQL)
                 .error()
                 .measured()
@@ -285,7 +285,7 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
             span()
                 .childOfPrevious()
                 .operationName(H2_QUERY)
-                .resourceName("SELECT * FROM test_table")
+                .resourceName(Pattern.compile(Pattern.quote("SELECT * FROM test_table")))
                 .type(DDSpanTypes.SQL)
                 .measured()
                 .tags(
@@ -315,7 +315,7 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
             span()
                 .root()
                 .operationName(H2_QUERY)
-                .resourceName("SELECT * FROM test_table")
+                .resourceName(Pattern.compile(Pattern.quote("SELECT * FROM test_table")))
                 .type(DDSpanTypes.SQL)
                 .measured()
                 .tags(
