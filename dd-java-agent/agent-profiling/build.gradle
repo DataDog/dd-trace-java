@@ -72,6 +72,10 @@ tasks.named("shadowJar", ShadowJar) {
   // These are duplicates of base classes for newer Java APIs and confuse
   // the GraalVM native-image builder when the profiling jar is embedded in the agent.
   exclude 'META-INF/versions/**'
+
+  // JfrToOtlpConverterCLI is the entry point of the standalone converter jar; the agent never
+  // loads it, so keep it out of the profiling content bundled into the agent jar
+  exclude 'com/datadog/profiling/otel/JfrToOtlpConverterCLI.class'
 }
 
 tasks.named("jar", Jar) {
