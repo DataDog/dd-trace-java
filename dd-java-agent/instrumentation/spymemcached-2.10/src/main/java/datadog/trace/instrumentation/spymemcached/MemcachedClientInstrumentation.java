@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.spymemcached.MemcacheClientDecorator.COMPONENT_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -11,10 +12,10 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import net.spy.memcached.MemcachedClient;
@@ -75,7 +76,7 @@ public final class MemcachedClientInstrumentation extends InstrumenterModule.Tra
   public static class AsyncOperationAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter() {
+    public static ContextScope methodEnter() {
       if (CallDepthThreadLocalMap.incrementCallDepth(MemcachedClient.class) > 0) {
         return null;
       }
@@ -85,17 +86,17 @@ public final class MemcachedClientInstrumentation extends InstrumenterModule.Tra
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Origin("#m") final String methodName,
         @Advice.Return final OperationFuture future) {
       if (scope == null) {
         return;
       }
       CallDepthThreadLocalMap.reset(MemcachedClient.class);
-      try (final AgentScope toClose = scope) {
+      try (final ContextScope toClose = scope) {
         if (future != null) {
           final OperationCompletionListener listener =
-              new OperationCompletionListener(scope.span(), methodName);
+              new OperationCompletionListener(spanFromScope(scope), methodName);
           future.addListener(listener);
         }
       }
@@ -105,7 +106,7 @@ public final class MemcachedClientInstrumentation extends InstrumenterModule.Tra
   public static class AsyncGetAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter() {
+    public static ContextScope methodEnter() {
       if (CallDepthThreadLocalMap.incrementCallDepth(MemcachedClient.class) > 0) {
         return null;
       }
@@ -115,17 +116,17 @@ public final class MemcachedClientInstrumentation extends InstrumenterModule.Tra
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Origin("#m") final String methodName,
         @Advice.Return final GetFuture future) {
       if (scope == null) {
         return;
       }
       CallDepthThreadLocalMap.reset(MemcachedClient.class);
-      try (final AgentScope toClose = scope) {
+      try (final ContextScope toClose = scope) {
         if (future != null) {
           final GetCompletionListener listener =
-              new GetCompletionListener(scope.span(), methodName);
+              new GetCompletionListener(spanFromScope(scope), methodName);
           future.addListener(listener);
         }
       }
@@ -135,7 +136,7 @@ public final class MemcachedClientInstrumentation extends InstrumenterModule.Tra
   public static class AsyncBulkAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter() {
+    public static ContextScope methodEnter() {
       if (CallDepthThreadLocalMap.incrementCallDepth(MemcachedClient.class) > 0) {
         return null;
       }
@@ -145,17 +146,17 @@ public final class MemcachedClientInstrumentation extends InstrumenterModule.Tra
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Origin("#m") final String methodName,
         @Advice.Return final BulkFuture future) {
       if (scope == null) {
         return;
       }
       CallDepthThreadLocalMap.reset(MemcachedClient.class);
-      try (final AgentScope toClose = scope) {
+      try (final ContextScope toClose = scope) {
         if (future != null) {
           final BulkGetCompletionListener listener =
-              new BulkGetCompletionListener(scope.span(), methodName);
+              new BulkGetCompletionListener(spanFromScope(scope), methodName);
           future.addListener(listener);
         }
       }
