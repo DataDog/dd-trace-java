@@ -3,8 +3,6 @@ package datadog.trace.core.propagation.ptags;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.core.propagation.PropagationTags;
-import datadog.trace.core.propagation.PropagationTags.SamplingState;
-import datadog.trace.core.propagation.ptags.PTagsFactory.PTags;
 import datadog.trace.core.propagation.ptags.TagElement.Encoding;
 import java.util.ArrayList;
 import java.util.List;
@@ -124,21 +122,6 @@ final class DatadogPTagsCodec extends PTagsCodec {
   }
 
   @Override
-  protected int estimateHeaderSize(
-      PTags pTags, CharSequence lastParentIdOverride, SamplingState samplingState) {
-    return pTags.getXDatadogTagsSize(samplingState);
-  }
-
-  @Override
-  protected int appendPrefix(
-      StringBuilder sb,
-      PTags ptags,
-      CharSequence lastParentIdOverride,
-      SamplingState samplingState) {
-    return ptags.getXDatadogTagsSize(samplingState);
-  }
-
-  @Override
   protected int appendTag(StringBuilder sb, TagElement key, TagElement value, int size) {
     if (size <= xDatadogTagsLimit) {
       if (sb.length() > 0) {
@@ -148,11 +131,6 @@ final class DatadogPTagsCodec extends PTagsCodec {
       sb.append(TAG_KEY_SEPARATOR);
       sb.append(value.forType(Encoding.DATADOG));
     }
-    return size;
-  }
-
-  @Override
-  protected int appendSuffix(StringBuilder sb, PTags ptags, int size, SamplingState samplingState) {
     return size;
   }
 

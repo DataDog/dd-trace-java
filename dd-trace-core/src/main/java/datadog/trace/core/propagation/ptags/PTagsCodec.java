@@ -179,19 +179,24 @@ abstract class PTagsCodec {
 
   abstract PropagationTags fromHeaderValue(PTagsFactory tagsFactory, String value);
 
-  protected abstract int estimateHeaderSize(
-      PTags pTags, CharSequence lastParentIdOverride, SamplingState samplingState);
+  protected int estimateHeaderSize(
+      PTags pTags, CharSequence lastParentIdOverride, SamplingState samplingState) {
+    return pTags.getXDatadogTagsSize(samplingState);
+  }
 
-  protected abstract int appendPrefix(
+  protected int appendPrefix(
       StringBuilder sb,
       PTags ptags,
       CharSequence lastParentIdOverride,
-      SamplingState samplingState);
+      SamplingState samplingState) {
+    return ptags.getXDatadogTagsSize(samplingState);
+  }
 
   protected abstract int appendTag(StringBuilder sb, TagElement key, TagElement value, int size);
 
-  protected abstract int appendSuffix(
-      StringBuilder sb, PTags ptags, int size, SamplingState samplingState);
+  protected int appendSuffix(StringBuilder sb, PTags ptags, int size, SamplingState samplingState) {
+    return size;
+  }
 
   protected abstract boolean isTooLarge(StringBuilder sb, int size);
 
