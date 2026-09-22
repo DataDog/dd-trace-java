@@ -43,7 +43,9 @@ class RoutingContextJsonResponseAdvice {
         return;
       }
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-      blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+      // effectivelyBlocked() is intentionally absent: vertx-web shares Netty's block response
+      // function, which finishes the span synchronously when the blocking response is committed.
+      blockResponseFunction.tryCommitBlockingResponse(reqCtx, rba);
 
       throw new BlockingException("Blocked request (for RoutingContext/json)");
     }

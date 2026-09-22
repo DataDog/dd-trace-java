@@ -18,10 +18,7 @@ import net.bytebuddy.asm.Advice;
 @RequiresRequestContext(RequestContextSlot.APPSEC)
 class RoutingContextJsonAdvice {
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  static void after(
-      @Advice.Return Object obj_,
-      @ActiveRequestContext RequestContext reqCtx,
-      @Advice.Thrown(readOnly = false) Throwable throwable) {
+  static void after(@Advice.Return Object obj_, @ActiveRequestContext RequestContext reqCtx) {
     if (obj_ == null) {
       return;
     }
@@ -45,10 +42,10 @@ class RoutingContextJsonAdvice {
         return;
       }
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-      blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-      if (throwable == null) {
-        throwable = new BlockingException("Blocked request (for RoutingContextImpl/getBodyAsJson)");
-      }
+      // effectivelyBlocked() is intentionally absent: vertx-web shares Netty's block response
+      // function, which finishes the span synchronously when the blocking response is committed.
+      blockResponseFunction.tryCommitBlockingResponse(reqCtx, rba);
+      throw new BlockingException("Blocked request (for RoutingContextImpl/getBodyAsJson)");
     }
   }
 }
