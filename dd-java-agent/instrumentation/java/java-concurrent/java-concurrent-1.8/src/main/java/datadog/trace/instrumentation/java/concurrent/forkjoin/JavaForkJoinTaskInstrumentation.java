@@ -10,6 +10,7 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.startTaskScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.FORK_JOIN_TASK;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
+import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import datadog.context.ContextScope;
@@ -51,7 +52,19 @@ public final class JavaForkJoinTaskInstrumentation
     transformer.applyAdvice(isMethod().and(named("fork")), getClass().getName() + "$Fork");
     // The delay scheduler cancels tasks internally without calling the public cancel method.
     transformer.applyAdvice(
-        isMethod().and(namedOneOf("cancel", "trySetCancelled")), getClass().getName() + "$Cancel");
+        isMethod()
+            .and(
+                named("cancel")
+                    .or(
+                        named("trySetCancelled")
+                            .and(isDeclaredBy(named("java.util.concurrent.ForkJoinTask"))))),
+        getClass().getName() + "$Cancel");
+    // A delayed task can be completed before it ever executes or is cancelled.
+    transformer.applyAdvice(
+        isMethod()
+            .and(namedOneOf("complete", "quietlyComplete", "completeExceptionally"))
+            .and(isDeclaredBy(named("java.util.concurrent.ForkJoinTask"))),
+        getClass().getName() + "$Complete");
   }
 
   public static final class Exec {
@@ -83,6 +96,18 @@ public final class JavaForkJoinTaskInstrumentation
       State state = InstrumentationContext.get(ForkJoinTask.class, State.class).get(task);
       if (null != state) {
         state.closeContinuation();
+      }
+    }
+  }
+
+  public static final class Complete {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void complete(@Advice.This ForkJoinTask<?> task) {
+      if (task.isDone()) {
+        State state = InstrumentationContext.get(ForkJoinTask.class, State.class).get(task);
+        if (state != null) {
+          state.closeContinuation();
+        }
       }
     }
   }
