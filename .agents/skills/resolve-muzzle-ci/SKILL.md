@@ -97,13 +97,21 @@ The major remedies are:
   Prefer an exact coordinate; use a group wildcard only when the entire group is proven irrelevant.
 - Add an exact `extraDependency` only when it belongs to the library's valid runtime/application
   classpath but is not present in the resolved graph.
-- Add a narrowly scoped `extraRepository` only when the valid target artifact or a required
-  application dependency is intentionally hosted outside the configured repositories.
+- Ensure a narrowly scoped Gradle repository entry exists when a valid target artifact or required
+  application dependency is intentionally hosted outside the configured repositories. Add
+  `extraRepository` to the Muzzle directive when version discovery also requires that repository.
+  `extraRepository` configures Aether version discovery; it does not configure Gradle dependency
+  resolution.
 - Correct the target artifact/module when the directive follows a relocated or obsolete coordinate.
 - Set per-directive `javaVersion = "<N>"` when a valid resolved dependency requires that JDK to
-  load. Split at a known JDK boundary when useful and recheck `assertInverse` after splitting.
-- Correct a `fail` block or `assertInverse` only when the failure is `MUZZLE PASSED ... BUT FAILURE
-  WAS EXPECTED` and the declared inverse expectation is demonstrably false.
+  load. Split at a known JDK boundary when useful. Generated `assertInverse` directives do not inherit
+  `javaVersion`; if an inverse check requires another JDK, replace the generated inverse with explicit
+  `fail` directives that select suitable JDKs and preserve coverage outside the supported range.
+  Verify the original failing version and both sides of each boundary.
+- Change the expected compatibility outcome of a `fail` block or `assertInverse` only when
+  `MUZZLE PASSED ... BUT FAILURE WAS EXPECTED` demonstrates that the expectation is false. Replacing
+  generated inverses with equivalent explicit checks to select a suitable JDK must preserve the
+  expected outcomes and version coverage.
 - Repair helper completeness, ordering, linkage, or visibility for `FAILED HELPER INJECTION`; cap a
   range only when the helper failure proves a real target-library compatibility boundary.
 - Repair Muzzle tooling or CI toolchain provisioning for worker, parser, or JVM failures; do not
@@ -127,19 +135,13 @@ semantics change, add a behavior test and exercise a coherent library dependency
 
 ## Leave the reason beside the workaround
 
-Every repository change that resolves a real muzzle failure must leave a brief comment in the
-affected `build.gradle`, normally beside the relevant directive or changed setting, stating the
-concrete failure. This includes code fixes, caps,
-skips, exclusions, extra repositories/dependencies, inverse changes, and dependency-JDK boundaries
-using `javaVersion`. Examples of useful content are: `4.17 changes X and breaks linkage to Y`,
-`release 2.22.0 is absent from Maven Central`, `transitive Z is unused and unavailable`, or `5.0.1+
-is compiled for Java 21`.
+When a fix changes Muzzle configuration or adds a build-file workaround, leave a brief comment beside
+the affected directive or setting explaining the concrete failure and compatibility consequence.
+Include a removal condition or upstream issue when the workaround is temporary.
 
-State whether support ended, linkage broke, the publication is malformed/missing, or the transitive
-artifact is irrelevant. Include a removal condition or upstream issue when the workaround is
-temporary. For a code fix that keeps the range open, record the first affected version and the
-linkage or runtime dependency that changed. Avoid comments that only say `fix muzzle`, `CI failure`,
-or `broken version`.
+For a source-only fix, keep any necessary explanation beside the relevant code or regression test;
+no `build.gradle` edit is required. Record the affected version and changed linkage or runtime
+assumption where useful. Avoid comments that only say `fix muzzle`, `CI failure`, or `broken version`.
 
 ## Verify
 
