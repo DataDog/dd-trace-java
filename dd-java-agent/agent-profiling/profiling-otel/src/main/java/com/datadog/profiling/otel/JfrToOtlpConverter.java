@@ -537,10 +537,9 @@ public final class JfrToOtlpConverter {
       Control ctl) {
     // Create cache key from stackTraceId + chunk identity.
     // Chunk identity hash is cached to avoid per-event native call to System.identityHashCode.
-    // The tuple is combined with distinct multiplicative mixing instead of a raw XOR so
-    // distinct (stackTraceId, chunkHash) pairs cannot cancel each other's bits.
+    // Multiplicative mixing keeps distinct (stackTraceId, chunkHash) pairs apart
     int chunkHash = getChunkIdentityHash(ctl);
-    long cacheKey = mixKey(stackTraceId, ((long) chunkHash << 32) ^ chunkHash);
+    long cacheKey = mixKey(stackTraceId, chunkHash);
 
     // Check cache first - avoid resolving stack trace if cached
     int cachedIndex = stackTraceCache.get(cacheKey);
@@ -585,11 +584,9 @@ public final class JfrToOtlpConverter {
     long methodId = frame.methodId();
 
     // Cache key mirrors the stackTraceCache pattern: tag methodId with chunk identity
-    // so per-chunk CP indices don't collide across chunks. Mixed the same way to keep
-    // distinct (methodId, chunkHash, lineNumber) tuples apart.
+    // so per-chunk CP indices don't collide across chunks
     int chunkHash = getChunkIdentityHash(ctl);
-    long cacheKey =
-        mixKey(methodId, ((long) chunkHash << 32) ^ chunkHash ^ (lineNumber * 1000003L));
+    long cacheKey = mixKey(methodId, ((long) chunkHash << 32) ^ lineNumber);
     int cached = frameCache.get(cacheKey);
     if (cached != -1) {
       return cached;
