@@ -16,6 +16,27 @@ public final class ScopeContinuationProbe {
    */
   static final int CANCELLED = Integer.MIN_VALUE >> 1;
 
+  private static final ThreadLocal<ResolveAttempt> resolving = new ThreadLocal<>();
+
+  /** Distinguishes an explicit release from a scope close's internal release call. */
+  public static final class ResolveAttempt {
+    private final Object window;
+    private final ContextContinuation continuation;
+    private final boolean release;
+    private final int countBefore;
+    private final long nanos = System.nanoTime();
+    private final ResolveAttempt previous;
+
+    private ResolveAttempt(
+        Object window, ContextContinuation continuation, boolean release, int countBefore) {
+      this.window = window;
+      this.continuation = continuation;
+      this.release = release;
+      this.countBefore = countBefore;
+      this.previous = resolving.get();
+    }
+  }
+
   private static volatile Field sourceField;
 
   private static volatile Field scopeSourceField;
@@ -75,23 +96,49 @@ public final class ScopeContinuationProbe {
     }
   }
 
-  public static void onResolve(
-      Object self, String method, int countBefore, int countAfter, long resolveNanos) {
+  public static ResolveAttempt onResolveEnter(Object self, String method, int countBefore) {
     Object window = ScopeDiagnostics.recordingWindow();
     if (window == null) {
+      return null;
+    }
+    ResolveAttempt attempt =
+        new ResolveAttempt(
+            window, (ContextContinuation) self, "release".equals(method), countBefore);
+    resolving.set(attempt);
+    return attempt;
+  }
+
+  public static void onResolveExit(ResolveAttempt attempt, int countAfter) {
+    if (attempt == null) {
       return;
     }
-    if (countBefore != CANCELLED && countAfter != CANCELLED) {
-      return;
-    }
-    // release discards; cancelFromContinuedScopeClose finishes. Its slow path delegates to release,
-    // so a multi-activation finish can appear as a cancellation.
-    boolean cancelled = "release".equals(method);
     try {
-      ContextContinuation continuation = (ContextContinuation) self;
+      if (attempt.countBefore != CANCELLED && countAfter != CANCELLED) {
+        return;
+      }
+      // Scope cleanup's slow path calls release(): only the outer close owns that event.
+      if (attempt.release) {
+        for (ResolveAttempt parent = attempt.previous; parent != null; parent = parent.previous) {
+          if (!parent.release
+              && parent.window == attempt.window
+              && parent.continuation == attempt.continuation) {
+            return;
+          }
+        }
+      }
       ScopeDiagnostics.recordResolve(
-          window, continuation, cancelled, resolveNanos, countBefore == CANCELLED);
+          attempt.window,
+          attempt.continuation,
+          attempt.release,
+          attempt.nanos,
+          attempt.countBefore == CANCELLED);
     } catch (Throwable ignored) {
+    } finally {
+      if (attempt.previous == null) {
+        resolving.remove();
+      } else {
+        resolving.set(attempt.previous);
+      }
     }
   }
 

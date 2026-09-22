@@ -26,6 +26,8 @@ public final class ScopeDiagnostics {
   private final Map<DDTraceId, Long> rootWrittenNanos = new HashMap<>();
   private final Set<ContextContinuation> resolved =
       Collections.newSetFromMap(new IdentityHashMap<ContextContinuation, Boolean>());
+  private final Set<ContextContinuation> released =
+      Collections.newSetFromMap(new IdentityHashMap<ContextContinuation, Boolean>());
   private long seq;
   private long scopeSeq;
   private volatile Object recordingWindow;
@@ -132,6 +134,7 @@ public final class ScopeDiagnostics {
     deferredCleanupScopes.clear();
     rootWrittenNanos.clear();
     resolved.clear();
+    released.clear();
     seq = 0;
     scopeSeq = 0;
   }
@@ -204,10 +207,12 @@ public final class ScopeDiagnostics {
       long resolveNanos,
       boolean alreadyResolved) {
     synchronized (INSTANCE.lifecycleLock) {
-      if (window != null
-          && window == INSTANCE.recordingWindow
-          && (alreadyResolved || INSTANCE.resolved.add(id))) {
-        INSTANCE.listener.onResolve(id, cancelled, resolveNanos);
+      if (window != null && window == INSTANCE.recordingWindow) {
+        boolean firstResolution = INSTANCE.resolved.add(id);
+        boolean repeatedRelease = cancelled && !INSTANCE.released.add(id);
+        if (alreadyResolved || firstResolution || repeatedRelease) {
+          INSTANCE.listener.onResolve(id, cancelled, resolveNanos);
+        }
       }
     }
   }
