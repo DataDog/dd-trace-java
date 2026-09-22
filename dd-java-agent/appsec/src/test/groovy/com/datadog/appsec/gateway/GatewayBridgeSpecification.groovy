@@ -35,6 +35,7 @@ import datadog.trace.api.telemetry.RuleType
 import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.TagContext
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase
@@ -42,6 +43,7 @@ import datadog.trace.lambda.LambdaAppSecHandler
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 
+import java.nio.charset.StandardCharsets
 import java.util.function.BiConsumer
 import java.util.function.BiFunction
 import java.util.function.Function
@@ -221,26 +223,35 @@ class GatewayBridgeSpecification extends DDSpecification {
   void 'lambda request end reaches shared waf telemetry with its framework'() {
     given:
     AgentTracer.TracerAPI originalTracer = AgentTracer.get()
-    CallbackProvider callbackProvider = Stub {
+    CallbackProvider callbackProvider = Mock {
+      getCallback(EVENTS.requestStarted()) >> requestStartedCB
       getCallback(EVENTS.requestEnded()) >> requestEndedCB
     }
     AgentTracer.TracerAPI tracer = Stub {
       getCallbackProvider(RequestContextSlot.APPSEC) >> callbackProvider
     }
-    AgentSpan span = Mock {
-      getRequestContext() >> ctx
-      getTags() >> TagMap.fromMap([(Tags.COMPONENT): 'aws-lambda'])
-    }
     AgentTracer.forceRegister(tracer)
+
+    byte[] event = '{"path":"/","requestContext":{"httpMethod":"GET"}}'.getBytes(StandardCharsets.UTF_8)
+    TagContext lambdaContext = LambdaAppSecHandler.processRequestStart(new ByteArrayInputStream(event)) as TagContext
+    AppSecRequestContext lambdaAppSecContext = lambdaContext.requestContextDataAppSec as AppSecRequestContext
+    RequestContext lambdaRequestContext = Stub {
+      getData(RequestContextSlot.APPSEC) >> lambdaAppSecContext
+      getTraceSegment() >> traceSegment
+    }
+    AgentSpan span = Mock {
+      getRequestContext() >> lambdaRequestContext
+      getTags() >> lambdaContext.tags
+    }
 
     when:
     LambdaAppSecHandler.processRequestEnd(span)
 
     then:
-    1 * requestSampler.preSampleRequest(arCtx, 'aws-lambda') >> false
+    1 * requestSampler.preSampleRequest(lambdaAppSecContext, 'aws-lambda') >> false
     1 * span.setMetric('_dd.appsec.enabled', 1)
     1 * span.setTag('_dd.runtime_family', 'jvm')
-    1 * pp.processTraceSegment(traceSegment, arCtx, [])
+    1 * pp.processTraceSegment(traceSegment, lambdaAppSecContext, [])
     1 * wafMetricCollector.wafRequest(false, false, false, false, false, false, false, false)
 
     cleanup:
