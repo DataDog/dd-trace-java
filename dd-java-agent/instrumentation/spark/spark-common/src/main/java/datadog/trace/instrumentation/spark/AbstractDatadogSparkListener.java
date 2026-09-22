@@ -351,12 +351,18 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   @Override
   public void onApplicationEnd(SparkListenerApplicationEnd applicationEnd) {
+    // In YARN cluster mode SparkContext can stop before the Python driver exits. Wait for
+    // ApplicationMaster.finish() to report the exit code instead of finishing successfully here.
+    boolean finishOnApplicationEnd =
+        finishTraceOnApplicationEnd
+            && !("yarn".equals(sparkConf.get("spark.master", ""))
+                && "cluster".equals(sparkConf.get("spark.submit.deployMode", "")));
     log.info(
         "Received spark application end event, finish trace on this event: {}",
-        finishTraceOnApplicationEnd);
+        finishOnApplicationEnd);
     notifyOl(x -> openLineageSparkListener.onApplicationEnd(x), applicationEnd);
 
-    if (finishTraceOnApplicationEnd) {
+    if (finishOnApplicationEnd) {
       finishApplication(applicationEnd.time(), null, 0, null);
     }
   }
