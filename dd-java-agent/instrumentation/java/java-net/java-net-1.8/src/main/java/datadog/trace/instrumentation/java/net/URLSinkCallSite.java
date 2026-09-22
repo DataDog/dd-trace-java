@@ -85,9 +85,11 @@ public class URLSinkCallSite {
         BlockResponseFunction brf = ctx.getBlockResponseFunction();
         if (brf != null) {
           Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-          brf.tryCommitBlockingResponse(ctx.getTraceSegment(), rba);
+          if (brf.tryCommitBlockingResponse(ctx, rba)) {
+            ctx.getTraceSegment().effectivelyBlocked();
+          }
+          throw new BlockingException("Blocked request (for SSRF attempt)");
         }
-        throw new BlockingException("Blocked request (for SSRF attempt)");
       }
     } catch (final BlockingException e) {
       throw e;
