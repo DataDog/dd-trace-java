@@ -27,6 +27,13 @@ public class StatusHeaderInstrumentation extends InstrumenterModule.AppSec
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      packageName + ".BodyParserHelpers", packageName + ".BodyParserHelpers$ScalaIteratorAdapter",
+    };
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("sendJson").and(takesArgument(0, named("com.fasterxml.jackson.databind.JsonNode"))),
