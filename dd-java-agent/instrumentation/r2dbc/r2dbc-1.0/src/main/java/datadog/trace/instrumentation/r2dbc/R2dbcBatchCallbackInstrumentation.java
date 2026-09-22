@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.r2dbc;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -11,6 +12,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import io.r2dbc.proxy.core.ConnectionInfo;
 import java.lang.reflect.Method;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.matcher.ElementMatcher;
 
 /**
  * Instruments {@code io.r2dbc.proxy.callback.BatchCallbackHandler} to inject DBM SQL comments into
@@ -30,6 +32,13 @@ public class R2dbcBatchCallbackInstrumentation extends InstrumenterModule.Tracin
   @Override
   public String instrumentedType() {
     return "io.r2dbc.proxy.callback.BatchCallbackHandler";
+  }
+
+  @Override
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+    // The bundled r2dbc-proxy requires Reactor at runtime; only instrument when it is present
+    // (see R2dbcInstrumentation#classLoaderMatcher).
+    return hasClassNamed("reactor.core.publisher.Flux");
   }
 
   @Override

@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.r2dbc;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
@@ -12,6 +13,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryOptions;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class R2dbcInstrumentation extends InstrumenterModule.Tracing
@@ -24,6 +26,15 @@ public class R2dbcInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String instrumentedType() {
     return "io.r2dbc.spi.ConnectionFactories";
+  }
+
+  @Override
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+    // The bundled r2dbc-proxy requires Reactor at runtime (e.g. DelegatingContextView
+    // implements reactor.util.context.ContextView), but R2DBC SPI only requires Reactive
+    // Streams. Only instrument when Reactor is on the application classloader, otherwise
+    // helper injection of those proxy classes would fail and leave the factory uninstrumented.
+    return hasClassNamed("reactor.core.publisher.Flux");
   }
 
   @Override
