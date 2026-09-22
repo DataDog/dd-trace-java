@@ -71,6 +71,34 @@ import org.openjdk.jmh.annotations.Warmup;
  *       traversal; the two-traversal {@code getOrCreate} pattern adds further overhead on misses.
  *   <li>Synchronized {@code HashMap} is ~50× slower than {@code ConcurrentHashtable}.
  * </ul>
+ *
+ * <p>Rerun with {@link BenchmarkUtils#polluteHashDispatch()} wired into {@code SharedState.setUp()}
+ * (JDK 8 on this machine; the Java 17 table above predates pollution entirely, so this is also a
+ * cross-JDK comparison -- not a clean pollution-only delta, same caveat as {@link
+ * HashtableD1Benchmark}'s Javadoc):
+ *
+ * <pre>{@code
+ * Benchmark                              Score   Units
+ * get_support                            1495   ops/us
+ * get_concurrentHashtable                1390   ops/us
+ * get_concurrentHashMap                   971   ops/us
+ * get_concurrentSkipListMap               138   ops/us
+ * get_synchronizedHashMap                  30   ops/us
+ *
+ * getOrCreate_support                    1408   ops/us
+ * getOrCreate_concurrentHashtable        1244   ops/us
+ * getOrCreate_concurrentHashMap           935   ops/us
+ * getOrCreate_concurrentSkipListMap       158   ops/us
+ * getOrCreate_synchronizedHashMap          30   ops/us
+ * }</pre>
+ *
+ * <p>{@code Support} and {@code ConcurrentHashtable} remain neck-and-neck on {@code get} (1495 vs
+ * 1390, {@code Support} now narrowly ahead rather than narrowly behind), both still clearly ahead
+ * of {@code ConcurrentHashMap} (~1.4-1.5x here, down from ~2x above) -- again within the
+ * JDK/pollution confound, not necessarily a pollution effect on its own. {@code
+ * ConcurrentSkipListMap} and synchronized {@code HashMap} remain far behind on both operations.
+ * {@code synchronizedHashMap}'s and {@code getOrCreate_concurrentHashtable}'s error bars are wide
+ * relative to their means at {@code @Fork(2)} here -- directional only, not decisive.
  */
 @Fork(2)
 @Warmup(iterations = 2)

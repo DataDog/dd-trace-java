@@ -63,6 +63,30 @@ import org.openjdk.jmh.annotations.Warmup;
  *   <li>{@code getOrCreate} is near-identical to {@code get} because all keys are pre-populated —
  *       the lock branch is never taken during measurement.
  * </ul>
+ *
+ * <p>Rerun with {@link BenchmarkUtils#polluteHashDispatch()} wired into {@code SharedState.setUp()}
+ * (JDK 8 on this machine; the Java 17 table above predates pollution entirely, so this is also a
+ * cross-JDK comparison -- not a clean pollution-only delta, same caveat as {@link
+ * HashtableD1Benchmark}'s Javadoc):
+ *
+ * <pre>{@code
+ * Benchmark                             Score   Units
+ * get_concurrentHashtable               1446   ops/us
+ * get_concurrentHashMap                 1161   ops/us
+ * get_concurrentSkipListMap              156   ops/us
+ * get_synchronizedHashMap                 30   ops/us
+ *
+ * getOrCreate_concurrentHashtable       1434   ops/us
+ * getOrCreate_concurrentHashMap         1139   ops/us
+ * getOrCreate_synchronizedHashMap        30   ops/us
+ * }</pre>
+ *
+ * <p>All four relative conclusions above still hold: {@code ConcurrentHashtable} still leads {@code
+ * ConcurrentHashMap} on {@code get} (~25%, down from ~38% -- within the JDK/pollution confound
+ * above, not necessarily a pollution effect on its own), {@code ConcurrentSkipListMap} and
+ * synchronized {@code HashMap} remain far behind, and {@code getOrCreate} still tracks {@code get}
+ * closely. {@code synchronizedHashMap}'s error bars are wide relative to its mean at
+ * {@code @Fork(2)} here -- directional only, not decisive.
  */
 @Fork(2)
 @Warmup(iterations = 2)
