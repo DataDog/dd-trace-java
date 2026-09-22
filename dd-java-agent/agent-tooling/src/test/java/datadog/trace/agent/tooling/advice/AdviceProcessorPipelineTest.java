@@ -11,12 +11,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import datadog.trace.agent.tooling.HelperGenerationProcessor;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.CatchModule;
+import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.HierarchyModule;
 import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.PipelineModule;
 import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.ScanModule;
 import datadog.trace.agent.tooling.advice.AdviceScanningHelper.Dependency;
 import datadog.trace.agent.tooling.muzzle.MuzzleGenerationProcessor;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
+import datadog.trace.instrumentation.testing.AdviceHierarchy;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
@@ -96,6 +98,48 @@ class AdviceProcessorPipelineTest {
     assertTrue(
         Stream.of(muzzle)
             .noneMatch(reference -> asList(additional.helpers).contains(reference.className)));
+  }
+
+  @Test
+  void retainsAdviceHierarchyMuzzleChecksWithoutInjectingHierarchy(@TempDir Path temp)
+      throws Exception {
+    HierarchyModule module = new HierarchyModule();
+    AdviceScanResult scan = AdviceScanner.scan(module);
+    String[] helpers = new HelperGenerationProcessor().resolveHelpers(scan, module);
+
+    assertArrayEquals(new String[0], helpers);
+    for (Class<?> type :
+        new Class<?>[] {AdviceHierarchy.Superclass.class, AdviceHierarchy.Interface.class}) {
+      assertTrue(scan.getClassInfo(type.getName()).isFromModuleOutput());
+      assertTrue(scan.getClassInfo(type.getName()).isScanned());
+      assertFalse(scan.getClassInfo(type.getName()).isReachableFromAdvice());
+    }
+
+    new MuzzleGenerationProcessor()
+        .process(scan, new AdviceProcessorContext(module, temp.toFile(), helpers));
+    try (URLClassLoader loader =
+        new URLClassLoader(new URL[] {temp.toUri().toURL()}, getClass().getClassLoader())) {
+      ReferenceMatcher matcher =
+          (ReferenceMatcher)
+              loader
+                  .loadClass(HierarchyModule.class.getName() + "$Muzzle")
+                  .getMethod("create")
+                  .invoke(null);
+      assertTrue(
+          Stream.of(matcher.getReferences())
+              .filter(reference -> reference.className.equals("net.bytebuddy.jar.asm.ClassReader"))
+              .flatMap(reference -> Stream.of(reference.methods))
+              .anyMatch(
+                  method -> method.name.equals("getAccess") && method.methodType.equals("()I")));
+      assertTrue(
+          Stream.of(matcher.getReferences())
+              .filter(reference -> reference.className.equals("net.bytebuddy.jar.asm.ClassWriter"))
+              .flatMap(reference -> Stream.of(reference.methods))
+              .anyMatch(
+                  method ->
+                      method.name.equals("newUTF8")
+                          && method.methodType.equals("(Ljava/lang/String;)I")));
+    }
   }
 
   @Test

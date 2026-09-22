@@ -82,7 +82,7 @@ class AdviceScannerTest {
   }
 
   @Test
-  void discoversEnclosingHelpersButNotEnclosingAdviceClasses() {
+  void onlyMarksEnclosingHelpersReachable() {
     AdviceScanResult result = AdviceScanner.scan(new ScanModule());
     String enclosingHelper = AdviceScanningHelper.class.getName();
 
@@ -99,7 +99,8 @@ class AdviceScannerTest {
               .getRequiredDependencies()
               .contains(enclosingHelper));
     }
-    assertFalse(result.getClasses().containsKey(AdviceScanningFixtures.class.getName()));
+    assertFalse(
+        result.getClassInfo(AdviceScanningFixtures.class.getName()).isReachableFromAdvice());
   }
 
   @Test
@@ -178,7 +179,8 @@ class AdviceScannerTest {
     AdviceScanResult result = AdviceScanner.scan(new ScanModule());
     ClassInfo root = result.getClassInfo(AdviceRoot.class.getName());
 
-    assertNotNull(result.getClassInfo(AdviceSuperclass.class.getName()));
+    assertTrue(result.getClassInfo(AdviceSuperclass.class.getName()).isScanned());
+    assertFalse(result.getClassInfo(AdviceSuperclass.class.getName()).isReachableFromAdvice());
     assertTrue(
         root.getUsages().stream()
             .anyMatch(

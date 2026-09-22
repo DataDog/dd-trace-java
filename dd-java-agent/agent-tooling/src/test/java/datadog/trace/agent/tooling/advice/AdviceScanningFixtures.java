@@ -4,6 +4,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.advice.AdviceScanningHelper.Dependency;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.instrumentation.testing.AdviceHierarchy;
 import datadog.trace.instrumentation.testing.ExternalHelper;
 import java.util.ArrayList;
 import java.util.List;
@@ -51,6 +52,18 @@ final class AdviceScanningFixtures {
   static class CatchAdvice {
     static void apply() {
       CatchOnlyHelper.run();
+    }
+  }
+
+  static class HierarchyAdvice extends AdviceHierarchy.Superclass
+      implements AdviceHierarchy.Interface {
+    static void apply() {}
+  }
+
+  public static final class HierarchyModule extends ScanModule {
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+      transformer.applyAdvice(null, HierarchyAdvice.class.getName());
     }
   }
 

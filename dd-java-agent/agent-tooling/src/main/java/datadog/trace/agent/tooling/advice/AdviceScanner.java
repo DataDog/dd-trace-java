@@ -168,21 +168,20 @@ public final class AdviceScanner {
     addDependency(from, className, true);
   }
 
-  private void addDependency(MutableClassInfo from, String className, boolean traverseDependency) {
+  private void addDependency(MutableClassInfo from, String className, boolean trackReachability) {
     if (className == null || className.equals(from.className)) {
       return;
     }
     if (className.startsWith("[")) {
-      addTypeDependency(from, Type.getType(className.substring(1)), traverseDependency);
+      addTypeDependency(from, Type.getType(className.substring(1)), trackReachability);
       return;
     }
-    if (traverseDependency) {
+    if (trackReachability) {
       from.dependencies.add(className);
     }
     MutableClassInfo target = discover(className, from.adviceRoot);
-    if (traverseDependency) {
-      enqueue(target, false);
-    }
+    // Muzzle also needs bytecode excluded from helper reachability, such as advice superclasses.
+    enqueue(target, false);
   }
 
   private void addRequiredDependency(MutableClassInfo from, String className) {
@@ -192,33 +191,25 @@ public final class AdviceScanner {
     }
   }
 
-  private void addTypeDependency(MutableClassInfo from, Type type) {
-    addTypeDependency(from, type, true);
-  }
-
-  private void addTypeDependency(MutableClassInfo from, Type type, boolean traverseDependency) {
+  private void addTypeDependency(MutableClassInfo from, Type type, boolean trackReachability) {
     if (type == null) {
       return;
     }
     type = underlyingType(type);
     if (type.getSort() == Type.METHOD) {
       for (Type argument : type.getArgumentTypes()) {
-        addTypeDependency(from, argument, traverseDependency);
+        addTypeDependency(from, argument, trackReachability);
       }
-      addTypeDependency(from, type.getReturnType(), traverseDependency);
+      addTypeDependency(from, type.getReturnType(), trackReachability);
     } else if (type.getSort() == Type.OBJECT) {
-      addDependency(from, type.getClassName(), traverseDependency);
+      addDependency(from, type.getClassName(), trackReachability);
     }
   }
 
-  private void addHandleDependencies(MutableClassInfo from, Handle handle) {
-    addHandleDependencies(from, handle, true);
-  }
-
   private void addHandleDependencies(
-      MutableClassInfo from, Handle handle, boolean traverseDependency) {
-    addDependency(from, binaryName(handle.getOwner()), traverseDependency);
-    addTypeDependency(from, Type.getType(handle.getDesc()), traverseDependency);
+      MutableClassInfo from, Handle handle, boolean trackReachability) {
+    addDependency(from, binaryName(handle.getOwner()), trackReachability);
+    addTypeDependency(from, Type.getType(handle.getDesc()), trackReachability);
   }
 
   private static Set<String> findModuleOutputClasses(InstrumenterModule module) {
@@ -451,13 +442,13 @@ public final class AdviceScanner {
 
   private final class ScanningMethodVisitor extends MethodVisitor {
     private final MutableClassInfo info;
-    private final boolean traverseDependencies;
+    private final boolean trackReachability;
     private int line = UNDEFINED_LINE;
 
-    private ScanningMethodVisitor(MutableClassInfo info, boolean traverseDependencies) {
+    private ScanningMethodVisitor(MutableClassInfo info, boolean trackReachability) {
       super(ASM_API);
       this.info = info;
-      this.traverseDependencies = traverseDependencies;
+      this.trackReachability = trackReachability;
     }
 
     @Override
@@ -468,15 +459,15 @@ public final class AdviceScanner {
     @Override
     public void visitTryCatchBlock(Label start, Label end, Label handler, String type) {
       if (type != null) {
-        addDependency(info, binaryName(type), traverseDependencies);
+        addDependency(info, binaryName(type), trackReachability);
       }
     }
 
     @Override
     public void visitFieldInsn(int opcode, String owner, String name, String descriptor) {
       String binaryOwner = binaryName(owner);
-      addDependency(info, binaryOwner, traverseDependencies);
-      addTypeDependency(info, Type.getType(descriptor), traverseDependencies);
+      addDependency(info, binaryOwner, trackReachability);
+      addTypeDependency(info, Type.getType(descriptor), trackReachability);
       info.usages.add(
           usage(UsageKind.FIELD, opcode, binaryOwner, name, descriptor, false, emptyList()));
     }
@@ -485,8 +476,8 @@ public final class AdviceScanner {
     public void visitMethodInsn(
         int opcode, String owner, String name, String descriptor, boolean isInterface) {
       String binaryOwner = binaryName(owner);
-      addDependency(info, binaryOwner, traverseDependencies);
-      addTypeDependency(info, Type.getMethodType(descriptor), traverseDependencies);
+      addDependency(info, binaryOwner, trackReachability);
+      addTypeDependency(info, Type.getMethodType(descriptor), trackReachability);
       info.usages.add(
           usage(UsageKind.METHOD, opcode, binaryOwner, name, descriptor, isInterface, emptyList()));
     }
@@ -504,14 +495,14 @@ public final class AdviceScanner {
     @Override
     public void visitInvokeDynamicInsn(
         String name, String descriptor, Handle bootstrapMethodHandle, Object... arguments) {
-      addTypeDependency(info, Type.getMethodType(descriptor), traverseDependencies);
+      addTypeDependency(info, Type.getMethodType(descriptor), trackReachability);
       List<HandleUse> handles = new ArrayList<>();
       addHandle(handles, bootstrapMethodHandle);
       for (Object argument : arguments) {
         if (argument instanceof Handle) {
           addHandle(handles, (Handle) argument);
         } else if (argument instanceof Type) {
-          addTypeDependency(info, (Type) argument, traverseDependencies);
+          addTypeDependency(info, (Type) argument, trackReachability);
         }
       }
       info.usages.add(
@@ -531,7 +522,7 @@ public final class AdviceScanner {
         addTypeUsage((Type) value, Opcodes.LDC, null);
       } else if (value instanceof Handle) {
         Handle handle = (Handle) value;
-        addHandleDependencies(info, handle, traverseDependencies);
+        addHandleDependencies(info, handle, trackReachability);
         info.usages.add(
             usage(
                 UsageKind.HANDLE,
@@ -548,14 +539,14 @@ public final class AdviceScanner {
       type = underlyingType(type);
       if (type.getSort() == Type.OBJECT) {
         String binaryType = type.getClassName();
-        addDependency(info, binaryType, traverseDependencies);
+        addDependency(info, binaryType, trackReachability);
         info.usages.add(
             usage(UsageKind.TYPE, opcode, binaryType, null, descriptor, false, emptyList()));
       }
     }
 
     private void addHandle(List<HandleUse> handles, Handle handle) {
-      addHandleDependencies(info, handle, traverseDependencies);
+      addHandleDependencies(info, handle, trackReachability);
       handles.add(toHandleUse(handle));
     }
 
