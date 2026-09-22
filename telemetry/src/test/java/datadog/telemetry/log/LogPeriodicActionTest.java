@@ -12,14 +12,11 @@ import datadog.telemetry.TelemetryService;
 import datadog.telemetry.api.LogMessage;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.test.junit.utils.config.WithConfig;
-import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 
-@ExtendWith(WithConfigExtension.class)
 @WithConfig(key = "instrumentation.telemetry.debug", value = "true")
 class LogPeriodicActionTest {
 
