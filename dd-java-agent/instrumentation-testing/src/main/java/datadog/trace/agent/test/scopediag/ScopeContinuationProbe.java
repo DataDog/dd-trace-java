@@ -1,8 +1,8 @@
 package datadog.trace.agent.test.scopediag;
 
 import datadog.context.ContextContinuation;
+import datadog.context.ContextScope;
 import datadog.trace.api.DDTraceId;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.NoopScope;
 import java.lang.reflect.Field;
@@ -112,7 +112,7 @@ public final class ScopeContinuationProbe {
       return;
     }
     try {
-      AgentSpan span = ((AgentScope) scope).span();
+      AgentSpan span = AgentSpan.fromContext(((ContextScope) scope).context());
       DDTraceId traceId = span != null ? span.getTraceId() : DDTraceId.ZERO;
       long spanId = span != null ? span.getSpanId() : 0L;
       String name = span != null ? spanName(span) : null;

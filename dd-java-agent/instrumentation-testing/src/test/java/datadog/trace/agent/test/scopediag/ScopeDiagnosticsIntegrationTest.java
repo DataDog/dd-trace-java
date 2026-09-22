@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
@@ -60,7 +59,7 @@ class ScopeDiagnosticsIntegrationTest {
     ScopeDiagnostics.startRecording();
 
     AgentSpan span = tracer.startSpan("test", "op");
-    AgentScope active = tracer.activateSpan(span);
+    ContextScope active = tracer.activateSpan(span);
     // Same-span reuse resolves the continuation before resume() returns.
     ContextContinuation continuation = tracer.capture(span);
     ContextScope reused = continuation.resume();
