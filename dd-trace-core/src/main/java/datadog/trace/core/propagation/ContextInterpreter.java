@@ -66,7 +66,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   private TagContext.HttpHeaders httpHeaders;
   private final String customIpHeaderName;
   private final boolean clientIpResolutionEnabled;
-  private final boolean clientIpWithoutAppSec;
+  private final boolean collectClientIp;
   private final boolean aiGuardEnabled;
   private boolean collectIpHeaders;
   private final boolean requestHeaderTagsCommaAllowed;
@@ -83,7 +83,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected ContextInterpreter(Config config) {
     this.customIpHeaderName = config.getTraceClientIpHeader();
     this.clientIpResolutionEnabled = config.isTraceClientIpResolverEnabled();
-    this.clientIpWithoutAppSec = config.isClientIpEnabled();
+    this.collectClientIp = config.isClientIpEnabled();
     this.aiGuardEnabled = config.isAiGuardEnabled();
     this.propagationTagsFactory = PropagationTags.factory(config);
     this.requestHeaderTagsCommaAllowed = config.isRequestHeaderTagsCommaAllowed();
@@ -278,7 +278,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     fullContext = true;
     httpHeaders = null;
     collectIpHeaders =
-        this.clientIpWithoutAppSec
+        this.collectClientIp
             || this.clientIpResolutionEnabled
                 && (ActiveSubsystems.APPSEC_ACTIVE || this.aiGuardEnabled);
     headerTags = traceConfig.getRequestHeaderTags();
