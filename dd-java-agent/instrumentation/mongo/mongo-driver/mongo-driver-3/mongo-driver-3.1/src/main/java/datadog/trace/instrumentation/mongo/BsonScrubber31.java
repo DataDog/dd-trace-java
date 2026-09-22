@@ -387,8 +387,7 @@ public final class BsonScrubber31 implements BsonWriter, BsonScrubber {
         break;
       case BINARY:
         reader.skipValue();
-        writeName(attribute);
-        writeObfuscated();
+        writeBinaryData(attribute, null);
         break;
       case UNDEFINED:
         reader.readUndefined();
@@ -502,8 +501,7 @@ public final class BsonScrubber31 implements BsonWriter, BsonScrubber {
         writeString(attribute, value.asString().getValue());
         break;
       case BINARY:
-        writeName(attribute);
-        writeObfuscated();
+        writeBinaryData(attribute, null);
         break;
       case UNDEFINED:
         writeUndefined();
