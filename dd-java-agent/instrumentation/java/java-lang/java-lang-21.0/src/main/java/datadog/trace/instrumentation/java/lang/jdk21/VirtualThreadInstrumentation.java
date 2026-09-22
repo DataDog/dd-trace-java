@@ -42,11 +42,11 @@ import net.bytebuddy.asm.Advice.OnMethodExit;
  *       prevent the enclosing context scope from completing early.
  *   <li>On JDK 22 and later, {@code run(Runnable)} seeds the virtual thread's saved context once
  *       and retains its state in the continuation frame across park/unpark cycles.
- *   <li>{@code mount()} / {@code unmount()}: rebind and clear carrier-local profiler context. The
- *       state-backed swap path is retained on JDK 21 and when context listeners require per-mount
- *       notification.
- *   <li>{@code afterDone()} / {@code afterTerminate()} for early VirtualThread support: cancels the
- *       help continuation, releasing the context scope to be closed.
+ *   <li>On JDK 21, or when context listeners require per-mount notification, {@code mount()} and
+ *       {@code unmount()} retain state-backed context swaps. Otherwise they only update
+ *       carrier-local profiler context when required.
+ *   <li>{@code afterDone()} / {@code afterTerminate()} releases the retained continuation so the
+ *       enclosing context scope can complete.
  * </ol>
  *
  * <p>On JDK 22 and later, {@code run(Runnable)} is the one-shot continuation body and executes

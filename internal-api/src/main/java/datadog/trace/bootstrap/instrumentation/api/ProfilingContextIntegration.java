@@ -24,10 +24,13 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
   default void onDetach() {}
 
   /**
-   * Applies {@code context} to the current thread's profiler context. Default is a no-op: only
-   * integrations that key profiler context by the running (carrier) thread need this, and only when
-   * driven by the legacy context manager, where the virtual-thread instrumentation seeds the scope
-   * stack once and calls this on each mount rather than swapping.
+   * Binds {@code context} to profiler state associated with the current carrier thread.
+   *
+   * <p>The default implementation is a no-op. Integrations that return {@code true} from {@link
+   * #isThreadContextBindingRequired()} must override this method and treat {@link Context#root()} as
+   * clearing the current binding.
+   *
+   * @param context context to bind
    */
   default void setContext(Context context) {}
 

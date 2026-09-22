@@ -31,8 +31,7 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
  * context listener, so we simply swap in on mount and out on unmount.
  */
 public final class VirtualThreadState {
-  // note: cws is relying on scope listener. This is disabled by default but when enabled
-  // let's use the full swap logic since otherwise listeners won't be called
+  // CWS observes scope changes through listeners, so retain context swaps on mount and unmount.
   private static final boolean USE_PER_MOUNT_CONTEXT =
       isJavaVersion(21)
           || !InstrumenterConfig.get().isLegacyContextManagerEnabled()
