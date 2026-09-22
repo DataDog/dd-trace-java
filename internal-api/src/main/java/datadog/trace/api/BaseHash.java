@@ -7,17 +7,11 @@ public final class BaseHash {
   private static volatile String baseHashStr;
   private static volatile String lastContainerTagsHash;
 
-  // service/env/primaryTag are fixed for the JVM's lifetime once Config is built, so this only
-  // needs to be calculated once rather than every time recalcBaseHash()/recalc() runs.
-  private static volatile long identityHash =
-      calcIdentity(
-          Config.get().getServiceName(), Config.get().getEnv(), Config.get().getPrimaryTag());
-
-  // Guards ensureIdentityHash(): this class can be loaded as a side effect of unrelated static
-  // initialization (e.g. DataStreamsTags.EMPTY) well before Config's values have settled, so
-  // identityHash's field initializer above may capture a premature snapshot. ensureIdentityHash()
-  // gets one chance to recalculate it from a (hopefully by-then-settled) Config.
-  private static volatile boolean identityHashEnsured;
+  // 0 means "not yet computed". service/env/primaryTag are fixed for the JVM's lifetime once
+  // Config is built, so this only needs to be calculated once, lazily, on first read - computing
+  // it eagerly in a field initializer would risk capturing a premature Config snapshot if this
+  // class gets loaded (e.g. via DataStreamsTags.EMPTY) before Config settles.
+  private static volatile long identityHash;
 
   private BaseHash() {}
 
@@ -54,37 +48,19 @@ public final class BaseHash {
    * so it's safe to use as the seed for DSM's cardinality-sensitive pathway hash.
    */
   public static long getIdentityHash() {
-    return identityHash;
-  }
-
-  /**
-   * Recalculates {@link #identityHash} from the current {@link Config}, but only the first time
-   * it's called. Callers should invoke this right before the first outbound DSM checkpoint is set,
-   * so that if {@link #identityHash}'s field initializer ran prematurely (before {@link Config}'s
-   * values settled), it gets one chance to pick up the settled values before any pathway hash is
-   * actually reported.
-   *
-   * <p>Deliberately unsynchronized: concurrent callers all recompute from the same (by-then
-   * settled) Config, so a race just means a few redundant, identical writes rather than a
-   * correctness issue.
-   */
-  public static void ensureIdentityHash() {
-    if (!identityHashEnsured) {
+    if (identityHash == 0) {
+      // Deliberately unsynchronized: concurrent callers all recompute from the same Config, so a
+      // race just means a few redundant, identical writes rather than a correctness issue.
       identityHash =
           calcIdentity(
               Config.get().getServiceName(), Config.get().getEnv(), Config.get().getPrimaryTag());
-      identityHashEnsured = true;
     }
+    return identityHash;
   }
 
   /** Test-only: lets tests set the identity hash without going through {@link Config}. */
   public static void updateIdentityHash(long hash) {
     identityHash = hash;
-  }
-
-  /** Test-only: lets tests re-exercise {@link #ensureIdentityHash()}'s one-time guard. */
-  static void resetIdentityHashEnsuredForTesting() {
-    identityHashEnsured = false;
   }
 
   public static long calc(String containerTagsHash) {

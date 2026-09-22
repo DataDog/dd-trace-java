@@ -20,7 +20,6 @@ class BaseHashIdentityTest {
   @AfterEach
   void cleanup() {
     ProcessTags.reset();
-    BaseHash.resetIdentityHashEnsuredForTesting();
   }
 
   @Test
@@ -53,18 +52,16 @@ class BaseHashIdentityTest {
   }
 
   @Test
-  void ensureIdentityHashRecalculatesFromConfigOnlyOnce() {
-    // simulate identityHash's field initializer having captured a stale/premature snapshot
+  void getIdentityHashRecalculatesFromConfigWhenUnset() {
+    // 0 means "not yet computed" - simulate that state, e.g. before this class is ever touched
     BaseHash.updateIdentityHash(0L);
 
-    BaseHash.ensureIdentityHash();
-    long ensured = BaseHash.getIdentityHash();
-    assertNotEquals(0L, ensured);
+    long recalculated = BaseHash.getIdentityHash();
+    assertNotEquals(0L, recalculated);
 
-    // a later caller mutating the hash directly (e.g. via BaseHash.updateIdentityHash) must not
-    // be clobbered by a second ensureIdentityHash() call - it only ever recalculates once
+    // once non-zero, later reads don't recalculate - a caller that needs a fresh value can
+    // still force one directly (e.g. tests via updateIdentityHash)
     BaseHash.updateIdentityHash(42L);
-    BaseHash.ensureIdentityHash();
     assertEquals(42L, BaseHash.getIdentityHash());
   }
 }
