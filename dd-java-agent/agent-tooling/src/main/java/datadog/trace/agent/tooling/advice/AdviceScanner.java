@@ -45,6 +45,7 @@ import net.bytebuddy.jar.asm.Type;
 /** Scans all advice and reachable instrumentation bytecode for one instrumenter module. */
 public final class AdviceScanner {
   private static final int UNDEFINED_LINE = -1;
+  private static final String CLASS_FILE_SUFFIX = ".class";
 
   private final InstrumenterModule module;
   private final ClassFileLocator classFileLocator;
@@ -233,8 +234,8 @@ public final class AdviceScanner {
           .filter(Files::isRegularFile)
           .map(root::relativize)
           .map(Path::toString)
-          .filter(name -> name.endsWith(".class"))
-          .map(name -> name.substring(0, name.length() - ".class".length()))
+          .filter(name -> name.endsWith(CLASS_FILE_SUFFIX))
+          .map(name -> name.substring(0, name.length() - CLASS_FILE_SUFFIX.length()))
           .map(name -> name.replace('/', '.').replace('\\', '.'))
           .sorted()
           .collect(toCollection(LinkedHashSet::new));
@@ -246,7 +247,7 @@ public final class AdviceScanner {
 
   @SuppressForbidden
   private void scanClass(MutableClassInfo info) {
-    String resource = info.className.replace('.', '/') + ".class";
+    String resource = info.className.replace('.', '/') + CLASS_FILE_SUFFIX;
     ClassFileLocator.Resolution resolution;
     try {
       resolution = classFileLocator.locate(info.className);
@@ -350,23 +351,22 @@ public final class AdviceScanner {
       this.interfaces = interfaces;
       if (interfaces != null) {
         for (String interfaceName : interfaces) {
-          String binaryInterface = binaryName(interfaceName);
-          if (adviceRoots.contains(info.className)) {
-            addDependency(info, binaryInterface, false);
-          } else {
-            addRequiredDependency(info, binaryInterface);
-          }
+          addHierarchyDependency(interfaceName);
         }
       }
       // Record the hierarchy for helper ordering. Muzzle's superclass reference remains captured
       // by the invokespecial instruction in each constructor.
       if (superName != null) {
-        String binarySuperclass = binaryName(superName);
-        if (adviceRoots.contains(info.className)) {
-          addDependency(info, binarySuperclass, false);
-        } else {
-          addRequiredDependency(info, binarySuperclass);
-        }
+        addHierarchyDependency(superName);
+      }
+    }
+
+    private void addHierarchyDependency(String internalName) {
+      String className = binaryName(internalName);
+      if (adviceRoots.contains(info.className)) {
+        addDependency(info, className, false);
+      } else {
+        addRequiredDependency(info, className);
       }
     }
 
@@ -415,7 +415,10 @@ public final class AdviceScanner {
     private void addEnclosingClass(String owner) {
       // Advice is inlined; its enclosing instrumentation class does not need injection.
       if (!adviceRoots.contains(info.className)) {
-        addRequiredDependency(info, binaryName(owner));
+        String enclosingClass = binaryName(owner);
+        // Enclosure affects ordering, but does not itself make the owner an injectable helper.
+        info.requiredDependencies.add(enclosingClass);
+        addDependency(info, enclosingClass, false);
       }
     }
 

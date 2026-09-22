@@ -344,14 +344,14 @@ application's libraries or the agent's bootstrap classloader do not need helper 
 
 When `InstrumenterModule.helperClassNames()` returns an empty list (the default), the build-time advice scanner
 discovers helpers and generates this method. It follows dependencies from the module's advice through method
-instructions, field and method declarations, catch types, and class hierarchy/enclosing-class information.
+instructions, field and method declarations, catch types, and class hierarchies.
 Module-owned classes are identified by their compiled output, not their package name. A small set of shared agent
 helper packages is also eligible.
 
 Referenced nested, local, and anonymous classes are included. Not all classes nested inside a helper are injectable:
 classes found only by nested-class enumeration, and their otherwise-unreachable dependencies, are excluded.
 Advice roots, bootstrap classes, and build-time-only Muzzle reference builders are also excluded.
-The generated list places helper superclasses, interfaces, and enclosing classes before their dependents.
+The generated list places helper superclasses and interfaces before their dependents.
 Muzzle uses the resolved helper list so it does not require the application to supply classes that will be injected.
 
 ### Manual lists and limitations

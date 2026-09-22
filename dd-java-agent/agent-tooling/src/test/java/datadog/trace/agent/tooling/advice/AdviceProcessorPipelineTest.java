@@ -12,6 +12,7 @@ import datadog.trace.agent.tooling.HelperGenerationProcessor;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.CatchModule;
 import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.HierarchyModule;
+import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.NestedHelperModule;
 import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.PipelineModule;
 import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.ScanModule;
 import datadog.trace.agent.tooling.advice.AdviceScanningHelper.Dependency;
@@ -184,6 +185,26 @@ class AdviceProcessorPipelineTest {
     assertSame(isolated, helper.getClassLoader());
     helper.getMethod("run").invoke(null);
     assertTrue(asList(helpers).contains(CatchOnlyException.class.getName()));
+  }
+
+  @Test
+  void nestedHelperLoadsWithoutItsEnclosingModule() throws Exception {
+    NestedHelperModule module = new NestedHelperModule();
+    AdviceScanResult scan = AdviceScanner.scan(module);
+    String[] helpers = new HelperGenerationProcessor().resolveHelpers(scan, module);
+
+    assertArrayEquals(new String[] {NestedHelperModule.Helper.class.getName()}, helpers);
+    assertFalse(scan.getClassInfo(NestedHelperModule.class.getName()).isReachableFromAdvice());
+    ClassFileLocator locator = ClassFileLocator.ForClassLoader.of(getClass().getClassLoader());
+    Map<String, byte[]> helperClasses = new LinkedHashMap<>();
+    for (String helper : helpers) {
+      helperClasses.put(helper, locator.locate(helper).resolve());
+    }
+
+    ClassLoader isolated = new ByteArrayClassLoader(null, helperClasses);
+    Class<?> helper = isolated.loadClass(NestedHelperModule.Helper.class.getName());
+    assertSame(isolated, helper.getClassLoader());
+    assertEquals("nested helper", helper.getMethod("run").invoke(null));
   }
 
   @Test

@@ -39,6 +39,7 @@ final class AdviceScanningFixtures {
               + constructor.get()
               + library
               + externalLibrary
+              + AdviceScanningHelper.localClass()
               + ExternalHelper.typeName());
     }
   }
@@ -71,6 +72,25 @@ final class AdviceScanningFixtures {
     @Override
     public void methodAdvice(MethodTransformer transformer) {
       transformer.applyAdvice(null, CatchAdvice.class.getName());
+    }
+  }
+
+  public static final class NestedHelperModule extends ScanModule {
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+      transformer.applyAdvice(null, NestedAdvice.class.getName());
+    }
+
+    static class NestedAdvice {
+      static String apply() {
+        return Helper.run();
+      }
+    }
+
+    public static class Helper {
+      public static String run() {
+        return "nested helper";
+      }
     }
   }
 
