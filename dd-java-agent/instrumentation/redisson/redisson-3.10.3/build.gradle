@@ -20,7 +20,6 @@ dependencies {
     exclude group: 'org.slf4j', module: 'slf4j-api'
   }
 
-  testImplementation project(':dd-java-agent:instrumentation:netty:netty-concurrent-4.0')
   testImplementation group: 'com.redis.testcontainers', name: 'testcontainers-redis', version: '1.6.2'
   testImplementation libs.testcontainers
   testImplementation group: 'org.redisson', name: 'redisson', version: '3.10.3', {

@@ -23,7 +23,6 @@ dependencies {
   compileOnly group: 'com.datastax.oss', name: 'java-driver-core', version: '4.0.0'
 
   // ProgrammaticConfig, required to set the timeout, wasn't added until 4.0.1
-  testImplementation project(':dd-java-agent:instrumentation:netty:netty-concurrent-4.0')
   testImplementation group: 'com.datastax.oss', name: 'java-driver-core', version: '4.0.1'
   testImplementation group: 'org.testcontainers', name: 'cassandra', version: libs.versions.testcontainers.get()
 

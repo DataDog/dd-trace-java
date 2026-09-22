@@ -25,7 +25,6 @@ muzzle {
 dependencies {
   compileOnly group: 'com.twitter', name: 'finatra-http_2.11', version: '2.9.0'
 
-  testImplementation project(':dd-java-agent:instrumentation:netty:netty-concurrent-4.0')
   testImplementation project(':dd-java-agent:instrumentation:netty:netty-4.1')
 
   testImplementation group: 'com.twitter', name: 'finatra-http_2.11', version: '19.12.0'

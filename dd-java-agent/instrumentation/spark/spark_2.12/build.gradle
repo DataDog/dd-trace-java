@@ -37,7 +37,6 @@ dependencies {
   compileOnly group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: "$sparkVersion"
   compileOnly group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "$sparkVersion"
 
-  testImplementation project(':dd-java-agent:instrumentation:netty:netty-concurrent-4.0')
   testImplementation(testFixtures(project(":dd-java-agent:instrumentation:spark:spark-common")))
   testImplementation group: 'org.apache.spark', name: "spark-core_$scalaVersion", version: "$sparkVersion"
   testImplementation group: 'org.apache.spark', name: "spark-sql_$scalaVersion", version: "$sparkVersion"

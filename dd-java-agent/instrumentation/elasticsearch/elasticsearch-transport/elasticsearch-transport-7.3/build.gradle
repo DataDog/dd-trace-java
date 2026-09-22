@@ -29,7 +29,6 @@ dependencies {
   implementation project(':dd-java-agent:instrumentation:elasticsearch:elasticsearch-common')
 
   // Ensure no cross interference
-  testImplementation project(':dd-java-agent:instrumentation:netty:netty-concurrent-4.0')
   testImplementation project(':dd-java-agent:instrumentation:elasticsearch:elasticsearch-rest:elasticsearch-rest-5.0')
   testImplementation project(':dd-java-agent:instrumentation:elasticsearch:elasticsearch-rest:elasticsearch-rest-6.4')
   testImplementation project(':dd-java-agent:instrumentation:apache-httpclient:apache-httpasyncclient-4.0')

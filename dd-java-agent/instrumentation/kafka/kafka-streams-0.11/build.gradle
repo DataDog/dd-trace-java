@@ -21,7 +21,6 @@ dependencies {
   implementation project(':dd-java-agent:instrumentation:kafka:kafka-common')
   implementation project(':dd-java-agent:instrumentation:kafka:kafka-clients-0.11')
 
-  testImplementation project(':dd-java-agent:instrumentation:netty:netty-concurrent-4.0')
   testImplementation group: 'org.apache.kafka', name: 'kafka-clients', version: '0.11.0.0'
   testImplementation group: 'org.apache.kafka', name: 'kafka-streams', version: '0.11.0.0'
   testImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '1.3.3.RELEASE'

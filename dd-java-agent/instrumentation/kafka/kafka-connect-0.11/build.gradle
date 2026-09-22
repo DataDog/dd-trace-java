@@ -23,7 +23,6 @@ muzzle {
 dependencies {
   compileOnly group: 'org.apache.kafka', name: 'connect-runtime', version: '0.11.0.0'
 
-  testImplementation project(':dd-java-agent:instrumentation:netty:netty-concurrent-4.0')
   testImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
   testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
   testRuntimeOnly project(':dd-java-agent:instrumentation:java:java-lang:java-lang-1.8')
