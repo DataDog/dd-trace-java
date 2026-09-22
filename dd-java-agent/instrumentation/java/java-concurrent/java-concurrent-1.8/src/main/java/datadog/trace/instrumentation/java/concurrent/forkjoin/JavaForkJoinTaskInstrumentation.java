@@ -49,7 +49,9 @@ public final class JavaForkJoinTaskInstrumentation
     transformer.applyAdvice(
         isMethod().and(namedOneOf("doExec", "exec")), getClass().getName() + "$Exec");
     transformer.applyAdvice(isMethod().and(named("fork")), getClass().getName() + "$Fork");
-    transformer.applyAdvice(isMethod().and(named("cancel")), getClass().getName() + "$Cancel");
+    // The delay scheduler cancels tasks internally without calling the public cancel method.
+    transformer.applyAdvice(
+        isMethod().and(namedOneOf("cancel", "trySetCancelled")), getClass().getName() + "$Cancel");
   }
 
   public static final class Exec {
