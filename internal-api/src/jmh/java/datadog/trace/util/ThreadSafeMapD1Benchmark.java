@@ -64,29 +64,29 @@ import org.openjdk.jmh.annotations.Warmup;
  *       the lock branch is never taken during measurement.
  * </ul>
  *
- * <p>Rerun with {@link BenchmarkUtils#polluteHashDispatch()} wired into {@code SharedState.setUp()}
- * (JDK 8 on this machine; the Java 17 table above predates pollution entirely, so this is also a
- * cross-JDK comparison -- not a clean pollution-only delta, same caveat as {@link
- * HashtableD1Benchmark}'s Javadoc):
+ * <p>Rerun with {@link BenchmarkUtils#polluteHashDispatch()} wired into {@code
+ * SharedState.setUp()}, same JDK 17 as the table above -- a clean pollution-only delta:
  *
  * <pre>{@code
  * Benchmark                             Score   Units
- * get_concurrentHashtable               1446   ops/us
- * get_concurrentHashMap                 1161   ops/us
- * get_concurrentSkipListMap              156   ops/us
- * get_synchronizedHashMap                 30   ops/us
+ * get_concurrentHashtable               1478   ops/us
+ * get_concurrentHashMap                 1188   ops/us
+ * get_concurrentSkipListMap              207   ops/us
+ * get_synchronizedHashMap                  9   ops/us
  *
- * getOrCreate_concurrentHashtable       1434   ops/us
- * getOrCreate_concurrentHashMap         1139   ops/us
- * getOrCreate_synchronizedHashMap        30   ops/us
+ * getOrCreate_concurrentHashtable       1549   ops/us
+ * getOrCreate_concurrentHashMap         1188   ops/us
+ * getOrCreate_synchronizedHashMap          9   ops/us
  * }</pre>
  *
- * <p>All four relative conclusions above still hold: {@code ConcurrentHashtable} still leads {@code
- * ConcurrentHashMap} on {@code get} (~25%, down from ~38% -- within the JDK/pollution confound
- * above, not necessarily a pollution effect on its own), {@code ConcurrentSkipListMap} and
- * synchronized {@code HashMap} remain far behind, and {@code getOrCreate} still tracks {@code get}
- * closely. {@code synchronizedHashMap}'s error bars are wide relative to its mean at
- * {@code @Fork(2)} here -- directional only, not decisive.
+ * <p>Synchronized {@code HashMap} collapses by ~73% (33/31 to 9 ops/us on {@code get}/{@code
+ * getOrCreate}) -- pollution turns its megamorphic {@code hashCode()}/{@code equals()} dispatch
+ * into most of its cost, far more than the lock contention this benchmark was designed to isolate.
+ * {@code ConcurrentHashtable} and {@code ConcurrentHashMap} both hold roughly steady (within ~7%),
+ * so the {@code ConcurrentHashtable} lead over {@code ConcurrentHashMap} narrows only slightly
+ * (~24-30%, down from ~38%) -- this table's own low error bars (all under 2% of their means) make
+ * that narrowing a real, if modest, effect rather than noise. {@code ConcurrentSkipListMap} rises
+ * slightly (~22%) but with an error bar spanning ~21% of its mean -- directional, not decisive.
  */
 @Fork(2)
 @Warmup(iterations = 2)

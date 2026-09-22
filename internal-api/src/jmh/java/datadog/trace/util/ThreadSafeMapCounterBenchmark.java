@@ -54,23 +54,21 @@ import org.openjdk.jmh.annotations.Warmup;
  *       penalty.
  * </ul>
  *
- * <p>Rerun with {@link BenchmarkUtils#polluteHashDispatch()} wired into {@code SharedState.setUp()}
- * (JDK 8 on this machine; the Java 17 table above predates pollution entirely, so this is also a
- * cross-JDK comparison -- not a clean pollution-only delta, same caveat as {@link
- * HashtableD1Benchmark}'s Javadoc):
+ * <p>Rerun with {@link BenchmarkUtils#polluteHashDispatch()} wired into {@code
+ * SharedState.setUp()}, same JDK 17 as the table above -- a clean pollution-only delta:
  *
  * <pre>{@code
  * Benchmark                          Score   Units
- * increment_longAdder                   87   ops/us
- * increment_concurrentHashtable         71   ops/us
- * increment_atomicLong                  70   ops/us
+ * increment_longAdder                  205   ops/us
+ * increment_atomicLong                  72   ops/us
+ * increment_concurrentHashtable         68   ops/us
  * }</pre>
  *
- * <p>{@code ConcurrentHashtable} and {@code AtomicLong} are still within 2% of each other (71 vs 70
- * ops/us), unchanged from above. {@code LongAdder}'s lead widened (87 vs 71/70, vs. ~11% above),
- * but its error bar here is larger than its own mean ({@code ±103} on a score of {@code 87}) --
- * pure noise at this fork count, not a real widening; take the "within 15%" finding above as still
- * the reliable read.
+ * <p>{@code ConcurrentHashtable} and {@code AtomicLong} are still within 6% of each other (68 vs 72
+ * ops/us), unchanged from above. {@code LongAdder}'s score jumped to 205 ops/us, but its error bar
+ * ({@code ±429}) is more than double its own mean -- unusable at this fork count, not evidence of a
+ * real pollution effect; take the "within 15%" finding above as still the reliable read for {@code
+ * LongAdder} too.
  */
 @Fork(2)
 @Warmup(iterations = 2)
