@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
@@ -48,8 +48,8 @@ class TypeConverterTest extends DDJavaSpecification {
 
   @Test
   void shouldReuseNoopSpanWrapperViaScope() {
-    AgentScope noopScope = mock(AgentScope.class);
-    when(noopScope.span()).thenReturn(noopSpan());
+    ContextScope noopScope = mock(ContextScope.class);
+    when(noopScope.context()).thenReturn(noopSpan());
     OTSpan noopSpanWrapper = typeConverter.toSpan(noopSpan());
     assertSame(typeConverter.toScope(noopScope, true).span(), noopSpanWrapper);
     assertSame(typeConverter.toScope(noopScope, false).span(), noopSpanWrapper);

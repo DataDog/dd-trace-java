@@ -2006,7 +2006,6 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext()
     1 * ctx.reportDerivatives(['_dd.appsec.trace.agent':'RulesCompat/v1', '_dd.appsec.trace.integer': 123456789])
-    1 * ctx.isThrottled(null)
     // libddwaf 2.0.1: ResultWithData.events now reflects the real "events" array, so attributes-only matches don't call reportEvents().
     0 * ctx.reportEvents(_)
     0 * ctx._(*_)
@@ -2050,6 +2049,23 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.setManuallyKept(true)
     0 * ctx._(*_)
     !flow3.blocking
+
+    when: 'test rate-limited rules_compat rule with attributes, keep and event'
+    def flow4 = new ChangeableFlow()
+    dataListener.onDataAvailable(flow4, ctx, bundle3, gwCtx)
+    ctx.closeWafContext()
+
+    then:
+    1 * ctx.getOrCreateWafContext(_, true, false) >> { wafContext = new WafContext(it[0]) }
+    2 * ctx.getWafMetrics() >> metrics
+    1 * ctx.isWafContextClosed() >> false
+    1 * ctx.closeWafContext()
+    1 * ctx.reportDerivatives(['_dd.appsec.trace.agent':'RulesCompat/v3', '_dd.appsec.trace.integer': 555666777])
+    1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
+    1 * ctx.isThrottled(null) >> true
+    1 * ctx.setWafRateLimited()
+    0 * ctx._(*_)
+    !flow4.blocking
   }
 
   void 'test trace tagging rule with attributes, no keep and event (dynamic value extraction)'() {
@@ -2150,7 +2166,6 @@ class WAFModuleSpecification extends DDSpecification {
     // Should report derivatives with dynamic value extraction - the user-agent value should be extracted
     1 * ctx.reportDerivatives(['_dd.appsec.trace.agent':'TraceTagging/v4', '_dd.appsec.trace.integer': 1729])
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
-    1 * ctx.isThrottled(null)
     0 * ctx._(*_)
     !flow.blocking // Should not block since keep: false
   }

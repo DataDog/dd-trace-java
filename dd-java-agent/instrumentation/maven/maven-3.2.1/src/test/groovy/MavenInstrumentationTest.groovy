@@ -40,9 +40,7 @@ class MavenInstrumentationTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test #testcaseName"() {
-    String workingDirectory = projectFolder.toString()
-
-    def exitCode = new MavenCli().doMain(args.toArray(new String[0]), workingDirectory, null, null)
+    def exitCode = executeMaven(args)
 
     assertEquals(expectedExitCode, exitCode)
     assertSpansData(testcaseName)
@@ -71,15 +69,22 @@ class MavenInstrumentationTest extends CiVisibilityInstrumentationTest {
    * before proceeding with running the build
    */
   void givenMavenDependenciesAreLoaded() {
-    String[] args = ["org.apache.maven.plugins:maven-dependency-plugin:go-offline"]
-    String workingDirectory = projectFolder.toString()
     for (int attempt = 0; attempt < DEPENDENCIES_DOWNLOAD_RETRIES; attempt++) {
-      def exitCode = new MavenCli().doMain(args, workingDirectory, null, null)
+      def exitCode = executeMaven(["org.apache.maven.plugins:maven-dependency-plugin:go-offline"])
       if (exitCode == 0) {
         return
       }
     }
     throw new AssertionError((Object) "Tried to download dependencies $DEPENDENCIES_DOWNLOAD_RETRIES times and failed")
+  }
+
+  private int executeMaven(List<String> args) {
+    def arguments = new ArrayList<>(args)
+    if (System.getenv("MAVEN_REPOSITORY_PROXY") != null) {
+      def settingsFile = new File(getClass().getResource("/settings.mirror.xml").toURI())
+      arguments.addAll(["-s", settingsFile.absolutePath])
+    }
+    return new MavenCli().doMain(arguments.toArray(new String[0]), projectFolder.toString(), null, null)
   }
 
   @Override

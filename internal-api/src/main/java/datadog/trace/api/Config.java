@@ -59,6 +59,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_I
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_DBM_ALWAYS_APPEND_SQL_COMMENT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_DBM_PROPAGATION_MODE_MODE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_DBM_TRACE_PREPARED_STATEMENTS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS;
@@ -214,10 +215,12 @@ import static datadog.trace.api.config.AIGuardConfig.AI_GUARD_ENABLED;
 import static datadog.trace.api.config.AIGuardConfig.AI_GUARD_ENDPOINT;
 import static datadog.trace.api.config.AIGuardConfig.AI_GUARD_MAX_CONTENT_SIZE;
 import static datadog.trace.api.config.AIGuardConfig.AI_GUARD_MAX_MESSAGES_LENGTH;
+import static datadog.trace.api.config.AIGuardConfig.AI_GUARD_REDACTION_ENABLED;
 import static datadog.trace.api.config.AIGuardConfig.AI_GUARD_TIMEOUT;
 import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_ENABLED;
 import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_MAX_CONTENT_SIZE;
 import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_MAX_MESSAGES_LENGTH;
+import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_REDACTION_ENABLED;
 import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_TIMEOUT;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE;
@@ -586,6 +589,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_ALWAYS_APPEND_SQL_COMMENT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_INJECT_SQL_BASEHASH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_TRACE_PREPARED_STATEMENTS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_METADATA_FETCHING_ON_CONNECT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_METADATA_FETCHING_ON_QUERY;
@@ -1251,6 +1255,7 @@ public class Config {
 
   private final boolean dbmInjectSqlBaseHash;
   private final String dbmPropagationMode;
+  private final boolean dbmPropagationOracleActionOnlyEnabled;
   private final boolean dbmTracePreparedStatements;
   private final boolean dbmAlwaysAppendSqlComment;
   private final boolean dbMetadataFetchingOnQuery;
@@ -1466,6 +1471,7 @@ public class Config {
   private final int aiGuardTimeout;
   private final int aiGuardMaxMessagesLength;
   private final int aiGuardMaxContentSize;
+  private final boolean aiGuardRedactionEnabled;
 
   static {
     // Bind telemetry collector to config module before initializing ConfigProvider
@@ -1850,6 +1856,11 @@ public class Config {
     dbmPropagationMode =
         configProvider.getString(
             DB_DBM_PROPAGATION_MODE_MODE, DEFAULT_DB_DBM_PROPAGATION_MODE_MODE);
+
+    dbmPropagationOracleActionOnlyEnabled =
+        configProvider.getBoolean(
+            DB_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED,
+            DEFAULT_DB_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED);
 
     dbmTracePreparedStatements =
         configProvider.getBoolean(
@@ -3455,6 +3466,8 @@ public class Config {
     this.aiGuardMaxMessagesLength =
         configProvider.getInteger(
             AI_GUARD_MAX_MESSAGES_LENGTH, DEFAULT_AI_GUARD_MAX_MESSAGES_LENGTH);
+    this.aiGuardRedactionEnabled =
+        configProvider.getBoolean(AI_GUARD_REDACTION_ENABLED, DEFAULT_AI_GUARD_REDACTION_ENABLED);
 
     log.debug("New instance: {}", this);
   }
@@ -6049,6 +6062,10 @@ public class Config {
     return dbmPropagationMode;
   }
 
+  public boolean isDbmPropagationOracleActionOnlyEnabled() {
+    return dbmPropagationOracleActionOnlyEnabled;
+  }
+
   // Database monitoring propagation mode constants
   public static final String DBM_PROPAGATION_MODE_STATIC = "service";
   public static final String DBM_PROPAGATION_MODE_FULL = "full";
@@ -6250,6 +6267,15 @@ public class Config {
 
   public int getAiGuardTimeout() {
     return aiGuardTimeout;
+  }
+
+  /**
+   * Global kill-switch for AI Guard sensitive data redaction. When {@code false}, the tracer never
+   * applies the redaction requested by the AI Guard service, even when the evaluation response asks
+   * for it.
+   */
+  public boolean isAiGuardRedactionEnabled() {
+    return aiGuardRedactionEnabled;
   }
 
   private <T> Set<T> getSettingsSetFromEnvironment(
@@ -6628,6 +6654,8 @@ public class Config {
         + dbmInjectSqlBaseHash
         + ", dbmPropagationMode="
         + dbmPropagationMode
+        + ", dbmPropagationOracleActionOnlyEnabled="
+        + dbmPropagationOracleActionOnlyEnabled
         + ", dbmTracePreparedStatements="
         + dbmTracePreparedStatements
         + ", splitByTags="
@@ -7016,6 +7044,8 @@ public class Config {
         + aiGuardEnabled
         + ", aiGuardEndpoint="
         + aiGuardEndpoint
+        + ", aiGuardRedactionEnabled="
+        + aiGuardRedactionEnabled
         + ", logsOtelExporter="
         + logsOtelExporter
         + ", logsOtelInterval="
