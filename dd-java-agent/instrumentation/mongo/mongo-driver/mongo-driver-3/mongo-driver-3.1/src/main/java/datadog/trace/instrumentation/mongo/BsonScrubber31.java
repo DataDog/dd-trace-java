@@ -502,7 +502,8 @@ public final class BsonScrubber31 implements BsonWriter, BsonScrubber {
         writeString(attribute, value.asString().getValue());
         break;
       case BINARY:
-        writeBinaryData(attribute, value.asBinary());
+        writeName(attribute);
+        writeObfuscated();
         break;
       case UNDEFINED:
         writeUndefined();
