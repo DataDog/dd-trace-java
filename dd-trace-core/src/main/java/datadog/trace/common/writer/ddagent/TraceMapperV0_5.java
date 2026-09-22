@@ -8,6 +8,7 @@ import datadog.communication.serialization.Mapper;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
+import datadog.trace.api.Config;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TagMap.EntryReader;
 import datadog.trace.api.internal.VisibleForTesting;
@@ -35,6 +36,9 @@ public final class TraceMapperV0_5 implements TraceMapper {
   private final GrowableBuffer dictionary;
 
   private final MetaWriter metaWriter = new MetaWriter();
+
+  private final UTF8BytesString otlpExportMarker = TraceMapper.otlpExportMarker(Config.get());
+
   private final int size;
   private boolean firstSpanWritten;
 
@@ -220,6 +224,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
       final boolean writeSamplingPriority =
           firstSpanInTrace || lastSpanInTrace || metadata.topLevel();
       final UTF8BytesString processTags = firstSpanInPayload ? metadata.processTags() : null;
+      final UTF8BytesString otlpExport = firstSpanInPayload ? otlpExportMarker : null;
 
       TagMap tags = metadata.getTags();
 
@@ -229,6 +234,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
               + (UNSET_STATUS == metadata.getHttpStatusCode() ? 0 : 1)
               + (null == metadata.getOrigin() ? 0 : 1)
               + (null == processTags ? 0 : 1)
+              + (null == otlpExport ? 0 : 1)
               + 1;
       int metricsSize =
           (writeSamplingPriority && metadata.hasSamplingPriority() ? 1 : 0)
@@ -271,6 +277,10 @@ public final class TraceMapperV0_5 implements TraceMapper {
       if (null != processTags) {
         writeDictionaryEncoded(writable, PROCESS_TAGS_KEY);
         writeDictionaryEncoded(writable, processTags);
+      }
+      if (null != otlpExport) {
+        writeDictionaryEncoded(writable, SDK_OTLP_EXPORT_KEY);
+        writeDictionaryEncoded(writable, otlpExport);
       }
 
       for (TagMap.EntryReader entry : tags) {

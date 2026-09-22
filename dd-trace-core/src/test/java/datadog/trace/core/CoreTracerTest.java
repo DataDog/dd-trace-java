@@ -262,7 +262,7 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     CoreTracer tracer = tracerBuilder().build();
     try {
       ConfigSnapshot config = tracer.captureTraceConfig();
-      assertEquals(withOtlpExportMarker(map), config.mergedTracerTags);
+      assertEquals(map, config.mergedTracerTags);
       assertEquals(map, config.getServiceMapping());
     } finally {
       tracer.close();
@@ -518,7 +518,7 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
 
       ConfigSnapshot config = tracer.captureTraceConfig();
       assertEquals(expectedValue, config.getTracingTags());
-      assertEquals(withOtlpExportMarker(expectedValue), config.mergedTracerTags);
+      assertEquals(expectedValue, config.mergedTracerTags);
 
       capturedUpdater[0].remove(key, null);
       capturedUpdater[0].commit(null);
@@ -527,13 +527,6 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     } finally {
       tracer.close();
     }
-  }
-
-  // ORLP Export tag belongs on all spans
-  private static Map<String, Object> withOtlpExportMarker(Map<String, String> tags) {
-    Map<String, Object> expectedTags = new LinkedHashMap<>(tags);
-    expectedTags.put(DDTags.SDK_OTLP_EXPORT, "false");
-    return expectedTags;
   }
 
   static final String ACTION_JSON =

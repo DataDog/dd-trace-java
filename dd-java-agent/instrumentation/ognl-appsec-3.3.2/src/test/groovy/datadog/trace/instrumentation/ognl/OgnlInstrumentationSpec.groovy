@@ -29,7 +29,6 @@ class OgnlInstrumentationSpec extends InstrumentationSpecification {
             'ognl.expression' 'foo'
             assertedTags << 'thread.name'
             assertedTags << 'thread.id'
-            assertedTags << '_dd.sdk.otlp_export'
           }
         }
       }

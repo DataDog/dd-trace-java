@@ -9,14 +9,10 @@ import static datadog.trace.api.DDTags.PID_TAG;
 import static datadog.trace.api.DDTags.PROFILING_ENABLED;
 import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
 import static datadog.trace.api.DDTags.SCHEMA_VERSION_TAG_KEY;
-import static datadog.trace.api.DDTags.SDK_OTLP_EXPORT;
 import static datadog.trace.api.DDTags.THREAD_ID;
 import static datadog.trace.api.DDTags.THREAD_NAME;
 import static datadog.trace.api.TracePropagationStyle.DATADOG;
-import static datadog.trace.api.config.GeneralConfig.TAGS;
-import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
-import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -72,26 +68,6 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
   void buildSimpleSpan() {
     DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").withServiceName("foo").start();
     assertEquals("op name", span.getOperationName());
-  }
-
-  @Test
-  void nativeWriterSetsOtlpExportMarkerToFalse() {
-    DDSpan span = (DDSpan) tracer.buildSpan("test", "operation").start();
-    assertEquals("false", span.getTag(SDK_OTLP_EXPORT));
-  }
-
-  @Test
-  @WithConfig(key = WRITER_TYPE, value = OTLP_WRITER_TYPE)
-  void otlpWriterSetsOtlpExportMarkerToTrue() {
-    DDSpan span = (DDSpan) tracer.buildSpan("test", "operation").start();
-    assertEquals("true", span.getTag(SDK_OTLP_EXPORT));
-  }
-
-  @Test
-  @WithConfig(key = TAGS, value = "_dd.sdk.otlp_export:true")
-  void userTagCannotOverrideOtlpExportMarker() {
-    DDSpan span = (DDSpan) tracer.buildSpan("test", "operation").start();
-    assertEquals("false", span.getTag(SDK_OTLP_EXPORT));
   }
 
   @Test
@@ -611,7 +587,6 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     if (Config.get().isDataJobsEnabled()) {
       productTags.put(DJM_ENABLED, 1);
     }
-    productTags.put(SDK_OTLP_EXPORT, Config.get().isOtlpTracesExportEnabled() ? "true" : "false");
     return productTags;
   }
 

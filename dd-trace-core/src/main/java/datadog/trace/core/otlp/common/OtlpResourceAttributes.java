@@ -1,6 +1,7 @@
 package datadog.trace.core.otlp.common;
 
 import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
+import static datadog.trace.api.DDTags.SDK_OTLP_EXPORT;
 import static java.util.Arrays.asList;
 
 import datadog.trace.api.Config;
@@ -35,7 +36,8 @@ final class OtlpResourceAttributes {
               "telemetry.sdk.name",
               "telemetry.sdk.version",
               "telemetry.sdk.language",
-              "datadog.sdk.semantics"));
+              "datadog.sdk.semantics",
+              SDK_OTLP_EXPORT));
 
   /**
    * {@code value} is a {@link String}, except {@code datadog.process_tags}: a {@code List<String>}.
@@ -82,13 +84,15 @@ final class OtlpResourceAttributes {
   /**
    * Builds the extra resource attributes for the OTLP trace export: the {@code _dd.stats_computed}
    * marker when the SDK is computing OTLP span metrics, so a downstream Agent does not recompute
-   * them from the exported spans; {@code datadog.sdk.semantics} marker when the SDK to note whether
-   * Datadog or OTel semantics are used.
+   * them from the exported spans; {@code datadog.sdk.semantics}, recording whether the SDK applied
+   * Datadog or OTel semantics; and {@code _dd.sdk.otlp_export}, which is always {@code "true"} here
+   * because reaching this encoder means the payload is leaving over OTLP.
    */
   static Map<String, Object> traceResourceAttributes(Config config) {
     Map<String, Object> attributes = new LinkedHashMap<>();
     attributes.put(
         "datadog.sdk.semantics", config.isTraceOtelSemanticsEnabled() ? "otel" : "datadog");
+    attributes.put(SDK_OTLP_EXPORT, "true");
     if (config.isOtelTracesSpanMetricsEnabled()) {
       attributes.put(STATS_COMPUTED_KEY, "true");
     }

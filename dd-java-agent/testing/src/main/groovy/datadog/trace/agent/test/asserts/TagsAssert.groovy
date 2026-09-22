@@ -107,7 +107,6 @@ class TagsAssert {
     assertedTags.add(DDTags.DJM_ENABLED)
     assertedTags.add(DDTags.PARENT_ID)
     assertedTags.add(DDTags.SPAN_LINKS) // this is checked by LinksAsserter
-    assertedTags.add(DDTags.SDK_OTLP_EXPORT)
     DDTags.REQUIRED_CODE_ORIGIN_TAGS.each {
       assertedTags.add(it)
     }

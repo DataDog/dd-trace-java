@@ -71,6 +71,9 @@ public final class TraceMapperV1 implements TraceMapper {
   private final MsgPackWriter metaStructWriter;
   private final ByteBuffer header;
 
+  /** Snapshot taken at construction, the way {@code TraceMapperV0_4}/{@code V0_5} do it. */
+  private final String otlpExportMarker = TraceMapper.otlpExportMarker(Config.get()).toString();
+
   public TraceMapperV1(int bufferSize) {
     this.bufferSize = bufferSize;
     this.stringTable = new StringTable();
@@ -665,8 +668,11 @@ public final class TraceMapperV1 implements TraceMapper {
 
     // attributes = 10, a collection of key to value pairs common in all `chunks`
     CharSequence processTags = ProcessTags.getTagsForSerialization();
-    Map<String, Object> tags =
-        processTags != null ? singletonMap(DDTags.PROCESS_TAGS, processTags) : emptyMap();
+    Map<String, Object> tags = new HashMap<>(4);
+    tags.put(DDTags.SDK_OTLP_EXPORT, otlpExportMarker);
+    if (processTags != null) {
+      tags.put(DDTags.PROCESS_TAGS, processTags);
+    }
     encodeAttributes(headerWriter, 10, tags);
 
     // chunks = 11, a list of trace `chunks`, value is written by PayloadV1

@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.DDTags.SDK_OTLP_EXPORT;
 import static datadog.trace.api.DDTags.SPAN_EVENTS;
 import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.api.TracePropagationStyle.DATADOG;
@@ -245,7 +246,9 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
         for (int j = 0; j < packedSize; j++) {
           String k = unpacker.unpackString();
           String v = unpacker.unpackString();
-          if (!"thread.name".equals(k) && !"thread.id".equals(k)) {
+          // thread.* and the payload-scoped _dd.sdk.otlp_export marker are written by the
+          // mapper, not by the span under test (see TraceMapperV04/V05PayloadTest).
+          if (!"thread.name".equals(k) && !"thread.id".equals(k) && !SDK_OTLP_EXPORT.equals(k)) {
             unpackedMeta.put(k, v);
           }
         }
@@ -324,7 +327,9 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
     for (int j = 0; j < packedSize; j++) {
       String k = dictionary[unpacker.unpackInt()];
       String v = dictionary[unpacker.unpackInt()];
-      if (!"thread.name".equals(k) && !"thread.id".equals(k)) {
+      // thread.* and the payload-scoped _dd.sdk.otlp_export marker are written by the
+      // mapper, not by the span under test (see TraceMapperV04/V05PayloadTest).
+      if (!"thread.name".equals(k) && !"thread.id".equals(k) && !SDK_OTLP_EXPORT.equals(k)) {
         unpackedMeta.put(k, v);
       }
     }
@@ -562,7 +567,9 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
         for (int j = 0; j < packedSize; j++) {
           String k = unpacker.unpackString();
           String v = unpacker.unpackString();
-          if (!"thread.name".equals(k) && !"thread.id".equals(k)) {
+          // thread.* and the payload-scoped _dd.sdk.otlp_export marker are written by the
+          // mapper, not by the span under test (see TraceMapperV04/V05PayloadTest).
+          if (!"thread.name".equals(k) && !"thread.id".equals(k) && !SDK_OTLP_EXPORT.equals(k)) {
             unpackedMeta.put(k, v);
           }
         }
@@ -632,7 +639,9 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
     for (int j = 0; j < packedSize; j++) {
       String k = dictionary[unpacker.unpackInt()];
       String v = dictionary[unpacker.unpackInt()];
-      if (!"thread.name".equals(k) && !"thread.id".equals(k)) {
+      // thread.* and the payload-scoped _dd.sdk.otlp_export marker are written by the
+      // mapper, not by the span under test (see TraceMapperV04/V05PayloadTest).
+      if (!"thread.name".equals(k) && !"thread.id".equals(k) && !SDK_OTLP_EXPORT.equals(k)) {
         unpackedMeta.put(k, v);
       }
     }

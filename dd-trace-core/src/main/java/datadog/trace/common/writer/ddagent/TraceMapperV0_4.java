@@ -70,10 +70,16 @@ public final class TraceMapperV0_4 implements TraceMapper {
 
   private static final class MetaWriter implements MetadataConsumer {
 
+    private final UTF8BytesString otlpExportMarker;
+
     private Writable writable;
     private boolean firstSpanInTrace;
     private boolean lastSpanInTrace;
     private boolean firstSpanInPayload;
+
+    MetaWriter(UTF8BytesString otlpExportMarker) {
+      this.otlpExportMarker = otlpExportMarker;
+    }
 
     MetaWriter withWritable(Writable writable) {
       this.writable = writable;
@@ -101,12 +107,14 @@ public final class TraceMapperV0_4 implements TraceMapper {
       final boolean writeSamplingPriority =
           firstSpanInTrace || lastSpanInTrace || metadata.topLevel();
       final UTF8BytesString processTags = firstSpanInPayload ? metadata.processTags() : null;
+      final UTF8BytesString otlpExport = firstSpanInPayload ? otlpExportMarker : null;
       int metaSize =
           metadata.getBaggage().size()
               + tags.size()
               + (UNSET_STATUS == metadata.getHttpStatusCode() ? 0 : 1)
               + (null == metadata.getOrigin() ? 0 : 1)
               + (null == processTags ? 0 : 1)
+              + (null == otlpExport ? 0 : 1)
               + 1;
       int metricsSize =
           (writeSamplingPriority && metadata.hasSamplingPriority() ? 1 : 0)
@@ -205,6 +213,10 @@ public final class TraceMapperV0_4 implements TraceMapper {
       if (processTags != null) {
         writable.writeUTF8(PROCESS_TAGS_KEY);
         writable.writeUTF8(processTags);
+      }
+      if (otlpExport != null) {
+        writable.writeUTF8(SDK_OTLP_EXPORT_KEY);
+        writable.writeUTF8(otlpExport);
       }
 
       tags.forEach(
@@ -316,7 +328,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
     }
   }
 
-  private final MetaWriter metaWriter = new MetaWriter();
+  private final MetaWriter metaWriter = new MetaWriter(TraceMapper.otlpExportMarker(Config.get()));
   private final MetaStructWriter metaStructWriter = new MetaStructWriter();
 
   @Override
