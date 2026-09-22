@@ -63,19 +63,17 @@ public final class BaseHash {
    * so that if {@link #identityHash}'s field initializer ran prematurely (before {@link Config}'s
    * values settled), it gets one chance to pick up the settled values before any pathway hash is
    * actually reported.
+   *
+   * <p>Deliberately unsynchronized: concurrent callers all recompute from the same (by-then
+   * settled) Config, so a race just means a few redundant, identical writes rather than a
+   * correctness issue.
    */
   public static void ensureIdentityHash() {
     if (!identityHashEnsured) {
-      synchronized (BaseHash.class) {
-        if (!identityHashEnsured) {
-          identityHash =
-              calcIdentity(
-                  Config.get().getServiceName(),
-                  Config.get().getEnv(),
-                  Config.get().getPrimaryTag());
-          identityHashEnsured = true;
-        }
-      }
+      identityHash =
+          calcIdentity(
+              Config.get().getServiceName(), Config.get().getEnv(), Config.get().getPrimaryTag());
+      identityHashEnsured = true;
     }
   }
 
