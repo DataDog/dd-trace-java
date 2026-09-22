@@ -205,6 +205,8 @@ public final class TraceInstrumentationConfig {
   public static final String AXIS_PROMOTE_RESOURCE_NAME = "trace.axis.promote.resource-name";
 
   public static final String SQS_BODY_PROPAGATION_ENABLED = "trace.sqs.body.propagation.enabled";
+  public static final String AWS_ACCOUNT_FROM_ACCESS_KEY_ENABLED =
+      "trace.aws.account.from.access.key.enabled";
 
   public static final String TRACE_RESOURCE_RENAMING_ENABLED = "trace.resource.renaming.enabled";
 

@@ -30,6 +30,8 @@ public class AwsSdkModule extends InstrumenterModule.Tracing {
       packageName + ".TracingRequestHandler",
       packageName + ".AwsNameCache",
       packageName + ".OnErrorDecorator",
+      "datadog.trace.instrumentation.aws.AwsAccountIdentity",
+      "datadog.trace.instrumentation.aws.AwsArn",
     };
   }
 

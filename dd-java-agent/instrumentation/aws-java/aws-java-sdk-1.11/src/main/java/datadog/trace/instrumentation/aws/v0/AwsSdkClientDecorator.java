@@ -25,6 +25,8 @@ import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
+import datadog.trace.instrumentation.aws.AwsAccountIdentity;
+import datadog.trace.instrumentation.aws.AwsArn;
 import java.net.URI;
 import java.util.List;
 import java.util.Locale;
@@ -179,10 +181,33 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     }
     String tableName = access.getTableName(originalRequest);
     if (null != tableName) {
+      // A TableName given as an ARN carries the owning account; a bare name is resolved by
+      // DynamoDB in the requestor's own account. SDK v1 does not expose the signing credentials
+      // to request handlers, so only the ARN form yields an account here.
+      AwsArn arn = AwsArn.parse(tableName);
+      if (arn != null) {
+        String account = arn.account();
+        if (account != null) {
+          span.setTag(InstrumentationTags.AWS_ACCOUNT, account);
+        }
+        String bareName = arn.dynamoDbTableName();
+        if (bareName != null) {
+          // Only a table ARN is a table ARN; any other resource keeps the raw value as the name.
+          span.setTag(InstrumentationTags.AWS_TABLE_ARN, arn.raw());
+          tableName = bareName;
+        }
+      }
       span.setTag(InstrumentationTags.AWS_TABLE_NAME, tableName);
       span.setTag(InstrumentationTags.TABLE_NAME, tableName);
       bestPrecursor = InstrumentationTags.AWS_TABLE_NAME;
       bestPeerService = tableName;
+    }
+    String expectedBucketOwner = access.getExpectedBucketOwner(originalRequest);
+    if (AwsAccountIdentity.isAccountId(expectedBucketOwner)) {
+      // S3 enforces ExpectedBucketOwner (403 on mismatch), so it names the owner whenever the
+      // request succeeds. The span is tagged before the response is known, so the value is shape
+      // checked to keep a malformed owner (which S3 rejects) off the span.
+      span.setTag(InstrumentationTags.AWS_ACCOUNT, expectedBucketOwner);
     }
 
     // Set peer.service based on Config for serverless functions

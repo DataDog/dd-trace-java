@@ -581,6 +581,7 @@ import static datadog.trace.api.config.RumConfig.RUM_TRACK_LONG_TASKS;
 import static datadog.trace.api.config.RumConfig.RUM_TRACK_RESOURCES;
 import static datadog.trace.api.config.RumConfig.RUM_TRACK_USER_INTERACTION;
 import static datadog.trace.api.config.RumConfig.RUM_VERSION;
+import static datadog.trace.api.config.TraceInstrumentationConfig.AWS_ACCOUNT_FROM_ACCESS_KEY_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.AXIS_PROMOTE_RESOURCE_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED;
@@ -1316,6 +1317,7 @@ public class Config {
   private final boolean awsPropagationEnabled;
   private final boolean sqsPropagationEnabled;
   private final boolean sqsBodyPropagationEnabled;
+  private final boolean awsAccountFromAccessKeyEnabled;
 
   private final boolean kafkaClientPropagationEnabled;
   private final Set<String> kafkaClientPropagationDisabledTopics;
@@ -3143,6 +3145,8 @@ public class Config {
     awsPropagationEnabled = isPropagationEnabled(true, "aws", "aws-sdk");
     sqsPropagationEnabled = isPropagationEnabled(true, "sqs");
     sqsBodyPropagationEnabled = configProvider.getBoolean(SQS_BODY_PROPAGATION_ENABLED, false);
+    awsAccountFromAccessKeyEnabled =
+        configProvider.getBoolean(AWS_ACCOUNT_FROM_ACCESS_KEY_ENABLED, false);
 
     kafkaClientPropagationEnabled = isPropagationEnabled(true, "kafka", "kafka.client");
     kafkaClientPropagationDisabledTopics =
@@ -5127,6 +5131,10 @@ public class Config {
     return sqsBodyPropagationEnabled;
   }
 
+  public boolean isAwsAccountFromAccessKeyEnabled() {
+    return awsAccountFromAccessKeyEnabled;
+  }
+
   public boolean isKafkaClientPropagationEnabled() {
     return kafkaClientPropagationEnabled;
   }
@@ -6946,6 +6954,8 @@ public class Config {
         + debuggerCodeOriginEnabled
         + ", awsPropagationEnabled="
         + awsPropagationEnabled
+        + ", awsAccountFromAccessKeyEnabled="
+        + awsAccountFromAccessKeyEnabled
         + ", sqsPropagationEnabled="
         + sqsPropagationEnabled
         + ", kafkaClientPropagationEnabled="

@@ -433,6 +433,77 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
         """
   }
 
+  def "DynamoDb request with a table ARN tags the owning account and table ARN"() {
+    setup:
+    def client = DynamoDbClient.builder()
+      .endpointOverride(server.address)
+      .region(Region.AP_NORTHEAST_1)
+      .credentialsProvider(CREDENTIALS_PROVIDER)
+      .build()
+    responseBody.set("")
+    def tableArn = "arn:aws:dynamodb:ap-northeast-1:123456789012:table/sometable"
+
+    when:
+    client.getItem(GetItemRequest.builder().tableName(tableArn).key(["attribute": AttributeValue.builder().s("somevalue").build()]).build())
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          serviceName expectedService("DynamoDb", "GetItem")
+          operationName expectedOperation("DynamoDb", "GetItem")
+          resourceName "DynamoDb.GetItem"
+          spanType DDSpanTypes.HTTP_CLIENT
+          errored false
+          measured true
+          parent()
+          tags {
+            "$Tags.COMPONENT" "java-aws-sdk"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.PEER_HOSTNAME" "localhost"
+            "$Tags.PEER_PORT" server.address.port
+            "$Tags.HTTP_METHOD" "POST"
+            "$Tags.HTTP_STATUS" 200
+            "aws.service" "DynamoDb"
+            "aws_service" "DynamoDb"
+            "aws.operation" "GetItem"
+            "aws.agent" "java-aws-sdk"
+            "aws.requestId" "UNKNOWN"
+            // the bare name is what peer.service and the *name tags carry
+            "aws.table.name" "sometable"
+            "tablename" "sometable"
+            "aws.table.arn" tableArn
+            "aws_account" "123456789012"
+            peerServiceFrom("aws.table.name")
+            urlTags("${server.address}/", ExpectedQueryParams.getExpectedQueryParams("GetItem"))
+            defaultTags(false, true)
+          }
+        }
+      }
+    }
+  }
+
+  def "DynamoDb request with a bare table name has no account when the credentials carry none"() {
+    setup:
+    def client = DynamoDbClient.builder()
+      .endpointOverride(server.address)
+      .region(Region.AP_NORTHEAST_1)
+      .credentialsProvider(CREDENTIALS_PROVIDER)
+      .build()
+    responseBody.set("")
+
+    when:
+    client.getItem(GetItemRequest.builder().tableName("sometable").key(["attribute": AttributeValue.builder().s("somevalue").build()]).build())
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    def tags = TEST_WRITER.firstTrace().first().tags
+    tags["aws.table.name"] == "sometable"
+    !tags.containsKey("aws_account")
+    !tags.containsKey("aws.table.arn")
+  }
+
   def "timeout and retry errors captured"() {
     setup:
     def server = httpServer {
