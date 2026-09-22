@@ -19,7 +19,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
 import static utils.InstrumentationTestHelper.getLineForLineProbe;
-import static utils.InstrumentationTestHelper.loadClass;
+import static utils.InstrumentationTestHelper.installTracerInstrumentation;
 
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ValueScript;
@@ -1297,8 +1297,15 @@ public class MetricProbesInstrumentationTest {
             .valueScript(new ValueScript(DSL.len(DSL.ref("varStr")), "len(varStr)"))
             .build();
     MetricForwarderListener listener = installMetricProbes(metricProbe);
-    Class<?> testClass =
-        loadClass(CLASS_NAME, getClass().getResource("/MyResource.class").getFile());
+    // compile the JAX-RS resource fixture and weave it with the real tracer JAX-RS
+    // instrumentation, so this test exercises the same bytecode shape the tracer produces
+    ClassFileTransformer jaxRsTransformer = installTracerInstrumentation(instr);
+    Class<?> testClass;
+    try {
+      testClass = compileAndLoadClass(CLASS_NAME);
+    } finally {
+      instr.removeTransformer(jaxRsTransformer);
+    }
     Object result =
         Reflect.onClass(testClass)
             .create()

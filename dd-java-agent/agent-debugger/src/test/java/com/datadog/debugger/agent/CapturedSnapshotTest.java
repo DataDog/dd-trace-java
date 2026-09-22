@@ -27,6 +27,7 @@ import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compile;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
 import static utils.InstrumentationTestHelper.getLineForLineProbe;
+import static utils.InstrumentationTestHelper.installTracerInstrumentation;
 import static utils.InstrumentationTestHelper.loadClass;
 import static utils.TestClassFileHelper.getClassFileBytes;
 import static utils.TestHelper.getFixtureContent;
@@ -72,6 +73,7 @@ import groovy.lang.GroovyClassLoader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -1839,9 +1841,16 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     DebuggerContext.initClassFilter(new DenyListHelper(null));
     final String CLASS_NAME = "com.datadog.debugger.jaxrs.MyResource";
     TestSnapshotListener listener = installMethodProbe(CLASS_NAME, "createResource", null);
-    // load a class file that was previously instrumented by the DD tracer as JAX-RS resource
-    Class<?> testClass =
-        loadClass(CLASS_NAME, getClass().getResource("/MyResource.class").getFile());
+    // compile the JAX-RS resource fixture and weave it with the real tracer JAX-RS
+    // instrumentation, so this test exercises argument-name resolution against the same
+    // bytecode shape the tracer actually produces
+    ClassFileTransformer jaxRsTransformer = installTracerInstrumentation(instr);
+    Class<?> testClass;
+    try {
+      testClass = compileAndLoadClass(CLASS_NAME);
+    } finally {
+      instr.removeTransformer(jaxRsTransformer);
+    }
     Object result =
         Reflect.onClass(testClass)
             .create()
