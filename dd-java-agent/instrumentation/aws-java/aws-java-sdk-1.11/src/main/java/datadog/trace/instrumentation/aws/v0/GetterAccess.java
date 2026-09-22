@@ -42,6 +42,7 @@ final class GetterAccess {
   private final MethodHandle getStateMachineArn;
   private final MethodHandle getExecutionArn;
   private final MethodHandle getFunctionName;
+  private final MethodHandle getExpectedBucketOwner;
 
   private GetterAccess(final Class<?> objectType) {
     operationName =
@@ -61,6 +62,7 @@ final class GetterAccess {
     getStateMachineArn = findStringGetter(objectType, "getStateMachineArn");
     getExecutionArn = findStringGetter(objectType, "getExecutionArn");
     getFunctionName = findStringGetter(objectType, "getFunctionName");
+    getExpectedBucketOwner = findStringGetter(objectType, "getExpectedBucketOwner");
   }
 
   String getOperationNameFromType() {
@@ -117,6 +119,10 @@ final class GetterAccess {
 
   String getFunctionName(final Object object) {
     return invokeForString(getFunctionName, object);
+  }
+
+  String getExpectedBucketOwner(final Object object) {
+    return invokeForString(getExpectedBucketOwner, object);
   }
 
   Date getApproximateArrivalTimestamp(final Object object) {
