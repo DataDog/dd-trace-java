@@ -5,10 +5,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 
-/**
- * Low-level protobuf encoder without external dependencies. Implements the protobuf wire format for
- * encoding messages.
- */
+/** Low-level protobuf wire-format encoder with no external dependencies. */
 public final class ProtobufEncoder {
 
   // Wire types

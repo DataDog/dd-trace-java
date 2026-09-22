@@ -53,7 +53,6 @@ public class JfrToOtlpConverterCLI {
     boolean prettyPrint = false;
     int firstInputIndex = 0;
 
-    // Parse flags
     while (firstInputIndex < args.length && args[firstInputIndex].startsWith("--")) {
       String flag = args[firstInputIndex];
       switch (flag) {
@@ -91,10 +90,8 @@ public class JfrToOtlpConverterCLI {
       throw new IllegalArgumentException("At least one input file and one output file required");
     }
 
-    // Last arg is output file
     Path outputPath = Paths.get(args[args.length - 1]);
 
-    // All other args are input files
     Path[] inputPaths = new Path[args.length - firstInputIndex - 1];
     for (int i = 0; i < inputPaths.length; i++) {
       inputPaths[i] = Paths.get(args[firstInputIndex + i]);
@@ -103,7 +100,6 @@ public class JfrToOtlpConverterCLI {
       }
     }
 
-    // Perform conversion
     System.out.println("Converting " + inputPaths.length + " JFR file(s) to OTLP format...");
     long startTime = System.currentTimeMillis();
 
