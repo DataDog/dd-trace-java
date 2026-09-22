@@ -6374,9 +6374,9 @@
     ],
     "DD_TRACE_GUIDEWIRE_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
-        "default": "false",
+        "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_GUIDEWIRE_ENABLED", "DD_INTEGRATION_GUIDEWIRE_ENABLED"]
       }
     ],
