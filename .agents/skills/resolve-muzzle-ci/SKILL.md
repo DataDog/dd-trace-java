@@ -15,6 +15,9 @@ happens to download dependencies is not necessarily a muzzle failure.
 
 ## Confirm and chime in
 
+For GitLab job logs, read [CI log access](references/ci-log-access.md) when CLI authentication or
+job retrieval is needed; the GitHub PR's repository is not necessarily the GitLab CI project.
+
 1. Read the CI job log far enough to identify the full Gradle task path and first causal exception,
    not only the final `Muzzle validation failed` wrapper.
 2. Confirm that the task is a module `:muzzle*` task or the `runMuzzle` aggregate, or that the stack
@@ -40,6 +43,12 @@ Before changing a build file, read:
 
 Preserve the complete relevant log and CI URL. Record the affected task, module, directive,
 artifact coordinates, tested version, repository host, and first causal exception.
+
+Use release age only to prioritize investigation. An established version that previously passed
+suggests checking infrastructure and dependency-graph changes; a newly published version suggests
+comparing its API and publication with the last passing release. Neither age alone nor a green
+aggregate rerun justifies a retry, version cap, or skip. See the
+[worked scenarios](references/failure-signatures-and-remedies.md#release-age-scenarios).
 
 Classify the failure as exactly one of:
 
