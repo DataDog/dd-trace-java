@@ -82,7 +82,9 @@ public class RequestBodyCollectionPublisher implements TransformablePublisher<By
             if (blockResponseFunction == null) {
               return;
             }
-            blockResponseFunction.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
+            // effectivelyBlocked() is intentionally absent: Ratpack blocks through Netty's
+            // BlockResponseFunction, whose BlockingResponseHandler already marks the segment.
+            blockResponseFunction.tryCommitBlockingResponse(requestContext, rba);
 
             // we can't directly interrupt user code here by throwing an exception
             // user code must listen for errors and implement its own logic to prevent
