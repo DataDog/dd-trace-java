@@ -85,13 +85,12 @@ public final class ContinuationRecord {
       copy.failedActivations.add(event.snapshot());
     }
     if (terminal != null) {
-      copy.setTerminalOrExtra(terminal.snapshot());
+      copy.setTerminalOrExtra(terminal.snapshot(), duplicateTerminalAttempt);
     }
     for (ScopeEvent event : extraTerminals) {
       copy.extraTerminals.add(event.snapshot());
     }
     copy.scopeRecordSeqs.addAll(scopeRecordSeqs);
-    copy.duplicateTerminalAttempt = duplicateTerminalAttempt;
     return copy;
   }
 
