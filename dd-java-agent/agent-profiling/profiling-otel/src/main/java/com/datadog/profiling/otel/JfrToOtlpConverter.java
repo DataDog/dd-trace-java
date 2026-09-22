@@ -49,9 +49,7 @@ public final class JfrToOtlpConverter {
   }
 
   // open-addressing long→int map; avoids boxing in the stack-trace and frame caches.
-  // Occupancy is tracked in a separate flag array so any long value is a legal key
-  // (an in-band sentinel cannot represent Long.MIN_VALUE and Long.MIN_VALUE + 1
-  // distinctly).
+  // Occupancy is tracked separately so any long value is a legal key (no sentinel)
   private static final class LongIntMap {
     private static final int INITIAL_CAPACITY = 1024; // power of 2
 
@@ -128,9 +126,8 @@ public final class JfrToOtlpConverter {
       this.ephemeral = ephemeral;
     }
 
-    // ephemeral participates in identity: the same path added as a caller file (addFile) and as a
-    // stream copy (addStream) must stay distinct entries, otherwise reset() could delete a
-    // caller-owned file
+    // ephemeral is part of identity so a caller file and a stream copy of the same path
+    // stay distinct entries — otherwise reset() could delete a caller-owned file
     @Override
     public boolean equals(Object o) {
       if (o == null || getClass() != o.getClass()) return false;
@@ -191,7 +188,7 @@ public final class JfrToOtlpConverter {
   private final List<SampleData> allocSamples = new ArrayList<>();
   private final List<SampleData> lockSamples = new ArrayList<>();
 
-  // insertion-ordered so the concatenated original_payload and the emitted sample order are
+  // insertion-ordered so the concatenated original_payload and sample order are
   // deterministic for identical inputs
   private final Set<PathEntry> pathEntries = new LinkedHashSet<>();
   private final ProtobufEncoder protoEncoder = new ProtobufEncoder(64 * 1024);
@@ -253,8 +250,7 @@ public final class JfrToOtlpConverter {
   }
 
   // the parser requires file access, so the stream is copied to a temporary file;
-  // the copy is reclaimed by reset(), which runs in convert()'s finally block — a caller that
-  // registers a stream but never calls convert() leaks the temp file
+  // the copy is reclaimed by reset() in convert()'s finally
   public JfrToOtlpConverter addStream(InputStream jfrStream, Instant start, Instant end)
       throws IOException {
     Path tempFile = Files.createTempFile("jfr-convert-", ".jfr");
@@ -758,8 +754,7 @@ public final class JfrToOtlpConverter {
     // Field 3: time_unix_nano
     encoder.writeFixed64Field(OtlpProtoFields.Profile.TIME_UNIX_NANO, startTimeNanos);
 
-    // Field 4: duration_nano
-    // clamped so a reversed caller-supplied window cannot underflow to a huge unsigned varint
+    // Field 4: duration_nano — clamped so a reversed window cannot underflow
     encoder.writeVarintField(
         OtlpProtoFields.Profile.DURATION_NANO, Math.max(0, endTimeNanos - startTimeNanos));
 
@@ -846,10 +841,8 @@ public final class JfrToOtlpConverter {
     }
 
     // Field 5: string_table (repeated strings)
-    // Every entry must be written, including the empty index-0 sentinel: the table indices are
-    // assigned by StringTable.intern() and all strindex references assume the full table order.
-    // writeStringField silently skips empty strings, which would shift every subsequent index,
-    // so the tag/length pair is written unconditionally here.
+    // every entry must be written, including the empty index-0 sentinel — writeStringField
+    // skips empty strings, which would shift all subsequent indices
     for (String s : stringTable.getStrings()) {
       encoder.writeTag(
           OtlpProtoFields.ProfilesDictionary.STRING_TABLE,
@@ -939,8 +932,7 @@ public final class JfrToOtlpConverter {
               enc.writeBoolField(OtlpProtoFields.AnyValue.BOOL_VALUE, (Boolean) entry.value);
               break;
             case INT:
-              // AnyValue.int_value is a plain int64 in the OTLP common.proto, so it uses
-              // standard (non-zigzag) varint encoding
+              // int_value is a plain int64 — standard varint, not zigzag
               enc.writeVarintField(OtlpProtoFields.AnyValue.INT_VALUE, (Long) entry.value);
               break;
             case DOUBLE:
@@ -970,7 +962,7 @@ public final class JfrToOtlpConverter {
 
   // JSON encoding methods
 
-  // JSON output is a debug/inspection format: unlike the PROTO path it does not carry
+  // JSON output is a debug format: unlike PROTO it does not carry
   // original_payload / original_payload_format, even when includeOriginalPayload is set
   private byte[] encodeProfilesDataAsJson(boolean prettyPrint) {
     JsonWriter json = new JsonWriter();

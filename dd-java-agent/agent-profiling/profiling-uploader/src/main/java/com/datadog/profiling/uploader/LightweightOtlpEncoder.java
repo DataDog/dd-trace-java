@@ -98,7 +98,7 @@ final class LightweightOtlpEncoder {
         typeEncoder -> encodeValueType(typeEncoder, TYPE_STRINDEX_SAMPLES, UNIT_STRINDEX_COUNT));
 
     encoder.writeFixed64Field(OtlpProtoFields.Profile.TIME_UNIX_NANO, startTimeNanos);
-    // clamped so a reversed caller-supplied window cannot underflow to a huge unsigned varint
+    // clamped so a reversed window cannot underflow
     encoder.writeVarintField(
         OtlpProtoFields.Profile.DURATION_NANO, Math.max(0, endTimeNanos - startTimeNanos));
     encoder.writeVarintField(OtlpProtoFields.Profile.PERIOD, 1);

@@ -266,8 +266,7 @@ FAT_JAR=$(ensure_fat_jar)
 # Suppress SLF4J warnings (it defaults to NOP logger which is fine for CLI)
 # Use a temp file to capture output so the java process exit code is not masked by grep
 _CONVERTER_TMP=$(mktemp)
-# guard against set -e: capture the java exit code instead of letting errexit abort the script
-# before the cleanup and error handling below can run
+# capture the exit code instead of letting set -e abort before the cleanup below runs
 CONVERTER_EXIT=0
 java -jar "$FAT_JAR" "${CONVERTER_ARGS[@]}" >"$_CONVERTER_TMP" 2>&1 || CONVERTER_EXIT=$?
 CONVERTER_OUTPUT=$(grep -vE "^SLF4J:|SLF4JServiceProvider" "$_CONVERTER_TMP")

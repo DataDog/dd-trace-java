@@ -57,8 +57,7 @@ repositories {
     url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
     mavenContent {
       snapshotsOnly()
-      // jafar 0.26.2 is only published as a snapshot; restrict resolution to that group so no
-      // other dependency of this module can silently resolve a mutable snapshot artifact
+      // jafar is only published as a snapshot; restrict resolution to that group
       includeGroup("io.btrace")
     }
   }
