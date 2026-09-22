@@ -88,8 +88,10 @@ public class URLSinkCallSite {
           if (brf.tryCommitBlockingResponse(ctx, rba)) {
             ctx.getTraceSegment().effectivelyBlocked();
           }
-          throw new BlockingException("Blocked request (for SSRF attempt)");
         }
+        // Thrown even without a BlockResponseFunction: RASP must abort the SSRF attempt even when
+        // no blocking response can be committed.
+        throw new BlockingException("Blocked request (for SSRF attempt)");
       }
     } catch (final BlockingException e) {
       throw e;
