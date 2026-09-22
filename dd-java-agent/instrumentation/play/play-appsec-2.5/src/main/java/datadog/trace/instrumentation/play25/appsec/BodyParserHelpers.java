@@ -378,6 +378,28 @@ public class BodyParserHelpers {
     }
   }
 
+  /**
+   * Publishes a response body to the WAF and blocks the request if the WAF requires it. Kept here
+   * so that inline advices don't carry the block response function logic in their bodies.
+   *
+   * @param reqCtx the active request context
+   * @param body the response body, already converted to plain java objects
+   * @param details the call site description used in the {@link BlockingException} message
+   */
+  public static void handleResponseBody(RequestContext reqCtx, Object body, String details) {
+    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+    if (cbp == null) {
+      return;
+    }
+    BiFunction<RequestContext, Object, Flow<Void>> callback =
+        cbp.getCallback(EVENTS.responseBody());
+    if (callback == null) {
+      return;
+    }
+
+    executeCallback(reqCtx, callback, body, details);
+  }
+
   private static Object tryConvertingScalaContainers(Object obj, int depth) {
     if (depth == 0) {
       return obj;
