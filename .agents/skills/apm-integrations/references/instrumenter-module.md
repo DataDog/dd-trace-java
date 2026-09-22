@@ -54,12 +54,13 @@ Examples of such SPIs:
 
 **Why prefer the SPI over hand-written advice, especially for reactive/async clients:** a listener SPI is designed around the library's own execution lifecycle and delivers a single well-defined start/end (and error/**cancel**) callback per logical operation, with the operation's metadata (query text, connection info, status, timing) already assembled for you. Hand-written advice on a reactive method must instead re-implement that lifecycle by wrapping the returned `Publisher`/`Mono`/`Flux` and tracking subscribe/complete/error/**cancel** by hand — this is easy to get subtly wrong. A wrapper that finishes the span only on `onComplete`/`onError` will **leak every span that gets cancelled** (reactive pipelines routinely cancel upstreams — e.g. `take(1)`, timeouts, `DiscardOnCancel` operators), so the span is created but never finished and never exported. It is also easy to wrap at the wrong granularity and emit many spans per logical query. The library's listener already handles all of this.
 
-**Do this without forcing a new runtime dependency on the user.** Using a library's listener SPI does NOT require adding it as a normal (`implementation`/`api`) dependency:
+**Do this without forcing a new runtime dependency on the user — but the interception library's classes must still travel inside the agent.** A user's application generally does NOT depend on the interception library (e.g. an R2DBC app need not have `r2dbc-proxy`), so its classes will not be on the application classloader. To inject a listener you wrote against that SPI, the SPI's own classes must be resolvable too:
 
-- Declare the interception library **`compileOnly`** so it is not put on the application's runtime classpath, and inject your listener implementation and any glue via the module's `helperClassNames()` (the same mechanism used for decorators and other injected helpers). The listener classes travel inside the agent, not the user's app.
-- If helper injection is impractical for a given SPI, the alternative is to **shade/bundle** the interception library's classes into the instrumentation rather than depend on it at runtime.
+- Declare the interception library **`implementation`** (not `compileOnly`) so its classes are bundled into the agent jar, then list them — together with your listener and glue — in the module's `helperClassNames()`. At runtime those classes are injected into the application classloader alongside your helpers. `compileOnly` does **not** work for this: a compile-only dependency is absent from the agent jar, so there is nothing to inject and both build-time muzzle and runtime helper definition fail.
+- Bundling a third-party library pulls in its transitive runtime dependencies too. Only instrument when they are actually present — e.g. `r2dbc-proxy` requires Reactor, so guard the module with a `classLoaderMatcher()` on a Reactor class — otherwise helper definition fails on applications that lack them.
+- List the FULL set of the SPI's runtime-reachable classes in `helperClassNames()`, in topological order (supertypes before implementers), since injection uses `ClassLoader.defineClass`. A hand-picked subset breaks as soon as an un-listed transitive class is reached.
 
-Reach for hand-written method advice when no such SPI exists, or when the SPI cannot express what you need to capture. When one does exist and fits, prefer it — and note the choice (and the `compileOnly`/injection approach) in the PR so a reviewer sees the dependency was considered.
+Reach for hand-written method advice when no such SPI exists, or when the SPI cannot express what you need to capture. When one does exist and fits, prefer it — and note the choice (and the bundling/injection approach) in the PR so a reviewer sees the dependency was considered.
 
 **Worked example — hooking a registration/factory point instead of the query methods (R2DBC + `r2dbc-proxy`):**
 
@@ -77,7 +78,7 @@ Reach for hand-written method advice when no such SPI exists, or when the SPI ca
 
    Do NOT use a writable `@Advice.Return(readOnly = false) Publisher<...> ...` here — binding a reactive-streams interface to a writable return against a concrete `Mono`/`Flux` result fails Byte Buddy transformation. `@Advice.AssignReturned.ToReturned` sidesteps this because it substitutes the value rather than mutating a typed slot.
 
-2. **Wrap helper installs the listener** (injected via `helperClassNames()`, `r2dbc-proxy` declared `compileOnly`):
+2. **Wrap helper installs the listener** (injected via `helperClassNames()`, `r2dbc-proxy` declared `implementation` so it is bundled into the agent):
 
    ```java
    public static ConnectionFactory wrapConnectionFactory(
