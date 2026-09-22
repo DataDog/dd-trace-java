@@ -29,22 +29,19 @@ public final class ContinuationAdvice {
 
   /** Timestamps entry because resolution may write the trace before the method returns. */
   public static final class Cancel {
-    @Advice.OnMethodEnter
-    public static int enter(
-        @Advice.FieldValue("count") int count,
-        @Advice.Local("ddResolveNanos") long ddResolveNanos) {
-      ddResolveNanos = System.nanoTime();
-      return count;
-    }
-
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void exit(
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ScopeContinuationProbe.ResolveAttempt enter(
         @Advice.This Object self,
         @Advice.Origin("#m") String method,
-        @Advice.Enter int countBefore,
-        @Advice.Local("ddResolveNanos") long ddResolveNanos,
+        @Advice.FieldValue("count") int count) {
+      return ScopeContinuationProbe.onResolveEnter(self, method, count);
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void exit(
+        @Advice.Enter ScopeContinuationProbe.ResolveAttempt attempt,
         @Advice.FieldValue("count") int countAfter) {
-      ScopeContinuationProbe.onResolve(self, method, countBefore, countAfter, ddResolveNanos);
+      ScopeContinuationProbe.onResolveExit(attempt, countAfter);
     }
   }
 }
