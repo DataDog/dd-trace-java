@@ -3,8 +3,8 @@ import com.netflix.hystrix.HystrixObservableCommand
 import com.netflix.hystrix.exception.HystrixRuntimeException
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.test.util.Flaky
 import rx.Observable
+import rx.Scheduler
 import rx.schedulers.Schedulers
 
 import java.util.concurrent.BlockingQueue
@@ -15,10 +15,13 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class HystrixObservableTest extends HystrixTestRunner {
 
-  @Override
-  boolean useStrictTraceWrites() {
-    // FIXME - test still times out in CI
-    return false
+  private <T> Observable<T> observeErrorOn(Observable<T> source, Scheduler scheduler) {
+    if (isLatestDepTest) {
+      return source.observeOn(scheduler)
+    }
+    // RxJava 1.0.7 can spin after draining an error. Carry it as a value across the
+    // scheduler, then restore it for Hystrix; latest-dependency tests cover the direct path.
+    return source.materialize().observeOn(scheduler).dematerialize()
   }
 
   def "test command #action"() {
@@ -143,7 +146,7 @@ class HystrixObservableTest extends HystrixTestRunner {
               Observable.error(new IllegalArgumentException()).repeat(1)
             }
             if (observeOnFn) {
-              err = err.observeOn(observeOnFn)
+              err = observeErrorOn(err, observeOnFn)
             }
             if (subscribeOnFn) {
               err = err.subscribeOn(subscribeOnFn)
@@ -242,7 +245,6 @@ class HystrixObservableTest extends HystrixTestRunner {
     }
   }
 
-  @Flaky("https://github.com/DataDog/dd-trace-java/issues/7725")
   def "test no fallback results in error for #action"() {
     setup:
     def observeOnFn = observeOn
@@ -259,7 +261,7 @@ class HystrixObservableTest extends HystrixTestRunner {
                 Observable.error(new IllegalArgumentException())
               }
               if (observeOnFn) {
-                err = err.observeOn(observeOnFn)
+                err = observeErrorOn(err, observeOnFn)
               }
               if (subscribeOnFn) {
                 err = err.subscribeOn(subscribeOnFn)

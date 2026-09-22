@@ -7,14 +7,14 @@ import static datadog.trace.instrumentation.micronaut.v4_0.MicronautDecorator.DE
 import static datadog.trace.instrumentation.micronaut.v4_0.MicronautDecorator.PARENT_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.micronaut.v4_0.MicronautDecorator.SPAN_ATTRIBUTE;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.micronaut.http.server.netty.NettyHttpRequest;
 import net.bytebuddy.asm.Advice;
 
 public class ChannelAcceptAdvice2 {
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope beginRequest(@Advice.Argument(0) final NettyHttpRequest request) {
+  public static ContextScope beginRequest(@Advice.Argument(0) final NettyHttpRequest request) {
     final AgentSpan nettySpan = activeSpan();
 
     if (request == null || nettySpan == null) {
@@ -29,7 +29,7 @@ public class ChannelAcceptAdvice2 {
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void endRequest(@Advice.Enter final AgentScope scope) {
+  public static void endRequest(@Advice.Enter final ContextScope scope) {
     if (scope != null) {
       scope.close();
     }

@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.twilio.TwilioClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.twilio.TwilioClientDecorator.TWILIO_SDK;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -11,10 +12,10 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 
 import com.google.auto.service.AutoService;
 import com.twilio.Twilio;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -73,7 +74,7 @@ public class TwilioSyncInstrumentation extends InstrumenterModule.Tracing
 
     /** Method entry instrumentation. */
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter(
+    public static ContextScope methodEnter(
         @Advice.This final Object that, @Advice.Origin("#m") final String methodName) {
 
       // Ensure that we only create a span for the top-level Twilio client method; except in the
@@ -95,7 +96,7 @@ public class TwilioSyncInstrumentation extends InstrumenterModule.Tracing
     /** Method exit instrumentation. */
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Thrown final Throwable throwable,
         @Advice.Return final Object response) {
       if (scope == null) {
@@ -103,7 +104,7 @@ public class TwilioSyncInstrumentation extends InstrumenterModule.Tracing
       }
 
       // If we have a scope (i.e. we were the top-level Twilio SDK invocation),
-      final AgentSpan span = scope.span();
+      final AgentSpan span = spanFromScope(scope);
       DECORATE.onResult(span, response);
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);

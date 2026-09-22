@@ -2,7 +2,7 @@ package datadog.trace.core;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -32,7 +32,7 @@ public class ScopeLifecycleBenchmark {
   public static class ThreadState {
     AgentSpan span;
     AgentSpan childSpan;
-    AgentScope activeScope;
+    ContextScope activeScope;
 
     @Setup(Level.Iteration)
     public void setup() {
@@ -51,22 +51,22 @@ public class ScopeLifecycleBenchmark {
 
   @Benchmark
   public void activateAndClose(ThreadState state) {
-    AgentScope scope = TRACER.activateSpan(state.span);
+    ContextScope scope = TRACER.activateSpan(state.span);
     scope.close();
   }
 
   @Benchmark
   public void activateSameSpan(ThreadState state) {
-    AgentScope outer = TRACER.activateSpan(state.span);
-    AgentScope inner = TRACER.activateSpan(state.span);
+    ContextScope outer = TRACER.activateSpan(state.span);
+    ContextScope inner = TRACER.activateSpan(state.span);
     inner.close();
     outer.close();
   }
 
   @Benchmark
   public void nestedActivateAndClose(ThreadState state) {
-    AgentScope parentScope = TRACER.activateSpan(state.span);
-    AgentScope childScope = TRACER.activateSpan(state.childSpan);
+    ContextScope parentScope = TRACER.activateSpan(state.span);
+    ContextScope childScope = TRACER.activateSpan(state.childSpan);
     childScope.close();
     parentScope.close();
   }
