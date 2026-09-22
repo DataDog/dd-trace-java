@@ -12,8 +12,7 @@ processors:
 
 exporters:
   # Debug exporter for validation - we can inspect logs to verify data was received.
-  # The 'logging' exporter was removed in collector-contrib v0.111.0; 'debug' + verbosity
-  # is its replacement.
+  # Replaces the 'logging' exporter removed in collector-contrib v0.111.0
   debug:
     verbosity: detailed
 

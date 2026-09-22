@@ -78,7 +78,7 @@ public class JfrToOtlpConverterCLI {
     }
 
     // Apply pretty-printing to JSON output; --pretty implies --json as documented by the
-    // convert-jfr.sh wrapper, so passing it alone must not leave the output as binary protobuf
+    // convert-jfr.sh wrapper
     if (prettyPrint && outputKind == JfrToOtlpConverter.Kind.PROTO) {
       outputKind = JfrToOtlpConverter.Kind.JSON;
     }

@@ -73,9 +73,8 @@ public final class OtlpProfileUploader implements RecordingDataListener {
     this.enabled =
         configProvider.getBoolean(PROFILING_OTLP_ENABLED, PROFILING_OTLP_ENABLED_DEFAULT);
     this.terminationTimeout = terminationTimeout;
-    // the sender owns OkHttp clients and connection pools, so it is only built when the uploader
-    // is actually enabled; an unknown protocol value fails fast here instead of NPE-ing at first
-    // send on an executor thread
+    // the sender owns OkHttp clients and connection pools — only build it when enabled;
+    // an unknown protocol fails fast here instead of NPE at first send
     this.sender = enabled ? createSender(config) : null;
     this.mode =
         configProvider.getEnum(
@@ -119,10 +118,9 @@ public final class OtlpProfileUploader implements RecordingDataListener {
       return;
     }
     try {
-      // Note: conversion intentionally runs synchronously on the profiling scheduler thread
-      // before dispatch; only the network send is offloaded to the executor. This keeps at most
-      // one full JFR parse in flight at a time (bounding agent-heap amplification) at the cost
-      // of blocking the profiling pipeline for the duration of the conversion.
+      // Note: conversion runs synchronously on the profiling scheduler thread; only the network
+      // send is offloaded to the executor. This keeps at most one full JFR parse in flight at
+      // a time (bounding heap amplification) at the cost of blocking the profiling pipeline.
       long conversionStartNanos = System.nanoTime();
       byte[] otlpBytes = convertToOtlp(data);
       long conversionNanos = System.nanoTime() - conversionStartNanos;
@@ -150,8 +148,7 @@ public final class OtlpProfileUploader implements RecordingDataListener {
       }
     } catch (Exception | LinkageError e) {
       // not rethrown so that the classic JFR upload continues independently;
-      // LinkageError covers JVMs where the jafar parser classes cannot link (e.g. OTLP FULL/
-      // CONVERTED modes enabled on a JVM older than the parser's minimum class file version)
+      // LinkageError covers JVMs where the jafar parser classes cannot link
       log.error("Failed to upload OTLP profile", e);
       data.release();
       if (onCompletion != null) {
@@ -222,7 +219,7 @@ public final class OtlpProfileUploader implements RecordingDataListener {
 
     Path tempDir = TempLocationManager.getInstance().getTempDir();
     Path temp = Files.createTempFile(tempDir, "dd-otlp-", ".jfr");
-    // data.getStream() hands out a fresh stream per call that nobody else closes
+    // getStream() hands out a fresh stream that nobody else closes
     try (InputStream stream = data.getStream()) {
       Files.copy(stream, temp, StandardCopyOption.REPLACE_EXISTING);
     }
@@ -244,7 +241,7 @@ public final class OtlpProfileUploader implements RecordingDataListener {
     // Fallback: save stream to temp file, then encode
     Path tempDir = TempLocationManager.getInstance().getTempDir();
     Path temp = Files.createTempFile(tempDir, "dd-otlp-", ".jfr");
-    // data.getStream() hands out a fresh stream per call that nobody else closes
+    // getStream() hands out a fresh stream that nobody else closes
     try (InputStream stream = data.getStream()) {
       Files.copy(stream, temp, StandardCopyOption.REPLACE_EXISTING);
     }

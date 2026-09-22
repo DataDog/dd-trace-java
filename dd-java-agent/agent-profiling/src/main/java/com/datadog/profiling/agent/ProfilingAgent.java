@@ -148,8 +148,7 @@ public class ProfilingAgent {
         final Controller controller = CompositeController.build(configProvider, context);
 
         String dumpPath = configProvider.getString(ProfilingConfig.PROFILING_DEBUG_DUMP_PATH);
-        // local: only the listener chain below consumes the dumper; unlike otlpUploader there is
-        // no shutdown-time use, so it does not need to be a field
+        // local: only the listener chain below consumes the dumper
         DataDumper dumper = dumpPath != null ? new DataDumper(Paths.get(dumpPath)) : null;
 
         uploader = new ProfileUploader(config, configProvider);
@@ -185,8 +184,7 @@ public class ProfilingAgent {
           listener =
               (type, data, sync) -> {
                 // downstream owns the base reference and must always run, otherwise the
-                // underlying recording file/handle leaks; the extra OTLP reference is only
-                // retained when retain() itself succeeds
+                // recording leaks; the extra OTLP reference is released only when retain() failed
                 boolean retained = false;
                 try {
                   data.retain(); // OTLP uploader gets an extra reference
