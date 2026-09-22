@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
+import datadog.trace.api.llmobs.LLMObsPropagationValues;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.test.junit.utils.converter.PrioritySamplingConverter;
 import datadog.trace.test.junit.utils.converter.ProductTraceSourceConverter;
@@ -418,8 +419,11 @@ class W3CPropagationTagsTest extends DDCoreJavaSpecification {
   void llmObsSamplingRoundTripsThroughTracestate() {
     PropagationTags propagationTags = factory().fromHeaderValue(W3C, "");
 
-    propagationTags.updateLLMObsContext(null, null, null, null, null, null, "0.25", "0");
-    String header = propagationTags.headerValue(W3C);
+    String header =
+        propagationTags.headerValue(
+            W3C,
+            null,
+            new LLMObsPropagationValues(null, null, null, null, null, null, "0.25", "0"));
     PropagationTags reparsed = factory().fromHeaderValue(W3C, header);
 
     assertEquals("0.25", reparsed.getLLMObsSampleRate().toString());

@@ -23,11 +23,10 @@ public final class AgentPropagation {
   // TODO DSM propagator should run after the other propagators as it stores the pathway context
   // TODO into the span context for now. Remove priority after the migration is complete.
   public static final Concern DSM_CONCERN = withPriority("data-stream-monitoring", 110);
-  // LLM Observability contributes no headers of its own: it stages the _dd.p.llmobs_* propagation
-  // tags onto the span context, which the tracing propagator then serializes into x-datadog-tags /
-  // tracestate. Composite injection runs in reverse priority order, so this must sort after
-  // TRACING_CONCERN to actually inject before it.
-  public static final Concern LLMOBS_CONCERN = withPriority("llm-observability", 115);
+
+  // LLM Observability registers no Concern of its own: it contributes no headers, only the
+  // _dd.p.llmobs_* propagation tags, which the tracing codecs obtain from
+  // LLMObsInternal.getPropagationSource() while serializing x-datadog-tags / tracestate.
 
   private AgentPropagation() {}
 

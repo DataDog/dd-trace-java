@@ -11,7 +11,7 @@ import datadog.context.propagation.Propagators;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObsContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.api.llmobs.LLMObsInternal;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -29,7 +29,7 @@ import org.junit.jupiter.api.Test;
  * Covers automatic LLM Observability context propagation. Injecting the active span the way
  * auto-instrumentation does must carry the LLMObs context.
  */
-class LLMObsContextPropagatorTest {
+class LLMObsContextPropagationSourceTest {
 
   private static final String TRACE_ID_TAG = "_dd.p.llmobs_trace_id";
   private static final String ML_APP_TAG = "_dd.p.llmobs_ml_app";
@@ -46,11 +46,12 @@ class LLMObsContextPropagatorTest {
   static void installTracer() {
     tracer = CoreTracer.builder().build();
     TracerInstaller.forceInstallGlobalTracer(tracer);
-    Propagators.register(AgentPropagation.LLMOBS_CONCERN, new LLMObsContextPropagator());
+    LLMObsInternal.setPropagationSource(new LLMObsContextPropagationSource());
   }
 
   @AfterAll
   static void closeTracer() {
+    LLMObsInternal.setPropagationSource(null);
     TracerInstaller.forceInstallGlobalTracer(null);
     tracer.close();
   }
@@ -107,7 +108,7 @@ class LLMObsContextPropagatorTest {
   }
 
   @Test
-  void stagesLlmObsTagsOnInjectionWithoutAnyManualPropagation() {
+  void writesLlmObsTagsOnInjectionWithoutAnyManualPropagation() {
     Map<String, String> carrier;
     String agentSpanId;
     try (AgentScope apmScope = startRootApmScope()) {
@@ -146,13 +147,12 @@ class LLMObsContextPropagatorTest {
   }
 
   /**
-   * The staged tags live on the <em>root</em> span context's propagation tags, which are shared by
-   * the whole local trace. Once an injection has written them there, a later injection on the same
-   * trace has to overwrite them — otherwise it ships a session and an agent attribution that are no
-   * longer active.
+   * An injection resolves the LLMObs context that is active at that moment and writes nothing back
+   * to the span context, which the whole local trace shares. So a later injection on the same
+   * trace, with no LLMObs span active, ships no session and no agent attribution.
    */
   @Test
-  void doesNotLeakStagedTagsIntoALaterInjectionOnTheSameTrace() {
+  void doesNotLeakOneInjectionsContextIntoALaterInjectionOnTheSameTrace() {
     Map<String, String> duringScope;
     Map<String, String> afterScope;
     try (AgentScope apmScope = startRootApmScope()) {
@@ -167,7 +167,7 @@ class LLMObsContextPropagatorTest {
 
     assertTrue(
         duringScope.get("x-datadog-tags").contains(SESSION_ID_TAG),
-        "precondition: the first injection should have staged the LLMObs tags");
+        "precondition: the first injection should have written the LLMObs tags");
     String tags = afterScope.get("x-datadog-tags");
     assertTrue(
         tags == null || !tags.contains("_dd.p.llmobs_"),
@@ -236,7 +236,7 @@ class LLMObsContextPropagatorTest {
    * {@code int()}, even though it is hex everywhere else.
    */
   @Test
-  void stagesTheLlmObsTraceIdAsTheDecimalTheWireCarries() {
+  void writesTheLlmObsTraceIdAsTheDecimalTheWireCarries() {
     Map<String, String> carrier;
     String llmObsTraceId;
     String apmTraceId;
@@ -301,12 +301,12 @@ class LLMObsContextPropagatorTest {
 
   /**
    * A pass-through service — a proxy, a router, or any hop that opens no LLMObs span of its own —
-   * must keep forwarding the context it received. The staged and the extracted tags share one
-   * object, so resetting what this hop staged must restore what arrived rather than clear outright.
+   * must keep forwarding the context it received. With no local LLMObs context to resolve, the
+   * codec writes the extracted values instead.
    *
-   * <p>That reset also has to survive ordering: an outbound call injected <em>before</em> the
-   * service opens an LLMObs span of its own must leave the extracted values intact for the span
-   * that follows, which is what the second half of this test checks.
+   * <p>Ordering must not matter either: an outbound call injected <em>before</em> the service opens
+   * an LLMObs span of its own must leave the extracted values intact for the span that follows,
+   * which is what the second half of this test checks.
    */
   @Test
   void forwardsExtractedContextWhenNoLlmObsSpanIsActive() {
@@ -347,7 +347,7 @@ class LLMObsContextPropagatorTest {
 
   /** A span that samples locally also publishes the verdict it reached onto the wire. */
   @Test
-  void stagesTheSamplingVerdictOnInjection() {
+  void writesTheSamplingVerdictOnInjection() {
     Map<String, String> carrier = producerCarrier("checkout", null);
 
     String wire = carrier.get("x-datadog-tags");
@@ -386,21 +386,18 @@ class LLMObsContextPropagatorTest {
   }
 
   @Test
-  void peerSpanDoesNotInheritAFinishedSpansStagedContext() {
+  void peerSpanDoesNotInheritAFinishedSpansInjectedContext() {
     try (AgentScope apmScope = startRootApmScope()) {
       DDLLMObsSpan dispatcher =
           newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "dispatcher", "checkout", "sess-42");
       try {
-        // Stages the five tags on the root span context's propagation tags, which the whole local
-        // trace shares. Nothing clears them when the span finishes.
         autoInject(AgentTracer.activeSpan());
       } finally {
         dispatcher.finish();
       }
 
-      // A second LLMObs span on the same trace, with no LLMObs parent of its own. Whatever is still
-      // staged belongs to a span that has finished, so it isn't upstream context and must not be
-      // read as such.
+      // A second LLMObs span on the same trace, with no LLMObs parent of its own. The finished
+      // span's context is not upstream context and must not be read as such.
       DDLLMObsSpan peer = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "unrelated", "billing", null);
       try {
         assertEquals("billing", LLMObsContext.currentMlApp());

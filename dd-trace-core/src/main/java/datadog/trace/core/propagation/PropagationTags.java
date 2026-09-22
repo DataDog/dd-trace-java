@@ -4,6 +4,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_
 
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductTraceSource;
+import datadog.trace.api.llmobs.LLMObsPropagationValues;
 import datadog.trace.core.propagation.ptags.PTagsFactory;
 import java.util.HashMap;
 import java.util.Map;
@@ -115,6 +116,21 @@ public abstract class PropagationTags {
    * state. A {@code null} override falls back to {@link #headerValue(HeaderType)}.
    */
   public abstract String headerValue(HeaderType headerType, CharSequence lastParentIdOverride);
+
+  /**
+   * Like {@link #headerValue(HeaderType, CharSequence)} but also writes the {@code _dd.p.llmobs_*}
+   * tags from {@code llmObsValues}.
+   *
+   * <p>Threaded in for the same reason as {@code lastParentIdOverride}: these values belong to the
+   * span being injected, while these tags can be shared by every span in a local trace, so holding
+   * them here would let concurrent injections serialize each other's LLM Observability context. A
+   * {@code null} {@code llmObsValues} writes the values that arrived on the inbound headers, which
+   * is what a service forwarding a request without an LLMObs span of its own should propagate.
+   */
+  public abstract String headerValue(
+      HeaderType headerType,
+      CharSequence lastParentIdOverride,
+      LLMObsPropagationValues llmObsValues);
 
   /**
    * Fills a provided tagMap with valid propagated _dd.p.* tags and possibly a new sampling decision
@@ -239,23 +255,6 @@ public abstract class PropagationTags {
    * rates, which re-rolling locally would not. See {@link #getLLMObsMlApp()}.
    */
   public abstract CharSequence getLLMObsSamplingDecision();
-
-  /** Sets the whole LLM Observability tag set to propagate with this trace. */
-  public abstract void updateLLMObsContext(
-      CharSequence traceId,
-      CharSequence mlApp,
-      CharSequence sessionId,
-      CharSequence parentAgentSpanId,
-      CharSequence parentAgentName,
-      CharSequence parentId,
-      CharSequence sampleRate,
-      CharSequence samplingDecision);
-
-  /**
-   * Discards anything locally staged by {@link #updateLLMObsContext}, restoring the LLM
-   * Observability tag set that was extracted from the inbound headers.
-   */
-  public abstract void resetLLMObsContext();
 
   public HashMap<String, String> createTagMap() {
     HashMap<String, String> result = new HashMap<>();

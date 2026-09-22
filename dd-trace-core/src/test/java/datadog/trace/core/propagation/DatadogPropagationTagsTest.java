@@ -8,6 +8,7 @@ import static datadog.trace.core.propagation.PropagationTags.factory;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import datadog.trace.api.llmobs.LLMObsPropagationValues;
 import datadog.trace.test.junit.utils.converter.PrioritySamplingConverter;
 import datadog.trace.test.junit.utils.converter.ProductTraceSourceConverter;
 import datadog.trace.test.junit.utils.converter.SamplingMechanismConverter;
@@ -21,6 +22,22 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 
 class DatadogPropagationTagsTest extends DDJavaSpecification {
+
+  /** The {@code x-datadog-tags} a span with these LLM Observability values would inject. */
+  private static String inject(
+      PropagationTags propagationTags,
+      String mlApp,
+      String sessionId,
+      String pagentSpanId,
+      String pagentName,
+      String parentId) {
+    return propagationTags.headerValue(
+        DATADOG,
+        null,
+        new LLMObsPropagationValues(
+            null, mlApp, sessionId, pagentSpanId, pagentName, parentId, null, null));
+  }
+
   @TableTest({
     "scenario                          | headerValue                                                                                                                  | expectedHeaderValue                                                        | tags                                                                             ",
     "null input                        |                                                                                                                              |                                                                            | [:]                                                                              ",
@@ -161,30 +178,67 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario                    | mlApp          | sessionId | pagentSpanId | pagentName  | parentId     | expectedHeaderValue                                                                                                                                               | tags                                                                                                                                                                                ",
-    "all five propagate          | 'my-ml-app'    | 'sess-1'  | '9876543210' | 'planner'   | '1122334455' | '_dd.p.llmobs_ml_app=my-ml-app,_dd.p.llmobs_sid=sess-1,_dd.p.llmobs_pagent_span_id=9876543210,_dd.p.llmobs_pagent_name=planner,_dd.p.llmobs_parent_id=1122334455' | [_dd.p.llmobs_ml_app: 'my-ml-app', _dd.p.llmobs_sid: 'sess-1', _dd.p.llmobs_pagent_span_id: '9876543210', _dd.p.llmobs_pagent_name: 'planner', _dd.p.llmobs_parent_id: '1122334455']",
-    "comma in ml_app dropped     | 'planner,west' | 'sess-1'  |              |             |              | '_dd.p.llmobs_sid=sess-1'                                                                                                                                         | [_dd.p.llmobs_sid: 'sess-1']                                                                                                                                                        ",
-    "comma in agent name dropped | 'my-ml-app'    |           |              | 'east,west' |              | '_dd.p.llmobs_ml_app=my-ml-app'                                                                                                                                   | [_dd.p.llmobs_ml_app: 'my-ml-app']                                                                                                                                                  ",
-    "non-ascii ml_app dropped    | 'プランナー'   | 'sess-1'  |              |             |              | '_dd.p.llmobs_sid=sess-1'                                                                                                                                         | [_dd.p.llmobs_sid: 'sess-1']                                                                                                                                                        ",
-    "w3c-lossy chars dropped     | 'app=v1'       | 'sess 1'  |              | 'beta;2~x'  |              | '_dd.p.llmobs_ml_app=app=v1,_dd.p.llmobs_sid=sess 1'                                                                                                              | [_dd.p.llmobs_ml_app: 'app=v1', _dd.p.llmobs_sid: 'sess 1']                                                                                                                         ",
-    "json-unsafe chars dropped   | 'a\\\"b'       | 'sess-1'  |              |             |              | '_dd.p.llmobs_sid=sess-1'                                                                                                                                         | [_dd.p.llmobs_sid: 'sess-1']                                                                                                                                                        ",
-    "empty and null ignored      | ''             |           | '9876543210' | ''          |              | '_dd.p.llmobs_pagent_span_id=9876543210'                                                                                                                          | [_dd.p.llmobs_pagent_span_id: '9876543210']                                                                                                                                         "
+    "scenario                    | mlApp          | sessionId | pagentSpanId | pagentName  | parentId     | expectedHeaderValue                                                                                                                                              ",
+    "all five propagate          | 'my-ml-app'    | 'sess-1'  | '9876543210' | 'planner'   | '1122334455' | '_dd.p.llmobs_ml_app=my-ml-app,_dd.p.llmobs_sid=sess-1,_dd.p.llmobs_pagent_span_id=9876543210,_dd.p.llmobs_pagent_name=planner,_dd.p.llmobs_parent_id=1122334455'",
+    "comma in ml_app dropped     | 'planner,west' | 'sess-1'  |              |             |              | '_dd.p.llmobs_sid=sess-1'                                                                                                                                        ",
+    "comma in agent name dropped | 'my-ml-app'    |           |              | 'east,west' |              | '_dd.p.llmobs_ml_app=my-ml-app'                                                                                                                                  ",
+    "non-ascii ml_app dropped    | 'プランナー'   | 'sess-1'  |              |             |              | '_dd.p.llmobs_sid=sess-1'                                                                                                                                        ",
+    "w3c-lossy chars dropped     | 'app=v1'       | 'sess 1'  |              | 'beta;2~x'  |              | '_dd.p.llmobs_ml_app=app=v1,_dd.p.llmobs_sid=sess 1'                                                                                                             ",
+    "json-unsafe chars dropped   | 'a\\\"b'       | 'sess-1'  |              |             |              | '_dd.p.llmobs_sid=sess-1'                                                                                                                                        ",
+    "empty and null ignored      | ''             |           | '9876543210' | ''          |              | '_dd.p.llmobs_pagent_span_id=9876543210'                                                                                                                         "
   })
-  void updatePropagationTagsLLMObsContext(
+  void injectWritesTheLLMObsContextOfTheInjectingSpan(
       String mlApp,
       String sessionId,
       String pagentSpanId,
       String pagentName,
       String parentId,
-      String expectedHeaderValue,
-      Map<String, String> tags) {
+      String expectedHeaderValue) {
     PropagationTags propagationTags = factory().fromHeaderValue(DATADOG, "");
 
-    propagationTags.updateLLMObsContext(
-        null, mlApp, sessionId, pagentSpanId, pagentName, parentId, null, null);
+    assertEquals(
+        expectedHeaderValue,
+        inject(propagationTags, mlApp, sessionId, pagentSpanId, pagentName, parentId));
+  }
 
-    assertEquals(expectedHeaderValue, propagationTags.headerValue(DATADOG));
-    assertEquals(tags, propagationTags.createTagMap());
+  /**
+   * The values an injection supplies belong to the span being injected, not to the trace, so they
+   * must not survive on the shared tags afterwards — otherwise two spans injecting concurrently
+   * would serialize each other's LLM Observability context.
+   */
+  @Test
+  void injectLeavesNoLLMObsContextBehindOnTheSharedTags() {
+    PropagationTags propagationTags = factory().fromHeaderValue(DATADOG, "_dd.p.dm=-4");
+
+    inject(propagationTags, "my-ml-app", "sess-1", null, null, "1122334455");
+
+    assertEquals("_dd.p.dm=-4", propagationTags.headerValue(DATADOG));
+    assertNull(propagationTags.getLLMObsMlApp());
+  }
+
+  /** With nothing supplied, an injection forwards the LLM Observability context it received. */
+  @Test
+  void injectForwardsTheExtractedLLMObsContextWhenTheSpanHasNone() {
+    PropagationTags propagationTags =
+        factory().fromHeaderValue(DATADOG, "_dd.p.llmobs_ml_app=upstream-app");
+
+    assertEquals(
+        "_dd.p.llmobs_ml_app=upstream-app", propagationTags.headerValue(DATADOG, null, null));
+  }
+
+  /** What was extracted is what reaches the local span's tags; a staged injection never does. */
+  @Test
+  void extractedLLMObsTagsFillTheTagMap() {
+    PropagationTags propagationTags =
+        factory()
+            .fromHeaderValue(DATADOG, "_dd.p.llmobs_ml_app=upstream-app,_dd.p.llmobs_sid=sess-1");
+
+    inject(propagationTags, "local-app", null, null, null, null);
+
+    Map<String, String> expected = new HashMap<>();
+    expected.put("_dd.p.llmobs_ml_app", "upstream-app");
+    expected.put("_dd.p.llmobs_sid", "sess-1");
+    assertEquals(expected, propagationTags.createTagMap());
   }
 
   /**
@@ -193,12 +247,11 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
    */
   @ParameterizedTest
   @ValueSource(strings = {"planner\nwest", "planner\twest", "planner\u007fwest"})
-  void updatePropagationTagsLLMObsContextRejectsControlCharacters(String mlApp) {
+  void injectRejectsLLMObsValuesWithControlCharacters(String mlApp) {
     PropagationTags propagationTags = factory().fromHeaderValue(DATADOG, "");
 
-    propagationTags.updateLLMObsContext(null, mlApp, "sess-1", null, null, null, null, null);
-
-    assertEquals("_dd.p.llmobs_sid=sess-1", propagationTags.headerValue(DATADOG));
+    assertEquals(
+        "_dd.p.llmobs_sid=sess-1", inject(propagationTags, mlApp, "sess-1", null, null, null));
   }
 
   @TableTest({
@@ -209,14 +262,17 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
     "decision without rate |            | '1'              | '_dd.p.llmobs_sd=1'                     ",
     "neither               |            |                  |                                         "
   })
-  void updatePropagationTagsLLMObsSampling(
+  void injectWritesTheLLMObsSamplingDecision(
       String sampleRate, String samplingDecision, String expectedHeaderValue) {
     PropagationTags propagationTags = factory().fromHeaderValue(DATADOG, "");
 
-    propagationTags.updateLLMObsContext(
-        null, null, null, null, null, null, sampleRate, samplingDecision);
-
-    assertEquals(expectedHeaderValue, propagationTags.headerValue(DATADOG));
+    assertEquals(
+        expectedHeaderValue,
+        propagationTags.headerValue(
+            DATADOG,
+            null,
+            new LLMObsPropagationValues(
+                null, null, null, null, null, null, sampleRate, samplingDecision)));
   }
 
   @Test
@@ -245,24 +301,20 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
     "name truncated | 70    | 'abcdefghijklmnopqrstuvwxyz' | '_dd.p.llmobs_pagent_span_id=1234,_dd.p.llmobs_pagent_name=abcdefghijkl'",
     "name dropped   | 58    | 'abcdefghijklmnopqrstuvwxyz' | '_dd.p.llmobs_pagent_span_id=1234'                                      "
   })
-  void updatePropagationTagsDegradesAgentAttributionToFitTheLimit(
+  void injectDegradesAgentAttributionToFitTheLimit(
       int limit, String agentName, String expectedHeaderValue) {
     PropagationTags propagationTags = factory(limit).fromHeaderValue(DATADOG, "");
 
-    propagationTags.updateLLMObsContext(null, null, null, "1234", agentName, null, null, null);
-
-    assertEquals(expectedHeaderValue, propagationTags.headerValue(DATADOG));
+    assertEquals(expectedHeaderValue, inject(propagationTags, null, null, "1234", agentName, null));
   }
 
   /** The last rung: not even the agent span id fits, so attribution goes entirely. */
   @Test
-  void updatePropagationTagsDropsAgentAttributionWhenNotEvenTheIdFits() {
+  void injectDropsAgentAttributionWhenNotEvenTheIdFits() {
     PropagationTags propagationTags = factory(31).fromHeaderValue(DATADOG, "");
 
-    propagationTags.updateLLMObsContext(null, null, null, "1234", "planner", null, null, null);
-
     // Nothing left to write, so no header rather than an over-budget one.
-    assertNull(propagationTags.headerValue(DATADOG));
+    assertNull(inject(propagationTags, null, null, "1234", "planner", null));
     assertNull(propagationTags.createTagMap().get("_dd.propagation_error"));
   }
 
@@ -278,12 +330,11 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
     }
     PropagationTags propagationTags = factory(512).fromHeaderValue(DATADOG, "");
 
-    propagationTags.updateLLMObsContext(
-        null, "checkout", "sess-1", "1234", hugeName.toString(), "99", null, null);
+    String header =
+        inject(propagationTags, "checkout", "sess-1", "1234", hugeName.toString(), "99");
 
-    String header = propagationTags.headerValue(DATADOG);
     assertEquals(512, header.length());
-    Map<String, String> tags = propagationTags.createTagMap();
+    Map<String, String> tags = factory(512).fromHeaderValue(DATADOG, header).createTagMap();
     assertEquals("checkout", tags.get("_dd.p.llmobs_ml_app"));
     assertEquals("sess-1", tags.get("_dd.p.llmobs_sid"));
     assertEquals("99", tags.get("_dd.p.llmobs_parent_id"));
@@ -300,10 +351,10 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
     PropagationTags propagationTags =
         factory().fromHeaderValue(DATADOG, "_dd.p.tid=1234567890abcdef");
 
-    propagationTags.updateLLMObsContext(
-        null, "planner,west", "sess-1", null, null, null, null, null);
     PropagationTags reparsed =
-        factory().fromHeaderValue(DATADOG, propagationTags.headerValue(DATADOG));
+        factory()
+            .fromHeaderValue(
+                DATADOG, inject(propagationTags, "planner,west", "sess-1", null, null, null));
 
     assertEquals(0x1234567890abcdefL, reparsed.getTraceIdHighOrderBits());
     Map<String, String> expected = new HashMap<>();

@@ -137,30 +137,6 @@ public interface AgentSpanContext {
   }
 
   /**
-   * Sets the whole LLM Observability tag set to propagate with this trace, replacing any set
-   * previously staged. Taken together rather than one tag at a time so the update is atomic: a
-   * concurrent reader never serializes a header mixing values from two different contexts. No-op by
-   * default.
-   */
-  default void updateLLMObsContext(
-      CharSequence traceId,
-      CharSequence mlApp,
-      CharSequence sessionId,
-      CharSequence parentAgentSpanId,
-      CharSequence parentAgentName,
-      CharSequence parentId,
-      CharSequence sampleRate,
-      CharSequence samplingDecision) {}
-
-  /**
-   * Discards anything locally staged by {@link #updateLLMObsContext}, restoring the LLM
-   * Observability tag set that arrived on the inbound headers. Distinct from staging an empty set:
-   * a service that forwards a request without opening an LLMObs span of its own must keep passing
-   * the caller's context along. No-op by default.
-   */
-  default void resetLLMObsContext() {}
-
-  /**
    * Gets whether the span context used is part of the local trace or from another service
    *
    * @return boolean representing if the span context is part of the local trace

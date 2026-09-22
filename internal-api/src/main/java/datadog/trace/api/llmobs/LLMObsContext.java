@@ -105,10 +105,10 @@ public final class LLMObsContext {
    *       children pick up a pagent ID that belongs to a different trace.
    * </ol>
    *
-   * <p>This context is not itself a carrier — {@code LLMObsContextPropagator} reads it at injection
-   * time and stages the values onto the span context's propagation tags, which travel as {@code
-   * _dd.p.llmobs_*}. So a value set here reaches the next service, and a value that arrived from
-   * the previous one is resolved into it by {@code DDLLMObsSpan} before the scope is attached.
+   * <p>This context is not itself a carrier — {@link LLMObsPropagationSource} reads it while an
+   * outbound request is being serialized, and the values travel as {@code _dd.p.llmobs_*}. So a
+   * value set here reaches the next service, and a value that arrived from the previous one is
+   * resolved into it by {@code DDLLMObsSpan} before the scope is attached.
    */
   public static ContextScope attach(
       AgentSpanContext ctx,

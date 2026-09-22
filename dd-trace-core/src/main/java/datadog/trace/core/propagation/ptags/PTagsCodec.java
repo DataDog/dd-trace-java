@@ -3,6 +3,7 @@ package datadog.trace.core.propagation.ptags;
 import static datadog.trace.core.propagation.ptags.PTagsFactory.PROPAGATION_ERROR_TAG_KEY;
 
 import datadog.trace.api.ProductTraceSource;
+import datadog.trace.api.llmobs.LLMObsPropagationValues;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.ptags.PTagsFactory.PTags;
 import datadog.trace.core.propagation.ptags.TagElement.Encoding;
@@ -37,14 +38,32 @@ abstract class PTagsCodec {
   }
 
   static String headerValue(PTagsCodec codec, PTags ptags, CharSequence lastParentIdOverride) {
-    int estimate = codec.estimateHeaderSize(ptags);
+    return headerValue(codec, ptags, lastParentIdOverride, null);
+  }
+
+  /**
+   * Encodes the header. {@code llmObsValues} are the LLM Observability values of the span being
+   * injected; {@code null} writes the ones that arrived on the inbound headers instead, which is
+   * what a service forwarding a request without an LLMObs span of its own should propagate.
+   */
+  static String headerValue(
+      PTagsCodec codec,
+      PTags ptags,
+      CharSequence lastParentIdOverride,
+      LLMObsPropagationValues llmObsValues) {
+    LLMObsTagValues llmObsTags =
+        llmObsValues == null
+            ? ptags.getExtractedLLMObsTagValues()
+            : codec.degradeLLMObsToFit(ptags, LLMObsTagValues.from(llmObsValues));
+
+    int estimate = codec.addLLMObsSize(codec.estimateHeaderSize(ptags), llmObsTags);
     if (estimate == 0) {
       return "";
     }
 
     // No encoding validation here because we don't allow arbitrary tag change
     StringBuilder sb = new StringBuilder(estimate);
-    int size = codec.appendPrefix(sb, ptags, lastParentIdOverride);
+    int size = codec.addLLMObsSize(codec.appendPrefix(sb, ptags, lastParentIdOverride), llmObsTags);
     if (!ptags.isPropagationTagsDisabled()) {
       if (ptags.getDecisionMakerTagValue() != null) {
         size = codec.appendTag(sb, DECISION_MAKER_TAG, ptags.getDecisionMakerTagValue(), size);
@@ -73,7 +92,6 @@ abstract class PTagsCodec {
             codec.appendTag(
                 sb, ORG_PROPAGATION_MARKER_TAG, ptags.getOrgPropagationMarkerTagValue(), size);
       }
-      LLMObsTagValues llmObsTags = ptags.getLLMObsTagValues();
       if (llmObsTags.traceId != null) {
         size = codec.appendTag(sb, LLMOBS_TRACE_ID_TAG, llmObsTags.traceId, size);
       }
@@ -114,7 +132,9 @@ abstract class PTagsCodec {
   }
 
   static void fillTagMap(PTags propagationTags, Map<String, String> tagMap) {
-    int newSize = propagationTags.getXDatadogTagsSize();
+    LLMObsTagValues llmObsTags = propagationTags.getExtractedLLMObsTagValues();
+    // Count the LLMObs tags this fills in below, which getXDatadogTagsSize() no longer holds.
+    int newSize = calcLLMObsSize(propagationTags.getXDatadogTagsSize(), llmObsTags);
 
     if (newSize > propagationTags.getxDatadogTagsLimit()) {
       // Outgoing x-datadog-tags value length exceeds the configured limit
@@ -170,7 +190,6 @@ abstract class PTagsCodec {
               .forType(Encoding.DATADOG)
               .toString());
     }
-    LLMObsTagValues llmObsTags = propagationTags.getLLMObsTagValues();
     if (llmObsTags.traceId != null) {
       tagMap.put(
           LLMOBS_TRACE_ID_TAG.forType(Encoding.DATADOG).toString(),
@@ -231,6 +250,19 @@ abstract class PTagsCodec {
     return size == 0 ? 0 : size - 1; // exclude last separator
   }
 
+  /** Adds what the eight LLM Observability tags cost in {@code x-datadog-tags} to {@code size}. */
+  static int calcLLMObsSize(int size, LLMObsTagValues llmObsTags) {
+    size = calcXDatadogTagsSize(size, LLMOBS_TRACE_ID_TAG, llmObsTags.traceId);
+    size = calcXDatadogTagsSize(size, LLMOBS_ML_APP_TAG, llmObsTags.mlApp);
+    size = calcXDatadogTagsSize(size, LLMOBS_SESSION_ID_TAG, llmObsTags.sessionId);
+    size = calcXDatadogTagsSize(size, LLMOBS_PAGENT_SPAN_ID_TAG, llmObsTags.parentAgentSpanId);
+    size = calcXDatadogTagsSize(size, LLMOBS_PAGENT_NAME_TAG, llmObsTags.parentAgentName);
+    size = calcXDatadogTagsSize(size, LLMOBS_PARENT_ID_TAG, llmObsTags.parentId);
+    size = calcXDatadogTagsSize(size, LLMOBS_SAMPLE_RATE_TAG, llmObsTags.sampleRate);
+    size = calcXDatadogTagsSize(size, LLMOBS_SAMPLING_DECISION_TAG, llmObsTags.samplingDecision);
+    return size;
+  }
+
   static int calcXDatadogTagsSize(int size, TagKey tagKey, TagValue tagValue) {
     if (tagValue != null) {
       if (size > 0) {
@@ -244,6 +276,23 @@ abstract class PTagsCodec {
       size += Encoding.DATADOG.getPrefixLength();
     }
     return size;
+  }
+
+  /**
+   * Adds the LLM Observability tags to a running {@code x-datadog-tags} size. Only {@link
+   * DatadogPTagsCodec} needs this: its {@code size} is a total computed up front, while {@link
+   * W3CPTagsCodec} accumulates as it appends.
+   */
+  protected int addLLMObsSize(int size, LLMObsTagValues llmObsTags) {
+    return size;
+  }
+
+  /**
+   * Trims the LLM Observability values until they fit the carrier, or returns them unchanged when
+   * the carrier degrades on its own. See {@link DatadogPTagsCodec#degradeLLMObsToFit}.
+   */
+  protected LLMObsTagValues degradeLLMObsToFit(PTags ptags, LLMObsTagValues llmObsTags) {
+    return llmObsTags;
   }
 
   abstract PropagationTags fromHeaderValue(PTagsFactory tagsFactory, String value);

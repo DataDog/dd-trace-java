@@ -4,20 +4,13 @@ import static datadog.trace.core.propagation.PropagationTags.HeaderType.DATADOG;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.DECISION_MAKER_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.KNUTH_SAMPLING_RATE_TAG;
-import static datadog.trace.core.propagation.ptags.PTagsCodec.LLMOBS_ML_APP_TAG;
-import static datadog.trace.core.propagation.ptags.PTagsCodec.LLMOBS_PAGENT_NAME_TAG;
-import static datadog.trace.core.propagation.ptags.PTagsCodec.LLMOBS_PAGENT_SPAN_ID_TAG;
-import static datadog.trace.core.propagation.ptags.PTagsCodec.LLMOBS_PARENT_ID_TAG;
-import static datadog.trace.core.propagation.ptags.PTagsCodec.LLMOBS_SAMPLE_RATE_TAG;
-import static datadog.trace.core.propagation.ptags.PTagsCodec.LLMOBS_SAMPLING_DECISION_TAG;
-import static datadog.trace.core.propagation.ptags.PTagsCodec.LLMOBS_SESSION_ID_TAG;
-import static datadog.trace.core.propagation.ptags.PTagsCodec.LLMOBS_TRACE_ID_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.ORG_PROPAGATION_MARKER_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_ID_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_SOURCE_TAG;
 
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.internal.util.LongStringUtils;
+import datadog.trace.api.llmobs.LLMObsPropagationValues;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.core.propagation.PropagationTags;
@@ -98,10 +91,6 @@ public class PTagsFactory implements PropagationTags.Factory {
   static class PTags extends PropagationTags {
     private static final String EMPTY = "";
 
-    /** What a {@code _dd.p.llmobs_pagent_name=} entry costs before its value: {@code ,_dd.p.k=}. */
-    private static final int PAGENT_NAME_ENTRY_OVERHEAD =
-        1 + TagElement.Encoding.DATADOG.getPrefixLength() + LLMOBS_PAGENT_NAME_TAG.length() + 1;
-
     protected final PTagsFactory factory;
 
     // tags that don't require any modifications and propagated as-is
@@ -129,21 +118,16 @@ public class PTagsFactory implements PropagationTags.Factory {
     private volatile OtelTraceState otelTraceState;
 
     /**
-     * The LLM Observability propagation tags, held as one immutable bundle. Never {@code null} —
-     * {@link LLMObsTagValues#EMPTY} means "none".
-     */
-    private volatile LLMObsTagValues llmObsTags;
-
-    /**
-     * The LLM Observability tags as they arrived on the wire, before anything local staged over
-     * them. Never {@code null}.
+     * The LLM Observability tags as they arrived on the wire, held as one immutable bundle. Never
+     * {@code null} — {@link LLMObsTagValues#EMPTY} means "none".
      *
-     * <p>Kept separate because these tags have two writers: the codec, at construction, and the
-     * LLMObs propagator, at every injection. Both write {@link #llmObsTags}, and an extracted
-     * context's {@code PropagationTags} become the local root's, so without a record of what was
-     * extracted the propagator cannot clear its own staging without also deleting the caller's
-     * context — silently dropping it at any service that forwards a request without opening an
-     * LLMObs span of its own.
+     * <p>These are the only LLMObs tags this object holds. A local LLMObs span's own tags are not
+     * stored here: they belong to the span being injected, while a {@code PTags} instance is shared
+     * by every span in a local trace (see {@code DDSpanContext#getPropagationTags()}), so holding
+     * them would let concurrent injections serialize each other's context. They are resolved per
+     * injection instead and passed to {@link #headerValue(HeaderType, CharSequence,
+     * LLMObsPropagationValues)}, which is also why these tags survive as the value to write when a
+     * service forwards a request without an LLMObs span of its own.
      */
     private final LLMObsTagValues extractedLLMObsTags;
 
@@ -153,7 +137,8 @@ public class PTagsFactory implements PropagationTags.Factory {
     private static volatile double cachedKsrRate = Double.NaN;
     private static volatile TagValue cachedKsrTagValue;
 
-    // xDatadogTagsSize of the tagPairs, does not include the decision maker tag
+    // xDatadogTagsSize of the trace-level tags. Memoizable because every tag it counts is held
+    // here; the per-injection LLMObs tags are added on top of it by DatadogPTagsCodec.
     private volatile int xDatadogTagsSize = -1;
 
     private volatile int samplingPriority;
@@ -229,7 +214,6 @@ public class PTagsFactory implements PropagationTags.Factory {
       this.origin = origin;
       this.lastParentId = lastParentId;
       this.orgPropagationMarkerTagValue = orgPropagationMarkerTagValue;
-      this.llmObsTags = llmObsTagValues;
       this.extractedLLMObsTags = llmObsTagValues;
       if (traceIdTagValue != null) {
         CharSequence traceIdHighOrderBitsHex = traceIdTagValue.forType(TagElement.Encoding.DATADOG);
@@ -414,107 +398,6 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     @Override
-    public void updateLLMObsContext(
-        CharSequence traceId,
-        CharSequence mlApp,
-        CharSequence sessionId,
-        CharSequence parentAgentSpanId,
-        CharSequence parentAgentName,
-        CharSequence parentId,
-        CharSequence sampleRate,
-        CharSequence samplingDecision) {
-      LLMObsTagValues updated =
-          LLMObsTagValues.of(
-              toTagValue(traceId),
-              toTagValue(mlApp),
-              toTagValue(sessionId),
-              toTagValue(parentAgentSpanId),
-              toTagValue(parentAgentName),
-              toTagValue(parentId),
-              toTagValue(sampleRate),
-              toTagValue(samplingDecision));
-      if (!updated.equals(llmObsTags)) {
-        clearCachedHeaders();
-        llmObsTags = updated;
-        degradeAgentAttributionToFit();
-      }
-    }
-
-    /**
-     * Trims agent attribution until the {@code x-datadog-tags} tag set fits its configured limit.
-     *
-     * <p>{@link DatadogPTagsCodec} is all-or-nothing: one byte over the limit and {@code
-     * PTagsCodec#headerValue} returns {@code null}, dropping the whole header — the APM tags along
-     * with ml_app, session and parent_id. Agent attribution is the only part of the set with a
-     * user-supplied, unbounded value (an agent's name), so it is also the only part worth
-     * sacrificing to keep the rest. The ladder mirrors {@code _stamp_agent_attribution} in
-     * dd-trace-py:
-     *
-     * <ol>
-     *   <li>id and full name, when they fit;
-     *   <li>id and a name truncated to the remaining room;
-     *   <li>id alone, when no room is left for any of the name;
-     *   <li>neither, when even the id overflows.
-     * </ol>
-     *
-     * <p>If the set is still too large with attribution gone, the overflow is somewhere this can't
-     * help and the header drops as before. Unlike dd-trace-py, which reserves headroom for a {@code
-     * _dd.p.tid} that is added after its check runs, {@link #getXDatadogTagsSize()} already counts
-     * every tag, so the full limit is available here.
-     *
-     * <p>Only the Datadog encoding is guarded. {@link W3CPTagsCodec} rolls back any single tag that
-     * would overflow the tracestate and keeps going, so it degrades on its own.
-     */
-    private void degradeAgentAttributionToFit() {
-      LLMObsTagValues tags = llmObsTags;
-      if (tags.parentAgentSpanId == null) {
-        // Nothing to degrade: a name is only ever written alongside an id.
-        return;
-      }
-      int limit = getxDatadogTagsLimit();
-      if (getXDatadogTagsSize() <= limit) {
-        return;
-      }
-
-      if (tags.parentAgentName != null) {
-        // Measure without the name, then give whatever room is left back to a truncated one.
-        int sizeWithoutName = applyAgentAttribution(tags.parentAgentSpanId, null);
-        if (sizeWithoutName <= limit) {
-          int room = limit - sizeWithoutName - PAGENT_NAME_ENTRY_OVERHEAD;
-          CharSequence name = tags.parentAgentName.forType(TagElement.Encoding.DATADOG);
-          if (room > 0 && room < name.length()) {
-            TagValue truncated = toTagValue(name.subSequence(0, room));
-            if (truncated != null
-                && applyAgentAttribution(tags.parentAgentSpanId, truncated) > limit) {
-              // Encoding the truncated value can cost more than its characters; keep id only.
-              applyAgentAttribution(tags.parentAgentSpanId, null);
-            }
-          }
-          return;
-        }
-      }
-
-      // Either there was no name to sacrifice, or the id alone still overflows. Drop attribution
-      // rather than lose the whole header.
-      applyAgentAttribution(null, null);
-    }
-
-    /** Replaces the staged agent attribution and returns the resulting tag set size. */
-    private int applyAgentAttribution(TagValue parentAgentSpanId, TagValue parentAgentName) {
-      llmObsTags = llmObsTags.withAgentAttribution(parentAgentSpanId, parentAgentName);
-      clearCachedHeaders();
-      return getXDatadogTagsSize();
-    }
-
-    @Override
-    public void resetLLMObsContext() {
-      if (!extractedLLMObsTags.equals(llmObsTags)) {
-        clearCachedHeaders();
-        llmObsTags = extractedLLMObsTags;
-      }
-    }
-
-    @Override
     public CharSequence getLLMObsTraceId() {
       return decoded(extractedLLMObsTags.traceId);
     }
@@ -565,46 +448,12 @@ public class PTagsFactory implements PropagationTags.Factory {
       return value == null ? null : value.forType(TagElement.Encoding.DATADOG);
     }
 
-    LLMObsTagValues getLLMObsTagValues() {
-      return llmObsTags;
-    }
-
     /**
-     * Wraps a non-empty value as a {@link TagValue}, or {@code null} if it is empty or cannot be
-     * represented in {@code x-datadog-tags}.
-     *
-     * <p>Unlike every other {@code _dd.p.*} tag, these values come from the application rather than
-     * the tracer, so they have to be checked before they reach the wire. A value the receiving
-     * codec rejects doesn't just lose itself: it fails the whole tagset with {@code decoding_error}
-     * and takes {@code _dd.p.tid} with it, leaving the two services disagreeing about the upper 64
-     * bits of the trace id. Dropping the one tag is the cheaper loss.
+     * The LLM Observability tags that arrived on the wire. Written when an injection supplies no
+     * LLMObs values of its own.
      */
-    private static TagValue toTagValue(CharSequence value) {
-      if (value == null || value.length() == 0 || !isRepresentable(value)) {
-        return null;
-      }
-      return TagValue.from(value);
-    }
-
-    /**
-     * Whether every character survives each carrier the value can travel on: printable ASCII, no
-     * {@code ,} (the {@code x-datadog-tags} separator), nothing the {@code tracestate} conversion
-     * rewrites, and no {@code "} or {@code \} — AWS messaging carries these headers in a {@code
-     * _datadog} JSON attribute that is written and parsed without escaping.
-     */
-    private static boolean isRepresentable(CharSequence value) {
-      for (int i = 0; i < value.length(); i++) {
-        char c = value.charAt(i);
-        if (c < ' '
-            || c > '~'
-            || c == ','
-            || c == '"'
-            || c == '\\'
-            || !TagValue.survivesW3CRoundTrip(c)) {
-          return false;
-        }
-      }
-      return true;
+    LLMObsTagValues getExtractedLLMObsTagValues() {
+      return extractedLLMObsTags;
     }
 
     @Override
@@ -683,6 +532,22 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     @Override
+    public String headerValue(
+        HeaderType headerType,
+        CharSequence lastParentIdOverride,
+        LLMObsPropagationValues llmObsValues) {
+      if (llmObsValues == null) {
+        return headerValue(headerType, lastParentIdOverride);
+      }
+      // Inject-time path: encode fresh with this span's LLMObs values, and do not cache, for the
+      // same reason as lastParentIdOverride — they describe the span being injected, not the trace.
+      String header =
+          PTagsCodec.headerValue(
+              factory.getDecoderEncoder(headerType), this, lastParentIdOverride, llmObsValues);
+      return (header == null || header.isEmpty()) ? null : header;
+    }
+
+    @Override
     public void fillTagMap(Map<String, String> tagMap) {
       PTagsCodec.fillTagMap(this, tagMap);
     }
@@ -751,27 +616,6 @@ public class PTagsFactory implements PropagationTags.Factory {
         size =
             PTagsCodec.calcXDatadogTagsSize(
                 size, ORG_PROPAGATION_MARKER_TAG, getOrgPropagationMarkerTagValue());
-        LLMObsTagValues currentLLMObsTags = llmObsTags;
-        size =
-            PTagsCodec.calcXDatadogTagsSize(size, LLMOBS_TRACE_ID_TAG, currentLLMObsTags.traceId);
-        size = PTagsCodec.calcXDatadogTagsSize(size, LLMOBS_ML_APP_TAG, currentLLMObsTags.mlApp);
-        size =
-            PTagsCodec.calcXDatadogTagsSize(
-                size, LLMOBS_SESSION_ID_TAG, currentLLMObsTags.sessionId);
-        size =
-            PTagsCodec.calcXDatadogTagsSize(
-                size, LLMOBS_PAGENT_SPAN_ID_TAG, currentLLMObsTags.parentAgentSpanId);
-        size =
-            PTagsCodec.calcXDatadogTagsSize(
-                size, LLMOBS_PAGENT_NAME_TAG, currentLLMObsTags.parentAgentName);
-        size =
-            PTagsCodec.calcXDatadogTagsSize(size, LLMOBS_PARENT_ID_TAG, currentLLMObsTags.parentId);
-        size =
-            PTagsCodec.calcXDatadogTagsSize(
-                size, LLMOBS_SAMPLE_RATE_TAG, currentLLMObsTags.sampleRate);
-        size =
-            PTagsCodec.calcXDatadogTagsSize(
-                size, LLMOBS_SAMPLING_DECISION_TAG, currentLLMObsTags.samplingDecision);
         int currentProductTraceSource = traceSource;
         if (currentProductTraceSource != ProductTraceSource.UNSET) {
           size =

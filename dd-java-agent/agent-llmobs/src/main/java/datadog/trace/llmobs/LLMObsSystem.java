@@ -1,7 +1,6 @@
 package datadog.trace.llmobs;
 
 import datadog.communication.ddagent.SharedCommunicationObjects;
-import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObs;
@@ -9,7 +8,6 @@ import datadog.trace.api.llmobs.LLMObsInternal;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.api.llmobs.LLMObsTags;
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.llmobs.domain.DDLLMObsSpan;
 import datadog.trace.llmobs.domain.LLMObsEval;
@@ -56,7 +54,10 @@ public class LLMObsSystem {
 
     LLMObsInternal.setFeedbackProcessor(new LLMObsCustomFeedbackProcessor(mlApp, sco, config));
 
-    Propagators.register(AgentPropagation.LLMOBS_CONCERN, new LLMObsContextPropagator());
+    // Not a Propagator: nothing is written to the carrier here. The tracing codecs ask for these
+    // values while serializing x-datadog-tags / tracestate, so they are resolved per injection and
+    // never held on the span context, which every span in the trace shares.
+    LLMObsInternal.setPropagationSource(new LLMObsContextPropagationSource());
   }
 
   private static class LLMObsCustomFeedbackProcessor implements LLMObs.LLMObsFeedbackProcessor {

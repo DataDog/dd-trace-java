@@ -1588,33 +1588,6 @@ public class DDSpanContext
     return getPropagationTags().getLLMObsSamplingDecision();
   }
 
-  @Override
-  public void updateLLMObsContext(
-      CharSequence traceId,
-      CharSequence mlApp,
-      CharSequence sessionId,
-      CharSequence parentAgentSpanId,
-      CharSequence parentAgentName,
-      CharSequence parentId,
-      CharSequence sampleRate,
-      CharSequence samplingDecision) {
-    getPropagationTags()
-        .updateLLMObsContext(
-            traceId,
-            mlApp,
-            sessionId,
-            parentAgentSpanId,
-            parentAgentName,
-            parentId,
-            sampleRate,
-            samplingDecision);
-  }
-
-  @Override
-  public void resetLLMObsContext() {
-    getPropagationTags().resetLLMObsContext();
-  }
-
   /** TraceSegment Implementation */
   @Override
   public void setTagTop(String key, Object value, boolean sanitize) {
