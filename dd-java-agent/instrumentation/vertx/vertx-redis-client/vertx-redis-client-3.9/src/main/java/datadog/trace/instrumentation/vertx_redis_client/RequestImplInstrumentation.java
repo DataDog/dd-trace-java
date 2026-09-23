@@ -22,7 +22,8 @@ import net.bytebuddy.pool.TypePool;
 public class RequestImplInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType,
         Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice {
+        Instrumenter.HasMethodAdvice,
+        Instrumenter.WithStructuralChange {
   public RequestImplInstrumentation() {
     super("vertx", "vertx-redis-client");
   }
@@ -41,6 +42,11 @@ public class RequestImplInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     // This advice should never match any methods, and is only here for Muzzle
     transformer.applyAdvice(none(), packageName + ".RequestImplMuzzle");
+  }
+
+  @Override
+  public Class<?> structuralChangeMarker() {
+    return Cloneable.class;
   }
 
   // This Transformer will add the Cloneable interface to RequestImpl, as well
@@ -68,6 +74,8 @@ public class RequestImplInstrumentation extends InstrumenterModule.Tracing
         int readerFlags) {
       return new ClassVisitor(Opcodes.ASM7, classVisitor) {
 
+        private boolean addCloneable = true;
+
         @Override
         public void visit(
             int version,
@@ -76,38 +84,51 @@ public class RequestImplInstrumentation extends InstrumenterModule.Tracing
             String signature,
             String superName,
             String[] interfaces) {
-          // Add the Cloneable interface
-          if (null == interfaces) {
-            interfaces = new String[1];
-          } else {
-            interfaces = Arrays.copyOf(interfaces, interfaces.length + 1);
+          // Add the Cloneable interface, unless it's already there (e.g. reapplying this
+          // change while retransforming a class that was already modified on initial load)
+          if (interfaces != null) {
+            for (String iface : interfaces) {
+              if ("java/lang/Cloneable".equals(iface)) {
+                addCloneable = false;
+                break;
+              }
+            }
           }
-          interfaces[interfaces.length - 1] = "java/lang/Cloneable";
+          if (addCloneable) {
+            if (null == interfaces) {
+              interfaces = new String[1];
+            } else {
+              interfaces = Arrays.copyOf(interfaces, interfaces.length + 1);
+            }
+            interfaces[interfaces.length - 1] = "java/lang/Cloneable";
+          }
           cv.visit(version, access, name, signature, superName, interfaces);
         }
 
         @Override
         public void visitEnd() {
-          // Add a clone method that calls the protected shallow clone method in Object
-          //
-          // public Object clone() throws CloneNotSupportedException {
-          //    return super.clone(); // Object is the super class
-          // }
-          //
-          final MethodVisitor mv =
-              cv.visitMethod(
-                  Opcodes.ACC_PUBLIC,
-                  "clone",
-                  "()Ljava/lang/Object;",
-                  null,
-                  new String[] {"java/lang/CloneNotSupportedException"});
-          mv.visitCode();
-          mv.visitIntInsn(Opcodes.ALOAD, 0);
-          mv.visitMethodInsn(
-              Opcodes.INVOKESPECIAL, "java/lang/Object", "clone", "()Ljava/lang/Object;", false);
-          mv.visitInsn(Opcodes.ARETURN);
-          mv.visitMaxs(0, 0);
-          mv.visitEnd();
+          if (addCloneable) {
+            // Add a clone method that calls the protected shallow clone method in Object
+            //
+            // public Object clone() throws CloneNotSupportedException {
+            //    return super.clone(); // Object is the super class
+            // }
+            //
+            final MethodVisitor mv =
+                cv.visitMethod(
+                    Opcodes.ACC_PUBLIC,
+                    "clone",
+                    "()Ljava/lang/Object;",
+                    null,
+                    new String[] {"java/lang/CloneNotSupportedException"});
+            mv.visitCode();
+            mv.visitIntInsn(Opcodes.ALOAD, 0);
+            mv.visitMethodInsn(
+                Opcodes.INVOKESPECIAL, "java/lang/Object", "clone", "()Ljava/lang/Object;", false);
+            mv.visitInsn(Opcodes.ARETURN);
+            mv.visitMaxs(0, 0);
+            mv.visitEnd();
+          }
 
           cv.visitEnd();
         }
