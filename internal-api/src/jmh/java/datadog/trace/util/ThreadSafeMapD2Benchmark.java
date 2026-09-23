@@ -108,7 +108,7 @@ public class ThreadSafeMapD2Benchmark {
    * Entry used with the static helpers. Its primitive second key keeps storage and lookup unboxed,
    * independently of {@link Integer} caching or JVM escape analysis.
    */
-  static final class SupportEntry extends ConcurrentHashtable.Entry {
+  static final class SupportEntry extends ConcurrentHashtable.Entry<SupportEntry> {
     final String k1;
     final int k2;
     final long value;
@@ -126,6 +126,11 @@ public class ThreadSafeMapD2Benchmark {
 
     boolean matches(String k1, int k2) {
       return this.k2 == k2 && this.k1.equals(k1);
+    }
+
+    @Override
+    public boolean matches(SupportEntry other) {
+      return matches(other.k1, other.k2);
     }
   }
 
