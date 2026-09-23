@@ -1491,9 +1491,11 @@ public class Agent {
    * {@see com.datadog.profiling.ddprof.DatadogProfilingIntegration} must not be modified to depend
    * on JFR.
    */
-  private static ProfilingContextIntegration createProfilingContextIntegration() {
+  static ProfilingContextIntegration createProfilingContextIntegration() {
     Config config = Config.get();
-    if (!OperatingSystem.isWindows()) {
+    // AWS Lambda is excluded for the same reason startProfilingAgent() excludes it: the ddprof
+    // native library is not supported there, and loading it would only add cold-start overhead.
+    if (!OperatingSystem.isWindows() && !isAwsLambdaRuntime()) {
       // isDatadogProfilerEnabled() is ORed in explicitly so a user with real profiling enabled
       // keeps ddprof regardless of the AppSec activation level that otherwise drives
       // isOtelContextExposureEnabled() - additive, not a replacement gate.

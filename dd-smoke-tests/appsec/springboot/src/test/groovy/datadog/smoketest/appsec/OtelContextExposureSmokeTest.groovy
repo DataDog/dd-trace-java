@@ -13,6 +13,8 @@ class OtelContextExposureSmokeTest extends AbstractAppSecServerSmokeTest {
 
   private static final String PROCESS_CONTEXT_LOG_LINE = 'Registering process context for OTel profiler'
   private static final String PROCESS_CONTEXT_FAILURE_LOG_LINE = 'Failed to register process context for OTel profiler'
+  /** Logged by Agent#ddprofContextIntegrationFactory when the reflective registration call itself fails. */
+  private static final String PROCESS_CONTEXT_UNAVAILABLE_LOG_LINE = 'Process context registration not available'
 
   @Override
   def logLevel() {
@@ -47,7 +49,9 @@ class OtelContextExposureSmokeTest extends AbstractAppSecServerSmokeTest {
       // context is initialized, so on its own it only proves the attempt. Give the registration
       // time to complete (or fail) and then assert it did not fail.
       sleep(5_000)
-      assert !new File(logFilePath).text.contains(PROCESS_CONTEXT_FAILURE_LOG_LINE)
+      String logContent = new File(logFilePath).text
+      assert !logContent.contains(PROCESS_CONTEXT_FAILURE_LOG_LINE)
+      assert !logContent.contains(PROCESS_CONTEXT_UNAVAILABLE_LOG_LINE)
     } else {
       // AppSec is only "inactive-enabled" here and no remote config ever activates it, so the
       // integration stays armed and never registers anything.
