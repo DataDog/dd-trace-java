@@ -704,6 +704,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       return;
     }
     final long timestamp = System.currentTimeMillis();
+    // Exposure types share names with the imported UFC Allocation, Flag, and Variant types.
     final datadog.trace.api.featureflag.exposure.Allocation allocation =
         new datadog.trace.api.featureflag.exposure.Allocation(allocationKey);
     final datadog.trace.api.featureflag.exposure.Flag exposureFlag =
