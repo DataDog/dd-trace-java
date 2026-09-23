@@ -1,5 +1,6 @@
 package datadog.trace.llmobs.domain;
 
+import datadog.trace.api.internal.util.LongStringUtils;
 import java.math.BigInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,17 +78,21 @@ public final class LLMObsTraceId {
     return traceId;
   }
 
-  /** Renders an unsigned integer as lowercase hex, left-padded to {@link #HEX_LENGTH}. */
+  /**
+   * Renders an unsigned integer as lowercase hex, left-padded to {@link #HEX_LENGTH}.
+   *
+   * <p>A value wider than 128 bits is rendered at its natural width rather than truncated, so it
+   * stays whatever the caller sent. Truncating would fit the id to {@link #HEX_LENGTH} and make it
+   * canonical, which is worse: the id would silently become a different one that nothing downstream
+   * could tell apart from a real one. Matches {@code format_trace_id} in dd-trace-py, which pads
+   * rather than truncates for the same reason.
+   */
   private static String toHex(BigInteger value) {
-    String hex = value.toString(16);
-    if (hex.length() >= HEX_LENGTH) {
-      return hex;
+    if (value.bitLength() > 128) {
+      return value.toString(16);
     }
-    StringBuilder padded = new StringBuilder(HEX_LENGTH);
-    for (int i = hex.length(); i < HEX_LENGTH; i++) {
-      padded.append('0');
-    }
-    return padded.append(hex).toString();
+    return LongStringUtils.toHexStringPadded(
+        value.shiftRight(64).longValue(), value.longValue(), HEX_LENGTH);
   }
 
   /** Whether the value is exactly {@link #HEX_LENGTH} lowercase hexadecimal digits. */

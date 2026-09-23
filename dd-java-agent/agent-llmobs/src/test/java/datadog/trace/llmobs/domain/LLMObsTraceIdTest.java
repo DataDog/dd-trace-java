@@ -88,6 +88,22 @@ class LLMObsTraceIdTest {
     assertEquals(value, LLMObsTraceId.toWire(value));
   }
 
+  /**
+   * A decimal id that does not fit in 128 bits is kept at its natural width rather than truncated
+   * to 32 characters. Truncating would produce a canonical-looking id that is not the one the
+   * caller sent — 2^128 would arrive as 32 zeros — and nothing downstream could tell it apart from
+   * a real id. Passing it through leaves a value that fails the canonical check instead, which is
+   * also what dd-trace-py's {@code format_trace_id} does.
+   */
+  @TableTest({
+    "scenario     | wire                                      | expectedHex                        ",
+    "2^128        | '340282366920938463463374607431768211456' | '100000000000000000000000000000000'",
+    "2^128 plus 9 | '340282366920938463463374607431768211465' | '100000000000000000000000000000009'"
+  })
+  void keepsADecimalWiderThan128BitsRatherThanTruncatingIt(String wire, String expectedHex) {
+    assertEquals(expectedHex, LLMObsTraceId.fromWire(wire));
+  }
+
   @Test
   void treatsNullAndEmptyAsAbsent() {
     assertNull(LLMObsTraceId.toWire(null));
