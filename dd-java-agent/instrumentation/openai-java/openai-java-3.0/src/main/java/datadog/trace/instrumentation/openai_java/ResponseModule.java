@@ -16,6 +16,7 @@ public class ResponseModule extends InstrumenterModule.Tracing {
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".CommonTags",
+      packageName + ".TokenUsage",
       packageName + ".ResponseDecorator",
       packageName + ".FunctionCallOutputExtractor",
       packageName + ".OpenAiDecorator",
