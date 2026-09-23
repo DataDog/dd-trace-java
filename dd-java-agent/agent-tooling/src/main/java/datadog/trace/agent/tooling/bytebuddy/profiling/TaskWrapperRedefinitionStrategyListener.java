@@ -48,7 +48,7 @@ public final class TaskWrapperRedefinitionStrategyListener
     } else {
       if (DEBUG) {
         LOGGER.debug(
-            "Exception while retransforming after disabling the visitor in batch {}, queueing time profiling is disabled",
+            "Exception while retransforming after disabling the visitor in batch {}, task unwrapping is disabled",
             index);
       }
       return Collections.emptyList();
