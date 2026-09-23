@@ -4,7 +4,7 @@
 
 ## Prerequisite: the `muzzle {}` DSL requires the module-instrumentation plugin
 
-`muzzle { ... }` is not a built-in Gradle block — it's registered by the `dd-trace-java.module.instrumentation` plugin. Every instrumentation module's `build.gradle` needs this plugin id in its `plugins {}` block:
+`muzzle { ... }` is not a built-in Gradle block. The plugin that registers it is `dd-trace-java.muzzle` — but you never apply that one directly. Inside `dd-java-agent/instrumentation`, the parent `build.gradle` watches every subproject for the `dd-trace-java.module.instrumentation` plugin and, when it sees it applied, applies `dd-trace-java.muzzle` (and the build-time-instrumentation plugin) on your behalf. So the plugin id you actually need in an instrumentation module's `build.gradle` is the trigger, `dd-trace-java.module.instrumentation`, not `dd-trace-java.muzzle` itself:
 
 ```groovy
 plugins {
@@ -20,7 +20,7 @@ org.gradle.api.resources.MissingResourceException: A problem occurred evaluating
 Caused by: Could not find method muzzle() for arguments [...] on project ':dd-java-agent:instrumentation:<module>' of type org.gradle.api.Project.
 ```
 
-**Rule:** when replacing an existing module's `build.gradle` wholesale, copy its `plugins {}` block's ids forward as a floor — don't rebuild it by inference from a template or from what "looks needed." If you're unsure which plugin registers a given DSL block, check another module's `build.gradle` in the same directory tree rather than guessing.
+**Rule:** when replacing an existing module's `build.gradle` wholesale, copy its `plugins {}` block's ids forward as a floor — don't rebuild it by inference from a template or from what "looks needed." If you're unsure which plugin registers a given DSL block or triggers another plugin indirectly, check another module's `build.gradle` in the same directory tree rather than guessing — indirection like this (a parent build file reacting to a child's plugin id) won't be visible from the module's own `build.gradle` alone.
 
 ## Muzzle directives (mandatory)
 
