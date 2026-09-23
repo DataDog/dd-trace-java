@@ -33,9 +33,9 @@ public final class AzureFunctionsWorkerInstrumentation extends InstrumenterModul
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".AsciiStringInputStream",
       packageName + ".DurableFunctionsDecorator",
       packageName + ".DurableFunctionsUtils",
-      packageName + ".AsciiStringInputStream",
       packageName + ".TraceContextExtractAdapter"
     };
   }
