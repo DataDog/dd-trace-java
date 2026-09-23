@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.azure.functions.worker;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.azure.functions.worker.DurableFunctionsDecorator.DECORATE;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -61,13 +62,16 @@ public final class AzureFunctionsWorkerInstrumentation extends InstrumenterModul
 
   public static class InvokeAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onEnter(@Advice.Argument(0) MiddlewareContext context) {
+    public static ContextScope onEnter(
+        @Advice.Argument(0) MiddlewareContext context,
+        @Advice.Local("startTimeMicros") long startTimeMicros) {
       final String trigger = DurableFunctionsUtils.getTrigger(context);
       if (trigger == null) {
         return null;
       }
       if ("DurableOrchestration".equals(trigger)
           && !DurableFunctionsUtils.shouldTraceOrchestration(context)) {
+        startTimeMicros = MILLISECONDS.toMicros(System.currentTimeMillis());
         return null;
       }
 
@@ -78,6 +82,7 @@ public final class AzureFunctionsWorkerInstrumentation extends InstrumenterModul
     public static void onExit(
         @Advice.Argument(0) MiddlewareContext context,
         @Advice.Enter ContextScope scope,
+        @Advice.Local("startTimeMicros") long startTimeMicros,
         @Advice.Thrown Throwable throwable) {
       ContextScope activeScope = scope;
       if (activeScope == null
@@ -85,7 +90,7 @@ public final class AzureFunctionsWorkerInstrumentation extends InstrumenterModul
           && !DurableFunctionsUtils.isReplayControlFlow(throwable)) {
         final String trigger = DurableFunctionsUtils.getTrigger(context);
         if ("DurableOrchestration".equals(trigger)) {
-          activeScope = DurableFunctionsUtils.startSpanScope(context, trigger);
+          activeScope = DurableFunctionsUtils.startSpanScope(context, trigger, startTimeMicros);
         }
       }
       if (activeScope != null) {

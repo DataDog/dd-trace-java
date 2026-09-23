@@ -16,6 +16,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Base64;
+import java.util.IdentityHashMap;
 
 public final class DurableFunctionsUtils {
   private static final String ACTIVITY_ANNOTATION = "DurableActivityTrigger";
@@ -58,6 +59,11 @@ public final class DurableFunctionsUtils {
   }
 
   public static ContextScope startSpanScope(MiddlewareContext context, String trigger) {
+    return startSpanScope(context, trigger, 0);
+  }
+
+  public static ContextScope startSpanScope(
+      MiddlewareContext context, String trigger, long startTimeMicros) {
     final TraceContext traceContext = context.getTraceContext();
     AgentSpanContext.Extracted parent =
         traceContext == null
@@ -65,14 +71,22 @@ public final class DurableFunctionsUtils {
             : extractContextAndGetSpanContext(traceContext, TraceContextExtractAdapter.GETTER);
     parent = reconcileSamplingPriority(parent, traceContext);
 
-    final AgentSpan span = startSpan("azure-functions", AZURE_FUNCTIONS_REQUEST, parent);
+    final AgentSpan span =
+        startTimeMicros > 0
+            ? startSpan("azure-functions", AZURE_FUNCTIONS_REQUEST, parent, startTimeMicros)
+            : startSpan("azure-functions", AZURE_FUNCTIONS_REQUEST, parent);
     DECORATE.afterStart(span);
     DECORATE.onInvoke(span, context.getFunctionName(), trigger);
     return activateSpan(span);
   }
 
   public static boolean isReplayControlFlow(Throwable throwable) {
-    while (throwable != null) {
+    if (throwable == null) {
+      return false;
+    }
+
+    final IdentityHashMap<Throwable, Boolean> seen = new IdentityHashMap<>();
+    while (throwable != null && seen.put(throwable, Boolean.TRUE) == null) {
       final String className = throwable.getClass().getName();
       if ("com.microsoft.durabletask.OrchestratorBlockedException".equals(className)
           || "com.microsoft.durabletask.interruption.OrchestratorBlockedException".equals(className)

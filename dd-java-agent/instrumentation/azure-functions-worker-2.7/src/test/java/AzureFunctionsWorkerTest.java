@@ -7,7 +7,9 @@ import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.test.junit.utils.assertions.Matchers.is;
 import static datadog.trace.test.junit.utils.assertions.Matchers.matches;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
@@ -28,9 +30,11 @@ import datadog.trace.api.DDSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpan;
+import datadog.trace.instrumentation.azure.functions.worker.DurableFunctionsUtils;
 import java.util.Base64;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -154,8 +158,11 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
         .thenReturn(
             Base64.getEncoder().encodeToString(new byte[] {0x1a, 0x00, 0x22, 0x02, 0x3a, 0x00}));
     MiddlewareChain chain = mock(MiddlewareChain.class);
+    AtomicLong invocationStartMillis = new AtomicLong();
     doAnswer(
             invocation -> {
+              invocationStartMillis.set(System.currentTimeMillis());
+              Thread.sleep(25);
               throw new IllegalStateException("replay failure");
             })
         .when(chain)
@@ -164,6 +171,11 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
     assertThrows(
         IllegalStateException.class,
         () -> new FunctionExecutionMiddleware().invoke(context, chain));
+
+    writer.waitForTraces(1);
+    DDSpan errorSpan = writer.firstTrace().get(0);
+    assertTrue(errorSpan.getStartTime() <= MILLISECONDS.toNanos(invocationStartMillis.get()));
+    assertTrue(errorSpan.getDurationNano() >= MILLISECONDS.toNanos(20));
 
     assertTraces(
         trace(
@@ -180,6 +192,35 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
                     tag(Tags.SPAN_KIND, is(Tags.SPAN_KIND_SERVER)),
                     tag("aas.function.name", is("Orchestrator")),
                     tag("aas.function.trigger", is("DurableOrchestration")))));
+  }
+
+  @Test
+  void stopsTraversingRepeatedExceptionCause() {
+    AtomicInteger causeReads = new AtomicInteger();
+    Throwable[] cycle = new Throwable[2];
+    cycle[0] =
+        new RuntimeException("first") {
+          @Override
+          public Throwable getCause() {
+            if (causeReads.incrementAndGet() > 2) {
+              throw new AssertionError("cause traversal did not terminate");
+            }
+            return cycle[1];
+          }
+        };
+    cycle[1] =
+        new RuntimeException("second") {
+          @Override
+          public Throwable getCause() {
+            if (causeReads.incrementAndGet() > 2) {
+              throw new AssertionError("cause traversal did not terminate");
+            }
+            return cycle[0];
+          }
+        };
+
+    assertFalse(DurableFunctionsUtils.isReplayControlFlow(cycle[0]));
+    assertEquals(2, causeReads.get());
   }
 
   @ParameterizedTest(name = "{0}")
