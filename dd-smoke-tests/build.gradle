@@ -36,21 +36,26 @@ allprojects {
   }
 }
 
-subprojects { Project subProj ->
+allprojects { Project subProj ->
   // Don't need javadoc task run for internal projects.
   subProj.tasks.withType(Javadoc).configureEach { enabled = false }
 
   subProj.evaluationDependsOn ':dd-java-agent'
+  subProj.evaluationDependsOn ':dd-java-agent:instrumentation-testing'
   subProj.tasks.withType(Test).configureEach { subTask ->
     def agentTaskRef = project(':dd-java-agent').tasks.named('shadowJar', ShadowJar)
-    dependsOn agentTaskRef
+    def diagnosticsTaskRef = project(':dd-java-agent:instrumentation-testing').tasks.named('scopeDiagnosticsAgentJar', Jar)
+    dependsOn agentTaskRef, diagnosticsTaskRef
 
     // Tests depend on this to know where to run things and what agent jar to use
     jvmArgs "-Ddatadog.smoketest.builddir=${buildDir}"
     jvmArgumentProviders.add(new CommandLineArgumentProvider() {
         @Override
         Iterable<String> asArguments() {
-          return agentTaskRef.map { ["-Ddatadog.smoketest.agent.shadowJar.path=${it.archiveFile.get()}"] }.get()
+          return [
+            "-Ddatadog.smoketest.agent.shadowJar.path=${agentTaskRef.get().archiveFile.get()}",
+            "-Ddatadog.smoketest.scopeDiagnostics.agent.path=${diagnosticsTaskRef.get().archiveFile.get()}"
+          ]
         }
       })
   }

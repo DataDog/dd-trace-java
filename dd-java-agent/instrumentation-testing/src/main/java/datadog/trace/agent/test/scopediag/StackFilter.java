@@ -8,6 +8,7 @@ final class StackFilter {
   private static final String[] DROP_PREFIXES = {
     "datadog.trace.agent.test.scopediag.",
     "datadog.trace.core.",
+    "datadog.trace.agent.core.",
     "datadog.trace.bootstrap.instrumentation.java.concurrent.",
     "datadog.trace.bootstrap.instrumentation.api.",
     "java.util.concurrent.Executors$",

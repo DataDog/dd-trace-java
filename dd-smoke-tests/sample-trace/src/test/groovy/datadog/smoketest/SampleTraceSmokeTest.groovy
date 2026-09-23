@@ -6,6 +6,11 @@ import datadog.trace.test.util.Flaky
 class SampleTraceSmokeTest extends AbstractSmokeTest {
 
   @Override
+  protected String skipScopeContinuationCheckReason() {
+    'Exercises the agent JAR as a CLI without premain; the companion requires an installed Java agent.'
+  }
+
+  @Override
   ProcessBuilder createProcessBuilder() {
     List<String> command = new ArrayList<>()
     command.add(javaPath())
