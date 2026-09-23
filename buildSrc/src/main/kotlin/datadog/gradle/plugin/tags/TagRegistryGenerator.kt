@@ -22,16 +22,18 @@ object TagRegistryGenerator {
         mapper.readValue(it, object : TypeReference<Map<String, Any?>>() {})
       }
 
-    // Clear the owned destination tree first, so a report/source file retired by a later generator
+    // Validate before touching the destination tree: an invalid domain model must fail loudly,
+    // not after the previous (valid) generated output has already been wiped out.
+    val conv = TagConventions.parse(domain)
+    val reg = TagRegistry.build(conv)
+
+    // Clear the owned destination tree, so a report/source file retired by a later generator
     // revision doesn't linger: otherwise verifyKnownTags flags it as stale while telling developers
     // to rerun generateKnownTags, which (without this) can't actually remove it.
     outDir.deleteRecursively()
     outDir.mkdirs()
     // KnownTags.java goes under java/<pkg> (added as a srcDir); the .txt reports sit at the root.
     val javaPkg = File(outDir, "java/datadog/trace/api").apply { mkdirs() }
-
-    val conv = TagConventions.parse(domain)
-    val reg = TagRegistry.build(conv)
 
     File(outDir, "resolved-tags.txt").writeText(resolvedReport(conv))
     File(outDir, "tag-assignment.txt").writeText(assignmentReport(reg))
