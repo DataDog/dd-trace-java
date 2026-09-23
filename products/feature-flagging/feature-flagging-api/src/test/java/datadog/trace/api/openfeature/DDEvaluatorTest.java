@@ -29,6 +29,7 @@ import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.exposure.ExposureEvent;
+import datadog.trace.api.featureflag.exposure.Subject;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.ConditionConfiguration;
 import datadog.trace.api.featureflag.ufc.v1.ConditionOperator;
@@ -436,12 +437,13 @@ public class DDEvaluatorTest {
 
   /** An ExposureEvent from an agent that predates the serial id: only the five-arg constructor. */
   static final class LegacyExposureEvent {
+    // Qualify exposure types that share names with the imported UFC types.
     LegacyExposureEvent(
         final long timestamp,
         final datadog.trace.api.featureflag.exposure.Allocation allocation,
         final datadog.trace.api.featureflag.exposure.Flag flag,
         final datadog.trace.api.featureflag.exposure.Variant variant,
-        final datadog.trace.api.featureflag.exposure.Subject subject) {}
+        final Subject subject) {}
   }
 
   /**
