@@ -710,7 +710,6 @@ public class DDLLMObsSpan implements LLMObsSpan {
     if (finished) {
       return;
     }
-    // While the span is still mutable, and isolated so a failure cannot cost the event.
     try {
       GenAiApmTags.apply(span);
     } catch (Throwable t) {
