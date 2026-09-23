@@ -15,6 +15,39 @@ import net.bytebuddy.asm.Advice;
 /**
  * Installs test-only advice with a separate {@link AgentBuilder} because the tracer ignores its own
  * core classes. Retransformation covers classes loaded before the diagnostic starts.
+ *
+ * <p>The advice relies on the following lifecycle contract in dd-trace-core. When moving or
+ * changing these operations, update their matchers and advice together:
+ *
+ * <ul>
+ *   <li>{@code ScopeContinuation.register()} returns the registered continuation; its normal exit
+ *       records capture before the caller can resume or release it.
+ *   <li>{@code ScopeContinuation.resume()} returns a scope, or {@code NoopScope.INSTANCE} when
+ *       activation fails. Entry supplies the activation timestamp because same-span reuse can
+ *       resolve the continuation before this method returns.
+ *   <li>{@code ScopeContinuation.release()} and {@code cancelFromContinuedScopeClose()} expose
+ *       resolution through their {@code count} field. The probe compares entry and exit counts with
+ *       {@code CANCELLED}; a scope close's nested release belongs to that close, not a second
+ *       resolution. A hold or outstanding activation can keep the continuation unresolved.
+ *   <li>{@code ScopeStack.push(ContinuableScope)} receives a scope whose context, source, and
+ *       optional continuation are already available. Entry records a close-owned scope; swapping
+ *       context alone must not create one. {@code ContinuableScope.onProperClose()} marks completed
+ *       cleanup.
+ *   <li>{@code ContinuableScope.close()} is inspected before it changes the stack. A scope that is
+ *       not on top is recorded as an out-of-order or wrong-thread close attempt.
+ *   <li>{@code ContinuableScopeManager.scheduleRootIterationScopeCleanup(ScopeStack,
+ *       ContinuableScope)} transfers cleanup responsibility to the iteration cleaner. Its normal
+ *       exit marks the scope as having deferred cleanup.
+ *   <li>{@code PendingTrace.write(boolean)} exposes {@code rootSpanWritten} and {@code traceId}. A
+ *       non-partial write that changes the flag from false to true records the root write on normal
+ *       exit; partial writes and already-written roots do not produce another event.
+ * </ul>
+ *
+ * <p>Keep the reflective member checks in {@code ScopeContinuationProbeTest} and the real-tracer
+ * assertions in {@code ScopeDiagnosticsIntegrationTest} aligned with this contract. Member
+ * existence alone does not prove advice was applied or still observes the right lifecycle boundary.
+ * Tests for an observed event must assert its presence: an empty report can otherwise look
+ * leak-free.
  */
 final class ScopeContinuationTransformer {
   private static volatile ResettableClassFileTransformer transformer;
