@@ -12,30 +12,45 @@ import java.util.Locale
 object KnownTagsEmitter {
 
   fun emit(reg: TagRegistry, pkg: String, className: String): String {
-    // Sanitize tag names into unique Java constant identifiers.
-    val used = HashSet<String>()
-    val cname = HashMap<String, String>()
-    fun mk(name: String): String {
+    // Sanitize a tag name into a Java identifier base (not yet unique).
+    fun sanitize(name: String): String {
       var c = name.uppercase().replace(Regex("[^A-Za-z0-9]"), "_").replace(Regex("_+"), "_").trim('_')
       if (c.isEmpty() || c[0].isDigit()) c = "T_$c"
-      var u = c
+      return c
+    }
+
+    // Collapse a duplicated trailing token so e.g. "resource.name" yields NAME (not NAME_NAME) and
+    // "_dd.parent_id" yields ID (not ID_ID); the non-duplicating pairs (ID + _NAME -> ID_NAME, NAME
+    // + _ID -> NAME_ID) are kept as-is.
+    fun withSuffix(base: String, suffix: String) = if (base.endsWith(suffix)) base else "$base$suffix"
+
+    // NAME/ID/SERIAL_NUM constants are all fields of the same generated class, so uniqueness must be
+    // enforced on these FINAL suffixed identifiers, not on the pre-suffix base: two different base
+    // names can collapse to the same final identifier once a suffix is appended -- e.g. base
+    // "RESOURCE" suffixed with "_NAME" collides with a base that is already "RESOURCE_NAME" (which
+    // withSuffix leaves untouched, since it already ends with "_NAME").
+    val used = HashSet<String>()
+    fun unique(name: String): String {
+      var u = name
       var n = 2
-      while (u in used) {
-        u = "${c}_$n"; n++
+      while (!used.add(u)) {
+        u = "${name}_$n"; n++
       }
-      used.add(u)
-      cname[name] = u
       return u
     }
-    reg.tags.forEach { mk(it.name) }
 
-    // Constant names. Collapse a duplicated trailing token so e.g. "resource.name" yields NAME
-    // (not NAME_NAME) and "_dd.parent_id" yields ID (not ID_ID); the non-duplicating pairs
-    // (ID + _NAME -> ID_NAME, NAME + _ID -> NAME_ID) are kept as-is.
-    fun withSuffix(base: String, suffix: String) = if (base.endsWith(suffix)) base else "$base$suffix"
-    fun nameC(name: String) = withSuffix(cname[name]!!, "_NAME")
-    fun idC(name: String) = withSuffix(cname[name]!!, "_ID")
-    fun serialC(name: String) = withSuffix(cname[name]!!, "_SERIAL_NUM")
+    val nameOfConst = HashMap<String, String>()
+    val idOfConst = HashMap<String, String>()
+    val serialOfConst = HashMap<String, String>()
+    for (t in reg.tags) {
+      val base = sanitize(t.name)
+      nameOfConst[t.name] = unique(withSuffix(base, "_NAME"))
+      idOfConst[t.name] = unique(withSuffix(base, "_ID"))
+      serialOfConst[t.name] = unique(withSuffix(base, "_SERIAL_NUM"))
+    }
+    fun nameC(name: String) = nameOfConst[name]!!
+    fun idC(name: String) = idOfConst[name]!!
+    fun serialC(name: String) = serialOfConst[name]!!
 
     val order = reg.tags.map { it.name } // stable emit order
     // canonical name -> OpenTelemetry name, for the reverse (openTelemetryNameOf) switch.
