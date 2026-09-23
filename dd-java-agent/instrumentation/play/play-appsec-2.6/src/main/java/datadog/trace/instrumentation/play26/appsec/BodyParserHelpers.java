@@ -417,8 +417,10 @@ public class BodyParserHelpers {
     if (brf != null) {
       // play runs on netty, which commits the blocking response synchronously and calls
       // TraceSegment#effectivelyBlocked() itself: never call it here
-      brf.tryCommitBlockingResponse(reqCtx, rba);
-      throw new BlockingException("Blocked request (" + details + ")");
+      boolean success = brf.tryCommitBlockingResponse(reqCtx, rba);
+      if (success) {
+        throw new BlockingException("Blocked request (" + details + ")");
+      }
     }
   }
 
