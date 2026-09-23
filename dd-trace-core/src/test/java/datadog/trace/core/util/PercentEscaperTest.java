@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class PercentEscaperTest {
@@ -19,7 +20,9 @@ class PercentEscaperTest {
     "non-ascii after an escaped char | 'a,b中'      | 'a%2Cb%E4%B8%AD'               ",
     "non-ascii interleaved with safe | '中a中a中'   | '%E4%B8%ADa%E4%B8%ADa%E4%B8%AD'",
     "two byte non-ascii              | 'café crème' | 'caf%C3%A9%20cr%C3%A8me'       ",
-    "four byte supplementary         | 'a,b😀'      | 'a%2Cb%F0%9F%98%80'            "
+    "four byte supplementary         | 'a,b😀'      | 'a%2Cb%F0%9F%98%80'            ",
+    "percent is escaped              | '50%'        | '50%25'                        ",
+    "percent-like sequence preserved | 'a%20b'      | 'a%2520b'                      "
   })
   void escapeValueEncodesEveryNonAsciiCharacter(String value, String expected) {
     assertEquals(expected, this.escaper.escapeValue(value).data);
@@ -43,7 +46,8 @@ class PercentEscaperTest {
     "scenario                | value       ",
     "three byte non-ascii    | '你好世界'  ",
     "two byte non-ascii      | 'café crème'",
-    "four byte supplementary | '😀🎉'      "
+    "four byte supplementary | '😀🎉'      ",
+    "percent sign            | 'a%20b%'    "
   })
   void escapedValueIsAsciiOnlyAndDecodesBackToTheInput(String value)
       throws UnsupportedEncodingException {
@@ -53,5 +57,18 @@ class PercentEscaperTest {
       assertTrue(c <= '~', "expected pure ASCII output but got '" + c + "' in " + escaped);
     }
     assertEquals(value, URLDecoder.decode(escaped, "UTF-8"));
+  }
+
+  @Test
+  void escapeValueEncodesControlCharacters() {
+    assertEquals("a%0Ab", this.escaper.escapeValue("a\nb").data);
+    assertEquals("a%09b", this.escaper.escapeValue("a\tb").data);
+    assertEquals("a%0D%0Ab", this.escaper.escapeValue("a\r\nb").data);
+    assertEquals("a%2Cb%0A", this.escaper.escapeValue("a,b\n").data);
+  }
+
+  @Test
+  void escapeKeyEncodesControlCharacters() {
+    assertEquals("a%0Ab", this.escaper.escapeKey("a\nb").data);
   }
 }
