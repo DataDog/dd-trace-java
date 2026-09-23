@@ -22,13 +22,6 @@ public class IastHttpUrlInstrumentation extends InstrumenterModule.TaintableIast
         Instrumenter.HasTypeAdvice,
         Instrumenter.HasMethodAdvice {
 
-  /**
-   * Adding fields to an already loaded class is not possible, during testing
-   * com.squareup.okhttp.HttpUrl gets loaded before the instrumenter kicks in, so we must disable
-   * the advice transformer or none of the transformations will be applied
-   */
-  protected static boolean ENABLE_ADVICE_TRANSFORMER = true;
-
   private final String className = IastHttpUrlInstrumentation.class.getName();
 
   public IastHttpUrlInstrumentation() {
@@ -47,9 +40,7 @@ public class IastHttpUrlInstrumentation extends InstrumenterModule.TaintableIast
 
   @Override
   public void typeAdvice(TypeTransformer transformer) {
-    if (ENABLE_ADVICE_TRANSFORMER) {
-      transformer.applyAdvice(new TaintableVisitor(instrumentedType()));
-    }
+    transformer.applyAdvice(new TaintableVisitor(instrumentedType()));
   }
 
   @Override
