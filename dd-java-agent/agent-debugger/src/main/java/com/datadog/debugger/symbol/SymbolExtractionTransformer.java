@@ -20,6 +20,11 @@ public class SymbolExtractionTransformer implements ClassFileTransformer {
       SymbolAggregator symbolAggregator, ClassNameFilter classNameFiltering) {
     this.symbolAggregator = symbolAggregator;
     this.classNameFiltering = classNameFiltering;
+    if (isDebuggerInternalClass(null)) {
+      // Force DebuggerInternalPAckages to be loaded before calling it into the transform method
+      // avoid LinkageError for duplicated class definition
+      throw new IllegalArgumentException("DebuggerInternalClass should be loaded");
+    }
   }
 
   @Override
