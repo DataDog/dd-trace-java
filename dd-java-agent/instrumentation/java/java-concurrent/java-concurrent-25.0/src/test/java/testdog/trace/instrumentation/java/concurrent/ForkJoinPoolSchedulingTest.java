@@ -210,10 +210,7 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
               SORT_BY_START_TIME,
               span().root().operationName("parent"),
               span().childOfPrevious().operationName("child")));
-      pool.submit(
-              () -> {
-                assertNull(fromContext(current()));
-              })
+     pool.submit(() -> assertNull(AgentSpan.current()))
           .get(10, SECONDS);
     }
   }
