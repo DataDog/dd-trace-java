@@ -322,6 +322,7 @@ include(
   ":dd-java-agent:instrumentation:axis2-1.3",
   ":dd-java-agent:instrumentation:axway-api-7.5",
   ":dd-java-agent:instrumentation:azure-functions-1.2.2",
+  ":dd-java-agent:instrumentation:azure-functions-worker-2.7",
   ":dd-java-agent:instrumentation:beanshell-2.0",
   ":dd-java-agent:instrumentation:caffeine-1.0",
   ":dd-java-agent:instrumentation:cdi-1.2",

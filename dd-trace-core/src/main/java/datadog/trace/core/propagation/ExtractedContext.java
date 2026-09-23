@@ -1,5 +1,7 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.sampling.SamplingMechanism.EXTERNAL_OVERRIDE;
+
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
@@ -115,6 +117,15 @@ public class ExtractedContext extends TagContext {
 
   public PropagationTags getPropagationTags() {
     return propagationTags;
+  }
+
+  @Override
+  public ExtractedContext withSamplingPriority(final int samplingPriority) {
+    setSamplingPriority(samplingPriority);
+    if (propagationTags != null) {
+      propagationTags.updateTraceSamplingPriority(samplingPriority, EXTERNAL_OVERRIDE);
+    }
+    return this;
   }
 
   @Override

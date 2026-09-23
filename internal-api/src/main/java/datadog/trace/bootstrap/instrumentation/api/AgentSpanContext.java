@@ -73,6 +73,14 @@ public interface AgentSpanContext {
 
   interface Extracted extends AgentSpanContext {
     /**
+     * Returns this extracted context with the supplied sampling priority when the implementation
+     * supports replacing propagation decisions.
+     */
+    default Extracted withSamplingPriority(int samplingPriority) {
+      return this;
+    }
+
+    /**
      * Gets the span links related to the other terminated context.
      *
      * @return The span links to other extracted contexts found but terminated.
