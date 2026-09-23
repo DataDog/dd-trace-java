@@ -246,9 +246,7 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
         for (int j = 0; j < packedSize; j++) {
           String k = unpacker.unpackString();
           String v = unpacker.unpackString();
-          // thread.* and the payload-scoped _dd.sdk.otlp_export marker are written by the
-          // mapper, not by the span under test (see TraceMapperV04/V05PayloadTest).
-          if (!"thread.name".equals(k) && !"thread.id".equals(k) && !SDK_OTLP_EXPORT.equals(k)) {
+          if (!isWrittenByMapper(k)) {
             unpackedMeta.put(k, v);
           }
         }
@@ -327,9 +325,7 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
     for (int j = 0; j < packedSize; j++) {
       String k = dictionary[unpacker.unpackInt()];
       String v = dictionary[unpacker.unpackInt()];
-      // thread.* and the payload-scoped _dd.sdk.otlp_export marker are written by the
-      // mapper, not by the span under test (see TraceMapperV04/V05PayloadTest).
-      if (!"thread.name".equals(k) && !"thread.id".equals(k) && !SDK_OTLP_EXPORT.equals(k)) {
+      if (!isWrittenByMapper(k)) {
         unpackedMeta.put(k, v);
       }
     }
@@ -567,9 +563,7 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
         for (int j = 0; j < packedSize; j++) {
           String k = unpacker.unpackString();
           String v = unpacker.unpackString();
-          // thread.* and the payload-scoped _dd.sdk.otlp_export marker are written by the
-          // mapper, not by the span under test (see TraceMapperV04/V05PayloadTest).
-          if (!"thread.name".equals(k) && !"thread.id".equals(k) && !SDK_OTLP_EXPORT.equals(k)) {
+          if (!isWrittenByMapper(k)) {
             unpackedMeta.put(k, v);
           }
         }
@@ -639,14 +633,20 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
     for (int j = 0; j < packedSize; j++) {
       String k = dictionary[unpacker.unpackInt()];
       String v = dictionary[unpacker.unpackInt()];
-      // thread.* and the payload-scoped _dd.sdk.otlp_export marker are written by the
-      // mapper, not by the span under test (see TraceMapperV04/V05PayloadTest).
-      if (!"thread.name".equals(k) && !"thread.id".equals(k) && !SDK_OTLP_EXPORT.equals(k)) {
+      if (!isWrittenByMapper(k)) {
         unpackedMeta.put(k, v);
       }
     }
     assertEquals(expectedMeta, unpackedMeta);
     tracer.close();
+  }
+
+  /**
+   * thread.* and the payload-scoped _dd.sdk.otlp_export marker are written by the mapper, not by
+   * the span under test (see TraceMapperV04/V05PayloadTest).
+   */
+  private static boolean isWrittenByMapper(String key) {
+    return "thread.name".equals(key) || "thread.id".equals(key) || SDK_OTLP_EXPORT.equals(key);
   }
 
   private static class CaptureBuffer implements ByteBufferConsumer {
