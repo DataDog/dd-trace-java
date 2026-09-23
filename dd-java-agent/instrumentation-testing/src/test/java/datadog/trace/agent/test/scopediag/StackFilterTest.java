@@ -1,5 +1,6 @@
 package datadog.trace.agent.test.scopediag;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -27,6 +28,43 @@ class StackFilterTest {
     assertEquals(2, filtered.length);
     assertEquals("com.app.Service", filtered[0].getClassName());
     assertEquals("com.app.Main", filtered[1].getClassName());
+  }
+
+  @Test
+  void matchesPlumbingClassesAndNestedClassesButNotNamePrefixes() {
+    String[] plumbingClasses = {
+      "datadog.trace.bootstrap.InstrumentationContext",
+      "java.util.concurrent.ThreadPoolExecutor",
+      "java.util.concurrent.ScheduledThreadPoolExecutor",
+      "java.util.concurrent.ForkJoinPool",
+      "java.util.concurrent.ForkJoinWorkerThread",
+      "java.util.concurrent.FutureTask",
+      "java.util.concurrent.CompletableFuture",
+    };
+    for (String className : plumbingClasses) {
+      StackTraceElement unrelated = frame(className + "Holder", "run");
+      StackTraceElement unrelatedNested = frame(className + "Holder$Worker", "run");
+      StackTraceElement[] raw = {
+        frame(className, "run"), frame(className + "$Worker", "run"), unrelated, unrelatedNested,
+      };
+
+      assertArrayEquals(
+          new StackTraceElement[] {unrelated, unrelatedNested},
+          new StackFilter(6).filter(raw),
+          className);
+    }
+  }
+
+  @Test
+  void matchesStackCaptureMethodExactly() {
+    StackTraceElement otherMethod = frame("java.lang.Thread", "getStackTraceHelper");
+    StackTraceElement otherClass = frame("java.lang.ThreadHelper", "getStackTrace");
+    StackTraceElement[] raw = {
+      frame("java.lang.Thread", "getStackTrace"), otherMethod, otherClass,
+    };
+
+    assertArrayEquals(
+        new StackTraceElement[] {otherMethod, otherClass}, new StackFilter(6).filter(raw));
   }
 
   @Test

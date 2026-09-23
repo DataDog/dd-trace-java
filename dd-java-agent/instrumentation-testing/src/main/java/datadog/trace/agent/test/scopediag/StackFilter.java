@@ -10,15 +10,7 @@ final class StackFilter {
     "datadog.trace.core.",
     "datadog.trace.bootstrap.instrumentation.java.concurrent.",
     "datadog.trace.bootstrap.instrumentation.api.",
-    "datadog.trace.bootstrap.InstrumentationContext",
-    "java.lang.Thread.getStackTrace",
-    "java.util.concurrent.ThreadPoolExecutor",
-    "java.util.concurrent.ScheduledThreadPoolExecutor",
-    "java.util.concurrent.ForkJoinPool",
-    "java.util.concurrent.ForkJoinWorkerThread",
     "java.util.concurrent.Executors$",
-    "java.util.concurrent.FutureTask",
-    "java.util.concurrent.CompletableFuture",
     "jdk.internal.reflect.",
     "java.lang.reflect.",
     "sun.reflect.",
@@ -26,6 +18,16 @@ final class StackFilter {
     "org.codehaus.groovy.",
     "groovy.lang.",
     "net.bytebuddy.",
+  };
+
+  private static final String[] DROP_CLASSES = {
+    "datadog.trace.bootstrap.InstrumentationContext",
+    "java.util.concurrent.ThreadPoolExecutor",
+    "java.util.concurrent.ScheduledThreadPoolExecutor",
+    "java.util.concurrent.ForkJoinPool",
+    "java.util.concurrent.ForkJoinWorkerThread",
+    "java.util.concurrent.FutureTask",
+    "java.util.concurrent.CompletableFuture",
   };
 
   private final int maxFrames;
@@ -56,9 +58,19 @@ final class StackFilter {
   }
 
   private static boolean isDropped(StackTraceElement frame) {
-    String fqn = frame.getClassName() + "." + frame.getMethodName();
+    String className = frame.getClassName();
+    if (className.equals("java.lang.Thread") && frame.getMethodName().equals("getStackTrace")) {
+      return true;
+    }
     for (String prefix : DROP_PREFIXES) {
-      if (fqn.startsWith(prefix) || frame.getClassName().startsWith(prefix)) {
+      if (className.startsWith(prefix)) {
+        return true;
+      }
+    }
+    for (String droppedClass : DROP_CLASSES) {
+      if (className.equals(droppedClass)
+          || (className.startsWith(droppedClass)
+              && className.charAt(droppedClass.length()) == '$')) {
         return true;
       }
     }
