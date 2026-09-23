@@ -1291,28 +1291,28 @@ public class MetricProbesInstrumentationTest {
   public void localVarNotInScope() throws IOException, URISyntaxException {
     final String METRIC_NAME = "lenstr";
     final String CLASS_NAME = "com.datadog.debugger.jaxrs.MyResource";
-    MetricProbe metricProbe =
-        createMetricBuilder(METRIC_ID, METRIC_NAME, GAUGE)
-            .where(CLASS_NAME, "createResource", null)
-            .valueScript(new ValueScript(DSL.len(DSL.ref("varStr")), "len(varStr)"))
-            .build();
-    MetricForwarderListener listener = installMetricProbes(metricProbe);
     // compile the JAX-RS resource fixture and weave it with the real tracer JAX-RS
     // instrumentation, so this test exercises the same bytecode shape the tracer produces
     ClassFileTransformer jaxRsTransformer = installTracerInstrumentation(instr);
     Class<?> testClass;
     try {
+      MetricProbe metricProbe =
+          createMetricBuilder(METRIC_ID, METRIC_NAME, GAUGE)
+              .where(CLASS_NAME, "createResource", null)
+              .valueScript(new ValueScript(DSL.len(DSL.ref("varStr")), "len(varStr)"))
+              .build();
+      MetricForwarderListener listener = installMetricProbes(metricProbe);
       testClass = compileAndLoadClass(CLASS_NAME);
+      Object result =
+          Reflect.onClass(testClass)
+              .create()
+              .call("createResource", (Object) null, (Object) null, 1)
+              .get();
+      assertNotNull(result);
+      assertFalse(listener.gauges.containsKey(METRIC_NAME));
     } finally {
       instr.removeTransformer(jaxRsTransformer);
     }
-    Object result =
-        Reflect.onClass(testClass)
-            .create()
-            .call("createResource", (Object) null, (Object) null, 1)
-            .get();
-    assertNotNull(result);
-    assertFalse(listener.gauges.containsKey(METRIC_NAME));
   }
 
   private MetricForwarderListener installMethodMetric(
