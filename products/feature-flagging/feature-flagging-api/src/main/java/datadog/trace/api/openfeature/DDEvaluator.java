@@ -70,8 +70,8 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       log.warn(
           "Feature flag serial ID reporting is unavailable with the installed Datadog Java "
               + "agent, which does not carry a serial id on the flag configuration. Upgrade "
-              + "dd-java-agent to enable holdout attribution.",
-          e);
+              + "dd-java-agent to enable holdout attribution.");
+      log.debug("Unable to access the flag configuration serial ID", e);
       return false;
     }
   }
@@ -91,8 +91,8 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
           "Feature flag exposure serial ID reporting is unavailable with the installed "
               + "Datadog Java agent. Exposures are still reported, without the serial id, and "
               + "span enrichment is unaffected. Upgrade dd-java-agent to enable holdout "
-              + "attribution on exposures.",
-          e);
+              + "attribution on exposures.");
+      log.debug("Unable to access the exposure serial ID constructor", e);
       return false;
     }
   }
