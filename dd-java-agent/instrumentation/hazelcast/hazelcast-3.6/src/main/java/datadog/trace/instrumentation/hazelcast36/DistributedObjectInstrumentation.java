@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.hazelcast36;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.hazelcast36.DistributedObjectDecorator.DECORATE;
 import static datadog.trace.instrumentation.hazelcast36.HazelcastConstants.COMPONENT_NAME;
 import static datadog.trace.instrumentation.hazelcast36.HazelcastConstants.SPAN_NAME;
@@ -15,10 +16,10 @@ import com.hazelcast.client.spi.impl.ClientNonSmartInvocationServiceImpl;
 import com.hazelcast.core.DistributedObject;
 import com.hazelcast.core.ICompletableFuture;
 import com.hazelcast.spi.discovery.DiscoveryStrategy;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
@@ -186,7 +187,7 @@ public final class DistributedObjectInstrumentation
 
     /** Method entry instrumentation. */
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter(
+    public static ContextScope methodEnter(
         @Advice.This final DistributedObject that, @Advice.Origin("#m") final String methodName) {
 
       // Ensure that we only create a span for the top-level Hazelcast method; except in the
@@ -208,13 +209,13 @@ public final class DistributedObjectInstrumentation
     /** Method exit instrumentation. */
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
       }
 
       // If we have a scope (i.e. we were the top-level Hazelcast SDK invocation),
-      final AgentSpan span = scope.span();
+      final AgentSpan span = spanFromScope(scope);
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);
       scope.close();
@@ -242,7 +243,7 @@ public final class DistributedObjectInstrumentation
 
     /** Method entry instrumentation. */
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter(
+    public static ContextScope methodEnter(
         @Advice.This final DistributedObject that, @Advice.Origin("#m") final String methodName) {
 
       // Ensure that we only create a span for the top-level Hazelcast method; except in the
@@ -264,7 +265,7 @@ public final class DistributedObjectInstrumentation
     /** Method exit instrumentation. */
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Thrown final Throwable throwable,
         @Advice.Return final ICompletableFuture<?> future) {
       if (scope == null) {
@@ -272,7 +273,7 @@ public final class DistributedObjectInstrumentation
       }
 
       // If we have a scope (i.e. we were the top-level Hazelcast SDK invocation),
-      final AgentSpan span = scope.span();
+      final AgentSpan span = spanFromScope(scope);
       if (throwable != null) {
         // There was a synchronous error,
         // which means we shouldn't wait for a callback to close the span.

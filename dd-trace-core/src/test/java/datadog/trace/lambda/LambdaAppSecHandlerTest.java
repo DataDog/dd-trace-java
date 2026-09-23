@@ -73,6 +73,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
@@ -1737,7 +1738,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   @SuppressWarnings("unchecked")
-  void processResponseDataAppliesFallbackForHttpTriggerWithPlainJsonResponse() {
+  void processResponseDataInfersSuccessForFunctionUrlPlainJsonResponse() {
     LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.LAMBDA_URL);
     ByteArrayOutputStream result = createOutputStream("{\"result\": \"hello\"}");
     Integer[] capturedStatus = {null};
@@ -1751,7 +1752,9 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
             () -> headerDoneCalled[0] = true,
             body -> capturedBody[0] = body);
     LambdaAppSecHandler.processResponseData(span, result);
-    assertNull(capturedStatus[0]);
+    assertEquals(200, capturedStatus[0]);
+    verify(span).setHttpStatusCode(200);
+    verify(span).setError(false, ErrorPriorities.HTTP_SERVER_DECORATOR);
     assertEquals("application/json", capturedHeaders.get("content-type"));
     assertTrue(headerDoneCalled[0]);
     assertInstanceOf(Map.class, capturedBody[0]);
@@ -1759,14 +1762,33 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void processResponseDataInfersSuccessForHttpApiV2JsonStringResponse() {
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V2_HTTP);
+    ByteArrayOutputStream result = createOutputStream("\"Hello World!\"");
+    Integer[] capturedStatus = {null};
+    Object[] capturedBody = {null};
+    AgentSpan span =
+        setupMockResponseCallbacks(
+            status -> capturedStatus[0] = status, null, null, body -> capturedBody[0] = body);
+
+    LambdaAppSecHandler.processResponseData(span, result);
+
+    assertEquals(200, capturedStatus[0]);
+    assertEquals("Hello World!", capturedBody[0]);
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {0, -1})
   @SuppressWarnings("unchecked")
-  void processResponseDataKeepsParsedHeadersAndBodyWhenStatusCodeIsZero() {
-    // A response that has statusCode:0 with explicit headers/body should use the parsed data,
-    // not discard it in favour of the plain-response fallback.
-    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
+  void processResponseDataKeepsParsedDataWithoutStartingNonPositiveStatus(int statusCode) {
+    // An explicit non-positive status with headers/body should use the parsed data without
+    // publishing the unusable status.
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V2_HTTP);
     ByteArrayOutputStream result =
         createOutputStream(
-            "{\"statusCode\": 0, \"headers\": {\"content-type\": \"text/plain\"}, \"body\": \"hello\"}");
+            "{\"statusCode\": "
+                + statusCode
+                + ", \"headers\": {\"content-type\": \"text/plain\"}, \"body\": \"hello\"}");
     Integer[] capturedStatus = {null};
     Map<String, String> capturedHeaders = new HashMap<>();
     boolean[] headerDoneCalled = {false};
@@ -1778,10 +1800,78 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
             () -> headerDoneCalled[0] = true,
             body -> capturedBody[0] = body);
     LambdaAppSecHandler.processResponseData(span, result);
-    assertNull(capturedStatus[0]); // statusCode 0 — responseStarted not fired
+    assertNull(capturedStatus[0]);
+    verify(span, never()).setHttpStatusCode(anyInt());
     assertEquals("text/plain", capturedHeaders.get("content-type")); // parsed header kept
     assertTrue(headerDoneCalled[0]);
     assertEquals("hello", capturedBody[0]); // parsed body kept, not the whole envelope
+  }
+
+  @ParameterizedTest
+  @EnumSource(
+      value = LambdaTriggerType.class,
+      names = {"API_GATEWAY_V2_HTTP", "LAMBDA_URL"})
+  void processResponseDataTreatsProxyShapedResponseWithoutStatusCodeAsImplicitSuccess(
+      LambdaTriggerType triggerType) {
+    // Without a statusCode key the gateway does not interpret headers/body/isBase64Encoded at all:
+    // it serialises the whole object as the body of a 200 response with content-type
+    // application/json, so the declared text/html and the base64 encoding never reach the client.
+    LambdaAppSecHandler.setCurrentTriggerType(triggerType);
+    ByteArrayOutputStream result =
+        createOutputStream(
+            "{\"headers\": {\"content-type\": \"text/html\"}, \"body\": \"PGgxPmhpPC9oMT4=\", \"isBase64Encoded\": true}");
+    Integer[] capturedStatus = {null};
+    Map<String, String> capturedHeaders = new HashMap<>();
+    Object[] capturedBody = {null};
+    AgentSpan span =
+        setupMockResponseCallbacks(
+            status -> capturedStatus[0] = status,
+            capturedHeaders::put,
+            null,
+            body -> capturedBody[0] = body);
+
+    LambdaAppSecHandler.processResponseData(span, result);
+
+    assertEquals(200, capturedStatus[0]);
+    verify(span).setHttpStatusCode(200);
+    assertEquals(1, capturedHeaders.size());
+    assertEquals("application/json", capturedHeaders.get("content-type"));
+    assertInstanceOf(Map.class, capturedBody[0]);
+    Map<?, ?> envelope = (Map<?, ?>) capturedBody[0];
+    // the whole envelope is the body, and its body field stays base64-encoded
+    assertEquals("PGgxPmhpPC9oMT4=", envelope.get("body"));
+    assertInstanceOf(Map.class, envelope.get("headers"));
+  }
+
+  @ParameterizedTest
+  @EnumSource(
+      value = LambdaTriggerType.class,
+      names = {"API_GATEWAY_V1_REST", "ALB", "ALB_MULTI_VALUE", "API_GATEWAY_V2_WEBSOCKET"})
+  void processResponseDataHonoursAnEnvelopeWithoutStatusCodeOnProxyTriggers(
+      LambdaTriggerType triggerType) {
+    // The mirror of the implicit-success case: these triggers never infer a 200, so the envelope
+    // is still interpreted — the declared content type and the decoded body are what the client
+    // gets — and only the status stays unknown.
+    LambdaAppSecHandler.setCurrentTriggerType(triggerType);
+    ByteArrayOutputStream result =
+        createOutputStream(
+            "{\"headers\": {\"content-type\": \"text/html\"}, \"body\": \"PGgxPmhpPC9oMT4=\", \"isBase64Encoded\": true}");
+    Integer[] capturedStatus = {null};
+    Map<String, String> capturedHeaders = new HashMap<>();
+    Object[] capturedBody = {null};
+    AgentSpan span =
+        setupMockResponseCallbacks(
+            status -> capturedStatus[0] = status,
+            capturedHeaders::put,
+            null,
+            body -> capturedBody[0] = body);
+
+    LambdaAppSecHandler.processResponseData(span, result);
+
+    assertNull(capturedStatus[0]);
+    verify(span, never()).setHttpStatusCode(anyInt());
+    assertEquals("text/html", capturedHeaders.get("content-type"));
+    assertEquals("<h1>hi</h1>", capturedBody[0]);
   }
 
   @Test
@@ -1876,8 +1966,12 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     assertEquals(404, capturedStatus[0]);
   }
 
-  @Test
-  void processResponseDataHandlesMissingStatusCode() {
+  @ParameterizedTest
+  @EnumSource(
+      value = LambdaTriggerType.class,
+      names = {"API_GATEWAY_V1_REST", "API_GATEWAY_V2_WEBSOCKET", "ALB", "ALB_MULTI_VALUE"})
+  void processResponseDataDoesNotInferStatusForProxyTriggers(LambdaTriggerType triggerType) {
+    LambdaAppSecHandler.setCurrentTriggerType(triggerType);
     ByteArrayOutputStream result = createOutputStream("{\"body\": \"ok\"}");
     Integer[] capturedStatus = {null};
     AgentSpan span =
@@ -1888,6 +1982,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void processResponseDataHandlesNonNumericStatusCode() {
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V2_HTTP);
     ByteArrayOutputStream result =
         createOutputStream("{\"statusCode\": \"bad\", \"body\": \"ok\"}");
     Integer[] capturedStatus = {null};
@@ -1895,6 +1990,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
         setupMockResponseCallbacks(status -> capturedStatus[0] = status, null, null, null);
     LambdaAppSecHandler.processResponseData(span, result);
     assertNull(capturedStatus[0]);
+    verify(span, never()).setHttpStatusCode(anyInt());
   }
 
   // --- Header extraction ---
@@ -2131,6 +2227,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void processResponseDataHandlesMalformedJsonResponse() {
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V2_HTTP);
     ByteArrayOutputStream result = createOutputStream("{not valid json");
     Integer[] capturedStatus = {null};
     AgentSpan span =
@@ -2200,19 +2297,25 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   // extractResponseData Unit Tests
   // ============================================================================
 
-  @Test
-  void extractResponseDataReturnsNullForMalformedJson() {
-    assertNull(parseResponse("{bad json"));
+  @ParameterizedTest(name = "[{index}] {0}")
+  @ValueSource(strings = {"{bad json", ""})
+  void reportsUnparseablePayloadAsTextWithoutAStatus(String json) {
+    // The payload is not JSON at all, so it is not a valid response for any HTTP trigger: the
+    // gateway substitutes its own error and the status is not knowable here.
+    LambdaResponseData response = parseResponse(json, LambdaTriggerType.API_GATEWAY_V1_REST);
+
+    assertNull(response.statusCode);
+    assertEquals(singletonMap("content-type", "text/plain"), response.headers);
+    assertEquals(json, response.body);
   }
 
   @Test
-  void extractResponseDataReturnsNullForNullJsonParseResult() {
-    assertNull(parseResponse("null"));
-  }
+  void extractResponseDataPreservesJsonNullAsAValidPlainResponse() {
+    LambdaResponseData response = parseResponse("null", LambdaTriggerType.API_GATEWAY_V1_REST);
 
-  @Test
-  void extractResponseDataReturnsNullForEmptyString() {
-    assertNull(parseResponse(""));
+    assertNull(response.statusCode);
+    assertEquals(singletonMap("content-type", "application/json"), response.headers);
+    assertNull(response.body);
   }
 
   @ParameterizedTest(name = "[{index}] content-type {0}")
@@ -2224,8 +2327,9 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
         parseResponse(
             "{\"statusCode\": 200, \"headers\": {\"content-type\": \""
                 + contentType
-                + "\"}, \"body\": \"{\\\"a\\\":1}\"}");
-    assertNotNull(response);
+                + "\"}, \"body\": \"{\\\"a\\\":1}\"}",
+            LambdaTriggerType.API_GATEWAY_V1_REST);
+
     assertEquals(singletonMap("a", 1.0), response.body);
   }
 
@@ -2234,9 +2338,25 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     LambdaResponseData response =
         parseResponse(
             "{\"statusCode\": 200, \"headers\": {\"content-type\": \"text/plain\"},"
-                + " \"body\": \"{\\\"a\\\":1}\"}");
-    assertNotNull(response);
+                + " \"body\": \"{\\\"a\\\":1}\"}",
+            LambdaTriggerType.API_GATEWAY_V1_REST);
+
     assertEquals("{\"a\":1}", response.body);
+  }
+
+  @Test
+  void distinguishesAbsentStatusCodeFromExplicitZero() {
+    // Absent: the gateway serialises the whole value as the body of a 200. Present: the payload is
+    // an envelope, so the status is kept as received and never defaulted.
+    LambdaResponseData absent =
+        parseResponse("{\"body\":\"ok\"}", LambdaTriggerType.API_GATEWAY_V2_HTTP);
+    LambdaResponseData explicitZero =
+        parseResponse("{\"statusCode\":0,\"body\":\"ok\"}", LambdaTriggerType.API_GATEWAY_V2_HTTP);
+
+    assertEquals(200, absent.statusCode);
+    assertEquals(singletonMap("body", "ok"), absent.body);
+    assertEquals(0, explicitZero.statusCode);
+    assertEquals("ok", explicitZero.body);
   }
 
   // ============================================================================
@@ -2550,8 +2670,8 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void processResponseDataLeavesHttpStatusCodeUnsetForNonApiGwResponse() {
-    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.LAMBDA_URL);
+  void processResponseDataLeavesHttpStatusCodeUnsetForRestResponseWithoutStatus() {
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
     AgentSpan span = setupMockResponseCallbacks(null, null, null, null);
     LambdaAppSecHandler.processResponseData(span, createOutputStream("{\"result\": \"hello\"}"));
 
