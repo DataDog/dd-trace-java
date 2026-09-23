@@ -893,6 +893,56 @@ If reflection must be used the reflection usage should be added to
 
 See [GraalVM configuration docs](https://www.graalvm.org/jdk17/reference-manual/native-image/dynamic-features/Reflection/#manual-configuration).
 
+## Structural Changes (Adding Fields, Methods, or Interfaces)
+
+Some instrumentations use `Instrumenter.HasTypeAdvice` to change the *structure* of the type itself — for example adding a marker
+interface or a field via a custom `AsmVisitorWrapper`. Unlike method advice this will fail if the target type is already loaded,
+causing the instrumentation to silently stop working. The JVM does not allow transformations to change the structure once a type
+is loaded, only the method bodies can be changed. Conversely, if we structurally changed a type before it was loaded then we must
+remember to reapply that same change if the type is ever retransformed.
+
+This is hard to get right, so we provide a feature to correctly handle both situations.
+
+Instrumentations whose `typeAdvice()` adds fields, methods, or interfaces should implement `Instrumenter.WithStructuralChange`:
+
+```java
+public interface WithStructuralChange extends HasTypeAdvice {
+  /** The marker interface added by the structural change, used to detect already-loaded types. */
+  Class<?> structuralChangeMarker();
+}
+```
+
+`structuralChangeMarker()` returns the marker interface the type advice adds directly to the type. For example IAST's
+[`TaintableIast`](../dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/InstrumenterModule.java)
+adds `Taintable` to every type it instruments, so it returns `Taintable.class` as the structural marker.
+
+### How it works
+
+1. When building matchers for a `WithStructuralChange` instrumentation, `CombiningTransformerBuilder` adds a
+   `MatchRecorder.PreserveLoadedStructure` narrowing matcher.
+2. On a *fresh* class load there is no `classBeingRedefined`, so the matcher has no effect and the structural change
+   is applied as usual.
+3. On a *retransform*, the matcher only allows the structural change to re-apply if the loaded class already
+   directly declares the marker interface — i.e. the change was already applied on first load, so it must be
+   re-applied. Otherwise the match is dropped, skipping the change instead of failing `retransformClasses()`.
+   Since the type might already have the marker, the `AsmVisitorWrapper` must guard against adding it twice
+   (see the `arrayContains`/`appendToArray` check in `TaintableVisitor`).
+4. If the instrumentation also implements `HasMethodAdvice`, the structural change is split into its own
+   transformation (see `buildTypeAdvice()` in `CombiningTransformerBuilder`) so the narrowing can't disable the
+   *method* advice when the structural change is skipped.
+
+### When to use it
+
+Implement `WithStructuralChange` whenever `typeAdvice()` adds a field, method, or interface to the instrumented type.
+Pick (or add) a marker interface that's only ever added by that structural change, since it's used to detect that the
+change already happened.
+
+**Examples in the codebase:**
+- [`InstrumenterModule.TaintableIast`](../dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/InstrumenterModule.java)
+  — instrumentation that adds `Taintable` to IAST-instrumented types.
+- [`TaintableVisitor`](../dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/bytebuddy/iast/TaintableVisitor.java)
+  — the `AsmVisitorWrapper` that actually adds the marker interface during type advice.
+
 ## JPMS Module Opening
 
 Java 9 introduced the Java Platform Module System (JPMS), which restricts reflective access across module boundaries.
