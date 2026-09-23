@@ -32,8 +32,7 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
+import org.tabletest.junit.TableTest;
 
 class AIGuardContextPropagationTest {
   private AgentTracer.TracerAPI originalTracer;
@@ -52,20 +51,14 @@ class AIGuardContextPropagationTest {
     tracer.close();
   }
 
-  @ParameterizedTest
-  @CsvSource({
-    "true, ALLOW, 100",
-    "false, ALLOW, 100",
-    "true, BLOCK, 100",
-    "false, BLOCK, 100",
-    "true, ERROR, 100",
-    "false, ERROR, 100",
-    "true, ALLOW, 1",
-    "false, ALLOW, 1",
-    "true, BLOCK, 1",
-    "false, BLOCK, 1",
-    "true, ERROR, 1",
-    "false, ERROR, 1"
+  @TableTest({
+    "scenario                    | callerPropagation | outcome | scopeDepthLimit",
+    "allow with evaluation scope | {true, false}     | ALLOW   | 100            ",
+    "block with evaluation scope | {true, false}     | BLOCK   | 100            ",
+    "error with evaluation scope | {true, false}     | ERROR   | 100            ",
+    "allow at scope depth limit  | {true, false}     | ALLOW   | 1              ",
+    "block at scope depth limit  | {true, false}     | BLOCK   | 1              ",
+    "error at scope depth limit  | {true, false}     | ERROR   | 1              "
   })
   void isolatesHttpWorkAndRestoresCaller(
       boolean callerPropagation, Outcome outcome, int scopeDepthLimit) throws Exception {
