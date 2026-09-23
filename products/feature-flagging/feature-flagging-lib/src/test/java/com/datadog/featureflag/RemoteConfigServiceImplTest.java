@@ -33,11 +33,13 @@ import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.time.Instant;
 import java.util.Date;
 import java.util.Map;
+import okio.Buffer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -86,34 +88,7 @@ class RemoteConfigServiceImplTest {
 
   @Test
   void skipsMalformedFlagAllocationsAndKeepsValidFlag() throws Exception {
-    final ServerConfiguration config =
-        deserialize(
-            "{"
-                + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-                + "\"format\":\"SERVER\","
-                + "\"environment\":{\"name\":\"Test\"},"
-                + "\"flags\":{"
-                + "\"malformed-flag\":{"
-                + "\"key\":\"malformed-flag\","
-                + "\"enabled\":true,"
-                + "\"variationType\":\"STRING\","
-                + "\"variations\":{\"on\":{\"key\":\"on\",\"value\":\"on\"}},"
-                + "\"allocations\":\"this-is-not-a-list\""
-                + "},"
-                + "\"valid-flag\":{"
-                + "\"key\":\"valid-flag\","
-                + "\"enabled\":true,"
-                + "\"variationType\":\"STRING\","
-                + "\"variations\":{\"expected\":{\"key\":\"expected\",\"value\":\"expected\"}},"
-                + "\"allocations\":[{"
-                + "\"key\":\"default-allocation\","
-                + "\"rules\":[],"
-                + "\"splits\":[{\"variationKey\":\"expected\",\"shards\":[]}],"
-                + "\"doLog\":true"
-                + "}]"
-                + "}"
-                + "}"
-                + "}");
+    final ServerConfiguration config = deserialize(resource("malformed-allocations.json"));
 
     assertNotNull(config);
     assertFalse(config.flags.containsKey("malformed-flag"));
@@ -183,71 +158,26 @@ class RemoteConfigServiceImplTest {
     return config.flags.get("valid-flag").allocations.get(0).splits.get(0).serialId;
   }
 
-  private static String configWithSerialId(final String serialIdJson) {
-    return configWithFlags(flagWithSerialId("valid-flag", "expected", serialIdJson));
+  private static String configWithSerialId(final String serialIdJson) throws IOException {
+    return withSerialId(resource("serial-id.json"), serialIdJson);
   }
 
   /** A malformed serial id must bind to its own flag and leave the sibling flag intact. */
-  private static String configWithSiblingSerialIds(final String malformedSerialIdJson) {
-    return configWithFlags(
-        flagWithSerialId("malformed-flag", "on", malformedSerialIdJson)
-            + ","
-            + flagWithSerialId("valid-flag", "expected", "7"));
+  private static String configWithSiblingSerialIds(final String malformedSerialIdJson)
+      throws IOException {
+    return withSerialId(resource("sibling-serial-ids.json"), malformedSerialIdJson);
   }
 
-  private static String configWithFlags(final String flagsJson) {
-    return "{"
-        + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-        + "\"format\":\"SERVER\","
-        + "\"environment\":{\"name\":\"Test\"},"
-        + "\"flags\":{"
-        + flagsJson
-        + "}"
-        + "}";
-  }
-
-  /** A single enabled string flag with one logging allocation. A null serial id omits the key. */
-  private static String flagWithSerialId(
-      final String flagKey, final String variationKey, final String serialIdJson) {
-    return "\""
-        + flagKey
-        + "\":{"
-        + "\"key\":\""
-        + flagKey
-        + "\","
-        + "\"enabled\":true,"
-        + "\"variationType\":\"STRING\","
-        + "\"variations\":{\""
-        + variationKey
-        + "\":{\"key\":\""
-        + variationKey
-        + "\",\"value\":\""
-        + variationKey
-        + "\"}},"
-        + "\"allocations\":[{"
-        + "\"key\":\"default-allocation\","
-        + "\"rules\":[],"
-        + "\"splits\":[{\"variationKey\":\""
-        + variationKey
-        + "\",\"shards\":[]"
-        + (serialIdJson == null ? "" : ",\"serialId\":" + serialIdJson)
-        + "}],"
-        + "\"doLog\":true"
-        + "}]"
-        + "}";
+  /** Inserts the raw wire value so the parser sees its original JSON type; null omits the key. */
+  private static String withSerialId(final String json, final String serialIdJson) {
+    return serialIdJson == null
+        ? json.replace("\"serialId\": \"${serialId}\",", "")
+        : json.replace("\"${serialId}\"", serialIdJson);
   }
 
   @Test
   void ignoresUnknownTopLevelFields() throws Exception {
-    final ServerConfiguration config =
-        deserialize(
-            "{"
-                + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-                + "\"format\":\"SERVER\","
-                + "\"environment\":{\"name\":\"Test\"},"
-                + "\"segments\":{\"new-schema-key\":{\"ignored\":true}},"
-                + "\"flags\":{}"
-                + "}");
+    final ServerConfiguration config = deserialize(resource("unknown-top-level-fields.json"));
 
     assertNotNull(config);
     assertEquals("2024-04-17T19:40:53.716Z", config.createdAt);
@@ -259,29 +189,7 @@ class RemoteConfigServiceImplTest {
 
   @Test
   void parsesAllocationWindowDatesAsDateFieldsWithInstantAccessors() throws Exception {
-    final ServerConfiguration config =
-        deserialize(
-            "{"
-                + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-                + "\"format\":\"SERVER\","
-                + "\"environment\":{\"name\":\"Test\"},"
-                + "\"flags\":{"
-                + "\"dated-flag\":{"
-                + "\"key\":\"dated-flag\","
-                + "\"enabled\":true,"
-                + "\"variationType\":\"STRING\","
-                + "\"variations\":{\"expected\":{\"key\":\"expected\",\"value\":\"expected\"}},"
-                + "\"allocations\":[{"
-                + "\"key\":\"dated-allocation\","
-                + "\"rules\":[],"
-                + "\"startAt\":\"2023-01-01T01:00:00.123456+01:00\","
-                + "\"endAt\":\"2023-01-02T00:00:00.987654Z\","
-                + "\"splits\":[{\"variationKey\":\"expected\",\"shards\":[]}],"
-                + "\"doLog\":true"
-                + "}]"
-                + "}"
-                + "}"
-                + "}");
+    final ServerConfiguration config = deserialize(resource("allocation-window-dates.json"));
 
     final Allocation allocation = config.flags.get("dated-flag").allocations.get(0);
     assertEquals(Date.class, Allocation.class.getField("startAt").getType());
@@ -299,43 +207,7 @@ class RemoteConfigServiceImplTest {
 
   @Test
   void skipsUnknownOperatorFlagAndKeepsValidFlag() throws Exception {
-    final ServerConfiguration config =
-        deserialize(
-            "{"
-                + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-                + "\"format\":\"SERVER\","
-                + "\"environment\":{\"name\":\"Test\"},"
-                + "\"flags\":{"
-                + "\"operator-grease-flag\":{"
-                + "\"key\":\"operator-grease-flag\","
-                + "\"enabled\":true,"
-                + "\"variationType\":\"STRING\","
-                + "\"variations\":{\"trap\":{\"key\":\"trap\",\"value\":\"trap\"}},"
-                + "\"allocations\":[{"
-                + "\"key\":\"grease-allocation\","
-                + "\"rules\":[{\"conditions\":[{"
-                + "\"attribute\":\"country\","
-                + "\"operator\":\"not-a-real-operator\","
-                + "\"value\":\"anything\""
-                + "}]}],"
-                + "\"splits\":[{\"variationKey\":\"trap\",\"shards\":[]}],"
-                + "\"doLog\":true"
-                + "}]"
-                + "},"
-                + "\"valid-flag\":{"
-                + "\"key\":\"valid-flag\","
-                + "\"enabled\":true,"
-                + "\"variationType\":\"STRING\","
-                + "\"variations\":{\"expected\":{\"key\":\"expected\",\"value\":\"expected\"}},"
-                + "\"allocations\":[{"
-                + "\"key\":\"default-allocation\","
-                + "\"rules\":[],"
-                + "\"splits\":[{\"variationKey\":\"expected\",\"shards\":[]}],"
-                + "\"doLog\":true"
-                + "}]"
-                + "}"
-                + "}"
-                + "}");
+    final ServerConfiguration config = deserialize(resource("unknown-operator.json"));
 
     assertNotNull(config);
     assertFalse(config.flags.containsKey("operator-grease-flag"));
@@ -391,14 +263,7 @@ class RemoteConfigServiceImplTest {
 
   @Test
   void allowsNullFlagMap() throws Exception {
-    final ServerConfiguration config =
-        deserialize(
-            "{"
-                + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-                + "\"format\":\"SERVER\","
-                + "\"environment\":{\"name\":\"Test\"},"
-                + "\"flags\":null"
-                + "}");
+    final ServerConfiguration config = deserialize(resource("null-flags.json"));
 
     assertNotNull(config);
     assertNull(config.flags);
@@ -406,28 +271,7 @@ class RemoteConfigServiceImplTest {
 
   @Test
   void skipsNullFlagAndKeepsValidFlag() throws Exception {
-    final ServerConfiguration config =
-        deserialize(
-            "{"
-                + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-                + "\"format\":\"SERVER\","
-                + "\"environment\":{\"name\":\"Test\"},"
-                + "\"flags\":{"
-                + "\"null-flag\":null,"
-                + "\"valid-flag\":{"
-                + "\"key\":\"valid-flag\","
-                + "\"enabled\":true,"
-                + "\"variationType\":\"STRING\","
-                + "\"variations\":{\"expected\":{\"key\":\"expected\",\"value\":\"expected\"}},"
-                + "\"allocations\":[{"
-                + "\"key\":\"default-allocation\","
-                + "\"rules\":[],"
-                + "\"splits\":[{\"variationKey\":\"expected\",\"shards\":[]}],"
-                + "\"doLog\":true"
-                + "}]"
-                + "}"
-                + "}"
-                + "}");
+    final ServerConfiguration config = deserialize(resource("null-flag.json"));
 
     assertNotNull(config);
     assertFalse(config.flags.containsKey("null-flag"));
@@ -545,12 +389,15 @@ class RemoteConfigServiceImplTest {
         .build();
   }
 
-  private static String emptyConfig() {
-    return "{"
-        + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-        + "\"format\":\"SERVER\","
-        + "\"environment\":{\"name\":\"Test\"},"
-        + "\"flags\":{}"
-        + "}";
+  private static String emptyConfig() throws IOException {
+    return resource("empty-config.json");
+  }
+
+  private static String resource(final String name) throws IOException {
+    try (final InputStream stream =
+        RemoteConfigServiceImplTest.class.getResourceAsStream("/remote-config/" + name)) {
+      assertNotNull(stream, "Missing remote-config fixture: " + name);
+      return new Buffer().readFrom(stream).readUtf8();
+    }
   }
 }

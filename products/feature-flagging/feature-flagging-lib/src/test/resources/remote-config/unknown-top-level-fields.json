@@ -1,0 +1,13 @@
+{
+  "createdAt": "2024-04-17T19:40:53.716Z",
+  "format": "SERVER",
+  "environment": {
+    "name": "Test"
+  },
+  "segments": {
+    "new-schema-key": {
+      "ignored": true
+    }
+  },
+  "flags": {}
+}
