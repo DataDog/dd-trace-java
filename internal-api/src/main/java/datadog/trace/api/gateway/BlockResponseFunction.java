@@ -69,4 +69,24 @@ public interface BlockResponseFunction {
     }
     return committed;
   }
+
+  /**
+   * Commits blocking response using a RequestBlockingAction, marking {@code ctx}'s trace segment as
+   * effectively blocked on success. Callers in {@code internal-api} that both commit and mark the
+   * segment should use this instead of repeating the {@code if (tryCommitBlockingResponse(...)) {
+   * effectivelyBlocked(); }} pattern inline.
+   *
+   * @param ctx the request context
+   * @param action the blocking action containing status code, content type, headers, and security
+   *     response ID
+   * @return true unless blocking could not be attempted
+   */
+  default boolean tryCommitBlockingResponseAndMarkBlocked(
+      RequestContext ctx, Flow.Action.RequestBlockingAction action) {
+    boolean committed = tryCommitBlockingResponse(ctx, action);
+    if (committed) {
+      ctx.getTraceSegment().effectivelyBlocked();
+    }
+    return committed;
+  }
 }
