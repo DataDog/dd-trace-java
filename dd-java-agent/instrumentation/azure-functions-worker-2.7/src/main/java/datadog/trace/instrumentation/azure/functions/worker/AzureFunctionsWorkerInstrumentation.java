@@ -35,7 +35,7 @@ public final class AzureFunctionsWorkerInstrumentation extends InstrumenterModul
     return new String[] {
       packageName + ".DurableFunctionsDecorator",
       packageName + ".DurableFunctionsUtils",
-      packageName + ".Base64StringInputStream",
+      packageName + ".AsciiStringInputStream",
       packageName + ".TraceContextExtractAdapter"
     };
   }

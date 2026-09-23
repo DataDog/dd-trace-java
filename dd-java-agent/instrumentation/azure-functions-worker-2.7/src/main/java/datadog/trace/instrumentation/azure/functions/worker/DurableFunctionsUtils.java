@@ -115,7 +115,7 @@ public final class DurableFunctionsUtils {
       }
 
       final InputStream request =
-          Base64.getDecoder().wrap(new Base64StringInputStream((String) parameterValue));
+          Base64.getDecoder().wrap(new AsciiStringInputStream((String) parameterValue));
       final byte[] skipBuffer = new byte[512];
       boolean replay = false;
       boolean newFailure = false;

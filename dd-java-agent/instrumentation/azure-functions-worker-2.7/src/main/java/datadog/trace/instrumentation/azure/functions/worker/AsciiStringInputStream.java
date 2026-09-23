@@ -2,12 +2,12 @@ package datadog.trace.instrumentation.azure.functions.worker;
 
 import java.io.InputStream;
 
-/** Exposes an ASCII Base64 string as a stream without copying it into a byte array. */
-public final class Base64StringInputStream extends InputStream {
+/** Exposes an ASCII string as a stream without copying it into a byte array. */
+public final class AsciiStringInputStream extends InputStream {
   private final String value;
   private int position;
 
-  public Base64StringInputStream(String value) {
+  public AsciiStringInputStream(String value) {
     this.value = value;
   }
 

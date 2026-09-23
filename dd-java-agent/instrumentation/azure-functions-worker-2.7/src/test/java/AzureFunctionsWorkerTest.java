@@ -22,8 +22,6 @@ import com.microsoft.azure.functions.TraceContext;
 import com.microsoft.azure.functions.internal.spi.middleware.MiddlewareChain;
 import com.microsoft.azure.functions.internal.spi.middleware.MiddlewareContext;
 import com.microsoft.azure.functions.worker.chain.FunctionExecutionMiddleware;
-import com.microsoft.durabletask.interruption.ContinueAsNewInterruption;
-import com.microsoft.durabletask.interruption.OrchestratorBlockedException;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.assertions.SpanMatcher;
 import datadog.trace.api.DDSpanTypes;
@@ -47,14 +45,12 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
 
   abstract String operation();
 
-  // spotless:off
   @TableTest({
-    "scenario      | annotation                  | trigger",
+    "scenario      | annotation                  | trigger             ",
     "orchestration | DurableOrchestrationTrigger | DurableOrchestration",
-    "activity      | DurableActivityTrigger      | DurableActivity",
-    "entity        | DurableEntityTrigger        | DurableEntity"
+    "activity      | DurableActivityTrigger      | DurableActivity     ",
+    "entity        | DurableEntityTrigger        | DurableEntity       "
   })
-  // spotless:on
   void createsSpanForDurableTrigger(String annotation, String trigger) throws Exception {
     MiddlewareContext context = contextFor(annotation, "MyFunction");
 
@@ -102,10 +98,11 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
   void suppressesReplayWithLargeHistory() throws Exception {
     MiddlewareContext context = contextFor("DurableOrchestrationTrigger", "Orchestrator");
     byte[] request = new byte[4103];
-    // OrchestratorRequest { pastEvents: <4096 bytes>, newEvents: taskCompleted {} }
+    // Field 3 (pastEvents), length-delimited with a two-byte varint length of 4096.
     request[0] = 0x1a;
     request[1] = (byte) 0x80;
     request[2] = 0x20;
+    // Field 4 (newEvents), containing HistoryEvent field 7 (taskCompleted) with an empty payload.
     request[4099] = 0x22;
     request[4100] = 0x02;
     request[4101] = 0x3a;
@@ -130,13 +127,11 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
     assertTraces(trace(durableSpan("Orchestrator", "DurableOrchestration")));
   }
 
-  // spotless:off
   @TableTest({
     "scenario                 | failureTag",
-    "failed activity          | 66",
-    "failed sub-orchestration | 90"
+    "failed activity          | 66        ",
+    "failed sub-orchestration | 90        "
   })
-  // spotless:on
   void createsSpanForOrchestrationReplayWithFailure(int failureTag) throws Exception {
     MiddlewareContext context = contextFor("DurableOrchestrationTrigger", "Orchestrator");
     // OrchestratorRequest { pastEvents: {}, newEvents: HistoryEvent { failure: {} } }
@@ -224,13 +219,11 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
   }
 
   @ParameterizedTest(name = "{0}")
-  // spotless:off
   @TableTest({
-    "scenario           | description        | payload",
+    "scenario           | description        | payload     ",
     "non-base64 input   | non-base64 input   | 'not base64'",
-    "truncated protobuf | truncated protobuf | GgIA"
+    "truncated protobuf | truncated protobuf | GgIA        "
   })
-  // spotless:on
   @MethodSource("failsOpenForUnreadableOrchestrationPayloadArguments")
   void failsOpenForUnreadableOrchestrationPayload(String description, Object payload)
       throws Exception {
@@ -301,10 +294,15 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
     assertTrue(priority.get() > 0);
   }
 
-  @ParameterizedTest(name = "{0}")
-  @MethodSource("doesNotMarkReplayControlFlowAsErrorArguments")
-  void doesNotMarkReplayControlFlowAsError(String description, Throwable controlFlow)
+  @TableTest({
+    "scenario                            | controlFlowType                                                    ",
+    "legacy OrchestratorBlockedException | com.microsoft.durabletask.OrchestratorBlockedException             ",
+    "OrchestratorBlockedException        | com.microsoft.durabletask.interruption.OrchestratorBlockedException",
+    "ContinueAsNewInterruption           | com.microsoft.durabletask.interruption.ContinueAsNewInterruption   "
+  })
+  void doesNotMarkReplayControlFlowAsError(Class<? extends Throwable> controlFlowType)
       throws Exception {
+    Throwable controlFlow = controlFlowType.getDeclaredConstructor().newInstance();
     MiddlewareContext context = contextFor("DurableOrchestrationTrigger", "Orchestrator");
     MiddlewareChain chain = mock(MiddlewareChain.class);
     doAnswer(
@@ -318,15 +316,6 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
         RuntimeException.class, () -> new FunctionExecutionMiddleware().invoke(context, chain));
 
     assertTraces(trace(durableSpan("Orchestrator", "DurableOrchestration")));
-  }
-
-  static Stream<Arguments> doesNotMarkReplayControlFlowAsErrorArguments() {
-    return Stream.of(
-        arguments(
-            "legacy OrchestratorBlockedException",
-            new com.microsoft.durabletask.OrchestratorBlockedException()),
-        arguments("OrchestratorBlockedException", new OrchestratorBlockedException()),
-        arguments("ContinueAsNewInterruption", new ContinueAsNewInterruption()));
   }
 
   @Test
