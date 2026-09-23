@@ -257,8 +257,8 @@ public class ProcessImplInstrumentationHelpers {
   private static void commitBlockingResponse(
       RequestContext ctx, Flow.Action.RequestBlockingAction rba) {
     BlockResponseFunction brf = ctx.getBlockResponseFunction();
-    if (brf != null && brf.tryCommitBlockingResponse(ctx, rba)) {
-      ctx.getTraceSegment().effectivelyBlocked();
+    if (brf != null) {
+      brf.tryCommitBlockingResponseAndMarkBlocked(ctx, rba);
     }
   }
 
