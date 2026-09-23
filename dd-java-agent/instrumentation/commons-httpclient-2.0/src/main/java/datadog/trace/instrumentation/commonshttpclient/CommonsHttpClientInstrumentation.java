@@ -60,6 +60,7 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope methodEnter(@Advice.Argument(1) final HttpMethod httpMethod) {
 
+      ContextScope scope = null;
       try {
         final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
         if (callDepth > 0) {
@@ -67,7 +68,7 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
         }
 
         final AgentSpan span = startSpan("commons-http-client", HTTP_REQUEST);
-        final ContextScope scope = activateSpan(span);
+        scope = activateSpan(span);
 
         DECORATE.afterStart(span);
         DECORATE.onRequest(span, httpMethod);
@@ -75,6 +76,16 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
         return scope;
       } catch (BlockingException e) {
         CallDepthThreadLocalMap.reset(HttpClient.class);
+        if (scope != null) {
+          final AgentSpan span = spanFromScope(scope);
+          try {
+            DECORATE.onError(span, e);
+            DECORATE.beforeFinish(span);
+          } finally {
+            scope.close();
+            span.finish();
+          }
+        }
         // re-throw blocking exceptions
         throw e;
       }
