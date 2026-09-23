@@ -1436,6 +1436,14 @@
         "aliases": []
       }
     ],
+    "DD_INTERNAL_DYNAMIC_INSTRUMENTATION_SYNCHRONOUS_SOURCE_FILE_TRACKING_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE": [
       {
         "version": "A",
