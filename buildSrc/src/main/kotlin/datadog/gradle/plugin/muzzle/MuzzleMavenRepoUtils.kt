@@ -25,23 +25,28 @@ internal object MuzzleMavenRepoUtils {
   private val backoffDelaysSeconds = listOf(5L, 10L, 30L)
 
   /**
-   * Remote repositories used to query version ranges and fetch dependencies.
+   * Remote repositories used by Aether to query version ranges.
    *
    * This intentionally reads the environment on each access: Gradle daemons can
-   * be reused across builds with different MAVEN_REPOSITORY_PROXY values.
+   * be reused across builds with different proxy values. Aether queries metadata
+   * from all repositories, preferring the first for versions present in both.
    */
   @JvmStatic
-  fun defaultMuzzleRepos(): List<RemoteRepository> {
-    val central = RemoteRepository.Builder("central", "default", "https://repo1.maven.org/maven2/").build()
-    val mavenProxyUrl = System.getenv("MAVEN_REPOSITORY_PROXY")
-    return if (mavenProxyUrl == null) {
-      listOf(central)
-    } else {
-      val proxy = RemoteRepository.Builder("central-proxy", "default", mavenProxyUrl).build()
-      // TODO: temporary hack for Maven Central rate limiting
-      listOf(proxy /*, central*/)
+  fun defaultMuzzleRepos(): List<RemoteRepository> =
+    defaultMuzzleRepos(System.getenv("MAVEN_REPOSITORY_PROXY"), System.getenv("MUZZLE_MAVEN_REPOSITORY_PROXY"))
+
+  internal fun defaultMuzzleRepos(mavenProxyUrl: String?, muzzleProxyUrl: String? = null): List<RemoteRepository> =
+    listOfNotNull(
+      muzzleProxyUrl?.takeUnless { it.isBlank() }?.let {
+        RemoteRepository.Builder("muzzle-proxy", "default", it).build()
+      },
+      mavenProxyUrl?.takeUnless { it.isBlank() }?.let {
+        RemoteRepository.Builder("central-proxy", "default", it).build()
+      }
+    ).distinctBy { it.url }.ifEmpty {
+      // Avoid a direct Maven Central fallback while its rate limiting affects CI.
+      listOf(RemoteRepository.Builder("central", "default", "https://repo1.maven.org/maven2/").build())
     }
-  }
 
   /**
    * Create new RepositorySystem for muzzle's Maven/Aether resolutions.
