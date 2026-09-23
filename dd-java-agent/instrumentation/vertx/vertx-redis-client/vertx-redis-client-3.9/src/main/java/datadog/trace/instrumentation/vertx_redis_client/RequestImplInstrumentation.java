@@ -1,11 +1,12 @@
 package datadog.trace.instrumentation.vertx_redis_client;
 
+import static datadog.trace.util.CollectionUtils.appendToArray;
+import static datadog.trace.util.CollectionUtils.arrayContains;
 import static net.bytebuddy.matcher.ElementMatchers.none;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.util.CollectionUtils;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.field.FieldList;
@@ -88,8 +89,8 @@ public class RequestImplInstrumentation extends InstrumenterModule.Tracing
             String[] interfaces) {
           // Add the Cloneable interface, unless it's already there (e.g. reapplying this
           // change while retransforming a class that was already modified on initial load)
-          if (!CollectionUtils.contains(interfaces, CLONEABLE)) {
-            interfaces = CollectionUtils.append(interfaces, CLONEABLE);
+          if (!arrayContains(interfaces, CLONEABLE)) {
+            interfaces = appendToArray(interfaces, CLONEABLE);
             if (signature != null) {
               signature += 'L' + CLONEABLE + ';';
             }

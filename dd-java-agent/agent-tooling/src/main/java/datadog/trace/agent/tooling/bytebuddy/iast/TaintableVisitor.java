@@ -1,7 +1,9 @@
 package datadog.trace.agent.tooling.bytebuddy.iast;
 
+import static datadog.trace.util.CollectionUtils.appendToArray;
+import static datadog.trace.util.CollectionUtils.arrayContains;
+
 import datadog.trace.api.iast.Taintable;
-import datadog.trace.util.CollectionUtils;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -79,8 +81,8 @@ public class TaintableVisitor implements AsmVisitorWrapper {
         final String superName,
         String[] interfaces) {
       owner = name;
-      if (!CollectionUtils.contains(interfaces, TAINTABLE)) {
-        interfaces = CollectionUtils.append(interfaces, TAINTABLE);
+      if (!arrayContains(interfaces, TAINTABLE)) {
+        interfaces = appendToArray(interfaces, TAINTABLE);
         if (signature != null) {
           signature += 'L' + TAINTABLE + ';';
         }

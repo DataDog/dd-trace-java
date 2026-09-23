@@ -2,9 +2,9 @@ package datadog.trace.agent.tooling;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.ANY_CLASS_LOADER;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
+import static datadog.trace.util.CollectionUtils.arrayContains;
 
 import datadog.trace.agent.tooling.context.FieldBackedContextMatcher;
-import datadog.trace.util.CollectionUtils;
 import java.util.BitSet;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -157,11 +157,10 @@ abstract class MatchRecorder {
         Class<?> classBeingRedefined,
         BitSet matches) {
       // don't transform loaded classes unless they directly declare the marker
-      // - we must re-transform them to preserve the original structural change
+      // - we must re-transform those to preserve the original structural change
       if (matches.get(id)
           && null != classBeingRedefined
-          && !CollectionUtils.contains(
-              classBeingRedefined.getInterfaces(), structuralChangeMarker)) {
+          && !arrayContains(classBeingRedefined.getInterfaces(), structuralChangeMarker)) {
         matches.clear(id);
       }
     }

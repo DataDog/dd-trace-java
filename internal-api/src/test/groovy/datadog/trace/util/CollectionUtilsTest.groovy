@@ -4,8 +4,8 @@ package datadog.trace.util
 import datadog.trace.test.util.DDSpecification
 
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast
-import static datadog.trace.util.CollectionUtils.append
-import static datadog.trace.util.CollectionUtils.contains
+import static datadog.trace.util.CollectionUtils.appendToArray
+import static datadog.trace.util.CollectionUtils.arrayContains
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet
@@ -42,35 +42,35 @@ class CollectionUtilsTest extends DDSpecification {
     hopefullyImmutable.getClass().getName().contains(expectedClassName)
   }
 
-  def "append grows a null array"() {
+  def "appendToArray grows a null array"() {
     when:
-    String[] result = append(null, "a")
+    String[] result = appendToArray(null, "a")
     then:
     result == ["a"] as String[]
   }
 
-  def "append grows an empty array"() {
+  def "appendToArray grows an empty array"() {
     when:
-    String[] result = append(new String[0], "a")
+    String[] result = appendToArray(new String[0], "a")
     then:
     result == ["a"] as String[]
   }
 
-  def "append grows a non-empty array"() {
+  def "appendToArray grows a non-empty array"() {
     when:
-    String[] result = append(["a", "b"] as String[], "c")
+    String[] result = appendToArray(["a", "b"] as String[], "c")
     then:
     result == ["a", "b", "c"] as String[]
   }
 
-  def "contains tolerates a null array"() {
+  def "arrayContains tolerates a null array"() {
     expect:
-    !contains(null, "a")
+    !arrayContains(null, "a")
   }
 
-  def "contains reports whether the value is present"() {
+  def "arrayContains reports whether the value is present"() {
     expect:
-    contains(["a", "b"] as String[], "a")
-    !contains(["a", "b"] as String[], "c")
+    arrayContains(["a", "b"] as String[], "a")
+    !arrayContains(["a", "b"] as String[], "c")
   }
 }

@@ -92,7 +92,7 @@ public final class CollectionUtils {
   }
 
   /** Appends value to an array, growing it as needed; treats null arrays as empty. */
-  public static <T> T[] append(@Nullable T[] array, T value) {
+  public static <T> T[] appendToArray(@Nullable T[] array, T value) {
     T[] appended;
     if (array == null) {
       //noinspection unchecked
@@ -106,7 +106,7 @@ public final class CollectionUtils {
   }
 
   /** Checks whether an array contains an element; treats null arrays as empty. */
-  public static <T> boolean contains(@Nullable T[] array, T value) {
+  public static <T> boolean arrayContains(@Nullable T[] array, T value) {
     if (array != null) {
       for (T element : array) {
         if (value.equals(element)) {
