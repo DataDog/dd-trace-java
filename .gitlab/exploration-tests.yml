@@ -34,6 +34,25 @@ build-exploration-tests-image:
     - when: manual
       allow_failure: true
   before_script:
+    - |
+      mkdir -p "$HOME/.m2"
+      cat > "$HOME/.m2/settings.xml" <<EOF
+      <settings>
+        <mirrors>
+          <mirror>
+            <id>env-proxy</id>
+            <mirrorOf>*</mirrorOf>
+            <url>${MAVEN_REPOSITORY_PROXY}</url>
+          </mirror>
+        </mirrors>
+      </settings>
+      EOF
+    - export MVNW_REPOURL=${MAVEN_REPOSITORY_PROXY%/}
+    - export ORG_GRADLE_PROJECT_mavenRepositoryProxy="$MAVEN_REPOSITORY_PROXY"
+    - export ORG_GRADLE_PROJECT_gradlePluginProxy="$GRADLE_PLUGIN_PROXY"
+    # TODO: Centralize Gradle repository proxy initialization instead of reusing a smoke-test resource.
+    - mkdir -p "$HOME/.gradle/init.d"
+    - cp build-logic/smoke-test/src/main/resources/datadog/buildlogic/smoketest/proxy-repositories.init.gradle.kts "$HOME/.gradle/init.d/"
     - cp workspace/dd-java-agent/build/libs/*.jar /exploration-tests/dd-java-agent.jar
     - cp dd-java-agent/agent-debugger/exploration-tests/run-exploration-tests.sh /exploration-tests
     - cp dd-java-agent/agent-debugger/exploration-tests/exclude_*.txt /exploration-tests
@@ -50,6 +69,7 @@ build-exploration-tests-image:
   tags: [ "arch:amd64"]
   image: $EXPLORATION_TESTS_IMAGE
   artifacts:
+    when: always
     paths:
       - "*_agent.log.gz"
       - "*_surefire-reports.tar.gz"
@@ -128,3 +148,18 @@ exploration-tests-method-okhttp:
     - sdk use java 17.0.10-tem
     - java -XshowSettings:system -version
     - ./run-exploration-tests.sh "method" "$PROJECT" "GRADLE_OPTS=-XX:ActiveProcessorCount=4 ./gradlew --max-workers 4 jvmTest -Dtest.java.version=11" "include_${PROJECT}.txt" "exclude_$PROJECT.txt"
+  after_script:
+    - cp /exploration-tests/${PROJECT}/agent.log ${PROJECT}_agent.log || true
+    - gzip ${PROJECT}_agent.log || true
+    - tar czf ${PROJECT}_debugger-dumps.tar.gz /tmp/debugger || true
+    - mkdir -p ${PROJECT}-test-results
+    - (cd /exploration-tests/${PROJECT} && find . -path "*/build/test-results/*/TEST-*.xml" -exec cp --parents {} $CI_PROJECT_DIR/${PROJECT}-test-results/ \;) || true
+  artifacts:
+    when: always
+    paths:
+      - "*_agent.log.gz"
+      - "*_debugger-dumps.tar.gz"
+      - "${PROJECT}-test-results/"
+    reports:
+      junit:
+        - "${PROJECT}-test-results/**/TEST-*.xml"

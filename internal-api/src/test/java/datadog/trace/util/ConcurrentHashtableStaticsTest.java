@@ -329,7 +329,7 @@ class ConcurrentHashtableStaticsTest {
   }
 
   /** Primitive-{@code int}-key entry: no boxing, keyHash is the key itself. */
-  private static final class IntEntry extends ConcurrentHashtable.Entry {
+  private static final class IntEntry extends ConcurrentHashtable.Entry<IntEntry> {
     final int key;
     final int value;
 
@@ -341,6 +341,11 @@ class ConcurrentHashtableStaticsTest {
 
     boolean matches(int key) {
       return this.key == key;
+    }
+
+    @Override
+    public boolean matches(IntEntry other) {
+      return matches(other.key);
     }
   }
 

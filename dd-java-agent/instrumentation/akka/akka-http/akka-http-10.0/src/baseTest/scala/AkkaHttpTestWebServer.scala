@@ -58,9 +58,12 @@ class AkkaHttpTestWebServer(binder: Binder) extends HttpServer {
 
   override def stop(): Unit = {
     import materializer.executionContext
-    portBinding
-      .flatMap(_.unbind())
-      .onComplete(_ => system.terminate())
+    Await.ready(
+      portBinding
+        .flatMap(_.unbind())
+        .flatMap(_ => system.terminate()),
+      10 seconds
+    )
   }
 
   override def address(): URI = {
