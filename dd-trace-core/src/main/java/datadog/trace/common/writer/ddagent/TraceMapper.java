@@ -1,6 +1,5 @@
 package datadog.trace.common.writer.ddagent;
 
-import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.writer.RemoteMapper;
@@ -13,15 +12,5 @@ public interface TraceMapper extends RemoteMapper {
       UTF8BytesString.create(DDSpanContext.PRIORITY_SAMPLING_KEY);
   static final UTF8BytesString ORIGIN_KEY = UTF8BytesString.create(DDTags.ORIGIN_KEY);
   static final UTF8BytesString PROCESS_TAGS_KEY = UTF8BytesString.create(DDTags.PROCESS_TAGS);
-
-  /** Payload-scoped marker written at serialization time; never stored as a span tag. */
-  static final String SDK_OTLP_EXPORT = "_dd.sdk.otlp_export";
-
-  static final UTF8BytesString SDK_OTLP_EXPORT_KEY = UTF8BytesString.create(SDK_OTLP_EXPORT);
-  static final UTF8BytesString SDK_OTLP_EXPORT_TRUE = UTF8BytesString.create("true");
-  static final UTF8BytesString SDK_OTLP_EXPORT_FALSE = UTF8BytesString.create("false");
-
-  static UTF8BytesString otlpExportMarker(Config config) {
-    return config.isOtlpTracesExportEnabled() ? SDK_OTLP_EXPORT_TRUE : SDK_OTLP_EXPORT_FALSE;
-  }
+  static final UTF8BytesString SDK_OTLP_EXPORT_KEY = UTF8BytesString.create(DDTags.SDK_OTLP_EXPORT);
 }

@@ -70,16 +70,10 @@ public final class TraceMapperV0_4 implements TraceMapper {
 
   private static final class MetaWriter implements MetadataConsumer {
 
-    private final UTF8BytesString otlpExportMarker;
-
     private Writable writable;
     private boolean firstSpanInTrace;
     private boolean lastSpanInTrace;
     private boolean firstSpanInPayload;
-
-    MetaWriter(UTF8BytesString otlpExportMarker) {
-      this.otlpExportMarker = otlpExportMarker;
-    }
 
     MetaWriter withWritable(Writable writable) {
       this.writable = writable;
@@ -107,7 +101,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
       final boolean writeSamplingPriority =
           firstSpanInTrace || lastSpanInTrace || metadata.topLevel();
       final UTF8BytesString processTags = firstSpanInPayload ? metadata.processTags() : null;
-      final UTF8BytesString otlpExport = firstSpanInPayload ? otlpExportMarker : null;
+      final UTF8BytesString otlpExport = firstSpanInPayload ? metadata.otlpExportMarker() : null;
       int metaSize =
           metadata.getBaggage().size()
               + tags.size()
@@ -328,7 +322,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
     }
   }
 
-  private final MetaWriter metaWriter = new MetaWriter(TraceMapper.otlpExportMarker(Config.get()));
+  private final MetaWriter metaWriter = new MetaWriter();
   private final MetaStructWriter metaStructWriter = new MetaStructWriter();
 
   @Override

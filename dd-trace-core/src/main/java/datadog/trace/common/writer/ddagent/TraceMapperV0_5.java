@@ -8,7 +8,6 @@ import datadog.communication.serialization.Mapper;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
-import datadog.trace.api.Config;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TagMap.EntryReader;
 import datadog.trace.api.internal.VisibleForTesting;
@@ -36,8 +35,6 @@ public final class TraceMapperV0_5 implements TraceMapper {
   private final GrowableBuffer dictionary;
 
   private final MetaWriter metaWriter = new MetaWriter();
-
-  private final UTF8BytesString otlpExportMarker = TraceMapper.otlpExportMarker(Config.get());
 
   private final int size;
   private boolean firstSpanWritten;
@@ -224,7 +221,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
       final boolean writeSamplingPriority =
           firstSpanInTrace || lastSpanInTrace || metadata.topLevel();
       final UTF8BytesString processTags = firstSpanInPayload ? metadata.processTags() : null;
-      final UTF8BytesString otlpExport = firstSpanInPayload ? otlpExportMarker : null;
+      final UTF8BytesString otlpExport = firstSpanInPayload ? metadata.otlpExportMarker() : null;
 
       TagMap tags = metadata.getTags();
 

@@ -1,6 +1,7 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.trace.api.DDTags.PROCESS_TAGS;
+import static datadog.trace.api.DDTags.SDK_OTLP_EXPORT;
 import static datadog.trace.api.DDTags.SPAN_EVENTS;
 import static datadog.trace.api.DDTags.THREAD_ID;
 import static datadog.trace.api.DDTags.THREAD_NAME;
@@ -17,7 +18,6 @@ import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.MULTI_
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
 import static datadog.trace.common.writer.TraceGenerator.generateRandomTraces;
 import static datadog.trace.common.writer.ddagent.PayloadVerifiers.assertEqualsWithNullAsEmpty;
-import static datadog.trace.common.writer.ddagent.TraceMapper.SDK_OTLP_EXPORT;
 import static datadog.trace.common.writer.ddagent.V1PayloadReader.newStringTable;
 import static datadog.trace.common.writer.ddagent.V1PayloadReader.readAttributes;
 import static datadog.trace.common.writer.ddagent.V1PayloadReader.readBinary;

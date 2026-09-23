@@ -399,7 +399,7 @@ class TraceMapperV04PayloadTest {
                 assertEquals(0, k);
                 assertEquals(ProcessTags.getTagsForSerialization().toString(), entry.getValue());
                 processTagsCount++;
-              } else if (TraceMapper.SDK_OTLP_EXPORT.equals(entry.getKey())) {
+              } else if (DDTags.SDK_OTLP_EXPORT.equals(entry.getKey())) {
                 // Payload-scoped: only the first span of the first non-empty chunk carries it.
                 otlpExportCount++;
                 assertEquals(0, k);
