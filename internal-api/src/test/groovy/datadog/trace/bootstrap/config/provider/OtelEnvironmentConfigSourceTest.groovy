@@ -340,8 +340,7 @@ class OtelEnvironmentConfigSourceTest extends DDSpecification {
     source.get(SERVICE_NAME) == 'DEV_SERVICE'
     source.get(ENV) == 'staging'
     source.get(VERSION) == '42'
-    // only the first 10 custom attributes are mapped to tags
-    source.get(TAGS) == 'key1:one,key2:two,key3:three,key4:four,key5:five,key6:six,key7:seven,key8:eight,key9:nine,key10:ten'
+    source.get(TAGS) == 'key1:one,key2:two,key3:three,key4:four,key5:five,key6:six,key7:seven,key8:eight,key9:nine,key10:ten,key11:eleven,key12:twelve'
   }
 
   def "otel resource attributes environment variable is mapped"() {
@@ -371,8 +370,7 @@ class OtelEnvironmentConfigSourceTest extends DDSpecification {
     source.get(SERVICE_NAME) == 'DEV_SERVICE'
     source.get(ENV) == 'staging'
     source.get(VERSION) == '42'
-    // only the first 10 custom attributes are mapped to tags
-    source.get(TAGS) == 'key1:one,key2:two,key3:three,key4:four,key5:five,key6:six,key7:seven,key8:eight,key9:nine,key10:ten'
+    source.get(TAGS) == 'key1:one,key2:two,key3:three,key4:four,key5:five,key6:six,key7:seven,key8:eight,key9:nine,key10:ten,key11:eleven,key12:twelve'
   }
 
   def "named deployment environment takes precedence over legacy attribute"() {
