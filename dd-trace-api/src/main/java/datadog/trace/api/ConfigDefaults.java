@@ -16,6 +16,7 @@ public final class ConfigDefaults {
 
   static final BitSet DEFAULT_HTTP_SERVER_ERROR_STATUSES;
   static final BitSet DEFAULT_HTTP_CLIENT_ERROR_STATUSES;
+  static final BitSet DEFAULT_OTEL_HTTP_CLIENT_ERROR_STATUSES;
   static final BitSet DEFAULT_GRPC_SERVER_ERROR_STATUSES;
   static final BitSet DEFAULT_GRPC_CLIENT_ERROR_STATUSES;
 
@@ -26,6 +27,8 @@ public final class ConfigDefaults {
     DEFAULT_HTTP_SERVER_ERROR_STATUSES.set(500, 600);
     DEFAULT_HTTP_CLIENT_ERROR_STATUSES = new BitSet();
     DEFAULT_HTTP_CLIENT_ERROR_STATUSES.set(400, 500);
+    DEFAULT_OTEL_HTTP_CLIENT_ERROR_STATUSES = new BitSet();
+    DEFAULT_OTEL_HTTP_CLIENT_ERROR_STATUSES.set(400, 600);
     DEFAULT_GRPC_SERVER_ERROR_STATUSES = new BitSet();
     DEFAULT_GRPC_SERVER_ERROR_STATUSES.set(2, 17);
     DEFAULT_GRPC_CLIENT_ERROR_STATUSES = new BitSet();
@@ -126,6 +129,7 @@ public final class ConfigDefaults {
 
   public static final boolean DEFAULT_METRICS_OTEL_EXPERIMENTAL_ENABLED = true;
 
+  static final boolean DEFAULT_TRACE_OTEL_SEMANTICS_ENABLED = false;
   public static final int DEFAULT_OTLP_TRACES_TIMEOUT = 10_000; // ms
 
   static final String DEFAULT_OTLP_HTTP_LOGS_ENDPOINT = "v1/logs";
