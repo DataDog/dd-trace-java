@@ -78,9 +78,9 @@ Classify the failure as exactly one of:
   not edit a version range merely to make CI green.
 
 For a transient platform failure, do not change repository, version, skip, or exclusion settings.
-The muzzle resolver already retries range resolution with backoff. Retry the failed job once when
-authorized, then report an infrastructure incident if the repository remains unhealthy. Stop here;
-do not create a Jira ticket from this workflow.
+The muzzle resolver already retries range resolution with backoff. If authorized, retry the failed
+job once after repository recovery, then report an infrastructure incident if the repository remains
+unhealthy. Stop here; do not create a Jira ticket from this workflow.
 
 For the other classifications, reproduce the smallest task with diagnostic output:
 
@@ -134,7 +134,8 @@ Generated `assertInverse` directives do not inherit `javaVersion`, `extraDepende
 `fail` directives covering the same unsupported ranges, with suitable JDKs, dependencies, and
 repositories for those versions. Disable `assertInverse` only after providing equivalent coverage.
 Ensure Gradle can also resolve the dependencies. Verify that each negative check fails for the
-intended compatibility mismatch, not a missing classpath input or a repository/JDK failure.
+intended compatibility mismatch, not a missing classpath input or a repository/JDK failure. Sibling
+coverage alone does not establish the original module's expected compatibility outcome.
 
 Never broaden support, remove an inverse assertion, or exclude a dependency solely because it makes
 the task pass. `javaVersion` changes only the worker JDK; it does not fix library linkage or change
@@ -195,4 +196,6 @@ the ticket was created when no Jira integration is available.
 
 Finish with the classification, root cause, resolution and its compatibility consequence, validation, any
 owner or removal condition, and—only for a qualifying new-version support gap—the Jira disposition
-(key/link, copy-ready draft, declined, or not requested).
+(key/link, copy-ready draft, declined, or not requested). Preserve authorization conditions, name the
+exact task/module, distinguish proposed, completed, and blocked checks, and retain remedy-specific
+validation requirements.
