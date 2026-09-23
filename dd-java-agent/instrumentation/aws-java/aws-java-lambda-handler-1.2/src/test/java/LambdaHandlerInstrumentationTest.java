@@ -26,6 +26,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.bootstrap.ActiveSubsystems;
+import datadog.trace.bootstrap.InstrumentationErrors;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -179,6 +180,33 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     ByteArrayOutputStream output = new ByteArrayOutputStream();
     new HandlerStreamingSimulatesHttpFrameworkResource().handleRequest(input, output, newContext());
 
+    assertTraces(
+        trace(
+            span()
+                .resourceName(name -> operation().equals(name.toString()))
+                .type(DDSpanTypes.SERVERLESS)
+                .error(false)));
+  }
+
+  @Test
+  void serverlessInvocationSpanResourceResetWhenAppSecEndThrows() throws IOException {
+    String eventJson =
+        "{" + "\"path\": \"/\"," + "\"requestContext\": {\"httpMethod\": \"GET\"}" + "}";
+    ByteArrayInputStream input =
+        new ByteArrayInputStream(eventJson.getBytes(StandardCharsets.UTF_8));
+    ByteArrayOutputStream output =
+        new ByteArrayOutputStream() {
+          @Override
+          public synchronized byte[] toByteArray() {
+            throw new AssertionError("response processing failed");
+          }
+        };
+
+    new HandlerStreamingSimulatesHttpFrameworkResource().handleRequest(input, output, newContext());
+
+    assertFalse(InstrumentationErrors.noErrors());
+    InstrumentationErrors.resetErrors();
+    assertTrue(appSecEnded);
     assertTraces(
         trace(
             span()
