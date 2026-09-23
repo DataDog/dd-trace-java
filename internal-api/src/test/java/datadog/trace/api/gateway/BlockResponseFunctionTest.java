@@ -22,7 +22,8 @@ import org.junit.jupiter.api.Test;
  * tryCommitBlockingResponse(TraceSegment, RequestBlockingAction)}, which forwards every field of
  * the action to the abstract parameter-based method, and {@code
  * tryCommitBlockingResponse(RequestContext, RequestBlockingAction)}, which reports a block failure
- * to {@link AppSecContext#reportBlockFailure()} when the blocking response cannot be committed.
+ * to {@link AppSecContext#reportBlockFailure()} when the blocking response cannot be committed and
+ * leaves {@link TraceSegment#effectivelyBlocked()} to the implementation.
  */
 class BlockResponseFunctionTest {
 
@@ -113,25 +114,51 @@ class BlockResponseFunctionTest {
   }
 
   @Test
-  void markAndCommitMarksTraceSegmentBlockedWhenCommitSucceeds() {
+  void leavesEffectivelyBlockedToTheImplementationOnSuccess() {
     CountingTraceSegment traceSegment = new CountingTraceSegment();
     TestRequestContext ctx = new TestRequestContext(new CountingAppSecContext(), traceSegment);
     TestBlockResponseFunction brf = new TestBlockResponseFunction(true);
 
-    assertTrue(brf.tryCommitBlockingResponseAndMarkBlocked(ctx, RBA));
+    assertTrue(brf.tryCommitBlockingResponse(ctx, RBA));
 
-    assertEquals(1, traceSegment.effectivelyBlockedCalls);
+    // the implementation, not the default method, owns effectivelyBlocked()
+    assertEquals(0, traceSegment.effectivelyBlockedCalls);
   }
 
   @Test
-  void markAndCommitDoesNotMarkTraceSegmentBlockedWhenCommitFails() {
+  void doesNotMarkTraceSegmentBlockedWhenCommitFails() {
     CountingTraceSegment traceSegment = new CountingTraceSegment();
     TestRequestContext ctx = new TestRequestContext(new CountingAppSecContext(), traceSegment);
     TestBlockResponseFunction brf = new TestBlockResponseFunction(false);
 
-    assertFalse(brf.tryCommitBlockingResponseAndMarkBlocked(ctx, RBA));
+    assertFalse(brf.tryCommitBlockingResponse(ctx, RBA));
 
     assertEquals(0, traceSegment.effectivelyBlockedCalls);
+  }
+
+  /**
+   * Mimics Netty off the event loop or Undertow dispatching to an IO thread: the commit is only
+   * scheduled, so {@code true} must not be read as "the response was committed". The trace segment
+   * stays unmarked until the scheduled work runs, and a scheduled commit that later fails still
+   * gets to report the block failure.
+   */
+  @Test
+  void asynchronousImplementationOwnsMarkingAndFailureReporting() {
+    CountingTraceSegment traceSegment = new CountingTraceSegment();
+    CountingAppSecContext appSecCtx = new CountingAppSecContext();
+    TestRequestContext ctx = new TestRequestContext(appSecCtx, traceSegment);
+    DeferredBlockResponseFunction brf = new DeferredBlockResponseFunction();
+
+    assertTrue(brf.tryCommitBlockingResponse(ctx, RBA));
+    assertEquals(0, traceSegment.effectivelyBlockedCalls);
+    assertEquals(0, appSecCtx.blockFailures);
+
+    brf.runScheduled(true);
+    assertEquals(1, traceSegment.effectivelyBlockedCalls);
+
+    brf.runScheduled(false);
+    assertEquals(1, traceSegment.effectivelyBlockedCalls);
+    assertEquals(1, appSecCtx.blockFailures);
   }
 
   private static final class CountingTraceSegment implements TraceSegment {
@@ -222,6 +249,39 @@ class BlockResponseFunctionTest {
       this.lastSecurityResponseId = securityResponseId;
       this.invocations++;
       return committed;
+    }
+  }
+
+  /**
+   * A {@link BlockResponseFunction} that only schedules the blocking response, the way Netty does
+   * when called off the event loop. {@link #runScheduled(boolean)} plays the scheduled work back.
+   */
+  private static final class DeferredBlockResponseFunction implements BlockResponseFunction {
+    private RequestContext scheduledCtx;
+
+    @Override
+    public boolean tryCommitBlockingResponse(
+        TraceSegment segment,
+        int statusCode,
+        BlockingContentType templateType,
+        Map<String, String> extraHeaders,
+        String securityResponseId) {
+      throw new UnsupportedOperationException("the RequestContext overload is scheduled instead");
+    }
+
+    @Override
+    public boolean tryCommitBlockingResponse(
+        RequestContext ctx, Flow.Action.RequestBlockingAction action) {
+      this.scheduledCtx = ctx;
+      return true;
+    }
+
+    private void runScheduled(boolean committed) {
+      if (committed) {
+        scheduledCtx.getTraceSegment().effectivelyBlocked();
+      } else {
+        ((AppSecContext) scheduledCtx.getData(RequestContextSlot.APPSEC)).reportBlockFailure();
+      }
     }
   }
 
