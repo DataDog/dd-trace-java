@@ -79,6 +79,24 @@ class DatadogAttributeParserTest {
     assertNull(collected.get("x-datadog-tags"));
   }
 
+  /**
+   * A property is located by its quoted name, not by a bare substring search, so a value that
+   * happens to contain another property's name does not shadow the real one. This matters now that
+   * {@code x-datadog-tags} carries application-supplied values — an ML app can be named anything.
+   */
+  @Test
+  void readsAPropertyWhoseNameAlsoAppearsInsideAnEarlierValue() {
+    Map<String, String> collected =
+        parse(
+            "{\"x-datadog-trace-id\":\"1234567890\","
+                + "\"x-datadog-tags\":\"_dd.p.llmobs_ml_app=x-datadog-sampling-priority:9\","
+                + "\"x-datadog-parent-id\":\"9876543210\","
+                + "\"x-datadog-sampling-priority\":\"1\"}");
+    assertEquals("1", collected.get("x-datadog-sampling-priority"));
+    assertEquals(
+        "_dd.p.llmobs_ml_app=x-datadog-sampling-priority:9", collected.get("x-datadog-tags"));
+  }
+
   /** The tags are only read once a trace id has been found, which is what gates the whole block. */
   @Test
   void forwardsNothingWhenThereIsNoTraceId() {

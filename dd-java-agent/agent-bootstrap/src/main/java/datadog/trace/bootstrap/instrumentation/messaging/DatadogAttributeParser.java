@@ -101,7 +101,7 @@ public final class DatadogAttributeParser {
 
   // Simple parser that assumes values are JSON strings that don't contain escaped quotes
   private static String jsonPropertyValue(String json, String key) {
-    int keyStart = json.indexOf(key);
+    int keyStart = indexOfPropertyName(json, key);
     if (keyStart > 0) {
       int separator = json.indexOf(':', keyStart + key.length());
       if (separator > 0) {
@@ -115,5 +115,26 @@ public final class DatadogAttributeParser {
       }
     }
     return null;
+  }
+
+  /**
+   * Finds where {@code key} is used as a property name, that is quoted on both sides, skipping any
+   * copy of the same text that sits inside a value. The {@code x-datadog-tags} header now carries
+   * application-supplied values, so a value can contain whatever the application named its ML app
+   * or session, including the name of another property.
+   */
+  private static int indexOfPropertyName(String json, String key) {
+    int from = 0;
+    while (true) {
+      int at = json.indexOf(key, from);
+      if (at < 1) {
+        return -1;
+      }
+      int after = at + key.length();
+      if ('"' == json.charAt(at - 1) && after < json.length() && '"' == json.charAt(after)) {
+        return at;
+      }
+      from = after;
+    }
   }
 }
