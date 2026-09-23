@@ -386,7 +386,7 @@ public class AppSecEventTracker extends EventTracker implements UserService {
       final BlockResponseFunction brf = ctx.getBlockResponseFunction();
       if (brf != null) {
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        brf.tryCommitBlockingResponseAndMarkBlocked(ctx, rba);
+        brf.tryCommitBlockingResponse(ctx, rba);
       }
       return true;
     }

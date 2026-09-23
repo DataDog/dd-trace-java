@@ -258,7 +258,7 @@ public class ProcessImplInstrumentationHelpers {
       RequestContext ctx, Flow.Action.RequestBlockingAction rba) {
     BlockResponseFunction brf = ctx.getBlockResponseFunction();
     if (brf != null) {
-      brf.tryCommitBlockingResponseAndMarkBlocked(ctx, rba);
+      brf.tryCommitBlockingResponse(ctx, rba);
     }
   }
 

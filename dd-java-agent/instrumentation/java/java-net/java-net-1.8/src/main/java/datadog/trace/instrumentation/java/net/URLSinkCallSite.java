@@ -85,7 +85,7 @@ public class URLSinkCallSite {
         BlockResponseFunction brf = ctx.getBlockResponseFunction();
         if (brf != null) {
           Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-          brf.tryCommitBlockingResponseAndMarkBlocked(ctx, rba);
+          brf.tryCommitBlockingResponse(ctx, rba);
         }
         // Thrown even without a BlockResponseFunction: RASP must abort the SSRF attempt even when
         // no blocking response can be committed.

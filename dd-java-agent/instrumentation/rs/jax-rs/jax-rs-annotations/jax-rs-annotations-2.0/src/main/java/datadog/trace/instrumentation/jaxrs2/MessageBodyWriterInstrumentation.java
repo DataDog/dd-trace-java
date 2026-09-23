@@ -79,7 +79,7 @@ public class MessageBodyWriterInstrumentation extends InstrumenterModule.AppSec
           return;
         }
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        blockResponseFunction.tryCommitBlockingResponseAndMarkBlocked(reqCtx, rba);
+        blockResponseFunction.tryCommitBlockingResponse(reqCtx, rba);
 
         throw new BlockingException("Blocked request (for MessageBodyWriter)");
       }
