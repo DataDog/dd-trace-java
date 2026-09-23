@@ -2,9 +2,13 @@ package datadog.trace.util;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 
 /** Shared setup helpers for JMH benchmarks in this module. */
 public final class BenchmarkUtils {
@@ -33,9 +37,14 @@ public final class BenchmarkUtils {
    * same internal dispatch call site. {@code ConcurrentHashMap} does not: it's an unrelated class
    * with its own {@code hashCode()}/{@code equals()} call sites, so it needs its own scratch
    * instance (also covers {@code ConcurrentHashMap#newKeySet()}, which is backed by a {@code
-   * ConcurrentHashMap}). Structures that dispatch on {@code compareTo} instead ({@code TreeMap},
-   * {@code TreeSet}, {@code ConcurrentSkipListMap}) aren't affected by any of this and don't need
-   * pollution.
+   * ConcurrentHashMap}). The JDK's immutable {@code Set.copyOf}/{@code Map.copyOf} ({@code SetN}/
+   * {@code MapN}) have their own internal {@code equals()} call sites too, distinct from {@code
+   * HashSet}/{@code HashMap}'s, so they get their own scratch instances as well.
+   *
+   * <p>{@code TreeMap}/{@code TreeSet}/{@code ConcurrentSkipListMap} dispatch on {@code compareTo}
+   * instead of {@code hashCode()}/{@code equals()}, so they need a separate pass -- see {@link
+   * #polluteCompareToDispatch()}, which this method also drives, since every caller of this method
+   * wants both passes.
    *
    * <p>Deliberately does not touch the benchmark's own {@code contains}/{@code add}/{@code get}
    * call sites -- those are realistically free to specialize per caller, the way a genuinely hot,
@@ -59,6 +68,56 @@ public final class BenchmarkUtils {
     populateTypeProfileMutable(new HashSet<>(), decoyKeys);
     populateTypeProfile(CollectionUtils.tryMakeImmutableSet(Arrays.asList(decoyKeys)), decoyKeys);
     populateTypeProfileMutableMap(new ConcurrentHashMap<>(), decoyKeys);
+
+    Map<Object, Object> mapCopySource = new HashMap<>();
+    for (Object key : decoyKeys) {
+      mapCopySource.put(key, key);
+    }
+    populateTypeProfileMap(CollectionUtils.tryMakeImmutableMap(mapCopySource), decoyKeys);
+
+    polluteCompareToDispatch(decoyKeys);
+  }
+
+  /**
+   * Counterpart to the rest of this class for the {@code compareTo}-based dispatch used by {@code
+   * TreeMap}/{@code TreeSet}/{@code ConcurrentSkipListMap}, instead of {@code hashCode()}/{@code
+   * equals()}.
+   *
+   * <p>Unlike the hash-based structures above, a single sorted collection can't hold multiple decoy
+   * key classes at once: natural ordering calls {@code key.compareTo(existing)}, which throws
+   * {@code ClassCastException} the moment two mutually-incomparable types meet (e.g. a {@code
+   * String} and an {@code Integer}). So each key type gets its own scratch instance here, one type
+   * at a time. That's still enough to make the dispatch megamorphic: HotSpot's type profile lives
+   * on the bytecode call site inside {@code TreeMap}/{@code TreeSet}/{@code
+   * ConcurrentSkipListMap}'s shared implementation, not on any one collection instance, so driving
+   * several receiver types through that site across several scratch instances pollutes it exactly
+   * as effectively as driving them through one shared instance would.
+   *
+   * <p>{@code Object}'s decoy is skipped: it isn't {@link Comparable}, so it has no natural
+   * ordering to dispatch through in the first place -- the same reason it's exempt from an {@code
+   * equals()}-identity copy in {@link #distinctEqualCopy}.
+   */
+  public static void polluteCompareToDispatch() {
+    polluteCompareToDispatch(DEFAULT_DECOY_KEYS);
+  }
+
+  public static void polluteCompareToDispatch(Object... decoyKeys) {
+    for (Object key : decoyKeys) {
+      if (!(key instanceof Comparable)) {
+        continue;
+      }
+      TreeSet<Object> treeSet = new TreeSet<>();
+      treeSet.add(key);
+      treeSet.contains(distinctEqualCopy(key));
+
+      TreeMap<Object, Object> treeMap = new TreeMap<>();
+      treeMap.put(key, key);
+      treeMap.get(distinctEqualCopy(key));
+
+      ConcurrentSkipListMap<Object, Object> skipListMap = new ConcurrentSkipListMap<>();
+      skipListMap.put(key, key);
+      skipListMap.get(distinctEqualCopy(key));
+    }
   }
 
   /**
