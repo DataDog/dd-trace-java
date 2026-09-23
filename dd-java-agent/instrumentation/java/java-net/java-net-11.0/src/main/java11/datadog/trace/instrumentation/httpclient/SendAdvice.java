@@ -20,6 +20,7 @@ public class SendAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static ContextScope methodEnter(
       @Advice.Argument(value = 0) final HttpRequest httpRequest) {
+    ContextScope scope = null;
     try {
       if (DECORATE.isAgentRequest(httpRequest)) {
         return null;
@@ -34,7 +35,7 @@ public class SendAdvice {
       }
       DECORATE.allowContextInjection();
       final AgentSpan span = startSpan(INSTRUMENTATION_NAME, OPERATION_NAME);
-      final ContextScope scope = activateSpan(span);
+      scope = activateSpan(span);
 
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, httpRequest);
@@ -44,6 +45,16 @@ public class SendAdvice {
     } catch (BlockingException e) {
       CallDepthThreadLocalMap.reset(HttpClient.class);
       DECORATE.blockContextInjection();
+      if (scope != null) {
+        final AgentSpan span = spanFromScope(scope);
+        try {
+          DECORATE.onError(span, e);
+          DECORATE.beforeFinish(span);
+        } finally {
+          scope.close();
+          span.finish();
+        }
+      }
       // re-throw blocking exceptions
       throw e;
     }
