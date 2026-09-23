@@ -732,9 +732,9 @@ public class DDSpanContext
         newPriority,
         newMechanism,
         sampleRate,
+        rateLimiterRejected,
         traceIdLowOrderBits,
-        SamplingMechanism.canAvoidSamplingPriorityLock(newPriority, newMechanism),
-        rateLimiterRejected);
+        SamplingMechanism.canAvoidSamplingPriorityLock(newPriority, newMechanism));
   }
 
   private boolean validateSamplingPriority(final int newPriority, final int newMechanism) {

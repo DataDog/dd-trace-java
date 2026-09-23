@@ -269,9 +269,9 @@ public class PTagsFactory implements PropagationTags.Factory {
         int samplingPriority,
         int samplingMechanism,
         double sampleRate,
+        boolean rateLimiterRejected,
         long traceIdLowOrderBits,
-        boolean allowOverride,
-        boolean rateLimiterRejected) {
+        boolean allowOverride) {
       synchronized (samplingStateLock) {
         SamplingState current = samplingState;
         if (!allowOverride && current.getSamplingPriority() != PrioritySampling.UNSET) {

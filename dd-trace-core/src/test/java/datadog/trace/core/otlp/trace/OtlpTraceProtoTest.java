@@ -655,8 +655,8 @@ class OtlpTraceProtoTest {
             PrioritySampling.SAMPLER_DROP,
             SamplingMechanism.AGENT_RATE,
             1.0,
-            limiterDrop.getTraceId().toLong(),
             true,
+            limiterDrop.getTraceId().toLong(),
             true);
     EncodedSamplingState limiter = exportSamplingState(limiterDrop);
     assertNull(limiter.traceState);
@@ -766,9 +766,9 @@ class OtlpTraceProtoTest {
             sampled ? PrioritySampling.SAMPLER_KEEP : PrioritySampling.SAMPLER_DROP,
             SamplingMechanism.AGENT_RATE,
             rate,
+            false,
             span.getTraceId().toLong(),
-            true,
-            false);
+            true);
     return span;
   }
 
