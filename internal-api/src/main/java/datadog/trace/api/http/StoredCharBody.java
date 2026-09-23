@@ -183,8 +183,8 @@ public class StoredCharBody implements StoredBodySupplier {
         if (blockResponseFunction.tryCommitBlockingResponse(httpContext, rba)) {
           httpContext.getTraceSegment().effectivelyBlocked();
         }
-        throw new BlockingException("Blocked request (for request body stream read)");
       }
+      throw new BlockingException("Blocked request (for request body stream read)");
     }
   }
 
