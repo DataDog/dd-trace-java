@@ -35,11 +35,6 @@ import org.slf4j.LoggerFactory;
  * offers no hook for "the application has entered {@code main}", so an application whose start-up
  * is slower than the delay can still be racing with it.
  *
- * <p>The same wrapper also covers the other case where the integration cannot exist yet at {@code
- * premain} time: AppSec started as {@code inactive} and only activated later through remote config.
- * There the construction is not scheduled up front but when the activation arrives, which may be
- * minutes into the run.
- *
  * <p>Scope events happening before the swap are silently dropped. That is acceptable for context
  * <em>exposure</em> (eBPF/CWS reading the current span off a thread), but not for profiling
  * accuracy, so users with the Datadog profiler actually enabled keep the synchronous construction
