@@ -2,6 +2,7 @@ package datadog.gradle.plugin.muzzle
 
 import datadog.gradle.plugin.MavenRepoFixture
 import org.eclipse.aether.RepositorySystem
+import org.eclipse.aether.RepositorySystemSession
 import org.eclipse.aether.artifact.DefaultArtifact
 import org.eclipse.aether.repository.RemoteRepository
 import org.eclipse.aether.resolution.VersionRangeRequest
@@ -88,6 +89,30 @@ class MuzzleMavenRepoUtilsTest {
 
     assertThat(result.versions.map { it.toString() }).containsExactly("1.0.0")
     assertThat(attempts).hasValue(4)
+  }
+
+  @Test
+  fun `resolveVersionRange retries remote metadata after a cached failure`() {
+    val fixture = MavenRepoFixture(File(tempDir, "initially-empty"))
+    val repo = RemoteRepository.Builder("initially-empty", "default", fixture.repoUrl).build()
+    val directive = MuzzleDirective().apply {
+      group = "com.example"
+      module = "mylib"
+      versions = "[1.0,)"
+    }
+    val attempts = AtomicInteger()
+    val publishingSystem = repositorySystemPublishingAfterFirstResolution(fixture, attempts)
+
+    val result = MuzzleMavenRepoUtils.resolveVersionRange(
+      directive,
+      publishingSystem,
+      newSession(),
+      listOf(repo),
+      enableBackoffRetries = false
+    )
+
+    assertThat(result.versions.map { it.toString() }).containsExactly("1.0.0")
+    assertThat(attempts).hasValue(2)
   }
 
   @Test
@@ -386,6 +411,30 @@ class MuzzleMavenRepoUtilsTest {
           result
         }
         "toString" -> "repositorySystemReturningAfterFailures"
+        else -> throw UnsupportedOperationException(method.name)
+      }
+    } as RepositorySystem
+
+  private fun repositorySystemPublishingAfterFirstResolution(
+    fixture: MavenRepoFixture,
+    attempts: AtomicInteger
+  ): RepositorySystem =
+    Proxy.newProxyInstance(
+      RepositorySystem::class.java.classLoader,
+      arrayOf(RepositorySystem::class.java)
+    ) { _, method, args ->
+      when (method.name) {
+        "resolveVersionRange" -> {
+          val result = system.resolveVersionRange(
+            args?.get(0) as RepositorySystemSession,
+            args[1] as VersionRangeRequest
+          )
+          if (attempts.incrementAndGet() == 1) {
+            fixture.publishVersions("com.example", "mylib", listOf("1.0.0"))
+          }
+          result
+        }
+        "toString" -> "repositorySystemPublishingAfterFirstResolution"
         else -> throw UnsupportedOperationException(method.name)
       }
     } as RepositorySystem
