@@ -67,6 +67,8 @@ To run tests on a different JVM than the one used for the build, you can specify
 * `-PtestJvm=X` like `-PtestJvm=8`, `-PtestJvm=25` to run with a specific JDK version,
 * `-PtestJvm=/path/to/jdk` to run with a given JDK,
 
+To also run CI tests on the additional vendor and pre-release JVMs, include the exact, case-sensitive `[ci: NON_DEFAULT_JVMS]` text in the commit message.
+
 ### Running System Tests
 
 The system tests are setup to run on continuous integration (CI) as pull request check using [a dedicated workflow]((https://github.com/DataDog/system-tests/blob/main/.github/workflows/system-tests.yml)).
@@ -85,3 +87,9 @@ The APM Test Agent also emits helpful logging, including logging received traces
 
 Logs can be viewed in GitLab within the Test-Agent container step for all instrumentation test suites, e.g. the `test_inst` jobs.
 Read more about [the APM Test Agent](https://github.com/datadog/dd-apm-test-agent#readme).
+
+### Forwarding CI Test Logs to Datadog
+
+Test output remains available in GitLab job artifacts. To also forward JUnit-captured output to Datadog, include the exact, case-sensitive `[ci: DEBUG_LOGS]` token in the commit message or set the GitLab CI variable `DD_CIVISIBILITY_LOGS_ENABLED=true`.
+
+The opt-in forwards all JUnit-captured output, not only DEBUG messages.

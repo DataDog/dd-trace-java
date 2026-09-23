@@ -1,19 +1,19 @@
 package datadog.trace.instrumentation.kafka_streams;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 
 public class StreamTaskContext {
-  private AgentScope agentScope;
+  private ContextScope scope;
   private String applicationId;
 
   public StreamTaskContext() {}
 
-  public void setAgentScope(AgentScope agentScope) {
-    this.agentScope = agentScope;
+  public void setScope(ContextScope scope) {
+    this.scope = scope;
   }
 
-  public AgentScope getAgentScope() {
-    return agentScope;
+  public ContextScope getScope() {
+    return scope;
   }
 
   public void setApplicationId(String applicationId) {
