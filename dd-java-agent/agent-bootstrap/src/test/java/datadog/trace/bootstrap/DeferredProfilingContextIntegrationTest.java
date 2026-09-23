@@ -1,11 +1,15 @@
 package datadog.trace.bootstrap;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.context.Context;
+import datadog.context.ContextKey;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.Stateful;
 import datadog.trace.api.profiling.ProfilingContextAttribute;
@@ -41,6 +45,7 @@ class DeferredProfilingContextIntegrationTest {
     FakeDatadogProfilingIntegration.onAttachCalls.set(0);
     FakeDatadogProfilingIntegration.onDetachCalls.set(0);
     FakeDatadogProfilingIntegration.onRootSpanFinishedCalls.set(0);
+    FakeDatadogProfilingIntegration.lastBoundContext.set(null);
   }
 
   @Test
@@ -117,6 +122,31 @@ class DeferredProfilingContextIntegrationTest {
     assertEquals(43, deferred.encodeResourceName("resource"));
     deferred.onRootSpanFinished(null, EndpointTracker.NO_OP);
     assertEquals(1, FakeDatadogProfilingIntegration.onRootSpanFinishedCalls.get());
+  }
+
+  /**
+   * Virtual thread mount/unmount goes through {@link
+   * ProfilingContextIntegration#isThreadContextBindingRequired()} and {@link
+   * ProfilingContextIntegration#setContext(Context)}. Without explicit forwarding the wrapper would
+   * keep answering with the interface defaults ({@code false} / no-op) even after the real
+   * integration is swapped in, so virtual-thread rebinding would silently never happen.
+   */
+  @Test
+  void forwardsVirtualThreadContextBindingOnceInitialized() {
+    DeferredProfilingContextIntegration deferred =
+        new DeferredProfilingContextIntegration("ddprof", FakeDatadogProfilingIntegration::new);
+
+    // before the swap the wrapper uses the interface defaults
+    assertFalse(deferred.isThreadContextBindingRequired());
+    deferred.setContext(Context.root());
+    assertNull(FakeDatadogProfilingIntegration.lastBoundContext.get());
+
+    deferred.initialize();
+
+    assertTrue(deferred.isThreadContextBindingRequired());
+    Context context = Context.root().with(ContextKey.named("test"), "value");
+    deferred.setContext(context);
+    assertSame(context, FakeDatadogProfilingIntegration.lastBoundContext.get());
   }
 
   @Test
@@ -212,6 +242,7 @@ class DeferredProfilingContextIntegrationTest {
     static final AtomicInteger onAttachCalls = new AtomicInteger();
     static final AtomicInteger onDetachCalls = new AtomicInteger();
     static final AtomicInteger onRootSpanFinishedCalls = new AtomicInteger();
+    static final AtomicReference<Context> lastBoundContext = new AtomicReference<>();
 
     public FakeDatadogProfilingIntegration() {
       try {
@@ -269,6 +300,16 @@ class DeferredProfilingContextIntegrationTest {
     @Override
     public int encodeResourceName(final CharSequence constant) {
       return 43;
+    }
+
+    @Override
+    public boolean isThreadContextBindingRequired() {
+      return true;
+    }
+
+    @Override
+    public void setContext(final Context context) {
+      lastBoundContext.set(context);
     }
   }
 }

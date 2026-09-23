@@ -2,6 +2,7 @@ package datadog.trace.bootstrap;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import datadog.context.Context;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.Stateful;
 import datadog.trace.api.profiling.ProfilingContextAttribute;
@@ -172,6 +173,16 @@ final class DeferredProfilingContextIntegration implements ProfilingContextInteg
   @Override
   public void onDetach() {
     delegate.onDetach();
+  }
+
+  @Override
+  public boolean isThreadContextBindingRequired() {
+    return delegate.isThreadContextBindingRequired();
+  }
+
+  @Override
+  public void setContext(final Context context) {
+    delegate.setContext(context);
   }
 
   @Override
