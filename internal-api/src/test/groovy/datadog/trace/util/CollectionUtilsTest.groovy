@@ -5,6 +5,7 @@ import datadog.trace.test.util.DDSpecification
 
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast
 import static datadog.trace.util.CollectionUtils.append
+import static datadog.trace.util.CollectionUtils.contains
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet
@@ -60,5 +61,16 @@ class CollectionUtilsTest extends DDSpecification {
     String[] result = append(["a", "b"] as String[], "c")
     then:
     result == ["a", "b", "c"] as String[]
+  }
+
+  def "contains tolerates a null array"() {
+    expect:
+    !contains(null, "a")
+  }
+
+  def "contains reports whether the value is present"() {
+    expect:
+    contains(["a", "b"] as String[], "a")
+    !contains(["a", "b"] as String[], "c")
   }
 }

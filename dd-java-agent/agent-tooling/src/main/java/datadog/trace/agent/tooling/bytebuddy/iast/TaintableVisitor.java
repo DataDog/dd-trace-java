@@ -79,7 +79,7 @@ public class TaintableVisitor implements AsmVisitorWrapper {
         final String superName,
         String[] interfaces) {
       owner = name;
-      if (interfaces == null || !Arrays.asList(interfaces).contains(TAINTABLE)) {
+      if (!CollectionUtils.contains(interfaces, TAINTABLE)) {
         interfaces = CollectionUtils.append(interfaces, TAINTABLE);
         if (signature != null) {
           signature += 'L' + TAINTABLE + ';';

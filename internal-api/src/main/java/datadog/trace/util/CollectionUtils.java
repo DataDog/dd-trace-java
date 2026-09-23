@@ -91,17 +91,29 @@ public final class CollectionUtils {
     return null;
   }
 
-  /** Appends an element to an array, growing it as needed. */
-  public static <T> T[] append(@Nullable T[] array, T toAppend) {
+  /** Appends value to an array, growing it as needed; treats null arrays as empty. */
+  public static <T> T[] append(@Nullable T[] array, T value) {
     T[] appended;
     if (array == null) {
       //noinspection unchecked
-      appended = (T[]) Array.newInstance(toAppend.getClass(), 1);
-      appended[0] = toAppend;
+      appended = (T[]) Array.newInstance(value.getClass(), 1);
+      appended[0] = value;
     } else {
       appended = Arrays.copyOf(array, array.length + 1);
-      appended[array.length] = toAppend;
+      appended[array.length] = value;
     }
     return appended;
+  }
+
+  /** Checks whether an array contains an element; treats null arrays as empty. */
+  public static <T> boolean contains(@Nullable T[] array, T value) {
+    if (array != null) {
+      for (T element : array) {
+        if (value.equals(element)) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 }

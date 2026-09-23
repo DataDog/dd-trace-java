@@ -6,7 +6,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.util.CollectionUtils;
-import java.util.Arrays;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.field.FieldList;
@@ -89,7 +88,7 @@ public class RequestImplInstrumentation extends InstrumenterModule.Tracing
             String[] interfaces) {
           // Add the Cloneable interface, unless it's already there (e.g. reapplying this
           // change while retransforming a class that was already modified on initial load)
-          if (interfaces == null || !Arrays.asList(interfaces).contains(CLONEABLE)) {
+          if (!CollectionUtils.contains(interfaces, CLONEABLE)) {
             interfaces = CollectionUtils.append(interfaces, CLONEABLE);
             if (signature != null) {
               signature += 'L' + CLONEABLE + ';';

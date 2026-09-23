@@ -4,7 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 
 import datadog.trace.agent.tooling.context.FieldBackedContextMatcher;
-import java.util.Arrays;
+import datadog.trace.util.CollectionUtils;
 import java.util.BitSet;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -160,7 +160,8 @@ abstract class MatchRecorder {
       // - we must re-transform them to preserve the original structural change
       if (matches.get(id)
           && null != classBeingRedefined
-          && !Arrays.asList(classBeingRedefined.getInterfaces()).contains(structuralChangeMarker)) {
+          && !CollectionUtils.contains(
+              classBeingRedefined.getInterfaces(), structuralChangeMarker)) {
         matches.clear(id);
       }
     }

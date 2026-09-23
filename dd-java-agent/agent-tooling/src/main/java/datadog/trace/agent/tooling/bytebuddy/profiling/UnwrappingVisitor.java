@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.profiling;
 
 import datadog.trace.util.CollectionUtils;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.AsmVisitorWrapper;
@@ -82,7 +81,7 @@ public class UnwrappingVisitor implements AsmVisitorWrapper {
         String signature,
         String superName,
         String[] interfaces) {
-      if (interfaces == null || !Arrays.asList(interfaces).contains(TASK_WRAPPER)) {
+      if (!CollectionUtils.contains(interfaces, TASK_WRAPPER)) {
         interfaces = CollectionUtils.append(interfaces, TASK_WRAPPER);
         if (signature != null) {
           signature += 'L' + TASK_WRAPPER + ';';
