@@ -5,6 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.none;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.util.CollectionUtils;
 import java.util.Arrays;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
@@ -74,7 +75,9 @@ public class RequestImplInstrumentation extends InstrumenterModule.Tracing
         int readerFlags) {
       return new ClassVisitor(Opcodes.ASM7, classVisitor) {
 
-        private boolean addCloneable = true;
+        private static final String CLONEABLE = "java/lang/Cloneable";
+
+        private boolean addCloneable = false;
 
         @Override
         public void visit(
@@ -86,21 +89,12 @@ public class RequestImplInstrumentation extends InstrumenterModule.Tracing
             String[] interfaces) {
           // Add the Cloneable interface, unless it's already there (e.g. reapplying this
           // change while retransforming a class that was already modified on initial load)
-          if (interfaces != null) {
-            for (String iface : interfaces) {
-              if ("java/lang/Cloneable".equals(iface)) {
-                addCloneable = false;
-                break;
-              }
+          if (interfaces == null || !Arrays.asList(interfaces).contains(CLONEABLE)) {
+            interfaces = CollectionUtils.append(interfaces, CLONEABLE);
+            if (signature != null) {
+              signature += 'L' + CLONEABLE + ';';
             }
-          }
-          if (addCloneable) {
-            if (null == interfaces) {
-              interfaces = new String[1];
-            } else {
-              interfaces = Arrays.copyOf(interfaces, interfaces.length + 1);
-            }
-            interfaces[interfaces.length - 1] = "java/lang/Cloneable";
+            addCloneable = true;
           }
           cv.visit(version, access, name, signature, superName, interfaces);
         }

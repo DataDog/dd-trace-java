@@ -5,12 +5,15 @@ import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import javax.annotation.Nullable;
 
 public final class CollectionUtils {
 
@@ -86,5 +89,19 @@ public final class CollectionUtils {
       }
     }
     return null;
+  }
+
+  /** Appends an element to an array, growing it as needed. */
+  public static <T> T[] append(@Nullable T[] array, T toAppend) {
+    T[] appended;
+    if (array == null) {
+      //noinspection unchecked
+      appended = (T[]) Array.newInstance(toAppend.getClass(), 1);
+      appended[0] = toAppend;
+    } else {
+      appended = Arrays.copyOf(array, array.length + 1);
+      appended[array.length] = toAppend;
+    }
+    return appended;
   }
 }
