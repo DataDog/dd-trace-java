@@ -42,6 +42,11 @@ class FlakySpockExtension extends AbstractGlobalExtension {
         }
       }
     }
+
+    if (shouldRunFlakyTestsOnly()) {
+      // Preserve selected features through the JUnit Platform's flaky tag filter.
+      spec.getAllFeatures().findAll { !it.excluded }.each { it.addTestTag("flaky") }
+    }
   }
 
   private static void skip(final node) {

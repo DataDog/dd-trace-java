@@ -149,6 +149,13 @@ public abstract class AbstractSmokeApp
     return this.backend;
   }
 
+  /** Returns a snapshot of the stdout/stderr lines captured so far. */
+  public List<String> logLines() {
+    synchronized (this.outputThreads.testLogMessages) {
+      return new ArrayList<>(this.outputThreads.testLogMessages);
+    }
+  }
+
   /**
    * Waits (up to the log helper's timeout) for a captured stdout/stderr line matching the given
    * predicate. Captured lines are reset per test method.
