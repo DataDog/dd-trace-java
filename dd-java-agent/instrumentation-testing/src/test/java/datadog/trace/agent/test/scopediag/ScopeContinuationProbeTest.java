@@ -1,11 +1,14 @@
 package datadog.trace.agent.test.scopediag;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.context.ContextScope;
+import datadog.trace.api.DDTraceId;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import org.junit.jupiter.api.Test;
 
 /** Verifies the tracer internals used by {@link ScopeContinuationProbe}. */
@@ -27,46 +30,46 @@ class ScopeContinuationProbeTest {
   @Test
   void continuationHooksExist() throws Exception {
     Class<?> scopeContinuation = Class.forName("datadog.trace.core.scopemanager.ScopeContinuation");
-    assertNotNull(scopeContinuation.getDeclaredMethod("register"), "register() (capture)");
-    assertNotNull(scopeContinuation.getDeclaredMethod("resume"), "resume()");
-    assertNotNull(scopeContinuation.getDeclaredMethod("release"), "release() (resolve)");
-    assertNotNull(
-        scopeContinuation.getDeclaredMethod("cancelFromContinuedScopeClose"),
-        "cancelFromContinuedScopeClose() (resolve)");
-    assertNotNull(findField(scopeContinuation, "count"), "ScopeContinuation.count");
-    assertNotNull(findField(scopeContinuation, "source"), "ScopeContinuation.source");
+    assertMethod(scopeContinuation, "register", scopeContinuation);
+    assertMethod(scopeContinuation, "resume", ContextScope.class);
+    assertMethod(scopeContinuation, "release", void.class);
+    assertMethod(scopeContinuation, "cancelFromContinuedScopeClose", void.class);
+    assertField(scopeContinuation, "count", int.class);
+    assertField(scopeContinuation, "source", byte.class);
   }
 
   @Test
   void rootWrittenHookExists() throws Exception {
     Class<?> pendingTrace = Class.forName("datadog.trace.core.PendingTrace");
-    assertNotNull(
-        pendingTrace.getDeclaredMethod("write", boolean.class), "PendingTrace.write(boolean)");
-    assertNotNull(findField(pendingTrace, "rootSpanWritten"), "PendingTrace.rootSpanWritten");
-    assertNotNull(findField(pendingTrace, "traceId"), "PendingTrace.traceId");
+    assertMethod(pendingTrace, "write", int.class, boolean.class);
+    assertField(pendingTrace, "rootSpanWritten", boolean.class);
+    assertField(pendingTrace, "traceId", DDTraceId.class);
   }
 
   @Test
   void scopeLifecycleHooksExist() throws Exception {
     Class<?> scope = Class.forName("datadog.trace.core.scopemanager.ContinuableScope");
-    assertNotNull(scope.getDeclaredMethod("afterActivated"), "afterActivated() (scope open)");
-    assertNotNull(scope.getDeclaredMethod("onProperClose"), "onProperClose() (scope close)");
-    assertNotNull(scope.getDeclaredMethod("close"), "close() (wrong-thread check)");
-    assertNotNull(findField(scope, "source"), "ContinuableScope.source");
-
+    Class<?> stack = Class.forName("datadog.trace.core.scopemanager.ScopeStack");
+    assertMethod(stack, "push", void.class, scope);
+    assertMethod(scope, "onProperClose", void.class);
+    assertMethod(scope, "close", void.class);
+    assertField(scope, "source", byte.class);
     Class<?> continuing = Class.forName("datadog.trace.core.scopemanager.ContinuingScope");
-    assertNotNull(
-        continuing.getDeclaredField("continuation"), "ContinuingScope.continuation (scope link)");
+    Class<?> continuation = Class.forName("datadog.trace.core.scopemanager.ScopeContinuation");
+    assertField(continuing, "continuation", continuation);
+    Class<?> manager = Class.forName("datadog.trace.core.scopemanager.ContinuableScopeManager");
+    assertMethod(manager, "scheduleRootIterationScopeCleanup", void.class, stack, scope);
   }
 
   @Test
   void wrongThreadCheckChainExists() throws Exception {
     Class<?> scope = Class.forName("datadog.trace.core.scopemanager.ContinuableScope");
-    assertNotNull(findField(scope, "scopeManager"), "ContinuableScope.scopeManager");
+
     Class<?> manager = Class.forName("datadog.trace.core.scopemanager.ContinuableScopeManager");
-    assertNotNull(manager.getDeclaredMethod("scopeStack"), "ContinuableScopeManager.scopeStack()");
+    assertField(scope, "scopeManager", manager);
     Class<?> stack = Class.forName("datadog.trace.core.scopemanager.ScopeStack");
-    assertTrue(hasMethod(stack, "checkTop", 1), "ScopeStack.checkTop(scope)");
+    assertMethod(manager, "scopeStack", stack);
+    assertMethod(stack, "checkTop", boolean.class, scope);
   }
 
   private static Field findField(Class<?> cls, String name) {
@@ -79,12 +82,19 @@ class ScopeContinuationProbeTest {
     return null;
   }
 
-  private static boolean hasMethod(Class<?> cls, String name, int params) {
-    for (Method m : cls.getDeclaredMethods()) {
-      if (m.getName().equals(name) && m.getParameterCount() == params) {
-        return true;
-      }
-    }
-    return false;
+  private static void assertField(Class<?> owner, String name, Class<?> type) {
+    Field field = findField(owner, name);
+    assertNotNull(field, owner.getName() + "." + name);
+    assertEquals(type, field.getType(), field.toString());
+    assertFalse(Modifier.isStatic(field.getModifiers()), field.toString());
+    field.setAccessible(true);
+  }
+
+  private static void assertMethod(
+      Class<?> owner, String name, Class<?> returnType, Class<?>... arguments) throws Exception {
+    Method method = owner.getDeclaredMethod(name, arguments);
+    assertEquals(returnType, method.getReturnType(), method.toString());
+    assertFalse(Modifier.isStatic(method.getModifiers()), method.toString());
+    method.setAccessible(true);
   }
 }
