@@ -50,6 +50,11 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
     return true;
   }
 
+  @Override
+  public RateByServiceTraceSampler agentSampler() {
+    return this;
+  }
+
   /** If span is a root span, set the span context samplingPriority to keep or drop */
   @Override
   public <T extends CoreSpan<T>> void setSamplingPriority(final T span) {

@@ -13,6 +13,8 @@ muzzle {
 
 addTestSuiteForDir('latestDep4Test', 'test')
 addTestSuiteForDir('latestDepTest', 'test')
+addForkedTestTask('latestDep4Test')
+addForkedTestTask('latestDepTest')
 
 dependencies {
   compileOnly group: 'io.netty', name: 'netty-common', version: '4.0.0.Final'

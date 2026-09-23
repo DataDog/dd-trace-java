@@ -27,6 +27,7 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -35,7 +36,6 @@ import datadog.trace.api.datastreams.NoopPathwayContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.sampling.PrioritySampling;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -222,12 +222,13 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
   })
   void shouldLinkToParentSpanImplicitly(
       boolean noopParent, String serviceName, boolean expectTopLevel) {
-    try (AgentScope parent =
+    try (ContextScope parent =
         tracer.activateSpan(
             noopParent
                 ? noopSpan()
                 : tracer.buildSpan("test", "parent").withServiceName("service").start())) {
-      long expectedParentId = noopParent ? DDSpanId.ZERO : parent.span().spanContext().getSpanId();
+      long expectedParentId =
+          noopParent ? DDSpanId.ZERO : AgentSpan.fromScope(parent).spanContext().getSpanId();
 
       DDSpan span =
           (DDSpan) tracer.buildSpan("test", "fakeName").withServiceName(serviceName).start();

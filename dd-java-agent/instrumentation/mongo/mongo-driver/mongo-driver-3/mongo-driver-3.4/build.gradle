@@ -32,6 +32,8 @@ muzzle {
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
+  testImplementation libs.bundles.junit5
+
   compileOnly group: 'org.mongodb', name: 'mongo-java-driver', version: '3.4.0'
   compileOnly group: 'org.mongodb', name: 'mongodb-driver-core', version: '3.4.0'
 

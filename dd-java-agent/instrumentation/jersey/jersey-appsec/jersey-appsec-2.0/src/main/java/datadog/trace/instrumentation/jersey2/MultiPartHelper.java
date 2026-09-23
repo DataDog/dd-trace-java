@@ -106,7 +106,7 @@ public final class MultiPartHelper {
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
       BlockResponseFunction brf = ctx.getBlockResponseFunction();
       if (brf != null) {
-        brf.tryCommitBlockingResponse(ctx.getTraceSegment(), rba);
+        brf.tryCommitBlockingResponse(ctx, rba);
         BlockingException be = new BlockingException(message);
         ctx.getTraceSegment().effectivelyBlocked();
         return be;

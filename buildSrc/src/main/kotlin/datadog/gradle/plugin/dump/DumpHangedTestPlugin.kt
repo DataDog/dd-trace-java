@@ -3,6 +3,7 @@ package datadog.gradle.plugin.dump
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
+import org.gradle.api.logging.Logger
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
@@ -34,7 +35,7 @@ class DumpHangedTestPlugin : Plugin<Project> {
   /** Plugin properties */
   abstract class DumpHangedTestProperties @Inject constructor(objects: ObjectFactory) {
     // Time offset (in seconds) before a test reaches its timeout at which dumps should be started.
-    // Defaults to 60 seconds.
+    // Defaults to 180 seconds.
     val dumpOffset: Property<Long> = objects.property(Long::class.java)
   }
 
@@ -81,7 +82,7 @@ class DumpHangedTestPlugin : Plugin<Project> {
       return
     }
 
-    val dumpOffset = props.dumpOffset.getOrElse(60)
+    val dumpOffset = props.dumpOffset.getOrElse(180)
     val delay = t.timeout.map { it.minusSeconds(dumpOffset) }.orNull
 
     if (delay == null || delay.seconds < 0) {
@@ -118,23 +119,38 @@ class DumpHangedTestPlugin : Plugin<Project> {
         }
         .get()
 
-      dumpsDir.mkdirs()
+      if (!dumpsDir.isDirectory && !dumpsDir.mkdirs()) {
+        throw IOException("Could not create dump directory $dumpsDir")
+      }
 
-      ProcessHandle.current().children()
-        .filter { it.info().commandLine().getOrElse { "" }.contains("Gradle Test Executor") }
-        .forEach { process ->
-          collectDump(dumpsDir, process)
+      val processes = mutableListOf<ProcessHandle>()
+      ProcessHandle.current().children().use { children ->
+        children.filter { it.info().commandLine().getOrElse { "" }.contains("Gradle Test Executor") }
+          .forEach { process ->
+            processes.add(process)
 
-          process.children().forEach { child ->
-            collectDump(dumpsDir, child)
+            process.children().use { descendants ->
+              descendants.forEach { child -> processes.add(child) }
+            }
           }
-        }
+      }
+      if (processes.isEmpty()) {
+        t.logger.warn("No Gradle test executors found for ${t.path}; attempting all-JVM thread dumps")
+      }
+
+      // Preserve all thread stacks before a slow heap dump can consume the remaining time.
+      processes.forEach { process -> collectThreadDump(t, dumpsDir, process) }
 
       // Just in case collect all thread dumps by using special PID `0`.
       val allThreadsFile = file(dumpsDir, "all-thread-dumps")
-      runCmd(Redirect.to(allThreadsFile), "jcmd", "0", "Thread.print", "-l")
+      runCmd(t.logger, t.path, Redirect.to(allThreadsFile), "jcmd", "0", "Thread.print", "-l")
+      processes.forEach { process -> collectHeapDump(t, dumpsDir, process) }
+      t.logger.quiet("Finished dump collection for ${t.path}; output directory: $dumpsDir")
+    } catch (e: InterruptedException) {
+      Thread.currentThread().interrupt()
+      t.logger.warn("Dump collection interrupted for ${t.path}", e)
     } catch (e: Throwable) {
-      t.logger.warn("Taking dumps failed with error: ${e.message ?: e.javaClass.name}, for ${t.path}")
+      t.logger.warn("Taking dumps failed for ${t.path}", e)
     }
   }
 
@@ -153,21 +169,38 @@ class DumpHangedTestPlugin : Plugin<Project> {
   }
 
   private fun runCmd(
+    logger: Logger,
+    taskPath: String,
     redirectTo: Redirect,
     vararg args: String
   ) {
-    val exitCode = ProcessBuilder(*args)
-      .redirectErrorStream(true)
-      .redirectOutput(redirectTo)
-      .start()
-      .waitFor()
+    val command = args.joinToString(" ")
+    val output = redirectTo.file()?.absolutePath ?: "daemon output"
+    val start = System.nanoTime()
+    logger.quiet("Starting dump command for $taskPath: $command; output: $output")
+    var process: Process? = null
+    try {
+      process = ProcessBuilder(*args)
+        .redirectErrorStream(true)
+        .redirectOutput(redirectTo)
+        .start()
+      val exitCode = process.waitFor()
 
-    if (exitCode != 0) {
-      throw IOException("Process failed: ${args.joinToString(" ")}, exit code: $exitCode")
+      if (exitCode != 0) {
+        throw IOException("Process failed with exit code $exitCode")
+      }
+      logger.quiet("Completed dump command for $taskPath in ${TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start)} ms: $command")
+    } catch (e: InterruptedException) {
+      process?.destroyForcibly()
+      logger.warn("Dump command interrupted for $taskPath: $command; output: $output", e)
+      throw e
+    } catch (e: Exception) {
+      logger.warn("Dump command failed for $taskPath: $command; output: $output", e)
     }
   }
 
-  private fun collectDump(
+  private fun collectThreadDump(
+    t: Task,
     baseDir: File,
     process: ProcessHandle
   ) {
@@ -176,15 +209,20 @@ class DumpHangedTestPlugin : Plugin<Project> {
     if (process.info().command().getOrElse { "" }.contains("/ibm8")) {
       // On IBM JDK thread dump can be collected by signaling process with `kill -3`.
       // It will be writen into `/tmp/javacore.YYYYMMDD.HHMMSS.PID.SEQ.txt
-      runCmd(Redirect.INHERIT, "kill", "-3", pid)
+      runCmd(t.logger, t.path, Redirect.INHERIT, "kill", "-3", pid)
     } else {
-      // Collect heap dump by pid.
-      val heapDumpPath = file(baseDir, "$pid-heap-dump", "hprof").absolutePath
-      runCmd(Redirect.INHERIT, "jcmd", pid, "GC.heap_dump", heapDumpPath)
-
       // Collect thread dump by pid.
       val threadDumpFile = file(baseDir, "$pid-thread-dump", "log")
-      runCmd(Redirect.to(threadDumpFile), "jcmd", pid, "Thread.print", "-l")
+      runCmd(t.logger, t.path, Redirect.to(threadDumpFile), "jcmd", pid, "Thread.print", "-l")
     }
+  }
+
+  private fun collectHeapDump(t: Task, baseDir: File, process: ProcessHandle) {
+    if (process.info().command().getOrElse { "" }.contains("/ibm8")) {
+      return
+    }
+    val pid = process.pid().toString()
+    val heapDumpPath = file(baseDir, "$pid-heap-dump", "hprof").absolutePath
+    runCmd(t.logger, t.path, Redirect.INHERIT, "jcmd", pid, "GC.heap_dump", heapDumpPath)
   }
 }

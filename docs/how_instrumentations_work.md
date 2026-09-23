@@ -788,25 +788,25 @@ The basic span lifecycle in an Advice class looks like:
 
 1. Start the span
 2. Decorate the span
-3. Activate the span and get the AgentScope
+3. Activate the span and get the ContextScope
 4. Run the instrumented target method
 5. While the scope is still active: call final decorator methods (`DECORATE.beforeFinish`, etc.) and register any async callbacks
-6. Close the Agent Scope
+6. Close the scope
 7. Finish the span
 
 Step 5 must complete before step 6: `beforeFinish` fires IAST/AppSec request-end callbacks that resolve the current span via `AgentTracer.activeSpan()`, and async callback frameworks (e.g. `CompletableFuture`) capture the active span at registration time — both break if the scope is closed first.
 
 ```java
 @Advice.OnMethodEnter(suppress = Throwable.class)
-public static AgentScope begin() {
+public static ContextScope begin() {
     final AgentSpan span = startSpan(/* */);
     DECORATE.afterStart(span);
     return activateSpan(span);
 }
 
 @Advice.OnMethodExit(suppress = Throwable.class)
-public static void end(@Advice.Enter final AgentScope scope) {
-    AgentSpan span = scope.span();
+public static void end(@Advice.Enter final ContextScope scope) {
+    AgentSpan span = spanFromScope(scope);
     DECORATE.beforeFinish(span);
     scope.close();
     span.finish();
@@ -824,15 +824,15 @@ methods.
 
 ## Continuations
 
-- [`AgentScope.Continuation`](https://github.com/DataDog/dd-trace-java/blob/09ac78ff0b54fbbbee0ab1c89c901d2043fda40b/dd-trace-api/src/main/java/datadog/trace/context/TraceScope.java#L47)
+- [`ContextContinuation`](https://github.com/DataDog/dd-trace-java/blob/b1db32e43c88eeab3c734c1826753bbc6fae9975/components/context/src/main/java/datadog/context/ContextContinuation.java)
   is used to pass context between threads.
-- Continuations must be either activated or canceled.
-- If a Continuation is activated it returns a TraceScope which must eventually be closed.
-- Only after all TraceScopes are closed and any non-activated Continuations are canceled may the Trace finally close.
+- Continuations must be either resumed or released.
+- If a Continuation is resumed it returns a `ContextScope` which must eventually be closed.
+- Only after all scopes are closed and any non-resumed continuations are released may the Trace finally close.
 
 Notice
 in [`HttpClientRequestTracingHandler`](https://github.com/DataDog/dd-trace-java/blob/3fe1b2d6010e50f61518fa25af3bdeb03ae7712b/dd-java-agent/instrumentation/netty-4.1/src/main/java/datadog/trace/instrumentation/netty41/client/HttpClientRequestTracingHandler.java#L56)
-how the AgentScope.Continuation is used to obtain the `parentScope` which is
+how the Continuation is used to obtain the `parentScope` which is
 finally [closed](https://github.com/DataDog/dd-trace-java/blob/3fe1b2d6010e50f61518fa25af3bdeb03ae7712b/dd-java-agent/instrumentation/netty-4.1/src/main/java/datadog/trace/instrumentation/netty41/client/HttpClientRequestTracingHandler.java#L111).
 
 ## Naming
