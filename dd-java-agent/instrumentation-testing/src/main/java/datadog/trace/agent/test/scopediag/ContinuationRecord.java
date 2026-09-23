@@ -140,7 +140,8 @@ public final class ContinuationRecord {
     if (duplicateTerminalAttempt || !extraTerminals.isEmpty()) {
       failures.add(Failure.DOUBLE_FINISH);
     }
-    if ((terminal != null && !failedActivations.isEmpty()) || resumedAfterTerminal()) {
+    // Cleanup entry timestamps do not order resolution against concurrent successful resumes.
+    if (terminal != null && !failedActivations.isEmpty()) {
       failures.add(Failure.ACTIVATE_AFTER_RESOLVE);
     }
     if (rootWrittenNanos != null
@@ -148,18 +149,6 @@ public final class ContinuationRecord {
       failures.add(Failure.LATE_FINISH);
     }
     return failures;
-  }
-
-  private boolean resumedAfterTerminal() {
-    if (terminal == null) {
-      return false;
-    }
-    for (ScopeEvent r : resumes) {
-      if (r.nanos > terminal.nanos) {
-        return true;
-      }
-    }
-    return false;
   }
 
   /** {@code true} when capture and any resume/terminal happened on different threads. */
