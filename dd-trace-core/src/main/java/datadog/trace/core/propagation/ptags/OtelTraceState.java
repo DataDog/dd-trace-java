@@ -411,8 +411,7 @@ final class OtelTraceState implements CharSequence {
       return false;
     }
     for (int i = start; i < end; i++) {
-      char c = value.charAt(i);
-      if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) {
+      if (!PTagsCodec.isHexDigit(value.charAt(i))) {
         return false;
       }
     }

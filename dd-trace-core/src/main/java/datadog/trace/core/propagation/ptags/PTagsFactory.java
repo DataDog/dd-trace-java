@@ -355,7 +355,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         nextDecisionMakerTagValue = null;
       }
       samplingState =
-          newSamplingState(
+          new SamplingState(
               samplingPriority,
               tracestate,
               nextOtelTraceState,
@@ -363,26 +363,12 @@ public class PTagsFactory implements PropagationTags.Factory {
               nextKnuthSamplingRateTagValue);
     }
 
-    private static SamplingState newSamplingState(
-        int samplingPriority,
-        String tracestate,
-        OtelTraceState otelTraceState,
-        TagValue decisionMakerTagValue,
-        TagValue knuthSamplingRateTagValue) {
-      return new SamplingState(
-          samplingPriority,
-          tracestate,
-          otelTraceState,
-          decisionMakerTagValue,
-          knuthSamplingRateTagValue);
-    }
-
     private static SamplingState initialSamplingState(
         int samplingPriority, TagValue decisionMakerTagValue) {
       if (samplingPriority == PrioritySampling.UNSET && decisionMakerTagValue == null) {
         return EMPTY_SAMPLING_STATE;
       }
-      return newSamplingState(samplingPriority, null, null, decisionMakerTagValue, null);
+      return new SamplingState(samplingPriority, null, null, decisionMakerTagValue, null);
     }
 
     @Override
@@ -429,7 +415,7 @@ public class PTagsFactory implements PropagationTags.Factory {
           clearCachedHeader(W3C);
           SamplingState currentState = samplingState;
           samplingState =
-              newSamplingState(
+              new SamplingState(
                   currentState.getSamplingPriority(),
                   tracestate,
                   getOtelTraceState(),
@@ -780,7 +766,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         }
         this.tracestate = tracestate;
         this.samplingState =
-            newSamplingState(
+            new SamplingState(
                 samplingPriority,
                 tracestate,
                 otelTraceState,
@@ -799,7 +785,7 @@ public class PTagsFactory implements PropagationTags.Factory {
       }
       SamplingState currentState = samplingState;
       this.samplingState =
-          newSamplingState(
+          new SamplingState(
               currentState.getSamplingPriority(),
               tracestate,
               otelTraceState,
@@ -823,7 +809,7 @@ public class PTagsFactory implements PropagationTags.Factory {
           }
           SamplingState currentState = samplingState;
           samplingState =
-              newSamplingState(
+              new SamplingState(
                   currentState.getSamplingPriority(),
                   tracestate,
                   getOtelTraceState(),
