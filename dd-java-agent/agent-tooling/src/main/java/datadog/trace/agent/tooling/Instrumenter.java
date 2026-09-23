@@ -81,6 +81,12 @@ public interface Instrumenter {
     ElementMatcher<TypeDescription> structureMatcher();
   }
 
+  /** Instrumentation whose type advice adds fields, methods, or interfaces to the original type. */
+  interface WithStructuralChange extends HasTypeAdvice {
+    /** The marker interface added by the structural change, used to detect already-loaded types. */
+    Class<?> structuralChangeMarker();
+  }
+
   /** Instrumentation that provides advice which affects the whole type. */
   interface HasTypeAdvice extends Instrumenter {
     /**

@@ -140,6 +140,64 @@ abstract class MatchRecorder {
     }
   }
 
+  /** Narrows the current match to avoid structural changes on already-loaded classes. */
+  static final class PreserveLoadedStructure extends MatchRecorder {
+    private final Class<?> structuralChangeMarker;
+
+    PreserveLoadedStructure(int id, Class<?> structuralChangeMarker) {
+      super(id);
+      this.structuralChangeMarker = structuralChangeMarker;
+    }
+
+    @Override
+    public void record(
+        TypeDescription type,
+        ClassLoader classLoader,
+        Class<?> classBeingRedefined,
+        BitSet matches) {
+      // don't transform loaded classes unless they declare the marker (we must retransform those)
+      if (matches.get(id) && null != classBeingRedefined && !declaresMarker(classBeingRedefined)) {
+        matches.clear(id);
+      }
+    }
+
+    // the marker is added to the exact type we structurally changed before it was loaded; only
+    // that type needs retransforming, not its sub-types, so this must not use isAssignableFrom
+    private boolean declaresMarker(Class<?> classBeingRedefined) {
+      for (Class<?> intf : classBeingRedefined.getInterfaces()) {
+        if (structuralChangeMarker.equals(intf)) {
+          return true;
+        }
+      }
+      return false;
+    }
+  }
+
+  /** Copies an already-computed match into another id, avoiding a redundant type match. */
+  static final class CopyMatch extends MatchRecorder {
+    private final int fromId;
+
+    CopyMatch(int fromId, int toId) {
+      super(toId);
+      if (toId <= fromId) {
+        // matchers are evaluated in 'id' order; we can only copy from ids strictly before this id
+        throw new IllegalArgumentException("fromId " + fromId + " must be before toId " + toId);
+      }
+      this.fromId = fromId;
+    }
+
+    @Override
+    public void record(
+        TypeDescription type,
+        ClassLoader classLoader,
+        Class<?> classBeingRedefined,
+        BitSet matches) {
+      if (matches.get(fromId)) {
+        matches.set(id);
+      }
+    }
+  }
+
   /** Narrows the current match to eliminate incompatible class-loaders. */
   static final class NarrowLocation extends MatchRecorder {
     private final ElementMatcher<ClassLoader> matcher;
