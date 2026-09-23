@@ -1,5 +1,6 @@
 package datadog.trace.agent.test.smoke;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -192,6 +193,7 @@ public final class ScopeDiagnosticsAgent {
     }
   }
 
+  @SuppressForbidden // Last-resort stderr when writing the diagnostic report fails.
   private static void publishFailure(Path directory, String file, long seq, Throwable failure) {
     Properties result = new Properties();
     result.setProperty("status", "error");
