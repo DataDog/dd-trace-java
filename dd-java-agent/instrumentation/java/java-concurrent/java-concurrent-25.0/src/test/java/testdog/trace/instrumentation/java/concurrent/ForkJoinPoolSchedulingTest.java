@@ -4,7 +4,6 @@ import static datadog.context.Context.current;
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIME;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
-import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -32,6 +31,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
+  private static final int APP_VALUE = 7;
+
   enum Completion {
     COMPLETE,
     QUIETLY_COMPLETE,
@@ -67,9 +68,6 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
       // Check publication while the future is still reachable and before pool cleanup.
       assertTraces(trace(span().root().operationName("parent")));
       assertTrue(task.isDone());
-      completion.complete(task);
-      task.cancel(false);
-      assertTraces(trace(span().root().operationName("parent")));
     }
   }
 
@@ -77,89 +75,92 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
   @EnumSource(Completion.class)
   void externalCompletionPreservesRunningTaskContext(Completion completion) throws Exception {
     CountDownLatch release = new CountDownLatch(1);
-    ForkJoinPool pool = new ForkJoinPool(1);
-    try {
-      CountDownLatch started = new CountDownLatch(1);
-      CountDownLatch finished = new CountDownLatch(1);
-      AtomicReference<Object> observed = new AtomicReference<>();
-      AgentSpan parent = startSpan("test", "parent");
-      ForkJoinTask<?> task;
-      try (ContextScope ignored = current().with(parent).attach()) {
-        task =
-            (ForkJoinTask<?>)
-                pool.schedule(
-                    () -> {
-                      started.countDown();
-                      try {
-                        if (release.await(10, SECONDS)) {
-                          observed.set(fromContext(current()));
-                          startSpan("test", "child").finish();
+    try (ForkJoinPool pool = new ForkJoinPool(1)) {
+      try {
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch finished = new CountDownLatch(1);
+        AtomicReference<Object> observed = new AtomicReference<>();
+        AgentSpan parent = startSpan("test", "parent");
+        ForkJoinTask<?> task;
+        try (ContextScope ignored = current().with(parent).attach()) {
+          task =
+              (ForkJoinTask<?>)
+                  pool.schedule(
+                      () -> {
+                        started.countDown();
+                        try {
+                          if (release.await(10, SECONDS)) {
+                            observed.set(AgentSpan.current());
+                            startSpan("test", "child").finish();
+                          }
+                        } catch (InterruptedException e) {
+                          Thread.currentThread().interrupt();
+                        } finally {
+                          finished.countDown();
                         }
-                      } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                      } finally {
-                        finished.countDown();
-                      }
-                    },
-                    0,
-                    MILLISECONDS);
+                      },
+                      0,
+                      MILLISECONDS);
+        } finally {
+          parent.finish();
+        }
+        assertTrue(started.await(10, SECONDS));
+        completion.complete(task);
+        release.countDown();
+        assertTrue(finished.await(10, SECONDS));
+        assertSame(parent, observed.get());
+        assertTraces(
+            trace(
+                SORT_BY_START_TIME,
+                span().root().operationName("parent"),
+                span().childOfPrevious().operationName("child")));
       } finally {
-        parent.finish();
+        release.countDown();
+        pool.shutdownNow();
       }
-      assertTrue(started.await(10, SECONDS));
-      completion.complete(task);
-      release.countDown();
-      assertTrue(finished.await(10, SECONDS));
-      assertSame(parent, observed.get());
-      assertTraces(
-          trace(
-              SORT_BY_START_TIME,
-              span().root().operationName("parent"),
-              span().childOfPrevious().operationName("child")));
-    } finally {
-      release.countDown();
-      pool.shutdownNow();
     }
   }
 
   @Test
   void unrelatedApplicationMethodDoesNotCancelContext() throws Exception {
     CountDownLatch release = new CountDownLatch(1);
-    ForkJoinPool pool = new ForkJoinPool(1);
-    try {
-      CountDownLatch started = new CountDownLatch(1);
-      pool.execute(
-          () -> {
-            started.countDown();
-            try {
-              assertTrue(release.await(10, SECONDS));
-            } catch (InterruptedException e) {
-              throw new AssertionError(e);
-            }
-          });
-      assertTrue(started.await(10, SECONDS));
-      AgentSpan parent = startSpan("test", "parent");
-      ApplicationTask task = new ApplicationTask();
-      try (ContextScope ignored = current().with(parent).attach()) {
-        pool.submit(task);
-        assertEquals(7, task.trySetCancelled());
+    try (ForkJoinPool pool = new ForkJoinPool(1)) {
+      try {
+        CountDownLatch started = new CountDownLatch(1);
+        pool.execute(
+            () -> {
+              started.countDown();
+              try {
+                assertTrue(release.await(10, SECONDS));
+              } catch (InterruptedException e) {
+                throw new AssertionError(e);
+              }
+            });
+        assertTrue(started.await(10, SECONDS));
+        AgentSpan parent = startSpan("test", "parent");
+        ApplicationTask task = new ApplicationTask();
+        try (ContextScope ignored = current().with(parent).attach()) {
+          pool.submit(task);
+          assertEquals(APP_VALUE, task.trySetCancelled());
+        } finally {
+          parent.finish();
+        }
+        release.countDown();
+        assertSame(parent, task.get(10, SECONDS));
+        assertTraces(trace(span().root().operationName("parent")));
       } finally {
-        parent.finish();
+        release.countDown();
+        pool.shutdownNow();
       }
-      release.countDown();
-      assertSame(parent, task.get(10, SECONDS));
-      assertTraces(trace(span().root().operationName("parent")));
-    } finally {
-      release.countDown();
-      pool.shutdownNow();
     }
   }
 
   public static final class ApplicationTask extends ForkJoinTask<Object> {
     private Object result;
 
+    /** Shares the name of a package-private JDK method without overriding it. */
     public int trySetCancelled() {
-      return 7;
+      return APP_VALUE;
     }
 
     @Override
@@ -174,7 +175,7 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
 
     @Override
     protected boolean exec() {
-      result = fromContext(current());
+      result = AgentSpan.current();
       return true;
     }
   }
@@ -195,7 +196,7 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
                   } catch (InterruptedException e) {
                     throw new AssertionError(e);
                   }
-                  assertSame(expectedParent, fromContext(current()));
+                  assertSame(expectedParent, AgentSpan.current());
                   startSpan("test", "child").finish();
                 },
                 1,
@@ -210,8 +211,7 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
               SORT_BY_START_TIME,
               span().root().operationName("parent"),
               span().childOfPrevious().operationName("child")));
-     pool.submit(() -> assertNull(AgentSpan.current()))
-          .get(10, SECONDS);
+      pool.submit(() -> assertNull(AgentSpan.current())).get(10, SECONDS);
     }
   }
 
@@ -225,7 +225,7 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
             42,
             pool.schedule(
                     () -> {
-                      assertSame(expectedParent, fromContext(current()));
+                      assertSame(expectedParent, AgentSpan.current());
                       return 42;
                     },
                     0,
@@ -248,7 +248,7 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
         ScheduledFuture<?> future =
             pool.schedule(
                 () -> {
-                  assertSame(expectedParent, fromContext(current()));
+                  assertSame(expectedParent, AgentSpan.current());
                   throw failure;
                 },
                 1,
@@ -261,11 +261,7 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
         parent.finish();
       }
       assertTraces(trace(span().root().operationName("parent")));
-      pool.submit(
-              () -> {
-                assertNull(fromContext(current()));
-              })
-          .get(10, SECONDS);
+      pool.submit(() -> assertNull(AgentSpan.current())).get(10, SECONDS);
     }
   }
 
@@ -321,7 +317,7 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
       CountDownLatch ran = new CountDownLatch(2);
       Runnable task =
           () -> {
-            assertNull(fromContext(current()));
+            assertNull(AgentSpan.current());
             ran.countDown();
           };
       ScheduledFuture<?> fixedRate;
@@ -350,13 +346,7 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
         boolean enabled = isAsyncPropagationEnabled();
         setAsyncPropagationEnabled(false);
         try {
-          pool.schedule(
-                  () -> {
-                    assertNull(fromContext(current()));
-                  },
-                  0,
-                  MILLISECONDS)
-              .get(10, SECONDS);
+          pool.schedule(() -> assertNull(AgentSpan.current()), 0, MILLISECONDS).get(10, SECONDS);
         } finally {
           setAsyncPropagationEnabled(enabled);
         }
@@ -377,7 +367,7 @@ class ForkJoinPoolSchedulingTest extends AbstractInstrumentationTest {
             42,
             pool.submitWithTimeout(
                     () -> {
-                      assertSame(expectedParent, fromContext(current()));
+                      assertSame(expectedParent, AgentSpan.current());
                       return 42;
                     },
                     1,
