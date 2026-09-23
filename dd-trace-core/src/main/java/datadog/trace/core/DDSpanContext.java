@@ -20,6 +20,7 @@ import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.llmobs.LLMObsPropagationValues;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -1549,43 +1550,8 @@ public class DDSpanContext
   }
 
   @Override
-  public CharSequence getLLMObsMlApp() {
-    return getPropagationTags().getLLMObsMlApp();
-  }
-
-  @Override
-  public CharSequence getLLMObsTraceId() {
-    return getPropagationTags().getLLMObsTraceId();
-  }
-
-  @Override
-  public CharSequence getLLMObsSessionId() {
-    return getPropagationTags().getLLMObsSessionId();
-  }
-
-  @Override
-  public CharSequence getLLMObsParentAgentSpanId() {
-    return getPropagationTags().getLLMObsParentAgentSpanId();
-  }
-
-  @Override
-  public CharSequence getLLMObsParentAgentName() {
-    return getPropagationTags().getLLMObsParentAgentName();
-  }
-
-  @Override
-  public CharSequence getLLMObsParentId() {
-    return getPropagationTags().getLLMObsParentId();
-  }
-
-  @Override
-  public CharSequence getLLMObsSampleRate() {
-    return getPropagationTags().getLLMObsSampleRate();
-  }
-
-  @Override
-  public CharSequence getLLMObsSamplingDecision() {
-    return getPropagationTags().getLLMObsSamplingDecision();
+  public LLMObsPropagationValues getExtractedLLMObsValues() {
+    return getPropagationTags().getExtractedLLMObsValues();
   }
 
   /** TraceSegment Implementation */

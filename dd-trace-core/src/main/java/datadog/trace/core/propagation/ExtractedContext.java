@@ -4,6 +4,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
+import datadog.trace.api.llmobs.LLMObsPropagationValues;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import java.util.Map;
@@ -118,43 +119,8 @@ public class ExtractedContext extends TagContext {
   }
 
   @Override
-  public CharSequence getLLMObsMlApp() {
-    return propagationTags.getLLMObsMlApp();
-  }
-
-  @Override
-  public CharSequence getLLMObsTraceId() {
-    return propagationTags.getLLMObsTraceId();
-  }
-
-  @Override
-  public CharSequence getLLMObsSessionId() {
-    return propagationTags.getLLMObsSessionId();
-  }
-
-  @Override
-  public CharSequence getLLMObsParentAgentSpanId() {
-    return propagationTags.getLLMObsParentAgentSpanId();
-  }
-
-  @Override
-  public CharSequence getLLMObsParentAgentName() {
-    return propagationTags.getLLMObsParentAgentName();
-  }
-
-  @Override
-  public CharSequence getLLMObsParentId() {
-    return propagationTags.getLLMObsParentId();
-  }
-
-  @Override
-  public CharSequence getLLMObsSampleRate() {
-    return propagationTags.getLLMObsSampleRate();
-  }
-
-  @Override
-  public CharSequence getLLMObsSamplingDecision() {
-    return propagationTags.getLLMObsSamplingDecision();
+  public LLMObsPropagationValues getExtractedLLMObsValues() {
+    return propagationTags.getExtractedLLMObsValues();
   }
 
   @Override

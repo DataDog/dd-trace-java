@@ -191,70 +191,27 @@ public abstract class PropagationTags {
   public abstract void updateOrgPropagationMarker(CharSequence opm);
 
   /**
-   * Returns the LLM Observability {@code ml_app} that arrived on the inbound headers as {@code
-   * _dd.p.llmobs_ml_app}, or {@code null} if none did.
+   * Returns the LLM Observability values that arrived on the inbound headers as {@code
+   * _dd.p.llmobs_*}, or {@code null} if none did. Individual fields are {@code null} when their tag
+   * was absent, and carry the value as the application wrote it, with any {@code tracestate}
+   * substitutions undone.
    *
-   * <p>These getters read what was <em>extracted</em>, never what a local injection staged over it.
-   * The two live in the same object — an extracted context's tags become the local root's — but
-   * only the extracted half is a statement about the caller. A local LLMObs span's tags stay staged
-   * until the next injection resets them, so a sibling span opened in that window would otherwise
-   * read a finished span's attribution as if it had come from upstream.
-   */
-  public abstract CharSequence getLLMObsMlApp();
-
-  /**
-   * Returns the LLM Observability trace id that arrived on the inbound headers as {@code
-   * _dd.p.llmobs_trace_id}, or {@code null} if none did. See {@link #getLLMObsMlApp()}.
+   * <p>This reads what was <em>extracted</em>, never what a local injection staged over it. The two
+   * live in the same object — an extracted context's tags become the local root's — but only the
+   * extracted half is a statement about the caller. A local LLMObs span's tags stay staged until
+   * the next injection resets them, so a sibling span opened in that window would otherwise read a
+   * finished span's attribution as if it had come from upstream.
    *
-   * <p>The LLMObs trace id is distinct from the APM trace id: an LLMObs trace spans only the
-   * services that produce LLMObs spans, so it survives intermediate hops that start a new APM trace
-   * and it stays stable when one APM trace carries several LLMObs traces. The value is carried on
-   * the wire as an unsigned 128-bit <em>decimal</em> integer, the format dd-trace-py writes and
-   * parses.
+   * <p>Two fields carry more than their name suggests. The LLMObs trace id is distinct from the APM
+   * trace id: an LLMObs trace spans only the services that produce LLMObs spans, so it survives
+   * intermediate hops that start a new APM trace and it stays stable when one APM trace carries
+   * several LLMObs traces; it is carried on the wire as an unsigned 128-bit <em>decimal</em>
+   * integer, the format dd-trace-py writes and parses. And the sample rate is the one that produced
+   * the accompanying sampling decision ({@code "1"} retained, {@code "0"} dropped) upstream, not
+   * this service's configured rate — honouring the pair keeps a distributed LLMObs trace whole
+   * across services configured at different rates, which re-rolling locally would not.
    */
-  public abstract CharSequence getLLMObsTraceId();
-
-  /**
-   * Returns the LLM Observability {@code session_id} that arrived on the inbound headers as {@code
-   * _dd.p.llmobs_sid}, or {@code null} if none did. See {@link #getLLMObsMlApp()}.
-   */
-  public abstract CharSequence getLLMObsSessionId();
-
-  /**
-   * Returns the span id of the parent LLM Observability agent span that arrived on the inbound
-   * headers as {@code _dd.p.llmobs_pagent_span_id}, or {@code null} if none did. See {@link
-   * #getLLMObsMlApp()}.
-   */
-  public abstract CharSequence getLLMObsParentAgentSpanId();
-
-  /**
-   * Returns the name of the parent LLM Observability agent span that arrived on the inbound headers
-   * as {@code _dd.p.llmobs_pagent_name}, or {@code null} if none did. See {@link
-   * #getLLMObsMlApp()}.
-   */
-  public abstract CharSequence getLLMObsParentAgentName();
-
-  /**
-   * Returns the span id of the parent LLM Observability span that arrived on the inbound headers as
-   * {@code _dd.p.llmobs_parent_id}, or {@code null} if none did. See {@link #getLLMObsMlApp()}.
-   */
-  public abstract CharSequence getLLMObsParentId();
-
-  /**
-   * Returns the LLM Observability sample rate that arrived on the inbound headers as {@code
-   * _dd.p.llmobs_sr}, or {@code null} if none did. Always accompanied by {@link
-   * #getLLMObsSamplingDecision()} — the rate is the one that produced that decision, not this
-   * service's configured rate. See {@link #getLLMObsMlApp()}.
-   */
-  public abstract CharSequence getLLMObsSampleRate();
-
-  /**
-   * Returns the LLM Observability sampling decision that arrived on the inbound headers as {@code
-   * _dd.p.llmobs_sd} ({@code "1"} retained, {@code "0"} dropped), or {@code null} if none did.
-   * Honouring it keeps a distributed LLMObs trace whole across services configured at different
-   * rates, which re-rolling locally would not. See {@link #getLLMObsMlApp()}.
-   */
-  public abstract CharSequence getLLMObsSamplingDecision();
+  public abstract LLMObsPropagationValues getExtractedLLMObsValues();
 
   public HashMap<String, String> createTagMap() {
     HashMap<String, String> result = new HashMap<>();

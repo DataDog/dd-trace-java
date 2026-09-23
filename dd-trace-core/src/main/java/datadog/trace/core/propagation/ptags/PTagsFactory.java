@@ -398,43 +398,21 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     @Override
-    public CharSequence getLLMObsTraceId() {
-      return decoded(extractedLLMObsTags.traceId);
-    }
-
-    @Override
-    public CharSequence getLLMObsMlApp() {
-      return decoded(extractedLLMObsTags.mlApp);
-    }
-
-    @Override
-    public CharSequence getLLMObsSessionId() {
-      return decoded(extractedLLMObsTags.sessionId);
-    }
-
-    @Override
-    public CharSequence getLLMObsParentAgentSpanId() {
-      return decoded(extractedLLMObsTags.parentAgentSpanId);
-    }
-
-    @Override
-    public CharSequence getLLMObsParentAgentName() {
-      return decoded(extractedLLMObsTags.parentAgentName);
-    }
-
-    @Override
-    public CharSequence getLLMObsParentId() {
-      return decoded(extractedLLMObsTags.parentId);
-    }
-
-    @Override
-    public CharSequence getLLMObsSampleRate() {
-      return decoded(extractedLLMObsTags.sampleRate);
-    }
-
-    @Override
-    public CharSequence getLLMObsSamplingDecision() {
-      return decoded(extractedLLMObsTags.samplingDecision);
+    public LLMObsPropagationValues getExtractedLLMObsValues() {
+      if (extractedLLMObsTags == LLMObsTagValues.EMPTY) {
+        // The common case in a service not using LLM Observability: nothing to hand out, and
+        // nothing allocated to say so.
+        return null;
+      }
+      return new LLMObsPropagationValues(
+          decoded(extractedLLMObsTags.traceId),
+          decoded(extractedLLMObsTags.mlApp),
+          decoded(extractedLLMObsTags.sessionId),
+          decoded(extractedLLMObsTags.parentAgentSpanId),
+          decoded(extractedLLMObsTags.parentAgentName),
+          decoded(extractedLLMObsTags.parentId),
+          decoded(extractedLLMObsTags.sampleRate),
+          decoded(extractedLLMObsTags.samplingDecision));
     }
 
     /**
@@ -443,9 +421,16 @@ public class PTagsFactory implements PropagationTags.Factory {
      * encoding it arrived in, so a {@code ml_app} of {@code a=b} would read back as {@code a~b}
      * after a W3C-only hop. Same conversion {@link PTagsCodec#fillTagMap} applies to every other
      * {@code _dd.p.*} tag.
+     *
+     * <p>An empty value reads back as {@code null}: absent and present-but-empty mean the same
+     * thing to every consumer, and {@link TagValue} cannot hold an empty value anyway.
      */
-    private static CharSequence decoded(TagValue value) {
-      return value == null ? null : value.forType(TagElement.Encoding.DATADOG);
+    private static String decoded(TagValue value) {
+      if (value == null) {
+        return null;
+      }
+      CharSequence decoded = value.forType(TagElement.Encoding.DATADOG);
+      return decoded.length() == 0 ? null : decoded.toString();
     }
 
     /**

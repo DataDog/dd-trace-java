@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.datastreams.PathwayContext;
+import datadog.trace.api.llmobs.LLMObsPropagationValues;
 import datadog.trace.api.sampling.PrioritySampling;
 import java.util.List;
 import java.util.Map;
@@ -65,74 +66,13 @@ public interface AgentSpanContext {
   }
 
   /**
-   * Gets the LLM Observability {@code ml_app} that arrived on the inbound headers, or {@code null}
-   * if none did or this context implementation doesn't have propagation-tags access.
+   * Gets the LLM Observability values that arrived on the inbound headers, or {@code null} if none
+   * did or this context implementation doesn't have propagation-tags access.
    *
-   * <p>These getters describe the caller, so they report only what was extracted — never what a
+   * <p>These describe the caller, so they report only what was <em>extracted</em> — never what a
    * local injection staged onto the same tags for an outbound call.
    */
-  default CharSequence getLLMObsMlApp() {
-    return null;
-  }
-
-  /**
-   * Gets the LLM Observability trace id that arrived on the inbound headers, or {@code null} if
-   * none did or this context implementation doesn't have propagation-tags access. Distinct from the
-   * APM trace id, and carried on the wire as an unsigned 128-bit decimal integer.
-   */
-  default CharSequence getLLMObsTraceId() {
-    return null;
-  }
-
-  /**
-   * Gets the LLM Observability {@code session_id} that arrived on the inbound headers, or {@code
-   * null} if none did or this context implementation doesn't have propagation-tags access.
-   */
-  default CharSequence getLLMObsSessionId() {
-    return null;
-  }
-
-  /**
-   * Gets the span id of the parent LLM Observability agent span that arrived on the inbound
-   * headers, or {@code null} if none did or this context implementation doesn't have
-   * propagation-tags access.
-   */
-  default CharSequence getLLMObsParentAgentSpanId() {
-    return null;
-  }
-
-  /**
-   * Gets the name of the parent LLM Observability agent span that arrived on the inbound headers,
-   * or {@code null} if none did or this context implementation doesn't have propagation-tags
-   * access.
-   */
-  default CharSequence getLLMObsParentAgentName() {
-    return null;
-  }
-
-  /**
-   * Gets the span id of the parent LLM Observability span that arrived on the inbound headers, or
-   * {@code null} if none did or this context implementation doesn't have propagation-tags access.
-   */
-  default CharSequence getLLMObsParentId() {
-    return null;
-  }
-
-  /**
-   * Gets the LLM Observability sample rate that arrived on the inbound headers, or {@code null} if
-   * none did or this context implementation doesn't have propagation-tags access. This is the rate
-   * that produced {@link #getLLMObsSamplingDecision()} upstream, not this service's own.
-   */
-  default CharSequence getLLMObsSampleRate() {
-    return null;
-  }
-
-  /**
-   * Gets the LLM Observability sampling decision that arrived on the inbound headers ({@code "1"}
-   * retained, {@code "0"} dropped), or {@code null} if none did or this context implementation
-   * doesn't have propagation-tags access.
-   */
-  default CharSequence getLLMObsSamplingDecision() {
+  default LLMObsPropagationValues getExtractedLLMObsValues() {
     return null;
   }
 

@@ -409,11 +409,12 @@ class W3CPropagationTagsTest extends DDCoreJavaSpecification {
             .fromHeaderValue(
                 W3C, "dd=t.llmobs_ml_app:app~v1;t.llmobs_sid:sess~1;t.llmobs_pagent_name:planner");
 
-    // '=' travels as '~' in tracestate; the getters have to undo that, the way createTagMap does.
-    assertEquals("app=v1", propagationTags.getLLMObsMlApp().toString());
-    assertEquals("sess=1", propagationTags.getLLMObsSessionId().toString());
-    assertEquals("planner", propagationTags.getLLMObsParentAgentName().toString());
-    assertNull(propagationTags.getLLMObsParentId());
+    // '=' travels as '~' in tracestate; the getter has to undo that, the way createTagMap does.
+    LLMObsPropagationValues values = propagationTags.getExtractedLLMObsValues();
+    assertEquals("app=v1", values.mlApp);
+    assertEquals("sess=1", values.sessionId);
+    assertEquals("planner", values.parentAgentName);
+    assertNull(values.parentId);
   }
 
   @Test
@@ -427,8 +428,9 @@ class W3CPropagationTagsTest extends DDCoreJavaSpecification {
             new LLMObsPropagationValues(null, null, null, null, null, null, "0.25", "0"));
     PropagationTags reparsed = factory().fromHeaderValue(W3C, header);
 
-    assertEquals("0.25", reparsed.getLLMObsSampleRate().toString());
-    assertEquals("0", reparsed.getLLMObsSamplingDecision().toString());
+    LLMObsPropagationValues reparsedValues = reparsed.getExtractedLLMObsValues();
+    assertEquals("0.25", reparsedValues.sampleRate);
+    assertEquals("0", reparsedValues.samplingDecision);
   }
 
   @Test

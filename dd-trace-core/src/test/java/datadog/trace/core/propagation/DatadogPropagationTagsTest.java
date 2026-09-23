@@ -213,7 +213,7 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
     inject(propagationTags, "my-ml-app", "sess-1", null, null, "1122334455");
 
     assertEquals("_dd.p.dm=-4", propagationTags.headerValue(DATADOG));
-    assertNull(propagationTags.getLLMObsMlApp());
+    assertNull(propagationTags.getExtractedLLMObsValues());
   }
 
   /** With nothing supplied, an injection forwards the LLM Observability context it received. */
@@ -282,11 +282,12 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
             .fromHeaderValue(
                 DATADOG, "_dd.p.llmobs_ml_app=my-ml-app,_dd.p.llmobs_sr=0.25,_dd.p.llmobs_sd=0");
 
-    assertEquals("0.25", extracted.getLLMObsSampleRate().toString());
-    assertEquals("0", extracted.getLLMObsSamplingDecision().toString());
+    LLMObsPropagationValues values = extracted.getExtractedLLMObsValues();
+    assertEquals("0.25", values.sampleRate);
+    assertEquals("0", values.samplingDecision);
     // Absent tags read back as null rather than an empty string, so a consumer can tell "the
     // caller made no decision" from "the caller decided to drop".
-    assertNull(extracted.getLLMObsParentId());
+    assertNull(values.parentId);
   }
 
   /**

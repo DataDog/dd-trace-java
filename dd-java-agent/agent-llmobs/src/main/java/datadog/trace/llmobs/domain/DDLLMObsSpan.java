@@ -8,6 +8,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.api.llmobs.LLMObsContext;
+import datadog.trace.api.llmobs.LLMObsPropagationValues;
 import datadog.trace.api.llmobs.LLMObsSampler;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.api.llmobs.LLMObsTags;
@@ -218,27 +219,29 @@ public class DDLLMObsSpan implements LLMObsSpan {
       }
     }
 
-    if (!inheritedInProcess) {
-      // No usable in-process LLMObs parent, so fall back to what arrived from another service on
-      // the span context's propagation tags.
-      String propagatedParentId = asString(span.spanContext().getLLMObsParentId());
-      if (propagatedParentId != null) {
-        parentSpanID = propagatedParentId;
+    // No usable in-process LLMObs parent, so fall back to what arrived from another service on
+    // the span context's propagation tags. Null when nothing did, which leaves every value below
+    // at the default it already holds.
+    LLMObsPropagationValues propagated =
+        inheritedInProcess ? null : span.spanContext().getExtractedLLMObsValues();
+    if (propagated != null) {
+      if (propagated.parentId != null) {
+        parentSpanID = propagated.parentId;
       }
       // Adopt the caller's LLMObs trace id so the trace stays whole across the boundary. The APM
       // trace id can't stand in for it: an intermediate service that starts a fresh APM trace
       // would split the LLMObs trace in two, and dd-trace-py has been propagating this since it
       // gained the tag. The value arrives as decimal and is stored as hex.
-      resolvedTraceId = LLMObsTraceId.fromWire(asString(span.spanContext().getLLMObsTraceId()));
+      resolvedTraceId = LLMObsTraceId.fromWire(propagated.traceId);
       if (resolvedMlApp == null || resolvedMlApp.isEmpty()) {
-        resolvedMlApp = asString(span.spanContext().getLLMObsMlApp());
+        resolvedMlApp = propagated.mlApp;
       }
       if (sessionId == null || sessionId.isEmpty()) {
-        sessionId = asString(span.spanContext().getLLMObsSessionId());
+        sessionId = propagated.sessionId;
       }
-      resolvedParentAgentSpanId = asString(span.spanContext().getLLMObsParentAgentSpanId());
+      resolvedParentAgentSpanId = propagated.parentAgentSpanId;
       if (resolvedParentAgentSpanId != null) {
-        resolvedParentAgentName = asString(span.spanContext().getLLMObsParentAgentName());
+        resolvedParentAgentName = propagated.parentAgentName;
       }
       // Adopt the upstream sampling verdict so a distributed LLMObs trace is retained or dropped
       // as a whole. Re-rolling locally only agrees with the caller when both services happen to
@@ -246,11 +249,9 @@ public class DDLLMObsSpan implements LLMObsSpan {
       // coincidence. Both tags are required together — the rate is meaningless without the
       // decision it produced, and a lone decision would be reported against this service's rate,
       // which is not the rate that produced it.
-      String propagatedSampleRate = asString(span.spanContext().getLLMObsSampleRate());
-      String propagatedSamplingDecision = asString(span.spanContext().getLLMObsSamplingDecision());
-      if (propagatedSampleRate != null && propagatedSamplingDecision != null) {
-        sampleRate = propagatedSampleRate;
-        samplingDecision = propagatedSamplingDecision;
+      if (propagated.sampleRate != null && propagated.samplingDecision != null) {
+        sampleRate = propagated.sampleRate;
+        samplingDecision = propagated.samplingDecision;
       }
     }
 
@@ -806,10 +807,5 @@ public class DDLLMObsSpan implements LLMObsSpan {
   @Override
   public long getSpanId() {
     return span.getSpanId();
-  }
-
-  /** Narrow a propagated tag value to a non-empty String, or null. */
-  private static String asString(CharSequence value) {
-    return value == null || value.length() == 0 ? null : value.toString();
   }
 }

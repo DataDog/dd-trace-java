@@ -12,6 +12,7 @@ import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.api.llmobs.LLMObsInternal;
+import datadog.trace.api.llmobs.LLMObsPropagationValues;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -84,6 +85,15 @@ class LLMObsContextPropagationSourceTest {
         producer.finish();
       }
     }
+  }
+
+  /**
+   * The LLMObs parent span id the context carries, or {@code null} when it carries no LLMObs
+   * context at all. This is the value DDLLMObsSpan reads for its parent_id.
+   */
+  private static String propagatedParentId(AgentSpan span) {
+    LLMObsPropagationValues values = span.spanContext().getExtractedLLMObsValues();
+    return values == null ? null : values.parentId;
   }
 
   /** Activates an extracted carrier the way a message handler or request filter does. */
@@ -218,8 +228,7 @@ class LLMObsContextPropagationSourceTest {
         assertEquals("dispatcher", LLMObsContext.currentParentAgentName());
         // The worker's LLMObs span parents onto the producer's, rather than starting a second
         // root — this is the value DDLLMObsSpan reads for its parent_id.
-        assertEquals(
-            producerAgentSpanId, String.valueOf(consumeSpan.spanContext().getLLMObsParentId()));
+        assertEquals(producerAgentSpanId, propagatedParentId(consumeSpan));
       } finally {
         workerTool.finish();
       }
@@ -423,7 +432,7 @@ class LLMObsContextPropagationSourceTest {
       try {
         assertNull(LLMObsContext.currentSessionId());
         assertNull(LLMObsContext.currentParentAgentSpanId());
-        assertNull(consumeSpan.spanContext().getLLMObsParentId());
+        assertNull(propagatedParentId(consumeSpan));
       } finally {
         workerTool.finish();
       }
