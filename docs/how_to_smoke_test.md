@@ -47,6 +47,9 @@ timeline. Reports are kept under `build/reports/scope-diagnostics-*`. Missing or
 and failed probe installation fail explicitly; they are not clean results.
 Legacy launchers must preserve `defaultJavaProperties`, including when passing them through an
 environment variable to a shell wrapper. Each child receives its own diagnostic endpoint.
+Launchers that embed JVM options in a file, such as OpenLiberty's `jvm.options`, override
+`replaceScopeDiagnosticsArgument()` to replace the placeholder in that file and report whether it
+was found. Keep the companion after the Datadog agent in the child JVM's options.
 
 Fix the lifecycle or test ownership problem first. A genuinely intermittent failure may be marked
 `@Flaky` with a tracked explanation. A proven diagnostic incompatibility can use
@@ -54,6 +57,8 @@ Fix the lifecycle or test ownership problem first. A genuinely intermittent fail
 `skipScopeContinuationCheckReason()` in Spock. Blank reasons are rejected. Native-image applications
 cannot run this JVM companion; tests intentionally crashing or aborting before it can report also
 need an explicit exception. JUnit `.noAgent()` launches do not install diagnostics.
+Legacy tests deliberately running without the agent need a documented opt-out, as do injection
+guardrail tests where the companion would itself count as an extra agent and change the scenario.
 Disabling error-log checks does not disable this check, and relaxing strict trace writes is not a fix.
 
 ## Your first smoke test

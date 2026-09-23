@@ -231,6 +231,14 @@ abstract class ProcessManager extends Specification {
       : null
     scopeDiagnostics.add(diagnostic)
     String argument = diagnostic == null ? '' : diagnostic.javaAgentArgument()
+    boolean found = replaceScopeDiagnosticsArgument(builder, argument)
+    if (diagnostic != null && !found) {
+      throw new IllegalStateException('Smoke launch must include defaultJavaProperties, or document an incompatible launch with skipScopeContinuationCheckReason()')
+    }
+  }
+
+  /** Override for launches that store JVM arguments outside the command and environment. */
+  protected boolean replaceScopeDiagnosticsArgument(ProcessBuilder builder, String argument) {
     boolean found = false
     builder.command().replaceAll { String value ->
       if (value.contains(SCOPE_DIAGNOSTICS_ARGUMENT)) {
@@ -247,9 +255,7 @@ abstract class ProcessManager extends Specification {
       }
       value
     }
-    if (diagnostic != null && !found) {
-      throw new IllegalStateException('Smoke launch must include defaultJavaProperties, or document an incompatible launch with skipScopeContinuationCheckReason()')
-    }
+    return found
   }
 
   def getProfilingUrl() {
