@@ -27,6 +27,7 @@ import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
 import org.springframework.kafka.requestreply.ReplyingKafkaTemplate;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 @Configuration
 public class IastConfiguration {
@@ -250,22 +251,39 @@ public class IastConfiguration {
 
   @Bean
   public ReplyingKafkaTemplate<String, String, String> iastStringTemplate() {
-    return new ReplyingKafkaTemplate<>(iastStringProducer(), iastReplyStringContainer());
+    ReplyingKafkaTemplate<String, String, String> template =
+        new ReplyingKafkaTemplate<>(iastStringProducer(), iastReplyStringContainer());
+    template.setTaskScheduler(iastReplyTimeoutScheduler());
+    return template;
   }
 
   @Bean
   public ReplyingKafkaTemplate<byte[], byte[], String> iastByteArrayTemplate() {
-    return new ReplyingKafkaTemplate<>(iastByteArrayProducer(), iastReplyByteArrayContainer());
+    ReplyingKafkaTemplate<byte[], byte[], String> template =
+        new ReplyingKafkaTemplate<>(iastByteArrayProducer(), iastReplyByteArrayContainer());
+    template.setTaskScheduler(iastReplyTimeoutScheduler());
+    return template;
   }
 
   @Bean
   public ReplyingKafkaTemplate<ByteBuffer, ByteBuffer, String> iastByteBufferTemplate() {
-    return new ReplyingKafkaTemplate<>(iastByteBufferProducer(), iastReplyByteBufferContainer());
+    ReplyingKafkaTemplate<ByteBuffer, ByteBuffer, String> template =
+        new ReplyingKafkaTemplate<>(iastByteBufferProducer(), iastReplyByteBufferContainer());
+    template.setTaskScheduler(iastReplyTimeoutScheduler());
+    return template;
   }
 
   @Bean
   public ReplyingKafkaTemplate<IastMessage, IastMessage, String> iastJsonTemplate() {
-    return new ReplyingKafkaTemplate<>(iastJsonProducer(), iastReplyJsonContainer());
+    ReplyingKafkaTemplate<IastMessage, IastMessage, String> template =
+        new ReplyingKafkaTemplate<>(iastJsonProducer(), iastReplyJsonContainer());
+    template.setTaskScheduler(iastReplyTimeoutScheduler());
+    return template;
+  }
+
+  @Bean
+  public ThreadPoolTaskScheduler iastReplyTimeoutScheduler() {
+    return new ThreadPoolTaskScheduler();
   }
 
   @Bean
