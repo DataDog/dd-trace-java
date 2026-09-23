@@ -1,7 +1,6 @@
 package datadog.trace.core.propagation.ptags;
 
 import datadog.trace.api.llmobs.LLMObsPropagationValues;
-import java.util.Objects;
 
 /**
  * Bundles the eight LLM Observability propagation tag values as a single parameter.
@@ -136,37 +135,5 @@ final class LLMObsTagValues {
     this.parentId = parentId;
     this.sampleRate = sampleRate;
     this.samplingDecision = samplingDecision;
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (!(o instanceof LLMObsTagValues)) {
-      return false;
-    }
-    LLMObsTagValues other = (LLMObsTagValues) o;
-    return Objects.equals(traceId, other.traceId)
-        && Objects.equals(mlApp, other.mlApp)
-        && Objects.equals(sessionId, other.sessionId)
-        && Objects.equals(parentAgentSpanId, other.parentAgentSpanId)
-        && Objects.equals(parentAgentName, other.parentAgentName)
-        && Objects.equals(parentId, other.parentId)
-        && Objects.equals(sampleRate, other.sampleRate)
-        && Objects.equals(samplingDecision, other.samplingDecision);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(
-        traceId,
-        mlApp,
-        sessionId,
-        parentAgentSpanId,
-        parentAgentName,
-        parentId,
-        sampleRate,
-        samplingDecision);
   }
 }

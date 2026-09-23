@@ -148,6 +148,16 @@ public class ExtractedContext extends TagContext {
   }
 
   @Override
+  public CharSequence getLLMObsSampleRate() {
+    return propagationTags.getLLMObsSampleRate();
+  }
+
+  @Override
+  public CharSequence getLLMObsSamplingDecision() {
+    return propagationTags.getLLMObsSamplingDecision();
+  }
+
+  @Override
   public String toString() {
     StringBuilder builder = new StringBuilder("ExtractedContext{");
     if (traceId != null) {

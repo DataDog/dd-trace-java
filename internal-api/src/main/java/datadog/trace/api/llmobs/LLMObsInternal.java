@@ -18,12 +18,6 @@ public final class LLMObsInternal extends LLMObs {
     PROPAGATION_SOURCE = propagationSource;
   }
 
-  /** Returns the registered propagation source, or {@code null} if none is. */
-  @Nullable
-  public static LLMObsPropagationSource getPropagationSource() {
-    return PROPAGATION_SOURCE;
-  }
-
   /**
    * The LLM Observability values to propagate for {@code spanContext}, or {@code null} when LLM
    * Observability is off or no local LLMObs context applies — in which case the values that arrived
