@@ -744,6 +744,27 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     }
   }
 
+  @TableTest({
+    "scenario         | tag                        ",
+    "datadog spelling | 'Tags.HTTP_STATUS'         ",
+    "otel spelling    | 'http.response.status_code'"
+  })
+  void httpStatusCodeIsReadableRegardlessOfSpelling(@ConvertWith(TagsConverter.class) String tag) {
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "fakeOperation").start();
+    try {
+      span.setTag(tag, 200);
+      // regardless of which spelling was used to set it, both spellings must read it back --
+      // TagsMatcher (and thus trace-sampling rules) reads tags through getTag(), so a spelling
+      // the getter doesn't recognize would look unset even though it was intercepted.
+      assertEquals(200, span.getTag(Tags.HTTP_STATUS));
+      assertEquals(200, span.getTag("http.response.status_code"));
+    } finally {
+      span.finish();
+    }
+  }
+
   @Test
   void whenInterceptServiceNameExtraServiceProviderIsCalled() {
     ServiceNameCollector origServiceNameCollector = ServiceNameCollector.get();

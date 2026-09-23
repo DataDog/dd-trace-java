@@ -10,6 +10,7 @@ import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.SPL
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.SPLIT_BY_TAGS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS_OTEL_NAME;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.FORCE_MANUAL_DROP;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.FORCE_SAMPLING_PRIORITY;
@@ -45,15 +46,6 @@ import javax.annotation.Nullable;
 public class TagInterceptor {
 
   private static final UTF8BytesString NOT_FOUND_RESOURCE_NAME = UTF8BytesString.create("404");
-
-  /**
-   * OpenTelemetry's alias for {@link Tags#HTTP_STATUS} (tag-conventions.yaml's otel-name for
-   * http.status_code). Unlike db.statement/db.query.text, there is no reason for the two spellings
-   * to behave differently here, so both must dispatch to the same interception -- otherwise a
-   * status code set under this spelling skips interception, and if the same span's status was also
-   * captured under the Datadog spelling, the value gets exported twice.
-   */
-  private static final String HTTP_STATUS_OTEL_NAME = "http.response.status_code";
 
   private final RuleFlags ruleFlags;
   private final boolean isServiceNameSetByUser;

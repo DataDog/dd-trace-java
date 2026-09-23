@@ -1226,6 +1226,7 @@ public class DDSpanContext
         // maintain previously observable type of the thread name :|
         return threadName.toString();
       case Tags.HTTP_STATUS:
+      case Tags.HTTP_STATUS_OTEL_NAME:
         return 0 == httpStatusCode ? null : (int) httpStatusCode;
       case Tags.SPAN_KIND:
         return getSpanKindString();
