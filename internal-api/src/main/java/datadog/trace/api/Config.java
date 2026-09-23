@@ -272,6 +272,8 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVE
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DYNAMIC_ATR_BUCKETS;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DYNAMIC_ATR_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_LOWER_LIMIT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_EXECUTION_SETTINGS_CACHE_SIZE;
@@ -850,8 +852,11 @@ public class Config {
 
   private static final Logger log = LoggerFactory.getLogger(Config.class);
   private static final int MAX_CODE_COVERAGE_FLAGS = 32;
+  private static final int DYNAMIC_ATR_BUCKET_COUNT = 5;
+  private static final int MAX_DYNAMIC_ATR_RETRIES_PER_BUCKET = 20;
 
   private static final Pattern COLON = Pattern.compile(":");
+  private static final Pattern COMMA = Pattern.compile(",");
 
   // Historical conflating-Batch size; used to translate TRACER_METRICS_MAX_PENDING (configured in
   // legacy batch units) into the new per-SpanSnapshot inbox capacity.
@@ -1218,6 +1223,8 @@ public class Config {
   private final boolean ciVisibilityFlakyRetryOnlyKnownFlakes;
   private final int ciVisibilityFlakyRetryCount;
   private final int ciVisibilityTotalFlakyRetryCount;
+  private final boolean ciVisibilityDynamicAtrEnabled;
+  private final List<Integer> ciVisibilityDynamicAtrBuckets;
   private final boolean ciVisibilityEarlyFlakeDetectionEnabled;
   private final int ciVisibilityEarlyFlakeDetectionLowerLimit;
   private final String ciVisibilitySessionName;
@@ -2877,6 +2884,12 @@ public class Config {
     ciVisibilityFlakyRetryCount = configProvider.getInteger(CIVISIBILITY_FLAKY_RETRY_COUNT, 5);
     ciVisibilityTotalFlakyRetryCount =
         configProvider.getInteger(CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT, 1000);
+    ciVisibilityDynamicAtrEnabled =
+        configProvider.getBoolean(CIVISIBILITY_DYNAMIC_ATR_ENABLED, false);
+    ciVisibilityDynamicAtrBuckets =
+        ciVisibilityDynamicAtrEnabled
+            ? parseDynamicAtrBuckets(configProvider.getString(CIVISIBILITY_DYNAMIC_ATR_BUCKETS))
+            : null;
     ciVisibilitySessionName = configProvider.getString(TEST_SESSION_NAME);
     ciVisibilityModuleName = configProvider.getString(CIVISIBILITY_MODULE_NAME);
     ciVisibilityTestCommand = configProvider.getString(CIVISIBILITY_TEST_COMMAND);
@@ -4783,6 +4796,14 @@ public class Config {
     return ciVisibilityTotalFlakyRetryCount;
   }
 
+  public boolean isCiVisibilityDynamicAtrEnabled() {
+    return ciVisibilityDynamicAtrEnabled;
+  }
+
+  public List<Integer> getCiVisibilityDynamicAtrBuckets() {
+    return ciVisibilityDynamicAtrBuckets;
+  }
+
   public String getCiVisibilitySessionName() {
     return ciVisibilitySessionName;
   }
@@ -6364,6 +6385,43 @@ public class Config {
     return Collections.unmodifiableSet(result);
   }
 
+  private static List<Integer> parseDynamicAtrBuckets(String configuredBuckets) {
+    if (configuredBuckets == null || configuredBuckets.isEmpty()) {
+      return null;
+    }
+
+    String[] values = COMMA.split(configuredBuckets, -1);
+    if (values.length != DYNAMIC_ATR_BUCKET_COUNT) {
+      logInvalidDynamicAtrBuckets(configuredBuckets);
+      return null;
+    }
+
+    List<Integer> buckets = new ArrayList<>(values.length);
+    try {
+      for (String value : values) {
+        int retries = Integer.parseInt(value.trim());
+        if (retries < 1 || retries > MAX_DYNAMIC_ATR_RETRIES_PER_BUCKET) {
+          logInvalidDynamicAtrBuckets(configuredBuckets);
+          return null;
+        }
+        buckets.add(retries);
+      }
+      return Collections.unmodifiableList(buckets);
+
+    } catch (NumberFormatException e) {
+      logInvalidDynamicAtrBuckets(configuredBuckets);
+      return null;
+    }
+  }
+
+  private static void logInvalidDynamicAtrBuckets(String configuredBuckets) {
+    log.warn(
+        "Invalid {} value '{}'; expected five comma-separated integers in [1, {}]",
+        propertyNameToEnvironmentVariableName(CIVISIBILITY_DYNAMIC_ATR_BUCKETS),
+        configuredBuckets,
+        MAX_DYNAMIC_ATR_RETRIES_PER_BUCKET);
+  }
+
   private static List<String> parseCodeCoverageFlags(List<String> configuredFlags) {
     if (configuredFlags.isEmpty()) {
       return Collections.emptyList();
@@ -7108,6 +7166,10 @@ public class Config {
         + otlpTracesTimeout
         + ", ciVisibilityGradleDependencyVerificationEnabled="
         + ciVisibilityGradleDependencyVerificationEnabled
+        + ", ciVisibilityDynamicAtrEnabled="
+        + ciVisibilityDynamicAtrEnabled
+        + ", ciVisibilityDynamicAtrBuckets="
+        + ciVisibilityDynamicAtrBuckets
         + ", serviceDiscoveryEnabled="
         + serviceDiscoveryEnabled
         + ", sfnInjectDatadogAttributeEnabled="
