@@ -397,6 +397,20 @@ public class BodyParserHelpers {
     }
   }
 
+  public static void handleResponseBody(RequestContext reqCtx, Object body, String details) {
+    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+    if (cbp == null) {
+      return;
+    }
+    BiFunction<RequestContext, Object, Flow<Void>> callback =
+        cbp.getCallback(EVENTS.responseBody());
+    if (callback == null) {
+      return;
+    }
+
+    executeCallback(reqCtx, callback, body, details);
+  }
+
   private static void commitBlockAndThrow(
       RequestContext reqCtx, Flow.Action.RequestBlockingAction rba, String details) {
     BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
