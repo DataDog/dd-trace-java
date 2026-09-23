@@ -95,6 +95,26 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
   }
 
   @Test
+  void suppressesReplayWithLargeHistory() throws Exception {
+    MiddlewareContext context = contextFor("DurableOrchestrationTrigger", "Orchestrator");
+    byte[] request = new byte[4103];
+    // OrchestratorRequest { pastEvents: <4096 bytes>, newEvents: taskCompleted {} }
+    request[0] = 0x1a;
+    request[1] = (byte) 0x80;
+    request[2] = 0x20;
+    request[4099] = 0x22;
+    request[4100] = 0x02;
+    request[4101] = 0x3a;
+    request[4102] = 0x00;
+    when(context.getParameterValue("input"))
+        .thenReturn(Base64.getEncoder().encodeToString(request));
+
+    new FunctionExecutionMiddleware().invoke(context, mock(MiddlewareChain.class));
+
+    assertTraces();
+  }
+
+  @Test
   void createsSpanForInitialOrchestrationExecution() throws Exception {
     MiddlewareContext context = contextFor("DurableOrchestrationTrigger", "Orchestrator");
     // OrchestratorRequest { newEvents: HistoryEvent { executionStarted: {} } }
@@ -124,6 +144,42 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
     new FunctionExecutionMiddleware().invoke(context, mock(MiddlewareChain.class));
 
     assertTraces(trace(durableSpan("Orchestrator", "DurableOrchestration")));
+  }
+
+  @Test
+  void createsErrorSpanWhenSuppressedOrchestrationReplayFails() throws Exception {
+    MiddlewareContext context = contextFor("DurableOrchestrationTrigger", "Orchestrator");
+    // OrchestratorRequest { pastEvents: {}, newEvents: HistoryEvent { taskCompleted: {} } }
+    when(context.getParameterValue("input"))
+        .thenReturn(
+            Base64.getEncoder().encodeToString(new byte[] {0x1a, 0x00, 0x22, 0x02, 0x3a, 0x00}));
+    MiddlewareChain chain = mock(MiddlewareChain.class);
+    doAnswer(
+            invocation -> {
+              throw new IllegalStateException("replay failure");
+            })
+        .when(chain)
+        .doNext(context);
+
+    assertThrows(
+        IllegalStateException.class,
+        () -> new FunctionExecutionMiddleware().invoke(context, chain));
+
+    assertTraces(
+        trace(
+            span()
+                .root()
+                .operationName(Pattern.compile(Pattern.quote(operation())))
+                .resourceName("DurableOrchestration Orchestrator")
+                .type(DDSpanTypes.SERVERLESS)
+                .error(true)
+                .tags(
+                    defaultTags(),
+                    error(IllegalStateException.class, "replay failure"),
+                    tag(Tags.COMPONENT, matches(Pattern.quote("azure-functions"))),
+                    tag(Tags.SPAN_KIND, is(Tags.SPAN_KIND_SERVER)),
+                    tag("aas.function.name", is("Orchestrator")),
+                    tag("aas.function.trigger", is("DurableOrchestration")))));
   }
 
   @ParameterizedTest(name = "{0}")
@@ -183,7 +239,7 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
     TraceContext traceContext = mock(TraceContext.class);
     when(traceContext.getTraceparent())
         .thenReturn("00-0000000000000000000000000000002a-000000000000002b-00");
-    when(traceContext.getTracestate()).thenReturn("dd=s:2;o:rum");
+    when(traceContext.getTracestate()).thenReturn("vendor=value,\tdd=s:2;o:rum\t");
     when(context.getTraceContext()).thenReturn(traceContext);
     AtomicInteger priority = new AtomicInteger(Integer.MIN_VALUE);
     MiddlewareChain chain = mock(MiddlewareChain.class);

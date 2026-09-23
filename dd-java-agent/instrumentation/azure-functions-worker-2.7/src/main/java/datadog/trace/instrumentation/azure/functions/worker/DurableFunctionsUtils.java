@@ -2,10 +2,19 @@ package datadog.trace.instrumentation.azure.functions.worker;
 
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.azure.functions.worker.DurableFunctionsDecorator.AZURE_FUNCTIONS_REQUEST;
+import static datadog.trace.instrumentation.azure.functions.worker.DurableFunctionsDecorator.DECORATE;
 
 import com.microsoft.azure.functions.TraceContext;
 import com.microsoft.azure.functions.internal.spi.middleware.MiddlewareContext;
+import datadog.context.ContextScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Base64;
 
 public final class DurableFunctionsUtils {
@@ -48,6 +57,20 @@ public final class DurableFunctionsUtils {
     return parent;
   }
 
+  public static ContextScope startSpanScope(MiddlewareContext context, String trigger) {
+    final TraceContext traceContext = context.getTraceContext();
+    AgentSpanContext.Extracted parent =
+        traceContext == null
+            ? null
+            : extractContextAndGetSpanContext(traceContext, TraceContextExtractAdapter.GETTER);
+    parent = reconcileSamplingPriority(parent, traceContext);
+
+    final AgentSpan span = startSpan("azure-functions", AZURE_FUNCTIONS_REQUEST, parent);
+    DECORATE.afterStart(span);
+    DECORATE.onInvoke(span, context.getFunctionName(), trigger);
+    return activateSpan(span);
+  }
+
   public static boolean isReplayControlFlow(Throwable throwable) {
     while (throwable != null) {
       final String className = throwable.getClass().getName();
@@ -77,28 +100,42 @@ public final class DurableFunctionsUtils {
         return true;
       }
 
-      final byte[] request = Base64.getDecoder().decode((String) parameterValue);
+      final InputStream request =
+          Base64.getDecoder().wrap(new Base64StringInputStream((String) parameterValue));
+      final byte[] skipBuffer = new byte[512];
       boolean replay = false;
       boolean newFailure = false;
-      final int[] position = {0};
-      while (position[0] < request.length) {
-        final long tag = readVarint(request, position, request.length);
+      final long[] position = {0};
+      while (true) {
+        final int first = request.read();
+        if (first < 0) {
+          break;
+        }
+        position[0]++;
+        final long tag = readVarint(request, position, Long.MAX_VALUE, first);
         final int field = (int) (tag >>> 3);
         final int wireType = (int) (tag & 7);
         if (wireType == 2) {
-          final long length = readVarint(request, position, request.length);
-          if (length < 0 || length > request.length - position[0]) {
-            return true;
-          }
-          final int end = position[0] + (int) length;
+          final long length = readVarint(request, position, Long.MAX_VALUE);
+          final long end = checkedEnd(position[0], length);
           if (field == PAST_EVENTS_FIELD) {
             replay = true;
-          } else if (field == NEW_EVENTS_FIELD && containsFailureEvent(request, position[0], end)) {
-            newFailure = true;
+            skipFully(request, position, length, skipBuffer);
+          } else if (field == NEW_EVENTS_FIELD) {
+            if (containsFailureEvent(request, position, end, skipBuffer)) {
+              newFailure = true;
+            }
+          } else {
+            skipFully(request, position, length, skipBuffer);
           }
-          position[0] = end;
+          if (position[0] != end) {
+            throw new IllegalArgumentException("Invalid length-delimited field");
+          }
         } else {
-          skipValue(request, position, request.length, wireType);
+          skipValue(request, position, Long.MAX_VALUE, wireType, skipBuffer);
+        }
+        if (replay && newFailure) {
+          return true;
         }
       }
       return !replay || newFailure;
@@ -107,59 +144,103 @@ public final class DurableFunctionsUtils {
     }
   }
 
-  private static boolean containsFailureEvent(byte[] data, int offset, int limit) {
-    final int[] position = {offset};
+  private static boolean containsFailureEvent(
+      InputStream data, long[] position, long limit, byte[] skipBuffer) throws IOException {
     while (position[0] < limit) {
       final long tag = readVarint(data, position, limit);
       final int field = (int) (tag >>> 3);
       final int wireType = (int) (tag & 7);
       if (wireType == 2
           && (field == TASK_FAILED_FIELD || field == SUB_ORCHESTRATION_FAILED_FIELD)) {
+        skipFully(data, position, limit - position[0], skipBuffer);
         return true;
       }
-      skipValue(data, position, limit, wireType);
+      skipValue(data, position, limit, wireType, skipBuffer);
     }
     return false;
   }
 
-  private static long readVarint(byte[] data, int[] position, int limit) {
+  private static long readVarint(InputStream data, long[] position, long limit) throws IOException {
+    if (position[0] >= limit) {
+      throw new IllegalArgumentException("Invalid protobuf varint");
+    }
+    final int first = data.read();
+    if (first < 0) {
+      throw new IllegalArgumentException("Invalid protobuf varint");
+    }
+    position[0]++;
+    return readVarint(data, position, limit, first);
+  }
+
+  private static long readVarint(InputStream data, long[] position, long limit, int first)
+      throws IOException {
     long value = 0;
-    for (int shift = 0; shift < 64 && position[0] < limit; shift += 7) {
-      final int current = data[position[0]++] & 0xff;
+    int current = first;
+    for (int shift = 0; shift < 64; shift += 7) {
       value |= (long) (current & 0x7f) << shift;
       if ((current & 0x80) == 0) {
         return value;
       }
+      if (position[0] >= limit) {
+        break;
+      }
+      current = data.read();
+      if (current < 0) {
+        break;
+      }
+      position[0]++;
     }
     throw new IllegalArgumentException("Invalid protobuf varint");
   }
 
-  private static void skipValue(byte[] data, int[] position, int limit, int wireType) {
+  private static void skipValue(
+      InputStream data, long[] position, long limit, int wireType, byte[] skipBuffer)
+      throws IOException {
     switch (wireType) {
       case 0:
         readVarint(data, position, limit);
         return;
       case 1:
-        if (limit - position[0] < 8) {
-          throw new IllegalArgumentException("Invalid fixed64 field");
-        }
-        position[0] += 8;
+        skipWithinLimit(data, position, limit, 8, skipBuffer, "Invalid fixed64 field");
         return;
       case 2:
         final long length = readVarint(data, position, limit);
-        if (length < 0 || length > limit - position[0]) {
-          throw new IllegalArgumentException("Invalid length-delimited field");
-        }
-        position[0] += (int) length;
+        skipWithinLimit(
+            data, position, limit, length, skipBuffer, "Invalid length-delimited field");
         return;
       case 5:
-        if (limit - position[0] < 4) {
-          throw new IllegalArgumentException("Invalid fixed32 field");
-        }
-        position[0] += 4;
+        skipWithinLimit(data, position, limit, 4, skipBuffer, "Invalid fixed32 field");
         return;
       default:
         throw new IllegalArgumentException("Unsupported protobuf wire type");
     }
+  }
+
+  private static void skipWithinLimit(
+      InputStream data, long[] position, long limit, long length, byte[] skipBuffer, String error)
+      throws IOException {
+    if (length < 0 || length > limit - position[0]) {
+      throw new IllegalArgumentException(error);
+    }
+    skipFully(data, position, length, skipBuffer);
+  }
+
+  private static void skipFully(InputStream data, long[] position, long length, byte[] skipBuffer)
+      throws IOException {
+    while (length > 0) {
+      final int read = data.read(skipBuffer, 0, (int) Math.min(length, skipBuffer.length));
+      if (read < 0) {
+        throw new IllegalArgumentException("Truncated protobuf field");
+      }
+      position[0] += read;
+      length -= read;
+    }
+  }
+
+  private static long checkedEnd(long position, long length) {
+    if (length < 0 || length > Long.MAX_VALUE - position) {
+      throw new IllegalArgumentException("Invalid length-delimited field");
+    }
+    return position + length;
   }
 }

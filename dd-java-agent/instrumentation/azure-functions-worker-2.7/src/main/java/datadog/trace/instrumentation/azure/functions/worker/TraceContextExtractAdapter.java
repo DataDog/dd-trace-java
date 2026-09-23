@@ -40,18 +40,26 @@ public final class TraceContextExtractAdapter
         memberEnd = tracestate.length();
       }
       int start = memberStart;
-      while (start < memberEnd && tracestate.charAt(start) == ' ') {
+      while (start < memberEnd && isOptionalWhitespace(tracestate.charAt(start))) {
         start++;
       }
-      if (memberEnd - start >= 3
+      int end = memberEnd;
+      while (end > start && isOptionalWhitespace(tracestate.charAt(end - 1))) {
+        end--;
+      }
+      if (end - start >= 3
           && tracestate.charAt(start) == 'd'
           && tracestate.charAt(start + 1) == 'd'
           && tracestate.charAt(start + 2) == '=') {
-        return parseSamplingPriority(tracestate, start + 3, memberEnd);
+        return parseSamplingPriority(tracestate, start + 3, end);
       }
       memberStart = memberEnd + 1;
     }
     return UNSET;
+  }
+
+  private static boolean isOptionalWhitespace(char value) {
+    return value == ' ' || value == '\t';
   }
 
   private static int parseSamplingPriority(String value, int start, int end) {
