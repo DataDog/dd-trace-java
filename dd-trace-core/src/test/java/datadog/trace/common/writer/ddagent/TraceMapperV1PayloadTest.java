@@ -155,7 +155,6 @@ class TraceMapperV1PayloadTest {
       if (!packer.format(trace, traceMapper)) {
         verifier.skipLargeTrace();
         tracesFitInBuffer = false;
-        traceMapper.reset();
       }
     }
     packer.flush();

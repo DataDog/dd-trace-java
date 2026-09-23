@@ -68,9 +68,6 @@ class TraceMapperV04PayloadTest {
       if (!packer.format(trace, traceMapper)) {
         verifier.skipLargeTrace();
         tracesFitInBuffer = false;
-        // in the real like the mapper is always reset each trace.
-        // here we need to force it when we fail since the buffer will be reset as well
-        traceMapper.reset();
       }
     }
     packer.flush();
