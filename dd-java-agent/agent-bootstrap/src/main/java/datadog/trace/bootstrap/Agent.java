@@ -1508,8 +1508,6 @@ public class Agent {
         if (integration != null) {
           return integration;
         }
-      } else if (config.isOtelContextExposurePendingAppSecActivation()) {
-        return createAppSecActivatedDdprofContextIntegration(AGENT_CLASSLOADER);
       }
     }
     if (config.isProfilingEnabled() && config.isProfilingTimelineEventsEnabled()) {
@@ -1558,33 +1556,6 @@ public class Agent {
       log.debug("ddprof-based profiling context labeling not available. {}", t.getMessage());
       return null;
     }
-  }
-
-  /**
-   * Creates a ddprof context integration that stays a no-op until AppSec is activated at runtime
-   * through remote config, and only then builds the real one.
-   *
-   * <p>This covers {@code DD_APPSEC_ENABLED=inactive}, the "one-click" activation flow, where the
-   * boot-time activation level stays {@link datadog.trace.api.ProductActivation#ENABLED_INACTIVE}
-   * forever and only a runtime flag flips. Profiling is off in this case (otherwise the caller took
-   * the branch above), so the profiler never registers the process context either and the deferred
-   * construction is responsible for it.
-   *
-   * <p>The activation callback runs on the remote-config poller thread, so it only schedules the
-   * construction rather than doing it inline. Deactivation is deliberately not handled: the context
-   * exposure is a one-time process-wide registration, and tearing the native context down when
-   * AppSec is switched back off is out of scope.
-   *
-   * @param classLoader the agent class loader used to reach the profiling classes.
-   * @return the integration, which is never {@code null}: nothing can fail synchronously here.
-   */
-  static ProfilingContextIntegration createAppSecActivatedDdprofContextIntegration(
-      final ClassLoader classLoader) {
-    DeferredProfilingContextIntegration deferred =
-        new DeferredProfilingContextIntegration(
-            "ddprof", ddprofContextIntegrationFactory(classLoader, true));
-    ActiveSubsystems.whenAppSecActivated(deferred::scheduleInitialization);
-    return deferred;
   }
 
   /**

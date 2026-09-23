@@ -63,46 +63,6 @@ class ConfigOtelContextExposureTest {
   }
 
   @Test
-  @WithConfig(key = APPSEC_ENABLED, value = "inactive")
-  @WithConfig(key = PROFILING_ENABLED, value = "false")
-  @WithConfig(key = PROFILING_DATADOG_PROFILER_ENABLED, value = "true")
-  void pendingWhenAppSecIsOnlyEnabledInactive() {
-    assumeDatadogProfilerNotVetoed();
-
-    // "inactive" is the one-click flow: nothing is exposed yet, but it has to be armed, because
-    // the activation level itself never changes once remote config turns AppSec on.
-    assertTrue(Config.get().isOtelContextExposurePendingAppSecActivation());
-  }
-
-  @Test
-  @WithConfig(key = APPSEC_ENABLED, value = "true")
-  @WithConfig(key = PROFILING_ENABLED, value = "false")
-  @WithConfig(key = PROFILING_DATADOG_PROFILER_ENABLED, value = "true")
-  void notPendingWhenAlreadyEnabledAtBoot() {
-    assumeDatadogProfilerNotVetoed();
-
-    Config config = Config.get();
-    assertTrue(config.isOtelContextExposureEnabled());
-    assertFalse(config.isOtelContextExposurePendingAppSecActivation());
-  }
-
-  @Test
-  @WithConfig(key = APPSEC_ENABLED, value = "false")
-  @WithConfig(key = PROFILING_ENABLED, value = "false")
-  @WithConfig(key = PROFILING_DATADOG_PROFILER_ENABLED, value = "true")
-  void notPendingWhenAppSecIsFullyDisabled() {
-    assertFalse(Config.get().isOtelContextExposurePendingAppSecActivation());
-  }
-
-  @Test
-  @WithConfig(key = APPSEC_ENABLED, value = "inactive")
-  @WithConfig(key = PROFILING_ENABLED, value = "false")
-  @WithConfig(key = PROFILING_DATADOG_PROFILER_ENABLED, value = "false")
-  void notPendingWhenDatadogProfilerIsExplicitlyDisabled() {
-    assertFalse(Config.get().isOtelContextExposurePendingAppSecActivation());
-  }
-
-  @Test
   @WithConfig(key = APPSEC_ENABLED, value = "true")
   @WithConfig(key = PROFILING_ENABLED, value = "false")
   @WithConfig(key = PROFILING_DATADOG_PROFILER_ENABLED, value = "false")
