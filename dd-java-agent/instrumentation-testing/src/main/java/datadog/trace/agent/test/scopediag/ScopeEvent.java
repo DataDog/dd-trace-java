@@ -8,7 +8,7 @@ public final class ScopeEvent {
     /** An {@code activate()} that returned the noop scope after the continuation was resolved. */
     ACTIVATE_FAILED,
     RESOLVE_FINISH,
-    RESOLVE_CANCEL,
+    RESOLVE_RELEASE,
     SCOPE_OPEN,
     SCOPE_CLOSE,
     /** A scope was closed while not on top of its thread's stack. */

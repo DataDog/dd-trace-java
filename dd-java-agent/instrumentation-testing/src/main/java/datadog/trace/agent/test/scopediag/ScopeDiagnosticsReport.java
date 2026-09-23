@@ -262,7 +262,7 @@ public final class ScopeDiagnosticsReport {
       if (terminal != null) {
         appendEvent(
             sb,
-            terminal.type == ScopeEvent.Type.RESOLVE_CANCEL ? "cancel  " : "finish  ",
+            terminal.type == ScopeEvent.Type.RESOLVE_RELEASE ? "release " : "finish  ",
             terminal);
       }
       for (ScopeEvent extra : r.extraTerminals()) {
@@ -275,7 +275,7 @@ public final class ScopeDiagnosticsReport {
         }
       }
       if (terminal == null) {
-        sb.append("  LEAKED   (never finished or cancelled)\n");
+        sb.append("  LEAKED   (never finished or released)\n");
       }
     }
 

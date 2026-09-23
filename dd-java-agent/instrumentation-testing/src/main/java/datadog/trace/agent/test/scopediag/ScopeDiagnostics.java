@@ -203,16 +203,16 @@ public final class ScopeDiagnostics {
   static void recordResolve(
       Object window,
       ContextContinuation id,
-      boolean cancelled,
+      boolean release,
       long resolveNanos,
       boolean duplicateAttempt) {
     synchronized (INSTANCE.lifecycleLock) {
       if (window != null && window == INSTANCE.recordingWindow) {
         boolean firstResolution = INSTANCE.resolved.add(id);
-        boolean repeatedRelease = cancelled && !INSTANCE.released.add(id);
+        boolean repeatedRelease = release && !INSTANCE.released.add(id);
         if (duplicateAttempt || firstResolution || repeatedRelease) {
           INSTANCE.listener.onResolve(
-              id, cancelled, resolveNanos, duplicateAttempt || repeatedRelease);
+              id, release, resolveNanos, duplicateAttempt || repeatedRelease);
         }
       }
     }
@@ -304,10 +304,10 @@ public final class ScopeDiagnostics {
     }
 
     void onResolve(
-        ContextContinuation id, boolean cancelled, long resolveNanos, boolean duplicateAttempt) {
+        ContextContinuation id, boolean release, long resolveNanos, boolean duplicateAttempt) {
       try {
         ScopeEvent.Type type =
-            cancelled ? ScopeEvent.Type.RESOLVE_CANCEL : ScopeEvent.Type.RESOLVE_FINISH;
+            release ? ScopeEvent.Type.RESOLVE_RELEASE : ScopeEvent.Type.RESOLVE_FINISH;
         recordFor(id, DDTraceId.ZERO, 0, null, (byte) -1)
             .setTerminalOrExtra(event(type, resolveNanos), duplicateAttempt);
       } catch (Throwable ignored) {

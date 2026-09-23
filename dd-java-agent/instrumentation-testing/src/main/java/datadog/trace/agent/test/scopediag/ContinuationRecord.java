@@ -124,8 +124,8 @@ public final class ContinuationRecord {
 
   public synchronized ContinuationStatus status() {
     if (terminal != null) {
-      return terminal.type == ScopeEvent.Type.RESOLVE_CANCEL
-          ? ContinuationStatus.CANCELLED
+      return terminal.type == ScopeEvent.Type.RESOLVE_RELEASE
+          ? ContinuationStatus.RELEASED
           : ContinuationStatus.FINISHED;
     }
     return ContinuationStatus.LEAKED;
