@@ -2,6 +2,7 @@ package datadog.trace.agent.test.scopediag;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.DDTraceId;
@@ -24,6 +25,27 @@ class ScopeDiagnosticsReportTest {
   private static ContinuationRecord record(long seq, DDTraceId trace) {
     return new ContinuationRecord(
         seq, trace, 7L, "op", (byte) 0, false, event(ScopeEvent.Type.CAPTURE, "main", 1000));
+  }
+
+  @Test
+  void firstResumeTimingUsesEarliestTimestampRegardlessOfRecordingOrder() {
+    ContinuationRecord r = record(0, DDTraceId.from(10));
+    r.addResume(event(ScopeEvent.Type.ACTIVATE, "pool-2", 3000));
+    r.addResume(event(ScopeEvent.Type.ACTIVATE, "pool-1", 2000));
+
+    assertEquals(Long.valueOf(1000), r.captureToFirstResumeNanos());
+    assertEquals(Long.valueOf(1000), r.snapshot().captureToFirstResumeNanos());
+  }
+
+  @Test
+  void firstResumeTimingRequiresCaptureAndResume() {
+    ContinuationRecord captured = record(0, DDTraceId.from(10));
+    assertNull(captured.captureToFirstResumeNanos());
+
+    ContinuationRecord orphan =
+        new ContinuationRecord(1, DDTraceId.from(10), 7L, "op", (byte) 0, true, null);
+    orphan.addResume(event(ScopeEvent.Type.ACTIVATE, "pool-1", 2000));
+    assertNull(orphan.captureToFirstResumeNanos());
   }
 
   @Test

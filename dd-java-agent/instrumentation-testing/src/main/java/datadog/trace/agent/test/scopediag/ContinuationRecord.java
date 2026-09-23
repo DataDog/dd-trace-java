@@ -181,7 +181,11 @@ public final class ContinuationRecord {
     if (capture == null || resumes.isEmpty()) {
       return null;
     }
-    return resumes.get(0).nanos - capture.nanos;
+    long firstResumeNanos = Long.MAX_VALUE;
+    for (ScopeEvent resume : resumes) {
+      firstResumeNanos = Math.min(firstResumeNanos, resume.nanos);
+    }
+    return firstResumeNanos - capture.nanos;
   }
 
   /** Nanos between capture and the terminal resolution, or {@code null} if not both observed. */
