@@ -21,14 +21,18 @@ abstract class TagRegistryExtension @Inject constructor(objects: ObjectFactory) 
 class TagRegistryGeneratorPlugin : Plugin<Project> {
   override fun apply(project: Project) {
     val ext = project.extensions.create("tagRegistry", TagRegistryExtension::class.java)
-    project.tasks.register("generateKnownTags", GenerateKnownTagsTask::class.java) {
-      domainYaml.set(ext.domainYaml)
-      destinationDirectory.set(ext.destinationDirectory)
-    }
+    val generate =
+      project.tasks.register("generateKnownTags", GenerateKnownTagsTask::class.java) {
+        domainYaml.set(ext.domainYaml)
+        destinationDirectory.set(ext.destinationDirectory)
+      }
     val verify =
       project.tasks.register("verifyKnownTags", VerifyKnownTagsTask::class.java) {
         domainYaml.set(ext.domainYaml)
         committedDirectory.set(ext.destinationDirectory)
+        // Both tasks read/write the same directory, but that's a shared property value, not a
+        // declared Gradle task relationship -- without this, running them together races.
+        mustRunAfter(generate)
       }
     // `check` is contributed by lifecycle-base (via java-library); wait for it before wiring.
     project.pluginManager.withPlugin("lifecycle-base") {
