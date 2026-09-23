@@ -35,7 +35,7 @@ class DumpHangedTestPlugin : Plugin<Project> {
   /** Plugin properties */
   abstract class DumpHangedTestProperties @Inject constructor(objects: ObjectFactory) {
     // Time offset (in seconds) before a test reaches its timeout at which dumps should be started.
-    // Defaults to 60 seconds.
+    // Defaults to 180 seconds.
     val dumpOffset: Property<Long> = objects.property(Long::class.java)
   }
 
@@ -82,7 +82,7 @@ class DumpHangedTestPlugin : Plugin<Project> {
       return
     }
 
-    val dumpOffset = props.dumpOffset.getOrElse(60)
+    val dumpOffset = props.dumpOffset.getOrElse(180)
     val delay = t.timeout.map { it.minusSeconds(dumpOffset) }.orNull
 
     if (delay == null || delay.seconds < 0) {
@@ -123,25 +123,28 @@ class DumpHangedTestPlugin : Plugin<Project> {
         throw IOException("Could not create dump directory $dumpsDir")
       }
 
-      var executorCount = 0
+      val processes = mutableListOf<ProcessHandle>()
       ProcessHandle.current().children().use { children ->
         children.filter { it.info().commandLine().getOrElse { "" }.contains("Gradle Test Executor") }
           .forEach { process ->
-            executorCount++
-            collectDump(t, dumpsDir, process)
+            processes.add(process)
 
             process.children().use { descendants ->
-              descendants.forEach { child -> collectDump(t, dumpsDir, child) }
+              descendants.forEach { child -> processes.add(child) }
             }
           }
       }
-      if (executorCount == 0) {
+      if (processes.isEmpty()) {
         t.logger.warn("No Gradle test executors found for ${t.path}; attempting all-JVM thread dumps")
       }
+
+      // Preserve all thread stacks before a slow heap dump can consume the remaining time.
+      processes.forEach { process -> collectThreadDump(t, dumpsDir, process) }
 
       // Just in case collect all thread dumps by using special PID `0`.
       val allThreadsFile = file(dumpsDir, "all-thread-dumps")
       runCmd(t.logger, t.path, Redirect.to(allThreadsFile), "jcmd", "0", "Thread.print", "-l")
+      processes.forEach { process -> collectHeapDump(t, dumpsDir, process) }
       t.logger.quiet("Finished dump collection for ${t.path}; output directory: $dumpsDir")
     } catch (e: InterruptedException) {
       Thread.currentThread().interrupt()
@@ -196,7 +199,7 @@ class DumpHangedTestPlugin : Plugin<Project> {
     }
   }
 
-  private fun collectDump(
+  private fun collectThreadDump(
     t: Task,
     baseDir: File,
     process: ProcessHandle
@@ -208,13 +211,18 @@ class DumpHangedTestPlugin : Plugin<Project> {
       // It will be writen into `/tmp/javacore.YYYYMMDD.HHMMSS.PID.SEQ.txt
       runCmd(t.logger, t.path, Redirect.INHERIT, "kill", "-3", pid)
     } else {
-      // Collect heap dump by pid.
-      val heapDumpPath = file(baseDir, "$pid-heap-dump", "hprof").absolutePath
-      runCmd(t.logger, t.path, Redirect.INHERIT, "jcmd", pid, "GC.heap_dump", heapDumpPath)
-
       // Collect thread dump by pid.
       val threadDumpFile = file(baseDir, "$pid-thread-dump", "log")
       runCmd(t.logger, t.path, Redirect.to(threadDumpFile), "jcmd", pid, "Thread.print", "-l")
     }
+  }
+
+  private fun collectHeapDump(t: Task, baseDir: File, process: ProcessHandle) {
+    if (process.info().command().getOrElse { "" }.contains("/ibm8")) {
+      return
+    }
+    val pid = process.pid().toString()
+    val heapDumpPath = file(baseDir, "$pid-heap-dump", "hprof").absolutePath
+    runCmd(t.logger, t.path, Redirect.INHERIT, "jcmd", pid, "GC.heap_dump", heapDumpPath)
   }
 }
