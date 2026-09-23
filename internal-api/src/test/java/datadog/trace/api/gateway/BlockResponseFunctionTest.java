@@ -57,6 +57,75 @@ class BlockResponseFunctionTest {
     assertFalse(brf.tryCommitBlockingResponse(new TestRequestContext("not an AppSecContext"), RBA));
   }
 
+  @Test
+  void markAndCommitMarksTraceSegmentBlockedWhenCommitSucceeds() {
+    CountingTraceSegment traceSegment = new CountingTraceSegment();
+    TestRequestContext ctx = new TestRequestContext(new CountingAppSecContext(), traceSegment);
+    TestBlockResponseFunction brf = new TestBlockResponseFunction(true);
+
+    assertTrue(brf.tryCommitBlockingResponseAndMarkBlocked(ctx, RBA));
+
+    assertEquals(1, traceSegment.effectivelyBlockedCalls);
+  }
+
+  @Test
+  void markAndCommitDoesNotMarkTraceSegmentBlockedWhenCommitFails() {
+    CountingTraceSegment traceSegment = new CountingTraceSegment();
+    TestRequestContext ctx = new TestRequestContext(new CountingAppSecContext(), traceSegment);
+    TestBlockResponseFunction brf = new TestBlockResponseFunction(false);
+
+    assertFalse(brf.tryCommitBlockingResponseAndMarkBlocked(ctx, RBA));
+
+    assertEquals(0, traceSegment.effectivelyBlockedCalls);
+  }
+
+  private static final class CountingTraceSegment implements TraceSegment {
+    private int effectivelyBlockedCalls;
+
+    @Override
+    public void setTagTop(String key, Object value, boolean sanitize) {}
+
+    @Override
+    public Object getTagTop(String key, boolean sanitize) {
+      return null;
+    }
+
+    @Override
+    public void setTagCurrent(String key, Object value, boolean sanitize) {}
+
+    @Override
+    public Object getTagCurrent(String key, boolean sanitize) {
+      return null;
+    }
+
+    @Override
+    public void setDataTop(String key, Object value) {}
+
+    @Override
+    public Object getDataTop(String key) {
+      return null;
+    }
+
+    @Override
+    public void effectivelyBlocked() {
+      effectivelyBlockedCalls++;
+    }
+
+    @Override
+    public void setDataCurrent(String key, Object value) {}
+
+    @Override
+    public Object getDataCurrent(String key) {
+      return null;
+    }
+
+    @Override
+    public void setMetaStructTop(String field, Object value) {}
+
+    @Override
+    public void setMetaStructCurrent(String field, Object value) {}
+  }
+
   private static final class CountingAppSecContext implements AppSecContext {
     private int blockFailures;
 
@@ -97,10 +166,15 @@ class BlockResponseFunctionTest {
 
   private static final class TestRequestContext implements RequestContext {
     private final Object appSecData;
-    private final TraceSegment traceSegment = TraceSegment.NoOp.INSTANCE;
+    private final TraceSegment traceSegment;
 
     private TestRequestContext(Object appSecData) {
+      this(appSecData, TraceSegment.NoOp.INSTANCE);
+    }
+
+    private TestRequestContext(Object appSecData, TraceSegment traceSegment) {
       this.appSecData = appSecData;
+      this.traceSegment = traceSegment;
     }
 
     @SuppressWarnings("unchecked")
