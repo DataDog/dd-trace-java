@@ -40,7 +40,8 @@ class IastAkkaTest extends IastRequestTestRunner {
 
     then:
     response.code() == 200
-    response.body().string() == 'IAST: myValue (tainted)'
+    // verify that HttpRequest is now also tainted via the Taintable interface
+    response.body().string() =~ /^IAST: myValue \(tainted\) HttpRequest\(.*\) \(tainted\)$/
 
     when:
     def toc = finReqTaintedObjects
@@ -50,9 +51,14 @@ class IastAkkaTest extends IastRequestTestRunner {
       value 'myValue'
       range 0, 7, source(SourceTypes.REQUEST_PATH_PARAMETER, null, 'myValue')
     }
-    // After migrating from JUnit 4 to 5, the IAST instrumentation scope has expanded so that the following are tainted:
-    // - Accept-Encoding, Connection, Host, HttpRequest, User-Agent, RequestContext, Timeout-Access, Remote-Address, myValue
-    toc.size() == 9
+    // The following are always tainted:
+    // - Accept-Encoding, Connection, Host, User-Agent, Timeout-Access, Remote-Address, myValue (7 entries)
+    // HttpRequest and its HttpEntity are also always tainted, but the mechanism depends on whether their
+    // classes were already loaded when the akka-http IAST instrumentation was applied: if already loaded,
+    // PreserveLoadedStructure can't inject the Taintable interface into them (the JVM can't add an interface
+    // via retransformation), so they fall back to being tracked in the tainted objects map instead - adding
+    // up to 2 extra entries. Whether that happens depends on the akka-http version and class-loading order.
+    toc.size() >= 7 && toc.size() <= 9
   }
 
   void 'cookie — #variant variant'() {

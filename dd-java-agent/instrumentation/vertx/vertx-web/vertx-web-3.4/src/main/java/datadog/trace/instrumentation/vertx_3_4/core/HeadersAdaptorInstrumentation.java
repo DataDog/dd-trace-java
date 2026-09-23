@@ -29,7 +29,7 @@ import java.util.Set;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public class HeadersAdaptorInstrumentation extends InstrumenterModule.Iast
+public class HeadersAdaptorInstrumentation extends InstrumenterModule.TaintableIast
     implements Instrumenter.ForKnownTypes,
         Instrumenter.HasTypeAdvice,
         Instrumenter.HasMethodAdvice {

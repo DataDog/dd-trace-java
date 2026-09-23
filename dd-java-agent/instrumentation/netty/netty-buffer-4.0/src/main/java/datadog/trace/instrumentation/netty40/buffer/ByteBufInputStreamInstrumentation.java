@@ -16,7 +16,7 @@ import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public class ByteBufInputStreamInstrumentation extends InstrumenterModule.Iast
+public class ByteBufInputStreamInstrumentation extends InstrumenterModule.TaintableIast
     implements Instrumenter.ForSingleType,
         Instrumenter.HasTypeAdvice,
         Instrumenter.HasMethodAdvice {

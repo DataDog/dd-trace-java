@@ -19,7 +19,7 @@ import net.bytebuddy.asm.Advice;
 
 /** Propagation is way easier in io.vertx.core.buffer.impl.BufferImpl than in io.netty.Buffer */
 @AutoService(InstrumenterModule.class)
-public class BufferInstrumentation extends InstrumenterModule.Iast
+public class BufferInstrumentation extends InstrumenterModule.TaintableIast
     implements Instrumenter.ForSingleType,
         Instrumenter.HasTypeAdvice,
         Instrumenter.HasMethodAdvice {

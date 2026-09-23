@@ -22,7 +22,6 @@ import net.bytebuddy.utility.OpenedClassReader;
 public class TaintableVisitor implements AsmVisitorWrapper {
 
   public static volatile boolean DEBUG = false;
-  static volatile boolean ENABLED = true;
 
   private static final String INTERFACE_NAME = "datadog/trace/api/iast/Taintable";
   private static final String SOURCE_CLASS_NAME = "L" + INTERFACE_NAME + "$Source;";
@@ -56,21 +55,9 @@ public class TaintableVisitor implements AsmVisitorWrapper {
       final MethodList<?> methods,
       final int writerFlags,
       final int readerFlags) {
-    if (ENABLED) {
-      return types.contains(instrumentedType.getName())
-          ? new AddTaintableInterfaceVisitor(classVisitor)
-          : classVisitor;
-    } else {
-      return NoOp.INSTANCE.wrap(
-          instrumentedType,
-          classVisitor,
-          implementationContext,
-          typePool,
-          fields,
-          methods,
-          writerFlags,
-          readerFlags);
-    }
+    return types.contains(instrumentedType.getName())
+        ? new AddTaintableInterfaceVisitor(classVisitor)
+        : classVisitor;
   }
 
   private static class AddTaintableInterfaceVisitor extends ClassVisitor {

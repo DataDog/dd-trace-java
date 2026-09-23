@@ -54,7 +54,10 @@ class AkkaIastTestWebServer extends AllDirectives implements Closeable {
       path(segment('path').slash(segment())) {
         var1 ->
         get {
-          complete("IAST: ${t(var1)}")
+          extractRequest {
+            request ->
+            complete("IAST: ${t(var1)} ${t(request)}")
+          }
         }
       },
       path('query') {

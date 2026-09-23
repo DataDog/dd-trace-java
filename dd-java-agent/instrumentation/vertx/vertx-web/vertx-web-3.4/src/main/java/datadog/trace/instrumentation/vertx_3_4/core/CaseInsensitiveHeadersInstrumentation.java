@@ -31,7 +31,7 @@ import java.util.Set;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public class CaseInsensitiveHeadersInstrumentation extends InstrumenterModule.Iast
+public class CaseInsensitiveHeadersInstrumentation extends InstrumenterModule.TaintableIast
     implements Instrumenter.ForSingleType,
         Instrumenter.HasTypeAdvice,
         Instrumenter.HasMethodAdvice {

@@ -17,7 +17,7 @@ import java.net.URL;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public class IastHttpUrlInstrumentation extends InstrumenterModule.Iast
+public class IastHttpUrlInstrumentation extends InstrumenterModule.TaintableIast
     implements Instrumenter.ForSingleType,
         Instrumenter.HasTypeAdvice,
         Instrumenter.HasMethodAdvice {
