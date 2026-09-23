@@ -8,7 +8,24 @@ import datadog.trace.bootstrap.instrumentation.api.NoopScope;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
-/** Forwards test-only Byte Buddy advice events to {@link ScopeDiagnostics}. */
+/**
+ * Forwards test-only Byte Buddy advice events to {@link ScopeDiagnostics}.
+ *
+ * <p>Reflective access depends on {@code ScopeContinuation.source}, {@code
+ * ContinuableScope.source}, {@code ContinuingScope.continuation}, and the chain {@code
+ * ContinuableScope.scopeManager -> scopeStack() -> checkTop(scope)}. An ordinary scope has no
+ * continuation; a continuing scope must expose its owning continuation so the recorder can link
+ * their lifecycles.
+ *
+ * <p>Callbacks retain their recording-window identity so delayed events cannot enter a later test's
+ * recording. Resolution entry and exit must remain paired, including exceptional exits, to restore
+ * the thread-local nesting used to distinguish a scope close from its internal release.
+ *
+ * <p>Probe failures are suppressed to avoid disturbing tracer behavior. Missing reflective members
+ * can therefore lose events or metadata without failing the instrumented call. Changes to the core
+ * members require corresponding updates here and assertions that their events and metadata are
+ * actually recorded, as described by {@link ScopeContinuationTransformer}.
+ */
 public final class ScopeContinuationProbe {
   /**
    * Mirrors {@code ScopeContinuation.CANCELLED}. Reaching this value marks a resolved continuation;
