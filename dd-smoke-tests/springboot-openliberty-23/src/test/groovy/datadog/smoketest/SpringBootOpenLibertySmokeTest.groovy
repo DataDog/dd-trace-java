@@ -56,6 +56,23 @@ class SpringBootOpenLibertySmokeTest extends AbstractServerSmokeTest {
     return processBuilder
   }
 
+  @Override
+  protected boolean replaceScopeDiagnosticsArgument(ProcessBuilder builder, String argument) {
+    // Liberty reads the child server's JVM arguments from inside the runnable JAR.
+    def appUri = URI.create("jar:${Paths.get(builder.command().get(2)).toUri()}")
+    try (def fs = FileSystems.newFileSystem(appUri, [:])) {
+      def optionsFile = fs.getPath('wlp', 'usr', 'servers', 'defaultServer', 'jvm.options')
+      def options = Files.readAllLines(optionsFile)
+      boolean found = options.any {
+        it.contains(SCOPE_DIAGNOSTICS_ARGUMENT)
+      }
+      Files.write(optionsFile, options.collect {
+        it.replace(SCOPE_DIAGNOSTICS_ARGUMENT, argument)
+      })
+      return found
+    }
+  }
+
   Path copyApplicationJar() {
     def applicationJar = Paths.get(openLibertyShadowJar)
     def randomId = System.nanoTime()
