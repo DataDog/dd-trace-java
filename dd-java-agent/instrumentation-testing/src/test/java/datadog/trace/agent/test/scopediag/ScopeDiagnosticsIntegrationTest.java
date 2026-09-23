@@ -139,8 +139,30 @@ class ScopeDiagnosticsIntegrationTest {
     span.finish();
 
     ScopeDiagnosticsReport report = ScopeDiagnostics.report();
+    assertEquals(1, report.records().size());
+    assertEquals(ContinuationStatus.RELEASED, report.records().get(0).status());
+    assertEquals(ScopeEvent.Type.RESOLVE_RELEASE, report.records().get(0).terminal().type);
+    assertTrue(report.renderTimeline().contains("RELEASED"));
+    assertTrue(report.renderTimeline().contains("release "));
+    assertFalse(report.renderTimeline().contains("cancel"));
     assertEquals(0, report.doubleCount());
     assertEquals(0, report.leakCount());
+    assertFalse(report.hasProblems());
+  }
+
+  @Test
+  void releaseWithoutResumeIsReportedAsReleased() {
+    tracer = CoreTracer.builder().writer(new ListWriter()).strictTraceWrites(false).build();
+    ScopeDiagnostics.startRecording();
+
+    AgentSpan span = tracer.startSpan("test", "op");
+    tracer.capture(span).release();
+    span.finish();
+
+    ScopeDiagnosticsReport report = ScopeDiagnostics.report();
+    assertEquals(1, report.records().size());
+    assertEquals(ContinuationStatus.RELEASED, report.records().get(0).status());
+    assertEquals(ScopeEvent.Type.RESOLVE_RELEASE, report.records().get(0).terminal().type);
     assertFalse(report.hasProblems());
   }
 
