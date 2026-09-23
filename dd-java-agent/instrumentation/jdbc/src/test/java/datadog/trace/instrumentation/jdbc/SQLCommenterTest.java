@@ -2,7 +2,9 @@ package datadog.trace.instrumentation.jdbc;
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
+import static java.util.Collections.nCopies;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
@@ -14,6 +16,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -24,6 +27,56 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
       "00-00000000000000007fffffffffffffff-000000024cb016ea-00";
   private static final String TRACE_PARENT_SAMPLED =
       "00-00000000000000007fffffffffffffff-000000024cb016ea-01";
+
+  @Test
+  void buildsCommentsLargerThanTheOldInitialCapacity() {
+    configureSizingTest();
+    String database = String.join("", nCopies(2048, "d"));
+    String expected =
+        "dddbs='orders',ddh='db.internal',dddb='"
+            + database
+            + "',traceparent='"
+            + TRACE_PARENT
+            + "'";
+    assertEquals(
+        expected,
+        SharedDBCommenter.buildComment(
+            "orders", "postgresql", "db.internal", database, TRACE_PARENT));
+    assertEquals(
+        "/*" + expected + "*/ SELECT 1",
+        SQLCommenter.inject(
+            "SELECT 1", "orders", "postgresql", "db.internal", database, TRACE_PARENT, false));
+  }
+
+  @Test
+  void sizesCommentsAfterUrlEncodingExpandsTheValues() {
+    configureSizingTest();
+    String database = String.join("", nCopies(256, "東京 €"));
+    String encodedDatabase = String.join("", nCopies(256, "%E6%9D%B1%E4%BA%AC+%E2%82%AC"));
+    String expected = "dddbs='caf%C3%A9',ddh='host%27name',dddb='" + encodedDatabase + "'";
+    assertEquals(
+        expected, SharedDBCommenter.buildComment("café", "mysql", "host'name", database, null));
+    assertEquals(
+        "SELECT 1 /*" + expected + "*/;",
+        SQLCommenter.inject("SELECT 1;", "café", "mysql", "host'name", database, null, true));
+  }
+
+  @Test
+  void preservesEmptyCommentsAndSeparatorsWithoutStaticMetadata() {
+    configureSizingTest();
+    assertNull(SharedDBCommenter.buildComment(null, "mysql", "", null, ""));
+    assertEquals("SELECT 1", SQLCommenter.inject("SELECT 1", null, "mysql", "", null, "", false));
+    assertEquals(
+        "dddb='orders'", SharedDBCommenter.buildComment("", "mysql", null, "orders", null));
+  }
+
+  private static void configureSizingTest() {
+    injectSysConfig("service", "");
+    injectSysConfig("env", "");
+    injectSysConfig("version", "");
+    injectSysConfig("dbm.inject.sql.basehash", "false");
+    SharedDBCommenter.resetStaticPrefixForTesting();
+  }
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("testFindFirstWordArguments")

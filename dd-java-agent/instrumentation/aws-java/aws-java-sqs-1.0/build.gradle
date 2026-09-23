@@ -16,6 +16,8 @@ addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 dependencies {
+  testImplementation libs.bundles.junit5
+
   compileOnly group: 'com.amazonaws', name: 'aws-java-sdk-sqs', version: '1.11.0'
   compileOnly group: 'com.amazonaws', name: 'amazon-sqs-java-messaging-lib', version: '1.0.0'
 
