@@ -26,7 +26,10 @@ class RoutingContextJsonAdvice {
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  static void after(@Advice.Return Object obj_, @ActiveRequestContext RequestContext reqCtx) {
+  static void after(
+      @Advice.Return Object obj_,
+      @ActiveRequestContext RequestContext reqCtx,
+      @Advice.Thrown(readOnly = false) Throwable throwable) {
 
     // in newer versions of vert.x rc.getBodyAsJson() calls internally rc.body().asJsonObject()
     // so we need to prevent sending the body twice to the WAF
@@ -60,7 +63,9 @@ class RoutingContextJsonAdvice {
       // effectivelyBlocked() is intentionally absent: vertx-web shares Netty's block response
       // function, which finishes the span synchronously when the blocking response is committed.
       blockResponseFunction.tryCommitBlockingResponse(reqCtx, rba);
-      throw new BlockingException("Blocked request (for RoutingContextImpl/getBodyAsJson)");
+      if (throwable == null) {
+        throwable = new BlockingException("Blocked request (for RoutingContextImpl/getBodyAsJson)");
+      }
     }
   }
 }
