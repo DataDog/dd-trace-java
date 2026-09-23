@@ -96,7 +96,7 @@ class SamplingMechanismTest extends DDSpecification {
     EXTERNAL_OVERRIDE | userKeepX    | false
   }
 
-  void 'Test canAvoidSamplingPriorityLock'(){
+  void 'Test canAvoidSamplingPriorityLock'() {
     setup:
     injectSysConfig("dd.apm.tracing.enabled", "false")
 
@@ -116,12 +116,5 @@ class SamplingMechanismTest extends DDSpecification {
     REMOTE_USER_RATE  | SAMPLER_KEEP | false
     DATA_JOBS         | SAMPLER_KEEP | false
     EXTERNAL_OVERRIDE | SAMPLER_KEEP | false
-  }
-
-  void 'rate limiter rejection marker ignores negative mechanisms'() {
-    expect:
-    markRateLimiterRejected(EXTERNAL_OVERRIDE) == EXTERNAL_OVERRIDE
-    !isRateLimiterRejected(EXTERNAL_OVERRIDE)
-    clearRateLimiterRejected(EXTERNAL_OVERRIDE) == EXTERNAL_OVERRIDE
   }
 }

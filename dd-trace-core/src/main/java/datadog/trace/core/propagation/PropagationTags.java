@@ -114,7 +114,8 @@ public abstract class PropagationTags {
       int samplingMechanism,
       double sampleRate,
       long traceIdLowOrderBits,
-      boolean allowOverride);
+      boolean allowOverride,
+      boolean rateLimiterRejected);
 
   public abstract void forceKeep(int samplingMechanism);
 

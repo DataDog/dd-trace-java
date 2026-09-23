@@ -135,7 +135,8 @@ class W3CHttpInjectorTest extends AbstractHttpInjectorTest {
   @Test
   void injectUsesSingleSamplingStateAcrossHeaders() throws InterruptedException {
     PropagationTags tags = PropagationTags.factory().fromHeaderValue(W3C, "ot=rv:ef284ace7a91e1");
-    assertTrue(tags.tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 1.0, 1L, true));
+    assertTrue(
+        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 1.0, 1L, true, false));
     DDSpanContext context =
         mockSpanContext(
             DDTraceId.from("1"), DDSpanId.from("2"), SAMPLER_KEEP, null, new HashMap<>(), tags);
@@ -150,7 +151,7 @@ class W3CHttpInjectorTest extends AbstractHttpInjectorTest {
                 assertTrue(traceparentWritten.await(5, TimeUnit.SECONDS));
                 assertTrue(
                     tags.tryUpdateProbabilitySamplingDecision(
-                        SAMPLER_DROP, AGENT_RATE, 0.0, 1L, true));
+                        SAMPLER_DROP, AGENT_RATE, 0.0, 1L, true, false));
               } catch (Throwable throwable) {
                 failure.set(throwable);
               } finally {

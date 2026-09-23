@@ -146,8 +146,7 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
     if (matchedRule == null) {
       fallbackSampler.setSamplingPriority(span);
     } else {
-      boolean sampled = matchedRule.sample(span);
-      if (sampled) {
+      if (matchedRule.sample(span)) {
         if (rateLimiter.tryAcquire()) {
           span.setSamplingPriority(
               PrioritySampling.USER_KEEP,
@@ -159,7 +158,8 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
               PrioritySampling.USER_DROP,
               SAMPLING_RULE_RATE,
               matchedRule.getSampler().getSampleRate(),
-              SamplingMechanism.markRateLimiterRejected(matchedRule.getMechanism()));
+              matchedRule.getMechanism(),
+              true);
         }
         span.setMetric(SAMPLING_LIMIT_RATE, rateLimit);
       } else {

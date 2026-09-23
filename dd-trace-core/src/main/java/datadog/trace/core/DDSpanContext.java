@@ -722,7 +722,8 @@ public class DDSpanContext
       final int newPriority,
       final int newMechanism,
       final double sampleRate,
-      final long traceIdLowOrderBits) {
+      final long traceIdLowOrderBits,
+      final boolean rateLimiterRejected) {
     DDSpanContext spanContext = getRootSpanContextOrThis();
     if (!spanContext.validateSamplingPriority(newPriority, newMechanism)) {
       return false;
@@ -732,7 +733,8 @@ public class DDSpanContext
         newMechanism,
         sampleRate,
         traceIdLowOrderBits,
-        SamplingMechanism.canAvoidSamplingPriorityLock(newPriority, newMechanism));
+        SamplingMechanism.canAvoidSamplingPriorityLock(newPriority, newMechanism),
+        rateLimiterRejected);
   }
 
   private boolean validateSamplingPriority(final int newPriority, final int newMechanism) {

@@ -6,7 +6,6 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static datadog.trace.api.sampling.SamplingMechanism.AGENT_RATE;
 import static datadog.trace.api.sampling.SamplingMechanism.EXTERNAL_OVERRIDE;
 import static datadog.trace.api.sampling.SamplingMechanism.MANUAL;
-import static datadog.trace.api.sampling.SamplingMechanism.markRateLimiterRejected;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.DATADOG;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -72,7 +71,8 @@ class OtelTraceStatePropagationTest {
     PropagationTags tags = PropagationTags.factory().empty();
     SamplingState before = tags.samplingState();
 
-    assertTrue(tags.tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 1.0, 1L, false));
+    assertTrue(
+        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 1.0, 1L, false, false));
     SamplingState after = tags.samplingState();
 
     assertEquals(SAMPLER_KEEP, after.getSamplingPriority());
@@ -88,11 +88,12 @@ class OtelTraceStatePropagationTest {
   @Test
   void rejectedSamplingAttemptCannotReplaceProbabilityState() {
     PropagationTags tags = PropagationTags.factory().empty();
-    assertTrue(tags.tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 0.5, 1L, false));
+    assertTrue(
+        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 0.5, 1L, false, false));
     SamplingState established = tags.samplingState();
 
     assertFalse(
-        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_DROP, AGENT_RATE, 0.1, 2L, false));
+        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_DROP, AGENT_RATE, 0.1, 2L, false, false));
 
     assertEquals(established, tags.samplingState());
   }
@@ -114,7 +115,8 @@ class OtelTraceStatePropagationTest {
     PropagationTags tags =
         PropagationTags.factory().fromHeaderValue(DATADOG, "_dd.p.dm=934086a686-4");
 
-    assertTrue(tags.tryUpdateProbabilitySamplingDecision(SAMPLER_DROP, AGENT_RATE, 0.5, 1L, false));
+    assertTrue(
+        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_DROP, AGENT_RATE, 0.5, 1L, false, false));
 
     SamplingState state = tags.samplingState();
     assertEquals(SAMPLER_DROP, state.getSamplingPriority());
@@ -157,7 +159,8 @@ class OtelTraceStatePropagationTest {
   @Test
   void forceKeepRemovesLocallyGeneratedProbabilityState() {
     PropagationTags tags = PropagationTags.factory().empty();
-    assertTrue(tags.tryUpdateProbabilitySamplingDecision(SAMPLER_DROP, AGENT_RATE, 0.0, 1L, false));
+    assertTrue(
+        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_DROP, AGENT_RATE, 0.0, 1L, false, false));
 
     tags.forceKeep(MANUAL);
 
@@ -170,8 +173,7 @@ class OtelTraceStatePropagationTest {
     PropagationTags tags = PropagationTags.factory().empty();
 
     assertTrue(
-        tags.tryUpdateProbabilitySamplingDecision(
-            SAMPLER_DROP, markRateLimiterRejected(AGENT_RATE), 1.0, 1L, false));
+        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_DROP, AGENT_RATE, 1.0, 1L, false, true));
 
     assertNull(tags.samplingState().getOtelTraceState());
   }
@@ -184,7 +186,8 @@ class OtelTraceStatePropagationTest {
     }
     PropagationTags tags = PropagationTags.factory().fromHeaderValue(W3C, original.toString());
 
-    assertTrue(tags.tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 0.5, 1L, false));
+    assertTrue(
+        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 0.5, 1L, false, false));
 
     String header = tags.headerValue(W3C);
     assertEquals(32, header.split(",").length);

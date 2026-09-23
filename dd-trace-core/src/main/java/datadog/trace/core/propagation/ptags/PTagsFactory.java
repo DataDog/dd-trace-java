@@ -270,14 +270,13 @@ public class PTagsFactory implements PropagationTags.Factory {
         int samplingMechanism,
         double sampleRate,
         long traceIdLowOrderBits,
-        boolean allowOverride) {
+        boolean allowOverride,
+        boolean rateLimiterRejected) {
       synchronized (samplingStateLock) {
         SamplingState current = samplingState;
         if (!allowOverride && current.getSamplingPriority() != PrioritySampling.UNSET) {
           return false;
         }
-        boolean rateLimiterRejected = SamplingMechanism.isRateLimiterRejected(samplingMechanism);
-        samplingMechanism = SamplingMechanism.clearRateLimiterRejected(samplingMechanism);
         OtelTraceState nextOtelTraceState = getOtelTraceState();
         if (nextOtelTraceState == null) {
           if (!rateLimiterRejected) {

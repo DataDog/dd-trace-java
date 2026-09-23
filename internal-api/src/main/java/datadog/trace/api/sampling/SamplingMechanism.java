@@ -8,12 +8,6 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import datadog.trace.api.Config;
 
 public class SamplingMechanism {
-  /**
-   * Internal flag to combine with a positive value to indicate the base result was overriden by
-   * rate limiter
-   */
-  private static final int RATE_LIMITER_REJECTED = 1 << 30;
-
   /** Not encouraged to use */
   public static final byte UNKNOWN = -1;
 
@@ -51,26 +45,8 @@ public class SamplingMechanism {
   /** Force override sampling decision from external source, like W3C traceparent. */
   public static final byte EXTERNAL_OVERRIDE = Byte.MIN_VALUE;
 
-  public static int markRateLimiterRejected(int mechanism) {
-    if (mechanism < 0) {
-      return mechanism;
-    }
-    return mechanism | RATE_LIMITER_REJECTED;
-  }
-
-  public static boolean isRateLimiterRejected(int mechanism) {
-    return mechanism >= 0 && (mechanism & RATE_LIMITER_REJECTED) != 0;
-  }
-
-  public static int clearRateLimiterRejected(int mechanism) {
-    if (mechanism < 0) {
-      return mechanism;
-    }
-    return mechanism & ~RATE_LIMITER_REJECTED;
-  }
-
   public static boolean validateWithSamplingPriority(int mechanism, int priority) {
-    switch (clearRateLimiterRejected(mechanism)) {
+    switch (mechanism) {
       case UNKNOWN:
         return true;
 
@@ -106,7 +82,6 @@ public class SamplingMechanism {
    * @return {@code true} if the sampling priority lock can be avoided, {@code false} otherwise
    */
   public static boolean canAvoidSamplingPriorityLock(int priority, int mechanism) {
-    mechanism = clearRateLimiterRejected(mechanism);
     return (!Config.get().isApmTracingEnabled() && mechanism == SamplingMechanism.APPSEC)
         || (Config.get().isDataJobsEnabled() && mechanism == DATA_JOBS);
   }
