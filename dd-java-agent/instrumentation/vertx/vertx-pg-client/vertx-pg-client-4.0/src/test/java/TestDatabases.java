@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.utility.DockerImageName;
 
 public class TestDatabases implements Closeable {
 
@@ -15,7 +16,9 @@ public class TestDatabases implements Closeable {
   private TestDatabases(String dbName) {
     Map<String, TestDBInfo> infos = new HashMap<>();
     pgsql =
-        new PostgreSQLContainer("postgres:16-alpine")
+        new PostgreSQLContainer(
+                DockerImageName.parse(System.getProperty("test.postgres.image"))
+                    .asCompatibleSubstituteFor("postgres"))
             .withDatabaseName(dbName)
             .withUsername("postgres")
             .withPassword("postgres");

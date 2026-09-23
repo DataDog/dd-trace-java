@@ -1,6 +1,7 @@
 plugins {
   id 'java-test-fixtures'
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.testcontainers'
   id 'dd-trace-java.call-site-instrumentation'
   id 'dd-trace-java.jmh-conventions'
 }
@@ -18,7 +19,17 @@ addTestSuiteForDir('oldPostgresTest', 'test')
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepJava11Test', 'latestDepTest', 'test')
 
+// This non-Docker-Hub image has a separate mirror in CI.
+def sqlServerImage = providers.environmentVariable('CI').isPresent()
+  ? 'registry.ddbuild.io/images/mirror/sqlserver:latest'
+  : 'mcr.microsoft.com/mssql/server:latest'
+
 dependencies {
+  testContainerImage(image('postgres:11.2', 'test.postgres.image'))
+  testContainerImage(image('mysql:8.0', 'test.mysql.image'))
+  testContainerImage(image(sqlServerImage, 'test.sqlserver.image'))
+  testContainerImage(image('gvenzl/oracle-free:23.5-slim-faststart', 'test.oracle.image'))
+
   compileOnly group: 'com.zaxxer', name: 'HikariCP', version: '2.4.0'
   testImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
 

@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.testcontainers.containers.MySQLContainer;
+import org.testcontainers.utility.DockerImageName;
 
 public class TestDatabases implements Closeable {
 
@@ -15,7 +16,9 @@ public class TestDatabases implements Closeable {
   private TestDatabases(String dbName) {
     Map<String, TestDBInfo> infos = new HashMap<>();
     mysql =
-        new MySQLContainer("mysql:8.0")
+        new MySQLContainer(
+                DockerImageName.parse(System.getProperty("test.mysql.image"))
+                    .asCompatibleSubstituteFor("mysql"))
             .withDatabaseName(dbName)
             .withUsername("sa")
             .withPassword("sa");
