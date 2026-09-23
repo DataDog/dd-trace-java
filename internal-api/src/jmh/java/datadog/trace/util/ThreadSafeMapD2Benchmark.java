@@ -92,7 +92,7 @@ import org.openjdk.jmh.annotations.Warmup;
  *
  * <p>Synchronized {@code HashMap} collapses by ~67% (30/28 to 9 ops/us), the same magnitude seen in
  * {@link ThreadSafeMapD1Benchmark} -- pollution dominates its cost far more than lock contention.
- * {@code ConcurrentHashMap} rises ~38-44% over the unpolluted table (971→1072, 935→1108) with tight
+ * {@code ConcurrentHashMap} rises ~38-44% over the unpolluted table (777→1072, 769→1108) with tight
  * error bars (under 8% of the mean) -- a real effect, not noise; the {@link Key2} allocation this
  * benchmark forces on every {@code ConcurrentHashMap} lookup apparently costs relatively less once
  * the JIT already treats the surrounding dispatch as megamorphic. {@code Support} and {@code
@@ -240,6 +240,15 @@ public class ThreadSafeMapD2Benchmark {
   @State(Scope.Thread)
   public static class ThreadState {
     int cursor;
+
+    // Re-pollute every invocation: a one-shot Level.Iteration call gets drowned out by this
+    // benchmark's own real-key traffic well before HotSpot compiles the shared hash dispatch call
+    // sites, letting them re-specialize to a dominant receiver (see
+    // BenchmarkUtils#polluteHashDispatch).
+    @Setup(Level.Invocation)
+    public void pollute() {
+      BenchmarkUtils.polluteHashDispatch();
+    }
 
     int next() {
       int i = cursor;

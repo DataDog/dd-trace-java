@@ -147,6 +147,15 @@ public class ThreadSafeMapD1Benchmark {
   public static class ThreadState {
     int cursor;
 
+    // Re-pollute every invocation: a one-shot Level.Iteration call gets drowned out by this
+    // benchmark's own real-key traffic well before HotSpot compiles the shared hash dispatch call
+    // sites, letting them re-specialize to a dominant receiver (see
+    // BenchmarkUtils#polluteHashDispatch).
+    @Setup(Level.Invocation)
+    public void pollute() {
+      BenchmarkUtils.polluteHashDispatch();
+    }
+
     int next() {
       int i = cursor;
       cursor = (i + 1) & (N_KEYS - 1);

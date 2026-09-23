@@ -115,10 +115,17 @@ public class SingleThreadedSetBenchmark {
   LinkedHashSet<String> linkedHashSet;
   int index = 0;
 
+  // Re-pollute every invocation: a one-shot Level.Trial call gets drowned out by this
+  // benchmark's own real-key traffic well before HotSpot compiles the shared hash dispatch call
+  // sites, letting them re-specialize to a dominant receiver (see
+  // BenchmarkUtils#polluteHashDispatch).
+  @Setup(Level.Invocation)
+  public void pollute() {
+    BenchmarkUtils.polluteHashDispatch();
+  }
+
   @Setup(Level.Trial)
   public void setUp() {
-    BenchmarkUtils.polluteHashDispatch();
-
     hashSet = new HashSet<>(Arrays.asList(ELEMENTS));
     synchronizedSet = Collections.synchronizedSet(new HashSet<>(hashSet));
     treeSet = new TreeSet<>(Arrays.asList(ELEMENTS));

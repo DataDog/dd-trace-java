@@ -128,8 +128,12 @@ public class CaseInsensitiveMapBenchmark {
   // masking exactly the differences this benchmark compares.
   int lookupIndex = 0;
 
-  @Setup(Level.Trial)
-  public void setUp() {
+  // Re-pollute every invocation: a one-shot Level.Trial call gets drowned out by this
+  // benchmark's own real-key traffic well before HotSpot compiles the shared hash dispatch call
+  // sites, letting them re-specialize to a dominant receiver (see
+  // BenchmarkUtils#polluteHashDispatch).
+  @Setup(Level.Invocation)
+  public void pollute() {
     BenchmarkUtils.polluteHashDispatch();
   }
 

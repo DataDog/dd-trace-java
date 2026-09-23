@@ -231,10 +231,17 @@ public class SingleThreadedMapBenchmark {
   IntEntry[] flatTable;
   int index = 0;
 
+  // Re-pollute every invocation: a one-shot Level.Trial call gets drowned out by this
+  // benchmark's own real-key traffic well before HotSpot compiles the shared hash dispatch call
+  // sites, letting them re-specialize to a dominant receiver (see
+  // BenchmarkUtils#polluteHashDispatch).
+  @Setup(Level.Invocation)
+  public void pollute() {
+    BenchmarkUtils.polluteHashDispatch();
+  }
+
   @Setup(Level.Trial)
   public void setUp() {
-    BenchmarkUtils.polluteHashDispatch();
-
     hashMap = new HashMap<>();
     fill(hashMap);
     synchronizedHashMap = Collections.synchronizedMap(new HashMap<>(hashMap));
