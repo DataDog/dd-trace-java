@@ -122,16 +122,19 @@ class ScopeDiagnosticsReportTest {
   }
 
   @Test
-  void activationAfterResolveIsFailure() {
+  void successfulResumeAfterCleanupEntryIsNotActivationAfterResolve() {
     ContinuationRecord r = record(0, DDTraceId.from(14));
-    r.setTerminalOrExtra(event(ScopeEvent.Type.RESOLVE_RELEASE, "pool-1", 2000));
+    r.addResume(event(ScopeEvent.Type.ACTIVATE, "pool-1", 1500));
     r.addResume(event(ScopeEvent.Type.ACTIVATE, "pool-2", 3000));
+    r.setTerminalOrExtra(event(ScopeEvent.Type.RESOLVE_FINISH, "pool-1", 2000));
 
     ScopeDiagnosticsReport report = report(list(r), map());
 
-    assertEquals(1, report.activateAfterResolveCount());
+    assertEquals(2, report.records().get(0).resumes().size());
+    assertEquals(ContinuationStatus.FINISHED, report.records().get(0).status());
+    assertEquals(0, report.activateAfterResolveCount());
     assertEquals(0, report.doubleCount());
-    assertTrue(report.hasProblems());
+    assertFalse(report.hasProblems());
   }
 
   @Test

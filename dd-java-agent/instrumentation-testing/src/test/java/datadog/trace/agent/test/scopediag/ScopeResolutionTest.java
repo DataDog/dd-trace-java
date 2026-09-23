@@ -59,6 +59,24 @@ class ScopeResolutionTest {
   }
 
   @Test
+  void delayedSuccessfulResumeCallbackAfterCleanupIsNotRejected() {
+    Object window = ScopeDiagnostics.recordingWindow();
+    ScopeContinuationProbe.ResolveAttempt close = enter("cancelFromContinuedScopeClose", 1);
+    ScopeContinuationProbe.onResolveExit(close, CANCELLED);
+    long cleanupEntryNanos = ScopeDiagnostics.report().records().get(0).terminal().nanos;
+
+    // The resume succeeded during cleanup, but its exit callback arrives after cleanup's callback.
+    ScopeDiagnostics.recordActivate(
+        window, continuation, DDTraceId.from(1), 2, "op", (byte) 0, cleanupEntryNanos + 1);
+
+    ScopeDiagnosticsReport report = ScopeDiagnostics.report();
+    assertEquals(1, report.records().get(0).resumes().size());
+    assertEquals(ContinuationStatus.FINISHED, report.records().get(0).status());
+    assertEquals(0, report.activateAfterResolveCount());
+    assertResolvedOnce();
+  }
+
+  @Test
   void overlappingLegitimateScopeClosesResolveOnce() {
     Object window = ScopeDiagnostics.recordingWindow();
     // Separate resumed scopes may both observe CANCELLED by the time their exit advice runs.
