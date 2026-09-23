@@ -474,8 +474,9 @@ public class DDEvaluatorTest {
   }
 
   /**
-   * Agents 1.65 and 1.66 carry Split.serialId but only the five-argument event constructor. Span
-   * enrichment works on those agents, so only the exposure path may fall back.
+   * Tests legacy bootstrap behavior when Split.serialId exists but the exposure event has only the
+   * five-argument constructor. Split support must remain independent of exposure constructor
+   * support.
    */
   @Test
   public void probeKeepsSplitSupportWhenOnlyTheEventConstructorIsMissing() {

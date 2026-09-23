@@ -47,9 +47,8 @@ class DDEvaluatorSpanEnrichmentForkedTest {
   }
 
   /**
-   * Agents 1.65 and 1.66 carry Split.serialId but not the six-argument event constructor. Only the
-   * exposure path may fall back on those agents; the enrichment metadata they already support must
-   * keep reporting the serial id.
+   * Simulates legacy exposure support while Split.serialId remains available. Falling back to the
+   * five-argument exposure constructor must not suppress the serial id in enrichment metadata.
    */
   @Test
   void enrichmentMetadataSurvivesAnAgentWithoutTheExposureConstructor() {
