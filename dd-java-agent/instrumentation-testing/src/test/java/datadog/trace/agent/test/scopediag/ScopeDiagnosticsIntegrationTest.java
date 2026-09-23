@@ -11,8 +11,11 @@ import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
+import datadog.trace.core.DDSpan;
+import datadog.trace.core.PendingTrace;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -70,6 +73,12 @@ class ScopeDiagnosticsIntegrationTest {
     ScopeDiagnosticsReport report = ScopeDiagnostics.report();
 
     assertEquals(1, report.records().size());
+    ContinuationRecord record = report.records().get(0);
+    assertEquals(1, record.resumes().size(), "same-span resume must be observed");
+    assertNotNull(record.terminal());
+    assertTrue(
+        record.resumes().get(0).nanos <= record.terminal().nanos,
+        "resume must be timestamped before its nested resolution");
     assertEquals(
         0,
         report.activateAfterResolveCount(),
@@ -155,7 +164,17 @@ class ScopeDiagnosticsIntegrationTest {
     assertTrue(linked.closed(), "scope close observed");
     assertEquals(0, report.neverClosedScopeCount());
     assertEquals(1, report.records().size());
-    assertEquals(Long.valueOf(report.records().get(0).seq), linked.continuationSeq);
+    ContinuationRecord record = report.records().get(0);
+    assertNotNull(record.capture());
+    assertFalse(record.orphan);
+    assertEquals(1, record.resumes().size());
+    assertEquals(ContinuationStatus.FINISHED, record.status());
+    assertEquals(span.getTraceId(), record.traceId);
+    assertEquals(span.getSpanId(), record.spanId);
+    assertEquals("op", record.spanName);
+    assertEquals(record.source, linked.source);
+    assertFalse(record.source == (byte) -1, "source must not fall back after reflection failure");
+    assertEquals(Long.valueOf(record.seq), linked.continuationSeq);
   }
 
   @Test
@@ -260,6 +279,95 @@ class ScopeDiagnosticsIntegrationTest {
 
     assertEquals(1, report.leakCount(), "the resolution happened outside the recording window");
     span.finish();
+  }
+
+  @Test
+  void resumeAfterRootWriteIsRecorded() {
+    tracer = CoreTracer.builder().writer(new ListWriter()).strictTraceWrites(false).build();
+    ScopeDiagnostics.startRecording();
+    AgentSpan span = tracer.startSpan("test", "op");
+    ContextContinuation continuation = tracer.capture(span);
+    try {
+      span.finish();
+      ((PendingTrace) ((DDSpan) span).spanContext().getTraceCollector()).write();
+      assertEquals(0, ScopeDiagnostics.report().lateCount());
+      try (ContextScope ignored = continuation.resume()) {
+        assertEquals(1, ScopeDiagnostics.report().lateCount());
+      }
+      assertEquals(0, ScopeDiagnostics.report().leakCount());
+    } finally {
+      continuation.release();
+    }
+  }
+
+  @Test
+  void resumeAfterReleaseRecordsFailedActivation() {
+    tracer = CoreTracer.builder().writer(new ListWriter()).strictTraceWrites(false).build();
+    ScopeDiagnostics.startRecording();
+    AgentSpan span = tracer.startSpan("test", "op");
+    try {
+      ContextContinuation continuation = tracer.capture(span);
+      continuation.release();
+      assertEquals(0, ScopeDiagnostics.report().activateAfterResolveCount());
+      continuation.resume().close();
+      ScopeDiagnosticsReport report = ScopeDiagnostics.report();
+      assertEquals(1, report.records().size());
+      assertEquals(1, report.records().get(0).failedActivations().size());
+      assertTrue(report.records().get(0).resumes().isEmpty());
+      assertEquals(1, report.activateAfterResolveCount());
+      assertEquals(0, report.leakCount());
+    } finally {
+      span.finish();
+    }
+  }
+
+  @Test
+  void outOfOrderScopeCloseIsRecorded() throws Exception {
+    assertMisplacedClose(false);
+  }
+
+  @Test
+  void wrongThreadScopeCloseIsRecorded() throws Exception {
+    assertMisplacedClose(true);
+  }
+
+  private void assertMisplacedClose(boolean anotherThread) throws Exception {
+    tracer = CoreTracer.builder().writer(new ListWriter()).strictTraceWrites(false).build();
+    ScopeDiagnostics.startRecording();
+    AgentSpan outerSpan = tracer.startSpan("test", "outer");
+    AgentSpan innerSpan = tracer.startSpan("test", "inner");
+    ContextScope outer = tracer.activateSpan(outerSpan);
+    ContextScope inner = tracer.activateSpan(innerSpan);
+    try {
+      assertEquals(0, ScopeDiagnostics.report().closeWrongThreadCount());
+      String closingThread = Thread.currentThread().getName();
+      if (anotherThread) {
+        FutureTask<Void> close = new FutureTask<>(outer::close, null);
+        Thread worker = new Thread(close, "scope-diagnostics-wrong-thread");
+        worker.setDaemon(true);
+        worker.start();
+        close.get(5, TimeUnit.SECONDS);
+        closingThread = worker.getName();
+      } else {
+        outer.close();
+      }
+      ScopeDiagnosticsReport report = ScopeDiagnostics.report();
+      assertEquals(1, report.closeWrongThreadCount());
+      ScopeRecord record =
+          report.scopeRecords().stream()
+              .filter(scope -> scope.spanId == outerSpan.getSpanId())
+              .findFirst()
+              .orElseThrow(() -> new AssertionError("outer scope was not recorded"));
+      assertEquals(1, record.wrongThreadCloses().size());
+      assertEquals(closingThread, record.wrongThreadCloses().get(0).threadName);
+      assertFalse(record.closed(), "owner stack has not unwound yet");
+    } finally {
+      inner.close();
+      innerSpan.finish();
+      outerSpan.finish();
+    }
+    assertEquals(0, ScopeDiagnostics.report().neverClosedScopeCount());
+    assertEquals(1, ScopeDiagnostics.report().closeWrongThreadCount());
   }
 
   private static ScopeRecord continuationScope(ScopeDiagnosticsReport report) {
