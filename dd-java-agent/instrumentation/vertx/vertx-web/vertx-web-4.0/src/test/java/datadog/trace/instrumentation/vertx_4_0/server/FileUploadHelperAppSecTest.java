@@ -30,7 +30,7 @@ import org.junit.jupiter.api.Test;
  *
  * <p>vertx-web 3.4 and 5.0 have identical copies of this helper, each covered by its own test.
  */
-class FileUploadHelperTest {
+class FileUploadHelperAppSecTest {
 
   private static final String FILENAMES_REASON = "Blocked request (multipart file upload)";
   private static final String CONTENT_REASON = "Blocked request (file content)";
