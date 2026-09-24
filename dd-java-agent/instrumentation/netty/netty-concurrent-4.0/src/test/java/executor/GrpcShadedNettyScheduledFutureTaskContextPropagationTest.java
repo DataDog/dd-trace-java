@@ -34,9 +34,9 @@ import org.junit.jupiter.api.Test;
  */
 class GrpcShadedNettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumentationTest {
   /**
-   * Verifies that a task scheduled with a delay on a shaded {@code DefaultEventExecutorGroup}
-   * still sees the scheduling span as active when it runs, and that a traced method invoked from
-   * the task becomes a child of that span.
+   * Verifies that a task scheduled with a delay on a shaded {@code DefaultEventExecutorGroup} still
+   * sees the scheduling span as active when it runs, and that a traced method invoked from the task
+   * becomes a child of that span.
    */
   @Test
   void testDelayedTaskPropagatesContextWithShadedNetty() throws Exception {
