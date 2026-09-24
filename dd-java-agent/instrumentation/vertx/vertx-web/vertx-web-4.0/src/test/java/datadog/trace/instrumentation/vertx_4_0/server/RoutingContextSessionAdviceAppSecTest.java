@@ -32,7 +32,7 @@ import org.junit.jupiter.api.Test;
  *
  * <p>vertx-web 3.4 has an identical copy of this advice, covered by its own test.
  */
-class RoutingContextSessionAdviceTest {
+class RoutingContextSessionAdviceAppSecTest {
 
   private static final String SESSION_ID = "session-id";
   private static final Flow.Action.RequestBlockingAction RBA =

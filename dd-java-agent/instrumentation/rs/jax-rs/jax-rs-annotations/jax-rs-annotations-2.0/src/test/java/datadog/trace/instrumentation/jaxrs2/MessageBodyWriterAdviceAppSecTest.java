@@ -35,7 +35,7 @@ import org.junit.jupiter.params.provider.ValueSource;
  * BlockingException} regardless of the commit result. Non-JSON media types never reach the
  * callback.
  */
-class MessageBodyWriterAdviceTest {
+class MessageBodyWriterAdviceAppSecTest {
 
   private static final Flow.Action.RequestBlockingAction RBA =
       new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO);
