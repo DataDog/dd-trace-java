@@ -951,6 +951,9 @@ This project provides several custom Gradle extensions to manage multi-JVM testi
 
 Controls which JVM versions are allowed to run tests. Applied via the `dd-trace-java.test-jvm-constraints` plugin.
 
+Each `Test` task also tracks its selected JVM's vendor, full runtime version and VM version as inputs.
+Changing these values invalidates up-to-date checks and build-cache entries, even when the Java major version stays the same.
+
 ```Gradle Kotlin DSL
 plugins {
     id("dd-trace-java.test-jvm-constraints")

@@ -35,6 +35,21 @@ class TestJvmConstraintsPluginTest {
   }
 
   @Test
+  fun `default test launcher is fingerprinted without testJvm`() {
+    val project = ProjectBuilder.builder().build()
+    project.pluginManager.apply("dd-trace-java.test-jvm-constraints")
+    val testTask = project.tasks.named("test", GradleTest::class.java).get()
+    val metadata = testTask.javaLauncher.get().metadata
+
+    assertThat(testTask.inputs.properties["jvmIdentity"]).isEqualTo(mapOf(
+      "languageVersion" to metadata.languageVersion.asInt().toString(),
+      "vendor" to metadata.vendor,
+      "runtimeVersion" to metadata.javaRuntimeVersion,
+      "vmVersion" to metadata.jvmVersion,
+    ))
+  }
+
+  @Test
   fun `jacoco is disabled for additional test jvm when coverage is not checked`() {
     val testTask = testTaskWithJacoco()
 
