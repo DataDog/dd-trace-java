@@ -150,6 +150,11 @@ public class StructuredTaskScopeCancelTest extends AbstractInstrumentationTest {
     public Void result() {
       return null;
     }
+
+    @Override
+    public Void timeout() {
+      return null; // No timeout configured
+    }
   }
 
   /** Lets the first subtask start, then cancels the scope when a second subtask is forked. */
@@ -166,6 +171,11 @@ public class StructuredTaskScopeCancelTest extends AbstractInstrumentationTest {
     public Void result() {
       return null;
     }
+
+    @Override
+    public Void timeout() {
+      return null; // No timeout configured
+    }
   }
 
   /** Fails every fork after the subtask is created. */
@@ -179,6 +189,11 @@ public class StructuredTaskScopeCancelTest extends AbstractInstrumentationTest {
     @Override
     public Void result() {
       return null;
+    }
+
+    @Override
+    public Void timeout() {
+      return null; // No timeout configured
     }
   }
 }
