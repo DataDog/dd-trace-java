@@ -125,7 +125,7 @@ configurations.named('latestDepForkedTestRuntimeClasspath') {
 
 tasks.named("compileMain_java11Java", JavaCompile) {
   // Java 8 bytecode — override addSourceSetFor(11)'s Java 11 default
-  configureCompiler(it, 25, JavaVersion.VERSION_1_8)
+  configureCompiler(it, JavaVersion.VERSION_1_8)
 }
 
 idea {

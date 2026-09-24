@@ -68,13 +68,13 @@ tasks.named("forbiddenApisJmh") { ignoreFailures = true }
 tasks.named("compileTestJava") { dependsOn('generateTestClassNameTries') }
 
 tasks.named("compileTest_java11Java") {
-  configureCompiler(it, 25, JavaVersion.VERSION_11)
+  configureCompiler(it, JavaVersion.VERSION_11)
 }
 
 tasks.named("compileTest_java21Java") {
   // Relies on the daemon JDK (>= 18/19) so javac emits `invokeinterface` for `java.lang.Object`
   // methods on an interface type. See https://bugs.openjdk.org/browse/JDK-8272715.
-  configureCompiler(it, 25, JavaVersion.VERSION_1_8)
+  configureCompiler(it, JavaVersion.VERSION_1_8)
 }
 
 tasks.named("jmh") {

@@ -20,7 +20,7 @@ testJvmConstraints {
 
 ["compileMain_java11Java", "compileTestJava"].each { name ->
   tasks.named(name, JavaCompile) {
-    configureCompiler(it, 25, JavaVersion.VERSION_11)
+    configureCompiler(it, JavaVersion.VERSION_11)
     it.options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'])
   }
 }

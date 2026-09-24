@@ -36,7 +36,7 @@ dependencies {
   "compileVersion40TestJava"
 ].each {
   tasks.named(it, AbstractCompile) {
-    configureCompiler(it, 25, JavaVersion.VERSION_11)
+    configureCompiler(it, JavaVersion.VERSION_11)
   }
 }
 

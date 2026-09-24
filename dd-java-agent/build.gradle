@@ -57,7 +57,7 @@ def java6CompileTask = tasks.named("compileMain_java6Java") {
 }
 
 def java11CompileTask = tasks.named("compileMain_java11Java") {
-  configureCompiler(it, 25, JavaVersion.VERSION_11)
+  configureCompiler(it, JavaVersion.VERSION_11)
 }
 
 tasks.named("compileJava") {

@@ -34,7 +34,7 @@ addTestSuiteForDir("latestDepTest", "test")
 
 ["compileTestGroovy", "compileLatestDepTestGroovy"].each { name ->
   tasks.named(name, GroovyCompile) {
-    configureCompiler(it, 25, JavaVersion.VERSION_17)
+    configureCompiler(it, JavaVersion.VERSION_17)
   }
 }
 

@@ -30,7 +30,6 @@ dependencies {
     // Do not lift this offset: exception profiling runs on Java 8 distributions that backport JFR.
     configureCompiler(
       it,
-      25,
       JavaVersion.VERSION_1_8,
       "Uses public jdk.jfr APIs (Java 11+) at Java 8 bytecode"
       )

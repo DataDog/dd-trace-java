@@ -30,7 +30,7 @@ tasks.named("jetty11Test", Test) {
 
 ["compileJetty11TestGroovy", "compileJetty11LatestDepTestGroovy"].each {
   tasks.named(it, GroovyCompile) {
-    configureCompiler(it, 25, JavaVersion.VERSION_11)
+    configureCompiler(it, JavaVersion.VERSION_11)
   }
 }
 

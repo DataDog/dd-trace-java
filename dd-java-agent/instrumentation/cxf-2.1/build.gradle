@@ -34,7 +34,7 @@ tasks.named("latestDepTest", Test) {
 }
 
 tasks.named("compileCxf3LatestDepTestGroovy", GroovyCompile) {
-  configureCompiler(it, 25, JavaVersion.VERSION_11)
+  configureCompiler(it, JavaVersion.VERSION_11)
 }
 
 tasks.named("latestDepTest", Test) {
@@ -42,7 +42,7 @@ tasks.named("latestDepTest", Test) {
 }
 
 tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
-  configureCompiler(it, 25, JavaVersion.VERSION_17)
+  configureCompiler(it, JavaVersion.VERSION_17)
 }
 
 tasks.named("cxf3LatestDepTest", Test) {

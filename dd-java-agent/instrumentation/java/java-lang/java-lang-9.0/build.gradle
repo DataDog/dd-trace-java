@@ -36,9 +36,9 @@ project.tasks.withType(AbstractCompile).configureEach {
     case 'compileJava':
     // Do not lift this offset without splitting the API-specific classes: this instrumentation
     // is discovered by the Java 8-compatible agent before its Java 9 applicability is known.
-      configureCompiler(it, 25, JavaVersion.VERSION_1_8, "Uses StringConcatFactory / java.lang.module APIs (Java 9+) at Java 8 bytecode")
+      configureCompiler(it, JavaVersion.VERSION_1_8, "Uses StringConcatFactory / java.lang.module APIs (Java 9+) at Java 8 bytecode")
       break
     default:
-      configureCompiler(it, 25, JavaVersion.VERSION_1_9)
+      configureCompiler(it, JavaVersion.VERSION_1_9)
   }
 }

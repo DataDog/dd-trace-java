@@ -20,9 +20,7 @@ apply from: "$rootDir/gradle/test-suites.gradle"
 
 // Glue code for Groovy DSL.
 // TODO this extension need to go away once we move to convention plugins
-ext.configureCompiler = (AbstractCompile it, int toolchainVersion, JavaVersion bytecodeVersion, String unsetReleaseFlagReason = null) -> {
-  configureCompiler(it, toolchainVersion, bytecodeVersion, unsetReleaseFlagReason)
-} as Closure<Void>
+ext.configureCompiler = this.&configureCompiler
 
 @CompileStatic
 interface TracerSourceSetConfig {
@@ -93,14 +91,14 @@ class TracerJavaExtension {
     // TODO Make 'configureCompiler' a general utility method
     def configureCompilerCl = project.extensions.getByType(ExtraPropertiesExtension).get("configureCompiler") as Closure
     project.tasks.named(mainForJavaVersionSourceSet.compileJavaTaskName, JavaCompile) {
-      configureCompilerCl.call(it, 25, version)
+      configureCompilerCl.call(it, version)
     }
 
     if (sourceSetConfig.applyForTestSources.orElse(true)) {
       // configures all test tasks
       project.tasks.withType(JavaCompile).configureEach {
         if (it.name.toLowerCase().contains("test")) {
-          configureCompilerCl.call(it, 25, version)
+          configureCompilerCl.call(it, version)
         }
       }
     }
@@ -162,12 +160,12 @@ tasks.withType(Test).configureEach {
 }
 
 def applyCodeCoverage = !(
-project.path.startsWith(":dd-smoke-tests") ||
-project.path == ":dd-java-agent" ||
-project.path == ":dd-java-agent:load-generator" ||
-project.path.startsWith(":dd-java-agent:benchmark") ||
-project.path.startsWith(":dd-java-agent:instrumentation") ||
-project.path.startsWith(":dd-java-agent:appsec:weblog:"))
+  project.path.startsWith(":dd-smoke-tests") ||
+  project.path == ":dd-java-agent" ||
+  project.path == ":dd-java-agent:load-generator" ||
+  project.path.startsWith(":dd-java-agent:benchmark") ||
+  project.path.startsWith(":dd-java-agent:instrumentation") ||
+  project.path.startsWith(":dd-java-agent:appsec:weblog:"))
 
 // https://stackoverflow.com/questions/42501869/gradle-skip-jacoco-during-test
 // https://poetengineer.postach.io/post/how-to-conditionally-enable-disable-jacoco-in-gradle-build
@@ -202,11 +200,11 @@ tasks.named("jar", Jar) {
 
   manifest {
     attributes(
-    "Implementation-Title": project.name,
-    "Implementation-Version": project.version,
-    "Implementation-Vendor": "Datadog",
-    "Implementation-URL": "https://github.com/datadog/dd-trace-java",
-    )
+      "Implementation-Title": project.name,
+      "Implementation-Version": project.version,
+      "Implementation-Vendor": "Datadog",
+      "Implementation-URL": "https://github.com/datadog/dd-trace-java",
+      )
   }
 }
 
@@ -315,6 +313,11 @@ if (project.hasProperty("removeJarVersionNumbers") && project.findProperty("remo
   }
 }
 
+/** Configures compilation with the Gradle daemon's Java version. */
+def configureCompiler(AbstractCompile it, JavaVersion bytecodeVersion, String unsetReleaseFlagReason = null) {
+  configureCompiler(it, JavaLanguageVersion.current().asInt(), bytecodeVersion, unsetReleaseFlagReason)
+}
+
 /**
  * Customize the compiler config.
  * Adapts depending on the compile task type (java, groovy, scala covered).
@@ -328,10 +331,11 @@ if (project.hasProperty("removeJarVersionNumbers") && project.findProperty("remo
  * @param bytecodeVersion is the version of emitted bytecode.
  * @param unsetReleaseFlagReason If not blank, `--release` option will not be applied.
  */
-def configureCompiler(AbstractCompile it, int toolchainVersion, JavaVersion bytecodeVersion, String unsetReleaseFlagReason) {
+def configureCompiler(AbstractCompile it, int toolchainVersion, JavaVersion bytecodeVersion, String unsetReleaseFlagReason = null) {
   boolean unsetReleaseFlag = unsetReleaseFlagReason != null && !unsetReleaseFlagReason.trim().isEmpty()
-  if (toolchainVersion != 25 && !unsetReleaseFlag) {
-    throw new GradleException("$it.path uses Java $toolchainVersion instead of Java 25 without an unsetReleaseFlagReason")
+  def daemonVersion = JavaLanguageVersion.current().asInt()
+  if (toolchainVersion != daemonVersion && !unsetReleaseFlag) {
+    throw new GradleException("$it.path uses Java $toolchainVersion instead of the Gradle daemon's Java $daemonVersion without an unsetReleaseFlagReason")
   }
 
   Provider<JavaCompiler> compiler = javaToolchains.compilerFor {
@@ -386,10 +390,10 @@ def configureCompiler(AbstractCompile it, int toolchainVersion, JavaVersion byte
 // `configureCompiler` is idempotent, so the double pass is safe.
 // Scala is left out on purpose: scalac always forks a Zinc worker and is configured explicitly per module.
 tasks.withType(JavaCompile).configureEach {
-  configureCompiler(it, 25, JavaVersion.VERSION_1_8, null)
+  configureCompiler(it, JavaVersion.VERSION_1_8)
 }
 tasks.withType(GroovyCompile).configureEach {
-  configureCompiler(it, 25, JavaVersion.VERSION_1_8, null)
+  configureCompiler(it, JavaVersion.VERSION_1_8)
 }
 
 ext.getJavaLauncherFor = (int javaVersionInteger) -> {

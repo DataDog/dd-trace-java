@@ -22,7 +22,7 @@ listOf("compileMain_java17Java", "compileTestJava").forEach {
   tasks.named<JavaCompile>(it) {
     // The Java 17 implementation can lift this offset, but compileTestJava must first be split if
     // the remaining socket tests still need to run on Java 8.
-    configureCompiler(25, JavaVersion.VERSION_1_8, "Uses java.net.UnixDomainSocketAddress (Java 16+) at Java 8 bytecode")
+    configureCompiler(JavaVersion.VERSION_1_8, "Uses java.net.UnixDomainSocketAddress (Java 16+) at Java 8 bytecode")
   }
 }
 

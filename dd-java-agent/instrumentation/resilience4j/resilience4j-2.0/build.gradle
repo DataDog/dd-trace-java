@@ -24,7 +24,7 @@ idea {
 }
 
 project.tasks.withType(AbstractCompile).configureEach {
-  configureCompiler(it, 25, JavaVersion.VERSION_1_8)
+  configureCompiler(it, JavaVersion.VERSION_1_8)
 }
 
 addTestSuiteForDir('latestDepTest', 'test')

@@ -28,7 +28,7 @@ javaToolchains {
 }
 
 tasks.named('compileJava', JavaCompile) {
-  configureCompiler(it, 25, JavaVersion.VERSION_25)
+  configureCompiler(it, 25, JavaVersion.VERSION_25, "Java preview features must be compiled with the matching JDK 25 toolchain")
   options.compilerArgs.add("--enable-preview")
 }
 

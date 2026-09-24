@@ -17,7 +17,7 @@ tasks.named("jar", Jar) {
 }
 
 tasks.withType(JavaCompile).configureEach {
-  configureCompiler(delegate, 25, JavaVersion.VERSION_17)
+  configureCompiler(delegate, JavaVersion.VERSION_17)
 }
 
 dependencies {

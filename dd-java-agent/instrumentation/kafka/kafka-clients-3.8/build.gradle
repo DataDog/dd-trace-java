@@ -23,11 +23,11 @@ addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 // Java 8 bytecode — override addSourceSetFor(17)'s Java 17 default
 tasks.named("compileMain_java17Java", JavaCompile) {
-  configureCompiler(it, 25, JavaVersion.VERSION_1_8)
+  configureCompiler(it, JavaVersion.VERSION_1_8)
 }
 
 tasks.withType(GroovyCompile).configureEach {
-  configureCompiler(it, 25, JavaVersion.VERSION_17)
+  configureCompiler(it, JavaVersion.VERSION_17)
 }
 
 dependencies {

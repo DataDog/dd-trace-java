@@ -6,6 +6,13 @@ import org.gradle.api.tasks.compile.AbstractCompile
 import org.gradle.kotlin.dsl.extra
 
 fun AbstractCompile.configureCompiler(
+  targetVersion: JavaVersion,
+  unsetReleaseFlagReason: String = "",
+) {
+  (project.extra["configureCompiler"] as Closure<*>).call(this, targetVersion, unsetReleaseFlagReason)
+}
+
+fun AbstractCompile.configureCompiler(
   toolchainVersion: Int,
   targetVersion: JavaVersion,
   unsetReleaseFlagReason: String = "",

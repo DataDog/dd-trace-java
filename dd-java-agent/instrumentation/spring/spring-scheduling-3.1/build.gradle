@@ -25,13 +25,13 @@ addTestSuiteForDir('latestSpring5Test', 'test')
 
 ["compileSpring6TestJava", "compileLatestDepTestJava"].each { name ->
   tasks.named(name, JavaCompile) {
-    configureCompiler(it, 25, JavaVersion.VERSION_17)
+    configureCompiler(it, JavaVersion.VERSION_17)
   }
 }
 
 ["compileSpring6TestGroovy", "compileLatestDepTestGroovy"].each { name ->
   tasks.named(name, GroovyCompile) {
-    configureCompiler(it, 25, JavaVersion.VERSION_17)
+    configureCompiler(it, JavaVersion.VERSION_17)
   }
 }
 

@@ -14,7 +14,7 @@ addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepBootTest', 'latestDepTest', 'bootTest')
 
 tasks.withType(GroovyCompile).configureEach {
-  configureCompiler(it, 25, JavaVersion.VERSION_17)
+  configureCompiler(it, JavaVersion.VERSION_17)
 }
 
 tasks.named("iastTest", Test) {

@@ -30,7 +30,7 @@ listOf(JavaCompile::class.java, GroovyCompile::class.java).forEach { compileTask
   tasks.withType(compileTaskType).configureEach {
     // These implementations are selected only on Java 9+, so they can target Java 9 and restore
     // --release after confirming no project output must be loaded during Java 8 discovery.
-    configureCompiler(25, JavaVersion.VERSION_1_8, "Uses Java 9+ APIs (StackWalker, ProcessHandle, Module) at Java 8 bytecode")
+    configureCompiler(JavaVersion.VERSION_1_8, "Uses Java 9+ APIs (StackWalker, ProcessHandle, Module) at Java 8 bytecode")
   }
 }
 

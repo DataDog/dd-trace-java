@@ -37,7 +37,7 @@ tasks.named("latest5DepTest", Test) {
 }
 
 tasks.named("compileLatest5DepTestGroovy", GroovyCompile) {
-  configureCompiler(it, 25, JavaVersion.VERSION_21)
+  configureCompiler(it, JavaVersion.VERSION_21)
 }
 
 configurations.named("muleLatestDepTestRuntimeClasspath") {

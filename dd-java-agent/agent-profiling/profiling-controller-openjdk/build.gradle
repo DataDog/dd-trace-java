@@ -43,7 +43,7 @@ dependencies {
 [JavaCompile, GroovyCompile].each {
   tasks.withType(it).configureEach {
     // Do not lift this offset: this controller runs on Java 8 distributions that backport JFR.
-    configureCompiler(it, 25, JavaVersion.VERSION_1_8, "Uses public jdk.jfr APIs (Java 11+) at Java 8 bytecode")
+    configureCompiler(it, JavaVersion.VERSION_1_8, "Uses public jdk.jfr APIs (Java 11+) at Java 8 bytecode")
     // Disable '-processing' because some annotations are not claimed.
     // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
     // Disable '-path' because we do not have some of the paths seem to be missing.

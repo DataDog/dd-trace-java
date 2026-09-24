@@ -72,7 +72,7 @@ jmh {
 }
 
 tasks.withType<JavaCompile>().configureEach {
-  configureCompiler(25, JavaVersion.VERSION_11)
+  configureCompiler(JavaVersion.VERSION_11)
 }
 
 tasks.withType<Javadoc>().configureEach {

@@ -29,7 +29,7 @@ addTestSuiteExtendingForDir("latestDepForkedTest", "latestDepTest", "test")
 
 ["compileLatestDepTestGroovy", "compileBoot3TestGroovy"].each {
   tasks.named(it, GroovyCompile) {
-    configureCompiler(it, 25, JavaVersion.VERSION_17)
+    configureCompiler(it, JavaVersion.VERSION_17)
   }
 }
 

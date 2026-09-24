@@ -38,7 +38,7 @@ addTestSuiteExtendingForDir('ee10LatestDepForkedTest', 'ee10LatestDepTest', 'tes
 ["compileMain_java17Java", "compileTestJava"].each {
   tasks.named(it, JavaCompile) {
     // Jetty 12 requires Java 17, so these classes can target Java 17 and restore --release.
-    configureCompiler(it, 25, JavaVersion.VERSION_1_8, "Uses java.lang.Record (Java 16+) at Java 8 bytecode")
+    configureCompiler(it, JavaVersion.VERSION_1_8, "Uses java.lang.Record (Java 16+) at Java 8 bytecode")
   }
 }
 ["ee8LatestDepTest", "ee9LatestDepTest", "ee10LatestDepTest"].each {
@@ -48,7 +48,7 @@ addTestSuiteExtendingForDir('ee10LatestDepForkedTest', 'ee10LatestDepTest', 'tes
 }
 
 tasks.withType(GroovyCompile).configureEach {
-  configureCompiler(it, 25, JavaVersion.VERSION_17)
+  configureCompiler(it, JavaVersion.VERSION_17)
 }
 
 dependencies {
