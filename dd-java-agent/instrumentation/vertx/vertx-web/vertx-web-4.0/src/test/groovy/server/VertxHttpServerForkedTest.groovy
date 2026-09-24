@@ -1,5 +1,6 @@
 package server
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static org.junit.jupiter.api.Assumptions.assumeTrue
@@ -221,6 +222,33 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
         defaultTags()
       }
     }
+  }
+
+  /**
+   * Blocks from the JSON response body callback only ('body' is ignored by responseHeaderDone),
+   * reaching RoutingContextJsonResponseAdvice via ctx.json().
+   */
+  def 'test blocking on json response body'() {
+    setup:
+    def request = request(
+      BODY_JSON, 'POST',
+      RequestBody.create(MediaType.get('application/json'), '{"a": "x"}'))
+      .header(IG_BLOCK_RESPONSE_HEADER, 'body')
+      .build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.code() == 413
+    response.body().charStream().text.contains('"title":"You\'ve been blocked"')
+    TEST_WRITER.waitForTraces(1)
+    def rootSpan = TEST_WRITER.get(0).find {
+      it.parentId == 0
+    }
+    rootSpan != null
+    rootSpan.tags['http.status_code'] == 413
+    rootSpan.tags['appsec.blocked'] == 'true'
   }
 }
 
