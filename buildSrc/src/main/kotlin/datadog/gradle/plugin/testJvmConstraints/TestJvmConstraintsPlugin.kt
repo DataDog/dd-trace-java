@@ -36,6 +36,8 @@ class TestJvmConstraintsPlugin : Plugin<Project> {
             "vendor" to vendor,
             "runtimeVersion" to javaRuntimeVersion,
             "vmVersion" to jvmVersion,
+            "operatingSystem" to System.getProperty("os.name"),
+            "architecture" to System.getProperty("os.arch"),
           )
         }
       })
