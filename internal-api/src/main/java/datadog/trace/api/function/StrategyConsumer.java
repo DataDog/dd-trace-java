@@ -28,8 +28,8 @@ import java.lang.annotation.Target;
  *       small enough to inline. That is a JIT runtime decision (method size, call-site heat,
  *       compilation tier), not a static property a checker can verify from source or classfiles.
  *       Treat this marker as documentation of intent — "this method must stay inlinable" — and
- *       confirm the hot ones actually do with {@code -XX:+PrintInlining}, the same as {@link
- *       Strategy} itself.
+ *       confirm the hot ones actually do with {@code -XX:+UnlockDiagnosticVMOptions
+ *       -XX:+PrintInlining}, the same as {@link Strategy} itself.
  * </ul>
  */
 @Documented

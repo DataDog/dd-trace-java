@@ -17,28 +17,42 @@ import java.lang.annotation.Target;
  * the JIT: hold the strategy in a {@code static final} constant, keep its methods small, and let
  * the consuming method inline. The call site then sees the exact type, so the JIT devirtualizes the
  * strategy's calls and inlines them, and the one generic algorithm compiles to specialized,
- * monomorphic, allocation-free code per caller — C++-template-like specialization, driven by the
- * JIT rather than a code generator.
+ * monomorphic code per caller — a JIT optimization opportunity, not a hard allocation-free
+ * guarantee (a {@code getOrCreate}-shaped consumer can still allocate on a miss) — C++-template-like
+ * specialization, driven by the JIT rather than a code generator.
  *
- * <p>Two shapes of constant satisfy this, with different strength guarantees:
+ * <p>Two independent things determine whether this pays off, and they fail in different ways:
  *
  * <ul>
- *   <li><b>Concrete-typed field.</b> A {@code static final} field <i>declared with the concrete
- *       type</i> (not an abstract base or interface). The win here is <b>structural</b> — it
- *       follows from the exact-typed constant, not a speculative bet on class-hierarchy analysis or
- *       type profiling that a second implementation or a polluted profile could quietly undo.
- *   <li><b>Non-capturing lambda constant.</b> A lambda has no nameable concrete type, so it cannot
- *       satisfy the rule above literally — but the JVM caches a non-capturing lambda as a single
- *       instance, and the JIT's per-call-site inline caching profiles the actual type(s) it
- *       observes there, not just the declared type. A call site fed this one constant consistently
- *       gets speculatively devirtualized and inlined on that observed profile — in practice a
- *       reliable win, not a fragile one. The guarantee is still weaker than the concrete-typed
- *       field's, though: it is profile-dependent rather than purely static, so a call site that
- *       later also sees a second implementation (a shared, polymorphic call site) can deoptimize
- *       and fall back to virtual dispatch, where a concrete-typed field never could. Prefer a
- *       concrete-typed field when a call site might plausibly be shared across strategies; a lambda
- *       constant is fine when it won't be.
+ *   <li><b>Devirtualization &amp; inlining.</b> The aim is to leverage traditional compiler
+ *       dataflow analysis rather than relying on HotSpot-specific speculative and profile-guided
+ *       optimizations (PGO). The recommended approaches are to create a {@code static final}
+ *       constant referencing a singular instance, or to use an inline lambda expression. When
+ *       deviating from this approach, JVMs can frequently still devirtualize and inline via
+ *       speculative analysis or PGO, but the aim is to avoid falling back to those mechanisms. To
+ *       verify the consumer actually inlines, use {@code -XX:+UnlockDiagnosticVMOptions
+ *       -XX:+PrintInlining}. A more thorough check can use {@code -XX:+UnlockDiagnosticVMOptions
+ *       -XX:+LogCompilation} to check the inlining reason and conditions more directly.
+ *   <li><b>Capturing &amp; allocation.</b> As a precaution in the event the JIT doesn't fully
+ *       inline, prefer a {@code static final} constant referencing a singular instance, or a
+ *       <i>non-capturing</i> lambda. A capturing lambda typically optimizes just as well as a
+ *       non-capturing one when it does inline — it can be devirtualized and inlined via the same
+ *       dataflow analysis, and its allocation can be scalar-replaced away by escape analysis.
+ *       Unfortunately, when inlining fails, escape analysis tends to fail with it, turning the
+ *       capturing lambda into a repeated allocation — whereas a non-capturing lambda is turned into
+ *       a singleton by HotSpot regardless of inlining. These optimizations aren't strictly
+ *       guaranteed by the JLS — singleton reuse of a non-capturing lambda is permitted, not
+ *       required (<a
+ *       href="https://docs.oracle.com/javase/specs/jls/se25/html/jls-15.html#jls-15.27.4">JLS
+ *       §15.27.4</a>); our primary aim is working well on Java 8+ HotSpot/Graal and their
+ *       derivatives — other JVMs typically perform similar optimizations, but are not the primary
+ *       target of these performance patterns. So as a precaution, prefer a non-capturing lambda
+ *       whenever possible.
  * </ul>
+ *
+ * <p>Both point at the same practical rule: make the consuming method inline. When it does, either
+ * constant shape wins on both axes. When it doesn't, a concrete-typed field or non-capturing lambda
+ * still avoids allocating, but devirtualization is gone either way.
  *
  * <p>This is a documentation-and-tooling marker; it changes no behavior. It exists to telegraph the
  * pattern to readers and to give a future checker something to verify. The discipline it names is
@@ -56,7 +70,8 @@ import java.lang.annotation.Target;
  * <p><b>The failure mode is silent.</b> Fed to a call site that also sees other implementations,
  * filled with a capturing lambda or a freshly constructed instance per call, or called from a site
  * that doesn't inline, it still compiles and runs correctly — it just stays megamorphic and/or
- * allocates, quietly losing the win. Verify the hot ones with {@code -XX:+PrintInlining}.
+ * allocates, quietly losing the win. Verify the hot ones with {@code -XX:+UnlockDiagnosticVMOptions
+ * -XX:+PrintInlining}.
  *
  * <p>Retention is {@link RetentionPolicy#CLASS}, not {@code SOURCE}: a checker that only has the
  * compiled classfiles of a module defining a {@code @Strategy} type (as opposed to its source)
@@ -71,9 +86,11 @@ import java.lang.annotation.Target;
  *
  * <ul>
  *   <li><b>Trigger (type target):</b> a {@code static final} field, in any class, declared with the
- *       {@code @Strategy}-annotated abstract/interface type itself, whose initializer names a
- *       concrete implementing class (e.g. {@code new MyStrategy()}) rather than the field being
- *       declared with that concrete class directly.
+ *       {@code @Strategy}-annotated abstract/interface type itself (including via {@code
+ *       @Inherited} from a supertype), whose initializer names a concrete implementing class (e.g.
+ *       {@code new MyStrategy()}) rather than the field being declared with that concrete class
+ *       directly. Scoped to {@code static final} fields in v1; instance fields are out of scope
+ *       until a real case needs them.
  *   <li><b>Trigger (parameter target):</b> the argument at a call site of a {@code @Strategy}
  *       parameter is neither a {@code static final} field reference nor a lambda expression /
  *       method reference — e.g. a freshly constructed instance built per call.
@@ -91,9 +108,14 @@ import java.lang.annotation.Target;
  *       Or, if staying on dynamic dispatch is a deliberate, reviewed exception:
  *       {@code @DynamicDispatch("<reason>") private final HashStrategy<E> hashStrat;}
  *   <li><b>Out of scope (v1):</b> whether the consuming method actually inlines (a JIT runtime
- *       decision, not a static property — verify with {@code -XX:+PrintInlining}), and whether a
- *       lambda is truly non-capturing beyond what the compiler already enforces. Flag only the
- *       constant shapes above; widen this contract only once a real case proves it insufficient.
+ *       decision, not a static property — verify with {@code -XX:+UnlockDiagnosticVMOptions
+ *       -XX:+PrintInlining}), and whether a lambda is truly non-capturing. Capture status is
+ *       visible on the classfile (a captured lambda's {@code invokedynamic} call site carries
+ *       constructor arguments), so this is checkable later, not inherently unknowable — just
+ *       deferred until a real case proves the honor-system insufficient. If added, this should be
+ *       a softer signal than the type-target trigger above: capturing costs nothing when the
+ *       consumer inlines and only degrades gracefully when it doesn't, unlike the type-target case,
+ *       which has no such escape. Flag only the constant shapes above for now.
  * </ul>
  */
 @Documented
@@ -104,10 +126,13 @@ public @interface Strategy {
 
   /**
    * Marks a field or parameter as a deliberate, reviewed exception to {@link Strategy}'s
-   * concrete-typed/lambda-constant discipline — held at an abstract/interface type on purpose, so
-   * calls through it stay on dynamic dispatch, not by oversight. {@code CLASS}-retained for the
-   * same reason {@link Strategy} itself is: a future classfile-level checker must be able to see
-   * the exemption without access to source, which a comment could never provide.
+   * concrete-typed-field convention — held at an abstract/interface type on purpose, not by
+   * oversight. HotSpot may still devirtualize calls through it via dynamic reasoning (profile-guided
+   * speculation, or class-hierarchy analysis for an abstract type with a sole loaded implementor),
+   * but calls through it have no static-reasoning devirtualization guarantee the way a
+   * concrete-typed field does. {@code CLASS}-retained for the same reason {@link Strategy} itself
+   * is: a future classfile-level checker must be able to see the exemption without access to
+   * source, which a comment could never provide.
    */
   @Documented
   @Retention(RetentionPolicy.CLASS)

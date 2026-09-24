@@ -229,6 +229,45 @@ public class CaseInsensitiveMapBenchmark {
   static final FlatHashtable.CreateStrategy<CIEntry, String> CI_CREATE =
       key -> new CIEntry(key, CaseInsensitiveKeyStrategy.INSTANCE.hashKey(key), 0);
 
+  // Unused decoys, loaded only so CaseInsensitiveStringStrategy<CIEntry> has a second concrete
+  // subtype by the time lookup_flatHashtable warms up -- otherwise CaseInsensitiveKeyStrategy is
+  // the *only* implementor ever loaded, and C2 devirtualizes matches()/hashOf() off a CHA
+  // dependency (abstract_with_unique_concrete_subtype) rather than the exact-type propagation the
+  // benchmark is meant to be exercising. Mirrors the CHA_DEFEAT pattern in
+  // SingleThreadedMapBenchmark. Each decoy overrides a different method so both call sites lose
+  // their CHA guarantee.
+  static final class DecoyMatchStrategy extends FlatHashtable.CaseInsensitiveStringStrategy<CIEntry> {
+    static final DecoyMatchStrategy INSTANCE = new DecoyMatchStrategy();
+
+    @Override
+    public boolean matches(CIEntry entry, String key) {
+      return false;
+    }
+
+    @Override
+    public long hashOf(CIEntry entry) {
+      return entry.hash;
+    }
+  }
+
+  static final class DecoyHashStrategy extends FlatHashtable.CaseInsensitiveStringStrategy<CIEntry> {
+    static final DecoyHashStrategy INSTANCE = new DecoyHashStrategy();
+
+    @Override
+    public boolean matches(CIEntry entry, String key) {
+      return key.equalsIgnoreCase(entry.key);
+    }
+
+    @Override
+    public long hashOf(CIEntry entry) {
+      return 0L;
+    }
+  }
+
+  static final Object[] CHA_DEFEAT = {
+    CaseInsensitiveKeyStrategy.INSTANCE, DecoyMatchStrategy.INSTANCE, DecoyHashStrategy.INSTANCE
+  };
+
   static CIEntry[] _create_flat(float loadFactor) {
     // 16 distinct case-insensitive keys (foo-0..quux-3).
     CIEntry[] table =
