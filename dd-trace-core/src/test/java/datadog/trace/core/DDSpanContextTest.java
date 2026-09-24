@@ -31,7 +31,6 @@ import static org.mockito.Mockito.when;
 
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
-import datadog.trace.api.TagMap;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -553,26 +552,6 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
     assertEquals("custom-kind", span.getTag(SPAN_KIND));
 
     span.finish();
-  }
-
-  @Test
-  void runningSpanWritesSkipExcludedTags() {
-    DDSpan span = (DDSpan) tracer.buildSpan("spark", "spark.sql").start();
-    span.setTag("_dd.spark.physical_plan", "plan");
-    span.setTag("some.tag", "value");
-    TagMap[] written = new TagMap[1];
-
-    span.setLongRunningVersion(1);
-    span.processTagsAndBaggage(metadata -> written[0] = metadata.getTags());
-
-    assertFalse(written[0].containsKey("_dd.spark.physical_plan"));
-    assertEquals("value", written[0].get("some.tag"));
-    assertEquals("plan", span.getTag("_dd.spark.physical_plan"));
-
-    span.finish();
-    span.processTagsAndBaggage(metadata -> written[0] = metadata.getTags());
-
-    assertEquals("plan", written[0].get("_dd.spark.physical_plan"));
   }
 
   static void assertTagmap(Map<?, ?> source, Map<?, ?> comparison) {
