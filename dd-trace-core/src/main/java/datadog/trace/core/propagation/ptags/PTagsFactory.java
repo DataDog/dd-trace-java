@@ -218,16 +218,8 @@ public class PTagsFactory implements PropagationTags.Factory {
       synchronized (samplingStateLock) {
         if (samplingPriority != PrioritySampling.UNSET && canChangeDecisionMaker
             || samplingMechanism == SamplingMechanism.EXTERNAL_OVERRIDE) {
-          OtelTraceState nextOtelTraceState = getOtelTraceState();
-          if (nextOtelTraceState != null) {
-            if (samplingMechanism == SamplingMechanism.EXTERNAL_OVERRIDE
-                && !nextOtelTraceState.isConsistentWith(samplingPriority > 0)) {
-              nextOtelTraceState = nextOtelTraceState.withoutThreshold();
-            } else if (samplingMechanism != SamplingMechanism.UNKNOWN
-                && samplingMechanism != SamplingMechanism.EXTERNAL_OVERRIDE) {
-              nextOtelTraceState = nextOtelTraceState.forNonProbabilityDecision();
-            }
-          }
+          OtelTraceState nextOtelTraceState =
+              reconcileOtelTraceState(getOtelTraceState(), samplingPriority, samplingMechanism);
           installSamplingState(samplingPriority, samplingMechanism, nextOtelTraceState);
         }
       }
@@ -244,16 +236,8 @@ public class PTagsFactory implements PropagationTags.Factory {
         if (!allowOverride && current.getSamplingPriority() != PrioritySampling.UNSET) {
           return false;
         }
-        OtelTraceState nextOtelTraceState = getOtelTraceState();
-        if (nextOtelTraceState != null) {
-          if ((samplingMechanism == SamplingMechanism.EXTERNAL_OVERRIDE
-                  || samplingMechanism == SamplingMechanism.UNKNOWN)
-              && !nextOtelTraceState.isConsistentWith(samplingPriority > 0)) {
-            nextOtelTraceState = nextOtelTraceState.withoutThreshold();
-          } else if (samplingMechanism != SamplingMechanism.UNKNOWN) {
-            nextOtelTraceState = nextOtelTraceState.forNonProbabilityDecision();
-          }
-        }
+        OtelTraceState nextOtelTraceState =
+            reconcileOtelTraceState(getOtelTraceState(), samplingPriority, samplingMechanism);
         installSamplingState(
             samplingPriority,
             samplingMechanism,
@@ -368,6 +352,21 @@ public class PTagsFactory implements PropagationTags.Factory {
         return EMPTY_SAMPLING_STATE;
       }
       return new SamplingState(samplingPriority, null, null, decisionMakerTagValue, null);
+    }
+
+    private static OtelTraceState reconcileOtelTraceState(
+        OtelTraceState otelTraceState, int samplingPriority, int samplingMechanism) {
+      if (otelTraceState == null) {
+        return null;
+      }
+      if (samplingMechanism != SamplingMechanism.EXTERNAL_OVERRIDE
+          && samplingMechanism != SamplingMechanism.UNKNOWN) {
+        return otelTraceState.forNonProbabilityDecision();
+      }
+      if (!otelTraceState.isConsistentWith(samplingPriority > 0)) {
+        return otelTraceState.withoutThreshold();
+      }
+      return otelTraceState;
     }
 
     @Override

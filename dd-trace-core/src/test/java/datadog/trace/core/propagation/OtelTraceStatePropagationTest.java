@@ -6,6 +6,7 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static datadog.trace.api.sampling.SamplingMechanism.AGENT_RATE;
 import static datadog.trace.api.sampling.SamplingMechanism.EXTERNAL_OVERRIDE;
 import static datadog.trace.api.sampling.SamplingMechanism.MANUAL;
+import static datadog.trace.api.sampling.SamplingMechanism.UNKNOWN;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.DATADOG;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -154,6 +155,17 @@ class OtelTraceStatePropagationTest {
     tags.updateTraceSamplingPriority(SAMPLER_KEEP, EXTERNAL_OVERRIDE);
 
     assertEquals("dd=s:1;t.dm:-0,ot=rv:00000000000001,vendor=state", tags.headerValue(W3C));
+  }
+
+  @Test
+  void unknownPriorityUpdateRemovesInconsistentThreshold() {
+    PropagationTags tags =
+        PropagationTags.factory()
+            .fromHeaderValue(W3C, "dd=s:0,ot=rv:00000000000001;th:8,vendor=state");
+
+    tags.updateTraceSamplingPriority(SAMPLER_KEEP, UNKNOWN);
+
+    assertEquals("dd=s:1,ot=rv:00000000000001,vendor=state", tags.headerValue(W3C));
   }
 
   @Test
