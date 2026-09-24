@@ -36,6 +36,9 @@ tags. Unrelated tasks and skipped tests perform no registry requests. Resolution
 failure stops the test instead of trusting stale results.
 
 Jib reads registry manifests without pulling layers or requiring a Docker daemon.
+Its dependencies are relocated inside the plugin JAR so older libraries exported
+by `buildSrc` cannot override its HTTP client. Tests load that JAR through an
+included build with an older HttpClient on the `buildSrc` classpath.
 Private registries use Docker's `config.json` and credential helpers, honoring
 `DOCKER_CONFIG`. Remote registries require TLS; loopback registries also permit
 local development certificates and HTTP.

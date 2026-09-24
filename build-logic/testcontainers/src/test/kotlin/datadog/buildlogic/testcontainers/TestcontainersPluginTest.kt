@@ -7,11 +7,13 @@ import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import java.io.File
 import java.net.InetSocketAddress
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.KeyStore
 import java.security.MessageDigest
+import java.util.Properties
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import javax.net.ssl.KeyManagerFactory
@@ -110,7 +112,7 @@ class TestcontainersPluginTest {
   }
 
   @Test
-  fun `bearer authentication resolves the registry manifest`() {
+  fun `bearer authentication resolves manifests with an older HttpClient in buildSrc`() {
     val server = registry()
     val tokenRequests = AtomicInteger()
     val authorizedRequests = AtomicInteger()
@@ -140,7 +142,40 @@ class TestcontainersPluginTest {
     server.start()
     try {
       fixture("127.0.0.1:${server.address.port}/library/cassandra:4")
-      assertThat(run("test").task(":test")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+      // Reproduce the parent classloader supplied by Aether in the real buildSrc.
+      val httpClasspath =
+        System.getProperty("test.buildSrc.classpath").split(File.pathSeparator).joinToString(", ") { "'$it'" }
+      Files.createDirectories(directory.resolve("buildSrc/src/main/java"))
+      directory.resolve("buildSrc/src/main/java/BuildLogic.java").toFile().writeText("public class BuildLogic {}\n")
+      directory.resolve("buildSrc/build.gradle").toFile().writeText(
+        """
+        plugins { id 'java' }
+        dependencies { implementation files($httpClasspath) }
+        """.trimIndent(),
+      )
+      // Load as an included build instead of using TestKit's injected plugin classpath.
+      val metadata = Properties()
+      javaClass.classLoader.getResourceAsStream("plugin-under-test-metadata.properties")!!.use { metadata.load(it) }
+      val pluginClasspath = metadata.getProperty("implementation-classpath").split(File.pathSeparator).joinToString(", ") { "'$it'" }
+      Files.createDirectories(directory.resolve("plugin"))
+      directory.resolve("plugin/settings.gradle").toFile().writeText("rootProject.name = 'fixture-plugin'\n")
+      directory.resolve("plugin/build.gradle").toFile().writeText(
+        """
+        plugins { id 'java-gradle-plugin' }
+        dependencies { implementation files($pluginClasspath) }
+        gradlePlugin {
+          plugins {
+            testcontainers {
+              id = 'dd-trace-java.testcontainers'
+              implementationClass = 'datadog.buildlogic.testcontainers.TestcontainersPlugin'
+            }
+          }
+        }
+        """.trimIndent(),
+      )
+      val settings = directory.resolve("settings.gradle").toFile()
+      settings.writeText("pluginManagement { includeBuild('plugin') }\n" + settings.readText())
+      assertThat(runner("test", injectPluginClasspath = false).build().task(":test")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
       assertThat(tokenRequests.get()).isPositive()
       assertThat(authorizedRequests.get()).isPositive()
       assertThat(report()).contains(digest(manifest("3")))
@@ -241,19 +276,21 @@ class TestcontainersPluginTest {
     )
   }
 
-  private fun runner(vararg arguments: String) =
-    GradleRunner
-      .create()
-      .withProjectDir(directory.toFile())
-      .withPluginClasspath()
-      .withArguments(
-        *arguments,
-        "--build-cache",
-        "--configuration-cache",
-        "--stacktrace",
-        "--max-workers=2",
-        "-Dorg.gradle.jvmargs=-Xmx512m",
-      )
+  private fun runner(
+    vararg arguments: String,
+    injectPluginClasspath: Boolean = true,
+  ) = GradleRunner
+    .create()
+    .withProjectDir(directory.toFile())
+    .apply { if (injectPluginClasspath) withPluginClasspath() }
+    .withArguments(
+      *arguments,
+      "--build-cache",
+      "--configuration-cache",
+      "--stacktrace",
+      "--max-workers=2",
+      "-Dorg.gradle.jvmargs=-Xmx512m",
+    )
 
   private fun run(vararg arguments: String) = runner(*arguments).build()
 

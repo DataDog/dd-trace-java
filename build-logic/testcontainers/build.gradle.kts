@@ -2,6 +2,7 @@ plugins {
   `java-gradle-plugin`
   `kotlin-dsl`
   `jvm-test-suite`
+  alias(libs.plugins.shadow)
 }
 
 java {
@@ -15,8 +16,37 @@ kotlin {
   }
 }
 
+val jib by configurations.creating
+val conflictingBuildSrc by configurations.creating
+configurations.compileOnly { extendsFrom(jib) }
+
 dependencies {
-  implementation("com.google.cloud.tools:jib-core:0.28.2")
+  jib("com.google.cloud.tools:jib-core:0.28.2")
+  conflictingBuildSrc("org.apache.httpcomponents:httpclient:4.3.5")
+}
+
+// buildSrc exports an older HttpClient through the parent classloader. Keep Jib's
+// dependencies private, including when this plugin is consumed as an included build.
+tasks.shadowJar {
+  configurations = listOf(jib)
+  enableAutoRelocation = true
+  relocationPrefix = "datadog.buildlogic.testcontainers.internal"
+  mergeServiceFiles()
+}
+configurations.apiElements {
+  outgoing.artifacts.clear()
+  outgoing.artifact(tasks.shadowJar)
+}
+configurations.runtimeElements {
+  outgoing.artifacts.clear()
+  outgoing.artifact(tasks.shadowJar)
+}
+tasks.pluginUnderTestMetadata {
+  pluginClasspath.setFrom(tasks.shadowJar)
+}
+tasks.test {
+  inputs.files(conflictingBuildSrc)
+  systemProperty("test.buildSrc.classpath", conflictingBuildSrc.asPath)
 }
 
 gradlePlugin {
