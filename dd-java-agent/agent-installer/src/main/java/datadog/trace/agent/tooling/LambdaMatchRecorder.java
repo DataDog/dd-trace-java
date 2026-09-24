@@ -14,7 +14,7 @@ final class LambdaMatchRecorder {
 
   private final ElementMatcher<TypeDescription> typeMatcher;
   private final ElementMatcher<ClassLoader> classLoaderMatcher;
-  private final BitSet transformationIds = new BitSet();
+  private final int transformationId;
   private final List<ConditionalTransformation> conditionalTransformations = new ArrayList<>();
 
   LambdaMatchRecorder(
@@ -23,7 +23,7 @@ final class LambdaMatchRecorder {
       ElementMatcher<ClassLoader> classLoaderMatcher) {
     this.typeMatcher = typeMatcher;
     this.classLoaderMatcher = classLoaderMatcher;
-    transformationIds.set(transformationId);
+    this.transformationId = transformationId;
   }
 
   void addTransformation(
@@ -34,7 +34,7 @@ final class LambdaMatchRecorder {
 
   void record(TypeDescription type, ClassLoader classLoader, BitSet matches) {
     if (classLoaderMatcher.matches(classLoader) && typeMatcher.matches(type)) {
-      matches.or(transformationIds);
+      matches.set(transformationId);
       for (ConditionalTransformation transformation : conditionalTransformations) {
         try {
           if (transformation.matcher.matches(type)) {
