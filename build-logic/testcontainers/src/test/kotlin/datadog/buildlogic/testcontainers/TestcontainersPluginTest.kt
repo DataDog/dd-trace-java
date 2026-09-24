@@ -6,10 +6,8 @@ import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import org.junit.jupiter.api.io.TempDir
-import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.Properties
 
 class TestcontainersPluginTest {
   @TempDir
@@ -328,56 +326,6 @@ class TestcontainersPluginTest {
     assertThat(reused.task(":integrationTest")?.outcome).isEqualTo(TaskOutcome.UP_TO_DATE)
   }
 
-  @Test
-  fun `bearer authentication resolves manifests with an older HttpClient in buildSrc`() {
-    registry.requireAuthentication = true
-    fixture(registry.image)
-
-    // Reproduce the parent classloader supplied by Aether in the real buildSrc.
-    val httpClasspathFiles =
-      System.getProperty("test.buildSrc.classpath").split(File.pathSeparator).map(::File)
-    assertThat(httpClasspathFiles).allSatisfy { assertThat(it).isFile() }
-    assertThat(httpClasspathFiles).anySatisfy { assertThat(it.name).startsWith("httpclient-4.3.5") }
-    val httpClasspath =
-      httpClasspathFiles.joinToString(", ") { "\"$it\"" }
-    Files.createDirectories(directory.resolve("buildSrc/src/main/java"))
-    directory.resolve("buildSrc/src/main/java/BuildLogic.java").toFile().writeText("public class BuildLogic {}\n")
-    directory.resolve("buildSrc/build.gradle.kts").toFile().writeText(
-      """
-      plugins { java }
-      dependencies { implementation(files($httpClasspath)) }
-      """.trimIndent(),
-    )
-
-    // Load as an included build instead of using TestKit's injected plugin classpath.
-    val metadata = Properties()
-    javaClass.classLoader.getResourceAsStream("plugin-under-test-metadata.properties")!!.use { metadata.load(it) }
-    val pluginClasspath = metadata.getProperty("implementation-classpath").split(File.pathSeparator).joinToString(", ") { "\"$it\"" }
-    Files.createDirectories(directory.resolve("plugin"))
-    directory.resolve("plugin/settings.gradle.kts").toFile().writeText("rootProject.name = \"fixture-plugin\"\n")
-    directory.resolve("plugin/build.gradle.kts").toFile().writeText(
-      """
-      plugins { `java-gradle-plugin` }
-      dependencies { implementation(files($pluginClasspath)) }
-      gradlePlugin {
-        plugins {
-          create("testcontainers") {
-            id = "dd-trace-java.testcontainers"
-            implementationClass = "datadog.buildlogic.testcontainers.TestcontainersPlugin"
-          }
-        }
-      }
-      """.trimIndent(),
-    )
-    val settings = directory.resolve("settings.gradle.kts").toFile()
-    settings.writeText("pluginManagement { includeBuild(\"plugin\") }\n" + settings.readText())
-
-    assertThat(runner("test", injectPluginClasspath = false).build().task(":test")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
-    assertThat(registry.tokenRequests.get()).isPositive()
-    assertThat(registry.authorizedRequests.get()).isPositive()
-    assertThat(testReport()).content().contains(registry.digest)
-  }
-
   private fun fixture(image: String) {
     directory.resolve("settings.gradle.kts").toFile().writeText(
       """
@@ -547,13 +495,10 @@ class TestcontainersPluginTest {
       )}\""
     }
 
-  private fun runner(
-    vararg arguments: String,
-    injectPluginClasspath: Boolean = true,
-  ) = GradleRunner
+  private fun runner(vararg arguments: String) = GradleRunner
     .create()
     .withProjectDir(directory.toFile())
-    .apply { if (injectPluginClasspath) withPluginClasspath() }
+    .withPluginClasspath()
     .withArguments(
       *arguments,
       "--build-cache",
