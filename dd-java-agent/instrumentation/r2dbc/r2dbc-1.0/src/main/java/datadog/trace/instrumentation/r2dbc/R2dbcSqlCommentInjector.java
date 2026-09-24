@@ -4,7 +4,7 @@ import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.DECORATE;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter;
-import io.r2dbc.proxy.core.ConnectionInfo;
+import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.ConnectionFactoryOptions;
 
 /**
@@ -14,13 +14,12 @@ import io.r2dbc.spi.ConnectionFactoryOptions;
  * <p>This is the R2DBC equivalent of JDBC's {@code SQLCommenter}. It is intentionally simpler
  * because R2DBC does not have the same edge cases (callable statements, pg_hint_plan) as JDBC.
  *
- * <p>Unlike JDBC, R2DBC has no interception point between statement creation and actual execution
- * against the driver — by the time a query span exists (see {@link
- * TraceProxyExecutionListener#beforeQuery}), the SQL has already been sent. Injection here
- * therefore only ever embeds static, per-connection metadata (service, db type, host, db name),
- * never a per-execution traceparent — the same split JDBC uses for its {@code
- * Connection#prepareStatement} advice, which also injects with {@code traceParent=null} and defers
- * dynamic trace context to execute-time.
+ * <p>Injection happens on the real driver's {@code Connection#createStatement(String)} (see {@link
+ * R2dbcConnectionInstrumentation}), mirroring JDBC's {@code Connection#prepareStatement} advice. It
+ * only ever embeds static, per-connection metadata (service, db type, host, db name), never a
+ * per-execution traceparent — R2DBC has no interception point between statement creation and
+ * execution where the query span already exists, so (like JDBC's prepare-time injection) it defers
+ * dynamic trace context.
  */
 public final class R2dbcSqlCommentInjector {
 
@@ -30,16 +29,15 @@ public final class R2dbcSqlCommentInjector {
   private R2dbcSqlCommentInjector() {}
 
   /**
-   * Resolves connection metadata for {@code connectionInfo} (via {@link
-   * R2dbcTracingSupport#CONNECTION_OPTIONS}) and injects a DBM SQL comment into {@code sql} if DBM
-   * propagation is enabled. Shared by both {@link R2dbcConnectionCallbackInstrumentation} ({@code
-   * createStatement}) and {@link R2dbcBatchCallbackInstrumentation} ({@code Batch#add}) so the two
-   * statement-creation paths stay in sync.
+   * Resolves connection metadata for {@code connection} (via {@link R2dbcConnectionMetadataStore})
+   * and injects a DBM SQL comment into {@code sql} if DBM propagation is enabled. Called from
+   * {@link R2dbcConnectionInstrumentation}'s advice on the real driver's {@code
+   * Connection#createStatement(String)}.
    *
    * @return the SQL with injected comment, or the original SQL if DBM is disabled or metadata is
    *     unavailable
    */
-  public static String injectForConnection(String sql, ConnectionInfo connectionInfo) {
+  public static String injectForConnection(String sql, Connection connection) {
     String dbmMode = Config.get().getDbmPropagationMode();
     boolean injectComment =
         Config.DBM_PROPAGATION_MODE_FULL.equals(dbmMode)
@@ -49,7 +47,7 @@ public final class R2dbcSqlCommentInjector {
       return sql;
     }
 
-    ConnectionFactoryOptions options = R2dbcTracingSupport.CONNECTION_OPTIONS.get(connectionInfo);
+    ConnectionFactoryOptions options = R2dbcConnectionMetadataStore.get(connection);
     if (options == null) {
       return sql;
     }

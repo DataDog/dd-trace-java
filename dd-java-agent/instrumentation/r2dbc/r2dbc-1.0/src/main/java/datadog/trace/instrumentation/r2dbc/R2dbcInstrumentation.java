@@ -58,16 +58,19 @@ public class R2dbcInstrumentation extends InstrumenterModule.Tracing
       // graph (computed from javap output, not just grouped by package/alphabetized —
       // alphabetizing within a package breaks e.g. ValueStore-before-DefaultValueStore).
       //
-      // ConnectionCallbackHandler and BatchCallbackHandler are intentionally NOT in this list
-      // even though they are part of the same r2dbc-proxy class graph: they are the
-      // instrumentedType()s of R2dbcConnectionCallbackInstrumentation and
-      // R2dbcBatchCallbackInstrumentation. A helper-injected class is loaded untransformed, so
-      // listing an instrumented type as a helper (in ANY module) prevents its advice from
-      // being applied.
+      // ConnectionCallbackHandler and BatchCallbackHandler are r2dbc-proxy's own callback
+      // handlers, instantiated at runtime by JdkProxyFactory.wrapConnection / wrapBatch; they
+      // MUST be injected here or the proxy hits NoClassDefFoundError on apps that don't ship
+      // r2dbc-proxy. DBM SQL-comment injection is done by instrumenting the real driver's
+      // io.r2dbc.spi.Connection#createStatement (R2dbcConnectionInstrumentation), NOT these
+      // bundled classes, so nothing here is an instrumentedType and there is no
+      // inject-vs-transform conflict.
       "io.r2dbc.proxy.callback.AfterQueryCallbackInvoker",
       "io.r2dbc.proxy.callback.CallbackHandler",
       "io.r2dbc.proxy.callback.CallbackHandlerSupport",
+      "io.r2dbc.proxy.callback.BatchCallbackHandler",
       "io.r2dbc.proxy.callback.CallbackHandlerSupport$MethodInvocationStrategy",
+      "io.r2dbc.proxy.callback.ConnectionCallbackHandler",
       "io.r2dbc.proxy.callback.ConnectionFactoryCallbackHandler",
       "io.r2dbc.proxy.callback.MethodInvocationSubscriber",
       "io.r2dbc.proxy.callback.ConnectionFactoryCreateMethodInvocationSubscriber",
@@ -138,6 +141,7 @@ public class R2dbcInstrumentation extends InstrumenterModule.Tracing
       "io.r2dbc.proxy.support.MethodExecutionInfoFormatter",
       "io.r2dbc.proxy.support.QueryExecutionInfoFormatter",
       "io.r2dbc.proxy.util.Assert",
+      packageName + ".R2dbcConnectionMetadataStore",
       packageName + ".R2dbcDecorator",
       packageName + ".R2dbcSqlCommentInjector",
       packageName + ".R2dbcTracingSupport",

@@ -4,8 +4,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.DECORATE;
 import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.R2DBC_QUERY;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import io.r2dbc.proxy.core.QueryExecutionInfo;
 import io.r2dbc.proxy.core.QueryInfo;
@@ -19,9 +19,11 @@ import java.util.List;
  * handle cancellation — the {@code afterQuery} callback fires in all cases.
  *
  * <p>When Database Monitoring (DBM) is enabled via {@code dd.dbm.propagation.mode}, this listener
- * reflects whether a {@code _dd.dbm_trace_injected} comment is actually present on the executed
- * query. SQL comment injection itself happens earlier, at statement/batch creation time (see {@link
- * R2dbcConnectionCallbackInstrumentation} and {@link R2dbcBatchCallbackInstrumentation}).
+ * sets the {@code _dd.dbm_trace_injected} tag. The SQL comment itself is injected on the real
+ * driver's {@code Connection#createStatement} (see {@link R2dbcConnectionInstrumentation}); that
+ * runs downstream of the proxy, so the query text this listener observes does not carry the comment
+ * — the tag is therefore driven by the same DBM-mode gate the injector uses, not by inspecting the
+ * observed SQL.
  */
 public final class TraceProxyExecutionListener implements ProxyExecutionListener {
 
@@ -34,6 +36,13 @@ public final class TraceProxyExecutionListener implements ProxyExecutionListener
     this.options = options;
   }
 
+  private static boolean dbmInjectionEnabled() {
+    String dbmMode = Config.get().getDbmPropagationMode();
+    return Config.DBM_PROPAGATION_MODE_FULL.equals(dbmMode)
+        || Config.DBM_PROPAGATION_MODE_STATIC.equals(dbmMode)
+        || Config.DBM_PROPAGATION_MODE_DYNAMIC_SERVICE.equals(dbmMode);
+  }
+
   @Override
   public void beforeQuery(QueryExecutionInfo execInfo) {
     AgentSpan span = startSpan("r2dbc", R2DBC_QUERY);
@@ -43,23 +52,20 @@ public final class TraceProxyExecutionListener implements ProxyExecutionListener
     DECORATE.applyDatabaseType(span, dbType);
     DECORATE.onConnection(span, options);
 
+    // Mirror the injector's gate: R2dbcConnectionInstrumentation injects the DBM comment on the
+    // real driver's createStatement whenever DBM propagation is enabled, so the tag reflects that
+    // same condition. (The proxy observes the pre-injection SQL, so we cannot detect the comment
+    // here — this is the same approach JDBC uses, driving the tag off DBM state.)
+    if (dbmInjectionEnabled()) {
+      span.setTag(DBM_TRACE_INJECTED, true);
+    }
+
     String queryString = extractQuery(execInfo);
     if (queryString != null) {
-      // Reflect whether a DBM comment was actually injected for THIS query, rather than
-      // asserting it unconditionally. Injection happens earlier, at statement/batch creation
-      // time (see R2dbcConnectionCallbackInstrumentation / R2dbcBatchCallbackInstrumentation) —
-      // by the time this span exists the query text already carries the comment if injection
-      // succeeded, so inspecting it here is the only reliable per-query signal.
-      if (SharedDBCommenter.containsTraceComment(queryString)) {
-        span.setTag(DBM_TRACE_INJECTED, true);
-      }
-
       // Route through DBQueryInfo/SQLNormalizer (same as JDBC/Vert.x) instead of using the raw
-      // query string as the resource name — this strips literals/numbers for grouping and
-      // avoids leaking parameter values into the resource name. Strip any DBM comment first so
-      // it doesn't end up in the resource name (JDBC captures the pre-injection SQL instead;
-      // R2DBC's listener only sees the already-injected wire SQL, so we remove it here).
-      DBQueryInfo queryInfo = DBQueryInfo.ofStatement(stripLeadingComment(queryString));
+      // query string as the resource name — this strips literals/numbers for grouping and avoids
+      // leaking parameter values into the resource name.
+      DBQueryInfo queryInfo = DBQueryInfo.ofStatement(queryString);
       span.setResourceName(queryInfo.getSql());
     }
 
@@ -78,26 +84,6 @@ public final class TraceProxyExecutionListener implements ProxyExecutionListener
     }
     DECORATE.beforeFinish(span);
     span.finish();
-  }
-
-  /**
-   * Strips a single leading block comment (and any whitespace after it) from {@code sql}. Used to
-   * remove the DBM comment this instrumentation injects at statement-creation time before deriving
-   * the span resource name, so the comment doesn't leak into it.
-   */
-  private static String stripLeadingComment(String sql) {
-    if (sql == null || !sql.startsWith("/*")) {
-      return sql;
-    }
-    int end = sql.indexOf("*/");
-    if (end < 0) {
-      return sql;
-    }
-    int i = end + 2;
-    while (i < sql.length() && Character.isWhitespace(sql.charAt(i))) {
-      i++;
-    }
-    return sql.substring(i);
   }
 
   private static String extractQuery(QueryExecutionInfo execInfo) {
