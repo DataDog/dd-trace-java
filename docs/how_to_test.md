@@ -1,5 +1,8 @@
 # How to Test
 
+For JUnit test authoring, see the [JUnit testing guide](how_to_test_with_junit.md).
+Prefer `@TableTest` for parameterized tests with multi-column literal data. When a simple `@TypeConverter` can turn table values into the required arguments, prefer it over switching to `@MethodSource`. Use `@MethodSource` for cases requiring complex object construction, builders, or mocks.
+
 ## The Different Types of Tests
 
 The project leverages different types of tests:

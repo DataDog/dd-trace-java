@@ -339,6 +339,7 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_MAX_CAP
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_MAX_EXCEPTION_PER_SECOND;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SOURCE_FILE_TRACKING_ENABLED;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYNCHRONOUS_SOURCE_FILE_TRACKING_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DISTRIBUTED_DEBUGGER_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT_MS;
@@ -694,6 +695,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_BYTES;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_ITEMS;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_TAG_KEYS;
+import static datadog.trace.api.config.TracerConfig.TRACE_BUILDER_TAGS_PRECEDENCE_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_HEADER;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_RESOLVER_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_MAX_DEPTH;
@@ -921,6 +923,7 @@ public class Config {
   private final boolean integrationSynapseLegacyOperationName;
   private final String writerType;
   private final boolean injectBaggageAsTagsEnabled;
+  private final boolean traceBuilderTagsPrecedenceEnabled;
   private final boolean injectLinksAsTagsEnabled;
   private final boolean agentConfiguredUsingDefault;
   private final String agentUrl;
@@ -1304,6 +1307,7 @@ public class Config {
   private final int debuggerCodeOriginMaxUserFrames;
   private final boolean distributedDebuggerEnabled;
   private final boolean debuggerSourceFileTrackingEnabled;
+  private final boolean debuggerSynchronousSourceFileTrackingEnabled;
 
   private final Set<String> debuggerThirdPartyIncludes;
   private final Set<String> debuggerThirdPartyExcludes;
@@ -1569,6 +1573,8 @@ public class Config {
     injectBaggageAsTagsEnabled =
         configProvider.getBoolean(WRITER_BAGGAGE_INJECT, isDatadogTraceWriter);
     injectLinksAsTagsEnabled = configProvider.getBoolean(WRITER_LINKS_INJECT, isDatadogTraceWriter);
+    traceBuilderTagsPrecedenceEnabled =
+        configProvider.getBoolean(TRACE_BUILDER_TAGS_PRECEDENCE_ENABLED, false);
     String lambdaInitType = getEnv("AWS_LAMBDA_INITIALIZATION_TYPE");
     String lambdaMicrovmImageArn = ConfigHelper.env("AWS_LAMBDA_MICROVM_IMAGE_ARN");
     if ((lambdaInitType != null && lambdaInitType.equals("snap-start"))
@@ -3120,6 +3126,8 @@ public class Config {
     debuggerSourceFileTrackingEnabled =
         configProvider.getBoolean(
             DEBUGGER_SOURCE_FILE_TRACKING_ENABLED, DEFAULT_DEBUGGER_SOURCE_FILE_TRACKING_ENABLED);
+    debuggerSynchronousSourceFileTrackingEnabled =
+        configProvider.getBoolean(DEBUGGER_SYNCHRONOUS_SOURCE_FILE_TRACKING_ENABLED, false);
 
     debuggerThirdPartyIncludes =
         tryMakeImmutableSet(
@@ -3649,6 +3657,10 @@ public class Config {
 
   public boolean isInjectBaggageAsTagsEnabled() {
     return injectBaggageAsTagsEnabled;
+  }
+
+  public boolean isTraceBuilderTagsPrecedenceEnabled() {
+    return traceBuilderTagsPrecedenceEnabled;
   }
 
   public boolean isInjectLinksAsTagsEnabled() {
@@ -5038,6 +5050,10 @@ public class Config {
 
   public boolean isDebuggerSourceFileTrackingEnabled() {
     return debuggerSourceFileTrackingEnabled;
+  }
+
+  public boolean isDebuggerSynchronousSourceFileTrackingEnabled() {
+    return debuggerSynchronousSourceFileTrackingEnabled;
   }
 
   public Set<String> getThirdPartyIncludes() {
@@ -7040,6 +7056,8 @@ public class Config {
         + traceFlushIntervalSeconds
         + ", injectBaggageAsTagsEnabled="
         + injectBaggageAsTagsEnabled
+        + ", traceBuilderTagsPrecedenceEnabled="
+        + traceBuilderTagsPrecedenceEnabled
         + ", injectLinksAsTagsEnabled="
         + injectLinksAsTagsEnabled
         + ", logsInjectionEnabled="

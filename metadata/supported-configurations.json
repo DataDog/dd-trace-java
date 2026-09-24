@@ -1436,6 +1436,14 @@
         "aliases": []
       }
     ],
+    "DD_INTERNAL_DYNAMIC_INSTRUMENTATION_SYNCHRONOUS_SOURCE_FILE_TRACKING_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE": [
       {
         "version": "A",
@@ -5138,6 +5146,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_BEANSHELL_ENABLED", "DD_INTEGRATION_BEANSHELL_ENABLED"]
+      }
+    ],
+    "DD_TRACE_BUILDER_TAGS_PRECEDENCE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
       }
     ],
     "DD_TRACE_CAFFEINE_ENABLED": [

@@ -43,6 +43,14 @@ class DumpHangedTestIntegrationTest : GradleFixture() {
   }
 
   @Test
+  fun `should start dumps three minutes before timeout by default`() {
+    val output = runGradleTest(testSleepMillis = 10_000, timeoutSeconds = 185, dumpOffset = null)
+
+    assertTrue(output.contains("Taking dumps after 5 seconds delay for :test"))
+    assertFalse(output.any { it.contains("has exceeded its configured timeout") })
+  }
+
+  @Test
   fun `should report directory failures with stack trace`() {
     writeFile("build/dumps", "This file prevents creating the dump directory")
 
@@ -55,7 +63,7 @@ class DumpHangedTestIntegrationTest : GradleFixture() {
 
   @Test
   @EnabledOnOs(OS.LINUX, OS.MAC)
-  fun `should attempt thread dumps after heap dump failure`() {
+  fun `should collect all thread dumps before attempting heap dumps`() {
     val jcmd = writeFile(
       "bin/jcmd",
       """
@@ -83,9 +91,17 @@ class DumpHangedTestIntegrationTest : GradleFixture() {
     assertTrue(dumps.any { it.name.contains("-thread-dump-") && it.readText().startsWith("Synthetic thread dump") })
     assertTrue(dumps.any { it.name.startsWith("all-thread-dumps-") && it.readText().contains("PID 0") })
     assertTrue(output.any { it.startsWith("Finished dump collection for :test;") })
+    val firstHeapDump = output.indexOfFirst { it.startsWith("Starting dump command") && it.contains("GC.heap_dump") }
+    val lastThreadDump = output.indexOfLast { it.startsWith("Completed dump command") && it.contains("Thread.print") }
+    assertTrue(lastThreadDump >= 0 && firstHeapDump > lastThreadDump)
   }
 
-  private fun runGradleTest(testSleepMillis: Long, env: Map<String, String> = emptyMap()): List<String> {
+  private fun runGradleTest(
+    testSleepMillis: Long,
+    env: Map<String, String> = emptyMap(),
+    timeoutSeconds: Long = 20,
+    dumpOffset: Long? = 5
+  ): List<String> {
     writeSettings("""rootProject.name = "test-project"""")
 
     writeRootProject(
@@ -111,13 +127,11 @@ class DumpHangedTestIntegrationTest : GradleFixture() {
       }
 
       dumpHangedTest {
-        // Set the dump offset for 5 seconds to trigger taking dumps after 15 seconds.
-        dumpOffset.set(5)
+        ${dumpOffset?.let { "dumpOffset.set($it)" } ?: ""}
       }
 
       tasks.withType<Test>().configureEach {
-        // Set test timeout after 20 seconds.
-        timeout.set(Duration.ofSeconds(20))
+        timeout.set(Duration.ofSeconds($timeoutSeconds))
 
         useJUnitPlatform()
       }
