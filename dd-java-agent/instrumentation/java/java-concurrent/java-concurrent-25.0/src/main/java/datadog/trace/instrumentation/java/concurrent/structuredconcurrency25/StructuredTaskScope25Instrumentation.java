@@ -2,17 +2,13 @@ package datadog.trace.instrumentation.java.concurrent.structuredconcurrency25;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.InstrumentationContext.get;
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.SubtaskRegistry.FACTORY;
-import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.SubtaskRegistry;
-import java.util.concurrent.Callable;
 import net.bytebuddy.asm.Advice.OnMethodExit;
-import net.bytebuddy.asm.Advice.Return;
 import net.bytebuddy.asm.Advice.This;
 
 /**
@@ -20,8 +16,9 @@ import net.bytebuddy.asm.Advice.This;
  * StructuredTaskScope25TaskInstrumentation} for subtasks whose thread never starts (e.g. a subtask
  * forked into an already-canceled scope).
  *
- * <p>Each forked subtask is registered in a per-scope {@link SubtaskRegistry} ({@code fork()}), and
- * the registry is swept when the scope closes ({@code close()}). Sweeping at close ensures started
+ * <p>Each forked subtask is registered in a per-scope {@link SubtaskRegistry} at creation (by
+ * {@link StructuredTaskScope25TaskInstrumentation}, so even if {@code fork()} throws), and the
+ * registry is swept when the scope closes ({@code close()}). Sweeping at close ensures started
  * subtask has, already consumed its continuation in {@code SubtaskImpl.run()}, while a
  * never-started subtask still holds it and gets it released.
  */
@@ -37,31 +34,7 @@ public class StructuredTaskScope25Instrumentation
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("fork").and(takesArgument(0, Callable.class)), getClass().getName() + "$ForkAdvice");
-    transformer.applyAdvice(
         named("close").and(takesArguments(0)), getClass().getName() + "$CloseAdvice");
-  }
-
-  public static final class ForkAdvice {
-    /**
-     * Registers the forked subtask in the scope's {@link SubtaskRegistry} to release the
-     * continuation at scope close if it was never started.
-     *
-     * @param scope The StructuredTaskScopeImpl object (the advice is compiled against Java 8 so the
-     *     type from JDK 25 can't be referred, using {@link Object} instead).
-     * @param subtask The StructuredTaskScopeImpl.SubtaskImpl object (the advice is compiled against
-     *     Java 8 so the type from JDK 25 can't be referred, using {@link Object} instead).
-     */
-    @OnMethodExit(suppress = Throwable.class)
-    public static void afterFork(@This Object scope, @Return Object subtask) {
-      if (subtask instanceof Runnable) {
-        ContextStore<Object, SubtaskRegistry> registryStore =
-            get(
-                "java.util.concurrent.StructuredTaskScopeImpl",
-                "datadog.trace.bootstrap.instrumentation.java.concurrent.SubtaskRegistry");
-        registryStore.getOrCreate(scope, FACTORY).add((Runnable) subtask);
-      }
-    }
   }
 
   public static final class CloseAdvice {
