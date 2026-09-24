@@ -43,7 +43,7 @@ public class JobInstrumentation extends AbstractTibcoInstrumentation
       DECORATE.onProcessStart(span, workflowName);
       Map<String, AgentSpan> map =
           InstrumentationContext.get(ProcessContext.class, Map.class)
-              .putIfAbsent(processContext, HashMap::new);
+              .getOrCreate(processContext, HashMap::new);
       map.put(wId, span);
     }
   }

@@ -5,9 +5,8 @@ plugins {
   id 'org.jetbrains.kotlin.jvm'
   id 'dd-trace-java.instrumentation.testing-framework-tests'
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.conventions.testing.kotlin'
 }
-
-apply from: "$rootDir/gradle/test-with-kotlin.gradle"
 
 muzzle {
   pass {
@@ -27,10 +26,6 @@ kotlin {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
-
-tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
-  classpath += files(tasks.named('compileLatestDepTestKotlin').map { it.destinationDirectory })
-}
 
 dependencies {
   compileOnly group: 'junit', name: 'junit', version: '4.10'

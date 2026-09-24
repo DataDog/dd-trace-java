@@ -12,6 +12,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.util.AttachmentKey;
+import java.net.InetSocketAddress;
 
 public class UndertowDecorator
     extends HttpServerDecorator<
@@ -28,12 +29,12 @@ public class UndertowDecorator
 
   @SuppressWarnings("unchecked")
   public static final AttachmentKey<ContextContinuation> DATADOG_UNDERTOW_CONTINUATION =
-      attachmentStore.putIfAbsent(
+      attachmentStore.getOrCreate(
           "DD_UNDERTOW_CONTINUATION", () -> AttachmentKey.create(ContextContinuation.class));
 
   @SuppressWarnings("unchecked")
   public static final AttachmentKey<Context> PARENT_CONTEXT_KEY =
-      attachmentStore.putIfAbsent(
+      attachmentStore.getOrCreate(
           "DD_UNDERTOW_PARENT_CONTEXT", () -> AttachmentKey.create(Context.class));
 
   public static final UndertowDecorator DECORATE = new UndertowDecorator();
@@ -84,7 +85,11 @@ public class UndertowDecorator
 
   @Override
   protected int peerPort(final HttpServerExchange exchange) {
-    return exchange.getDestinationAddress().getPort();
+    // getDestinationAddress() can be null in the same situations that make
+    // HttpServerExchangeURIDataAdapter#port() NPE internally (e.g. AJP, a Unix domain socket
+    // transport, or a wrapped/detached ServerConnection).
+    InetSocketAddress destination = exchange.getDestinationAddress();
+    return destination == null ? UNSET_PORT : destination.getPort();
   }
 
   @Override

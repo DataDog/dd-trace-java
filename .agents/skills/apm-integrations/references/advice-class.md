@@ -23,7 +23,7 @@
 Enter method:
 1. `AgentSpan span = startSpan(DECORATE.operationName(), ...)`
 2. `DECORATE.afterStart(span)` + set domain-specific tags
-3. `AgentScope scope = activateSpan(span)` — return or store via `@Advice.Local`
+3. `ContextScope scope = activateSpan(span)` — return or store via `@Advice.Local`
 
 Exit method:
 4. `DECORATE.onError(span, throwable)` — only if throwable is non-null
@@ -78,10 +78,10 @@ The `onThrowable = Throwable.class` attribute on `@Advice.OnMethodExit` controls
 // Standard pattern — exit fires whether the target method returned or threw
 @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
 public static void exit(
-    @Advice.Enter final AgentScope scope,
+    @Advice.Enter final ContextScope scope,
     @Advice.Thrown final Throwable thrown) {
   if (scope != null) {
-    AgentSpan span = scope.span();
+    AgentSpan span = spanFromScope(scope);
     DECORATE.onError(span, thrown);
     DECORATE.beforeFinish(span);
     scope.close();
@@ -222,7 +222,7 @@ if (span != null && routeMatch != null) {
 }
 ```
 
-For route-only enrichers: no `AgentScope`, no `startSpan()`, no `decorator.afterStart()`. This rule does NOT apply to standalone HTTP clients (which own their own span identity) or to handler-owning frameworks like JAX-RS / Ratpack (which legitimately create controller spans).
+For route-only enrichers: no `ContextScope`, no `startSpan()`, no `decorator.afterStart()`. This rule does NOT apply to standalone HTTP clients (which own their own span identity) or to handler-owning frameworks like JAX-RS / Ratpack (which legitimately create controller spans).
 
 ### Advice classes must not declare non-constant static fields
 

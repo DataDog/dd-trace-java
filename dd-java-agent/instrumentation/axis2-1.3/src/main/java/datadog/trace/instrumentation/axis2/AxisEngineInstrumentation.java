@@ -4,8 +4,8 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.axis2.AxisMessageDecorator.AXIS2_CONTINUATION_KEY;
 import static datadog.trace.instrumentation.axis2.AxisMessageDecorator.AXIS2_MESSAGE;
 import static datadog.trace.instrumentation.axis2.AxisMessageDecorator.DECORATE;
@@ -16,7 +16,6 @@ import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Tracer;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.apache.axis2.context.MessageContext;
@@ -51,7 +50,7 @@ public final class AxisEngineInstrumentation
 
   public static final class HandleMessageAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope beginProcessingMessage(
+    public static ContextScope beginProcessingMessage(
         @Advice.Argument(0) final MessageContext message) {
       // only create a span if the message has a clear action and there's a surrounding request
       if (DECORATE.shouldTrace(message)) {
@@ -65,13 +64,13 @@ public final class AxisEngineInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void finishProcessingMessage(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Argument(0) final MessageContext message,
         @Advice.Thrown final Throwable error) {
       if (null == scope) {
         return;
       }
-      AgentSpan span = scope.span();
+      AgentSpan span = spanFromScope(scope);
       if (null != error) {
         DECORATE.onError(span, error);
       }
@@ -83,7 +82,7 @@ public final class AxisEngineInstrumentation
 
   public static final class ResumeMessageAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope beginResumingMessage(
+    public static ContextScope beginResumingMessage(
         @Advice.Argument(0) final MessageContext message) {
       Object continuation = message.getSelfManagedData(Tracer.class, AXIS2_CONTINUATION_KEY);
       if (continuation instanceof ContextContinuation) {
@@ -101,13 +100,13 @@ public final class AxisEngineInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void finishResumingMessage(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Argument(0) final MessageContext message,
         @Advice.Thrown final Throwable error) {
       if (null == scope) {
         return;
       }
-      AgentSpan span = scope.span();
+      AgentSpan span = spanFromScope(scope);
       if (null != error) {
         DECORATE.onError(span, error);
       }
@@ -128,7 +127,8 @@ public final class AxisEngineInstrumentation
         if (null != span && DECORATE.sameTrace(span, message)) {
           // record continuation in the message so we can re-activate it on resume
           // we use the self-managed area of the message which is private/internal
-          message.setSelfManagedData(Tracer.class, AXIS2_CONTINUATION_KEY, captureSpan(span));
+          message.setSelfManagedData(
+              Tracer.class, AXIS2_CONTINUATION_KEY, span.captureWithContext());
         }
       }
     }

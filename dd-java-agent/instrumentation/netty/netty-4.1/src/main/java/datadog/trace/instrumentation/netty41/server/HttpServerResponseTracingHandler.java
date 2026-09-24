@@ -126,7 +126,6 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
       final Future<?> future) {
     if (!future.isSuccess()) {
       DECORATE.onError(span, future.cause());
-      span.setHttpStatusCode(500);
     }
     finishSpan(serverContext, storedContext, span);
   }
@@ -152,7 +151,7 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
   private static void removeServerContext(
       final ChannelHandlerContext ctx, final ServerRequestContext serverContext) {
     if (serverContext == null) {
-      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).remove();
+      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(null);
     } else {
       ServerRequestContext.remove(ctx.channel(), serverContext);
     }

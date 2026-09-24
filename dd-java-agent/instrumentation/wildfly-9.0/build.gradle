@@ -8,6 +8,9 @@ muzzle {
     group = 'org.wildfly'
     module = 'wildfly-ee'
     versions = '[9.0.0.Final,)'
+    // WildFly runtime dependencies not used by this instrumentation. Some versions are unavailable from Maven Central.
+    excludeDependency 'io.undertow:*'
+    excludeDependency 'org.jboss.remoting:*'
     excludeDependency 'org.jboss.xnio:*' // not related and causes issues with missing jar in maven repo
   }
 }
@@ -191,5 +194,4 @@ tasks.named("latestDepForkedTest", Test) {
     }
     )
 }
-
 

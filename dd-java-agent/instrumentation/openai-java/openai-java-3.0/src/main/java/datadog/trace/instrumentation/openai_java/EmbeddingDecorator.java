@@ -63,6 +63,8 @@ public class EmbeddingDecorator {
     span.setTag(CommonTags.OPENAI_RESPONSE_MODEL, modelName);
     span.setTag(CommonTags.MODEL_NAME, modelName);
 
+    response._usage().asKnown().ifPresent(usage -> withUsage(span, usage));
+
     if (!llmObsEnabled) {
       return;
     }
@@ -77,21 +79,14 @@ public class EmbeddingDecorator {
           CommonTags.OUTPUT,
           String.format("[%d embedding(s) returned with size %d]", embeddingCount, embeddingSize));
     }
+  }
 
-    response
-        ._usage()
+  private static void withUsage(AgentSpan span, CreateEmbeddingResponse.Usage usage) {
+    usage
+        ._promptTokens()
         .asKnown()
-        .ifPresent(
-            usage -> {
-              usage
-                  ._promptTokens()
-                  .asKnown()
-                  .ifPresent(v -> span.setTag(CommonTags.INPUT_TOKENS, v));
-              usage
-                  ._totalTokens()
-                  .asKnown()
-                  .ifPresent(v -> span.setTag(CommonTags.TOTAL_TOKENS, v));
-            });
+        .ifPresent(v -> TokenUsage.set(span, CommonTags.INPUT_TOKENS, v));
+    usage._totalTokens().asKnown().ifPresent(v -> TokenUsage.set(span, CommonTags.TOTAL_TOKENS, v));
   }
 
   private Optional<String> extractEmbeddingModelName(EmbeddingCreateParams params) {

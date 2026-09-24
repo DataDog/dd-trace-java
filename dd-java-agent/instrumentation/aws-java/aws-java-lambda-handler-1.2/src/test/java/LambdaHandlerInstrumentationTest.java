@@ -289,6 +289,34 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
   }
 
   @Test
+  void appSecIsSkippedAndReportedUnsupportedForNonHttpEvent() throws IOException {
+    String eventJson = "{\"Records\": [{\"eventSource\": \"aws:sqs\", \"body\": \"hello\"}]}";
+
+    ByteArrayInputStream input =
+        new ByteArrayInputStream(eventJson.getBytes(StandardCharsets.UTF_8));
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    new HandlerStreaming().handleRequest(input, output, newContext());
+
+    assertFalse(appSecStarted);
+    assertNull(capturedMethod);
+    assertNull(capturedPath);
+    assertTrue(capturedHeaders.isEmpty());
+    assertNull(capturedBody);
+    assertFalse(appSecEnded);
+    assertNull(capturedResponseStatus);
+    // Tag matching is exhaustive, so this also asserts the span carries no http.* tag
+    assertTraces(
+        trace(
+            span()
+                .type(DDSpanTypes.SERVERLESS)
+                .error(false)
+                .tags(
+                    defaultTags(),
+                    tag("request_id", is(REQUEST_ID)),
+                    tag("_dd.appsec.unsupported_event_type", is(1)))));
+  }
+
+  @Test
   void responseCallbacksAreInvokedForJsonEncodedResponse() throws IOException {
     String eventJson =
         "{"
@@ -338,10 +366,11 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
   }
 
   @Test
-  void responseCallbacksApplyFallbackForLambdaUrlWithNonApiGatewayResponse() throws IOException {
-    // A Lambda Function URL handler returning plain JSON (no statusCode/headers/body structure)
-    // should trigger the fallback: no responseStarted (status unknown), content-type:
-    // application/json, full JSON as body.
+  void responseCallbacksTreatLambdaUrlResponseWithoutStatusCodeAsImplicitSuccess()
+      throws IOException {
+    // A Lambda Function URL return value carrying no statusCode is not a response the gateway
+    // honours: it serialises the whole value as the body of a 200 with content-type
+    // application/json, which is what the callbacks must report.
     String eventJson =
         "{"
             + "\"version\": \"2.0\","
@@ -361,7 +390,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     ByteArrayOutputStream output = new ByteArrayOutputStream();
     new HandlerStreamingWithRawJson().handleRequest(input, output, newContext());
 
-    assertNull(capturedResponseStatus); // no responseStarted for status-less fallback
+    assertEquals(200, (int) capturedResponseStatus);
     assertEquals("application/json", capturedResponseHeaders.get("content-type"));
     assertTrue(capturedResponseBody instanceof Map);
     assertEquals("hello", ((Map<?, ?>) capturedResponseBody).get("result"));
@@ -382,7 +411,8 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     assertTrue(capturedResponseHeaders.isEmpty());
     assertNull(capturedResponseBody);
     assertFalse(responseHeaderDoneCalled);
-    assertTrue(appSecEnded);
+    // AppSec skipped the invocation entirely, so there is no request context to end
+    assertFalse(appSecEnded);
     assertTraces(trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
   }
 

@@ -31,7 +31,7 @@ dependencies {
   latestDepTestImplementation group: "com.alipay.sofa", name: "sofa-rpc-all", version: "+"
 
   constraints {
-    // Regression fix for Gradle 9.6.0 (should be fixed in 9.7.0)
+    // Regression fix for Gradle 9.6.0.
     //
     // The `sofa-rpc-all:5.14.2` brings `netty-all:4.1.44.Final`, which is a fat jar,
     // while `grpc-netty:1.53.0` brings individual `netty-*:4.1.79.Final` modules.
@@ -41,8 +41,8 @@ dependencies {
     // produces a `NoSuchMethodError` at runtime in netty's `AbstractReferenceCountedByteBuf`.
     //
     // The workaround is to force `netty-all` to `4.1.79` so the fat jar and the individual
-    // modules are aligned on the same version. This should be fixed in 9.7.0 and consequently
-    // removed from the constraints.
+    // modules are aligned on the same version. The fix is behind Gradle 9.7's
+    // ENHANCED_GRAPH_ORDERING preview, which currently exposes other fat-jar conflicts.
     // See https://github.com/gradle/gradle/issues/38057 for more details.
     testImplementation("io.netty:netty-all:4.1.79.Final") {
       because "sofa-rpc-all brings netty-all:4.1.44.Final (fat jar) while grpc-netty brings individual netty-*:4.1.79.Final modules; Gradle 9.6.0 classpath ordering regression causes 4.1.44 classes to shadow 4.1.79, producing NoSuchMethodError"
