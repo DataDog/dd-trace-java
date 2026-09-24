@@ -10,7 +10,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * Use this annotation for suites or test cases that are flaky. When running in CI, these will be
- * segregated to a separate job.
+ * split to a separate job. Apply this annotation instead of {@code @Tag("flaky")} directly.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE, ElementType.METHOD})

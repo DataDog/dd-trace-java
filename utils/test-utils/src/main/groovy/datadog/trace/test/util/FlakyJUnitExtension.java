@@ -30,10 +30,14 @@ public final class FlakyJUnitExtension implements ExecutionCondition {
   }
 
   static Flaky findFlaky(Class<?> testClass, Method method) {
-    for (Class<?> current = testClass; current != null; current = current.getSuperclass()) {
-      Flaky flaky = matchingAnnotation(current, testClass);
-      if (flaky != null) {
-        return flaky;
+    for (Class<?> enclosing = testClass;
+        enclosing != null;
+        enclosing = enclosing.getEnclosingClass()) {
+      for (Class<?> current = enclosing; current != null; current = current.getSuperclass()) {
+        Flaky flaky = matchingAnnotation(current, testClass);
+        if (flaky != null) {
+          return flaky;
+        }
       }
     }
     return method == null ? null : matchingAnnotation(method, testClass);
