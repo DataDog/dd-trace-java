@@ -55,7 +55,6 @@ public final class TaskScopeStateRegistry {
    * all started threads have terminated (at scope close).
    */
   public void cancelAll() {
-    // Iterating a synchronized set requires holding its lock
     synchronized (this.states) {
       for (State state : this.states) {
         state.closeContinuation();
