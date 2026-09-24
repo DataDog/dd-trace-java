@@ -1,5 +1,7 @@
 package datadog.trace.api.featureflag;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -90,6 +92,43 @@ class FeatureFlaggingGatewayTest {
 
     verify(exposureListener).accept(secondExposure);
     verifyNoMoreInteractions(exposureListener);
+  }
+
+  @Test
+  void testExposureAdmissionUsesRegisteredListeners() {
+    assertFalse(
+        FeatureFlaggingGateway.shouldCaptureExposure("flag", "subject", "variant", "allocation"));
+
+    final FeatureFlaggingGateway.ExposureListener rejectingListener =
+        new FeatureFlaggingGateway.ExposureListener() {
+          @Override
+          public boolean shouldCapture(
+              final String flag,
+              final String subject,
+              final String variant,
+              final String allocation) {
+            return false;
+          }
+
+          @Override
+          public void accept(final ExposureEvent event) {}
+        };
+    FeatureFlaggingGateway.addExposureListener(rejectingListener);
+    try {
+      assertFalse(
+          FeatureFlaggingGateway.shouldCaptureExposure("flag", "subject", "variant", "allocation"));
+    } finally {
+      FeatureFlaggingGateway.removeExposureListener(rejectingListener);
+    }
+
+    final FeatureFlaggingGateway.ExposureListener listener = event -> {};
+    FeatureFlaggingGateway.addExposureListener(listener);
+    try {
+      assertTrue(
+          FeatureFlaggingGateway.shouldCaptureExposure("flag", "subject", "variant", "allocation"));
+    } finally {
+      FeatureFlaggingGateway.removeExposureListener(listener);
+    }
   }
 
   @Test
