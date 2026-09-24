@@ -6,7 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.context.ContextScope;
+import datadog.context.Context;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -39,15 +39,15 @@ public final class PollerInstrumentation extends InstrumenterModule.ContextTrack
 
   public static final class StartAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope enter() {
-      // Disabling async propagation alone still leaves the raw context on virtual threads.
-      return rootContext().attach();
+    public static Context enter() {
+      // Swap clears the raw context even when the caller has reached the scope-depth limit.
+      return rootContext().swap();
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(@Advice.Enter ContextScope scope) {
-      if (scope != null) {
-        scope.close();
+    public static void exit(@Advice.Enter Context previous) {
+      if (previous != null) {
+        previous.swap();
       }
     }
   }
