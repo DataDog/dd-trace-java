@@ -90,7 +90,9 @@ tasks.named("check") {
 }
 
 tasks.named("latestDepJava11Test", Test) {
-  javaLauncher = getJavaLauncherFor(11)
+  if (!providers.gradleProperty('testJvm').isPresent()) {
+    javaLauncher = getJavaLauncherFor(11)
+  }
 }
 
 tasks.withType(GroovyCompile).configureEach {
