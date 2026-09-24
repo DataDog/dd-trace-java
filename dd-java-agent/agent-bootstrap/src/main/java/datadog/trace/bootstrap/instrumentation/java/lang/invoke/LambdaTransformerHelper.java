@@ -25,14 +25,14 @@ public final class LambdaTransformerHelper {
       if (interfaceClass == null) {
         return classBytes;
       }
+      if (targetClass == null) {
+        log.debug("Lambda {} skipped: no target class", lambdaClassName);
+        return classBytes;
+      }
       String interfaceName = interfaceClass.getName();
       LambdaTransformer transformer = LambdaTransformerHolder.get();
       if (transformer == null) {
         log.debug("Lambda {} skipped: no transformer registered", lambdaClassName);
-        return classBytes;
-      }
-      if (targetClass == null) {
-        log.debug("Lambda {} skipped: no target class", lambdaClassName);
         return classBytes;
       }
       // Transformation may itself link arbitrary lambdas. Re-entry would overwrite the outer
