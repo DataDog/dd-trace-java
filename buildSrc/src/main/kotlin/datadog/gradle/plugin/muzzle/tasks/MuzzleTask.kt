@@ -18,7 +18,7 @@ import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
-import org.gradle.api.tasks.Nested
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
@@ -74,8 +74,7 @@ abstract class MuzzleTask @Inject constructor(
   @get:Optional
   val muzzleDirective: Property<MuzzleDirective> = objects.property()
 
-  @get:Nested
-  @get:Optional
+  @get:Internal
   val javaLauncher: Property<JavaLauncher> = objects.property<JavaLauncher>().convention(
     muzzleDirective.map { it.javaVersion }.flatMap { version ->
       javaToolchainService.launcherFor {
@@ -84,26 +83,30 @@ abstract class MuzzleTask @Inject constructor(
     }
   ).apply { finalizeValueOnRead() }
 
-  // Gradle's nested launcher input does not include the vendor or full JVM versions.
   @get:Input
-  val jvmIdentity = javaLauncher.map { launcher ->
-    with(launcher.metadata) {
+  @get:Optional
+  val coreJdkIdentity = providers.provider {
+    if (muzzleDirective.orNull?.isCoreJdk != true) {
+      return@provider null
+    }
+    val metadata = javaLauncher.orNull?.metadata
+    if (metadata != null) {
       mapOf(
-        "languageVersion" to languageVersion.asInt().toString(),
-        "vendor" to vendor,
-        "runtimeVersion" to javaRuntimeVersion,
-        "vmVersion" to jvmVersion,
+        "languageVersion" to metadata.languageVersion.asInt().toString(),
+        "vendor" to metadata.vendor,
+        "runtimeVersion" to metadata.javaRuntimeVersion,
+        "vmVersion" to metadata.jvmVersion,
+      )
+    } else {
+      // coreJdk() without a version executes in the Gradle daemon.
+      mapOf(
+        "languageVersion" to System.getProperty("java.specification.version"),
+        "vendor" to System.getProperty("java.vendor"),
+        "runtimeVersion" to System.getProperty("java.runtime.version"),
+        "vmVersion" to System.getProperty("java.vm.version"),
       )
     }
-  }.orElse(providers.provider {
-    // Workers without process isolation execute in the Gradle daemon.
-    mapOf(
-      "languageVersion" to System.getProperty("java.specification.version"),
-      "vendor" to System.getProperty("java.vendor"),
-      "runtimeVersion" to System.getProperty("java.runtime.version"),
-      "vmVersion" to System.getProperty("java.vm.version"),
-    )
-  })
+  }
 
   @get:OutputFile
   val result: RegularFileProperty = objects.fileProperty().convention(
@@ -147,7 +150,6 @@ abstract class MuzzleTask @Inject constructor(
         }
       }
     } else {
-      // The daemon JVM is included in jvmIdentity for these checks.
       workerExecutor.noIsolation()
     }
     workQueue.submit(MuzzleAction::class.java) {

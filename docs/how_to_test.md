@@ -18,7 +18,7 @@ The project leverages different types of tests:
 
 3. The third type of tests is **Muzzle checks**.  
    Their goal is to check the [Muzzle directives](./how_instrumentations_work.md#muzzle), making sure instrumentations are safe to load against specific library versions.
-   Each check fingerprints its validation JVM's vendor and full runtime/VM versions: the selected toolchain when `javaVersion` is specified, otherwise the Gradle daemon JVM.
+   `coreJdk(version)` checks fingerprint the selected JDK's major version, vendor and full runtime/VM versions; `coreJdk()` tracks the Gradle daemon JVM instead.
    Changing these values invalidates cached results even within the same Java major version.
 
 4. The fourth type of tests is **integration tests**.  
