@@ -5,7 +5,6 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.trace.api.Config;
 import datadog.trace.api.intake.Intake;
-import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import javax.annotation.Nullable;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -55,55 +54,16 @@ public class BackendApiFactory {
   /** Creates an authenticated API client that sends data directly to a Datadog intake. */
   public BackendApi createDirectIntakeApi(
       Intake intake, boolean responseCompression, boolean followRedirects) {
-    HttpUrl agentlessUrl = buildDirectIntakeUrl(intake, config);
-    String apiKey = config.getApiKey();
-    if (apiKey == null || apiKey.isEmpty()) {
-      throw new FatalAgentMisconfigurationError(
-          "Agentless mode is enabled and API key is not set. Please set DD_API_KEY");
-    }
-    String traceId = config.getIdGenerationStrategy().generateTraceId().toString();
-    return new IntakeApi(
-        agentlessUrl,
-        apiKey,
-        traceId,
-        retryPolicyFactory(),
-        directIntakeHttpClient(sharedCommunicationObjects.getIntakeHttpClient(), followRedirects),
-        responseCompression);
+    return new DirectIntakeApiFactory(config, sharedCommunicationObjects.getIntakeHttpClient())
+        .create(intake, responseCompression, followRedirects);
   }
 
-  static OkHttpClient directIntakeHttpClient(
-      final OkHttpClient intakeHttpClient, final boolean followRedirects) {
-    if (followRedirects) {
-      return intakeHttpClient;
-    }
-    return intakeHttpClient.newBuilder().followRedirects(false).build();
-  }
-
-  private static HttpUrl buildDirectIntakeUrl(Intake intake, Config config) {
-    if (intake != Intake.EVENT_PLATFORM) {
-      return HttpUrl.get(intake.getAgentlessUrl(config));
-    }
-    return buildEventPlatformIntakeUrl(config.getSite());
+  static OkHttpClient directIntakeHttpClient(OkHttpClient client, boolean followRedirects) {
+    return DirectIntakeApiFactory.directIntakeHttpClient(client, followRedirects);
   }
 
   static HttpUrl buildEventPlatformIntakeUrl(String site) {
-    if (site == null || site.isEmpty()) {
-      throw new IllegalArgumentException("Invalid Datadog site");
-    }
-
-    String expectedHost = Intake.EVENT_PLATFORM.getUrlPrefix() + "." + site;
-    HttpUrl url =
-        new HttpUrl.Builder()
-            .scheme("https")
-            .host(expectedHost)
-            .addPathSegment("api")
-            .addPathSegment(Intake.EVENT_PLATFORM.getVersion())
-            .addPathSegment("")
-            .build();
-    if (!url.host().equalsIgnoreCase(expectedHost)) {
-      throw new IllegalArgumentException("Invalid Datadog site");
-    }
-    return url;
+    return DirectIntakeApiFactory.buildEventPlatformIntakeUrl(site);
   }
 
   /** Creates an API client that uses the specified retry policy with a compatible local proxy. */

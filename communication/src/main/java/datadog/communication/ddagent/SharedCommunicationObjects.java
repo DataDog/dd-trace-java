@@ -157,13 +157,18 @@ public class SharedCommunicationObjects {
   }
 
   public ConfigurationPoller configurationPoller(Config config) {
+    return configurationPoller(config, TRACER_VERSION);
+  }
+
+  /** Creates the shared RC poller with the owning SDK's version, including non-agent assemblies. */
+  public ConfigurationPoller configurationPoller(Config config, String clientVersion) {
     if (configurationPoller == null && config.isRemoteConfigEnabled()) {
-      configurationPoller = createPoller(config);
+      configurationPoller = createPoller(config, clientVersion);
     }
     return configurationPoller;
   }
 
-  private ConfigurationPoller createPoller(Config config) {
+  private ConfigurationPoller createPoller(Config config, String clientVersion) {
     String containerId = ContainerInfo.get().getContainerId();
     String entityId = ContainerInfo.getEntityId();
     Supplier<String> configUrlSupplier;
@@ -175,7 +180,7 @@ public class SharedCommunicationObjects {
       configUrlSupplier = new RetryConfigUrlSupplier(this, config);
     }
     return new DefaultConfigurationPoller(
-        config, TRACER_VERSION, containerId, entityId, configUrlSupplier, agentHttpClient);
+        config, clientVersion, containerId, entityId, configUrlSupplier, agentHttpClient);
   }
 
   // for testing

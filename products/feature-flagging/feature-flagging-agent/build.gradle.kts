@@ -8,6 +8,7 @@ plugins {
   id("com.gradleup.shadow")
   id("dd-trace-java.version-file")
   id("dd-trace-java.module.product-subsystem")
+  id("me.champeau.jmh")
 }
 
 description = "Feature flagging agent system"
@@ -16,16 +17,22 @@ dependencies {
   api(libs.slf4j)
   api(project(":products:feature-flagging:feature-flagging-lib"))
   api(project(":internal-api"))
+  implementation(project(":communication"))
+  implementation(project(":remote-config:remote-config-core"))
+  implementation(project(":components:json"))
   compileOnly(project(":products:feature-flagging:feature-flagging-config"))
 
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)
   testImplementation(project(":products:feature-flagging:feature-flagging-config"))
   testImplementation(project(":utils:test-utils"))
+  testImplementation(project(":dd-java-agent:testing"))
   testRuntimeOnly(project(":dd-trace-core"))
 }
 
 tasks.named<ShadowJar>("shadowJar") {
+  // The injected evaluator has one home in inst/. The parser stays in this subsystem.
+  exclude("com/datadog/featureflag/core/**")
   dependencies {
     val deps = project.extra["deps"] as Map<*, *>
     val excludeShared = deps["excludeShared"] as Action<DependencyFilter>

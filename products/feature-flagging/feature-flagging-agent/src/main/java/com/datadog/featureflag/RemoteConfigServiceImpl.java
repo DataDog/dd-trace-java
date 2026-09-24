@@ -1,12 +1,12 @@
 package com.datadog.featureflag;
 
-import datadog.communication.ddagent.SharedCommunicationObjects;
+import static java.util.Objects.requireNonNull;
+
 import datadog.remoteconfig.Capabilities;
 import datadog.remoteconfig.ConfigurationChangesTypedListener;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.PollingRateHinter;
 import datadog.remoteconfig.Product;
-import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import javax.annotation.Nullable;
@@ -16,14 +16,15 @@ public class RemoteConfigServiceImpl
 
   private final ConfigurationPoller configurationPoller;
 
-  public RemoteConfigServiceImpl(final SharedCommunicationObjects sco, final Config config) {
-    configurationPoller = sco.configurationPoller(config);
+  public RemoteConfigServiceImpl(final ConfigurationPoller configurationPoller) {
+    this.configurationPoller = requireNonNull(configurationPoller);
   }
 
   @Override
   public void init() {
     configurationPoller.addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
-    configurationPoller.addListener(Product.FFE_FLAGS, UniversalFlagConfigParser.INSTANCE, this);
+    configurationPoller.addListener(
+        Product.FFE_FLAGS, UniversalFlagConfigParser.INSTANCE::deserialize, this);
     configurationPoller.start();
   }
 

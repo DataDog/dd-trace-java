@@ -154,6 +154,14 @@ class ExposureWriterTests {
   }
 
   @Test
+  void testStandaloneWriterCanDisableAgentProxy() {
+    try (ExposureWriterImpl writer =
+        new ExposureWriterImpl(sharedCommunicationObjects, mockConfig("test-service"), false)) {
+      assertFalse(writer.isSerializerThreadAlive());
+    }
+  }
+
+  @Test
   void testAgentlessExposureEventWritesDirectlyWithApiKey() throws Exception {
     Config config = mockConfig("test-service");
     when(config.getFeatureFlaggingConfigurationSource()).thenReturn(CONFIGURATION_SOURCE_AGENTLESS);

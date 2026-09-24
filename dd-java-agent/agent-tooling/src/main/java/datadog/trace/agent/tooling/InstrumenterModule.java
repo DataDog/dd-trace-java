@@ -43,6 +43,7 @@ public abstract class InstrumenterModule implements Instrumenter {
    *   <li>{@link TargetSystem#USM usm}
    *   <li>{@link TargetSystem#CONTEXT_TRACKING context-tracking}
    *   <li>{@link TargetSystem#RASP rasp}
+   *   <li>{@link TargetSystem#FEATURE_FLAGS feature-flags}
    * </ul>
    */
   public enum TargetSystem {
@@ -55,6 +56,7 @@ public abstract class InstrumenterModule implements Instrumenter {
     LLMOBS,
     CONTEXT_TRACKING,
     RASP,
+    FEATURE_FLAGS,
   }
 
   private static final Logger log = LoggerFactory.getLogger(InstrumenterModule.class);

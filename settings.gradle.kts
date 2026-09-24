@@ -164,6 +164,8 @@ include(
   ":products:feature-flagging:feature-flagging-agent",
   ":products:feature-flagging:feature-flagging-api",
   ":products:feature-flagging:feature-flagging-bootstrap",
+  ":products:feature-flagging:feature-flagging-standalone",
+  ":products:feature-flagging:feature-flagging-remote-config",
   ":products:feature-flagging:feature-flagging-config",
   ":products:feature-flagging:feature-flagging-lib"
 )
@@ -511,6 +513,7 @@ include(
   ":dd-java-agent:instrumentation:okhttp:okhttp-2.2",
   ":dd-java-agent:instrumentation:okhttp:okhttp-3.0",
   ":dd-java-agent:instrumentation:openai-java:openai-java-3.0",
+  ":dd-java-agent:instrumentation:openfeature:openfeature-1.20",
   ":dd-java-agent:instrumentation:opensearch:opensearch-rest-1.0",
   ":dd-java-agent:instrumentation:opensearch:opensearch-transport-1.0",
   ":dd-java-agent:instrumentation:opensearch:opensearch-common",

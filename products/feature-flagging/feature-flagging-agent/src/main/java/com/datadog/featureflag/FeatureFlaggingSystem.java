@@ -6,8 +6,8 @@ import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGU
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import datadog.trace.api.featureflag.FeatureFlaggingGateway.RuntimeMode;
 import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
-import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,9 +21,7 @@ public class FeatureFlaggingSystem {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlaggingSystem.class);
 
-  private static volatile ConfigurationSourceService CONFIG_SERVICE;
-  private static volatile ExposureWriter EXPOSURE_WRITER;
-  private static volatile FlagEvaluationWriter FLAG_EVAL_WRITER;
+  private static volatile ProviderRuntime RUNTIME;
   private static volatile SpanEnrichmentWriter SPAN_ENRICHMENT_WRITER;
   private static volatile FeatureFlaggingGateway.ActivationListener ACTIVATION_LISTENER;
   private static volatile boolean STARTED;
@@ -80,6 +78,12 @@ public class FeatureFlaggingSystem {
       final SharedCommunicationObjects sco,
       final Config config,
       final SystemInitializer systemInitializer) {
+    if (!FeatureFlaggingGateway.claimRuntime(RuntimeMode.AGENT)) {
+      LOGGER.debug(
+          "Feature Flagging agent runtime not started because {} already owns the subsystem",
+          FeatureFlaggingGateway.activeRuntime());
+      return;
+    }
     try {
       systemInitializer.initialize(sco, config);
     } catch (final RuntimeException | Error e) {
@@ -95,25 +99,17 @@ public class FeatureFlaggingSystem {
       return;
     }
     final ExposureWriter exposureWriter = new ExposureWriterImpl(sco, config);
-    initialize(configService, exposureWriter);
 
     final boolean evalCountsEnabled =
         config
             .configProvider()
             .getBoolean(FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED, true);
-    FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(evalCountsEnabled);
-    if (evalCountsEnabled) {
-      final FlagEvaluationWriterImpl evalWriter = new FlagEvaluationWriterImpl(sco, config);
-      // Publish before start() so a failed start is still reachable by the rollback in stop().
-      FLAG_EVAL_WRITER = evalWriter;
-      evalWriter.start();
-      LOGGER.debug("Flag evaluation EVP writer started");
-    } else {
-      FeatureFlaggingGateway.setFlagEvalWriter(null);
-      LOGGER.debug(
-          "Flag evaluation EVP writer disabled ({}=false)",
-          FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED);
-    }
+    RUNTIME =
+        ProviderRuntime.start(
+            configService,
+            exposureWriter,
+            () -> new FlagEvaluationWriterImpl(sco, config),
+            evalCountsEnabled);
 
     // APM span enrichment: agent-side listener for flag-evaluation seam events. Uses the process-
     // wide singleton so a subsystem restart reuses the one already-registered trace interceptor
@@ -128,23 +124,7 @@ public class FeatureFlaggingSystem {
 
   static void initialize(
       final ConfigurationSourceService configService, final ExposureWriter exposureWriter) {
-    try {
-      if (configService != null) {
-        configService.init();
-      }
-      exposureWriter.init();
-      CONFIG_SERVICE = configService;
-      EXPOSURE_WRITER = exposureWriter;
-    } catch (final RuntimeException | Error e) {
-      try {
-        exposureWriter.close();
-      } finally {
-        if (configService != null) {
-          configService.close();
-        }
-      }
-      throw e;
-    }
+    RUNTIME = ProviderRuntime.start(configService, exposureWriter, null, false);
   }
 
   static ConfigurationSourceService createConfigurationSourceService(
@@ -154,10 +134,10 @@ public class FeatureFlaggingSystem {
       if (!config.isRemoteConfigEnabled()) {
         throw new IllegalStateException("Feature Flagging system started without RC");
       }
-      return new RemoteConfigServiceImpl(sco, config);
+      return new RemoteConfigServiceImpl(sco.configurationPoller(config));
     }
     if (CONFIGURATION_SOURCE_AGENTLESS.equals(configurationSource)) {
-      return new AgentlessConfigurationSource(config);
+      return new AgentlessConfigurationSource(config, AgentRuntimeServices.INSTANCE);
     }
     return null;
   }
@@ -167,26 +147,23 @@ public class FeatureFlaggingSystem {
       justification =
           "Agent-internal class; Class object does not escape to app code and lock only guards the subsystem lifecycle.")
   public static synchronized void stop() {
-    FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(false);
-    FeatureFlaggingGateway.setFlagEvalWriter(null);
+    if (FeatureFlaggingGateway.activeRuntime() != RuntimeMode.STANDALONE) {
+      FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(false);
+      FeatureFlaggingGateway.setFlagEvalWriter(null);
+    }
     final FeatureFlaggingGateway.ActivationListener activationListener = ACTIVATION_LISTENER;
-    final FlagEvaluationWriter flagEvalWriter = FLAG_EVAL_WRITER;
+    final ProviderRuntime runtime = RUNTIME;
     final SpanEnrichmentWriter spanEnrichmentWriter = SPAN_ENRICHMENT_WRITER;
-    final ExposureWriter exposureWriter = EXPOSURE_WRITER;
-    final ConfigurationSourceService configService = CONFIG_SERVICE;
     STARTED = false;
     ACTIVATION_LISTENER = null;
-    FLAG_EVAL_WRITER = null;
+    RUNTIME = null;
     SPAN_ENRICHMENT_WRITER = null;
-    EXPOSURE_WRITER = null;
-    CONFIG_SERVICE = null;
     if (activationListener != null) {
       FeatureFlaggingGateway.removeActivationListener(activationListener);
     }
-    closeQuietly(flagEvalWriter);
     closeQuietly(spanEnrichmentWriter);
-    closeQuietly(exposureWriter);
-    closeQuietly(configService);
+    closeQuietly(runtime);
+    FeatureFlaggingGateway.releaseRuntime(RuntimeMode.AGENT);
     LOGGER.debug("Feature Flagging system stopped");
   }
 
@@ -195,11 +172,12 @@ public class FeatureFlaggingSystem {
   }
 
   static boolean isExposureWriterStarted() {
-    return EXPOSURE_WRITER != null;
+    return RUNTIME != null;
   }
 
   static boolean isConfigurationSourceStarted() {
-    return CONFIG_SERVICE != null;
+    final ProviderRuntime runtime = RUNTIME;
+    return runtime != null && runtime.hasConfigurationSource();
   }
 
   private static void closeQuietly(final AutoCloseable resource) {
