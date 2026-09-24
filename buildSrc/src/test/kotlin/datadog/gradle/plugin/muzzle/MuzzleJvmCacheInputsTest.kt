@@ -53,15 +53,33 @@ class MuzzleJvmCacheInputsTest : MuzzlePluginTestFixture() {
       else -> "muzzle"
     }
     assertCacheTracks(
-      listOf("java.vendor", "java.runtime.version", "java.vm.version"),
+      listOf("java.vendor", "java.runtime.version", "java.vm.version", "os.name", "os.arch"),
       taskName,
       if (check == "coreJdk") SUCCESS else UP_TO_DATE,
       mapOf("MAVEN_REPOSITORY_PROXY" to repo.repoUrl),
     )
   }
 
-  @Test
-  fun `core JDK cache follows the launcher used by the isolated worker`() {
+  @ParameterizedTest
+  @ValueSource(strings = ["coreJdk", "library"])
+  fun `versioned check cache follows the launcher used by the isolated worker`(check: String) {
+    val repo = createMavenRepoFixture()
+    repo.publishVersions("com.example.test", "demo-lib", listOf("1.0.0"))
+    val taskName = if (check == "coreJdk") {
+      "muzzle-AssertPass-core-jdk"
+    } else {
+      "muzzle-AssertPass-com.example.test-demo-lib-1.0.0"
+    }
+    val directive = if (check == "coreJdk") {
+      "coreJdk(JavaVersion.current().majorVersion)"
+    } else {
+      """
+        group = "com.example.test"
+        module = "demo-lib"
+        versions = "[1.0.0,2.0.0)"
+        javaVersion = JavaVersion.current().majorVersion
+      """
+    }
     writeProject(
       """
       import datadog.gradle.plugin.muzzle.tasks.MuzzleTask
@@ -73,7 +91,9 @@ class MuzzleJvmCacheInputsTest : MuzzlePluginTestFixture() {
         id("dd-trace-java.muzzle")
       }
 
-      muzzle { pass { coreJdk(JavaVersion.current().majorVersion) } }
+      repositories { maven { url = uri("${repo.repoUrl}") } }
+
+      muzzle { pass { $directive } }
 
       // Keep the executable and major version fixed to isolate each additional input.
       class SelectedLauncher(
@@ -92,15 +112,24 @@ class MuzzleJvmCacheInputsTest : MuzzlePluginTestFixture() {
       }
 
       val changedField = providers.gradleProperty("changedJvmField").orNull
+      if (changedField?.startsWith("os.") == true) {
+        val original = System.getProperty(changedField)
+        System.setProperty(changedField, "different-platform")
+        gradle.buildFinished { System.setProperty(changedField, original) }
+      }
       val launcher = javaToolchains.launcherFor {}
       tasks.withType<MuzzleTask>().configureEach {
-        if (name == "muzzle-AssertPass-core-jdk" && changedField != null) {
+        if (name == "$taskName" && changedField != null) {
           javaLauncher.set(launcher.map { SelectedLauncher(it, changedField) })
         }
       }
       """
     )
-    assertCacheTracks(listOf("vendor", "runtimeVersion", "vmVersion"))
+    assertCacheTracks(
+      listOf("vendor", "runtimeVersion", "vmVersion", "os.name", "os.arch"),
+      taskName,
+      env = mapOf("MAVEN_REPOSITORY_PROXY" to repo.repoUrl),
+    )
   }
 
   @ParameterizedTest

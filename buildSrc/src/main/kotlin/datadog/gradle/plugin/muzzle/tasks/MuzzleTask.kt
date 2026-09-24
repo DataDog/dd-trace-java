@@ -75,7 +75,7 @@ abstract class MuzzleTask @Inject constructor(
   val muzzleDirective: Property<MuzzleDirective> = objects.property()
 
   /**
-   * Shares one resolved toolchain between core-JDK fingerprinting and worker execution.
+   * Shares one resolved toolchain between JVM fingerprinting and worker execution.
    * Kept internal so task graph discovery does not resolve JDKs for skipped checks or dry runs.
    */
   @get:Internal
@@ -88,15 +88,12 @@ abstract class MuzzleTask @Inject constructor(
   ).apply { finalizeValueOnRead() }
 
   /**
-   * Tracks the validation JDK because its platform classes are outside the classpath inputs.
-   * Vendor and full runtime/VM versions distinguish JDKs within the same Java major version.
+   * Tracks the validation JVM because its platform classes are outside the classpath inputs.
+   * Vendor, full runtime/VM versions, OS, and architecture distinguish JVM installations.
    */
   @get:Input
   @get:Optional
-  val coreJdkIdentity = providers.provider {
-    if (muzzleDirective.orNull?.isCoreJdk != true) {
-      return@provider null
-    }
+  val validationJvmIdentity = providers.provider {
     val metadata = javaLauncher.orNull?.metadata
     if (metadata != null) {
       mapOf(
@@ -104,15 +101,21 @@ abstract class MuzzleTask @Inject constructor(
         "vendor" to metadata.vendor,
         "runtimeVersion" to metadata.javaRuntimeVersion,
         "vmVersion" to metadata.jvmVersion,
+        "operatingSystem" to System.getProperty("os.name"),
+        "architecture" to System.getProperty("os.arch"),
       )
-    } else {
+    } else if (muzzleDirective.orNull?.isCoreJdk == true) {
       // coreJdk() without a version executes in the Gradle daemon.
       mapOf(
         "languageVersion" to System.getProperty("java.specification.version"),
         "vendor" to System.getProperty("java.vendor"),
         "runtimeVersion" to System.getProperty("java.runtime.version"),
         "vmVersion" to System.getProperty("java.vm.version"),
+        "operatingSystem" to System.getProperty("os.name"),
+        "architecture" to System.getProperty("os.arch"),
       )
+    } else {
+      null
     }
   }
 
