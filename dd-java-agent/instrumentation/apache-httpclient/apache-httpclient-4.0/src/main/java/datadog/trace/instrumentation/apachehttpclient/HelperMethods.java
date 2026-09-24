@@ -45,13 +45,10 @@ public class HelperMethods {
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
     } catch (BlockingException e) {
-      try {
-        DECORATE.onError(span, e);
-        DECORATE.beforeFinish(span);
-      } finally {
-        scope.close();
-        span.finish();
-      }
+      DECORATE.onError(span, e);
+      DECORATE.beforeFinish(span);
+      scope.close();
+      span.finish();
       throw e;
     }
 
