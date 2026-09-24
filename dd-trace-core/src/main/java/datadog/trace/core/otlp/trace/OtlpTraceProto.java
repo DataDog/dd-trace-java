@@ -70,6 +70,9 @@ public final class OtlpTraceProto {
   private static final UTF8BytesString HTTP_STATUS_CODE_KEY =
       otelKey(KnownTags.HTTP_STATUS_CODE_ID);
 
+  private static final UTF8BytesString HTTP_STATUS_CODE_KEY_DD =
+      UTF8BytesString.create(KnownTags.HTTP_STATUS_CODE_NAME);
+
   /** The OpenTelemetry-namespace key for a known tag, as named by the registry. */
   private static UTF8BytesString otelKey(long tagId) {
     return UTF8BytesString.create(KnownTagCodec.openTelemetryTagOf(tagId));
@@ -224,12 +227,11 @@ public final class OtlpTraceProto {
 
   private static void writeSpanTag(StreamingBuffer buf, TagMap.EntryReader tagEntry) {
     writeTag(buf, 9, LEN_WIRE_TYPE);
-    // OTLP is the OpenTelemetry wire format, so ask each entry for its name in that namespace —
-    // the same registry policy the fixed metadata keys above resolve through, with the reader
-    // supplying its own key for a custom tag the registry does not name. This is the straight
-    // rename projection only: suppressing a Datadog-only tag from OpenTelemetry, per-exporter
-    // opt-in, and additional namespaces are deferred to the OpenTelemetry follow-on.
-    String key = tagEntry.openTelemetryTag();
+    // OTLP is the OpenTelemetry wire format, but the rename itself is opt-in: emit the
+    // OpenTelemetry-namespace name only when OTel semantics are enabled, else the entry's own
+    // (Datadog) name, so existing consumers keep seeing Datadog names until they opt in.
+    String key =
+        Config.get().isTraceOtelSemanticsEnabled() ? tagEntry.openTelemetryTag() : tagEntry.tag();
     switch (tagEntry.type()) {
       case TagMap.EntryReader.BOOLEAN:
         writeAttribute(buf, BOOLEAN_ATTRIBUTE, key, tagEntry.objectValue());
@@ -310,7 +312,12 @@ public final class OtlpTraceProto {
       writeSpanTag(buf, THREAD_ID, metadata.getThreadId());
       writeSpanTag(buf, THREAD_NAME, metadata.getThreadName());
       if (metadata.getHttpStatusCode() != UNSET_STATUS) {
-        writeSpanTag(buf, HTTP_STATUS_CODE_KEY, metadata.getHttpStatusCode());
+        writeSpanTag(
+            buf,
+            Config.get().isTraceOtelSemanticsEnabled()
+                ? HTTP_STATUS_CODE_KEY
+                : HTTP_STATUS_CODE_KEY_DD,
+            metadata.getHttpStatusCode());
       }
       if (metadata.getOrigin() != null) {
         writeSpanTag(buf, ORIGIN_KEY, metadata.getOrigin());
