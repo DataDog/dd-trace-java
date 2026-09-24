@@ -256,7 +256,7 @@ final class TypeFactory {
     return deferredTypes.computeIfAbsent(name, deferType);
   }
 
-  private boolean isLambdaTarget(String name) {
+  boolean isLambdaTarget(String name) {
     return null != lambdaInterface && name.equals(targetName);
   }
 
@@ -287,7 +287,7 @@ final class TypeFactory {
     boolean isOutline = typeParser == outlineTypeParser;
     long fromTick = InstrumenterMetrics.tick();
     // Hidden lambda names may later be reused by an ordinary class definition.
-    boolean cacheable = request.isCacheable();
+    boolean cacheable = !isLambdaTarget(name);
 
     SharedTypeInfo<TypeDescription> sharedType = cacheable ? types.find(name) : null;
     if (null != sharedType
@@ -400,11 +400,6 @@ final class TypeFactory {
       return null;
     }
 
-    @Override
-    public boolean isCacheable() {
-      return !isLambdaTarget(name);
-    }
-
     private ClassFileLocator.Resolution locateClassFile() {
       if (name.equals(targetName)) {
         return new ClassFileLocator.Resolution.Explicit(targetBytecode);
@@ -433,7 +428,7 @@ final class TypeFactory {
 
     @Override
     public boolean isPublic() {
-      return (isCacheable() && isPublicFilter.contains(name)) || super.isPublic();
+      return (isPublicFilter.contains(name) && !isLambdaTarget(name)) || super.isPublic();
     }
 
     private TypeDescription outline() {

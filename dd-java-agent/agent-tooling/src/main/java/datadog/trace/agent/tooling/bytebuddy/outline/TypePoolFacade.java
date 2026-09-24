@@ -3,15 +3,21 @@ package datadog.trace.agent.tooling.bytebuddy.outline;
 import static datadog.trace.agent.tooling.bytebuddy.outline.TypeFactory.findDescriptor;
 import static datadog.trace.agent.tooling.bytebuddy.outline.TypeFactory.findType;
 import static datadog.trace.agent.tooling.bytebuddy.outline.TypeFactory.typeFactory;
+import static java.util.Collections.singleton;
 
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.memoize.Memoizer;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.Platform;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.pool.TypePool;
 
 /** {@link TypePool} facade that looks up types using the active thread's {@link TypeFactory}. */
 public final class TypePoolFacade implements TypePool, SharedTypePools.Supplier {
+  private static final boolean LAMBDA_ENABLED =
+      !Platform.isNativeImageBuilder()
+          && InstrumenterConfig.get().isIntegrationEnabled(singleton("lambda"), false);
+
   public static final TypePoolFacade INSTANCE = new TypePoolFacade();
 
   public static void registerAsSupplier() {
@@ -59,6 +65,11 @@ public final class TypePoolFacade implements TypePool, SharedTypePools.Supplier 
 
   public static String lambdaInterface() {
     return typeFactory.get().lambdaInterface();
+  }
+
+  /** Hidden lambda targets have no stable symbolic identity for shared caches. */
+  public static boolean isLambdaTarget(String name) {
+    return LAMBDA_ENABLED && typeFactory.get().isLambdaTarget(name);
   }
 
   /** Switch to full descriptions, needed for the actual class transformation. */

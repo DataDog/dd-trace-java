@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.agent.tooling.bytebuddy.memoize.MemoizedMatchers;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import java.util.concurrent.Callable;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.modifier.Visibility;
@@ -14,7 +15,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.junit.jupiter.api.Test;
 
-class TypeFactoryTest {
+@WithConfig(key = "trace.lambda.enabled", value = "true")
+class TypeFactoryLambdaForkedTest {
   @Test
   void reusesCachedDescriptionForRegularTransformationTarget() {
     String name = getClass().getName() + "$RegularTarget";
@@ -67,6 +69,16 @@ class TypeFactoryTest {
   }
 
   @Test
+  void lambdaNoMatchDoesNotHideLaterOrdinaryClass() {
+    ElementMatcher<TypeDescription> implementsRunnable =
+        new MemoizedMatchers().hasInterface(named(Runnable.class.getName()));
+    String name = getClass().getName() + "$LambdaNoMatch";
+
+    assertFalse(matches(name, bytes(name, Callable.class), true, implementsRunnable));
+    assertTrue(matches(name, bytes(name, Runnable.class), false, implementsRunnable));
+  }
+
+  @Test
   void doesNotReuseCachedVisibilityForLambda() {
     ElementMatcher<TypeDescription> isPublic = isPublic();
     String name = getClass().getName() + "$LambdaVisibility";
@@ -80,7 +92,7 @@ class TypeFactoryTest {
   void nestedCallbackDoesNotEndOuterTransform() {
     String name = getClass().getName() + "$NestedCallbackTarget";
     TypeFactory typeFactory = TypeFactory.typeFactory.get();
-    typeFactory.switchContext(TypeFactoryTest.class.getClassLoader());
+    typeFactory.switchContext(TypeFactoryLambdaForkedTest.class.getClassLoader());
 
     byte[] outerBytecode = bytes(name, Runnable.class);
     typeFactory.beginTransform(name, outerBytecode);
@@ -95,7 +107,7 @@ class TypeFactoryTest {
 
   private static String resolveInterface(String name, byte[] bytecode, boolean lambda) {
     TypeFactory typeFactory = TypeFactory.typeFactory.get();
-    typeFactory.switchContext(TypeFactoryTest.class.getClassLoader());
+    typeFactory.switchContext(TypeFactoryLambdaForkedTest.class.getClassLoader());
     if (lambda) {
       typeFactory.beginLambdaTransform(Runnable.class.getName());
     }
@@ -119,7 +131,7 @@ class TypeFactoryTest {
   private static boolean matches(
       String name, byte[] bytecode, boolean lambda, ElementMatcher<TypeDescription> matcher) {
     TypeFactory typeFactory = TypeFactory.typeFactory.get();
-    typeFactory.switchContext(TypeFactoryTest.class.getClassLoader());
+    typeFactory.switchContext(TypeFactoryLambdaForkedTest.class.getClassLoader());
     if (lambda) {
       typeFactory.beginLambdaTransform(Runnable.class.getName());
     }

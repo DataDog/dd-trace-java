@@ -155,7 +155,7 @@ public final class Memoizer {
     @Override
     protected boolean doMatch(TypeDescription target) {
       String targetName = target.getName();
-      if ((isCacheable(target) && noMatchFilter.contains(targetName))
+      if ((noMatchFilter.contains(targetName) && !TypePoolFacade.isLambdaTarget(targetName))
           || "java.lang.Object".equals(targetName)
           || target.isPrimitive()) {
         return false;
@@ -166,7 +166,7 @@ public final class Memoizer {
   }
 
   static BitSet memoizeHierarchy(TypeDescription type, Map<String, BitSet> localMemos) {
-    if (isCacheable(type) && noMatchFilter.contains(type.getName())) {
+    if (noMatchFilter.contains(type.getName()) && !TypePoolFacade.isLambdaTarget(type.getName())) {
       return NO_MATCH;
     } else {
       return doMemoize(type, localMemos);
@@ -176,12 +176,12 @@ public final class Memoizer {
   static BitSet doMemoize(TypeDescription type, Map<String, BitSet> localMemos) {
 
     String name = type.getName();
-    boolean cacheable = isCacheable(type);
     BitSet memo = localMemos.get(name);
     if (null != memo) {
       return memo; // short-circuit circular references
     }
 
+    boolean cacheable = !TypePoolFacade.isLambdaTarget(name);
     long fromTick = InstrumenterMetrics.tick();
     SharedTypeInfo<BitSet> sharedMemo = cacheable ? memos.find(name) : null;
     if (null != sharedMemo) {
@@ -256,10 +256,6 @@ public final class Memoizer {
   /** Any type not recorded as a definite "no-match" is a potential match. */
   static boolean potentialMatch(String name) {
     return !noMatchFilter.contains(name);
-  }
-
-  private static boolean isCacheable(TypeDescription type) {
-    return !(type instanceof WithLocation) || ((WithLocation) type).isCacheable();
   }
 
   private static boolean sameOrigin(TypeDescription type, SharedTypeInfo<BitSet> sharedMemo) {
