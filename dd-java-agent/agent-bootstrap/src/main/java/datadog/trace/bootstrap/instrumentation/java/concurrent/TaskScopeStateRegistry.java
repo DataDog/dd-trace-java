@@ -1,8 +1,10 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
+import static java.util.Collections.synchronizedSet;
+
 import datadog.trace.bootstrap.ContextStore;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Tracks the captured {@link State} of the subtasks forked by a single {@code StructuredTaskScope}
@@ -19,14 +21,15 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * flock.close()} has joined every started subtask, releases exactly those continuations that were
  * never consumed.
  */
-public final class SubtaskRegistry {
+public final class TaskScopeStateRegistry {
 
-  public static final ContextStore.Factory<SubtaskRegistry> FACTORY = SubtaskRegistry::new;
+  public static final ContextStore.Factory<TaskScopeStateRegistry> FACTORY =
+      TaskScopeStateRegistry::new;
 
   // States are added by the scope owner thread and removed by the subtask threads.
-  private final Queue<State> states = new ConcurrentLinkedQueue<>();
+  private final Set<State> states = synchronizedSet(new HashSet<>());
 
-  private SubtaskRegistry() {}
+  private TaskScopeStateRegistry() {}
 
   /**
    * Registers a forked subtask state to release its continuation at scope close.
@@ -52,9 +55,12 @@ public final class SubtaskRegistry {
    * all started threads have terminated (at scope close).
    */
   public void cancelAll() {
-    State state;
-    while ((state = this.states.poll()) != null) {
-      state.closeContinuation();
+    // Iterating a synchronized set requires holding its lock
+    synchronized (this.states) {
+      for (State state : this.states) {
+        state.closeContinuation();
+      }
+      this.states.clear();
     }
   }
 }

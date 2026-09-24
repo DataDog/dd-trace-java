@@ -6,7 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.java.concurrent.SubtaskRegistry;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.TaskScopeStateRegistry;
 import net.bytebuddy.asm.Advice.OnMethodExit;
 import net.bytebuddy.asm.Advice.This;
 
@@ -15,8 +15,8 @@ import net.bytebuddy.asm.Advice.This;
  * StructuredTaskScope25TaskInstrumentation} for subtasks whose thread never starts (e.g. a subtask
  * forked into an already-canceled scope).
  *
- * <p>Each forked subtask is registered in a per-scope {@link SubtaskRegistry} at creation (by
- * {@link StructuredTaskScope25TaskInstrumentation}, so even if {@code fork()} throws), and the
+ * <p>Each forked subtask is registered in a per-scope {@link TaskScopeStateRegistry} at creation
+ * (by {@link StructuredTaskScope25TaskInstrumentation}, so even if {@code fork()} throws), and the
  * registry is swept when the scope closes ({@code close()}). Sweeping at close ensures started
  * subtask has, already consumed its continuation in {@code SubtaskImpl.run()}, while a
  * never-started subtask still holds it and gets it released.
@@ -38,8 +38,8 @@ public class StructuredTaskScope25Instrumentation
 
   public static final class CloseAdvice {
     /**
-     * Cleans up the scope's {@link SubtaskRegistry} when it closes, releasing the continuation of
-     * every subtask whose thread never ran.
+     * Cleans up the scope's {@link TaskScopeStateRegistry} when it closes, releasing the
+     * continuation of every subtask whose thread never ran.
      *
      * <p>It will run after {@code close()} which joins all started subtasks. It means only
      * never-started subtasks still hold an unconsumed continuation; releasing an already-consumed
@@ -50,11 +50,11 @@ public class StructuredTaskScope25Instrumentation
      */
     @OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void afterClose(@This Object scope) {
-      ContextStore<Object, SubtaskRegistry> registryStore =
+      ContextStore<Object, TaskScopeStateRegistry> registryStore =
           get(
               "java.util.concurrent.StructuredTaskScopeImpl",
-              "datadog.trace.bootstrap.instrumentation.java.concurrent.SubtaskRegistry");
-      SubtaskRegistry registry = registryStore.remove(scope);
+              "datadog.trace.bootstrap.instrumentation.java.concurrent.TaskScopeStateRegistry");
+      TaskScopeStateRegistry registry = registryStore.remove(scope);
       if (registry != null) {
         registry.cancelAll();
       }
