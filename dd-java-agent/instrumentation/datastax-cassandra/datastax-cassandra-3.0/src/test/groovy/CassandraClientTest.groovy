@@ -12,7 +12,7 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
-import org.testcontainers.containers.CassandraContainer
+import org.testcontainers.cassandra.CassandraContainer
 import org.testcontainers.utility.DockerImageName
 import spock.lang.Shared
 
@@ -47,8 +47,12 @@ abstract class CassandraClientTest extends VersionedNamingTestBase {
       .asCompatibleSubstituteFor("cassandra")
     container = new CassandraContainer(image).withStartupTimeout(Duration.ofSeconds(120))
     container.start()
-    cluster = container.getCluster()
     port = container.getMappedPort(9042)
+    cluster = Cluster.builder()
+      .addContactPoint(container.getHost())
+      .withPort(port)
+      .withoutJMXReporting()
+      .build()
     // Looks like sometimes our requests fail because Cassandra takes to long to respond,
     // Increase this timeout as well to try to cope with this.
     cluster.getConfiguration().getSocketOptions().setReadTimeoutMillis(120000)

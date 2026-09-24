@@ -67,19 +67,27 @@ plugins {
 
 dependencies {
   testImplementation libs.testcontainers
+  testImplementation group: 'com.redis.testcontainers', name: 'testcontainers-redis', version: '1.6.2'
   testContainerImage(image('redis:7-alpine', 'test.redis.image'))
 }
 ```
 
-Use the supplied system property when constructing the container, without a tag
-fallback. Keep the compatibility alias when using a Testcontainers module that
-validates its image name:
+Keep the dedicated container type and use its `DockerImageName` constructor with
+the supplied property, without a tag fallback. This example uses the same Redis
+module as the repository's Redis tests. Keep the compatibility alias so container
+types that validate their image name also accept CI mirrors:
 
 ```java
+import com.redis.testcontainers.RedisContainer;
+import org.testcontainers.utility.DockerImageName;
+
 DockerImageName image = DockerImageName.parse(System.getProperty("test.redis.image"))
     .asCompatibleSubstituteFor("redis");
-GenericContainer<?> redis = new GenericContainer<>(image).withExposedPorts(6379);
+RedisContainer redis = new RedisContainer(image);
 ```
+
+Use `GenericContainer` for custom application images without a matching container
+module, as in the [WebSphere smoke test](../dd-smoke-tests/websphere-jmx).
 
 The plugin resolves tags to immutable registry digests before Gradle checks the
 test cache, then passes those same image references to the test JVM. Unchanged

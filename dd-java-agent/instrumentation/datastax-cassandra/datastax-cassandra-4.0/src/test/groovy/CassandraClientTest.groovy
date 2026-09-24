@@ -12,7 +12,7 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
-import org.testcontainers.containers.CassandraContainer
+import org.testcontainers.cassandra.CassandraContainer
 import org.testcontainers.utility.DockerImageName
 import spock.lang.Shared
 import spock.util.concurrent.BlockingVariable
