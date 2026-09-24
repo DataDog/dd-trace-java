@@ -97,6 +97,7 @@ public final class JakartaRsAnnotationsInstrumentation extends InstrumenterModul
         @Advice.Origin final Method method,
         @Advice.AllArguments final Object[] args,
         @Advice.Local("asyncResponse") AsyncResponse asyncResponse) {
+      JakartaRsAnnotationsDecorator.enterResourceMethod();
       ContextStore<AsyncResponse, AgentSpan> contextStore = null;
       for (final Object arg : args) {
         if (arg instanceof AsyncResponse) {
@@ -138,6 +139,7 @@ public final class JakartaRsAnnotationsInstrumentation extends InstrumenterModul
         @Advice.Enter final ContextScope scope,
         @Advice.Thrown final Throwable throwable,
         @Advice.Local("asyncResponse") final AsyncResponse asyncResponse) {
+      JakartaRsAnnotationsDecorator.exitResourceMethod();
       if (scope == null) {
         return;
       }
