@@ -67,7 +67,15 @@ abstract class AbstractConcurrentTest extends AbstractSmokeTest {
   protected void receivedCorrectTrace() {
     waitForTrace(defaultPoll, checkTrace())
     assert traceCount.get() == 1
-    assert testedProcess.waitFor(TIMEOUT_SECS, SECONDS)
+  }
+
+  def cleanupSpec() {
+    if (testedProcess == null) {
+      return
+    }
+    // Features may be skipped; finish the application before the superclass checks diagnostics.
+    assert testedProcess.waitFor(TIMEOUT_SECS, SECONDS):
+    "Concurrent application did not exit within ${TIMEOUT_SECS} seconds; see ${logFilePath}"
     assert testedProcess.exitValue() == 0
   }
 }
