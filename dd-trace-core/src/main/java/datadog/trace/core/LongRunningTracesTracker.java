@@ -3,10 +3,14 @@ package datadog.trace.core;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
+import datadog.trace.api.TagMap;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 public class LongRunningTracesTracker {
@@ -29,6 +33,10 @@ public class LongRunningTracesTracker {
   public static final int TRACKED = 2;
   public static final int WRITE_RUNNING_SPANS = 3;
   public static final int EXPIRED = 4;
+
+  /** Tags too large to be re-sent on every running span write, only sent once the span finishes. */
+  static final Set<String> RUNNING_SPAN_EXCLUDED_TAGS =
+      new HashSet<>(Arrays.asList("_dd.spark.physical_plan"));
 
   public LongRunningTracesTracker(
       Config config,
@@ -127,6 +135,20 @@ public class LongRunningTracesTracker {
     int lastElementIndex = traceArray.size() - 1;
     traceArray.set(index, traceArray.get(lastElementIndex));
     traceArray.remove(lastElementIndex);
+  }
+
+  /** Returns tags without {@link #RUNNING_SPAN_EXCLUDED_TAGS}, only copying when one is present. */
+  static TagMap withoutRunningSpanExcludedTags(TagMap tags) {
+    TagMap filtered = null;
+    for (String tag : RUNNING_SPAN_EXCLUDED_TAGS) {
+      if (tags.containsKey(tag)) {
+        if (filtered == null) {
+          filtered = tags.copy();
+        }
+        filtered.remove(tag);
+      }
+    }
+    return filtered != null ? filtered : tags;
   }
 
   private boolean negativeOrNullPriority(PendingTrace trace) {

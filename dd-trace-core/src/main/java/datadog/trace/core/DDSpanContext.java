@@ -1409,7 +1409,10 @@ public class DDSpanContext
           new Metadata(
               threadId,
               threadName,
-              unsafeTags,
+              // positive version means the span is written while still running
+              longRunningVersion > 0
+                  ? LongRunningTracesTracker.withoutRunningSpanExcludedTags(unsafeTags)
+                  : unsafeTags,
               baggageItemsWithPropagationTags,
               samplingPriority != PrioritySampling.UNSET ? samplingPriority : getSamplingPriority(),
               measured,
