@@ -32,7 +32,7 @@ class ReactorRabbitMQTest extends InstrumentationSpecification {
   def setupSpec() {
     rabbitMQContainer = new RabbitMQContainer(
       DockerImageName.parse(System.getProperty("test.rabbitmq.image"))
-        .asCompatibleSubstituteFor("rabbitmq"))
+      .asCompatibleSubstituteFor("rabbitmq"))
       .withExposedPorts(defaultRabbitMQPort)
       .withStartupTimeout(Duration.ofSeconds(120))
     rabbitMQContainer.start()

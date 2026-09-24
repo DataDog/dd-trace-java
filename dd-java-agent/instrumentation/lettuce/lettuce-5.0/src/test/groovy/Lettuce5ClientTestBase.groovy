@@ -21,9 +21,9 @@ abstract class Lettuce5ClientTestBase extends VersionedNamingTestBase {
 
   @Shared
   Map<String, String> testHashMap = [
-      firstname: "John",
-      lastname : "Doe",
-      age      : "53"
+    firstname: "John",
+    lastname : "Doe",
+    age      : "53"
   ]
 
   int port
@@ -34,9 +34,9 @@ abstract class Lettuce5ClientTestBase extends VersionedNamingTestBase {
   String embeddedDbUri
 
   RedisContainer redisServer = new RedisContainer(
-      DockerImageName.parse(System.getProperty("test.redis.image"))
-          .asCompatibleSubstituteFor("redis"))
-      .waitingFor(Wait.forListeningPort())
+  DockerImageName.parse(System.getProperty("test.redis.image"))
+  .asCompatibleSubstituteFor("redis"))
+  .waitingFor(Wait.forListeningPort())
 
   RedisClient redisClient
   StatefulRedisConnection connection

@@ -37,8 +37,8 @@ abstract class VertxRedisTestBase extends VersionedNamingTestBase {
   @AutoCleanup(value = "stop")
   @Shared
   def redisServer = new RedisContainer(
-    DockerImageName.parse(System.getProperty("test.redis.image")))
-    .waitingFor(Wait.forListeningPort())
+  DockerImageName.parse(System.getProperty("test.redis.image")))
+  .waitingFor(Wait.forListeningPort())
 
   @Shared
   @AutoCleanup(quiet = true)
