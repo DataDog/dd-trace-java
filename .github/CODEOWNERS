@@ -374,7 +374,7 @@
 /dd-trace-api/**/config/RumConfig*                   @DataDog/rum
 
 # Build configuration
-**/build.gradle                                    @DataDog/apm-lang-platform-java
-**/build.gradle.kts                                @DataDog/apm-lang-platform-java
-**/gradle.lockfile                                 @DataDog/apm-lang-platform-java
-/dd-java-agent/instrumentation/**/gradle.lockfile  @DataDog/apm-idm-java
+**/build.gradle                                    @DataDog/apm-lang-platform-java @DataDog/apm-java
+**/build.gradle.kts                                @DataDog/apm-lang-platform-java @DataDog/apm-java
+**/gradle.lockfile                                 @DataDog/apm-lang-platform-java @DataDog/apm-java
+/dd-java-agent/instrumentation/**/gradle.lockfile  @DataDog/apm-idm-java @DataDog/apm-java
