@@ -200,6 +200,13 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
       synchronized (lifecycleLock) {
         return !closed && apply(response);
       }
+    } catch (final UfcResponseBodyReader.ResponseTooLargeException e) {
+      if (!closed) {
+        ratelimitedLogger.warn(
+            "Feature Flagging agentless endpoint response exceeded the {}-byte safety limit",
+            e.limitBytes);
+      }
+      return false;
     } catch (final IOException e) {
       if (!closed) {
         ratelimitedLogger.warn(
@@ -363,7 +370,8 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
       if (etag != null) {
         headers.put("If-None-Match", etag);
       }
-      // Leave Accept-Encoding unset so OkHttp negotiates gzip and transparently decompresses it.
+      // Set this explicitly so OkHttp keeps the compressed stream available for byte limits.
+      headers.put("Accept-Encoding", "gzip");
       final Request request =
           prepareRequest(endpoint, headers, config, isDatadogManagedEndpoint(endpoint, config))
               .get()
@@ -401,7 +409,11 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
               final int status = response.code();
               final String responseEtag = response.header("ETag");
               try (ResponseBody responseBody = response.body()) {
-                final byte[] body = responseBody != null ? responseBody.bytes() : null;
+                final byte[] body =
+                    status == HttpURLConnection.HTTP_OK && responseBody != null
+                        ? UfcResponseBodyReader.read(
+                            responseBody, response.header("Content-Encoding"))
+                        : null;
                 return new UfcHttpResponse(status, responseEtag, body);
               }
             });
@@ -454,6 +466,7 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
     @Override
     public boolean shouldRetry(final Exception exception) {
       return exception instanceof IOException
+          && !(exception instanceof UfcResponseBodyReader.ResponseTooLargeException)
           && !Thread.currentThread().isInterrupted()
           && reserveRetry();
     }

@@ -265,7 +265,7 @@ class AgentlessConfigurationSourceTest {
   }
 
   @Test
-  void downloadsAndAppliesLargeUfcWithoutPayloadLimit() throws Exception {
+  void downloadsAndAppliesLargeUfcWithinPayloadLimit() throws Exception {
     final int flagCount = 5_000;
     final String largeConfig = largeConfig(flagCount);
     assertTrue(largeConfig.getBytes(UTF_8).length > 500_000);
@@ -300,6 +300,40 @@ class AgentlessConfigurationSourceTest {
   }
 
   @Test
+  void oversizedKnownLengthIsNotRetried() throws Exception {
+    final List<okhttp3.Request> requests = new ArrayList<>();
+    final byte[] oversized = new byte[UfcResponseBodyReader.MAX_DECOMPRESSED_BYTES + 1];
+    final AgentlessConfigurationSource.OkHttpUfcHttpClient client =
+        scriptedClient(
+            requests,
+            delay -> {},
+            () -> 1.0,
+            new AgentlessConfigurationSource.UfcHttpResponse(200, "etag-bad", oversized));
+
+    assertThrows(
+        UfcResponseBodyReader.ResponseTooLargeException.class,
+        () -> client.fetch(HttpUrl.get("http://localhost" + CONFIG_PATH), config(), "etag-good"));
+    assertEquals(1, requests.size());
+  }
+
+  @Test
+  void oversizedResponseKeepsLastKnownGoodConfigurationAndEtag() {
+    final FakeClient client =
+        new FakeClient(
+            response(200, "etag-good", emptyConfig()),
+            new UfcResponseBodyReader.ResponseTooLargeException(
+                "decompressed", UfcResponseBodyReader.MAX_DECOMPRESSED_BYTES));
+    final AgentlessConfigurationSource service = service(client);
+    FeatureFlaggingGateway.addConfigListener(listener);
+
+    assertTrue(service.pollOnce());
+    assertFalse(service.pollOnce());
+
+    verify(listener).accept(any(ServerConfiguration.class));
+    assertEquals("etag-good", client.requests.get(1).etag);
+  }
+
+  @Test
   void realHttpClientAllowsMissingEtagAndEmptyResponseBody() throws Exception {
     try (JavaTestHttpServer server =
         JavaTestHttpServer.httpServer(
@@ -322,7 +356,7 @@ class AgentlessConfigurationSourceTest {
 
         assertEquals(HttpURLConnection.HTTP_NO_CONTENT, response.status);
         assertNull(response.etag);
-        assertEquals(0, response.body.length);
+        assertNull(response.body);
         assertNull(server.getLastRequest().getHeader("If-None-Match"));
       } finally {
         httpClient.dispatcher().executorService().shutdownNow();
@@ -830,6 +864,10 @@ class AgentlessConfigurationSourceTest {
         retryPolicy(new AtomicBoolean());
 
     assertFalse(policy.shouldRetry(new IllegalStateException("not an I/O failure")));
+    assertFalse(
+        policy.shouldRetry(
+            new UfcResponseBodyReader.ResponseTooLargeException(
+                "decompressed", UfcResponseBodyReader.MAX_DECOMPRESSED_BYTES)));
 
     Thread.currentThread().interrupt();
     try {
