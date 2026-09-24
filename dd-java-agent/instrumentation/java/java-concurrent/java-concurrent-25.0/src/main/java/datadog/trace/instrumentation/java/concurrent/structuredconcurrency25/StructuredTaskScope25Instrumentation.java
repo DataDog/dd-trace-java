@@ -14,13 +14,7 @@ import net.bytebuddy.asm.Advice.This;
 /**
  * This instrumentation releases the continuations captured by {@link
  * StructuredTaskScope25TaskInstrumentation} for subtasks whose thread never starts (e.g. a subtask
- * forked into an already-canceled scope).
- *
- * <p>Each forked subtask is registered in a per-scope {@link TaskScopeStateRegistry} at creation
- * (by {@link StructuredTaskScope25TaskInstrumentation}, so even if {@code fork()} throws), and the
- * registry is swept when the scope closes ({@code close()}). Sweeping at close ensures started
- * subtask has, already consumed its continuation in {@code SubtaskImpl.run()}, while a
- * never-started subtask still holds it and gets it released.
+ * forked into an already-canceled scope, or {@code fork()} throwing).
  */
 @SuppressWarnings("unused")
 public class StructuredTaskScope25Instrumentation

@@ -18,9 +18,13 @@ import net.bytebuddy.asm.Advice.OnMethodExit;
 import net.bytebuddy.asm.Advice.This;
 
 /**
- * This instrumentation captures the active span scope at StructuredTaskScope task creation
- * (SubtaskImpl). The scope is then activate and close through the {@link Runnable} instrumentation
+ * This instrumentation captures the active context at StructuredTaskScope subtask creation
+ * (SubtaskImpl). The context is then activated and closed by the {@link Runnable} instrumentation
  * (SubtaskImpl implementing {@link Runnable}).
+ *
+ * <p>The subtask state is also tracked in its scope's {@link TaskScopeStateRegistry} until the
+ * subtask runs, so {@link StructuredTaskScope25Instrumentation} can release its continuation at
+ * scope close otherwise.
  */
 @SuppressWarnings("unused")
 public class StructuredTaskScope25TaskInstrumentation
