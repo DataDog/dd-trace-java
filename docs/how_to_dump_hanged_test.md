@@ -100,7 +100,8 @@ Quick verification checklist:
 ### IBM JDK (javacore thread dumps only):
 
 - In this case, dumps are produced via `kill -3` and written as `javacore` text files (thread dumps).
-- Collect root-level javacore artifacts with the path pattern `reports/javacore.YYYYMMDD.HHMMSS.PID.SEQ.txt`.
+- Open the report folder of the failed module/test task, same as for HotSpot.
+- You should see files such as `javacore.YYYYMMDD.HHMMSS.PID.SEQ.txt`.
   ![Javacores](how_to_dump_hanged_test/javacores.png)
 
 ## Step 5: Run the investigation
