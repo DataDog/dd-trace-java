@@ -41,8 +41,16 @@ class KnownTagsTest {
         Arguments.of(Tags.PEER_SERVICE, KnownTags.PEER_SERVICE_ID),
         Arguments.of(DDTags.PEER_SERVICE_REMAPPED_FROM, KnownTags.DD_PEER_SERVICE_REMAPPED_FROM_ID),
         Arguments.of(Tags.HTTP_METHOD, KnownTags.HTTP_METHOD_ID),
+        Arguments.of(
+            KnownTags.HTTP_REQUEST_METHOD_ORIGINAL_NAME, KnownTags.HTTP_REQUEST_METHOD_ORIGINAL_ID),
         Arguments.of(Tags.HTTP_ROUTE, KnownTags.HTTP_ROUTE_ID),
         Arguments.of(Tags.HTTP_URL, KnownTags.HTTP_URL_ID),
+        Arguments.of(KnownTags.SERVER_ADDRESS_NAME, KnownTags.SERVER_ADDRESS_ID),
+        Arguments.of(KnownTags.SERVER_PORT_NAME, KnownTags.SERVER_PORT_ID),
+        Arguments.of(KnownTags.URL_PATH_NAME, KnownTags.URL_PATH_ID),
+        Arguments.of(KnownTags.URL_QUERY_NAME, KnownTags.URL_QUERY_ID),
+        Arguments.of(KnownTags.URL_SCHEME_NAME, KnownTags.URL_SCHEME_ID),
+        Arguments.of(KnownTags.NETWORK_CLIENT_IP_NAME, KnownTags.NETWORK_CLIENT_IP_ID),
         Arguments.of(Tags.PEER_HOSTNAME, KnownTags.PEER_HOSTNAME_ID),
         Arguments.of(Tags.PEER_HOST_IPV4, KnownTags.PEER_IPV4_ID),
         Arguments.of(Tags.PEER_HOST_IPV6, KnownTags.PEER_IPV6_ID),
@@ -68,6 +76,7 @@ class KnownTagsTest {
         Arguments.of("url.full", KnownTags.HTTP_URL_ID, "http.url"),
         Arguments.of("user_agent.original", KnownTags.HTTP_USERAGENT_ID, "http.useragent"),
         Arguments.of("client.address", KnownTags.HTTP_CLIENT_IP_ID, "http.client_ip"),
+        Arguments.of("network.peer.address", KnownTags.NETWORK_CLIENT_IP_ID, "network.client.ip"),
         Arguments.of("db.system", KnownTags.DB_TYPE_ID, "db.type"),
         Arguments.of("db.operation.name", KnownTags.DB_OPERATION_ID, "db.operation"),
         Arguments.of("db.query.text", KnownTags.DB_STATEMENT_ID, "db.statement"),
@@ -177,9 +186,8 @@ class KnownTagsTest {
     assertEquals(
         "client.port",
         KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, KnownTagCodec.DIRECTION_INBOUND));
-    assertEquals(
-        "server.port",
-        KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, KnownTagCodec.DIRECTION_OUTBOUND));
+    // Temporarily remove "server.port" == openTelemetryTagOf(peer.port, outbound) because
+    // server.port in OTel is also used by server spans
     assertEquals(
         Tags.PEER_PORT,
         KnownTagCodec.openTelemetryTagOf(KnownTags.PEER_PORT_ID, KnownTagCodec.DIRECTION_NONE));
