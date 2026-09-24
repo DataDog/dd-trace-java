@@ -3,15 +3,16 @@ package datadog.trace.instrumentation.datanucleus;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.datanucleus.DatanucleusDecorator.DATANUCLEUS_QUERY_DELETE;
 import static datadog.trace.instrumentation.datanucleus.DatanucleusDecorator.DATANUCLEUS_QUERY_EXECUTE;
 import static datadog.trace.instrumentation.datanucleus.DatanucleusDecorator.DECORATE;
 import static datadog.trace.instrumentation.datanucleus.DatanucleusDecorator.JAVA_DATANUCLEUS;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.datanucleus.api.jdo.JDOQuery;
@@ -49,7 +50,7 @@ public class JDOQueryInstrumentation
 
   public static class QueryAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope startExecute(@Advice.Origin("#m") final String methodName) {
+    public static ContextScope startExecute(@Advice.Origin("#m") final String methodName) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(JDOQuery.class);
       if (callDepth > 0) {
         return null;
@@ -67,7 +68,7 @@ public class JDOQueryInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void endExecute(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.FieldValue("query") Query internalQuery,
         @Advice.Thrown final Throwable throwable) {
 
@@ -77,7 +78,7 @@ public class JDOQueryInstrumentation
 
       CallDepthThreadLocalMap.reset(JDOQuery.class);
 
-      AgentSpan span = scope.span();
+      AgentSpan span = spanFromScope(scope);
 
       // candidateClass is set internally and is not always in sync with candidateClassName
       String candidateClassName =

@@ -61,8 +61,8 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
   private static final ElementMatcher<TypeDescription> NETTY_GLOBAL_EVENT_EXECUTOR =
       namedOneOf(
           "io.netty.util.concurrent.GlobalEventExecutor",
-          // shaded version
-          "io.grpc.netty.shaded.io.netty.util.concurrent.GlobalEventExecutor");
+          "io.grpc.netty.shaded.io.netty.util.concurrent.GlobalEventExecutor",
+          "com.couchbase.client.deps.io.netty.util.concurrent.GlobalEventExecutor");
   private static final ElementMatcher<TypeDescription> NETTY_IDLE_STATE_HANDLER =
       namedOneOf(
           "io.netty.handler.timeout.IdleStateHandler",
@@ -114,6 +114,7 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       LETTUCE_HANDSHAKE_HANDLER,
       "io.netty.util.concurrent.GlobalEventExecutor",
       "io.grpc.netty.shaded.io.netty.util.concurrent.GlobalEventExecutor",
+      "com.couchbase.client.deps.io.netty.util.concurrent.GlobalEventExecutor",
       "io.netty.handler.timeout.IdleStateHandler",
       "io.grpc.netty.shaded.io.netty.handler.timeout.IdleStateHandler",
       "com.linecorp.armeria.client.HttpClientFactory",

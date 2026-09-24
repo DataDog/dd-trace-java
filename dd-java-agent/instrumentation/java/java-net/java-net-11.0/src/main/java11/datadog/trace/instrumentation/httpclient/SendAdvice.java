@@ -2,13 +2,14 @@ package datadog.trace.instrumentation.httpclient;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.INSTRUMENTATION_NAME;
 import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.OPERATION_NAME;
 
 import datadog.appsec.api.blocking.BlockingException;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -17,7 +18,8 @@ import net.bytebuddy.asm.Advice;
 
 public class SendAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope methodEnter(@Advice.Argument(value = 0) final HttpRequest httpRequest) {
+  public static ContextScope methodEnter(
+      @Advice.Argument(value = 0) final HttpRequest httpRequest) {
     try {
       if (DECORATE.isAgentRequest(httpRequest)) {
         return null;
@@ -32,7 +34,7 @@ public class SendAdvice {
       }
       DECORATE.allowContextInjection();
       final AgentSpan span = startSpan(INSTRUMENTATION_NAME, OPERATION_NAME);
-      final AgentScope scope = activateSpan(span);
+      final ContextScope scope = activateSpan(span);
 
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, httpRequest);
@@ -49,7 +51,7 @@ public class SendAdvice {
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void methodExit(
-      @Advice.Enter final AgentScope scope,
+      @Advice.Enter final ContextScope scope,
       @Advice.Return final HttpResponse<?> httpResponse,
       @Advice.Thrown final Throwable throwable) {
     if (scope == null) {
@@ -58,7 +60,7 @@ public class SendAdvice {
     CallDepthThreadLocalMap.reset(HttpClient.class);
     DECORATE.blockContextInjection();
 
-    AgentSpan span = scope.span();
+    AgentSpan span = spanFromScope(scope);
     if (null != throwable) {
       DECORATE.onError(span, throwable);
     } else {

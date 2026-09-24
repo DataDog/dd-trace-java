@@ -98,16 +98,18 @@ public class MasterReplicaConnectionProviderInstrumentation extends Instrumenter
   public static class AsyncAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void onExit(
-        @Advice.Return final CompletableFuture<? extends StatefulConnection> connectionFuture) {
+    public static <T extends StatefulConnection> void onExit(
+        @Advice.Return(readOnly = false) CompletableFuture<T> connectionFuture) {
       final AgentSpan span = activeSpan();
       if (!MasterReplicaConnectionHelper.isRedisClientSpan(span) || connectionFuture == null) {
         return;
       }
 
-      connectionFuture.whenComplete(
-          MasterReplicaConnectionHelper.onConnectionComplete(
-              span, InstrumentationContext.get(StatefulConnection.class, RedisURI.class)));
+      connectionFuture =
+          MasterReplicaConnectionHelper.onConnectionFuture(
+              span,
+              connectionFuture,
+              InstrumentationContext.get(StatefulConnection.class, RedisURI.class));
     }
   }
 }
