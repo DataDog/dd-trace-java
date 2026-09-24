@@ -58,8 +58,8 @@ In order to identify such tests and avoid the continuous integration to fail, th
 ## Tests that use containers
 
 > [!IMPORTANT]
-> Don't use image name in Test Container constructors like `new CassandraContainer("cassandra:4")` , 
-> or `new GenericContainer("icr.io/appcafe/websphere-traditional:latest")`. Tags can be moved.
+> Don't use image name in Test Container constructors like `new CassandraContainer("cassandra:4")`, 
+> or `new GenericContainer("icr.io/appcafe/websphere-traditional:latest")`. Image tags can change.
 > Also, these are not properly tracked as _test_ task inputs and as such can't be fingerprinted.
 > Instead, use the `dd-trace-java.testcontainers` plugin to declare these as dependencies,
 > it will resolve the actual image digest before running the test.
