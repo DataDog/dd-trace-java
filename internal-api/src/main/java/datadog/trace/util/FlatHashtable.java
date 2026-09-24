@@ -280,6 +280,11 @@ public final class FlatHashtable {
      * {@link Maybe} allocation-free contract doesn't fit or that pre-date it. Under-promising
      * refusal here costs an NPE at the cap; over-promising it costs a redundant null check on a
      * growable table -- so it errs toward {@code try}.
+     *
+     * @param key key to look up
+     * @param createStrat creates an entry when the key is absent
+     * @return the existing or created entry, or {@code null} when a fixed table is full and {@code
+     *     key} is absent
      */
     @Nullable
     public TEntry tryGetOrCreateOrNull(
@@ -483,6 +488,12 @@ public final class FlatHashtable {
      * Two-key analogue of {@link D1#tryGetOrCreateOrNull}: low-level, {@code null}-returning form
      * of {@link #tryGetOrCreate}. Growable never returns {@code null}; fixed returns {@code null}
      * when full and {@code (key1, key2)} is absent.
+     *
+     * @param key1 first key component
+     * @param key2 second key component
+     * @param createStrat creates an entry when the key pair is absent
+     * @return the existing or created entry, or {@code null} when a fixed table is full and the key
+     *     pair is absent
      */
     @Nullable
     public TEntry tryGetOrCreateOrNull(

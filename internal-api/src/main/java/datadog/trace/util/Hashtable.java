@@ -196,6 +196,11 @@ public final class Hashtable {
      * allocated: {@code buckets} stays a plain {@code Hashtable.Entry[]} internally, matching the
      * static building blocks ({@link Hashtable#bucketFor}, {@link Hashtable#insertHeadEntryFor},
      * etc.) that {@link #get}, {@link #insert}, and friends delegate to.
+     *
+     * @param entryClass type token pinning {@code TEntry} for inference; not used for reflective
+     *     allocation
+     * @param maxCapacity strict cap on live entries
+     * @return a capped, non-resizing single-key table
      */
     @Nonnull
     public static <K, TEntry extends D1.Entry<K>> D1<K, TEntry> createBounded(
@@ -312,18 +317,22 @@ public final class Hashtable {
      * fall back, make room); silently ignoring an absent {@link Maybe} turns the cap into data loss
      * you cannot see.
      *
-     * <p>Computes the hash once and reuses it for both the lookup and (on miss) the insert --
-     * avoids the double-hash that "{@code get}; if null then {@code insert}" would incur.
+     * <p>Computes the hash once, reused for both the lookup and (on miss) the insert -- avoids the
+     * double-hash that "{@code get}; if null then {@code insert}" would incur.
      *
-     * <p>The {@code creator} is expected to build an entry whose {@code keyHash} equals {@link
-     * Entry#hash(Object) D1.Entry.hash(key)} -- typically by passing {@code key} to a constructor
-     * that calls {@code super(key)}. A mismatched hash will leave the new entry inserted at a
-     * bucket that future {@link #get} calls won't probe.
+     * <p>{@code creator} must build an entry whose {@code keyHash} equals {@link Entry#hash(Object)
+     * D1.Entry.hash(key)} (typically by passing {@code key} to a constructor that calls {@code
+     * super(key)}), or a future {@link #get} for that key won't find it.
      *
      * <p>Exactly one {@link Maybe#of} call site, fed by delegating to {@link #tryGetOrCreateOrNull}
      * -- see {@link Maybe}'s class javadoc for why that shape is required to stay allocation-free.
      * Use {@link #tryGetOrCreateOrNull} directly only when a manual null check is genuinely more
      * convenient than {@link Maybe#update}/{@link Maybe#getOrNull}.
+     *
+     * @param key key to look up
+     * @param creator creates an entry when the key is absent
+     * @return the existing or created entry, or an absent value when a new key is refused at
+     *     capacity
      */
     @Nonnull
     public Maybe<TEntry> tryGetOrCreate(
@@ -348,10 +357,9 @@ public final class Hashtable {
           return curEntry;
         }
       }
-      // Deliberately isFull() -> create -> increment, rather than the one-call tracked
-      // insertHeadEntryFor(sizeManager, ...) that insert/tryInsertOrReplace use: `creator` runs
-      // between the check and the link and may throw, so a slot reserved up front could leak. See
-      // SizeManager#tryReserve.
+      // Deliberately isFull() -> create -> increment, not the one-call tracked
+      // insertHeadEntryFor(sizeManager, ...) that insert/tryInsertOrReplace use: creator runs
+      // between check and link and may throw, so reserving up front could leak.
       if (this.sizeManager.isFull()) {
         return null;
       }
@@ -375,11 +383,14 @@ public final class Hashtable {
     }
 
     /**
-     * Escape hatch for {@link #tryGetOrCreateOrEvict} for callers that want the nullable entry
-     * directly. Eviction runs before {@code creator}, not after: {@code creator} may throw, so
-     * freeing a slot and only then attempting the fallible create keeps a thrown exception from
-     * ever leaving a slot double-booked. A creator that throws after a successful eviction simply
-     * leaves the table one entry smaller -- no corruption, just a wasted eviction.
+     * Nullable form of {@link #tryGetOrCreateOrEvict}. When full, evicts before invoking {@code
+     * creator}; if creation then throws, the table remains one entry smaller without leaking a
+     * reservation.
+     *
+     * @param key key to look up
+     * @param creator creates an entry when the key is absent
+     * @param evictable selects an entry to remove when the table is full
+     * @return the existing or created entry, or {@code null} when full with no evictable entry
      */
     @Nullable
     public TEntry tryGetOrCreateOrEvictOrNull(
@@ -394,10 +405,9 @@ public final class Hashtable {
           return curEntry;
         }
       }
-      // Deliberately isFull() -> evictOne -> create -> increment, not tryReserveOrEvict: `creator`
-      // runs between eviction and the link and may throw, so reserving the freed slot up front
-      // could leak it. See tryGetOrCreateOrNull above for the non-evicting form of this same
-      // reasoning.
+      // Deliberately isFull() -> evictOne -> create -> increment, not tryReserveOrEvict: creator
+      // runs between eviction and link and may throw, so reserving the freed slot up front could
+      // leak it. See tryGetOrCreateOrNull above for the non-evicting form of this reasoning.
       if (this.sizeManager.isFull() && this.sizeManager.evictOne(this.buckets, evictable) == null) {
         return null;
       }
@@ -537,6 +547,11 @@ public final class Hashtable {
      * reflectively allocated: {@code buckets} stays a plain {@code Hashtable.Entry[]} internally,
      * matching the static building blocks that {@link #get}, {@link #insert}, and friends delegate
      * to.
+     *
+     * @param entryClass type token pinning {@code TEntry} for inference; not used for reflective
+     *     allocation
+     * @param maxCapacity strict cap on live entries
+     * @return a capped, non-resizing two-key table
      */
     @Nonnull
     public static <K1, K2, TEntry extends D2.Entry<K1, K2>> D2<K1, K2, TEntry> createBounded(
