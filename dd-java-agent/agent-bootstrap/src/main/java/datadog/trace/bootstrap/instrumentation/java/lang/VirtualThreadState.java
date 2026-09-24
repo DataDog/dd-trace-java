@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.java.lang;
 
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
+import datadog.trace.api.GenericClassValue;
 
 /**
  * This class holds the saved context and scope continuation for a virtual thread.
@@ -10,6 +11,15 @@ import datadog.context.ContextContinuation;
  * mount/unmount.
  */
 public final class VirtualThreadState {
+  private static final ClassValue<Boolean> PROPAGATE_CONTEXT =
+      GenericClassValue.of(
+          type -> !type.getName().equals("jdk.internal.net.http.HttpClientImpl$SelectorManager"));
+
+  /** The HTTP selector belongs to its client, not to the request creating the client. */
+  public static boolean shouldPropagateContext(Runnable task) {
+    return PROPAGATE_CONTEXT.get(task.getClass());
+  }
+
   /** The virtual thread's saved context (scope stack snapshot). */
   private Context context;
 
