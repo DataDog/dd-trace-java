@@ -28,10 +28,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Covers the premain-timing contract of the ddprof profiling context integration: the AppSec-only
- * trigger must not construct it (nor register the process context) on the calling thread, while the
- * profiler-enabled path must keep constructing it there and must leave the process context
- * registration to the profiler agent.
+ * Covers the premain-timing contract of the ddprof profiling context integration: deferred vs.
+ * synchronous construction, and process context registration ownership.
  */
 class DeferredProfilingContextIntegrationTest {
 
@@ -88,10 +86,8 @@ class DeferredProfilingContextIntegrationTest {
   }
 
   /**
-   * The synchronous path is only taken when the Datadog profiler is actually enabled, and in that
-   * case {@code ProfilingAgent.run()} registers the process context on its own, as it always has.
-   * Registering it here as well would log "Registering process context for OTel profiler" twice and
-   * call into the native library twice for every user that already has profiling on.
+   * {@code ProfilingAgent.run()} registers the process context on its own when profiling is
+   * enabled; registering it here too would double-register.
    */
   @Test
   void synchronousConstructionLeavesTheProcessContextToTheProfilerAgent() {
@@ -125,11 +121,8 @@ class DeferredProfilingContextIntegrationTest {
   }
 
   /**
-   * Virtual thread mount/unmount goes through {@link
-   * ProfilingContextIntegration#isThreadContextBindingRequired()} and {@link
-   * ProfilingContextIntegration#setContext(Context)}. Without explicit forwarding the wrapper would
-   * keep answering with the interface defaults ({@code false} / no-op) even after the real
-   * integration is swapped in, so virtual-thread rebinding would silently never happen.
+   * Without explicit forwarding, virtual-thread context rebinding would silently never happen after
+   * the real integration is swapped in.
    */
   @Test
   void forwardsVirtualThreadContextBindingOnceInitialized() {

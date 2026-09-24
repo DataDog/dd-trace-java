@@ -200,14 +200,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private final DynamicConfig<ConfigSnapshot> dynamicConfig;
 
   /**
-   * A set of tags that are added only to the application's root span, paired with whether that set
-   * needs interception.
-   *
-   * <p>Written once in the constructor and, for a profiling context integration whose construction
-   * is deferred, once more when that construction succeeds (see {@link
-   * #stampProfilingContextEngine()}). The pair is replaced together as a single immutable holder,
-   * read through one volatile reference, so a concurrent root span creation never observes the new
-   * tag map alongside the stale intercept flag (or vice versa).
+   * Tags added only to the application's root span, paired with whether they need interception;
+   * replaced as one immutable holder so a concurrent root span creation never sees a torn read.
    */
   private static final class LocalRootSpanTags {
     final TagMap tags;
@@ -945,9 +939,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         new LocalRootSpanTags(
             frozenLocalRootSpanTags, this.tagInterceptor.needsIntercept(frozenLocalRootSpanTags));
     if (profilingContextIntegration != ProfilingContextIntegration.NoOp.INSTANCE) {
-      // The engine tag is stamped only once the integration can really label context. Integrations
-      // that are ready when they are handed out run this inline, right here; an integration whose
-      // construction is deferred runs it later, and not at all if that construction fails.
+      // Deferred integrations run this later (or never, if construction fails).
       profilingContextIntegration.whenAvailable(this::stampProfilingContextEngine);
     }
     if (serviceDiscoveryFactory != null) {
@@ -968,12 +960,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   /**
-   * Adds the profiling context engine tag to the local root span tags.
-   *
-   * <p>Runs at most once per tracer, either inline from the constructor (integration already
-   * available) or on the thread that completes a deferred integration's construction. The tag is
-   * kept in the pre-frozen {@link #localRootSpanTags} rather than evaluated per span, so root span
-   * creation pays nothing beyond the volatile read it already does.
+   * Adds the profiling context engine tag to {@link #localRootSpanTags}; runs at most once per
+   * tracer.
    */
   private void stampProfilingContextEngine() {
     TagMap tags = TagMap.fromMap(this.localRootSpanTags.tags);

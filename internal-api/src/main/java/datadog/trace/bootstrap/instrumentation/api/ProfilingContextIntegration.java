@@ -58,15 +58,8 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
   String name();
 
   /**
-   * Registers a one-shot callback to run once this integration is actually able to label context.
-   *
-   * <p>Implementations that are fully built by the time they are handed out (the common case) are
-   * available immediately and run the callback inline. An implementation whose construction is
-   * deferred runs it later, on the thread that completes that construction, and never runs it if
-   * the construction fails. Consumers use this to publish metadata about the engine (such as the
-   * {@code _dd.profiling.ctx} tag) only when there really is an engine behind it.
-   *
-   * @param callback invoked at most once, possibly on an arbitrary thread.
+   * Registers a one-shot callback to run once this integration is actually able to label context;
+   * runs inline if already available, or never if a deferred construction fails.
    */
   default void whenAvailable(Runnable callback) {
     callback.run();

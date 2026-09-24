@@ -2,13 +2,8 @@ package datadog.smoketest.appsec
 
 import spock.util.concurrent.PollingConditions
 
-/**
- * Verifies that the OTel thread/process context integration ({@code
- * datadog.trace.bootstrap.Agent#createProfilingContextIntegration}) is driven purely by AppSec
- * activation, independently of profiling: {@code defaultAppSecProperties} always sets {@code
- * -Ddd.profiling.enabled=false}, and this module runs twice in CI (the {@code test} and {@code
- * testRuntimeActivation} Gradle tasks), once with AppSec fully enabled and once with it inactive.
- */
+/** Verifies OTel thread/process context integration is driven by AppSec activation, independently
+ * of profiling ({@code defaultAppSecProperties} always sets {@code -Ddd.profiling.enabled=false}). */
 class OtelContextExposureSmokeTest extends AbstractAppSecServerSmokeTest {
 
   private static final String PROCESS_CONTEXT_LOG_LINE = 'Registering process context for OTel profiler'
@@ -45,18 +40,13 @@ class OtelContextExposureSmokeTest extends AbstractAppSecServerSmokeTest {
       conditions.eventually {
         assert new File(logFilePath).text.contains(PROCESS_CONTEXT_LOG_LINE)
       }
-      // The "Registering..." line is logged before the native library is loaded and the OTel
-      // context is initialized, so on its own it only proves the attempt. Give the registration
-      // time to complete (or fail) and then assert it did not fail.
+      // "Registering..." only proves the attempt; give it time to complete or fail.
       sleep(5_000)
       String logContent = new File(logFilePath).text
       assert !logContent.contains(PROCESS_CONTEXT_FAILURE_LOG_LINE)
       assert !logContent.contains(PROCESS_CONTEXT_UNAVAILABLE_LOG_LINE)
     } else {
-      // AppSec is only "inactive-enabled" here and no remote config ever activates it, so the
-      // integration stays armed and never registers anything.
-      // Give the agent the same startup time as the positive case before asserting absence,
-      // so a slow-starting agent can't produce a false negative.
+      // Same startup time as the positive case, so a slow-starting agent isn't a false negative.
       conditions.eventually {
         assert new File(logFilePath).length() > 0
       }

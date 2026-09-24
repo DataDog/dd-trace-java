@@ -1493,18 +1493,12 @@ public class Agent {
    */
   static ProfilingContextIntegration createProfilingContextIntegration() {
     Config config = Config.get();
-    // AWS Lambda is excluded for the same reason startProfilingAgent() excludes it: the ddprof
-    // native library is not supported there, and loading it would only add cold-start overhead.
+    // AWS Lambda has no ddprof native library support, same as startProfilingAgent().
     if (!OperatingSystem.isWindows() && !isAwsLambdaRuntime()) {
-      // isDatadogProfilerEnabled() is ORed in explicitly so a user with real profiling enabled
-      // keeps ddprof regardless of the AppSec activation level that otherwise drives
-      // isOtelContextExposureEnabled() - additive, not a replacement gate.
+      // ORed explicitly so real profiling keeps ddprof regardless of AppSec activation level.
       if (config.isDatadogProfilerEnabled() || config.isOtelContextExposureEnabled()) {
-        // When the ddprof integration is triggered by context exposure alone (profiling disabled),
-        // its construction is deferred off the premain thread: it loads the ddprof native library
-        // and touches java.nio.file, which must not happen on the primordial premain thread. Users
-        // with the profiler actually enabled keep the synchronous path, since profiling accuracy
-        // requires seeing every scope from the very first one.
+        // Deferred unless profiling is enabled: construction loads the ddprof native library and
+        // touches java.nio.file, which must not happen on the primordial premain thread.
         ProfilingContextIntegration integration =
             createDdprofContextIntegration(AGENT_CLASSLOADER, !config.isDatadogProfilerEnabled());
         if (integration != null) {
@@ -1529,21 +1523,13 @@ public class Agent {
 
   /**
    * Creates the ddprof-based profiling context integration, either synchronously or deferred off
-   * the calling thread.
-   *
-   * @param classLoader the agent class loader used to reach the profiling classes.
-   * @param deferInitialization when true, the integration (and the process context registration
-   *     that follows it) is constructed on an {@link AgentTaskScheduler} thread instead of the
-   *     caller's, which during premain is the JVM's primordial thread.
-   * @return the integration, or {@code null} if a synchronous construction failed, in which case
-   *     the caller falls back to the other integrations.
+   * the calling thread onto an {@link AgentTaskScheduler} thread. Returns {@code null} if a
+   * synchronous construction fails, so the caller can fall back to another integration.
    */
   static ProfilingContextIntegration createDdprofContextIntegration(
       final ClassLoader classLoader, final boolean deferInitialization) {
-    // deferInitialization is exactly "the profiler itself is not running", which is also exactly
-    // when nobody else registers the process context: ProfilingAgent.run() already does it when
-    // the profiler starts. Registering it here as well in the profiler-enabled case would log and
-    // call into the native library twice for every user that has profiling on today.
+    // deferInitialization means the profiler itself isn't running, so nothing else registers the
+    // process context here — ProfilingAgent.run() already does it when the profiler starts.
     Callable<ProfilingContextIntegration> factory =
         ddprofContextIntegrationFactory(classLoader, deferInitialization);
     if (deferInitialization) {
@@ -1562,11 +1548,7 @@ public class Agent {
 
   /**
    * Builds the ddprof integration reflectively, optionally registering the OTel process context
-   * alongside it.
-   *
-   * @param classLoader the agent class loader used to reach the profiling classes.
-   * @param registerProcessContext whether this factory also has to register the process context,
-   *     i.e. whether the profiler agent, which registers it on its own, is not going to start.
+   * alongside it (when the profiler agent isn't going to register it itself).
    */
   private static Callable<ProfilingContextIntegration> ddprofContextIntegrationFactory(
       final ClassLoader classLoader, final boolean registerProcessContext) {
