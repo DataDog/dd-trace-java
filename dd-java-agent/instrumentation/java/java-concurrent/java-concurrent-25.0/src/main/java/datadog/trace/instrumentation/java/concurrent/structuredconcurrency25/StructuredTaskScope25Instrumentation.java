@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.TaskScopeStateRegistry;
+import net.bytebuddy.asm.Advice.FieldValue;
 import net.bytebuddy.asm.Advice.OnMethodExit;
 import net.bytebuddy.asm.Advice.This;
 
@@ -37,6 +38,9 @@ public class StructuredTaskScope25Instrumentation
   }
 
   public static final class CloseAdvice {
+    /** The {@code StructuredTaskScopeImpl.ST_CLOSED} state value (same from JDK 25 to 27). */
+    static final int ST_CLOSED = 4;
+
     /**
      * Cleans up the scope's {@link TaskScopeStateRegistry} when it closes, releasing the
      * continuation of every subtask whose thread never ran.
@@ -45,11 +49,19 @@ public class StructuredTaskScope25Instrumentation
      * never-started subtasks still hold an unconsumed continuation; releasing an already-consumed
      * one is a no-op.
      *
+     * <p>The registry is only swept once the scope reached its closed state: {@code close()} may
+     * also throw after joining (e.g. owner did not join after forking), but it throws before
+     * joining when called by a non-owner thread, while subtasks may still be pending.
+     *
      * @param scope The StructuredTaskScopeImpl object (using {@link Object} as the advice is
      *     compiled against Java 8, meaning the type from JDK 25 can't be referred directly).
+     * @param state The StructuredTaskScopeImpl state.
      */
     @OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void afterClose(@This Object scope) {
+    public static void afterClose(@This Object scope, @FieldValue("state") int state) {
+      if (state != ST_CLOSED) {
+        return;
+      }
       ContextStore<Object, TaskScopeStateRegistry> registryStore =
           get(
               "java.util.concurrent.StructuredTaskScopeImpl",

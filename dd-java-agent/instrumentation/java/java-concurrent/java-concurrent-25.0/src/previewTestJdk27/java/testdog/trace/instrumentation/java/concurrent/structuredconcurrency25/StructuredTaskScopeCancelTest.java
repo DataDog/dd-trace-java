@@ -3,11 +3,14 @@ package testdog.trace.instrumentation.java.concurrent.structuredconcurrency25;
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIME;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.StructuredTaskScope;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -69,6 +72,55 @@ public class StructuredTaskScopeCancelTest extends AbstractInstrumentationTest {
         firstStarted.await();
         // Forking the second subtask cancels the scope, so its thread never starts.
         scope.fork(this::task);
+        scope.join();
+      }
+    }
+    span.finish();
+
+    assertTraces(
+        trace(
+            SORT_BY_START_TIME,
+            span().root().operationName("parent"),
+            span().childOfPrevious().operationName("child")));
+  }
+
+  /**
+   * A {@code close()} call from a non-owner thread fails before joining the subtasks. It must not
+   * release the continuation of a subtask that was forked but has not run yet.
+   */
+  @Test
+  void testNonOwnerCloseKeepsPendingSubtaskContext() throws Exception {
+    var subtaskGate = new CountDownLatch(1);
+    // Hold the subtask before its run() until the non-owner close attempt is done
+    ThreadFactory gatedFactory =
+        subtask ->
+            new Thread(
+                () -> {
+                  try {
+                    subtaskGate.await();
+                  } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                  }
+                  subtask.run();
+                });
+    var span = tracer.startSpan("test", "parent");
+    try (var ignored = tracer.activateSpan(span)) {
+      try (var scope = StructuredTaskScope.open(cf -> cf.withThreadFactory(gatedFactory))) {
+        scope.fork(this::task);
+        var closeFailure = new AtomicReference<Throwable>();
+        var nonOwner =
+            new Thread(
+                () -> {
+                  try {
+                    scope.close();
+                  } catch (Throwable t) {
+                    closeFailure.set(t);
+                  }
+                });
+        nonOwner.start();
+        nonOwner.join();
+        assertInstanceOf(WrongThreadException.class, closeFailure.get());
+        subtaskGate.countDown();
         scope.join();
       }
     }
