@@ -1496,7 +1496,7 @@ public class Agent {
     // AWS Lambda has no ddprof native library support, same as startProfilingAgent().
     if (!OperatingSystem.isWindows() && !isAwsLambdaRuntime()) {
       // ORed explicitly so real profiling keeps ddprof regardless of AppSec activation level.
-      if (config.isDatadogProfilerEnabled() || config.isOtelContextExposureEnabled()) {
+      if (config.isDatadogProfilerEnabled() || config.isOtelThreadContextEnabled()) {
         // Deferred unless profiling is enabled: construction loads the ddprof native library and
         // touches java.nio.file, which must not happen on the primordial premain thread.
         ProfilingContextIntegration integration =
@@ -1529,7 +1529,7 @@ public class Agent {
   static ProfilingContextIntegration createDdprofContextIntegration(
       final ClassLoader classLoader, final boolean deferInitialization) {
     // deferInitialization means the profiler itself isn't running, so nothing else registers the
-    // process context here — ProfilingAgent.run() already does it when the profiler starts.
+    // process context here: ProfilingAgent.run() already does it when the profiler starts.
     Callable<ProfilingContextIntegration> factory =
         ddprofContextIntegrationFactory(classLoader, deferInitialization);
     if (deferInitialization) {

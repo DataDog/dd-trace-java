@@ -37,7 +37,7 @@ class AgentLambdaProfilingContextForkedTest {
     // The exclusion is only observable when the configuration would otherwise have triggered the
     // ddprof context integration; the Datadog profiler is vetoed on some platforms and JVMs.
     assumeTrue(
-        Config.get().isOtelContextExposureEnabled(),
+        Config.get().isOtelThreadContextEnabled(),
         "OTel context exposure is unavailable on this platform/JVM version");
 
     // AGENT_CLASSLOADER is null in this unit test, so reaching the ddprof branch at all would fail

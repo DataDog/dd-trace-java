@@ -12,7 +12,7 @@ import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-/** Tests the resolution of {@link Config#isOtelContextExposureEnabled()}. */
+/** Tests the resolution of {@link Config#isOtelThreadContextEnabled()}. */
 @ExtendWith(WithConfigExtension.class)
 class ConfigOtelContextExposureTest {
 
@@ -29,7 +29,7 @@ class ConfigOtelContextExposureTest {
 
   @Test
   void disabledByDefault() {
-    assertFalse(Config.get().isOtelContextExposureEnabled());
+    assertFalse(Config.get().isOtelThreadContextEnabled());
   }
 
   @Test
@@ -39,7 +39,7 @@ class ConfigOtelContextExposureTest {
   void enabledWhenProfilingIsEnabled() {
     assumeDatadogProfilerNotVetoed();
 
-    assertTrue(Config.get().isOtelContextExposureEnabled());
+    assertTrue(Config.get().isOtelThreadContextEnabled());
   }
 
   @Test
@@ -51,7 +51,7 @@ class ConfigOtelContextExposureTest {
 
     Config config = Config.get();
     assertFalse(config.isProfilingEnabled());
-    assertTrue(config.isOtelContextExposureEnabled());
+    assertTrue(config.isOtelThreadContextEnabled());
   }
 
   @Test
@@ -59,7 +59,7 @@ class ConfigOtelContextExposureTest {
   @WithConfig(key = PROFILING_ENABLED, value = "false")
   @WithConfig(key = PROFILING_DATADOG_PROFILER_ENABLED, value = "true")
   void disabledWhenAppSecIsOnlyEnabledInactive() {
-    assertFalse(Config.get().isOtelContextExposureEnabled());
+    assertFalse(Config.get().isOtelThreadContextEnabled());
   }
 
   @Test
@@ -67,7 +67,7 @@ class ConfigOtelContextExposureTest {
   @WithConfig(key = PROFILING_ENABLED, value = "false")
   @WithConfig(key = PROFILING_DATADOG_PROFILER_ENABLED, value = "false")
   void disabledWhenDatadogProfilerIsExplicitlyDisabled() {
-    assertFalse(Config.get().isOtelContextExposureEnabled());
+    assertFalse(Config.get().isOtelThreadContextEnabled());
   }
 
   /**
@@ -78,12 +78,12 @@ class ConfigOtelContextExposureTest {
    * boolean short-circuit through the {@code DD_PROFILING_DDPROF_ENABLED=false} env variable: from
    * {@link Config}'s point of view an environment-detected "unsafe" and an explicit "false"
    * collapse into the same raw-predicate value, so the downstream effect on {@link
-   * Config#isOtelContextExposureEnabled()} is the same.
+   * Config#isOtelThreadContextEnabled()} is the same.
    */
   @Test
   @WithConfig(key = "APPSEC_ENABLED", value = "true", env = true)
   @WithConfig(key = "PROFILING_DDPROF_ENABLED", value = "false", env = true)
   void disabledInAnEnvironmentWhereTheDatadogProfilerIsUnsafe() {
-    assertFalse(Config.get().isOtelContextExposureEnabled());
+    assertFalse(Config.get().isOtelThreadContextEnabled());
   }
 }

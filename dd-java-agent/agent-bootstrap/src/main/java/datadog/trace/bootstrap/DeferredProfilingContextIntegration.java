@@ -116,7 +116,7 @@ final class DeferredProfilingContextIntegration implements ProfilingContextInteg
   }
 
   /**
-   * The name of the deferred integration, not of the current delegate — read once at tracer build
+   * The name of the deferred integration, not of the current delegate: read once at tracer build
    * time, possibly before the deferred construction completes.
    */
   @Override

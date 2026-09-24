@@ -109,7 +109,7 @@ class DeferredProfilingContextIntegrationTest {
     assertEquals("ddprof", deferred.name());
 
     // every other pass-through method must reach the swapped-in delegate too, not just
-    // newScopeState/name — each is a distinct code path in DeferredProfilingContextIntegration.
+    // newScopeState/name: each is a distinct code path in DeferredProfilingContextIntegration.
     deferred.onAttach();
     deferred.onDetach();
     assertEquals(1, FakeDatadogProfilingIntegration.onAttachCalls.get());
