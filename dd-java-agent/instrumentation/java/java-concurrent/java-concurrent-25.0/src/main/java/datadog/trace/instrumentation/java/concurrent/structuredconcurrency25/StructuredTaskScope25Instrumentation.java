@@ -6,7 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.SubtaskRegistry;
 import net.bytebuddy.asm.Advice.OnMethodExit;
 import net.bytebuddy.asm.Advice.This;
@@ -57,7 +56,7 @@ public class StructuredTaskScope25Instrumentation
               "datadog.trace.bootstrap.instrumentation.java.concurrent.SubtaskRegistry");
       SubtaskRegistry registry = registryStore.remove(scope);
       if (registry != null) {
-        registry.cancelAll(get(Runnable.class, State.class));
+        registry.cancelAll();
       }
     }
   }
