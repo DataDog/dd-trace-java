@@ -3,6 +3,7 @@ package testdog.trace.instrumentation.java.concurrent.structuredconcurrency25;
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIME;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import java.util.concurrent.CountDownLatch;
@@ -22,6 +23,23 @@ public class StructuredTaskScopeCancelTest extends AbstractInstrumentationTest {
       try (var scope = StructuredTaskScope.open(new CancelOnForkJoiner<>())) {
         scope.fork(this::task);
         scope.join();
+      }
+    }
+    span.finish();
+
+    assertTraces(trace(span().root().operationName("parent")));
+  }
+
+  /**
+   * A subtask is created before {@code fork()} can fail (here in {@code Joiner.onFork}), so its
+   * continuation is captured but its thread never starts. It must still be released at scope close.
+   */
+  @Test
+  void testFailedForkDoesNotLeakContinuation() {
+    var span = tracer.startSpan("test", "parent");
+    try (var ignored = tracer.activateSpan(span)) {
+      try (var scope = StructuredTaskScope.open(new FailOnForkJoiner<>())) {
+        assertThrows(IllegalStateException.class, () -> scope.fork(this::task));
       }
     }
     span.finish();
@@ -88,6 +106,19 @@ public class StructuredTaskScopeCancelTest extends AbstractInstrumentationTest {
     @Override
     public boolean onFork(StructuredTaskScope.Subtask<? extends T> subtask) {
       return ++forks >= 2; // cancel the scope when the second subtask is forked
+    }
+
+    @Override
+    public Void result() {
+      return null;
+    }
+  }
+
+  /** Fails every fork after the subtask is created. */
+  static final class FailOnForkJoiner<T> implements StructuredTaskScope.Joiner<T, Void> {
+    @Override
+    public boolean onFork(StructuredTaskScope.Subtask<? extends T> subtask) {
+      throw new IllegalStateException("fork rejected");
     }
 
     @Override
