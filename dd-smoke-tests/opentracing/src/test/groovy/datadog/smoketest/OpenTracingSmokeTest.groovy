@@ -31,6 +31,11 @@ abstract class OpenTracingSmokeTest extends AbstractSmokeTest {
 
 class OTWithoutAgentTest extends OpenTracingSmokeTest {
   @Override
+  protected String skipScopeContinuationCheckReason() {
+    'Exercises the standalone OpenTracing tracer without the agent required by the diagnostic companion'
+  }
+
+  @Override
   ProcessBuilder createProcessBuilder() {
     List<String> command = baseCommand()
     command.removeAll { it.startsWith("-javaagent") }

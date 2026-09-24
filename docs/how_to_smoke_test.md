@@ -27,6 +27,40 @@ A smoke test is also how you check what an instrumentation does to a running app
 > The two are complements, not alternatives.
 > Use an instrumentation test to pin the hooks and the trace shape, and a smoke test to check the instrumentation works in an application where every other instrumentation is loaded too.
 
+## Scope and continuation diagnostics
+
+The shared JUnit and Spock smoke harnesses enable scope/continuation diagnostics by default.
+Gradle adds a **test-only companion agent**, after the built Datadog agent, to install the same
+lifecycle probes used by instrumentation tests into the application's tracer class loader.
+The production agent artifact and its strict-write configuration are unchanged.
+
+- `SmokeServerApp` and `AbstractServerSmokeTest` record each test's work, including per-test teardown,
+  then allow a bounded cleanup grace period before checking. Server startup and suite shutdown are
+  outside these windows.
+- `SmokeCliApp` and other legacy `AbstractSmokeTest` applications record from before `main` until
+  exit, or until the harness checks them before stopping a still-running process. This includes
+  first-use static initialization. Concurrent application shutdown hooks are not guaranteed to finish
+  before the diagnostic snapshot.
+
+Leaks and invalid lifecycle operations fail the test with a summary and capture/resume/cleanup
+timeline. Reports are kept under `build/reports/scope-diagnostics-*`. Missing or malformed reports
+and failed probe installation fail explicitly; they are not clean results.
+Legacy launchers must preserve `defaultJavaProperties`, including when passing them through an
+environment variable to a shell wrapper. Each child receives its own diagnostic endpoint.
+Launchers that embed JVM options in a file, such as OpenLiberty's `jvm.options`, override
+`replaceScopeDiagnosticsArgument()` to replace the placeholder in that file and report whether it
+was found. Keep the companion after the Datadog agent in the child JVM's options.
+
+Fix the lifecycle or test ownership problem first. A genuinely intermittent failure may be marked
+`@Flaky` with a tracked explanation. A proven diagnostic incompatibility can use
+`.skipScopeContinuationCheck("specific reason")` on the JUnit builder, or override
+`skipScopeContinuationCheckReason()` in Spock. Blank reasons are rejected. Native-image applications
+cannot run this JVM companion; tests intentionally crashing or aborting before it can report also
+need an explicit exception. JUnit `.noAgent()` launches do not install diagnostics.
+Legacy tests deliberately running without the agent need a documented opt-out, as do injection
+guardrail tests where the companion would itself count as an extra agent and change the scenario.
+Disabling error-log checks does not disable this check, and relaxing strict trace writes is not a fix.
+
 ## Your first smoke test
 
 A complete smoke test for a small web application serving two endpoints, with one test method per endpoint:

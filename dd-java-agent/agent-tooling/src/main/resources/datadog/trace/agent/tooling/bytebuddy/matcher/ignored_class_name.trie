@@ -107,6 +107,7 @@
 0 sun.rmi.server.*
 0 sun.rmi.transport.*
 0 sun.nio.ch.FileChannelImpl
+0 sun.nio.ch.Poller$Pollers
 # USM needs it
 0 sun.security.ssl.*
 0 javax.net.ssl.SSLSocket
@@ -133,6 +134,7 @@
 0 akka.http.impl.engine.client.PoolMasterActor
 0 akka.http.impl.engine.client.pool.NewHostConnectionPool$*
 0 akka.http.impl.engine.http2.Http2Ext
+0 akka.http.impl.engine.server.HttpServerBluePrint$TimeoutAccessImpl
 0 akka.http.impl.engine.server.HttpServerBluePrint$TimeoutAccessImpl$*
 0 akka.http.impl.util.StreamUtils$*
 # saves ~0.1s skipping ~233 classes

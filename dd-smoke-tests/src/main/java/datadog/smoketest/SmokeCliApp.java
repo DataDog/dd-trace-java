@@ -64,6 +64,7 @@ public final class SmokeCliApp extends AbstractSmokeApp {
       throw new AssertionError(
           "App '" + name() + "' exited with " + actual + " but expected " + expectedExitValue);
     }
+    verifyScopeDiagnostics();
   }
 
   /** Fluent builder for a {@link SmokeCliApp}; obtain via {@link SmokeCliApp#named(String)}. */

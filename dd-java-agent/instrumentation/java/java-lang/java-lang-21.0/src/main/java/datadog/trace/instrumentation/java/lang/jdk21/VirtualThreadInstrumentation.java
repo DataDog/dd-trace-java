@@ -25,6 +25,7 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.lang.VirtualThreadState;
 import java.util.Collection;
 import java.util.Map;
+import java.util.concurrent.Executor;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.asm.Advice.OnMethodEnter;
 import net.bytebuddy.asm.Advice.OnMethodExit;
@@ -104,7 +105,10 @@ public final class VirtualThreadInstrumentation extends InstrumenterModule.Conte
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
+    transformer.applyAdvice(
+        isConstructor()
+            .and(takesArguments(Executor.class, String.class, int.class, Runnable.class)),
+        getClass().getName() + "$Construct");
     transformer.applyAdvice(isMethod().and(named("mount")), getClass().getName() + "$Mount");
     transformer.applyAdvice(isMethod().and(named("unmount")), getClass().getName() + "$Unmount");
     transformer.applyAdvice(
@@ -117,10 +121,14 @@ public final class VirtualThreadInstrumentation extends InstrumenterModule.Conte
 
   public static final class Construct {
     @OnMethodExit(suppress = Throwable.class)
-    public static void afterInit(@Advice.This Object virtualThread) {
+    public static void afterInit(
+        @Advice.This Object virtualThread, @Advice.Argument(3) Runnable task) {
       Context context = currentContext();
       if (context == rootContext()) {
         return; // No active context to propagate, avoid creating state
+      }
+      if (!VirtualThreadState.shouldPropagateContext(task)) {
+        return;
       }
       VirtualThreadState state = new VirtualThreadState(context, context.capture());
       ContextStore<Object, Object> store =

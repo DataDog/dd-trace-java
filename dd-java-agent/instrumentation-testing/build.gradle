@@ -2,6 +2,33 @@ plugins {
   id 'dd-trace-java.module.testing-support'
 }
 
+sourceSets {
+  smokeAgent {
+    compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+  }
+}
+
+tasks.register('scopeDiagnosticsAgentJar', Jar) {
+  archiveClassifier = 'scope-diagnostics-agent'
+  manifest {
+    attributes 'Premain-Class': 'datadog.trace.agent.test.smoke.ScopeDiagnosticsAgent',
+    'Can-Retransform-Classes': 'true', 'Can-Redefine-Classes': 'true'
+  }
+  from(sourceSets.smokeAgent.output) {
+    include 'datadog/trace/agent/test/smoke/**'
+  }
+  into('payload') {
+    from(sourceSets.main.output) {
+      include 'datadog/trace/agent/test/scopediag/**'
+      exclude '**/ScopeDiagnosticsExtension*'
+    }
+    from(sourceSets.smokeAgent.output) {
+      include 'datadog/trace/agent/test/scopediag/**'
+    }
+    rename '(.*)\\.class', '$1.classdata'
+  }
+}
+
 dependencies {
   api libs.bytebuddy
   api libs.bytebuddyagent

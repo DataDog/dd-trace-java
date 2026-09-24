@@ -14,6 +14,11 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue
 
 abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
 
+  @Override
+  protected boolean scopeDiagnosticsProcessLifetime() {
+    false
+  }
+
   @Shared
   protected int[] httpPorts = (0..<numberOfProcesses).collect {
     PortUtils.randomOpenPort()
