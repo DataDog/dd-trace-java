@@ -240,7 +240,6 @@ For application containers or dependencies such as RabbitMQ, apply
 
 ```kotlin
 import datadog.buildlogic.testcontainers.image
-import datadog.buildlogic.testcontainers.testContainerImage
 
 plugins {
   id("dd-trace-java.module.smoke-test")
@@ -265,16 +264,9 @@ private static final RabbitMQContainer RABBIT_MQ_CONTAINER =
             .asCompatibleSubstituteFor("rabbitmq"));
 ```
 
-Gradle fingerprints the resolved digest and passes that immutable image to the
-test JVM. The property belongs to the test JVM; explicitly forward it if the
-launched application needs it too. Continue using `placeholder(...)` for mapped
-ports, which only become available after the container starts.
-
-Keep the existing `usesService(testcontainersLimit)` declarations on container
-test tasks: the image plugin does not assign that service. It also does not
-automatically track the test-agent backend's image or Testcontainers helper images.
-See [Tests that use containers](./how_to_test.md#tests-that-use-containers) for
-suite inheritance, cache behavior, IDE runs and concurrency guidance.
+With this plugin Gradle can now fingerprint the resolved image digest and passes 
+the immutable image to the test. Also, see the [plugin reference](../build-logic/testcontainers/README.md)
+for inheritance and shared configuration examples.
 
 ## Choosing a backend
 

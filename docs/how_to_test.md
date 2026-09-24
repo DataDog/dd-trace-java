@@ -57,12 +57,18 @@ In order to identify such tests and avoid the continuous integration to fail, th
 
 ## Tests that use containers
 
+> [!IMPORTANT]
+> Don't use image name in Test Container constructors like `new CassandraContainer("cassandra:4")` , 
+> or `new GenericContainer("icr.io/appcafe/websphere-traditional:latest")`. Tags can be moved.
+> Also, these are not properly tracked as _test_ task inputs and as such can't be fingerprinted.
+> Instead, use the `dd-trace-java.testcontainers` plugin to declare these as dependencies,
+> it will resolve the actual image digest before running the test.
+
 Declare container images in the module's Gradle build so a changed image cannot
 silently reuse cached test results:
 
 ```kotlin
 import datadog.buildlogic.testcontainers.image
-import datadog.buildlogic.testcontainers.testContainerImage
 
 plugins {
   id("dd-trace-java.testcontainers")
@@ -75,10 +81,10 @@ dependencies {
 }
 ```
 
-Keep the dedicated container type and use its `DockerImageName` constructor with
-the supplied property, without a tag fallback. This example uses the same Redis
-module as the repository's Redis tests. Keep the compatibility alias so container
-types that validate their image name also accept CI mirrors:
+Use `GenericContainer` or the dedicated container type and use its `DockerImageName` constructor
+overload with the relevant system property, **without a fallback value**. The compatibility
+declaration is important to let _testcontainer_ know it should accept it as a mirrored image.
+For example with Redis: 
 
 ```java
 import com.redis.testcontainers.RedisContainer;
@@ -89,31 +95,17 @@ DockerImageName image = DockerImageName.parse(System.getProperty("test.redis.ima
 RedisContainer redis = new RedisContainer(image);
 ```
 
-Use `GenericContainer` for custom application images without a matching container
-module, as in the [WebSphere smoke test](../dd-smoke-tests/websphere-jmx).
+Essentially the plugin resolves tags to immutable registry digests before Gradle checks 
+whether test results are up to date or cached. Resolution failure stops the test task 
+earlier, rather than within the tests.
 
-The plugin resolves tags to immutable registry digests before Gradle checks the
-test cache, then passes those same image references to the test JVM. Unchanged
-digests can reuse test results; changed digests select a different cache entry.
-Tags are refreshed even when Gradle reuses its configuration cache. Resolution
-failure stops the task rather than trusting an old result.
+The plugin feed the system property to both `test` and `forkedTest` tasks.
 
-Images declared with `testContainerImage` belong to the `test` source set, follow
-`implementation` configuration inheritance and reach the matching test task and its forked companions. For a
-separate suite, import `datadog.buildlogic.testcontainers.containerImage`, declare
-its source set first, then use `containerImage("integrationTest", image(...))` in
-`dependencies {}`. Declarations apply to the whole task, including
-when `--tests` selects only some classes. Run IDE tests through Gradle, or supply
-the image system properties explicitly.
-
-Image fingerprinting does not configure concurrency. Keep the existing explicit
-`usesService(testcontainersLimit)` declarations; the service limits concurrent
-test tasks, not individual containers. When adding container tests, configure the
-service on the tasks that run them, including forked tasks where applicable.
-
-Only declared images are tracked; implicit helper images such as Ryuk are not.
-See the [plugin reference](../build-logic/testcontainers/README.md) for registry
-credentials, Docker Hub mirrors and supported image substitutions.
+`testContainerImage` is a "companion" for the `testImplementation` configuration. 
+The plugin automatically creates an image configuration for each `*Implementation`
+configuration. For example, `integrationTestImplementation` gets
+`integrationTestContainerImage`. Also, see the [plugin reference](../build-logic/testcontainers/README.md)
+for inheritance and shared configuration examples.
 
 ## Running Tests
 
