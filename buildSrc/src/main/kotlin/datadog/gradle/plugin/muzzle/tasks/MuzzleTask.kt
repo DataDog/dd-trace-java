@@ -18,10 +18,12 @@ import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
+import org.gradle.api.tasks.Nested
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 import org.gradle.jvm.toolchain.JavaLanguageVersion
+import org.gradle.jvm.toolchain.JavaLauncher
 import org.gradle.jvm.toolchain.JavaToolchainService
 import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.property
@@ -72,6 +74,37 @@ abstract class MuzzleTask @Inject constructor(
   @get:Optional
   val muzzleDirective: Property<MuzzleDirective> = objects.property()
 
+  @get:Nested
+  @get:Optional
+  val javaLauncher: Property<JavaLauncher> = objects.property<JavaLauncher>().convention(
+    muzzleDirective.map { it.javaVersion }.flatMap { version ->
+      javaToolchainService.launcherFor {
+        languageVersion.set(JavaLanguageVersion.of(version))
+      }
+    }
+  ).apply { finalizeValueOnRead() }
+
+  // Gradle's nested launcher input does not include the vendor or full JVM versions.
+  @get:Input
+  val jvmIdentity = javaLauncher.map { launcher ->
+    with(launcher.metadata) {
+      mapOf(
+        "languageVersion" to languageVersion.asInt().toString(),
+        "vendor" to vendor,
+        "runtimeVersion" to javaRuntimeVersion,
+        "vmVersion" to jvmVersion,
+      )
+    }
+  }.orElse(providers.provider {
+    // Workers without process isolation execute in the Gradle daemon.
+    mapOf(
+      "languageVersion" to System.getProperty("java.specification.version"),
+      "vendor" to System.getProperty("java.vendor"),
+      "runtimeVersion" to System.getProperty("java.runtime.version"),
+      "vmVersion" to System.getProperty("java.vm.version"),
+    )
+  })
+
   @get:OutputFile
   val result: RegularFileProperty = objects.fileProperty().convention(
     project.layout.buildDirectory.file("reports/$name.txt")
@@ -95,29 +128,26 @@ abstract class MuzzleTask @Inject constructor(
   }
 
   private fun assertMuzzle(muzzleDirective: MuzzleDirective? = null) {
-    val workQueue = if (muzzleDirective?.javaVersion != null) {
-      val javaLauncher = javaToolchainService.launcherFor {
-        languageVersion.set(JavaLanguageVersion.of(muzzleDirective.javaVersion!!))
-      }.get()
+    val launcher = javaLauncher.orNull
+    val workQueue = if (launcher != null) {
       // Note process isolation leaks gradle dependencies to the child process
       // and may need additional code on muzzle plugin to filter those out
       // See https://github.com/gradle/gradle/issues/33987
       workerExecutor.processIsolation {
         forkOptions {
           // datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin needs reflective access to ClassLoader.findLoadedClass
-          if(javaLauncher.metadata.languageVersion > JavaLanguageVersion.of(9)) {
+          if(launcher.metadata.languageVersion > JavaLanguageVersion.of(9)) {
             jvmArgs("--add-opens=java.base/java.lang=ALL-UNNAMED")
           }
           if (HostPlatform.isLinuxArm64()) {
             // Disable CDS to avoid SIGSEGVs on Linux arm64.
             jvmArgs("-Xshare:off")
           }
-          executable(javaLauncher.executablePath)
+          executable(launcher.executablePath)
         }
       }
     } else {
-      // noIsolation worker is OK for muzzle tasks as their checks will inspect classes outline
-      // and should not be impacted by the actual running JDK.
+      // The daemon JVM is included in jvmIdentity for these checks.
       workerExecutor.noIsolation()
     }
     workQueue.submit(MuzzleAction::class.java) {
