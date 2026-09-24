@@ -33,7 +33,7 @@ public class StructuredTaskScope25Module extends InstrumenterModule.ContextTrack
     Map<String, String> contextStores = new HashMap<>();
     // Per-subtask continuation captured at SubtaskImpl creation, restored by Runnable advice.
     contextStores.put(Runnable.class.getName(), State.class.getName());
-    // Per-scope registry of forked subtasks, swept at scope close to release leaked continuations.
+    // Per-scope registry of subtasks state, swept at scope close to release leaked continuations.
     contextStores.put(
         "java.util.concurrent.StructuredTaskScopeImpl", TaskScopeStateRegistry.class.getName());
     return contextStores;
