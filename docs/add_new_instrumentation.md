@@ -1,7 +1,7 @@
 # Add a New Instrumentation
 
 Now we will step through adding a very basic instrumentation to the trace agent. The
-existing [google-http-client instrumentation](../dd-java-agent/instrumentation/google-http-client)
+existing [google-http-client instrumentation](../dd-java-agent/instrumentation/google-http-client-1.19)
 will be used as an example.
 
 ## Clone the dd-trace-java repo
@@ -161,7 +161,7 @@ When applying multiple advices, consider using the `@AppliesOn` annotation to co
 ## Add the HeadersInjectAdapter
 
 This particular instrumentation uses
-a [HeadersInjectAdapter](../dd-java-agent/instrumentation/google-http-client/src/main/java/datadog/trace/instrumentation/googlehttpclient/HeadersInjectAdapter.java)
+a [HeadersInjectAdapter](../dd-java-agent/instrumentation/google-http-client-1.19/src/main/java/datadog/trace/instrumentation/googlehttpclient/HeadersInjectAdapter.java)
 class to assist with HTTP header injection. This is not required of all instrumentations. (
 See [InjectorAdapters](./how_instrumentations_work.md#injectadapters--custom-getterssetters)).
 
@@ -286,13 +286,13 @@ public String[] helperClassNames() {
        reference which must be of the same `HttpRequest` type.
     3. Add a parameter, `@Advice.Local("inherited") boolean inheritedScope`. This shared local variable will be visible
        to both `OnMethodEnter` and `OnMethodExit` methods.
-    4. Use `activeScope()` __to __see if an `AgentScope` is already active. If so, return that `AgentScope`, but first
+    4. Use `activeScope()` __to __see if a `ContextScope` is already active. If so, return that `ContextScope`, but first
        let the exit method know by setting the shared `inheritedScope` boolean.
-    5. If an `AgentScope` was not active then start a new span, decorate it, activate it and return it.
+    5. If a `ContextScope` was not active then start a new span, decorate it, activate it and return it.
 4. With `methodExit:`
     1. Annotate the method using `@Advice.OnMethodExit(onThrowable=Throwable.class, suppress=Throwable.class). `(
        see [Exceptions in Advice](./how_instrumentations_work.md#exceptions-in-advice))
-    2. Add parameter `@Advice.Enter AgentScope scope. `This is the `AgentScope` object returned earlier
+    2. Add parameter `@Advice.Enter ContextScope scope. `This is the `ContextScope` object returned earlier
        by `methodEnter()`. Note this is not the return value of the target `execute()` method.
     3. Add a parameter, `@Advice.Local("inherited") boolean inheritedScope`. This is the shared local variable created
        earlier.
@@ -301,19 +301,19 @@ public String[] helperClassNames() {
        of `methodEnter()`.`  `
     5. Add a parameter `@Advice.Thrown final Throwable throwable`. This makes available any exception thrown by the
        target `execute()` method.
-    6. Use `scope.span() `to obtain the `AgentSpan` and decorate the span as needed.
+    6. Use `Java8BytecodeBridge.spanFromScope(scope) `to obtain the `AgentSpan` and decorate the span as needed.
     7. If the scope was just created (not inherited), close it.
 
 ```java
 public static class GoogleHttpClientAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter(
+    public static ContextScope methodEnter(
             @Advice.This HttpRequest request,
             @Advice.Local("inherited") boolean inheritedScope
     ) {
-        AgentScope scope = activeScope();
+        ContextScope scope = activeScope();
         if (null != scope) {
-            AgentSpan span = scope.span();
+            AgentSpan span = spanFromScope(scope);
             if (HTTP_REQUEST == span.getOperationName()) {
                 inheritedScope = true;
                 return scope;
@@ -326,11 +326,11 @@ public static class GoogleHttpClientAdvice {
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
-            @Advice.Enter AgentScope scope,
+            @Advice.Enter ContextScope scope,
             @Advice.Local("inherited") boolean inheritedScope,
             @Advice.Return final HttpResponse response,
             @Advice.Thrown final Throwable throwable) {
-        AgentSpan span = scope.span();
+        AgentSpan span = spanFromScope(scope);
         DECORATE.onError(span, throwable);
         DECORATE.onResponse(span, response);
         DECORATE.beforeFinish(span);
@@ -487,11 +487,11 @@ The `check` task runs `verifyAgentJarIntegrations` automatically, so CI will fai
 is out of date.
 
 All integrations must include sufficient test coverage. This HTTP client integration will include
-a [standard HTTP test class](../dd-java-agent/instrumentation/google-http-client/src/test/groovy/GoogleHttpClientTest.groovy)
+a [standard HTTP test class](../dd-java-agent/instrumentation/google-http-client-1.19/src/test/groovy/GoogleHttpClientTest.groovy)
 and
-an [async HTTP test class](../dd-java-agent/instrumentation/google-http-client/src/test/groovy/GoogleHttpClientAsyncTest.groovy).
+an [async HTTP test class](../dd-java-agent/instrumentation/google-http-client-1.19/src/test/groovy/GoogleHttpClientAsyncTest.groovy).
 Both test classes inherit
-from [HttpClientTest](../dd-java-agent/testing/src/main/groovy/datadog/trace/agent/test/base/HttpClientTest.groovy)
+from [HttpClientTest](../dd-java-agent/instrumentation-testing/src/main/groovy/datadog/trace/agent/test/base/HttpClientTest.groovy)
 which provides a testing framework used by many HTTP client integrations. (
 see [Testing](./how_instrumentations_work.md#testing))
 

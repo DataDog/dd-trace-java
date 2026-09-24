@@ -58,6 +58,8 @@ extra["excludedClassesCoverage"] = listOf(
   // These are almost fully abstract classes so nothing to test
   "datadog.trace.api.profiling.RecordingData",
   "datadog.trace.api.appsec.AppSecEventTracker",
+  // Anonymous EventTrackerService adapter; covered by AppSecEventTrackerTest in dd-java-agent:appsec
+  "datadog.trace.api.appsec.AppSecEventTracker.1",
   // POJOs
   "datadog.trace.api.appsec.HttpClientPayload",
   "datadog.trace.api.appsec.HttpClientRequest",
@@ -77,6 +79,7 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.debugger.DebuggerConfigUpdate",
   // Bootstrap API
   "datadog.trace.bootstrap.ActiveSubsystems",
+  "datadog.trace.bootstrap.ContextStore",
   "datadog.trace.bootstrap.ContextStore.Factory",
   "datadog.trace.bootstrap.instrumentation.api.java.lang.ProcessImplInstrumentationHelpers",
   "datadog.trace.bootstrap.instrumentation.api.Tags",
@@ -84,8 +87,6 @@ extra["excludedClassesCoverage"] = listOf(
   // Caused by empty 'default' interface method
   "datadog.trace.bootstrap.instrumentation.api.AgentPropagation",
   "datadog.trace.bootstrap.instrumentation.api.AgentPropagation.ContextVisitor",
-  "datadog.trace.bootstrap.instrumentation.api.AgentScope",
-  "datadog.trace.bootstrap.instrumentation.api.AgentScope.Continuation",
   "datadog.trace.bootstrap.instrumentation.api.AgentSpan",
   "datadog.trace.bootstrap.instrumentation.api.AgentSpanContext",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer",
@@ -95,6 +96,7 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTraceConfig",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTracerAPI",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI",
+  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.TraceScopeContinuationWrapper",
   "datadog.trace.bootstrap.instrumentation.api.BlackHoleSpan",
   "datadog.trace.bootstrap.instrumentation.api.BlackHoleSpan.Context",
   "datadog.trace.bootstrap.instrumentation.api.ErrorPriorities",
@@ -103,7 +105,6 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.bootstrap.instrumentation.api.InstrumentationTags",
   "datadog.trace.bootstrap.instrumentation.api.InternalContextKeys",
   "datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes",
-  "datadog.trace.bootstrap.instrumentation.api.NoopAgentScope",
   "datadog.trace.bootstrap.instrumentation.api.NoopAgentSpan",
   "datadog.trace.bootstrap.instrumentation.api.NoopContinuation",
   "datadog.trace.bootstrap.instrumentation.api.NoopScope",
@@ -280,6 +281,7 @@ dependencies {
   testImplementation("org.snakeyaml:snakeyaml-engine:2.9")
   testImplementation(project(":utils:test-utils"))
   testImplementation(libs.bundles.junit5)
+  testImplementation(libs.assertj.core)
   testImplementation("org.junit.vintage:junit-vintage-engine:${libs.versions.junit5.get()}")
   testImplementation(libs.commons.math)
   testImplementation(libs.bundles.mockito)

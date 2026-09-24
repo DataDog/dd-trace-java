@@ -3,15 +3,16 @@ package datadog.trace.instrumentation.websocket.jsr256;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.bootstrap.instrumentation.decorator.WebsocketDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
@@ -68,7 +69,7 @@ public class EndpointInstrumentation
           current.forceSamplingDecision();
         }
         InstrumentationContext.get(Session.class, HandlerContext.Sender.class)
-            .putIfAbsent(
+            .getOrPut(
                 session, new HandlerContext.Sender(current.getLocalRootSpan(), session.getId()));
       }
     }
@@ -76,7 +77,7 @@ public class EndpointInstrumentation
 
   public static class SessionCloseAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(
+    public static ContextScope onEnter(
         @Advice.Local("handlerContext") HandlerContext.Receiver handlerContext,
         @Advice.Argument(0) final Session session,
         @Advice.Argument(1) final CloseReason closeReason) {
@@ -95,11 +96,11 @@ public class EndpointInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Local("handlerContext") HandlerContext.Receiver handlerContext,
         @Advice.Thrown final Throwable thrown) {
       if (scope != null) {
-        final AgentSpan span = scope.span();
+        final AgentSpan span = spanFromScope(scope);
         DECORATE.onError(span, thrown);
         DECORATE.onFrameEnd(handlerContext);
         scope.close();

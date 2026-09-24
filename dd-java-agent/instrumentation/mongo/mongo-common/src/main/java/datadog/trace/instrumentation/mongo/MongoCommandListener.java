@@ -121,7 +121,7 @@ public final class MongoCommandListener implements CommandListener {
   @Override
   public void commandStarted(final CommandStartedEvent event) {
     if (listenerAccessor != null) {
-      listenerAccessor.putIfAbsent(event.getConnectionDescription(), this);
+      listenerAccessor.getOrPut(event.getConnectionDescription(), this);
     }
 
     // If DBM comment injection is enabled, the span is created on the connection instrumentation

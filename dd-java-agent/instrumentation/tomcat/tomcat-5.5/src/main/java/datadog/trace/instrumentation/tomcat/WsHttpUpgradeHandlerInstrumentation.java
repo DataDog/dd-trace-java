@@ -4,10 +4,10 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Collections;
 import java.util.Map;
@@ -44,7 +44,7 @@ public class WsHttpUpgradeHandlerInstrumentation extends InstrumenterModule.Trac
 
   public static class CaptureHandshakeSpanAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope before(
+    public static ContextScope before(
         @Advice.FieldValue("handshakeRequest") final WsHandshakeRequest request) {
       final AgentSpan span =
           InstrumentationContext.get(WsHandshakeRequest.class, AgentSpan.class).get(request);
@@ -52,7 +52,7 @@ public class WsHttpUpgradeHandlerInstrumentation extends InstrumenterModule.Trac
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void after(@Advice.Enter final AgentScope scope) {
+    public static void after(@Advice.Enter final ContextScope scope) {
       if (scope != null) {
         scope.close();
       }

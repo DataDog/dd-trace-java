@@ -9,15 +9,21 @@ import org.eclipse.aether.resolution.VersionRangeResolutionException
 import org.eclipse.aether.resolution.VersionRangeResult
 import org.eclipse.aether.util.version.GenericVersionScheme
 import org.gradle.api.GradleException
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import java.io.File
+import java.io.IOException
 import java.lang.reflect.Proxy
 import java.util.concurrent.atomic.AtomicInteger
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
+
+private const val MAVEN_CENTRAL_URL = "https://repo1.maven.org/maven2/"
 
 class MuzzleMavenRepoUtilsTest {
 
@@ -66,7 +72,7 @@ class MuzzleMavenRepoUtilsTest {
       versions = "[1.0,)"
     }
     val attempts = AtomicInteger()
-    val retryingSystem = repositorySystemThrowingThenResolving(
+    val retryingSystem = repositorySystemReturningAfterFailures(
       failuresBeforeSuccess = 3,
       result = createVersionRangeResult("1.0.0"),
       attempts = attempts
@@ -109,6 +115,33 @@ class MuzzleMavenRepoUtilsTest {
       .hasMessageContaining("Backoff:\n  disabled")
   }
 
+  // The two tests below are mutually exclusive: MAVEN_REPOSITORY_PROXY is read from the real
+  // environment (defaultMuzzleRepos deliberately does not take it as a parameter), so each of
+  // them covers the branch its environment can reach -- unset locally, set in CI.
+
+  @Test
+  @DisabledIfEnvironmentVariable(
+    named = "MAVEN_REPOSITORY_PROXY",
+    matches = ".*",
+    disabledReason = "A mirror is configured; the proxy variant of this test covers that case"
+  )
+  fun `defaultMuzzleRepos is Maven Central alone when no proxy is configured`() {
+    assertThat(MuzzleMavenRepoUtils.defaultMuzzleRepos().map { it.id to it.url })
+      .containsExactly("central" to MAVEN_CENTRAL_URL)
+  }
+
+  // TODO: Re-enable after removing the temporary Maven Central rate limiting workaround.
+  @Test
+  @Disabled("Temporarily using the configured proxy without a Maven Central fallback")
+  @EnabledIfEnvironmentVariable(named = "MAVEN_REPOSITORY_PROXY", matches = ".*")
+  fun `defaultMuzzleRepos queries the configured proxy before Maven Central`() {
+    val proxyUrl = System.getenv("MAVEN_REPOSITORY_PROXY")
+
+    // Central stays in the list as a fallback, but the proxy is consulted first.
+    assertThat(MuzzleMavenRepoUtils.defaultMuzzleRepos().map { it.id to it.url })
+      .containsExactly("central-proxy" to proxyUrl, "central" to MAVEN_CENTRAL_URL)
+  }
+
   @Test
   fun `resolveVersionRange failure includes thrown resolution failure details`() {
     val directive = MuzzleDirective().apply {
@@ -117,7 +150,7 @@ class MuzzleMavenRepoUtilsTest {
       versions = "[1.0,)"
     }
     val attempts = AtomicInteger()
-    val throwingSystem = repositorySystemThrowingThenResolving(
+    val throwingSystem = repositorySystemReturningAfterFailures(
       failuresBeforeSuccess = 4,
       result = createVersionRangeResult("1.0.0"),
       attempts = attempts
@@ -136,6 +169,41 @@ class MuzzleMavenRepoUtilsTest {
       .hasMessageContaining("Attempts:\n  4")
       .hasMessageContaining("Last resolution failure:")
       .hasMessageContaining("transient version range failure 4")
+    assertThat(attempts).hasValue(4)
+  }
+
+  @Test
+  fun `resolveVersionRange failure includes embedded result exceptions from every attempt`() {
+    val directive = MuzzleDirective().apply {
+      group = "com.example"
+      module = "mylib"
+      versions = "[1.0,)"
+    }
+    val attempts = AtomicInteger()
+    val emptyResult = createVersionRangeResult().apply {
+      addException(
+        IllegalStateException(
+          "metadata failure",
+          IOException()
+        )
+      )
+    }
+    val failingSystem = repositorySystemReturningAfterFailures(0, emptyResult, attempts)
+
+    assertThatThrownBy {
+      MuzzleMavenRepoUtils.resolveVersionRange(
+        directive,
+        failingSystem,
+        newSession(),
+        emptyList(),
+        enableBackoffRetries = false
+      )
+    }.isInstanceOf(IllegalStateException::class.java)
+      .hasMessageContaining("Resolution result exceptions:")
+      .hasMessageContaining("Attempt 1:")
+      .hasMessageContaining("Attempt 4:")
+      .hasMessageContaining("java.lang.IllegalStateException: metadata failure")
+      .hasMessageContaining("Caused by: java.io.IOException: <no message>")
     assertThat(attempts).hasValue(4)
   }
 
@@ -296,7 +364,7 @@ class MuzzleMavenRepoUtilsTest {
     return VersionRangeResult(request).apply { this.versions = versions }
   }
 
-  private fun repositorySystemThrowingThenResolving(
+  private fun repositorySystemReturningAfterFailures(
     failuresBeforeSuccess: Int,
     result: VersionRangeResult,
     attempts: AtomicInteger
@@ -317,8 +385,9 @@ class MuzzleMavenRepoUtilsTest {
           }
           result
         }
-        "toString" -> "repositorySystemThrowingThenResolving"
+        "toString" -> "repositorySystemReturningAfterFailures"
         else -> throw UnsupportedOperationException(method.name)
       }
     } as RepositorySystem
+
 }

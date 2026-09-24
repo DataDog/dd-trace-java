@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.openai_java;
 
+import static datadog.trace.api.llmobs.GenAiApmTags.stringTag;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 
 import com.openai.core.ClientOptions;
@@ -9,12 +10,15 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceApiInfo;
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.api.llmobs.GenAiApmTags;
 import datadog.trace.api.llmobs.LLMObsContext;
+import datadog.trace.api.llmobs.LLMObsSampler;
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import java.util.List;
@@ -36,6 +40,8 @@ public class OpenAiDecorator extends ClientDecorator {
   private static final String TOKENS_LIMIT_METRIC = METRIC_PREFIX + "tokens.limit";
   private static final String TOKENS_REMAINING_METRIC = METRIC_PREFIX + "tokens.remaining";
 
+  private static final String EMBEDDINGS_ENDPOINT = "/v1/embeddings";
+
   private static final String HEADER_PREFIX = "x-ratelimit-";
   private static final String LIMIT_REQUESTS_HEADER = HEADER_PREFIX + "limit-requests";
   private static final String REMAINING_REQUESTS_HEADER = HEADER_PREFIX + "remaining-requests";
@@ -44,6 +50,7 @@ public class OpenAiDecorator extends ClientDecorator {
 
   private final boolean llmObsEnabled = Config.get().isLlmObsEnabled();
   private final WellKnownTags wellKnownTags = Config.get().getWellKnownTags();
+  private final LLMObsSampler sampler = LLMObsSampler.fromConfig();
 
   public AgentSpan startSpan(ClientOptions clientOptions) {
     AgentSpan span = AgentTracer.startSpan(INTEGRATION, SPAN_NAME);
@@ -110,10 +117,16 @@ public class OpenAiDecorator extends ClientDecorator {
 
       // Resolve the LLMObs parent context, gated on trace-id consistency: a stale context
       // from a different trace (e.g. async boundary leakage) must not contribute parent_id,
-      // session_id, or agent_version to this span. Matches DDLLMObsSpan's manual-span gate.
+      // session_id, agent_version, agent attribution, or a sampling verdict to this span.
+      // Matches DDLLMObsSpan's manual-span gate. One flag drives every inherited value, so a
+      // new propagated tag cannot accidentally ship with a weaker gate of its own.
       AgentSpanContext parent = LLMObsContext.current();
+      boolean inheritable = parent != null && parent.getTraceId().equals(span.getTraceId());
+
       String parentSpanId = LLMObsContext.ROOT_SPAN_ID;
-      if (parent != null && parent.getTraceId() == span.getTraceId()) {
+      String samplingDecision = null;
+      String sampleRate = null;
+      if (inheritable) {
         parentSpanId = String.valueOf(parent.getSpanId());
 
         // Inherit session_id from the active LLMObs parent (e.g. a manual workflow span).
@@ -131,8 +144,35 @@ public class OpenAiDecorator extends ClientDecorator {
         if (agentVersion != null && !agentVersion.isEmpty()) {
           span.setTag(CommonTags.AGENT_VERSION, agentVersion);
         }
+
+        // Inherit agent attribution: the nearest agent-kind ancestor of this span. The name is
+        // only meaningful alongside an ID, so it is read inside the ID's branch.
+        String parentAgentSpanId = LLMObsContext.currentParentAgentSpanId();
+        if (parentAgentSpanId != null) {
+          span.setTag(CommonTags.PAGENT_SPAN_ID, parentAgentSpanId);
+          String parentAgentName = LLMObsContext.currentParentAgentName();
+          if (parentAgentName != null) {
+            span.setTag(CommonTags.PAGENT_NAME, parentAgentName);
+          }
+        }
+
+        samplingDecision = LLMObsContext.currentSamplingDecision();
+        sampleRate = LLMObsContext.currentSampleRate();
       }
       span.setTag(CommonTags.PARENT_ID, parentSpanId);
+
+      // Compute the sampling decision if none was inherited (no LLMObs parent), which makes this
+      // span the root of its own LLMObs trace. Unlike the tags above, this cannot be skipped when
+      // there is nothing to inherit: an unstamped span is retained at any configured rate.
+      if (samplingDecision == null || sampleRate == null) {
+        sampleRate = sampler.formattedRate();
+        samplingDecision =
+            sampler.sample(span.getTraceId().toLong())
+                ? LLMObsContext.SAMPLING_DECISION_SAMPLED
+                : LLMObsContext.SAMPLING_DECISION_DROPPED;
+      }
+      span.setTag(CommonTags.SAMPLING_DECISION, samplingDecision);
+      span.setTag(CommonTags.SAMPLE_RATE, sampleRate);
     }
     super.doAfterStart(span);
   }
@@ -144,6 +184,8 @@ public class OpenAiDecorator extends ClientDecorator {
       span.setTag(CommonTags.ERROR, span.isError() ? 1 : 0);
       span.setTag(CommonTags.ERROR_TYPE, span.getTag(DDTags.ERROR_TYPE));
 
+      GenAiApmTags.apply(span);
+
       Object spanKindTag = span.getTag(CommonTags.SPAN_KIND);
       if (spanKindTag != null) {
         String spanKind = spanKindTag.toString();
@@ -151,8 +193,28 @@ public class OpenAiDecorator extends ClientDecorator {
         LLMObsMetricCollector.get()
             .recordSpanFinished(INTEGRATION, spanKind, isRootSpan, true, span.isError(), false);
       }
+    } else if (span != null) {
+      // Tracing still runs with LLM Observability off, where these remain resolvable.
+      GenAiApmTags.apply(
+          span, operationName(span), requestedModel(span), Config.get().getLlmObsMlApp());
     }
     super.doBeforeFinish(context);
+  }
+
+  private static String operationName(AgentSpan span) {
+    String endpoint = stringTag(span, CommonTags.OPENAI_REQUEST_ENDPOINT);
+    if (endpoint == null) {
+      return null;
+    }
+    return EMBEDDINGS_ENDPOINT.equals(endpoint)
+        ? Tags.LLMOBS_EMBEDDING_SPAN_KIND
+        : Tags.LLMOBS_LLM_SPAN_KIND;
+  }
+
+  /** The response model resolves aliases the request used, so it wins. */
+  private static String requestedModel(AgentSpan span) {
+    String model = stringTag(span, CommonTags.OPENAI_RESPONSE_MODEL);
+    return model != null ? model : stringTag(span, CommonTags.OPENAI_REQUEST_MODEL);
   }
 
   public void withHttpResponse(AgentSpan span, Headers headers) {

@@ -7,7 +7,7 @@ forbiddenapis = "3.10"
 gradle-tooling-api = "8.14.5"
 jsr305 = "3.0.2"
 shadow = "9.4.2"
-spotbugs_annotations = "4.10.3"
+spotbugs_annotations = "4.10.4"
 
 # Source code formatters
 google-java-format = "1.36.1"
@@ -43,7 +43,7 @@ scala33 = "3.3.0"
 autoservice = "1.1.1"
 asm = "9.10.1"
 byte-buddy = "1.18.12"
-instrument-java = "0.0.4"
+instrument-java = "0.0.5"
 
 # Benchmarks
 jmh = "1.37"

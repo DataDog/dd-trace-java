@@ -59,6 +59,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_I
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_DBM_ALWAYS_APPEND_SQL_COMMENT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_DBM_PROPAGATION_MODE_MODE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_DBM_TRACE_PREPARED_STATEMENTS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS;
@@ -118,6 +119,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LLM_OBS_AGENTLESS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_LLM_OBS_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_OTEL_BATCH_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_OTEL_INTERVAL;
@@ -213,10 +215,12 @@ import static datadog.trace.api.config.AIGuardConfig.AI_GUARD_ENABLED;
 import static datadog.trace.api.config.AIGuardConfig.AI_GUARD_ENDPOINT;
 import static datadog.trace.api.config.AIGuardConfig.AI_GUARD_MAX_CONTENT_SIZE;
 import static datadog.trace.api.config.AIGuardConfig.AI_GUARD_MAX_MESSAGES_LENGTH;
+import static datadog.trace.api.config.AIGuardConfig.AI_GUARD_REDACTION_ENABLED;
 import static datadog.trace.api.config.AIGuardConfig.AI_GUARD_TIMEOUT;
 import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_ENABLED;
 import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_MAX_CONTENT_SIZE;
 import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_MAX_MESSAGES_LENGTH;
+import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_REDACTION_ENABLED;
 import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_TIMEOUT;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE;
@@ -268,6 +272,8 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVE
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DYNAMIC_ATR_BUCKETS;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DYNAMIC_ATR_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_LOWER_LIMIT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_EXECUTION_SETTINGS_CACHE_SIZE;
@@ -333,6 +339,7 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_MAX_CAP
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_EXCEPTION_ONLY_LOCAL_ROOT;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_MAX_EXCEPTION_PER_SECOND;
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SOURCE_FILE_TRACKING_ENABLED;
+import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SYNCHRONOUS_SOURCE_FILE_TRACKING_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DISTRIBUTED_DEBUGGER_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT_MS;
@@ -478,6 +485,7 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_PORT;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ML_APP;
+import static datadog.trace.api.config.LlmObsConfig.LLMOBS_SAMPLE_RATE;
 import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_BATCH_SIZE;
 import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_INTERVAL;
@@ -584,6 +592,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_ALWAYS_APPEND_SQL_COMMENT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_INJECT_SQL_BASEHASH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_TRACE_PREPARED_STATEMENTS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_METADATA_FETCHING_ON_CONNECT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_METADATA_FETCHING_ON_QUERY;
@@ -844,8 +853,11 @@ public class Config {
 
   private static final Logger log = LoggerFactory.getLogger(Config.class);
   private static final int MAX_CODE_COVERAGE_FLAGS = 32;
+  private static final int DYNAMIC_ATR_BUCKET_COUNT = 5;
+  private static final int MAX_DYNAMIC_ATR_RETRIES_PER_BUCKET = 20;
 
   private static final Pattern COLON = Pattern.compile(":");
+  private static final Pattern COMMA = Pattern.compile(",");
 
   // Historical conflating-Batch size; used to translate TRACER_METRICS_MAX_PENDING (configured in
   // legacy batch units) into the new per-SpanSnapshot inbox capacity.
@@ -1157,6 +1169,7 @@ public class Config {
   private final boolean llmObsAgentlessEnabled;
   private final String llmObsAgentlessUrl;
   private final String llmObsMlApp;
+  private final double llmObsSampleRate;
 
   private final boolean ciVisibilityTraceSanitationEnabled;
   private final boolean ciVisibilityAgentlessEnabled;
@@ -1211,6 +1224,8 @@ public class Config {
   private final boolean ciVisibilityFlakyRetryOnlyKnownFlakes;
   private final int ciVisibilityFlakyRetryCount;
   private final int ciVisibilityTotalFlakyRetryCount;
+  private final boolean ciVisibilityDynamicAtrEnabled;
+  private final List<Integer> ciVisibilityDynamicAtrBuckets;
   private final boolean ciVisibilityEarlyFlakeDetectionEnabled;
   private final int ciVisibilityEarlyFlakeDetectionLowerLimit;
   private final String ciVisibilitySessionName;
@@ -1248,6 +1263,7 @@ public class Config {
 
   private final boolean dbmInjectSqlBaseHash;
   private final String dbmPropagationMode;
+  private final boolean dbmPropagationOracleActionOnlyEnabled;
   private final boolean dbmTracePreparedStatements;
   private final boolean dbmAlwaysAppendSqlComment;
   private final boolean dbMetadataFetchingOnQuery;
@@ -1289,6 +1305,7 @@ public class Config {
   private final int debuggerCodeOriginMaxUserFrames;
   private final boolean distributedDebuggerEnabled;
   private final boolean debuggerSourceFileTrackingEnabled;
+  private final boolean debuggerSynchronousSourceFileTrackingEnabled;
 
   private final Set<String> debuggerThirdPartyIncludes;
   private final Set<String> debuggerThirdPartyExcludes;
@@ -1463,6 +1480,7 @@ public class Config {
   private final int aiGuardTimeout;
   private final int aiGuardMaxMessagesLength;
   private final int aiGuardMaxContentSize;
+  private final boolean aiGuardRedactionEnabled;
 
   static {
     // Bind telemetry collector to config module before initializing ConfigProvider
@@ -1848,6 +1866,11 @@ public class Config {
         configProvider.getString(
             DB_DBM_PROPAGATION_MODE_MODE, DEFAULT_DB_DBM_PROPAGATION_MODE_MODE);
 
+    dbmPropagationOracleActionOnlyEnabled =
+        configProvider.getBoolean(
+            DB_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED,
+            DEFAULT_DB_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED);
+
     dbmTracePreparedStatements =
         configProvider.getBoolean(
             DB_DBM_TRACE_PREPARED_STATEMENTS, DEFAULT_DB_DBM_TRACE_PREPARED_STATEMENTS);
@@ -2217,7 +2240,7 @@ public class Config {
 
     String otlpTracesEndpointFromEnvironment = configProvider.getString(OTLP_TRACES_ENDPOINT);
     if (otlpTracesEndpointFromEnvironment == null) {
-      if (otlpMetricsProtocol == OtlpConfig.Protocol.GRPC) {
+      if (otlpTracesProtocol == OtlpConfig.Protocol.GRPC) {
         otlpTracesEndpointFromEnvironment = "http://" + agentHost + ':' + DEFAULT_OTLP_GRPC_PORT;
       } else {
         otlpTracesEndpointFromEnvironment =
@@ -2696,6 +2719,18 @@ public class Config {
     final String tempLlmObsMlApp = configProvider.getString(LLMOBS_ML_APP);
     llmObsMlApp =
         tempLlmObsMlApp == null || tempLlmObsMlApp.isEmpty() ? serviceName : tempLlmObsMlApp;
+    // Fall back to "sample everything" rather than clamping
+    final double configuredLlmObsSampleRate =
+        configProvider.getDouble(LLMOBS_SAMPLE_RATE, DEFAULT_LLM_OBS_SAMPLE_RATE);
+    if (configuredLlmObsSampleRate >= 0.0 && configuredLlmObsSampleRate <= 1.0) {
+      llmObsSampleRate = configuredLlmObsSampleRate;
+    } else {
+      log.warn(
+          "Invalid value {} for {}: expected a rate between 0.0 and 1.0, falling back to 1.0.",
+          configuredLlmObsSampleRate,
+          LLMOBS_SAMPLE_RATE);
+      llmObsSampleRate = 1.0;
+    }
 
     final String llmObsAgentlessUrlStr = getFinalLLMObsUrl();
     URI parsedLLMObsUri = null;
@@ -2851,6 +2886,12 @@ public class Config {
     ciVisibilityFlakyRetryCount = configProvider.getInteger(CIVISIBILITY_FLAKY_RETRY_COUNT, 5);
     ciVisibilityTotalFlakyRetryCount =
         configProvider.getInteger(CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT, 1000);
+    ciVisibilityDynamicAtrEnabled =
+        configProvider.getBoolean(CIVISIBILITY_DYNAMIC_ATR_ENABLED, false);
+    ciVisibilityDynamicAtrBuckets =
+        ciVisibilityDynamicAtrEnabled
+            ? parseDynamicAtrBuckets(configProvider.getString(CIVISIBILITY_DYNAMIC_ATR_BUCKETS))
+            : null;
     ciVisibilitySessionName = configProvider.getString(TEST_SESSION_NAME);
     ciVisibilityModuleName = configProvider.getString(CIVISIBILITY_MODULE_NAME);
     ciVisibilityTestCommand = configProvider.getString(CIVISIBILITY_TEST_COMMAND);
@@ -3081,6 +3122,8 @@ public class Config {
     debuggerSourceFileTrackingEnabled =
         configProvider.getBoolean(
             DEBUGGER_SOURCE_FILE_TRACKING_ENABLED, DEFAULT_DEBUGGER_SOURCE_FILE_TRACKING_ENABLED);
+    debuggerSynchronousSourceFileTrackingEnabled =
+        configProvider.getBoolean(DEBUGGER_SYNCHRONOUS_SOURCE_FILE_TRACKING_ENABLED, false);
 
     debuggerThirdPartyIncludes =
         tryMakeImmutableSet(
@@ -3440,6 +3483,8 @@ public class Config {
     this.aiGuardMaxMessagesLength =
         configProvider.getInteger(
             AI_GUARD_MAX_MESSAGES_LENGTH, DEFAULT_AI_GUARD_MAX_MESSAGES_LENGTH);
+    this.aiGuardRedactionEnabled =
+        configProvider.getBoolean(AI_GUARD_REDACTION_ENABLED, DEFAULT_AI_GUARD_REDACTION_ENABLED);
 
     log.debug("New instance: {}", this);
   }
@@ -4481,6 +4526,16 @@ public class Config {
     return llmObsMlApp;
   }
 
+  /**
+   * The fraction of LLM Observability traces retained by the backend, in {@code [0.0, 1.0]}.
+   *
+   * <p>Independent of APM sampling: the decision made with this rate never affects an APM sampling
+   * priority, and an APM decision never affects it.
+   */
+  public double getLlmObsSampleRate() {
+    return llmObsSampleRate;
+  }
+
   public boolean isCiVisibilityEnabled() {
     return instrumenterConfig.isCiVisibilityEnabled();
   }
@@ -4745,6 +4800,14 @@ public class Config {
     return ciVisibilityTotalFlakyRetryCount;
   }
 
+  public boolean isCiVisibilityDynamicAtrEnabled() {
+    return ciVisibilityDynamicAtrEnabled;
+  }
+
+  public List<Integer> getCiVisibilityDynamicAtrBuckets() {
+    return ciVisibilityDynamicAtrBuckets;
+  }
+
   public String getCiVisibilitySessionName() {
     return ciVisibilitySessionName;
   }
@@ -4979,6 +5042,10 @@ public class Config {
 
   public boolean isDebuggerSourceFileTrackingEnabled() {
     return debuggerSourceFileTrackingEnabled;
+  }
+
+  public boolean isDebuggerSynchronousSourceFileTrackingEnabled() {
+    return debuggerSynchronousSourceFileTrackingEnabled;
   }
 
   public Set<String> getThirdPartyIncludes() {
@@ -6024,6 +6091,10 @@ public class Config {
     return dbmPropagationMode;
   }
 
+  public boolean isDbmPropagationOracleActionOnlyEnabled() {
+    return dbmPropagationOracleActionOnlyEnabled;
+  }
+
   // Database monitoring propagation mode constants
   public static final String DBM_PROPAGATION_MODE_STATIC = "service";
   public static final String DBM_PROPAGATION_MODE_FULL = "full";
@@ -6227,6 +6298,15 @@ public class Config {
     return aiGuardTimeout;
   }
 
+  /**
+   * Global kill-switch for AI Guard sensitive data redaction. When {@code false}, the tracer never
+   * applies the redaction requested by the AI Guard service, even when the evaluation response asks
+   * for it.
+   */
+  public boolean isAiGuardRedactionEnabled() {
+    return aiGuardRedactionEnabled;
+  }
+
   private <T> Set<T> getSettingsSetFromEnvironment(
       String name, Function<String, T> mapper, boolean splitOnWS) {
     final String value = configProvider.getString(name, "");
@@ -6311,6 +6391,43 @@ public class Config {
       result.add(str.substring(start));
     }
     return Collections.unmodifiableSet(result);
+  }
+
+  private static List<Integer> parseDynamicAtrBuckets(String configuredBuckets) {
+    if (configuredBuckets == null || configuredBuckets.isEmpty()) {
+      return null;
+    }
+
+    String[] values = COMMA.split(configuredBuckets, -1);
+    if (values.length != DYNAMIC_ATR_BUCKET_COUNT) {
+      logInvalidDynamicAtrBuckets(configuredBuckets);
+      return null;
+    }
+
+    List<Integer> buckets = new ArrayList<>(values.length);
+    try {
+      for (String value : values) {
+        int retries = Integer.parseInt(value.trim());
+        if (retries < 1 || retries > MAX_DYNAMIC_ATR_RETRIES_PER_BUCKET) {
+          logInvalidDynamicAtrBuckets(configuredBuckets);
+          return null;
+        }
+        buckets.add(retries);
+      }
+      return Collections.unmodifiableList(buckets);
+
+    } catch (NumberFormatException e) {
+      logInvalidDynamicAtrBuckets(configuredBuckets);
+      return null;
+    }
+  }
+
+  private static void logInvalidDynamicAtrBuckets(String configuredBuckets) {
+    log.warn(
+        "Invalid {} value '{}'; expected five comma-separated integers in [1, {}]",
+        propertyNameToEnvironmentVariableName(CIVISIBILITY_DYNAMIC_ATR_BUCKETS),
+        configuredBuckets,
+        MAX_DYNAMIC_ATR_RETRIES_PER_BUCKET);
   }
 
   private static List<String> parseCodeCoverageFlags(List<String> configuredFlags) {
@@ -6603,6 +6720,8 @@ public class Config {
         + dbmInjectSqlBaseHash
         + ", dbmPropagationMode="
         + dbmPropagationMode
+        + ", dbmPropagationOracleActionOnlyEnabled="
+        + dbmPropagationOracleActionOnlyEnabled
         + ", dbmTracePreparedStatements="
         + dbmTracePreparedStatements
         + ", splitByTags="
@@ -6991,6 +7110,8 @@ public class Config {
         + aiGuardEnabled
         + ", aiGuardEndpoint="
         + aiGuardEndpoint
+        + ", aiGuardRedactionEnabled="
+        + aiGuardRedactionEnabled
         + ", logsOtelExporter="
         + logsOtelExporter
         + ", logsOtelInterval="
@@ -7053,6 +7174,10 @@ public class Config {
         + otlpTracesTimeout
         + ", ciVisibilityGradleDependencyVerificationEnabled="
         + ciVisibilityGradleDependencyVerificationEnabled
+        + ", ciVisibilityDynamicAtrEnabled="
+        + ciVisibilityDynamicAtrEnabled
+        + ", ciVisibilityDynamicAtrBuckets="
+        + ciVisibilityDynamicAtrBuckets
         + ", serviceDiscoveryEnabled="
         + serviceDiscoveryEnabled
         + ", sfnInjectDatadogAttributeEnabled="

@@ -1,12 +1,12 @@
 package datadog.trace.instrumentation.hibernate;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
 public class SessionState {
   private final AgentSpan sessionSpan;
 
-  private AgentScope methodScope;
+  private ContextScope methodScope;
   private boolean hasChildSpan = true;
 
   public SessionState(AgentSpan sessionSpan) {
@@ -17,11 +17,11 @@ public class SessionState {
     return sessionSpan;
   }
 
-  public AgentScope getMethodScope() {
+  public ContextScope getMethodScope() {
     return methodScope;
   }
 
-  public void setMethodScope(AgentScope methodScope) {
+  public void setMethodScope(ContextScope methodScope) {
     this.methodScope = methodScope;
   }
 

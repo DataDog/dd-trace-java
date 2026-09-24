@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.context.ContextContinuation;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import java.util.ArrayList;
 import java.util.Arrays;
 import org.junit.jupiter.api.Test;
@@ -14,8 +14,8 @@ public class PendingTraceStrictWriteTest extends PendingTraceTestBase {
 
   @Test
   void traceNotReportedUntilContinuationClosed() throws InterruptedException {
-    AgentScope scope = tracer.activateSpan(rootSpan);
-    ContextContinuation continuation = tracer.captureActiveSpan();
+    ContextScope scope = tracer.activateSpan(rootSpan);
+    ContextContinuation continuation = tracer.capture(rootSpan);
     scope.close();
     rootSpan.finish();
 
@@ -40,8 +40,8 @@ public class PendingTraceStrictWriteTest extends PendingTraceTestBase {
 
   @Test
   void negativeReferenceCountThrowsException() {
-    AgentScope scope = tracer.activateSpan(rootSpan);
-    ContextContinuation continuation = tracer.captureActiveSpan();
+    ContextScope scope = tracer.activateSpan(rootSpan);
+    ContextContinuation continuation = tracer.capture(rootSpan);
     scope.close();
     rootSpan.finish();
 
