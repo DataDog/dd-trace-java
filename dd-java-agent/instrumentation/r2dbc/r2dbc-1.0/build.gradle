@@ -7,16 +7,24 @@ muzzle {
     group = "io.r2dbc"
     module = "r2dbc-spi"
     versions = "[1.0.0.RELEASE,)"
-    // r2dbc-proxy is compileOnly and referenced directly by the injected
+    // r2dbc-proxy is bundled (implementation) and referenced directly by the injected
     // listener/wrap-helper classes (R2dbcTracingSupport, TraceProxyExecutionListener).
     // Muzzle only puts the pinned primary dependency (r2dbc-spi) on the test
-    // classpath by default, so the compileOnly interception library must be
-    // added explicitly or muzzle reports its classes as "missing".
+    // classpath by default, so the interception library must be added explicitly
+    // or muzzle reports its classes as "missing".
     extraDependency 'io.r2dbc:r2dbc-proxy:1.1.0.RELEASE'
   }
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
+
+tasks.named("latestDepTest", Test) {
+  // The latest io.r2dbc:r2dbc-h2 pulls in an H2 build compiled for Java 11
+  // (class file version 55), so latestDepTest cannot run on the JVM 8 CI slot.
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_11
+  }
+}
 
 dependencies {
   compileOnly group: 'io.r2dbc', name: 'r2dbc-spi', version: '1.0.0.RELEASE'
