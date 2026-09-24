@@ -12,8 +12,7 @@ dependencies {
 
 testJvmConstraints {
   // there is no need to run it multiple times since it runs on a container
-  minJavaVersion = JavaVersion.VERSION_25
-  maxJavaVersion = JavaVersion.VERSION_25
+  maxJavaVersion = JavaVersion.VERSION_1_8
 }
 
 tasks.withType(Test).configureEach {
