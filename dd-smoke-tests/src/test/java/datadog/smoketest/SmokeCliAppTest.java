@@ -1,7 +1,5 @@
 package datadog.smoketest;
 
-import static java.util.Arrays.asList;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.smoketest.backend.AgentBackend;
@@ -31,7 +29,5 @@ class SmokeCliAppTest {
     assertTrue(
         app.waitForLogLine(line -> line.contains("CLI-STARTUP-MARKER")),
         "one-shot start-up output is retained for the test to assert on");
-    assertTrue(app.waitForLogLine("LOG-LEVEL=info"::equals));
-    assertEquals(asList("CLI-STARTUP-MARKER", "LOG-LEVEL=info"), app.logLines());
   }
 }

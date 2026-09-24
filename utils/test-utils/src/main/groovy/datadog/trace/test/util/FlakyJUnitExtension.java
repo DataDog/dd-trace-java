@@ -6,7 +6,6 @@ import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.function.Predicate;
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.extension.ConditionEvaluationResult;
 import org.junit.jupiter.api.extension.ExecutionCondition;
 import org.junit.jupiter.api.extension.ExtensionConfigurationException;
@@ -31,21 +30,13 @@ public final class FlakyJUnitExtension implements ExecutionCondition {
   }
 
   static Flaky findFlaky(Class<?> testClass, Method method) {
-    Flaky flaky = findFlakyClass(testClass);
-    return flaky != null || method == null ? flaky : matchingAnnotation(method, testClass);
-  }
-
-  private static Flaky findFlakyClass(Class<?> testClass) {
     for (Class<?> current = testClass; current != null; current = current.getSuperclass()) {
       Flaky flaky = matchingAnnotation(current, testClass);
       if (flaky != null) {
         return flaky;
       }
     }
-    if (testClass.isAnnotationPresent(Nested.class)) {
-      return findFlakyClass(testClass.getEnclosingClass());
-    }
-    return null;
+    return method == null ? null : matchingAnnotation(method, testClass);
   }
 
   private static Flaky matchingAnnotation(AnnotatedElement element, Class<?> testClass) {

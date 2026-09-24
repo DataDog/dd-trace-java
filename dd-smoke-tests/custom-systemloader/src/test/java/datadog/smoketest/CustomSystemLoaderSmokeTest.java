@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.test.util.Flaky;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
 import org.junit.jupiter.api.DisplayName;
@@ -33,10 +34,14 @@ class CustomSystemLoaderSmokeTest {
   @Flaky(value = "Race condition with IBM. Check APMAPI-1194", condition = IbmJvm.class)
   void resourceTypesLoadedByCustomSystemClassLoaderAreTransformed() {
     app.assertCompletesWithValue(30, SECONDS, 0);
-    // Wait for captured output to reach the marker printed after the resource classes are loaded.
-    assertTrue(app.waitForLogLine("FIN"::equals));
 
-    List<String> logLines = app.logLines();
+    List<String> logLines = new ArrayList<>();
+    assertTrue(
+        app.waitForLogLine(
+            line -> {
+              logLines.add(line);
+              return "FIN".equals(line);
+            }));
     Predicate<String> loadedResource =
         compile("Loading sample.app.Resource[$]Test[1-3] from TestLoader").asPredicate();
     Predicate<String> transformedResource =
