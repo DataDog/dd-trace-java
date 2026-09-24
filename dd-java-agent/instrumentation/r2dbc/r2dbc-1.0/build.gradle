@@ -34,7 +34,13 @@ dependencies {
   // those classes absent from the shaded agent jar, and the runtime muzzle safety check
   // then blocks the whole module to avoid a NoClassDefFoundError once the target app's
   // classloader is checked. r2dbc-spi stays compileOnly — target apps DO provide that one.
-  implementation group: 'io.r2dbc', name: 'r2dbc-proxy', version: '1.1.0.RELEASE'
+  // Non-transitive: r2dbc-spi, reactor-core and reactive-streams come from the target app
+  // (the injected helpers link against the app's copies), so bundling them would only
+  // bloat the agent jar.
+  implementation(group: 'io.r2dbc', name: 'r2dbc-proxy', version: '1.1.0.RELEASE') {
+    transitive = false
+  }
+  compileOnly group: 'io.projectreactor', name: 'reactor-core', version: '3.5.0'
 
   testImplementation group: 'io.r2dbc', name: 'r2dbc-spi', version: '1.0.0.RELEASE'
   testImplementation group: 'io.r2dbc', name: 'r2dbc-proxy', version: '1.1.0.RELEASE'
