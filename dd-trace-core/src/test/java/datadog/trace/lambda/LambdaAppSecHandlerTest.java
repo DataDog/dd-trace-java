@@ -1753,13 +1753,35 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void processResponseDataDoesNothingWhenSpanHasNoRequestContext() {
+  void processResponseDataPublishesStatusButNoWafEventsWhenSpanHasNoRequestContext() {
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
     AgentSpan span = mock(AgentSpan.class);
     when(span.getRequestContext()).thenReturn(null);
-    ByteArrayOutputStream result = createOutputStream("{\"statusCode\": 200}");
-    setupMockResponseCallbacks(null, null, null, null);
-    LambdaAppSecHandler.processResponseData(span, result);
-    // no exception expected
+    AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
+    AgentTracer.forceRegister(tracer);
+
+    LambdaAppSecHandler.processResponseData(span, createOutputStream("{\"statusCode\": 200}"));
+
+    verify(span).setHttpStatusCode(200);
+    verify(tracer, never()).getCallbackProvider(RequestContextSlot.APPSEC);
+  }
+
+  @Test
+  void processResponseDataStillPublishesStatusWhenSpanHasNoAppSecContext() {
+    // An exception inside processRequestStart leaves an HTTP trigger type recorded but no AppSec
+    // context on the span. http.status_code is a tracing tag and must survive that.
+    LambdaAppSecHandler.setCurrentTriggerType(LambdaTriggerType.API_GATEWAY_V1_REST);
+    RequestContext requestContext = mock(RequestContext.class);
+    AgentSpan span = mock(AgentSpan.class);
+    when(span.getRequestContext()).thenReturn(requestContext);
+    AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
+    AgentTracer.forceRegister(tracer);
+
+    LambdaAppSecHandler.processResponseData(
+        span, createOutputStream("{\"statusCode\": 503, \"body\": \"boom\"}"));
+
+    verify(span).setHttpStatusCode(503);
+    verify(tracer, never()).getCallbackProvider(RequestContextSlot.APPSEC);
   }
 
   @Test

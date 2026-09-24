@@ -135,6 +135,8 @@ public class LambdaAppSecHandler {
       return;
     }
 
+    // A null trigger type means processRequestStart never ran, so the invocation was not analysed
+    // at all, which is not the same as an unsupported trigger.
     if (!triggerType.isHttp()) {
       span.setMetric(UNSUPPORTED_EVENT_TYPE_METRIC, 1);
       return;
@@ -189,10 +191,8 @@ public class LambdaAppSecHandler {
     }
 
     RequestContext requestContext = span.getRequestContext();
-    if (requestContext == null || requestContext.getData(RequestContextSlot.APPSEC) == null) {
-      log.debug("Span has no AppSec request context, skipping response processing");
-      return;
-    }
+    boolean hasAppSecContext =
+        requestContext != null && requestContext.getData(RequestContextSlot.APPSEC) != null;
 
     try {
       byte[] bytes = ((ByteArrayOutputStream) result).toByteArray();
@@ -217,6 +217,14 @@ public class LambdaAppSecHandler {
         span.setHttpStatusCode(statusCode);
         boolean isError = Config.get().getHttpServerErrorStatuses().get(statusCode);
         span.setError(isError, ErrorPriorities.HTTP_SERVER_DECORATOR);
+      }
+
+      // http.status_code is a tracing tag and is published above whether or not AppSec ran: a
+      // failure inside processRequestStart must not also cost the span its status. The WAF
+      // callbacks below, in contrast, have nowhere to deliver without an AppSec request context.
+      if (!hasAppSecContext) {
+        log.debug("Span has no AppSec request context, skipping response WAF callbacks");
+        return;
       }
 
       AgentTracer.TracerAPI tracer = AgentTracer.get();
