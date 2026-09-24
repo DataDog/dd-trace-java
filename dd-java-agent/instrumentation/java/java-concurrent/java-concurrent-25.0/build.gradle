@@ -58,7 +58,7 @@ tasks.named("previewTest", Test) {
  */
 def previewCheckSuites = ['previewTest']
 def addJoinerLeakSuite = { int jdk, JavaVersion version ->
-  String suite = "previewTestJdk$jdk"
+  String suite = "previewJdk${jdk}Test"
   addTestSuite(suite)
   tasks.named("compile${suite.capitalize()}Java", JavaCompile) {
     configureCompiler(it, jdk)
