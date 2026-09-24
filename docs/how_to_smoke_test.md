@@ -233,6 +233,46 @@ static final TestAgentBackend agent = AgentBackend.testAgentBuilder().retainAcro
 static final SmokeServerApp sender = /* ... */;
 ```
 
+## Container images
+
+For application containers or dependencies such as RabbitMQ, apply
+`dd-trace-java.testcontainers` and declare the image in the smoke-test module:
+
+```groovy
+plugins {
+  id 'dd-trace-java.module.smoke-test'
+  id 'dd-trace-java.testcontainers'
+}
+
+dependencies {
+  testImplementation group: 'org.testcontainers', name: 'rabbitmq', version: libs.versions.testcontainers.get()
+  testImplementation group: 'org.testcontainers', name: 'junit-jupiter', version: libs.versions.testcontainers.get()
+  testContainerImage(image('rabbitmq:3.12-management-alpine', 'test.rabbitmq.image'))
+}
+```
+
+Read the property when creating the container. Annotate the test class with
+`@Testcontainers` so its `@Container` fields are started and stopped automatically:
+
+```java
+@Container
+private static final RabbitMQContainer RABBIT_MQ_CONTAINER =
+    new RabbitMQContainer(
+        DockerImageName.parse(System.getProperty("test.rabbitmq.image"))
+            .asCompatibleSubstituteFor("rabbitmq"));
+```
+
+Gradle fingerprints the resolved digest and passes that immutable image to the
+test JVM. The property belongs to the test JVM; explicitly forward it if the
+launched application needs it too. Continue using `placeholder(...)` for mapped
+ports, which only become available after the container starts.
+
+Keep the existing `usesService(testcontainersLimit)` declarations on container
+test tasks: the image plugin does not assign that service. It also does not
+automatically track the test-agent backend's image or Testcontainers helper images.
+See [Tests that use containers](./how_to_test.md#tests-that-use-containers) for
+suite inheritance, cache behavior, IDE runs and concurrency guidance.
+
 ## Choosing a backend
 
 The backend is the agent stand-in the app reports to.

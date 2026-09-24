@@ -104,6 +104,10 @@ tasks.withType(GroovyCompile).configureEach {
     )
 }
 
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}
+
 tasks.named("latestDepJava11Test", Test) {
   testJvmConstraints {
     minJavaVersion = JavaVersion.VERSION_11

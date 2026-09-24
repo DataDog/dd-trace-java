@@ -36,7 +36,6 @@ class TestcontainersPlugin : Plugin<Project> {
         "testContainerImageResolver",
         ImageResolver::class.java,
       ) {}
-    val limit = TestcontainersLimitService.register(project)
 
     project.pluginManager.withPlugin("java") {
       val sourceSets = project.extensions.getByType<SourceSetContainer>()
@@ -79,13 +78,16 @@ class TestcontainersPlugin : Plugin<Project> {
               val configurationFiles =
                 listOf(File(System.getProperty("user.home"), ".testcontainers.properties")) +
                   inheritedSourceSets.flatMap { it.resources.srcDirs }.map { File(it, "testcontainers.properties") }
+              // Track inherited values for configuration-cache invalidation, but use the task's
+              // effective environment below so explicit overrides and removals are respected.
+              project.providers.environmentVariablesPrefixedBy("TESTCONTAINERS_").get()
               val imageEnvironment =
-                (project.providers.environmentVariablesPrefixedBy("TESTCONTAINERS_").get() + environment)
+                environment
                   .filterKeys {
                     it == "TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX" || it == "TESTCONTAINERS_IMAGE_SUBSTITUTOR" ||
                       (it.startsWith("TESTCONTAINERS_") && it.endsWith("_CONTAINER_IMAGE"))
                   }.mapValues { it.value.toString() }
-              ContainerImageInputs(images, imageEnvironment, configurationFiles, resolver, limit)
+              ContainerImageInputs(images, imageEnvironment, configurationFiles, resolver)
             } else {
               null
             }

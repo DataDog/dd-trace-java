@@ -40,7 +40,6 @@ class TestcontainersPluginTest {
     try {
       fixture("127.0.0.1:${server.address.port}/library/cassandra:4")
       assertThat(run("help").task(":help")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
-      assertThat(run("verifyServiceSelection").task(":verifyServiceSelection")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
       assertThat(requests.get()).isZero()
       assertThat(run("test", "-PskipTests").task(":test")?.outcome).isEqualTo(TaskOutcome.SKIPPED)
       assertThat(requests.get()).isZero()
@@ -124,55 +123,30 @@ class TestcontainersPluginTest {
   }
 
   @Test
-  fun `container tasks share the legacy limit across projects and configuration cache reuse`() {
-    fixture("cassandra@sha256:${"a".repeat(64)}")
-    directory.resolve("settings.gradle").toFile().appendText("\ninclude('other')\n")
-    directory.resolve("gradle.properties").toFile().writeText("testcontainersMaxParallelUsages=1\n")
-    val buildFile = directory.resolve("build.gradle").toFile()
-    buildFile.appendText(
+  fun `task environment removals override inherited Testcontainers settings`() {
+    val digest = "sha256:${"a".repeat(64)}"
+    fixture("cassandra@$digest")
+    directory.resolve("build.gradle").toFile().appendText(
       """
 
-      tasks.withType(Test).configureEach {
-        systemProperty('containerLock', '${directory.resolve("container.lock")}')
+      tasks.named('test') {
+        environment.remove('TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX')
+        environment.remove('TESTCONTAINERS_IMAGE_SUBSTITUTOR')
       }
       """.trimIndent(),
     )
-    val testFile = directory.resolve("src/test/java/ImageTest.java").toFile()
-    testFile.writeText(
-      """
-      import org.junit.jupiter.api.Test;
-      import static org.junit.jupiter.api.Assertions.assertTrue;
-      public class ImageTest {
-        @Test public void respectsContainerLimit() throws Exception {
-          java.io.File lock = new java.io.File(System.getProperty("containerLock"));
-          assertTrue(lock.createNewFile(), "Container tasks exceeded the shared limit");
-          try { Thread.sleep(1000); } finally { lock.delete(); }
-        }
-      }
-      """.trimIndent(),
-    )
-    val other = directory.resolve("other")
-    Files.createDirectories(other.resolve("src/test/java"))
-    other.resolve("src/test/java/ImageTest.java").toFile().writeText(testFile.readText())
-    // A legacy module still declares usesService explicitly and has no image declarations.
-    other.resolve("build.gradle").toFile().writeText(
-      buildFile
-        .readText()
-        .replace("id 'dd-trace-java.testcontainers'", "id 'dd-trace-java.testcontainers-limit'")
-        .replace("testContainerImage(image('cassandra@sha256:${"a".repeat(64)}', 'test.cassandra.image'))", "") +
-        """
-
-        tasks.named('test', Test) { usesService(testcontainersLimit) }
-        """.trimIndent(),
-    )
-    val arguments = arrayOf(":test", ":other:test", "--parallel", "--rerun-tasks", "--no-build-cache")
-    val first = run(*arguments)
+    val environment =
+      System.getenv() +
+        mapOf(
+          "TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX" to "removed.example/team/",
+          "TESTCONTAINERS_IMAGE_SUBSTITUTOR" to "removed.CustomSubstitutor",
+        )
+    val first = runner("test").withEnvironment(environment).build()
     assertThat(first.task(":test")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
-    assertThat(first.task(":other:test")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
-    val reused = run(*arguments)
+    assertThat(report()).contains("registry-1.docker.io/library/cassandra@$digest")
+    val reused = runner("test").withEnvironment(environment).build()
     assertThat(reused.output).contains("Reusing configuration cache")
-    assertThat(reused.task(":test")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
-    assertThat(reused.task(":other:test")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(reused.task(":test")?.outcome).isEqualTo(TaskOutcome.UP_TO_DATE)
   }
 
   @Test
@@ -313,18 +287,6 @@ class TestcontainersPluginTest {
         testImplementation files($junitClasspath)
         isolatedTestImplementation files($junitClasspath)
         testContainerImage(image('$image', 'test.cassandra.image'))
-      }
-      tasks.register('verifyServiceSelection') {
-        def selected = providers.provider {
-          ['test', 'latestDepTest', 'latestDepTestForkedTest', 'isolatedTest'].collectEntries { name ->
-            def task = tasks.named(name).get()
-            [(name): task.requiredServices.searchServices().any { it.name == 'testcontainersLimit' }]
-          }
-        }
-        inputs.property('selected', selected)
-        doLast {
-          assert inputs.properties.selected == [test: true, latestDepTest: true, latestDepTestForkedTest: true, isolatedTest: false]
-        }
       }
       """.trimIndent(),
     )

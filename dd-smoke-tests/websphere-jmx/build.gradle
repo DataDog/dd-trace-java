@@ -15,3 +15,7 @@ testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_25
   maxJavaVersion = JavaVersion.VERSION_25
 }
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}

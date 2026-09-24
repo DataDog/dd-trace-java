@@ -51,10 +51,6 @@ tasks.test {
 
 gradlePlugin {
   plugins {
-    create("testcontainers-limit") {
-      id = "dd-trace-java.testcontainers-limit"
-      implementationClass = "datadog.buildlogic.testcontainers.TestcontainersLimitPlugin"
-    }
     create("testcontainers") {
       id = "dd-trace-java.testcontainers"
       implementationClass = "datadog.buildlogic.testcontainers.TestcontainersPlugin"

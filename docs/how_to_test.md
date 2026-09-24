@@ -55,6 +55,54 @@ In order to identify such tests and avoid the continuous integration to fail, th
 > * using the `Retry` button from the job view:
 >    ![Rerun workflow from failed](how_to_test/retry-failed-job.png)
 
+## Tests that use containers
+
+Declare container images in the module's Gradle build so a changed image cannot
+silently reuse cached test results:
+
+```groovy
+plugins {
+  id 'dd-trace-java.testcontainers'
+}
+
+dependencies {
+  testImplementation libs.testcontainers
+  testContainerImage(image('redis:7-alpine', 'test.redis.image'))
+}
+```
+
+Use the supplied system property when constructing the container, without a tag
+fallback. Keep the compatibility alias when using a Testcontainers module that
+validates its image name:
+
+```java
+DockerImageName image = DockerImageName.parse(System.getProperty("test.redis.image"))
+    .asCompatibleSubstituteFor("redis");
+GenericContainer<?> redis = new GenericContainer<>(image).withExposedPorts(6379);
+```
+
+The plugin resolves tags to immutable registry digests before Gradle checks the
+test cache, then passes those same image references to the test JVM. Unchanged
+digests can reuse test results; changed digests select a different cache entry.
+Tags are refreshed even when Gradle reuses its configuration cache. Resolution
+failure stops the task rather than trusting an old result.
+
+Each source set has a `<sourceSet>ContainerImage` declaration method. Images follow
+`implementation` configuration inheritance and reach the matching test task and
+its forked companions. For a separate suite, use its own declaration, such as
+`integrationTestContainerImage(...)`. Declarations apply to the whole task, including
+when `--tests` selects only some classes. Run IDE tests through Gradle, or supply
+the image system properties explicitly.
+
+Image fingerprinting does not configure concurrency. Keep the existing explicit
+`usesService(testcontainersLimit)` declarations; the service limits concurrent
+test tasks, not individual containers. When adding container tests, configure the
+service on the tasks that run them, including forked tasks where applicable.
+
+Only declared images are tracked; implicit helper images such as Ryuk are not.
+See the [plugin reference](../build-logic/testcontainers/README.md) for registry
+credentials, Docker Hub mirrors and supported image substitutions.
+
 ## Running Tests
 
 You can run the whole project test suite using `./gradlew test` but expect it to take a certain time.

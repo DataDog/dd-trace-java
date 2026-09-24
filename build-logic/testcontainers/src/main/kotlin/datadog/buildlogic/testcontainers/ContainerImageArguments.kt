@@ -24,7 +24,6 @@ class ContainerImageInputs(
   @get:Internal val imageEnvironment: Map<String, String>,
   @get:Internal val configurationFiles: List<File>,
   @get:ServiceReference("testContainerImageResolver") val resolver: Provider<ImageResolver>,
-  @get:ServiceReference("testcontainersLimit") val limit: Provider<TestcontainersLimitService>,
 ) {
   // Read during Test input snapshotting, after skip predicates and before cache lookup.
   // Only the service reference is serialized by the configuration cache; its memo is per build.

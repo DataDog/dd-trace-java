@@ -35,3 +35,7 @@ dependencies {
 
   latestDepTestImplementation group: 'io.vertx', name: 'vertx-mysql-client', version: '4.+'
 }
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}
