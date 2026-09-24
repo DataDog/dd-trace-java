@@ -33,7 +33,7 @@ public class TagContext implements AgentSpanContext.Extracted {
   private final HttpHeaders httpHeaders;
   private final Map<String, String> baggage;
   private Baggage w3cBaggage;
-  private int samplingPriority;
+  private final int samplingPriority;
   private final TraceConfig traceConfig;
   private final TracePropagationStyle propagationStyle;
   private final DDTraceId traceId;
@@ -179,10 +179,6 @@ public class TagContext implements AgentSpanContext.Extracted {
   @Override
   public final int getSamplingPriority() {
     return samplingPriority;
-  }
-
-  protected final void setSamplingPriority(int samplingPriority) {
-    this.samplingPriority = samplingPriority;
   }
 
   public final Map<String, String> getBaggage() {

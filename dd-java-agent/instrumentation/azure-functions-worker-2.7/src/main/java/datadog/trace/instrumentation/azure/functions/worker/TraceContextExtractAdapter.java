@@ -18,7 +18,11 @@ public final class TraceContextExtractAdapter
   public void forEachKey(TraceContext carrier, AgentPropagation.KeyClassifier classifier) {
     final String tracestate = carrier.getTracestate();
     String traceparent = carrier.getTraceparent();
-    if (datadogSamplingPriority(tracestate) > 0) {
+    final int datadogSamplingPriority = datadogSamplingPriority(tracestate);
+    if (datadogSamplingPriority == UNSET || datadogSamplingPriority > 0) {
+      // The Azure host can clear the sampled flag when host telemetry is disabled even though the
+      // trace identifiers are intended to correlate durable worker invocations. Restore the flag
+      // only in this durable-trigger extraction path, while preserving explicit Datadog drops.
       traceparent = setSampledFlag(traceparent);
     }
     if (traceparent != null && !classifier.accept(TRACEPARENT, traceparent)) {

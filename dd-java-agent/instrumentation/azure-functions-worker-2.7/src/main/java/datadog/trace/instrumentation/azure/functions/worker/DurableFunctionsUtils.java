@@ -1,7 +1,5 @@
 package datadog.trace.instrumentation.azure.functions.worker;
 
-import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
-import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -46,18 +44,6 @@ public final class DurableFunctionsUtils {
     return null;
   }
 
-  public static AgentSpanContext.Extracted reconcileSamplingPriority(
-      AgentSpanContext.Extracted parent, TraceContext traceContext) {
-    if (parent != null
-        && parent.getSamplingPriority() == SAMPLER_DROP
-        && traceContext != null
-        && TraceContextExtractAdapter.datadogSamplingPriority(traceContext.getTracestate())
-            == UNSET) {
-      return parent.withSamplingPriority(UNSET);
-    }
-    return parent;
-  }
-
   public static ContextScope startSpanScope(MiddlewareContext context, String trigger) {
     return startSpanScope(context, trigger, 0);
   }
@@ -65,11 +51,10 @@ public final class DurableFunctionsUtils {
   public static ContextScope startSpanScope(
       MiddlewareContext context, String trigger, long startTimeMicros) {
     final TraceContext traceContext = context.getTraceContext();
-    AgentSpanContext.Extracted parent =
+    final AgentSpanContext.Extracted parent =
         traceContext == null
             ? null
             : extractContextAndGetSpanContext(traceContext, TraceContextExtractAdapter.GETTER);
-    parent = reconcileSamplingPriority(parent, traceContext);
 
     final AgentSpan span =
         startTimeMicros > 0

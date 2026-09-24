@@ -3,8 +3,8 @@ import static datadog.trace.agent.test.assertions.TagsMatcher.defaultTags;
 import static datadog.trace.agent.test.assertions.TagsMatcher.error;
 import static datadog.trace.agent.test.assertions.TagsMatcher.tag;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
-import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.test.junit.utils.assertions.Matchers.is;
 import static datadog.trace.test.junit.utils.assertions.Matchers.matches;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -240,7 +240,7 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
   }
 
   @Test
-  void continuesAzureTraceAndIgnoresImplicitSamplingRejection() throws Exception {
+  void continuesAzureTraceWhenHostClearsW3cSampledFlag() throws Exception {
     MiddlewareContext context = contextFor("DurableActivityTrigger", "Activity");
     TraceContext traceContext = mock(TraceContext.class);
     when(traceContext.getTraceparent())
@@ -263,8 +263,36 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
     DDSpan span = writer.firstTrace().get(0);
     assertEquals("42", span.getTraceId().toString());
     assertEquals(43L, span.getParentId());
-    assertEquals(UNSET, priority.get());
+    assertEquals(SAMPLER_KEEP, priority.get());
     assertEquals(SAMPLER_KEEP, span.samplingPriority());
+  }
+
+  @Test
+  void honorsDatadogDropDecisionWhenAzureClearsW3cSampledFlag() throws Exception {
+    MiddlewareContext context = contextFor("DurableActivityTrigger", "Activity");
+    TraceContext traceContext = mock(TraceContext.class);
+    when(traceContext.getTraceparent())
+        .thenReturn("00-0000000000000000000000000000002a-000000000000002b-00");
+    when(traceContext.getTracestate()).thenReturn("dd=s:0");
+    when(context.getTraceContext()).thenReturn(traceContext);
+    AtomicInteger priority = new AtomicInteger(Integer.MIN_VALUE);
+    MiddlewareChain chain = mock(MiddlewareChain.class);
+    doAnswer(
+            invocation -> {
+              priority.set(AgentTracer.activeSpan().spanContext().getSamplingPriority());
+              return null;
+            })
+        .when(chain)
+        .doNext(context);
+
+    new FunctionExecutionMiddleware().invoke(context, chain);
+
+    assertEquals(SAMPLER_DROP, priority.get());
+    writer.waitForTraces(1);
+    DDSpan span = writer.firstTrace().get(0);
+    assertEquals("42", span.getTraceId().toString());
+    assertEquals(43L, span.getParentId());
+    assertEquals(SAMPLER_DROP, span.samplingPriority());
   }
 
   @Test
