@@ -84,10 +84,13 @@ span_types:
     abstract: true
     extends: base
     tags:
-      - { dd-name: http.method,              type: string, required: required,    otel-name: http.request.method }
-      - { dd-name: http.status_code,         type: int,    required: conditional, otel-name: http.response.status_code }
-      - { dd-name: network.protocol.version, type: string, required: recommended }  # passes through: dd-name already is the OTel name
-      - { dd-name: http.url,                 type: string, required: required,    otel-name: url.full }  # shared by http.server and http.client => one otel-name. url.full is the client-correct rename; server's spec mapping (url.path + url.scheme + url.query) is a one-to-many split reserved for the derivation layer (needs span.kind). TODO(otel): server split.
+      - { dd-name: http.method,                  type: string, required: required,    otel-name: http.request.method }
+      - { dd-name: http.request.method_original, type: string, required: conditional }  # passes through: dd-name already is the OTel name
+      - { dd-name: http.status_code,             type: int,    required: conditional, otel-name: http.response.status_code }
+      - { dd-name: network.protocol.version,     type: string, required: recommended }  # passes through: dd-name already is the OTel name
+      - { dd-name: http.url,                     type: string, required: required,    otel-name: url.full }  # shared by http.server and http.client => one otel-name. url.full is the client-correct rename; server's spec mapping (url.path + url.scheme + url.query) is a one-to-many split reserved for the derivation layer (needs span.kind). TODO(otel): server split.
+      - { dd-name: server.address,               type: string, required: conditional }  # OTel-only; set only while OTel semantics are enabled
+      - { dd-name: server.port,                  type: int,    required: conditional }  # OTel-only; set only while OTel semantics are enabled
 
   http.server:
     extends: http
@@ -96,10 +99,14 @@ span_types:
       - { dd-name: http.hostname,     type: string, required: required }  # not a rename: OTel server.address is the remote server on client spans; needs the span-kind-aware derivation layer
       - { dd-name: http.useragent,    type: string, required: recommended, otel-name: user_agent.original, span-kind-neutral: true }
       - { dd-name: http.query.string, type: string, required: recommended }  # not a rename: url.query is also carried inside url.full, while http.url excludes the query (QueryObfuscator re-appends it)
+      - { dd-name: url.path,          type: string, required: conditional }  # OTel-only; server replacement for http.url
+      - { dd-name: url.query,         type: string, required: conditional }  # OTel-only; server replacement for http.url
+      - { dd-name: url.scheme,        type: string, required: conditional }  # OTel-only; server replacement for http.url
       - { dd-name: servlet.path,      type: string, required: optional }
       - { dd-name: servlet.context,   type: string, required: optional }
       - { dd-name: http.client_ip,    type: string, required: recommended, otel-name: client.address, span-kind-neutral: true }
       - { dd-name: network.client.ip, type: string, required: recommended }  # not a rename: OTel network.peer.address is the remote end on every span kind (the server on client spans)
+      - { ref: network.peer.address, required: recommended }
 
   http.client:
     extends: http
@@ -133,7 +140,8 @@ mixins:
       - { dd-name: peer.hostname,                  type: string, required: recommended }
       - { dd-name: peer.ipv4,                      type: string }
       - { dd-name: peer.ipv6,                      type: string }
-      - { dd-name: peer.port,                      type: int }
+      - { dd-name: network.peer.address,           type: string, required: recommended }  # OTel-only; set only while OTel semantics are enabled
+      - { dd-name: peer.port,                      type: int,    otel-name: network.peer.port }
 
   # ci_visibility — per-span test tags. Its capability flag (_dd.civisibility.enabled) lives in
   # trace_level, outside this mixin (general rule: capability flags are trace-level, mixins hold the
