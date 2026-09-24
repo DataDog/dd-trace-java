@@ -1,8 +1,6 @@
 import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension
 import datadog.gradle.plugin.testJvmConstraints.ProvideJvmArgsOnJvmLauncherVersion
 import groovy.transform.CompileStatic
-import org.gradle.api.services.BuildService
-import org.gradle.api.services.BuildServiceParameters
 
 import java.nio.file.Files
 import java.nio.file.LinkOption
@@ -140,15 +138,7 @@ class TracerJavaExtension {
   }
 }
 def tracerJavaExtension = extensions.create(TracerJavaExtension.NAME, TracerJavaExtension, objects, providers, project)
-
-
-
-abstract class TestcontainersLimitService implements BuildService<BuildServiceParameters.None> {
-}
-
-ext.testcontainersLimit = gradle.sharedServices.registerIfAbsent("testcontainersLimit", TestcontainersLimitService) {
-  maxParallelUsages = project.findProperty("testcontainersMaxParallelUsages").toInteger()
-}
+apply plugin: 'dd-trace-java.testcontainers-limit'
 
 // Every project gets a forked test task for its default 'test' source set.
 addForkedTestTask('test')

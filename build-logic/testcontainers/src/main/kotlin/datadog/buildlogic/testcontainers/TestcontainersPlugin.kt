@@ -36,6 +36,7 @@ class TestcontainersPlugin : Plugin<Project> {
         "testContainerImageResolver",
         ImageResolver::class.java,
       ) {}
+    val limit = TestcontainersLimitService.register(project)
 
     project.pluginManager.withPlugin("java") {
       val sourceSets = project.extensions.getByType<SourceSetContainer>()
@@ -52,40 +53,44 @@ class TestcontainersPlugin : Plugin<Project> {
           },
         )
       }
-      // Suite inheritance is configured by build scripts after the plugin is applied.
-      project.afterEvaluate {
-        project.tasks.withType<Test>().configureEach {
-          val suiteName = if (name == "forkedTest") "test" else name.removeSuffix("ForkedTest")
-          val suite =
-            sourceSets.findByName(name) ?: sourceSets.findByName(suiteName)
-              ?: return@configureEach
-          val hierarchy = project.configurations.getByName(suite.implementationConfigurationName).hierarchy
-          val images = linkedMapOf<String, String>()
-          val inheritedSourceSets =
-            sourceSets.filter { sourceSet ->
-              hierarchy.any { it.name == sourceSet.implementationConfigurationName }
-            }
-          inheritedSourceSets.forEach { sourceSet ->
-            declarations[sourceSet.name]?.forEach { (property, reference) ->
-              require(images.putIfAbsent(property, reference).let { it == null || it == reference }) {
-                "Conflicting container images for '$property' in $path"
+      project.tasks.withType<Test>().configureEach {
+        // ProviderFactory.provider snapshots project-local configuration for the configuration cache.
+        // Keep registry access in the nested input getter, so every build refreshes moving tags.
+        val containers =
+          project.providers.provider {
+            val suiteName = if (name == "forkedTest") "test" else name.removeSuffix("ForkedTest")
+            val suite =
+              sourceSets.findByName(name) ?: sourceSets.findByName(suiteName)
+                ?: return@provider null
+            val hierarchy = project.configurations.getByName(suite.implementationConfigurationName).hierarchy
+            val images = linkedMapOf<String, String>()
+            val inheritedSourceSets =
+              sourceSets.filter { sourceSet ->
+                hierarchy.any { it.name == sourceSet.implementationConfigurationName }
+              }
+            inheritedSourceSets.forEach { sourceSet ->
+              declarations[sourceSet.name]?.forEach { (property, reference) ->
+                require(images.putIfAbsent(property, reference).let { it == null || it == reference }) {
+                  "Conflicting container images for '$property' in $path"
+                }
               }
             }
+            if (images.isNotEmpty()) {
+              val configurationFiles =
+                listOf(File(System.getProperty("user.home"), ".testcontainers.properties")) +
+                  inheritedSourceSets.flatMap { it.resources.srcDirs }.map { File(it, "testcontainers.properties") }
+              val imageEnvironment =
+                (project.providers.environmentVariablesPrefixedBy("TESTCONTAINERS_").get() + environment)
+                  .filterKeys {
+                    it == "TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX" || it == "TESTCONTAINERS_IMAGE_SUBSTITUTOR" ||
+                      (it.startsWith("TESTCONTAINERS_") && it.endsWith("_CONTAINER_IMAGE"))
+                  }.mapValues { it.value.toString() }
+              ContainerImageInputs(images, imageEnvironment, configurationFiles, resolver, limit)
+            } else {
+              null
+            }
           }
-          if (images.isNotEmpty()) {
-            usesService(resolver)
-            val configurationFiles =
-              listOf(File(System.getProperty("user.home"), ".testcontainers.properties")) +
-                inheritedSourceSets.flatMap { it.resources.srcDirs }.map { File(it, "testcontainers.properties") }
-            val imageEnvironment =
-              (project.providers.environmentVariablesPrefixedBy("TESTCONTAINERS_").get() + environment)
-                .filterKeys {
-                  it == "TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX" || it == "TESTCONTAINERS_IMAGE_SUBSTITUTOR" ||
-                    (it.startsWith("TESTCONTAINERS_") && it.endsWith("_CONTAINER_IMAGE"))
-                }.mapValues { it.value.toString() }
-            jvmArgumentProviders.add(ContainerImageArguments(images, imageEnvironment, configurationFiles, resolver))
-          }
-        }
+        jvmArgumentProviders.add(ContainerImageArguments(containers))
       }
     }
   }

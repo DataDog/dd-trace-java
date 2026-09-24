@@ -55,7 +55,3 @@ configurations.named("latestDepTestRuntimeClasspath") {
 configurations.named("latestDepForkedTestRuntimeClasspath") {
   exclude group: 'com.ongres.scram', module: 'client'
 }
-
-tasks.withType(Test).configureEach {
-  usesService(testcontainersLimit)
-}

@@ -40,6 +40,7 @@ class TestcontainersPluginTest {
     try {
       fixture("127.0.0.1:${server.address.port}/library/cassandra:4")
       assertThat(run("help").task(":help")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+      assertThat(run("verifyServiceSelection").task(":verifyServiceSelection")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
       assertThat(requests.get()).isZero()
       assertThat(run("test", "-PskipTests").task(":test")?.outcome).isEqualTo(TaskOutcome.SKIPPED)
       assertThat(requests.get()).isZero()
@@ -102,13 +103,76 @@ class TestcontainersPluginTest {
     assertThat(changed.task(":test")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     assertThat(report()).contains("another.example/team/cassandra@$digest")
 
-    Files.createDirectories(directory.resolve("src/test/resources"))
+    directory.resolve("build.gradle").toFile().appendText(
+      """
+
+      sourceSets.test.resources.srcDirs = ['lateResources']
+      tasks.named('test') {
+        environment 'TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX', 'task.example/'
+      }
+      """.trimIndent(),
+    )
+    assertThat(run("test").task(":test")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(report()).contains("task.example/cassandra@$digest")
+    Files.createDirectories(directory.resolve("lateResources"))
     directory
-      .resolve("src/test/resources/testcontainers.properties")
+      .resolve("lateResources/testcontainers.properties")
       .toFile()
       .writeText("image.substitutor=untracked.CustomSubstitutor\n")
     assertThat(runner("test").buildAndFail().output)
       .contains("move image overrides into testContainerImage declarations")
+  }
+
+  @Test
+  fun `container tasks share the legacy limit across projects and configuration cache reuse`() {
+    fixture("cassandra@sha256:${"a".repeat(64)}")
+    directory.resolve("settings.gradle").toFile().appendText("\ninclude('other')\n")
+    directory.resolve("gradle.properties").toFile().writeText("testcontainersMaxParallelUsages=1\n")
+    val buildFile = directory.resolve("build.gradle").toFile()
+    buildFile.appendText(
+      """
+
+      tasks.withType(Test).configureEach {
+        systemProperty('containerLock', '${directory.resolve("container.lock")}')
+      }
+      """.trimIndent(),
+    )
+    val testFile = directory.resolve("src/test/java/ImageTest.java").toFile()
+    testFile.writeText(
+      """
+      import org.junit.jupiter.api.Test;
+      import static org.junit.jupiter.api.Assertions.assertTrue;
+      public class ImageTest {
+        @Test public void respectsContainerLimit() throws Exception {
+          java.io.File lock = new java.io.File(System.getProperty("containerLock"));
+          assertTrue(lock.createNewFile(), "Container tasks exceeded the shared limit");
+          try { Thread.sleep(1000); } finally { lock.delete(); }
+        }
+      }
+      """.trimIndent(),
+    )
+    val other = directory.resolve("other")
+    Files.createDirectories(other.resolve("src/test/java"))
+    other.resolve("src/test/java/ImageTest.java").toFile().writeText(testFile.readText())
+    // A legacy module still declares usesService explicitly and has no image declarations.
+    other.resolve("build.gradle").toFile().writeText(
+      buildFile
+        .readText()
+        .replace("id 'dd-trace-java.testcontainers'", "id 'dd-trace-java.testcontainers-limit'")
+        .replace("testContainerImage(image('cassandra@sha256:${"a".repeat(64)}', 'test.cassandra.image'))", "") +
+        """
+
+        tasks.named('test', Test) { usesService(testcontainersLimit) }
+        """.trimIndent(),
+    )
+    val arguments = arrayOf(":test", ":other:test", "--parallel", "--rerun-tasks", "--no-build-cache")
+    val first = run(*arguments)
+    assertThat(first.task(":test")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(first.task(":other:test")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    val reused = run(*arguments)
+    assertThat(reused.output).contains("Reusing configuration cache")
+    assertThat(reused.task(":test")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(reused.task(":other:test")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
   }
 
   @Test
@@ -218,13 +282,6 @@ class TestcontainersPluginTest {
         isolatedTest
         emptyTest
       }
-      configurations.latestDepTestImplementation.extendsFrom(configurations.testImplementation)
-      configurations.emptyTestImplementation.extendsFrom(configurations.testImplementation)
-      dependencies {
-        testImplementation files($junitClasspath)
-        isolatedTestImplementation files($junitClasspath)
-        testContainerImage(image('$image', 'test.cassandra.image'))
-      }
       tasks.register('latestDepTest', Test) {
         testClassesDirs = sourceSets.latestDepTest.output.classesDirs
         classpath = sourceSets.latestDepTest.runtimeClasspath
@@ -245,6 +302,29 @@ class TestcontainersPluginTest {
       tasks.withType(Test).configureEach {
         useJUnitPlatform()
         onlyIf { !skip.isPresent() }
+      }
+      // Plugins must see declarations and inheritance added after tasks are realized.
+      tasks.named('test').get()
+      tasks.named('latestDepTest').get()
+      tasks.named('latestDepTestForkedTest').get()
+      configurations.latestDepTestImplementation.extendsFrom(configurations.testImplementation)
+      configurations.emptyTestImplementation.extendsFrom(configurations.testImplementation)
+      dependencies {
+        testImplementation files($junitClasspath)
+        isolatedTestImplementation files($junitClasspath)
+        testContainerImage(image('$image', 'test.cassandra.image'))
+      }
+      tasks.register('verifyServiceSelection') {
+        def selected = providers.provider {
+          ['test', 'latestDepTest', 'latestDepTestForkedTest', 'isolatedTest'].collectEntries { name ->
+            def task = tasks.named(name).get()
+            [(name): task.requiredServices.searchServices().any { it.name == 'testcontainersLimit' }]
+          }
+        }
+        inputs.property('selected', selected)
+        doLast {
+          assert inputs.properties.selected == [test: true, latestDepTest: true, latestDepTestForkedTest: true, isolatedTest: false]
+        }
       }
       """.trimIndent(),
     )

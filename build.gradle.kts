@@ -12,6 +12,7 @@ plugins {
   id("dd-trace-java.dump-hanged-test")
   id("dd-trace-java.gradle-debug")
   id("dd-trace-java.tracer-version")
+  id("dd-trace-java.testcontainers-limit") apply false
 
   alias(libs.plugins.shadow) apply false
   alias(libs.plugins.spotless)

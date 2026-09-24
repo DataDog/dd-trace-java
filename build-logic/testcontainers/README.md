@@ -27,6 +27,24 @@ and `<sourceSet>ForkedTest` companions receive the properties. A separate suite 
 declare its own images with, for example, `integrationTestContainerImage(...)`.
 Run IDE tests through Gradle, or supply the named image properties explicitly.
 
+Tasks with declared or inherited images also consume the shared `testcontainersLimit`
+service. `testcontainersMaxParallelUsages` controls the build-wide quota (default: 2).
+The legacy convention registers the same service for modules that still declare
+`usesService(testcontainersLimit)` explicitly. Unrelated suites do not consume it.
+The limit applies to whole test tasks, not individual test methods or containers.
+
+Configuration uses `configureEach` and a project-local provider rather than an
+evaluation callback. Late declarations, configuration inheritance, resource directories
+and task environment settings are captured when Gradle queries the provider.
+Only that configuration is cached; registry resolution remains an execution-time input.
+Isolated Projects has not been tested.
+
+The service references are declared on nested task inputs with `@ServiceReference`.
+CI selectors running during configuration should check
+`ContainerImageArguments.containers.isPresent` in the task's `jvmArgumentProviders`.
+Gradle's internal `requiredServices.isServiceRequired` may not yet include these
+inferred references; retain its existing check for legacy explicit service users.
+
 The plugin resolves each effective tag once per build, when Gradle snapshots test
 inputs. An annotated JVM argument provider includes property names and immutable
 `registry/repository@sha256:...` values in the test fingerprint, then passes those

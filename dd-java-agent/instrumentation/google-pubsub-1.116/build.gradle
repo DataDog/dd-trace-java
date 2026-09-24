@@ -27,7 +27,3 @@ dependencies {
   testImplementation project(":dd-java-agent:instrumentation:gax-1.4")
   latestDepTestImplementation group: 'com.google.cloud', name: 'google-cloud-pubsub', version: '+'
 }
-
-tasks.withType(Test).configureEach {
-  usesService(testcontainersLimit)
-}
