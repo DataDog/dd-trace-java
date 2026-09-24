@@ -7,7 +7,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
-import datadog.trace.bootstrap.instrumentation.java.concurrent.SubtaskRegistry;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.TaskScopeStateRegistry;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +35,7 @@ public class StructuredTaskScope25Module extends InstrumenterModule.ContextTrack
     contextStores.put(Runnable.class.getName(), State.class.getName());
     // Per-scope registry of forked subtasks, swept at scope close to release leaked continuations.
     contextStores.put(
-        "java.util.concurrent.StructuredTaskScopeImpl", SubtaskRegistry.class.getName());
+        "java.util.concurrent.StructuredTaskScopeImpl", TaskScopeStateRegistry.class.getName());
     return contextStores;
   }
 
