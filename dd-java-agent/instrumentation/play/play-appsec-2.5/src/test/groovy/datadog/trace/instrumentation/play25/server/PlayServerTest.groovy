@@ -7,13 +7,18 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.play24.PlayHttpServerDecorator
+import groovy.json.JsonOutput
 import groovy.transform.CompileStatic
+import okhttp3.MediaType
+import okhttp3.RequestBody
 import play.server.Server
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.FORWARDED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static org.junit.jupiter.api.Assumptions.assumeTrue
 
 class PlayServerTest extends HttpServerTest<Server> {
 
@@ -106,6 +111,37 @@ class PlayServerTest extends HttpServerTest<Server> {
   @Override
   boolean testResponseBodyJson() {
     true
+  }
+
+  /**
+   * Blocks from the JSON response body callback only ('body' is ignored by responseHeaderDone),
+   * reaching StatusHeaderSendJsonAdvice (Java routers) or ResultsStatusApplyAdvice (Scala routers).
+   */
+  def 'test blocking on json response body'() {
+    setup:
+    assumeTrue(testBlockingOnResponse() && testResponseBodyJson())
+    def request = request(
+      BODY_JSON, 'POST',
+      RequestBody.create(MediaType.get('application/json'), JsonOutput.toJson([a: 'x'])))
+      .header(IG_BLOCK_RESPONSE_HEADER, 'body')
+      .build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
+    }
+    response.code() == 413
+    response.body().charStream().text.contains('"title":"You\'ve been blocked"')
+    TEST_WRITER.waitForTraces(1)
+    def rootSpan = TEST_WRITER.get(0).find {
+      it.parentId == 0
+    }
+    rootSpan != null
+    rootSpan.tags['http.status_code'] == 413
+    rootSpan.tags['appsec.blocked'] == 'true'
   }
 
   @Override
