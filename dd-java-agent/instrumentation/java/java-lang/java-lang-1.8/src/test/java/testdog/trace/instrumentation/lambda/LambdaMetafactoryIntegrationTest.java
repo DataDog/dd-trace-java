@@ -11,6 +11,7 @@ import datadog.trace.test.junit.utils.config.WithConfig;
 import java.lang.reflect.Field;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
+import net.bytebuddy.agent.ByteBuddyAgent;
 import org.junit.jupiter.api.Test;
 
 /** Lambda integration tests outside the ignored {@code datadog.*} prefix. */
@@ -50,6 +51,20 @@ public class LambdaMetafactoryIntegrationTest extends AbstractInstrumentationTes
       lambda.run();
     }
     assertEquals(8, counter.get());
+  }
+
+  @Test
+  void lambdaHookSurvivesMetafactoryRetransformation() throws Exception {
+    Class<?> metafactory = Class.forName("java.lang.invoke.InnerClassLambdaMetafactory");
+    ByteBuddyAgent.getInstrumentation().retransformClasses(metafactory);
+
+    AtomicInteger counter = new AtomicInteger();
+    Runnable lambda = counter::incrementAndGet;
+    assertTrue(lambda instanceof FieldBackedContextAccessor);
+    assertTrue(hasAdviceMarker(lambda));
+    assertEquals(1, contextFieldCount(lambda));
+    lambda.run();
+    assertEquals(1, counter.get());
   }
 
   @Test
