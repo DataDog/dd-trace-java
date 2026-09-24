@@ -309,7 +309,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         OtelTraceState nextOtelTraceState,
         TagValue nextKnuthSamplingRateTagValue,
         boolean updateDecisionMaker) {
-      clearCachedHeader(W3C);
+      SamplingState currentState = samplingState;
       TagValue nextDecisionMakerTagValue = getDecisionMakerTagValue();
       if (updateDecisionMaker && samplingPriority > 0) {
         // TODO should try to keep the old sampling mechanism if we override the value?
@@ -337,6 +337,14 @@ public class PTagsFactory implements PropagationTags.Factory {
         }
         nextDecisionMakerTagValue = null;
       }
+      if (currentState.getSamplingPriority() == samplingPriority
+          && currentState.getTracestate() == tracestate
+          && currentState.getOtelTraceState() == nextOtelTraceState
+          && Objects.equals(currentState.getDecisionMaker(), nextDecisionMakerTagValue)
+          && Objects.equals(currentState.getKnuthSamplingRate(), nextKnuthSamplingRateTagValue)) {
+        return;
+      }
+      clearCachedHeader(W3C);
       samplingState =
           new SamplingState(
               samplingPriority,

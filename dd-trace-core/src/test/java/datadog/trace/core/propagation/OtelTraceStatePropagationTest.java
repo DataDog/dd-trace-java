@@ -87,6 +87,25 @@ class OtelTraceStatePropagationTest {
   }
 
   @Test
+  void reusesSamplingStateAndHeaderCachesForUnchangedProbabilityDecision() {
+    PropagationTags tags = PropagationTags.factory().empty();
+    assertTrue(
+        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 1.0, false, 1L, false));
+    SamplingState expectedState = tags.samplingState();
+    String expectedDatadogHeader = tags.headerValue(DATADOG);
+    String expectedW3CHeader = tags.headerValue(W3C);
+    String expectedTracestate = tags.getW3CTracestate(expectedState);
+
+    assertTrue(
+        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 1.0, false, 1L, true));
+
+    assertSame(expectedState, tags.samplingState());
+    assertSame(expectedDatadogHeader, tags.headerValue(DATADOG));
+    assertSame(expectedW3CHeader, tags.headerValue(W3C));
+    assertSame(expectedTracestate, tags.getW3CTracestate(expectedState));
+  }
+
+  @Test
   void rejectedSamplingAttemptCannotReplaceProbabilityState() {
     PropagationTags tags = PropagationTags.factory().empty();
     assertTrue(
