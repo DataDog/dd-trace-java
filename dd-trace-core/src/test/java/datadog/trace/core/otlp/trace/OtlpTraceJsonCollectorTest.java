@@ -13,9 +13,11 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 import datadog.json.JsonMapper;
+import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -38,6 +40,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import org.mockito.AdditionalAnswers;
+import org.mockito.MockedStatic;
 
 /**
  * Tests for {@link OtlpTraceJsonCollector}, parsing the produced JSON back with {@link JsonMapper}
@@ -78,20 +82,11 @@ class OtlpTraceJsonCollectorTest {
   }
 
   @Test
-  void tagsAreEmittedUnderTheirOpenTelemetryName() throws IOException {
+  void tagsAreEmittedUnderTheirOpenTelemetryNameWhenOtelSemanticsEnabled() throws IOException {
     // The JSON encoder is a second exporter of the same spans, so it must apply the registry's
     // OpenTelemetry naming exactly as the protobuf one does: which transport protocol is configured
     // must not change the attribute names a backend receives.
-    AgentSpan agentSpan = TRACER.startSpan("test", "op.tagged");
-    agentSpan.setResourceName("GET /api");
-    agentSpan.setTag("http.method", "GET");
-    agentSpan.setTag("custom.unregistered", "value");
-    agentSpan.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.DEFAULT);
-    agentSpan.finish();
-
-    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
-    collector.addTrace(asList((CoreSpan<?>) agentSpan));
-    Set<String> attrKeys = attributeKeys(onlySpan(collector.collectTraces()));
+    Set<String> attrKeys = collectTagsAttributeKeys(true);
 
     assertTrue(
         attrKeys.contains("http.request.method"),
@@ -102,6 +97,45 @@ class OtlpTraceJsonCollectorTest {
     assertTrue(
         attrKeys.contains("custom.unregistered"),
         "a tag the registry does not name passes through unchanged; got " + attrKeys);
+  }
+
+  @Test
+  void tagsAreEmittedUnderTheirDatadogNameWhenOtelSemanticsDisabled() throws IOException {
+    // The OpenTelemetry rename is opt-in: with the flag off, existing consumers must keep seeing
+    // Datadog names, not the OpenTelemetry ones.
+    Set<String> attrKeys = collectTagsAttributeKeys(false);
+
+    assertTrue(
+        attrKeys.contains("http.method"),
+        "tag must use its Datadog name when OTel semantics are disabled; got " + attrKeys);
+    assertFalse(
+        attrKeys.contains("http.request.method"),
+        "tag must not appear under its OpenTelemetry name when OTel semantics are disabled; got "
+            + attrKeys);
+    assertTrue(
+        attrKeys.contains("custom.unregistered"),
+        "a tag the registry does not name passes through unchanged; got " + attrKeys);
+  }
+
+  private static Set<String> collectTagsAttributeKeys(boolean otelSemanticsEnabled)
+      throws IOException {
+    Config realConfig = Config.get();
+    try (MockedStatic<Config> configMock = mockStatic(Config.class)) {
+      Config config = mock(Config.class, AdditionalAnswers.delegatesTo(realConfig));
+      when(config.isTraceOtelSemanticsEnabled()).thenReturn(otelSemanticsEnabled);
+      configMock.when(Config::get).thenReturn(config);
+
+      AgentSpan agentSpan = TRACER.startSpan("test", "op.tagged");
+      agentSpan.setResourceName("GET /api");
+      agentSpan.setTag("http.method", "GET");
+      agentSpan.setTag("custom.unregistered", "value");
+      agentSpan.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.DEFAULT);
+      agentSpan.finish();
+
+      OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+      collector.addTrace(asList((CoreSpan<?>) agentSpan));
+      return attributeKeys(onlySpan(collector.collectTraces()));
+    }
   }
 
   @Test
