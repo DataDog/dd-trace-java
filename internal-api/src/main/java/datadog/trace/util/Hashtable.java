@@ -810,10 +810,10 @@ public final class Hashtable {
 
   /**
    * Balanced default load factor for a chained bucket array: at this target fill, chains from a
-   * well-spread hash stay short (average chain length {@code ~1/DEFAULT_LOAD_FACTOR}) without
-   * over-provisioning the array. Chaining tolerates a high target fill: past 1.0 it degrades
-   * gradually into longer chains rather than failing, so there is no cliff to stay clear of and no
-   * reason to over-allocate the spine.
+   * well-spread hash stay short (average chain length {@code ~DEFAULT_LOAD_FACTOR}, i.e. entries
+   * per bucket) without over-provisioning the array. Chaining tolerates a high target fill: past
+   * 1.0 it degrades gradually into longer chains rather than failing, so there is no cliff to stay
+   * clear of and no reason to over-allocate the spine.
    */
   public static final float DEFAULT_LOAD_FACTOR = 0.75f;
 
@@ -1374,7 +1374,7 @@ public final class Hashtable {
       return this.capacity;
     }
 
-    /** {@code true} once {@link #size()} has reached {@link #capacity()}. */
+    /** {@code true} once {@link #estimateSize()} has reached {@link #capacity()}. */
     public boolean isFull() {
       return this.size >= this.capacity;
     }
@@ -1541,16 +1541,18 @@ public final class Hashtable {
    * are and where the last eviction looked.
    *
    * <p><b>Hold this, rather than unpacking it.</b> Keeping one field instead of two is not just
-   * tidier: an array and a manager stored separately can drift apart, which is the mistake this
-   * type exists to prevent. Composers reach through it -- {@code state.buckets}, {@code
-   * state.sizeManager} -- when calling the static building blocks.
+   * tidier: it keeps the array and its manager passed and stored together, so callers who hold a
+   * {@code State} can't accidentally pair one table's array with another's manager. Composers reach
+   * through it -- {@code state.buckets}, {@code state.sizeManager} -- when calling the static
+   * building blocks; both fields are package-private since only {@code datadog.trace.util} calls
+   * those building blocks directly.
    *
    * <p>Same headroom idiom as {@link D1}/{@link D2}: {@code maxCapacity} is the strict cap on live
    * entries, and the backing array is sized with load-factor headroom over it.
    */
   public static final class State<TEntry extends Entry> {
-    public final Hashtable.Entry[] buckets;
-    public final SizeManager sizeManager;
+    final Hashtable.Entry[] buckets;
+    final SizeManager sizeManager;
 
     private State(Hashtable.Entry[] buckets, int maxCapacity) {
       this.buckets = buckets;
