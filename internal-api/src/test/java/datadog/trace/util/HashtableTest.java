@@ -3,6 +3,7 @@ package datadog.trace.util;
 import static datadog.trace.util.HashtableTestEntries.CollidingKey;
 import static datadog.trace.util.HashtableTestEntries.CollidingKeyEntry;
 import static datadog.trace.util.HashtableTestEntries.StringIntEntry;
+import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -21,6 +22,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.function.Predicate;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -889,6 +891,49 @@ class HashtableTest {
       // Only remaining candidate is bucket 0, before the cursor -- requires wrap-around.
       StringIntEntry second = Hashtable.evictOne(table, e -> e.value == 1);
       assertEquals("a", second.key);
+    }
+
+    @Test
+    void evictOneResumesMidChainInsteadOfRescanningTheNonEvictablePrefix() {
+      Hashtable.State<CollidingKeyEntry> table = Hashtable.createBounded(8);
+      int hash = 17;
+      CollidingKeyEntry sticky1 = new CollidingKeyEntry(new CollidingKey("sticky1", hash), -1);
+      CollidingKeyEntry sticky2 = new CollidingKeyEntry(new CollidingKey("sticky2", hash), -1);
+      CollidingKeyEntry sticky3 = new CollidingKeyEntry(new CollidingKey("sticky3", hash), -1);
+      CollidingKeyEntry e1 = new CollidingKeyEntry(new CollidingKey("e1", hash), 1);
+      CollidingKeyEntry e2 = new CollidingKeyEntry(new CollidingKey("e2", hash), 2);
+      CollidingKeyEntry e3 = new CollidingKeyEntry(new CollidingKey("e3", hash), 3);
+      CollidingKeyEntry e4 = new CollidingKeyEntry(new CollidingKey("e4", hash), 4);
+      CollidingKeyEntry e5 = new CollidingKeyEntry(new CollidingKey("e5", hash), 5);
+
+      // insertHeadEntryFor prepends, so inserting in this order chains them head-to-tail as
+      // sticky1, sticky2, sticky3, e1, e2, e3, e4, e5 -- a non-evictable prefix followed by a run
+      // of evictable entries, the shape that made evictOne's prefix rescan quadratic.
+      for (CollidingKeyEntry e :
+          new CollidingKeyEntry[] {e5, e4, e3, e2, e1, sticky3, sticky2, sticky1}) {
+        assertTrue(Hashtable.insertHeadEntryFor(table, e.keyHash, e));
+      }
+
+      int[] predicateCalls = {0};
+      Predicate<CollidingKeyEntry> evictable =
+          e -> {
+            predicateCalls[0]++;
+            return e.value >= 0;
+          };
+
+      List<Integer> evictedInOrder = new ArrayList<>();
+      for (int i = 0; i < 5; i++) {
+        CollidingKeyEntry evicted = Hashtable.evictOne(table, evictable);
+        evictedInOrder.add(evicted.value);
+      }
+
+      assertEquals(asList(1, 2, 3, 4, 5), evictedInOrder);
+      // Without mid-chain resume, each eviction would re-test the 3-entry sticky prefix: 5 * 4 =
+      // 20 calls. Resuming right after the last removal costs 4 (the first pass, prefix + e1) plus
+      // 1 per subsequent eviction (straight to the next entry) = 8.
+      assertEquals(
+          8, predicateCalls[0], "must resume after the last eviction, not rescan the prefix");
+      assertEquals(3, Hashtable.estimateSize(table), "only the sticky prefix remains");
     }
 
     @Test

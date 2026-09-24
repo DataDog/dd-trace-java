@@ -1216,6 +1216,21 @@ public final class Hashtable {
   }
 
   /**
+   * Variant of {@link #mutatingTableIterator(Hashtable.Entry[], int, int)} that resumes {@code
+   * bucket} after {@code resumeAfter} instead of at its head -- see {@link
+   * MutatingTableIterator#MutatingTableIterator(Hashtable.Entry[], int, int, Hashtable.Entry)}.
+   */
+  @Nonnull
+  public static <TEntry extends Hashtable.Entry>
+      MutatingTableIterator<TEntry> resumingTableIterator(
+          @Nonnull Hashtable.Entry[] buckets,
+          int bucket,
+          int endBucket,
+          @Nullable Hashtable.Entry resumeAfter) {
+    return new MutatingTableIterator<TEntry>(buckets, bucket, endBucket, resumeAfter);
+  }
+
+  /**
    * {@link #removeMatching(SizeManager, Hashtable.Entry[], long, Predicate)} over a {@link State}.
    * The predicate is typed to {@code TEntry}, so a caller matching on entry fields needs no cast.
    */
@@ -1319,6 +1334,18 @@ public final class Hashtable {
      */
     private int cursor;
 
+    /**
+     * Predecessor of the entry the last eviction removed, within {@code cursor}'s chain -- or
+     * {@code null} if that entry was the bucket head or no eviction has happened yet since the last
+     * {@link #reset()}. Lets the next scan resume mid-chain instead of re-testing a non-evictable
+     * prefix on every call, which is what made a sustained eviction stream from one hot bucket
+     * quadratic. See {@link
+     * Hashtable.MutatingTableIterator#MutatingTableIterator(Hashtable.Entry[], int, int,
+     * Hashtable.Entry)} for what happens if this entry itself gets removed elsewhere before the
+     * next resume.
+     */
+    @Nullable private Hashtable.Entry cursorPrev;
+
     public SizeManager(int capacity) {
       this.capacity = capacity;
     }
@@ -1401,6 +1428,7 @@ public final class Hashtable {
     public void reset() {
       this.size = 0;
       this.cursor = 0;
+      this.cursorPrev = null;
     }
 
     /**
@@ -1408,9 +1436,11 @@ public final class Hashtable {
      * eviction left off and wrapping around if needed. Unlinks and returns the evicted entry,
      * decrementing the count; returns {@code null} (count untouched) if nothing matched anywhere.
      *
-     * <p>Resuming from the previous position is what keeps a sustained eviction stream amortized:
-     * the worst case for a single call is still O(N) when nearly every entry is hot, but N
-     * successful evictions never re-scan the hot prefix more than twice.
+     * <p>Resuming from the previous position -- including mid-chain, via {@link #cursorPrev} -- is
+     * what keeps a sustained eviction stream amortized: without it, a bucket with a non-evictable
+     * prefix followed by many evictable entries pays that prefix's cost again on every single
+     * eviction pulled from the bucket, making N evictions from one hot bucket O(N * prefix) instead
+     * of amortized O(chain length). With it, each call resumes right after the previous removal.
      *
      * <p><b>That amortization covers successes only.</b> A call that matches nothing has, by
      * definition, tested every live entry -- so a table that is full and entirely hot pays a full
@@ -1423,9 +1453,10 @@ public final class Hashtable {
     @Nullable
     public <TEntry extends Entry> TEntry evictOne(
         @Nonnull Hashtable.Entry[] buckets, @Nonnull Predicate<? super TEntry> evictable) {
-      Entry evicted = evictOneInRange(buckets, evictable, this.cursor, buckets.length);
+      Entry evicted =
+          evictOneInRange(buckets, evictable, this.cursor, buckets.length, this.cursorPrev);
       if (evicted == null && this.cursor != 0) {
-        evicted = evictOneInRange(buckets, evictable, 0, this.cursor);
+        evicted = evictOneInRange(buckets, evictable, 0, this.cursor, null);
       }
       if (evicted != null) {
         this.size -= 1;
@@ -1434,8 +1465,9 @@ public final class Hashtable {
       // Nothing matched anywhere. Step the cursor on regardless, so a table that is full of hot
       // entries doesn't retry from the same origin every time -- successive refusals sweep a
       // different starting bucket instead of re-testing the same entries in the same order.
-      // (buckets.length is a power of two, so the mask wraps.)
+      // (buckets.length is a power of two, so the mask wraps.) A full pass found no resume point.
       this.cursor = (this.cursor + 1) & (buckets.length - 1);
+      this.cursorPrev = null;
       return null;
     }
 
@@ -1445,14 +1477,20 @@ public final class Hashtable {
         @Nonnull Hashtable.Entry[] buckets,
         @Nonnull Predicate<? super TEntry> evictable,
         int startBucket,
-        int endBucket) {
-      MutatingTableIterator<Entry> iter = mutatingTableIterator(buckets, startBucket, endBucket);
+        int endBucket,
+        @Nullable Entry resumeAfter) {
+      MutatingTableIterator<Entry> iter =
+          resumeAfter != null
+              ? resumingTableIterator(buckets, startBucket, endBucket, resumeAfter)
+              : mutatingTableIterator(buckets, startBucket, endBucket);
       while (iter.hasNext()) {
         Entry candidate = iter.next();
         if (evictable.test((TEntry) candidate)) {
           int bucket = iter.currentBucket();
+          Entry prev = iter.currentPrev();
           iter.remove();
           this.cursor = bucket;
+          this.cursorPrev = prev;
           return candidate;
         }
       }
@@ -1485,6 +1523,7 @@ public final class Hashtable {
         }
       }
       this.cursor = 0;
+      this.cursorPrev = null;
       return count;
     }
   }
@@ -1954,6 +1993,35 @@ public final class Hashtable {
     }
 
     /**
+     * Resumes a walk of {@code bucket} immediately after {@code resumeAfter}, instead of from the
+     * bucket's head -- so a caller that remembers where it last stopped inside a chain doesn't pay
+     * to re-test the entries before that point. {@code resumeAfter}'s own successor is read lazily
+     * ({@code resumeAfter.next()}), so any unrelated removal elsewhere in the chain since it was
+     * saved is picked up correctly. The one caveat: if {@code resumeAfter} <i>itself</i> was
+     * removed in the meantime, its {@code next()} now reads {@code null} (removal detaches a node
+     * from its own successor), so this walk sees {@code bucket} as exhausted and moves on to {@code
+     * bucket + 1} -- under-scanning {@code bucket} for this one pass rather than corrupting
+     * anything. A resumable sweep that revisits every bucket over time (e.g. {@link
+     * SizeManager#evictOne}'s cursor) self-heals that on its next lap.
+     */
+    MutatingTableIterator(
+        @Nonnull Hashtable.Entry[] buckets,
+        int bucket,
+        int endBucket,
+        @Nullable Hashtable.Entry resumeAfter) {
+      this.buckets = buckets;
+      this.endBucket = endBucket;
+      Hashtable.Entry head = (resumeAfter == null) ? buckets[bucket] : resumeAfter.next();
+      if (head != null) {
+        this.nextBucketIndex = bucket;
+        this.nextPrevEntry = resumeAfter;
+        this.nextEntry = head;
+      } else {
+        seekFromBucket(bucket + 1);
+      }
+    }
+
+    /**
      * Bucket index of the entry last returned by {@link #next()}, or {@code -1} if {@code next} has
      * not yet been called or the most recent call was {@link #remove()}. Useful for callers driving
      * a cursor — e.g. resumable eviction sweeps that want to remember where the last successful
@@ -1961,6 +2029,17 @@ public final class Hashtable {
      */
     public int currentBucket() {
       return this.curBucketIndex;
+    }
+
+    /**
+     * Predecessor of the entry last returned by {@link #next()} within its bucket, or {@code null}
+     * if it was the bucket head. Paired with {@link #currentBucket()}, this is enough for a caller
+     * to resume this exact chain position later via the {@code resumeAfter} constructor, without
+     * re-walking the entries already tested.
+     */
+    @Nullable
+    public Hashtable.Entry currentPrev() {
+      return this.curPrevEntry;
     }
 
     @Override
