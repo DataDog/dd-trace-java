@@ -26,6 +26,7 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.lang.VirtualThreadState;
 import java.util.Collection;
 import java.util.Map;
+import java.util.concurrent.Executor;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.asm.Advice.OnMethodEnter;
 import net.bytebuddy.asm.Advice.OnMethodExit;
@@ -105,7 +106,10 @@ public final class VirtualThreadInstrumentation extends InstrumenterModule.Conte
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
+    transformer.applyAdvice(
+        isConstructor()
+            .and(takesArguments(Executor.class, String.class, int.class, Runnable.class)),
+        getClass().getName() + "$Construct");
     // JDK 22+ enters run(Runnable) after the first mount with the virtual thread current. JDK 21
     // update releases differ, so they retain context swaps on every mount and unmount.
     if (JavaVirtualMachine.isJavaVersionAtLeast(22)) {
@@ -125,10 +129,18 @@ public final class VirtualThreadInstrumentation extends InstrumenterModule.Conte
 
   public static final class Construct {
     @OnMethodExit(suppress = Throwable.class)
-    public static void afterInit(@Advice.This Object virtualThread) {
+    public static void afterInit(
+        @Advice.This Object virtualThread, @Advice.Argument(3) Runnable task) {
       Context context = currentContext();
       if (context == rootContext()) {
         return; // No active context to propagate, avoid creating state
+      }
+      // Since JDK 26 the HTTP client's selector can be a virtual thread. Its lifetime belongs to
+      // the client, so neither a continuation nor the raw creating request context belongs on it.
+      if (task.getClass()
+          .getName()
+          .equals("jdk.internal.net.http.HttpClientImpl$SelectorManager")) {
+        return;
       }
       VirtualThreadState state = new VirtualThreadState(context, context.capture());
       ContextStore<Object, Object> store =
