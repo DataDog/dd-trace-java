@@ -832,6 +832,34 @@ class HashtableTest {
     }
 
     @Test
+    void drainKeepsCountConsistentWhenTheSinkThrows() {
+      Hashtable.State<StringIntEntry> table = Hashtable.createBounded(8);
+      for (int i = 0; i < 4; i++) {
+        StringIntEntry e = new StringIntEntry("k" + i, i);
+        assertTrue(Hashtable.insertHeadEntryFor(table, e.keyHash, e));
+      }
+      assertEquals(4, Hashtable.estimateSize(table));
+
+      // Drains some entries, then blows up. The count must reflect what actually left the table.
+      assertThrows(
+          IllegalStateException.class,
+          () ->
+              Hashtable.drain(
+                  table,
+                  e -> {
+                    if (e.value == 3) {
+                      throw new IllegalStateException("boom");
+                    }
+                  }));
+
+      int counted = Hashtable.estimateSize(table);
+      Set<String> actuallyThere = new HashSet<>();
+      Hashtable.forEach(table, e -> actuallyThere.add(e.key));
+      assertEquals(
+          actuallyThere.size(), counted, "count must match the spine after a partial drain");
+    }
+
+    @Test
     void evictOneAdvancesCursorEvenWhenNothingMatches() {
       Hashtable.State<StringIntEntry> table = Hashtable.createBounded(4);
       StringIntEntry a = new StringIntEntry("a", 1);

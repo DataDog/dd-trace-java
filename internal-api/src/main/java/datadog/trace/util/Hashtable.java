@@ -977,16 +977,23 @@ public final class Hashtable {
 
   /**
    * {@link #drain(Hashtable.Entry[], Consumer)} plus the matching bookkeeping: empties the table
-   * into {@code sink} and resets {@code sizeManager} to zero. Draining without resetting leaves the
-   * cap permanently consumed, so the two belong in one call rather than as a pair the caller has to
-   * remember -- same reasoning as {@link #clear(SizeManager, Hashtable.Entry[])}.
+   * into {@code sink}, decrementing {@code sizeManager} for each entry as it is unlinked -- before
+   * handing it to {@code sink}, so a sink that throws mid-drain leaves the count matching exactly
+   * what {@code buckets} still holds, rather than the whole reset being skipped and the cap staying
+   * permanently consumed. Same one-call reasoning as {@link #clear(SizeManager,
+   * Hashtable.Entry[])}.
    */
   public static <TEntry extends Entry> void drain(
       @Nonnull SizeManager sizeManager,
       @Nonnull Hashtable.Entry[] buckets,
       @Nonnull Consumer<? super TEntry> sink) {
-    Hashtable.<TEntry>drain(buckets, sink);
-    sizeManager.reset();
+    drain(
+        buckets,
+        (Consumer<TEntry>)
+            entry -> {
+              sizeManager.decrement();
+              sink.accept(entry);
+            });
   }
 
   /** Context-passing form of {@link #drain(SizeManager, Hashtable.Entry[], Consumer)}. */
@@ -995,8 +1002,14 @@ public final class Hashtable {
       @Nonnull Hashtable.Entry[] buckets,
       C context,
       @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
-    Hashtable.<C, TEntry>drain(buckets, context, sink);
-    sizeManager.reset();
+    drain(
+        buckets,
+        context,
+        (BiConsumer<C, TEntry>)
+            (ctx, entry) -> {
+              sizeManager.decrement();
+              sink.accept(ctx, entry);
+            });
   }
 
   /** {@link #drain(SizeManager, Hashtable.Entry[], Consumer)} over a {@link State}. */
