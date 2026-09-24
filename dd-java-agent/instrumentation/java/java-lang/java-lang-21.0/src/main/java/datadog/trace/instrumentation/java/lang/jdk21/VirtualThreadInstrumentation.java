@@ -135,11 +135,7 @@ public final class VirtualThreadInstrumentation extends InstrumenterModule.Conte
       if (context == rootContext()) {
         return; // No active context to propagate, avoid creating state
       }
-      // Since JDK 26 the HTTP client's selector can be a virtual thread. Its lifetime belongs to
-      // the client, so neither a continuation nor the raw creating request context belongs on it.
-      if (task.getClass()
-          .getName()
-          .equals("jdk.internal.net.http.HttpClientImpl$SelectorManager")) {
+      if (!VirtualThreadState.shouldPropagateContext(task)) {
         return;
       }
       VirtualThreadState state = new VirtualThreadState(context, context.capture());
