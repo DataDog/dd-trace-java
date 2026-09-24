@@ -1,5 +1,8 @@
+import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
+
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.testcontainers'
 }
 
 muzzle {
@@ -17,6 +20,11 @@ addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'com.couchbase.client', name: 'java-client', version: '3.1.0'
+  testContainerImage(image(
+    DefaultNativePlatform.getCurrentArchitecture().isArm64()
+      ? 'couchbase/server:7.1.0-aarch64'
+      : 'couchbase/server:7.1.0',
+    'test.couchbase.image'))
 
   testImplementation group: 'com.couchbase.client', name: 'java-client', version: '3.1.0'
   testImplementation group: 'org.testcontainers', name: 'couchbase', version: libs.versions.testcontainers.get()

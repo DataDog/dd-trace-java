@@ -28,6 +28,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.testcontainers.couchbase.BucketDefinition
 import org.testcontainers.couchbase.CouchbaseContainer
+import org.testcontainers.utility.DockerImageName
 import reactor.core.publisher.Mono
 import spock.lang.Shared
 
@@ -45,8 +46,9 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
   Bucket bucket
 
   def setupSpec() {
-    def arch = System.getProperty("os.arch") == "aarch64" ? "-aarch64" : ""
-    couchbase = new CouchbaseContainer("couchbase/server:7.1.0${arch}")
+    couchbase = new CouchbaseContainer(
+      DockerImageName.parse(System.getProperty("test.couchbase.image"))
+        .asCompatibleSubstituteFor("couchbase/server"))
       .withBucket(new BucketDefinition(BUCKET).withPrimaryIndex(true))
       .withStartupTimeout(Duration.ofSeconds(240))
       .withStartupAttempts(3)

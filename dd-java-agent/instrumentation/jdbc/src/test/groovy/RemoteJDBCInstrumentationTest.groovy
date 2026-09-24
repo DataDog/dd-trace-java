@@ -204,7 +204,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
 
     def image = DockerImageName.parse(System.getProperty("test.sqlserver.image"))
       .asCompatibleSubstituteFor(MSSQLServerContainer.IMAGE)
-    MSSQLServerContainer server = new MSSQLServerContainer(image)
+    def server = new MSSQLServerContainer(image)
       .acceptLicense()
       .withPassword(jdbcPasswords.get(SQLSERVER))
       // SQL Server can occasionally abort while booting on virtualized CI hosts.

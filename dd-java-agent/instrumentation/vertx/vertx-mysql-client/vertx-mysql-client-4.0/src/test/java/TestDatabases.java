@@ -1,6 +1,5 @@
 import datadog.trace.agent.test.utils.PortUtils;
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -10,13 +9,14 @@ import org.testcontainers.utility.DockerImageName;
 
 public class TestDatabases implements Closeable {
 
-  private final MySQLContainer mysql;
+  private final MySQLContainer<?> mysql;
   private final Map<String, TestDBInfo> dbInfos;
 
+  @SuppressWarnings("resource")
   private TestDatabases(String dbName) {
     Map<String, TestDBInfo> infos = new HashMap<>();
     mysql =
-        new MySQLContainer(
+        new MySQLContainer<>(
                 DockerImageName.parse(System.getProperty("test.mysql.image"))
                     .asCompatibleSubstituteFor("mysql"))
             .withDatabaseName(dbName)
@@ -43,7 +43,7 @@ public class TestDatabases implements Closeable {
   }
 
   @Override
-  public void close() throws IOException {
+  public void close() {
     if (null != mysql) {
       mysql.close();
     }

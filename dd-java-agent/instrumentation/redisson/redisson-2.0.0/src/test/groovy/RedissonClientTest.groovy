@@ -19,7 +19,9 @@ import spock.lang.Shared
 
 abstract class RedissonClientTest extends VersionedNamingTestBase {
   @Shared
-  RedisServer redisServer = new RedisContainer(DockerImageName.parse("redis:6.2.6")).waitingFor(Wait.forListeningPort())
+  RedisServer redisServer = new RedisContainer(
+    DockerImageName.parse(System.getProperty("test.redis.image")))
+    .waitingFor(Wait.forListeningPort())
 
   @Shared
   Config config = new Config()

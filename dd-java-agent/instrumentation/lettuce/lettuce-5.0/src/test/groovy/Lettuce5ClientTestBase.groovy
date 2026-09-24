@@ -1,3 +1,5 @@
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+
 import com.redis.testcontainers.RedisContainer
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.PortUtils
@@ -12,8 +14,6 @@ import org.testcontainers.utility.DockerImageName
 import spock.lang.Shared
 import spock.util.concurrent.PollingConditions
 
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-
 abstract class Lettuce5ClientTestBase extends VersionedNamingTestBase {
   public static final int DB_INDEX = 0
   // Disable autoreconnect so we do not get stray traces popping up on server shutdown
@@ -21,9 +21,9 @@ abstract class Lettuce5ClientTestBase extends VersionedNamingTestBase {
 
   @Shared
   Map<String, String> testHashMap = [
-    firstname: "John",
-    lastname : "Doe",
-    age      : "53"
+      firstname: "John",
+      lastname : "Doe",
+      age      : "53"
   ]
 
   int port
@@ -33,8 +33,10 @@ abstract class Lettuce5ClientTestBase extends VersionedNamingTestBase {
   String dbUriNonExistent
   String embeddedDbUri
 
-  RedisContainer redisServer = new RedisContainer(DockerImageName.parse("redis:6.2.6"))
-  .waitingFor(Wait.forListeningPort())
+  RedisContainer redisServer = new RedisContainer(
+      DockerImageName.parse(System.getProperty("test.redis.image"))
+          .asCompatibleSubstituteFor("redis"))
+      .waitingFor(Wait.forListeningPort())
 
   RedisClient redisClient
   StatefulRedisConnection connection

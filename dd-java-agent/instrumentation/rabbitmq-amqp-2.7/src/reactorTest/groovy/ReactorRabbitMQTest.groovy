@@ -4,6 +4,7 @@ import com.rabbitmq.client.ConnectionFactory
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.utils.PortUtils
 import org.testcontainers.containers.RabbitMQContainer
+import org.testcontainers.utility.DockerImageName
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 import reactor.rabbitmq.RabbitFlux
@@ -29,7 +30,9 @@ class ReactorRabbitMQTest extends InstrumentationSpecification {
   }
 
   def setupSpec() {
-    rabbitMQContainer = new RabbitMQContainer('rabbitmq:3.9.20-alpine')
+    rabbitMQContainer = new RabbitMQContainer(
+      DockerImageName.parse(System.getProperty("test.rabbitmq.image"))
+        .asCompatibleSubstituteFor("rabbitmq"))
       .withExposedPorts(defaultRabbitMQPort)
       .withStartupTimeout(Duration.ofSeconds(120))
     rabbitMQContainer.start()

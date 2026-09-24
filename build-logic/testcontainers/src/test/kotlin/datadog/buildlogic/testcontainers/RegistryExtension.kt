@@ -11,9 +11,8 @@ import org.junit.jupiter.api.extension.BeforeEachCallback
 import org.junit.jupiter.api.extension.ExtensionContext
 import java.net.InetAddress
 import java.security.MessageDigest
-import java.util.concurrent.atomic.AtomicInteger
 
-/** A local HTTPS registry with mutable manifests and optional bearer authentication. */
+/** A local HTTPS registry with mutable manifests. */
 class RegistryExtension :
   BeforeEachCallback,
   AfterEachCallback {
@@ -21,12 +20,7 @@ class RegistryExtension :
 
   @Volatile var imageVersion = 1
 
-  @Volatile var requireAuthentication = false
-
   @Volatile var unavailable = false
-
-  val tokenRequests = AtomicInteger()
-  val authorizedRequests = AtomicInteger()
 
   val image: String
     get() = "127.0.0.1:${server.port}/library/cassandra:4"
@@ -54,24 +48,11 @@ class RegistryExtension :
               MockResponse().setResponseCode(503)
             }
 
-            request.path!!.startsWith("/token") -> {
-              tokenRequests.incrementAndGet()
-              MockResponse().setHeader("Content-Type", "application/json").setBody("""{"token":"fixture-token"}""")
-            }
-
             !request.path!!.startsWith("/v2/") -> {
               MockResponse().setResponseCode(404)
             }
 
-            requireAuthentication && request.getHeader("Authorization") != "Bearer fixture-token" -> {
-              MockResponse().setResponseCode(401).setHeader(
-                "WWW-Authenticate",
-                "Bearer realm=\"${server.url("/token")}\",service=\"fixture\",scope=\"repository:library/cassandra:pull\"",
-              )
-            }
-
             else -> {
-              if (requireAuthentication) authorizedRequests.incrementAndGet()
               val body = manifest()
               MockResponse()
                 .setHeader("Content-Type", "application/vnd.oci.image.manifest.v1+json")

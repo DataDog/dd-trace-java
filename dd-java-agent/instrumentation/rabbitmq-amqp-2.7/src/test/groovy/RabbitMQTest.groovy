@@ -26,6 +26,7 @@ import org.springframework.amqp.rabbit.connection.CachingConnectionFactory
 import org.springframework.amqp.rabbit.core.RabbitAdmin
 import org.springframework.amqp.rabbit.core.RabbitTemplate
 import org.testcontainers.containers.RabbitMQContainer
+import org.testcontainers.utility.DockerImageName
 import spock.lang.Shared
 import spock.util.concurrent.PollingConditions
 
@@ -70,7 +71,9 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
   }
 
   def setupSpec() {
-    rabbitMQContainer = new RabbitMQContainer('rabbitmq:3.9.20-alpine')
+    rabbitMQContainer = new RabbitMQContainer(
+      DockerImageName.parse(System.getProperty("test.rabbitmq.image"))
+        .asCompatibleSubstituteFor("rabbitmq"))
       .withExposedPorts(defaultRabbitMQPort)
       .withStartupTimeout(Duration.ofSeconds(120))
     rabbitMQContainer.start()
