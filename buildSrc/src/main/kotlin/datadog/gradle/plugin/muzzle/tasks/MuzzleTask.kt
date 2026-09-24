@@ -74,6 +74,10 @@ abstract class MuzzleTask @Inject constructor(
   @get:Optional
   val muzzleDirective: Property<MuzzleDirective> = objects.property()
 
+  /**
+   * Shares one resolved toolchain between core-JDK fingerprinting and worker execution.
+   * Kept internal so task graph discovery does not resolve JDKs for skipped checks or dry runs.
+   */
   @get:Internal
   val javaLauncher: Property<JavaLauncher> = objects.property<JavaLauncher>().convention(
     muzzleDirective.map { it.javaVersion }.flatMap { version ->
@@ -83,6 +87,10 @@ abstract class MuzzleTask @Inject constructor(
     }
   ).apply { finalizeValueOnRead() }
 
+  /**
+   * Tracks the validation JDK because its platform classes are outside the classpath inputs.
+   * Vendor and full runtime/VM versions distinguish JDKs within the same Java major version.
+   */
   @get:Input
   @get:Optional
   val coreJdkIdentity = providers.provider {
