@@ -33,6 +33,11 @@ import org.junit.jupiter.api.Test;
  * DefaultEventExecutorGroup}.
  */
 class GrpcShadedNettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumentationTest {
+  /**
+   * Verifies that a task scheduled with a delay on a shaded {@code DefaultEventExecutorGroup}
+   * still sees the scheduling span as active when it runs, and that a traced method invoked from
+   * the task becomes a child of that span.
+   */
   @Test
   void testDelayedTaskPropagatesContextWithShadedNetty() throws Exception {
     try (CloseableDefaultEventExecutorGroup group = new CloseableDefaultEventExecutorGroup()) {
@@ -56,16 +61,30 @@ class GrpcShadedNettyScheduledFutureTaskContextPropagationTest extends AbstractI
     }
   }
 
+  /**
+   * Verifies that a listener added to a delayed task's future sees the scheduling span as active
+   * when the task completes successfully, and that the scope is closed afterwards.
+   */
   @Test
   void testSuccessListenerKeepsSchedulingContext() throws Exception {
     assertCompletionListenerContext(false);
   }
 
+  /**
+   * Same as {@link #testSuccessListenerKeepsSchedulingContext()} but for a task that fails,
+   * verifying the scheduling context still propagates to the listener on failure.
+   */
   @Test
   void testFailureListenerKeepsSchedulingContext() throws Exception {
     assertCompletionListenerContext(true);
   }
 
+  /**
+   * Verifies that running a nested scheduled task inline (via reflection, bypassing the executor)
+   * does not leak its context: the outer task's active span is restored once the nested task
+   * finishes running, both for a newly-scheduled continuation and for one that reuses the outer
+   * scope.
+   */
   @Test
   void testNestedScheduledRunRestoresOuterContext() throws Exception {
     try (CloseableDefaultEventExecutorGroup group = new CloseableDefaultEventExecutorGroup()) {
@@ -202,6 +221,8 @@ class GrpcShadedNettyScheduledFutureTaskContextPropagationTest extends AbstractI
       }
     }
 
+    // No-op body: only the @Trace annotation matters, it starts+finishes a child span so the
+    // test can assert it is parented to the span active when the task ran.
     @Trace(operationName = "asyncChild")
     private void asyncChild() {}
   }
