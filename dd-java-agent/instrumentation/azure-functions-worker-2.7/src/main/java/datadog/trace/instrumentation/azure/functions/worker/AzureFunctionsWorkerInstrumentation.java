@@ -64,15 +64,17 @@ public final class AzureFunctionsWorkerInstrumentation extends InstrumenterModul
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope onEnter(
         @Advice.Argument(0) MiddlewareContext context,
+        @Advice.Local("trigger") String trigger,
         @Advice.Local("startTimeMicros") long startTimeMicros) {
-      final String trigger = DurableFunctionsUtils.getTrigger(context);
+      trigger = DurableFunctionsUtils.getTrigger(context);
       if (trigger == null) {
         return null;
       }
-      if ("DurableOrchestration".equals(trigger)
-          && !DurableFunctionsUtils.shouldTraceOrchestration(context)) {
+      if ("DurableOrchestration".equals(trigger)) {
         startTimeMicros = MILLISECONDS.toMicros(System.currentTimeMillis());
-        return null;
+        if (!DurableFunctionsUtils.shouldTraceOrchestration(context)) {
+          return null;
+        }
       }
 
       return DurableFunctionsUtils.startSpanScope(context, trigger);
@@ -82,13 +84,13 @@ public final class AzureFunctionsWorkerInstrumentation extends InstrumenterModul
     public static void onExit(
         @Advice.Argument(0) MiddlewareContext context,
         @Advice.Enter ContextScope scope,
+        @Advice.Local("trigger") String trigger,
         @Advice.Local("startTimeMicros") long startTimeMicros,
         @Advice.Thrown Throwable throwable) {
       ContextScope activeScope = scope;
       if (activeScope == null
           && throwable != null
           && !DurableFunctionsUtils.isReplayControlFlow(throwable)) {
-        final String trigger = DurableFunctionsUtils.getTrigger(context);
         if ("DurableOrchestration".equals(trigger)) {
           activeScope = DurableFunctionsUtils.startSpanScope(context, trigger, startTimeMicros);
         }

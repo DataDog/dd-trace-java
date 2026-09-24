@@ -146,12 +146,38 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
   }
 
   @Test
+  void createsSpanWhenFailurePrecedesAnotherHistoryField() throws Exception {
+    MiddlewareContext context = contextFor("DurableOrchestrationTrigger", "Orchestrator");
+    // OrchestratorRequest {
+    //   pastEvents: {},
+    //   newEvents: HistoryEvent { taskFailed: {}, field 20: 5 }
+    // }
+    when(context.getParameterValue("input"))
+        .thenReturn(
+            Base64.getEncoder()
+                .encodeToString(
+                    new byte[] {0x1a, 0x00, 0x22, 0x05, 0x42, 0x00, (byte) 0xa0, 0x01, 0x05}));
+
+    new FunctionExecutionMiddleware().invoke(context, mock(MiddlewareChain.class));
+
+    assertTraces(trace(durableSpan("Orchestrator", "DurableOrchestration")));
+  }
+
+  @Test
   void createsErrorSpanWhenSuppressedOrchestrationReplayFails() throws Exception {
     MiddlewareContext context = contextFor("DurableOrchestrationTrigger", "Orchestrator");
     // OrchestratorRequest { pastEvents: {}, newEvents: HistoryEvent { taskCompleted: {} } }
-    when(context.getParameterValue("input"))
-        .thenReturn(
-            Base64.getEncoder().encodeToString(new byte[] {0x1a, 0x00, 0x22, 0x02, 0x3a, 0x00}));
+    String payload =
+        Base64.getEncoder().encodeToString(new byte[] {0x1a, 0x00, 0x22, 0x02, 0x3a, 0x00});
+    AtomicLong payloadReadStartMillis = new AtomicLong();
+    doAnswer(
+            invocation -> {
+              payloadReadStartMillis.set(System.currentTimeMillis());
+              Thread.sleep(25);
+              return payload;
+            })
+        .when(context)
+        .getParameterValue("input");
     MiddlewareChain chain = mock(MiddlewareChain.class);
     AtomicLong invocationStartMillis = new AtomicLong();
     doAnswer(
@@ -169,8 +195,9 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
 
     writer.waitForTraces(1);
     DDSpan errorSpan = writer.firstTrace().get(0);
+    assertTrue(errorSpan.getStartTime() <= MILLISECONDS.toNanos(payloadReadStartMillis.get()));
     assertTrue(errorSpan.getStartTime() <= MILLISECONDS.toNanos(invocationStartMillis.get()));
-    assertTrue(errorSpan.getDurationNano() >= MILLISECONDS.toNanos(20));
+    assertTrue(errorSpan.getDurationNano() >= MILLISECONDS.toNanos(45));
 
     assertTraces(
         trace(
@@ -237,6 +264,15 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
 
   static Stream<Arguments> failsOpenForUnreadableOrchestrationPayloadArguments() {
     return Stream.of(arguments("non-string input", new Object()));
+  }
+
+  @Test
+  void doesNotSwallowErrorsWhileInspectingOrchestrationPayload() {
+    MiddlewareContext context = contextFor("DurableOrchestrationTrigger", "Orchestrator");
+    when(context.getParameterValue("input")).thenThrow(new AssertionError("failure"));
+
+    assertThrows(
+        AssertionError.class, () -> DurableFunctionsUtils.shouldTraceOrchestration(context));
   }
 
   @Test

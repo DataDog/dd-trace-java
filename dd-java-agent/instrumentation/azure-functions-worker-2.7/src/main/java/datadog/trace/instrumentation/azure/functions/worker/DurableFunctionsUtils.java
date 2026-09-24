@@ -127,9 +127,6 @@ public final class DurableFunctionsUtils {
           } else {
             skipFully(request, position, length, skipBuffer);
           }
-          if (position[0] != end) {
-            throw new IllegalArgumentException("Invalid length-delimited field");
-          }
         } else {
           skipValue(request, position, Long.MAX_VALUE, wireType, skipBuffer);
         }
@@ -138,25 +135,25 @@ public final class DurableFunctionsUtils {
         }
       }
       return !replay || newFailure;
-    } catch (Throwable ignored) {
+    } catch (Exception ignored) {
       return true;
     }
   }
 
   private static boolean containsFailureEvent(
       InputStream data, long[] position, long limit, byte[] skipBuffer) throws IOException {
+    boolean failure = false;
     while (position[0] < limit) {
       final long tag = readVarint(data, position, limit);
       final int field = (int) (tag >>> 3);
       final int wireType = (int) (tag & 7);
       if (wireType == 2
           && (field == TASK_FAILED_FIELD || field == SUB_ORCHESTRATION_FAILED_FIELD)) {
-        skipFully(data, position, limit - position[0], skipBuffer);
-        return true;
+        failure = true;
       }
       skipValue(data, position, limit, wireType, skipBuffer);
     }
-    return false;
+    return failure;
   }
 
   private static long readVarint(InputStream data, long[] position, long limit) throws IOException {
