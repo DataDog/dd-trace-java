@@ -832,12 +832,18 @@ public final class Hashtable {
    * {@link #capacityFor(int)} at an explicit {@code loadFactor} in {@code (0, 1)}: the bucket-array
    * length for a strict cap of {@code cardinalityLimit} live entries, rounded up to a power of two
    * via {@link #sizeFor(int)}.
+   *
+   * <p>Divides in {@code double} and rounds up ({@code Math.ceil}) before handing off to {@link
+   * #sizeFor(int)}, rather than truncating via an {@code int} cast: truncating first can collapse
+   * the requested headroom away entirely for small {@code cardinalityLimit} -- e.g. {@code
+   * cardinalityLimit=1} at the default 0.75 load factor would truncate {@code 1/0.75 = 1.333} down
+   * to {@code 1} and size a 1-bucket array, a 1.0 load factor rather than the documented 0.75.
    */
   public static int capacityFor(int cardinalityLimit, float loadFactor) {
     if (!(loadFactor > 0f && loadFactor < 1f)) {
       throw new IllegalArgumentException("loadFactor must be in (0, 1): " + loadFactor);
     }
-    return sizeFor((int) (cardinalityLimit / loadFactor));
+    return sizeFor((int) Math.ceil(cardinalityLimit / (double) loadFactor));
   }
 
   /**

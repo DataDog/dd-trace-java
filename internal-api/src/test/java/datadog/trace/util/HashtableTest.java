@@ -75,8 +75,18 @@ class HashtableTest {
     void capacityForAppliesDefaultLoadFactorHeadroom() {
       // 12 / 0.75 = 16 -> already a power of two.
       assertEquals(16, Hashtable.capacityFor(12));
-      // 5 / 0.75 = 6.67 -> truncated to 6 -> sizeFor rounds up to 8.
+      // 5 / 0.75 = 6.67 -> ceil to 7 -> sizeFor rounds up to 8.
       assertEquals(8, Hashtable.capacityFor(5));
+    }
+
+    @Test
+    void capacityForKeepsHeadroomForSmallCardinalityLimits() {
+      // 1 / 0.75 = 1.33 -> ceil to 2 -> sizeFor rounds up to 2. Truncating instead of ceiling
+      // would give sizeFor(1) = 1, a 1.0 load factor rather than the documented 0.75.
+      assertEquals(2, Hashtable.capacityFor(1));
+      // 2 / 0.75 = 2.67 -> ceil to 3 -> sizeFor rounds up to 4. Truncating instead would give
+      // sizeFor(2) = 2, a 1.0 load factor rather than the documented 0.75.
+      assertEquals(4, Hashtable.capacityFor(2));
     }
 
     @Test
