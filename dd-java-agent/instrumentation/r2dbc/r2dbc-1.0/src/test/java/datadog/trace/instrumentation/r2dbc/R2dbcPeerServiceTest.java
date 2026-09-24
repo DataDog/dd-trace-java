@@ -11,10 +11,10 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.r2dbc.R2dbcInstrumentationTest.eqs;
 import static datadog.trace.test.junit.utils.assertions.Matchers.any;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import io.r2dbc.spi.Connection;
@@ -89,7 +89,7 @@ class R2dbcPeerServiceTest extends AbstractInstrumentationTest {
   @Test
   void peerHostnameSetOnSelectQuery() {
     AgentSpan parent = startSpan("test", "parent");
-    try (AgentScope scope = activateSpan(parent)) {
+    try (ContextScope scope = activateSpan(parent)) {
       Flux.from(connection.createStatement("SELECT * FROM peer_test").execute())
           .flatMap(result -> result.map((row, metadata) -> row.get(0)))
           .collectList()
@@ -122,7 +122,7 @@ class R2dbcPeerServiceTest extends AbstractInstrumentationTest {
   @Test
   void peerHostnameSetOnInsertQuery() {
     AgentSpan parent = startSpan("test", "parent");
-    try (AgentScope scope = activateSpan(parent)) {
+    try (ContextScope scope = activateSpan(parent)) {
       Mono.from(
               connection
                   .createStatement("INSERT INTO peer_test (id, name) VALUES (1, 'test')")
@@ -159,7 +159,7 @@ class R2dbcPeerServiceTest extends AbstractInstrumentationTest {
   @Test
   void peerHostnameSetAcrossMultipleQueries() {
     AgentSpan parent = startSpan("test", "parent");
-    try (AgentScope scope = activateSpan(parent)) {
+    try (ContextScope scope = activateSpan(parent)) {
       // First query: INSERT
       Mono.from(
               connection
@@ -218,7 +218,7 @@ class R2dbcPeerServiceTest extends AbstractInstrumentationTest {
   @Test
   void peerHostnamePreservedOnErrorQuery() {
     AgentSpan parent = startSpan("test", "parent");
-    try (AgentScope scope = activateSpan(parent)) {
+    try (ContextScope scope = activateSpan(parent)) {
       try {
         Flux.from(connection.createStatement("SELECT * FROM nonexistent_peer_table").execute())
             .flatMap(result -> result.map((row, metadata) -> row.get(0)))

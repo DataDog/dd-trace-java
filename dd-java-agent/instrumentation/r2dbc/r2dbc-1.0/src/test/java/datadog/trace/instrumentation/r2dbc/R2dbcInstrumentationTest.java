@@ -10,10 +10,10 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.test.junit.utils.assertions.Matchers.any;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.test.junit.utils.assertions.Matcher;
@@ -96,7 +96,7 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
   @Test
   void selectQueryCreatesSpan() {
     AgentSpan parent = startSpan("test", "parent");
-    try (AgentScope scope = activateSpan(parent)) {
+    try (ContextScope scope = activateSpan(parent)) {
       Flux.from(connection.createStatement("SELECT * FROM test_table").execute())
           .flatMap(result -> result.map((row, metadata) -> row.get(0)))
           .collectList()
@@ -127,7 +127,7 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
   @Test
   void insertQueryCreatesSpan() {
     AgentSpan parent = startSpan("test", "parent");
-    try (AgentScope scope = activateSpan(parent)) {
+    try (ContextScope scope = activateSpan(parent)) {
       Mono.from(
               connection
                   .createStatement("INSERT INTO test_table (id, name) VALUES (1, 'test')")
@@ -160,7 +160,7 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
   @Test
   void multipleQueriesCreateMultipleSpans() {
     AgentSpan parent = startSpan("test", "parent");
-    try (AgentScope scope = activateSpan(parent)) {
+    try (ContextScope scope = activateSpan(parent)) {
       Mono.from(
               connection
                   .createStatement("INSERT INTO test_table (id, name) VALUES (1, 'first')")
@@ -211,7 +211,7 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
   @Test
   void errorQuerySetsErrorTags() {
     AgentSpan parent = startSpan("test", "parent");
-    try (AgentScope scope = activateSpan(parent)) {
+    try (ContextScope scope = activateSpan(parent)) {
       try {
         Flux.from(connection.createStatement("SELECT * FROM nonexistent_table").execute())
             .flatMap(result -> result.map((row, metadata) -> row.get(0)))
@@ -251,7 +251,7 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
     // Insert some data first so the query has something to stream — use a separate
     // span so the INSERT trace doesn't merge with the test's assertion target.
     AgentSpan setupParent = startSpan("test", "setup");
-    try (AgentScope setupScope = activateSpan(setupParent)) {
+    try (ContextScope setupScope = activateSpan(setupParent)) {
       Mono.from(
               connection
                   .createStatement("INSERT INTO test_table (id, name) VALUES (1, 'a')")
@@ -267,7 +267,7 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
 
     // Now cancel a query mid-stream using take(1)
     AgentSpan parent = startSpan("test", "parent");
-    try (AgentScope scope = activateSpan(parent)) {
+    try (ContextScope scope = activateSpan(parent)) {
       Flux.from(connection.createStatement("SELECT * FROM test_table").execute())
           .flatMap(result -> result.map((row, metadata) -> row.get(0)))
           .take(1)
