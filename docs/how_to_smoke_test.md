@@ -238,16 +238,19 @@ static final SmokeServerApp sender = /* ... */;
 For application containers or dependencies such as RabbitMQ, apply
 `dd-trace-java.testcontainers` and declare the image in the smoke-test module:
 
-```groovy
+```kotlin
+import datadog.buildlogic.testcontainers.image
+import datadog.buildlogic.testcontainers.testContainerImage
+
 plugins {
-  id 'dd-trace-java.module.smoke-test'
-  id 'dd-trace-java.testcontainers'
+  id("dd-trace-java.module.smoke-test")
+  id("dd-trace-java.testcontainers")
 }
 
 dependencies {
-  testImplementation group: 'org.testcontainers', name: 'rabbitmq', version: libs.versions.testcontainers.get()
-  testImplementation group: 'org.testcontainers', name: 'junit-jupiter', version: libs.versions.testcontainers.get()
-  testContainerImage(image('rabbitmq:3.12-management-alpine', 'test.rabbitmq.image'))
+  testImplementation("org.testcontainers:rabbitmq:${libs.versions.testcontainers.get()}")
+  testImplementation("org.testcontainers:junit-jupiter:${libs.versions.testcontainers.get()}")
+  testContainerImage(image("rabbitmq:3.12-management-alpine", "test.rabbitmq.image"))
 }
 ```
 

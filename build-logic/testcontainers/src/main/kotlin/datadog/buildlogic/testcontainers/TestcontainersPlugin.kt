@@ -13,21 +13,16 @@ import java.io.File
 /** Declares container images alongside the dependencies of the test suite that consumes them. */
 class TestcontainersPlugin : Plugin<Project> {
   override fun apply(project: Project) {
-    val declarations = mutableMapOf<String, MutableMap<String, String>>()
+    val containerImages = ContainerImages()
     val dependencyDsl = (project.dependencies as ExtensionAware).extensions.extraProperties
+    dependencyDsl.set("testContainerImages", containerImages)
     dependencyDsl.set(
       "image",
       object : Closure<ContainerImage>(null) {
         fun doCall(
           reference: String,
           systemProperty: String,
-        ): ContainerImage {
-          require(reference.isNotBlank()) { "Container image reference must not be empty" }
-          require(systemProperty.matches(Regex("[A-Za-z0-9_.-]+"))) {
-            "Invalid container image system property: $systemProperty"
-          }
-          return ContainerImage(reference, systemProperty)
-        }
+        ): ContainerImage = image(reference, systemProperty)
       },
     )
 
@@ -40,14 +35,13 @@ class TestcontainersPlugin : Plugin<Project> {
     project.pluginManager.withPlugin("java") {
       val sourceSets = project.extensions.getByType<SourceSetContainer>()
       sourceSets.all {
-        val images = declarations.getOrPut(name) { linkedMapOf() }
+        containerImages.declarations.getOrPut(name) { linkedMapOf() }
+        val sourceSetName = name
         dependencyDsl.set(
           "${name}ContainerImage",
           object : Closure<Unit>(null) {
             fun doCall(image: ContainerImage) {
-              require(images.putIfAbsent(image.systemProperty, image.reference) == null) {
-                "Container image system property '${image.systemProperty}' is declared twice in $name"
-              }
+              containerImages.add(sourceSetName, image)
             }
           },
         )
@@ -68,7 +62,7 @@ class TestcontainersPlugin : Plugin<Project> {
                 hierarchy.any { it.name == sourceSet.implementationConfigurationName }
               }
             inheritedSourceSets.forEach { sourceSet ->
-              declarations[sourceSet.name]?.forEach { (property, reference) ->
+              containerImages.declarations[sourceSet.name]?.forEach { (property, reference) ->
                 require(images.putIfAbsent(property, reference).let { it == null || it == reference }) {
                   "Conflicting container images for '$property' in $path"
                 }
@@ -97,8 +91,3 @@ class TestcontainersPlugin : Plugin<Project> {
     }
   }
 }
-
-data class ContainerImage(
-  val reference: String,
-  val systemProperty: String,
-)

@@ -2,15 +2,22 @@
 
 Apply this plugin only in modules that use containers:
 
-```groovy
+```kotlin
+import datadog.buildlogic.testcontainers.image
+import datadog.buildlogic.testcontainers.testContainerImage
+
 plugins {
-  id 'dd-trace-java.testcontainers'
+  id("dd-trace-java.testcontainers")
 }
 
 dependencies {
-  testContainerImage(image('cassandra:4', 'test.cassandra.image'))
+  testContainerImage(image("cassandra:4", "test.cassandra.image"))
 }
 ```
+
+> [!NOTE]
+> The imports expose the plugin's Kotlin functions in the build script; applying the
+plugin alone does not import them.
 
 Keep the dedicated container type and pass the property through its `DockerImageName`
 constructor. The compatibility declaration lets it accept a mirrored image without
@@ -25,12 +32,19 @@ CassandraContainer container = new CassandraContainer(
         .asCompatibleSubstituteFor("cassandra"));
 ```
 
-Each source set gets a `<sourceSet>ContainerImage` declaration method. Images follow
-`implementation` configuration inheritance, so a `latestDepTest` suite extending
+`testContainerImage` declares an image for the `test` source set. For a separate
+suite, import `datadog.buildlogic.testcontainers.containerImage`, declare its source
+set first, then use `containerImage("integrationTest", image("redis:7-alpine", "test.redis.image"))`
+inside `dependencies {}`.
+Images follow `implementation` configuration inheritance, so a `latestDepTest` suite extending
 `testImplementation` inherits its images. The matching `Test` task, `forkedTest`,
-and `<sourceSet>ForkedTest` companions receive the properties. A separate suite can
-declare its own images with, for example, `integrationTestContainerImage(...)`.
+and `<sourceSet>ForkedTest` companions receive the properties.
 Run IDE tests through Gradle, or supply the named image properties explicitly.
+
+Groovy builds use `dependencies { testContainerImage(image('cassandra:4',
+'test.cassandra.image')) }` without imports. Each source set gets a dynamic
+`<sourceSet>ContainerImage` method in Groovy; Kotlin uses `containerImage` for custom
+source sets. Both DSLs use the same declarations and validation.
 
 This plugin only fingerprints images. Container concurrency remains controlled by
 the existing, explicit `usesService(testcontainersLimit)` declarations in module

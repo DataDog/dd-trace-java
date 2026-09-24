@@ -1,19 +1,10 @@
+import org.gradle.internal.classpath.Instrumented.systemProperty
+
 plugins {
   `java-gradle-plugin`
   `kotlin-dsl`
   `jvm-test-suite`
   alias(libs.plugins.shadow)
-}
-
-java {
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
-}
-
-kotlin {
-  compilerOptions {
-    jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
-  }
 }
 
 val jib = configurations.create("jib")
@@ -64,6 +55,8 @@ testing {
       useJUnitJupiter(libs.versions.junit5)
       dependencies {
         implementation(libs.assertj.core)
+        implementation(libs.okhttp3.mockwebserver)
+        implementation("com.squareup.okhttp3:okhttp-tls:${libs.versions.okhttp3.testing.get()}")
         implementation(gradleTestKit())
       }
     }

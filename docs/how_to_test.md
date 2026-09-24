@@ -60,15 +60,18 @@ In order to identify such tests and avoid the continuous integration to fail, th
 Declare container images in the module's Gradle build so a changed image cannot
 silently reuse cached test results:
 
-```groovy
+```kotlin
+import datadog.buildlogic.testcontainers.image
+import datadog.buildlogic.testcontainers.testContainerImage
+
 plugins {
-  id 'dd-trace-java.testcontainers'
+  id("dd-trace-java.testcontainers")
 }
 
 dependencies {
-  testImplementation libs.testcontainers
-  testImplementation group: 'com.redis.testcontainers', name: 'testcontainers-redis', version: '1.6.2'
-  testContainerImage(image('redis:7-alpine', 'test.redis.image'))
+  testImplementation(libs.testcontainers)
+  testImplementation("com.redis.testcontainers:testcontainers-redis:1.6.2")
+  testContainerImage(image("redis:7-alpine", "test.redis.image"))
 }
 ```
 
@@ -95,10 +98,11 @@ digests can reuse test results; changed digests select a different cache entry.
 Tags are refreshed even when Gradle reuses its configuration cache. Resolution
 failure stops the task rather than trusting an old result.
 
-Each source set has a `<sourceSet>ContainerImage` declaration method. Images follow
-`implementation` configuration inheritance and reach the matching test task and
-its forked companions. For a separate suite, use its own declaration, such as
-`integrationTestContainerImage(...)`. Declarations apply to the whole task, including
+Images declared with `testContainerImage` belong to the `test` source set, follow
+`implementation` configuration inheritance and reach the matching test task and its forked companions. For a
+separate suite, import `datadog.buildlogic.testcontainers.containerImage`, declare
+its source set first, then use `containerImage("integrationTest", image(...))` in
+`dependencies {}`. Declarations apply to the whole task, including
 when `--tests` selects only some classes. Run IDE tests through Gradle, or supply
 the image system properties explicitly.
 
