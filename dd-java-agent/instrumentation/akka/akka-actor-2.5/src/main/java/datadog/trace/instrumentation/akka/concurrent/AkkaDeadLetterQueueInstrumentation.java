@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.akka.concurrent;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.cancelTask;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -63,10 +64,7 @@ public class AkkaDeadLetterQueueInstrumentation extends InstrumenterModule.Conte
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void afterEnqueue(@Advice.Argument(1) Envelope envelope) {
       // Dead-letter publication discards the original envelope without invoking its actor.
-      State state = InstrumentationContext.get(Envelope.class, State.class).get(envelope);
-      if (state != null) {
-        state.closeContinuation();
-      }
+      cancelTask(InstrumentationContext.get(Envelope.class, State.class), envelope);
     }
   }
 }
