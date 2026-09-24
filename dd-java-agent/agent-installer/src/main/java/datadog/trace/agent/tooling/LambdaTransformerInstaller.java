@@ -18,11 +18,9 @@ import org.slf4j.LoggerFactory;
 final class LambdaTransformerInstaller extends AgentBuilder.InstallationListener.Adapter {
   private static final Logger log = LoggerFactory.getLogger(LambdaTransformerInstaller.class);
 
-  private final boolean enabled;
   private final String[] lambdaInterfaces;
 
-  LambdaTransformerInstaller(boolean enabled, String[] lambdaInterfaces) {
-    this.enabled = enabled;
+  LambdaTransformerInstaller(String[] lambdaInterfaces) {
     this.lambdaInterfaces = lambdaInterfaces;
   }
 
@@ -42,13 +40,9 @@ final class LambdaTransformerInstaller extends AgentBuilder.InstallationListener
   }
 
   private void registerLambdaTransformer(ClassFileTransformer classFileTransformer) {
-    if (!enabled || lambdaInterfaces.length == 0) {
-      // Agent installation can be repeated in tests and embedded environments.
-      clearLambdaTransformer();
-      return;
-    }
     LambdaTransformer transformer = newLambdaTransformer(classFileTransformer);
-    LambdaTransformerHolder.set(filterLambdaTransformer(transformer, lambdaInterfaces));
+    LambdaTransformerHolder.set(
+        transformer != null ? filterLambdaTransformer(transformer, lambdaInterfaces) : null);
   }
 
   private static void clearLambdaTransformer() {
@@ -57,9 +51,7 @@ final class LambdaTransformerInstaller extends AgentBuilder.InstallationListener
 
   static LambdaTransformer filterLambdaTransformer(
       LambdaTransformer transformer, String[] lambdaInterfaces) {
-    return transformer == null
-        ? null
-        : new FilteringLambdaTransformer(transformer, lambdaInterfaces);
+    return new FilteringLambdaTransformer(transformer, lambdaInterfaces);
   }
 
   /**

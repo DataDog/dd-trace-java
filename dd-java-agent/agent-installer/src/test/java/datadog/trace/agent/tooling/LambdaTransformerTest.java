@@ -14,22 +14,9 @@ import org.junit.jupiter.api.Test;
 class LambdaTransformerTest {
 
   @Test
-  void disabledInstallationClearsPreviousTransformer() {
-    LambdaTransformer previous = (className, targetClass, classBytes, interfaceName) -> classBytes;
-    LambdaTransformerHolder.set(previous);
-    try {
-      new LambdaTransformerInstaller(false, new String[0]).onBeforeInstall(null, null);
-
-      assertNull(LambdaTransformerHolder.get());
-    } finally {
-      LambdaTransformerHolder.set(null);
-    }
-  }
-
-  @Test
   void publishesTransformerBeforeInstallationAndClearsItOnError() {
     LambdaTransformerInstaller installer =
-        new LambdaTransformerInstaller(true, new String[] {Runnable.class.getName()});
+        new LambdaTransformerInstaller(new String[] {Runnable.class.getName()});
     Throwable failure = new IllegalStateException("installation failed");
     try {
       installer.onBeforeInstall(null, null);

@@ -6,6 +6,7 @@ import static testdog.trace.instrumentation.lambda.TestRunnableLambdaInstrumenta
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.module.JpmsHelper;
+import net.bytebuddy.agent.ByteBuddyAgent;
 import org.junit.jupiter.api.Test;
 
 public class LambdaMetafactoryDisabledForkedTest extends AbstractInstrumentationTest {
@@ -19,6 +20,15 @@ public class LambdaMetafactoryDisabledForkedTest extends AbstractInstrumentation
     assertFalse(
         JpmsHelper.getAllTriggers().contains("java.lang.invoke.InnerClassLambdaMetafactory"),
         "disabled lambda instrumentation should not register a JPMS clearance trigger");
+  }
+
+  @Test
+  void disabledFeatureDoesNotLoadLambdaInstaller() {
+    for (Class<?> loaded : ByteBuddyAgent.getInstrumentation().getAllLoadedClasses()) {
+      assertFalse(
+          loaded.getName().equals("datadog.trace.agent.tooling.LambdaTransformerInstaller"),
+          "disabled lambda instrumentation should not load its installation listener");
+    }
   }
 
   private static boolean hasAdviceMarker(Object lambda) {

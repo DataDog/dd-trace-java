@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling;
 
 import static datadog.trace.api.config.TraceInstrumentationConfig.EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.RETRANSFORMER;
-import static java.util.Collections.unmodifiableMap;
 
 import datadog.trace.agent.tooling.bytebuddy.matcher.CustomExcludes;
 import datadog.trace.agent.tooling.bytebuddy.matcher.ProxyClassIgnores;
@@ -60,11 +59,14 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
       Map<String, List<LambdaMatchRecorder>> lambdaMatchers) {
     this.knownTypesMask = knownTypesMask;
     this.matchers = matchers.toArray(new MatchRecorder[0]);
-    Map<String, LambdaMatchRecorder[]> lambdaMatchersByInterface = new HashMap<>();
-    lambdaMatchers.forEach(
-        (name, recorders) ->
-            lambdaMatchersByInterface.put(name, recorders.toArray(new LambdaMatchRecorder[0])));
-    this.lambdaMatchers = unmodifiableMap(lambdaMatchersByInterface);
+    if (lambdaMatchers != null && !lambdaMatchers.isEmpty()) {
+      this.lambdaMatchers = new HashMap<>();
+      lambdaMatchers.forEach(
+          (name, recorders) ->
+              this.lambdaMatchers.put(name, recorders.toArray(new LambdaMatchRecorder[0])));
+    } else {
+      this.lambdaMatchers = null;
+    }
 
     if (DEFER_MATCHING) {
       scheduleResumeMatching(instrumentation, InstrumenterConfig.get().deferIntegrationsUntil());
@@ -79,22 +81,23 @@ final class CombiningMatcher implements AgentBuilder.RawMatcher {
       Class<?> classBeingRedefined,
       ProtectionDomain pd) {
 
-    String lambdaInterface = lambdaMatchers.isEmpty() ? null : TypePoolFacade.lambdaInterface();
+    String lambdaInterface = null;
 
     // check initial requests to see if we should defer matching until retransformation
-    // Generated lambda classes cannot be retransformed because they are not yet defined here.
-    if (null == lambdaInterface
-        && DEFER_MATCHING
-        && null == classBeingRedefined
-        && deferring
-        && isDeferred(classLoader)) {
-      return false;
+    if (DEFER_MATCHING && null == classBeingRedefined && deferring && isDeferred(classLoader)) {
+      // Generated lambda classes cannot be retransformed because they are not yet defined here.
+      if (null == lambdaMatchers || null == (lambdaInterface = TypePoolFacade.lambdaInterface())) {
+        return false;
+      }
     }
 
     BitSet ids = recordedMatches.get();
     ids.clear();
 
     long fromTick = InstrumenterMetrics.tick();
+    if (null != lambdaMatchers && null == lambdaInterface) {
+      lambdaInterface = TypePoolFacade.lambdaInterface();
+    }
     if (null != lambdaInterface) {
       LambdaMatchRecorder[] recorders = lambdaMatchers.get(lambdaInterface);
       if (null != recorders) {

@@ -59,9 +59,9 @@ public final class CombiningTransformerBuilder
   private final Map<Map.Entry<String, String>, ElementMatcher<ClassLoader>> contextStoreInjection =
       new HashMap<>();
 
-  private final Map<String, List<LambdaMatchRecorder>> lambdaMatchers = new HashMap<>();
+  private final Map<String, List<LambdaMatchRecorder>> lambdaMatchers;
   private final Map<Map.Entry<String, String>, List<LambdaMatchRecorder>>
-      lambdaContextStoreInjection = new HashMap<>();
+      lambdaContextStoreInjection;
 
   private final AgentBuilder agentBuilder;
   private final InstrumenterIndex instrumenterIndex;
@@ -109,6 +109,8 @@ public final class CombiningTransformerBuilder
     this.enabledSystems = enabledSystems;
     this.adviceTransformationDiagnosticsEnabled = adviceTransformationDiagnosticsEnabled;
     this.lambdaTransformationEnabled = lambdaTransformationEnabled;
+    this.lambdaMatchers = lambdaTransformationEnabled ? new HashMap<>() : null;
+    this.lambdaContextStoreInjection = lambdaTransformationEnabled ? new HashMap<>() : null;
   }
 
   /** Builds matchers and transformers for an instrumentation module and its members. */
@@ -340,12 +342,15 @@ public final class CombiningTransformerBuilder
       applyContextStoreInjection();
     }
 
-    return agentBuilder
+    AgentBuilder builder = agentBuilder;
+    if (lambdaTransformationEnabled && !lambdaMatchers.isEmpty()) {
+      builder = builder.with(new LambdaTransformerInstaller(lambdaInterfaces()));
+    }
+    return builder
         .type(new CombiningMatcher(instrumentation, knownTypesMask, matchers, lambdaMatchers))
         .and(NOT_DECORATOR_MATCHER)
         .transform(defaultTransformers())
         .transform(new SplittingTransformer(transformers))
-        .with(new LambdaTransformerInstaller(lambdaTransformationEnabled, lambdaInterfaces()))
         .installOn(instrumentation);
   }
 
@@ -412,7 +417,8 @@ public final class CombiningTransformerBuilder
     matchers.add(new MatchRecorder.ForContextStore(transformationId, activation, contextMatcher));
     transformers[transformationId] = new AdviceStack(new VisitingTransformer(contextAdvice));
 
-    List<LambdaMatchRecorder> lambdaRecorders = lambdaContextStoreInjection.get(contextStore);
+    List<LambdaMatchRecorder> lambdaRecorders =
+        lambdaTransformationEnabled ? lambdaContextStoreInjection.get(contextStore) : null;
     if (null != lambdaRecorders) {
       // Lambda transformation happens before definition, so its field injector can be selected
       // along with the instrumentation that requested this context store. Keep the normal
