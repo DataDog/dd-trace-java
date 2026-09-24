@@ -28,6 +28,17 @@ class TestJvmConstraintsPlugin : Plugin<Project> {
       }
 
       inputs.property("testJvm", testJvmSpec.testJvmProperty).optional(true)
+      // Gradle tracks the language version, but not the resolved vendor or full JVM versions.
+      inputs.property("jvmIdentity", javaLauncher.map { launcher ->
+        with(launcher.metadata) {
+          mapOf(
+            "languageVersion" to languageVersion.asInt().toString(),
+            "vendor" to vendor,
+            "runtimeVersion" to javaRuntimeVersion,
+            "vmVersion" to jvmVersion,
+          )
+        }
+      })
 
       val taskExtension = project.objects.newInstance<TestJvmConstraintsExtension>().also {
         configureConventions(it, projectExtension)
