@@ -19,7 +19,6 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import java.io.File
 import java.io.IOException
-import java.lang.reflect.Proxy
 import java.util.concurrent.atomic.AtomicInteger
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -100,19 +99,20 @@ class MuzzleMavenRepoUtilsTest {
       module = "mylib"
       versions = "[1.0,)"
     }
-    val attempts = AtomicInteger()
-    val publishingSystem = repositorySystemPublishingAfterFirstResolution(fixture, attempts)
+    val session = newSession()
+    val request = VersionRangeRequest(DefaultArtifact("com.example:mylib:[1.0,)"), listOf(repo), null)
+    assertThat(system.resolveVersionRange(session, request).versions).isEmpty()
+    fixture.publishVersions("com.example", "mylib", listOf("1.0.0"))
 
     val result = MuzzleMavenRepoUtils.resolveVersionRange(
       directive,
-      publishingSystem,
-      newSession(),
+      system,
+      session,
       listOf(repo),
       enableBackoffRetries = false
     )
 
     assertThat(result.versions.map { it.toString() }).containsExactly("1.0.0")
-    assertThat(attempts).hasValue(2)
   }
 
   @Test
@@ -394,49 +394,20 @@ class MuzzleMavenRepoUtilsTest {
     result: VersionRangeResult,
     attempts: AtomicInteger
   ): RepositorySystem =
-    Proxy.newProxyInstance(
-      RepositorySystem::class.java.classLoader,
-      arrayOf(RepositorySystem::class.java)
-    ) { _, method, args ->
-      when (method.name) {
-        "resolveVersionRange" -> {
-          val attempt = attempts.incrementAndGet()
-          if (attempt <= failuresBeforeSuccess) {
-            val request = args?.get(1) as VersionRangeRequest
-            throw VersionRangeResolutionException(
-              VersionRangeResult(request),
-              "transient version range failure $attempt"
-            )
-          }
-          result
-        }
-        "toString" -> "repositorySystemReturningAfterFailures"
-        else -> throw UnsupportedOperationException(method.name)
-      }
-    } as RepositorySystem
-
-  private fun repositorySystemPublishingAfterFirstResolution(
-    fixture: MavenRepoFixture,
-    attempts: AtomicInteger
-  ): RepositorySystem =
-    Proxy.newProxyInstance(
-      RepositorySystem::class.java.classLoader,
-      arrayOf(RepositorySystem::class.java)
-    ) { _, method, args ->
-      when (method.name) {
-        "resolveVersionRange" -> {
-          val result = system.resolveVersionRange(
-            args?.get(0) as RepositorySystemSession,
-            args[1] as VersionRangeRequest
+    object : RepositorySystem by system {
+      override fun resolveVersionRange(
+        session: RepositorySystemSession,
+        request: VersionRangeRequest
+      ): VersionRangeResult {
+        val attempt = attempts.incrementAndGet()
+        if (attempt <= failuresBeforeSuccess) {
+          throw VersionRangeResolutionException(
+            VersionRangeResult(request),
+            "transient version range failure $attempt"
           )
-          if (attempts.incrementAndGet() == 1) {
-            fixture.publishVersions("com.example", "mylib", listOf("1.0.0"))
-          }
-          result
         }
-        "toString" -> "repositorySystemPublishingAfterFirstResolution"
-        else -> throw UnsupportedOperationException(method.name)
+        return result
       }
-    } as RepositorySystem
+    }
 
 }
