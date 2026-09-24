@@ -254,7 +254,7 @@ test_image_plugin:
   extends: .gradle_build
   stage: tests
   script:
-    - ./gradlew -p build-logic :testcontainers:test :testcontainers:validatePlugins $GRADLE_ARGS
+    - JAVA_HOME=$JAVA_25_HOME ./gradlew -p build-logic :testcontainers:test :testcontainers:validatePlugins $GRADLE_ARGS
   artifacts:
     when: always
     paths:

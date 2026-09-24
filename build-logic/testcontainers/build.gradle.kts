@@ -16,8 +16,8 @@ kotlin {
   }
 }
 
-val jib by configurations.creating
-val conflictingBuildSrc by configurations.creating
+val jib = configurations.create("jib")
+val conflictingBuildSrc = configurations.create("conflictingBuildSrc")
 configurations.compileOnly { extendsFrom(jib) }
 
 dependencies {
