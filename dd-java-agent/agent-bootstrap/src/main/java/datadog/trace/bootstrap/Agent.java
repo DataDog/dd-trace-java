@@ -73,7 +73,6 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.security.CodeSource;
 import java.util.EnumSet;
-import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.PatternSyntaxException;
@@ -1495,15 +1494,18 @@ public class Agent {
     Config config = Config.get();
     // AWS Lambda has no ddprof native library support, same as startProfilingAgent().
     if (!OperatingSystem.isWindows() && !isAwsLambdaRuntime()) {
-      // ORed explicitly so real profiling keeps ddprof regardless of AppSec activation level.
-      if (config.isDatadogProfilerEnabled() || config.isOtelThreadContextEnabled()) {
-        // Deferred unless profiling is enabled: construction loads the ddprof native library and
-        // touches java.nio.file, which must not happen on the primordial premain thread.
-        ProfilingContextIntegration integration =
-            createDdprofContextIntegration(AGENT_CLASSLOADER, !config.isDatadogProfilerEnabled());
+      if (config.isDatadogProfilerEnabled()) {
+        // The profiler itself is running: load ddprof now, and let ProfilingAgent.run() register
+        // the process context as it always has.
+        ProfilingContextIntegration integration = loadDdprofContextIntegration(AGENT_CLASSLOADER);
         if (integration != null) {
           return integration;
         }
+      } else if (config.isOtelThreadContextEnabled()) {
+        // No profiler, we only want the context exposed: loading ddprof pulls in the native
+        // library and touches java.nio.file, which must not happen on the primordial premain
+        // thread, so it is deferred.
+        return deferDdprofContextIntegration(AGENT_CLASSLOADER);
       }
     }
     if (config.isProfilingEnabled() && config.isProfilingTimelineEventsEnabled()) {
@@ -1522,24 +1524,13 @@ public class Agent {
   }
 
   /**
-   * Creates the ddprof-based profiling context integration, either synchronously or deferred off
-   * the calling thread onto an {@link AgentTaskScheduler} thread. Returns {@code null} if a
-   * synchronous construction fails, so the caller can fall back to another integration.
+   * Loads the ddprof-based profiling context integration on the calling thread, for when the
+   * Datadog profiler is running. Returns {@code null} when it isn't available, so the caller can
+   * fall back to another integration.
    */
-  static ProfilingContextIntegration createDdprofContextIntegration(
-      final ClassLoader classLoader, final boolean deferInitialization) {
-    // deferInitialization means the profiler itself isn't running, so nothing else registers the
-    // process context here: ProfilingAgent.run() already does it when the profiler starts.
-    Callable<ProfilingContextIntegration> factory =
-        ddprofContextIntegrationFactory(classLoader, deferInitialization);
-    if (deferInitialization) {
-      DeferredProfilingContextIntegration deferred =
-          new DeferredProfilingContextIntegration("ddprof", factory);
-      deferred.scheduleInitialization();
-      return deferred;
-    }
+  static ProfilingContextIntegration loadDdprofContextIntegration(final ClassLoader classLoader) {
     try {
-      return factory.call();
+      return newDdprofContextIntegration(classLoader);
     } catch (Throwable t) {
       log.debug("ddprof-based profiling context labeling not available. {}", t.getMessage());
       return null;
@@ -1547,30 +1538,41 @@ public class Agent {
   }
 
   /**
-   * Builds the ddprof integration reflectively, optionally registering the OTel process context
-   * alongside it (when the profiler agent isn't going to register it itself).
+   * Returns a placeholder integration that loads the ddprof-based one off the calling thread and
+   * registers the OTel process context alongside it. Only used when the profiler isn't running:
+   * otherwise {@code ProfilingAgent.run()} registers the process context itself.
    */
-  private static Callable<ProfilingContextIntegration> ddprofContextIntegrationFactory(
-      final ClassLoader classLoader, final boolean registerProcessContext) {
-    return () -> {
-      ProfilingContextIntegration integration =
-          (ProfilingContextIntegration)
-              classLoader
-                  .loadClass("com.datadog.profiling.ddprof.DatadogProfilingIntegration")
-                  .getDeclaredConstructor()
-                  .newInstance();
-      if (registerProcessContext) {
-        try {
-          classLoader
-              .loadClass("com.datadog.profiling.agent.ProcessContext")
-              .getMethod("register", ConfigProvider.class)
-              .invoke(null, ConfigProvider.getInstance());
-        } catch (Throwable t) {
-          log.debug("Process context registration not available. {}", t.getMessage());
-        }
-      }
-      return integration;
-    };
+  static ProfilingContextIntegration deferDdprofContextIntegration(final ClassLoader classLoader) {
+    DeferredProfilingContextIntegration deferred =
+        new DeferredProfilingContextIntegration(
+            "ddprof",
+            () -> {
+              ProfilingContextIntegration integration = newDdprofContextIntegration(classLoader);
+              registerProcessContext(classLoader);
+              return integration;
+            });
+    deferred.scheduleInitialization();
+    return deferred;
+  }
+
+  private static ProfilingContextIntegration newDdprofContextIntegration(
+      final ClassLoader classLoader) throws ReflectiveOperationException {
+    return (ProfilingContextIntegration)
+        classLoader
+            .loadClass("com.datadog.profiling.ddprof.DatadogProfilingIntegration")
+            .getDeclaredConstructor()
+            .newInstance();
+  }
+
+  private static void registerProcessContext(final ClassLoader classLoader) {
+    try {
+      classLoader
+          .loadClass("com.datadog.profiling.agent.ProcessContext")
+          .getMethod("register", ConfigProvider.class)
+          .invoke(null, ConfigProvider.getInstance());
+    } catch (Throwable t) {
+      log.debug("Process context registration not available. {}", t.getMessage());
+    }
   }
 
   private static boolean startProfilingAgent(

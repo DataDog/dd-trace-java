@@ -8,7 +8,7 @@ class OtelContextExposureSmokeTest extends AbstractAppSecServerSmokeTest {
 
   private static final String PROCESS_CONTEXT_LOG_LINE = 'Registering process context for OTel profiler'
   private static final String PROCESS_CONTEXT_FAILURE_LOG_LINE = 'Failed to register process context for OTel profiler'
-  /** Logged by Agent#ddprofContextIntegrationFactory when the reflective registration call itself fails. */
+  /** Logged by Agent#registerProcessContext when the reflective registration call itself fails. */
   private static final String PROCESS_CONTEXT_UNAVAILABLE_LOG_LINE = 'Process context registration not available'
 
   @Override

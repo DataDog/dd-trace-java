@@ -52,7 +52,7 @@ class DeferredProfilingContextIntegrationTest {
     FakeDatadogProfilingIntegration.gate = new CountDownLatch(1);
 
     ProfilingContextIntegration integration =
-        Agent.createDdprofContextIntegration(fakeProfilingClassLoader(), true);
+        Agent.deferDdprofContextIntegration(fakeProfilingClassLoader());
 
     // nothing was constructed synchronously on this (premain) thread
     assertNotNull(integration);
@@ -78,7 +78,7 @@ class DeferredProfilingContextIntegrationTest {
   @Test
   void synchronousConstructionKeepsRunningOnTheCallingThread() {
     ProfilingContextIntegration integration =
-        Agent.createDdprofContextIntegration(fakeProfilingClassLoader(), false);
+        Agent.loadDdprofContextIntegration(fakeProfilingClassLoader());
 
     assertTrue(integration instanceof FakeDatadogProfilingIntegration);
     assertEquals(1, FakeDatadogProfilingIntegration.constructions.get());
@@ -91,7 +91,7 @@ class DeferredProfilingContextIntegrationTest {
    */
   @Test
   void synchronousConstructionLeavesTheProcessContextToTheProfilerAgent() {
-    Agent.createDdprofContextIntegration(fakeProfilingClassLoader(), false);
+    Agent.loadDdprofContextIntegration(fakeProfilingClassLoader());
 
     assertEquals(0, FakeProcessContext.registrations.get());
   }

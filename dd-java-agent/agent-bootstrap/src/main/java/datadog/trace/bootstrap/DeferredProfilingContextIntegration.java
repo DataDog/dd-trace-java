@@ -72,7 +72,8 @@ final class DeferredProfilingContextIntegration implements ProfilingContextInteg
   }
 
   /**
-   * Runs the deferred construction. On failure this instance keeps behaving as {@link
+   * Runs the deferred construction; called exactly once per instance, from {@link
+   * #scheduleInitialization()}. On failure this instance keeps behaving as {@link
    * ProfilingContextIntegration.NoOp} forever; a background failure must never propagate.
    */
   void initialize() {
@@ -106,10 +107,13 @@ final class DeferredProfilingContextIntegration implements ProfilingContextInteg
    */
   @Override
   public void whenAvailable(final Runnable callback) {
-    synchronized (this) {
-      if (delegate == ProfilingContextIntegration.NoOp.INSTANCE) {
-        pendingAvailabilityCallbacks.add(callback);
-        return;
+    // double-checked: delegate is volatile, so a post-swap caller never takes the lock
+    if (delegate == ProfilingContextIntegration.NoOp.INSTANCE) {
+      synchronized (this) {
+        if (delegate == ProfilingContextIntegration.NoOp.INSTANCE) {
+          pendingAvailabilityCallbacks.add(callback);
+          return;
+        }
       }
     }
     callback.run();
