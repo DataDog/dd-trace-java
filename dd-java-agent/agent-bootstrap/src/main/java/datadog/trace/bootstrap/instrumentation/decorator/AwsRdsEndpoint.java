@@ -64,7 +64,7 @@ public final class AwsRdsEndpoint {
    *     endpoint.
    */
   public static AwsRdsEndpoint parse(final CharSequence hostname) {
-    if (hostname == null || hostname.length() == 0) {
+    if (hostname == null || hostname.length() < AMAZONAWS_COM.length()) {
       return null;
     }
     String hostnameString = hostname.toString();
