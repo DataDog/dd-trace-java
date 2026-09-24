@@ -93,7 +93,7 @@ public class StructuredTaskScope25Test extends AbstractInstrumentationTest {
 
     assertTraces(
         trace(
-            options -> options.sorter(SORT_BY_OPERATION_NAME),
+            options -> options.sort(SORT_BY_OPERATION_NAME),
             span().childOfIndex(4).operationName("child1"),
             span().childOfIndex(4).operationName("child2"),
             span().childOfIndex(0).operationName("grandchild1"),
