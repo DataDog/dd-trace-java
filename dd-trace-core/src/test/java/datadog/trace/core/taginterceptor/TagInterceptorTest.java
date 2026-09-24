@@ -707,6 +707,44 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
         );
   }
 
+  @TableTest({
+    "scenario         | methodTag            ",
+    "datadog spelling | 'Tags.HTTP_METHOD'   ",
+    "otel spelling    | 'http.request.method'"
+  })
+  void urlAsResourceNameRuleAppliesRegardlessOfMethodSpellingWhenUrlSetFirst(
+      @ConvertWith(TagsConverter.class) String methodTag) {
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    AgentSpan span = tracer.buildSpan("datadog", "fakeOperation").start();
+    try {
+      span.setTag(HTTP_URL, "/with-method");
+      span.setTag(methodTag, "Post");
+      assertEquals("POST /with-method", span.getResourceName().toString());
+    } finally {
+      span.finish();
+    }
+  }
+
+  @TableTest({
+    "scenario         | methodTag            ",
+    "datadog spelling | 'Tags.HTTP_METHOD'   ",
+    "otel spelling    | 'http.request.method'"
+  })
+  void urlAsResourceNameRuleAppliesRegardlessOfMethodSpellingWhenMethodSetFirst(
+      @ConvertWith(TagsConverter.class) String methodTag) {
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    AgentSpan span = tracer.buildSpan("datadog", "fakeOperation").start();
+    try {
+      span.setTag(methodTag, "Post");
+      span.setTag(HTTP_URL, "/with-method");
+      assertEquals("POST /with-method", span.getResourceName().toString());
+    } finally {
+      span.finish();
+    }
+  }
+
   @Test
   void whenUserSetsPeerServiceTheSourceShouldBePeerService() {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();

@@ -73,6 +73,7 @@ public final class KnownTags {
 
   public static final String DB_OPERATION_NAME = "db.operation";
   public static final long DB_OPERATION_ID = 0x0011000000000000L;
+  public static final String DB_OPERATION_OTEL_NAME = "db.operation.name";
   // makeTagId(serial=17) -> db.operation.name  <recommended>
 
   public static final String DB_POOL_NAME = "db.pool.name";
@@ -81,10 +82,12 @@ public final class KnownTags {
 
   public static final String DB_STATEMENT_NAME = "db.statement";
   public static final long DB_STATEMENT_ID = 0x0013000000000000L;
+  public static final String DB_STATEMENT_OTEL_NAME = "db.query.text";
   // makeTagId(serial=19) -> db.query.text  <recommended>
 
   public static final String DB_TYPE_NAME = "db.type";
   public static final long DB_TYPE_ID = 0x0014000000000000L;
+  public static final String DB_TYPE_OTEL_NAME = "db.system";
   // makeTagId(serial=20) -> db.system  <required>
 
   public static final String DB_USER_NAME = "db.user";
@@ -109,14 +112,17 @@ public final class KnownTags {
 
   public static final String HTTP_HOSTNAME_NAME = "http.hostname";
   public static final long HTTP_HOSTNAME_ID = 0x001A000000000000L;
+  public static final String HTTP_HOSTNAME_OTEL_NAME = "server.address";
   // makeTagId(serial=26) -> server.address  <required>
 
   public static final String HTTP_METHOD_NAME = "http.method";
   public static final long HTTP_METHOD_ID = 0x001B000000000000L;
+  public static final String HTTP_METHOD_OTEL_NAME = "http.request.method";
   // makeTagId(serial=27) -> http.request.method  <required>
 
   public static final String HTTP_QUERY_STRING_NAME = "http.query.string";
   public static final long HTTP_QUERY_STRING_ID = 0x001C000000000000L;
+  public static final String HTTP_QUERY_STRING_OTEL_NAME = "url.query";
   // makeTagId(serial=28) -> url.query  <recommended>
 
   public static final String HTTP_RESEND_COUNT_NAME = "http.resend_count";
@@ -129,14 +135,17 @@ public final class KnownTags {
 
   public static final String HTTP_STATUS_CODE_NAME = "http.status_code";
   public static final long HTTP_STATUS_CODE_ID = 0x001F000000000000L;
+  public static final String HTTP_STATUS_CODE_OTEL_NAME = "http.response.status_code";
   // makeTagId(serial=31) -> http.response.status_code  <conditional>
 
   public static final String HTTP_URL_NAME = "http.url";
   public static final long HTTP_URL_ID = 0x0020000000000000L;
+  public static final String HTTP_URL_OTEL_NAME = "url.full";
   // makeTagId(serial=32) -> url.full  <required>
 
   public static final String HTTP_USERAGENT_NAME = "http.useragent";
   public static final long HTTP_USERAGENT_ID = 0x0021000000000000L;
+  public static final String HTTP_USERAGENT_OTEL_NAME = "user_agent.original";
   // makeTagId(serial=33) -> user_agent.original  <recommended>
 
   public static final String LANGUAGE_NAME = "language";
@@ -173,6 +182,7 @@ public final class KnownTags {
 
   public static final String SERVICE_NAME = "service";
   public static final long SERVICE_ID = 0x002A000000000000L;
+  public static final String SERVICE_OTEL_NAME = "service.name";
   // makeTagId(serial=42) -> service.name  <required>
 
   public static final String SERVLET_CONTEXT_NAME = "servlet.context";
@@ -527,25 +537,25 @@ public final class KnownTags {
         public String openTelemetryNameOf(long tagId) {
           switch (KnownTagCodec.serialNum(tagId)) {
             case DB_OPERATION_SERIAL_NUM:
-              return "db.operation.name";
+              return DB_OPERATION_OTEL_NAME;
             case DB_STATEMENT_SERIAL_NUM:
-              return "db.query.text";
+              return DB_STATEMENT_OTEL_NAME;
             case DB_TYPE_SERIAL_NUM:
-              return "db.system";
+              return DB_TYPE_OTEL_NAME;
             case HTTP_HOSTNAME_SERIAL_NUM:
-              return "server.address";
+              return HTTP_HOSTNAME_OTEL_NAME;
             case HTTP_METHOD_SERIAL_NUM:
-              return "http.request.method";
+              return HTTP_METHOD_OTEL_NAME;
             case HTTP_QUERY_STRING_SERIAL_NUM:
-              return "url.query";
+              return HTTP_QUERY_STRING_OTEL_NAME;
             case HTTP_STATUS_CODE_SERIAL_NUM:
-              return "http.response.status_code";
+              return HTTP_STATUS_CODE_OTEL_NAME;
             case HTTP_URL_SERIAL_NUM:
-              return "url.full";
+              return HTTP_URL_OTEL_NAME;
             case HTTP_USERAGENT_SERIAL_NUM:
-              return "user_agent.original";
+              return HTTP_USERAGENT_OTEL_NAME;
             case SERVICE_SERIAL_NUM:
-              return "service.name";
+              return SERVICE_OTEL_NAME;
             default:
               return null;
           }

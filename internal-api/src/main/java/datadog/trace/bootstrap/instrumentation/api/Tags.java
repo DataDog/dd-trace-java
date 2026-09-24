@@ -18,8 +18,6 @@ public class Tags {
   public static final String HTTP_HOSTNAME = "http.hostname";
   public static final String HTTP_ROUTE = "http.route";
   public static final String HTTP_STATUS = "http.status_code";
-  // OpenTelemetry's alias for HTTP_STATUS (tag-conventions.yaml's otel-name for http.status_code).
-  public static final String HTTP_STATUS_OTEL_NAME = "http.response.status_code";
   public static final String HTTP_METHOD = "http.method";
   public static final String HTTP_ENDPOINT = "http.endpoint";
   public static final String HTTP_FORWARDED = "http.forwarded";

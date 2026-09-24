@@ -42,15 +42,20 @@ object KnownTagsEmitter {
     val nameOfConst = HashMap<String, String>()
     val idOfConst = HashMap<String, String>()
     val serialOfConst = HashMap<String, String>()
+    val otelNameOfConst = HashMap<String, String>()
     for (t in reg.tags) {
       val base = sanitize(t.name)
       nameOfConst[t.name] = unique(withSuffix(base, "_NAME"))
       idOfConst[t.name] = unique(withSuffix(base, "_ID"))
       serialOfConst[t.name] = unique(withSuffix(base, "_SERIAL_NUM"))
+      // Suffix the pre-suffix base (not nameC), same as the other three: suffixing an
+      // already-suffixed identifier would produce a redundant compound like NAME_OTEL_NAME.
+      if (t.otelName != null) otelNameOfConst[t.name] = unique(withSuffix(base, "_OTEL_NAME"))
     }
     fun nameC(name: String) = nameOfConst[name]!!
     fun idC(name: String) = idOfConst[name]!!
     fun serialC(name: String) = serialOfConst[name]!!
+    fun otelNameC(name: String) = otelNameOfConst[name]!!
 
     val order = reg.tags.map { it.name } // stable emit order
     // canonical name -> OpenTelemetry name, for the reverse (openTelemetryNameOf) switch.
@@ -75,6 +80,9 @@ object KnownTagsEmitter {
     for (t in reg.tags) {
       b.appendLine("  public static final String ${nameC(t.name)} = \"${t.name}\";")
       b.appendLine("  public static final long ${idC(t.name)} = ${hex(t.id)};")
+      if (t.otelName != null) {
+        b.appendLine("  public static final String ${otelNameC(t.name)} = \"${t.otelName}\";")
+      }
       b.appendLine("  // makeTagId(serial=${t.serial})${if (t.traceLevel) " + trace-level" else ""}${if (t.otelName != null) " -> ${t.otelName}" else ""}  <${t.required}>")
       b.appendLine()
     }
@@ -154,9 +162,9 @@ object KnownTagsEmitter {
     b.appendLine("        public String openTelemetryNameOf(long tagId) {")
     b.appendLine("          switch (KnownTagCodec.serialNum(tagId)) {")
     for (name in order) {
-      val otel = otelName[name] ?: continue
+      if (otelName[name] == null) continue
       b.appendLine("            case ${serialC(name)}:")
-      b.appendLine("              return \"$otel\";")
+      b.appendLine("              return ${otelNameC(name)};")
     }
     b.appendLine("            default:")
     b.appendLine("              return null;")
