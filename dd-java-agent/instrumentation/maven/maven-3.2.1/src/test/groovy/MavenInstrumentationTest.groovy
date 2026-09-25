@@ -91,6 +91,47 @@ class MavenInstrumentationTest extends CiVisibilityInstrumentationTest {
     "test_maven_build_with_tests_generates_spans"  | "-DskipTests=false"      | "true"       | "skip"
   }
 
+  def "Failsafe status follows skipITs: CLI=#cliSkipITs, POM=#pomSkipITs, unit tests skipped=#skipUnitTests"() {
+    given:
+    def pom = projectFolder.resolve("pom.xml").toFile()
+    // An unrelated skipITs element must not mark Surefire tests as skipped.
+    pom.text = pom.text.replace("<artifactId>maven-surefire-plugin</artifactId>",
+      "<artifactId>maven-surefire-plugin</artifactId><configuration><skipTests>${skipUnitTests}</skipTests><skipITs>true</skipITs></configuration>")
+    if (pomSkipITs != null) {
+      pom.text = pom.text.replace("<artifactId>maven-failsafe-plugin</artifactId>",
+        "<artifactId>maven-failsafe-plugin</artifactId><configuration><skipITs>${pomSkipITs}</skipITs></configuration>")
+    }
+
+    when:
+    def exitCode = executeMaven(["-B", "clean", "verify", "-DskipITs=${cliSkipITs}".toString()])
+
+    then:
+    exitCode == 0
+    spanFilter.waitForSpan({ span -> span.spanType == "test_session_end" }, TimeUnit.SECONDS.toMillis(20))
+    def spans = TEST_WRITER.toList().flatten()
+    def modules = spans.findAll { it.spanType == "test_module_end" }
+    def sessions = spans.findAll { it.spanType == "test_session_end" }
+    modules.size() == 2
+    sessions.size() == 1
+    def unitModule = modules.find { it.getTag("test.execution").toString().startsWith("maven-surefire-plugin:") }
+    def integrationModule = modules.find { it.getTag("test.execution").toString().startsWith("maven-failsafe-plugin:") }
+    unitModule.getTag("test.status").toString() == (skipUnitTests ? "skip" : "pass")
+    integrationModule.getTag("test.status").toString() == expectedIntegrationStatus
+    expectedIntegrationStatus != "skip" || integrationModule.getTag("test.skip_reason") == "Tests were skipped by Maven configuration"
+    sessions[0].getTag("test.status").toString() == (skipUnitTests && expectedIntegrationStatus == "skip" ? "skip" : "pass")
+    projectFolder.resolve("target/surefire-reports/TEST-org.example.TestSucceed.xml").toFile().exists() == !skipUnitTests
+    projectFolder.resolve("target/failsafe-reports/TEST-org.example.ITSucceed.xml").toFile().exists() == (expectedIntegrationStatus == "pass")
+
+    where:
+    cliSkipITs | pomSkipITs | skipUnitTests | expectedIntegrationStatus
+    true       | null       | false         | "skip"
+    true       | null       | true          | "skip"
+    false      | null       | false         | "pass"
+    true       | "false"    | false         | "pass"
+    false      | "true"     | false         | "skip"
+    testcaseName = "test_maven_build_with_unit_and_integration_tests_generates_spans"
+  }
+
   private void givenMavenProjectFiles(String projectFilesSources) {
     def projectResourcesUri = this.getClass().getClassLoader().getResource(projectFilesSources).toURI()
     def projectResourcesPath = Paths.get(projectResourcesUri)

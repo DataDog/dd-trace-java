@@ -150,8 +150,10 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       // configuration, since a POM can override the command-line skip properties.
       if (Boolean.parseBoolean(
               MavenUtils.getConfigurationValue(session, mojoExecution, "skipTests"))
-          || Boolean.parseBoolean(
-              MavenUtils.getConfigurationValue(session, mojoExecution, "skip"))) {
+          || Boolean.parseBoolean(MavenUtils.getConfigurationValue(session, mojoExecution, "skip"))
+          || ("maven-failsafe-plugin".equals(mojoExecution.getArtifactId())
+              && Boolean.parseBoolean(
+                  MavenUtils.getConfigurationValue(session, mojoExecution, "skipITs")))) {
         buildEventsHandler.onTestModuleSkip(
             request, moduleName, "Tests were skipped by Maven configuration");
       }
