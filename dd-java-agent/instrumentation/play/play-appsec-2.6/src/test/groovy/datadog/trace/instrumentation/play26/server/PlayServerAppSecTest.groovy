@@ -101,10 +101,10 @@ class PlayServerAppSecTest extends PlayServerTest {
       .setType(MultipartBody.FORM)
       .addFormDataPart('file', filename, RequestBody.create(MediaType.parse('application/octet-stream'), content))
       .build()
-    def request = request(BODY_MULTIPART, 'POST', body).build()
+    def req = request(BODY_MULTIPART, 'POST', body).build()
 
     when:
-    def response = client.newCall(request).execute()
+    def response = client.newCall(req).execute()
 
     then:
     assertBlockedByBodyParser(response, expectedMessage)
