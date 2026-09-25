@@ -23,6 +23,26 @@ import org.openjdk.jmh.infra.Blackhole;
  * devirtualized, artificially monomorphic fast path that never occurs in the real system. The
  * pollution helpers here ({@link #warmUpHashDispatch}) exist to guard against that second problem;
  * they're not redundant with {@code Blackhole}, they cover the axis it doesn't.
+ *
+ * <p>Receiver profiles are not the only kind, and branch profiles interact with escape analysis in
+ * a way that can silently flatter a benchmark. When a branch is never taken during profiling, C2
+ * prunes it as an {@code unstable_if} uncommon trap; if that pruned branch held the only store of
+ * an object, the object becomes provably non-escaping and escape analysis scalar-replaces an
+ * allocation that production would keep. The case measured in this module is {@code map.get(key)}
+ * followed by a guarded {@code computeIfAbsent(key, ...)}: with every key pre-installed by
+ * {@code @Setup} the absent branch never runs, so a composite key costs nothing at all. A real
+ * cache records its population-phase misses in that same branch profile -- MDO counters accumulate
+ * from interpretation onward and are never reset -- so the profile is two-sided, nothing is pruned,
+ * and the key is allocated on every lookup. See {@code ThreadSafeMapD2Benchmark} for the
+ * measurement, and {@code HashtableD2Benchmark} for the contrasting shape, where {@code merge}
+ * keeps the present/absent decision inside the callee and leaves no caller-visible branch to prune.
+ *
+ * <p>Nothing here addresses branch profiles yet. The more complete approach is to exercise every
+ * benchmark arm during setup, across each of its outcomes; that also removes an ordering
+ * dependency, since JMH runs arms sequentially and whichever runs first currently shapes the shared
+ * profiles the rest inherit. A {@code warmUpArms} helper along those lines is planned as a
+ * follow-on, because adopting it changes benchmark setup and requires re-measuring whatever adopts
+ * it.
  */
 public final class BenchmarkUtils {
   private BenchmarkUtils() {}
