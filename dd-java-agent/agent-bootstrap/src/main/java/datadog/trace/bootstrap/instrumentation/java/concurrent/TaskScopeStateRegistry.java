@@ -1,10 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
-import static java.util.Collections.synchronizedSet;
-
 import datadog.trace.bootstrap.ContextStore;
-import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Tracks the captured {@link State} of the subtasks forked by a single {@code StructuredTaskScope}
@@ -27,7 +25,7 @@ public final class TaskScopeStateRegistry {
       TaskScopeStateRegistry::new;
 
   // States are added by the scope owner thread and removed by the subtask threads.
-  private final Set<State> states = synchronizedSet(new HashSet<>());
+  private final Set<State> states = ConcurrentHashMap.newKeySet();
 
   private TaskScopeStateRegistry() {}
 
@@ -55,11 +53,7 @@ public final class TaskScopeStateRegistry {
    * all started threads have terminated (at scope close).
    */
   public void cancelAll() {
-    synchronized (this.states) {
-      for (State state : this.states) {
-        state.closeContinuation();
-      }
-      this.states.clear();
-    }
+    this.states.forEach(State::closeContinuation);
+    this.states.clear();
   }
 }
