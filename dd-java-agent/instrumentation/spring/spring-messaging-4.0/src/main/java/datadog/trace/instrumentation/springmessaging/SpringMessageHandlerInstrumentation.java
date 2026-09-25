@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.springmessaging.SpringMessageDecorator.COMPONENT_NAME;
 import static datadog.trace.instrumentation.springmessaging.SpringMessageDecorator.DECORATE;
 import static datadog.trace.instrumentation.springmessaging.SpringMessageDecorator.SPRING_INBOUND;
@@ -19,7 +20,6 @@ import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AsyncResultExtensions;
 import net.bytebuddy.asm.Advice;
@@ -80,7 +80,7 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
   public static class HandleMessageAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(@Advice.This InvocableHandlerMethod thiz) {
+    public static ContextScope onEnter(@Advice.This InvocableHandlerMethod thiz) {
       AgentSpan span = startSpan(COMPONENT_NAME.toString(), SPRING_INBOUND);
       DECORATE.afterStart(span);
       span.setResourceName(DECORATE.spanNameForMethod(thiz.getMethod()));
@@ -89,13 +89,13 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit(
-        @Advice.Enter AgentScope scope,
+        @Advice.Enter ContextScope scope,
         @Advice.Return(readOnly = false) Object result,
         @Advice.Thrown Throwable error) {
       if (null == scope) {
         return;
       }
-      AgentSpan span = scope.span();
+      AgentSpan span = spanFromScope(scope);
       scope.close();
       if (null != error) {
         DECORATE.onError(span, error);

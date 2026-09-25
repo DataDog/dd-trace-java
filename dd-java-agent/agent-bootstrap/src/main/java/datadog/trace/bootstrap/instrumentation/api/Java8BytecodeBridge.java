@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.context.Context;
+import datadog.context.ContextScope;
 
 /**
  * A helper for accessing methods that rely on new Java 8 bytecode features such as calling a static
@@ -36,6 +37,13 @@ public class Java8BytecodeBridge {
    */
   public static AgentSpan spanFromContext(Context context) {
     return AgentSpan.fromContext(context);
+  }
+
+  /**
+   * @see AgentSpan#fromScope(ContextScope)
+   */
+  public static AgentSpan spanFromScope(ContextScope scope) {
+    return AgentSpan.fromScope(scope);
   }
 
   /**
