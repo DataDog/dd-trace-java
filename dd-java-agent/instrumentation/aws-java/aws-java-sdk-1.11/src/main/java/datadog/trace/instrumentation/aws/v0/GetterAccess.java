@@ -39,6 +39,7 @@ final class GetterAccess {
   private final MethodHandle getPublishBatchRequestEntries;
   private final MethodHandle getApproximateArrivalTimestamp;
   private final MethodHandle getTableName;
+  private final MethodHandle getExpectedBucketOwner;
 
   private GetterAccess(final Class<?> objectType) {
     operationName =
@@ -55,6 +56,7 @@ final class GetterAccess {
     getApproximateArrivalTimestamp =
         findGetter(objectType, "getApproximateArrivalTimestamp", Date.class);
     getTableName = findStringGetter(objectType, "getTableName");
+    getExpectedBucketOwner = findStringGetter(objectType, "getExpectedBucketOwner");
   }
 
   String getOperationNameFromType() {
@@ -99,6 +101,10 @@ final class GetterAccess {
 
   String getTableName(final Object object) {
     return invokeForString(getTableName, object);
+  }
+
+  String getExpectedBucketOwner(final Object object) {
+    return invokeForString(getExpectedBucketOwner, object);
   }
 
   Date getApproximateArrivalTimestamp(final Object object) {

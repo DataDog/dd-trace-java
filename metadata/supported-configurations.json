@@ -4940,6 +4940,14 @@
         "aliases": ["DD_AWSADD_SPAN_POINTERS"]
       }
     ],
+    "DD_TRACE_AWS_ACCOUNT_FROM_ACCESS_KEY_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_AWS_DYNAMODB_ENABLED": [
       {
         "version": "A",
