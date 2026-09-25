@@ -1492,8 +1492,10 @@ public class Agent {
    */
   static ProfilingContextIntegration createProfilingContextIntegration() {
     Config config = Config.get();
-    // AWS Lambda has no ddprof native library support, same as startProfilingAgent().
-    if (!OperatingSystem.isWindows() && !isAwsLambdaRuntime()) {
+    // Windows is already excluded by Config (isDatadogProfilerSafeAndConfigured), so only AWS
+    // Lambda needs to be excluded here: it has no ddprof native library support, same as
+    // startProfilingAgent().
+    if (!isAwsLambdaRuntime()) {
       if (config.isDatadogProfilerEnabled()) {
         // The profiler itself is running: load ddprof now, and let ProfilingAgent.run() register
         // the process context as it always has.
