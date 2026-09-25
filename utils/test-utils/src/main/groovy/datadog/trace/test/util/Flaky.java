@@ -6,27 +6,30 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.util.function.Predicate;
 import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * Use this annotation for suites or test cases that are flaky. When running in CI, these will be
- * segregated to a separate job.
+ * split to a separate job. Apply this annotation instead of {@code @Tag("flaky")} directly.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Tag("flaky")
+@ExtendWith(FlakyJUnitExtension.class)
 public @interface Flaky {
   /** Reason why the test is flaky (optional). */
   String value() default "";
 
   /**
-   * Fully qualified name of the test suite classes where this test is flaky. Only required when the
-   * test is flaky only when run in a subclass.
+   * Names of the test suite classes where this test is flaky, typically subclasses that inherit the
+   * test. Spock uses simple class names; JUnit accepts simple or fully qualified class names.
    */
   String[] suites() default {};
 
   /**
-   * Closure with a predicate to test at runtime if the actual spec is flaky (e.g. check the JVM
-   * vendor), the parameter is the actual name of the spec under test
+   * Predicate class with a no-argument constructor that determines whether the test is flaky (e.g.
+   * check the JVM vendor). JUnit passes the concrete test class's simple name. Spock also supports
+   * Groovy closures.
    */
   Class<? extends Predicate<String>> condition() default True.class;
 

@@ -37,6 +37,7 @@ dependencies {
 
   compileOnly(project(":components:annotations"))
   compileOnly(libs.junit.jupiter)
+  compileOnly(libs.junit.platform.launcher)
   compileOnly(libs.logback.core)
   compileOnly(libs.logback.classic)
 

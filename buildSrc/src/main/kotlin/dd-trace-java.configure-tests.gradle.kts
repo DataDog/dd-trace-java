@@ -103,16 +103,12 @@ tasks.named("check") {
 }
 
 tasks.withType<Test>().configureEach {
-  // Flaky tests management for JUnit 5
-  (options as? JUnitPlatformOptions)?.apply {
-    if (skipFlakyTestsProvider.isPresent) {
-      excludeTags("flaky")
-    } else if (runFlakyTestsProvider.isPresent) {
-      includeTags("flaky")
-    }
+  // Keep suites without test-utils out of flaky-only runs. Runtime extensions refine this tag.
+  if (!skipFlakyTestsProvider.isPresent && runFlakyTestsProvider.isPresent) {
+    (options as? JUnitPlatformOptions)?.includeTags("flaky")
   }
 
-  // Set system property flag that is checked from tests to determine if they should be skipped or run
+  // Let the JUnit and Spock extensions evaluate @Flaky conditions before selecting tests.
   if (skipFlakyTestsProvider.isPresent) {
     jvmArgs("-Drun.flaky.tests=false")
   } else if (runFlakyTestsProvider.isPresent) {
