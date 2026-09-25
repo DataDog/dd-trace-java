@@ -85,7 +85,9 @@ class SpringBootRabbitSmokeTest {
 
   @Container
   private static final RabbitMQContainer RABBIT =
-      new RabbitMQContainer(DockerImageName.parse("rabbitmq:3.9.20-alpine"));
+      new RabbitMQContainer(
+          DockerImageName.parse(System.getProperty("test.rabbitmq.image"))
+              .asCompatibleSubstituteFor("rabbitmq"));
 
   @Order(1)
   @RegisterExtension

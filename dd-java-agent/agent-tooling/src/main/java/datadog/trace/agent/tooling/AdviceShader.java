@@ -47,10 +47,29 @@ public final class AdviceShader {
 
   /** Applies shading before calling the given {@link ClassVisitor}. */
   public ClassVisitor shadeClass(ClassVisitor cv) {
+    return new ClassRemapper(cv, remapper());
+  }
+
+  /** Applies advice relocation rules to a binary class name. */
+  public String shadeClassName(String className) {
+    return remapper().mapType(className.replace('.', '/')).replace('/', '.');
+  }
+
+  /** Applies advice relocation rules to a field/type descriptor. */
+  public String shadeTypeDescriptor(String descriptor) {
+    return remapper().mapDesc(descriptor);
+  }
+
+  /** Applies advice relocation rules to a method descriptor. */
+  public String shadeMethodDescriptor(String descriptor) {
+    return remapper().mapMethodDesc(descriptor);
+  }
+
+  private Remapper remapper() {
     if (null == remapper) {
       remapper = new AdviceMapper();
     }
-    return new ClassRemapper(cv, remapper);
+    return remapper;
   }
 
   /** Returns the result of shading the given bytecode. */

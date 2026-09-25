@@ -57,6 +57,58 @@ In order to identify such tests and avoid the continuous integration to fail, th
 > * using the `Retry` button from the job view:
 >    ![Rerun workflow from failed](how_to_test/retry-failed-job.png)
 
+## Tests that use containers
+
+> [!IMPORTANT]
+> Don't use image name in Test Container constructors like `new CassandraContainer("cassandra:4")`, 
+> or `new GenericContainer("icr.io/appcafe/websphere-traditional:latest")`. Image tags can change.
+> Also, these are not properly tracked as _test_ task inputs and as such can't be fingerprinted.
+> Instead, use the `dd-trace-java.testcontainers` plugin to declare these as dependencies,
+> it will resolve the actual image digest before running the test.
+
+Declare container images in the module's Gradle build so a changed image cannot
+silently reuse cached test results:
+
+```kotlin
+import datadog.buildlogic.testcontainers.image
+
+plugins {
+  id("dd-trace-java.testcontainers")
+}
+
+dependencies {
+  testImplementation(libs.testcontainers)
+  testImplementation("com.redis.testcontainers:testcontainers-redis:1.6.2")
+  testContainerImage(image("redis:7-alpine", "test.redis.image"))
+}
+```
+
+Use `GenericContainer` or the dedicated container type and use its `DockerImageName` constructor
+overload with the relevant system property, **without a fallback value**. The compatibility
+declaration is important to let _testcontainer_ know it should accept it as a mirrored image.
+For example with Redis: 
+
+```java
+import com.redis.testcontainers.RedisContainer;
+import org.testcontainers.utility.DockerImageName;
+
+DockerImageName image = DockerImageName.parse(System.getProperty("test.redis.image"))
+    .asCompatibleSubstituteFor("redis");
+RedisContainer redis = new RedisContainer(image);
+```
+
+Essentially the plugin resolves tags to immutable registry digests before Gradle checks 
+whether test results are up to date or cached. Resolution failure stops the test task 
+earlier, rather than within the tests.
+
+The plugin feed the system property to both `test` and `forkedTest` tasks.
+
+`testContainerImage` is a "companion" for the `testImplementation` configuration. 
+The plugin automatically creates an image configuration for each `*Implementation`
+configuration. For example, `integrationTestImplementation` gets
+`integrationTestContainerImage`. Also, see the [plugin reference](../build-logic/testcontainers/README.md)
+for inheritance and shared configuration examples.
+
 ## Running Tests
 
 You can run the whole project test suite using `./gradlew test` but expect it to take a certain time.
