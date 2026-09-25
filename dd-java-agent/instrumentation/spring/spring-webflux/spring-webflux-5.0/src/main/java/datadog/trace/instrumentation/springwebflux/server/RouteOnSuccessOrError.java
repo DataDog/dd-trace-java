@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.function.StaticLifetime;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -31,6 +32,9 @@ public class RouteOnSuccessOrError implements Consumer<HandlerFunction<?>> {
                       .trim())
               .replaceAll("");
 
+  // Shared across requests; per-instance would silently defeat the cache (fixed by 12561, see
+  // datadog.trace.api.function.StaticLifetime for the general pattern this guards against).
+  @StaticLifetime
   private static final DDCache<String, String> PARSED_ROUTE_CACHE = DDCaches.newFixedSizeCache(64);
 
   private final RouterFunction routerFunction;
