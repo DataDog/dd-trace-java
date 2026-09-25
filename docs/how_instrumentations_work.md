@@ -334,6 +334,44 @@ Having multiple precise matchers is preferable to one more vague catch-all match
 
 Instrumentation class names should end in _Instrumentation._
 
+### Suppressing async propagation
+
+Library initialization and periodic background tasks can capture an unrelated request's context and
+prevent its trace from completing. Declare these boundaries beside the library instrumentation by
+extending `datadog.trace.agent.tooling.async.AsyncPropagationSuppressingInstrumentation`:
+
+```java
+@AutoService(InstrumenterModule.class)
+public final class LettuceAsyncSuppressionInstrumentation
+    extends AsyncPropagationSuppressingInstrumentation implements Instrumenter.ForSingleType {
+  @Override
+  public String instrumentedType() {
+    return "io.lettuce.core.protocol.RedisHandshakeHandler";
+  }
+
+  @Override
+  protected ElementMatcher<? super MethodDescription> suppressedMethods() {
+    return named("channelRegistered");
+  }
+}
+```
+
+Use the existing type-matching interfaces, including hierarchy matching where needed. For multiple
+types with different suppressed methods, include `isDeclaredBy(...)` constraints in the method
+matcher. The base applies shared advice that disables async propagation for the duration of the
+matched method and restores it on normal or exceptional exit if it was enabled on entry.
+
+These are independent `ContextTracking` instrumenters controlled by `java_concurrent`, even when the
+library's tracing instrumentation is disabled. Use this base only for boundaries that must suppress
+executor propagation independently of library tracing. Suppression that relies on another
+instrumentation to restore context requires that instrumentation's enablement policy.
+
+The base selects the named muzzle directive `async-propagation-suppression`. Add a pass directive with
+that name and the library's supported dependency range, without `assertInverse`, or name an existing
+pass-only directive. Shared suppression
+advice references only bootstrap APIs; a library's inverse or fail directives for tracing advice
+must not apply to it. Matchers and instrumentation tests establish which library methods are affected.
+
 ## Helper Classes
 
 Classes referenced by Advice that are not provided on the bootclasspath must be defined in Helper Classes otherwise they

@@ -2,8 +2,19 @@ plugins {
   id 'dd-trace-java.module.instrumentation'
 }
 
+muzzle {
+  pass {
+    name = "async-propagation-suppression"
+    group = "io.reactivex"
+    module = "rxjava"
+    versions = "[1.0.7,2.0.0)"
+  }
+}
+
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'io.reactivex', name: 'rxjava', version: '1.0.7'
+  testImplementation group: 'io.reactivex', name: 'rxjava', version: '1.0.7'
+  latestDepTestImplementation group: 'io.reactivex', name: 'rxjava', version: '1.+'
 }

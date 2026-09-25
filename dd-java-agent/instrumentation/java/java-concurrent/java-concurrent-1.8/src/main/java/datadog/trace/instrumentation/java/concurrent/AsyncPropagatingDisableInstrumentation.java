@@ -5,8 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEnd
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled;
 import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
@@ -17,14 +15,15 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import net.bytebuddy.asm.Advice;
+import datadog.trace.agent.tooling.async.SuppressAsyncPropagationAdvice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /**
  * Sometimes classes do lazy initialization for scheduling of tasks. If this is done during a trace
- * it can cause the trace to never be reported. Add matchers below to disable async propagation
- * during this period.
+ * it can cause the trace to never be reported. These rules disable async propagation during this
+ * period. New library rules belong beside their instrumentation and should extend {@link
+ * datadog.trace.agent.tooling.async.AsyncPropagationSuppressingInstrumentation}.
  */
 @AutoService(InstrumenterModule.class)
 public final class AsyncPropagatingDisableInstrumentation extends InstrumenterModule.ContextTracking
@@ -34,8 +33,6 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
     super(EXECUTOR_INSTRUMENTATION_NAME);
   }
 
-  private static final ElementMatcher.Junction<TypeDescription> RX_WORKERS =
-      nameStartsWith("rx.").and(extendsClass(named("rx.Scheduler$Worker")));
   private static final ElementMatcher<TypeDescription> NETTY_UNSAFE =
       namedOneOf(
           "io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe",
@@ -46,17 +43,10 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
           "io.grpc.netty.shaded.io.netty.channel.kqueue.AbstractKQueueChannel$AbstractKQueueUnsafe");
   private static final ElementMatcher<TypeDescription> GRPC_MANAGED_CHANNEL =
       nameEndsWith("io.grpc.internal.ManagedChannelImpl");
-  private static final ElementMatcher<TypeDescription> REACTOR_DISABLED_TYPE_INITIALIZERS =
+  private static final ElementMatcher.Junction<TypeDescription> REACTOR_DISABLED_TYPE_INITIALIZERS =
       namedOneOf("reactor.core.scheduler.SchedulerTask", "reactor.core.scheduler.WorkerTask");
   private static final ElementMatcher<TypeDescription> RXJAVA2_DISABLED_TYPE_INITIALIZERS =
       named("io.reactivex.internal.schedulers.AbstractDirectTask");
-
-  /**
-   * RxJava 3's AbstractDirectTask creates FINISHED/DISPOSED sentinel FutureTask instances in its
-   * static initializer.
-   */
-  private static final ElementMatcher<TypeDescription> RXJAVA3_DISABLED_TYPE_INITIALIZERS =
-      named("io.reactivex.rxjava3.internal.schedulers.AbstractDirectTask");
 
   private static final ElementMatcher<TypeDescription> NETTY_GLOBAL_EVENT_EXECUTOR =
       namedOneOf(
@@ -69,8 +59,6 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
           "io.grpc.netty.shaded.io.netty.handler.timeout.IdleStateHandler");
   private static final ElementMatcher<TypeDescription> JAVA_HTTP_CLIENT =
       extendsClass(named("java.net.http.HttpClient"));
-  private static final String LETTUCE_HANDSHAKE_HANDLER =
-      "io.lettuce.core.protocol.RedisHandshakeHandler";
   private static final ElementMatcher<TypeDescription> PEKKO_HTTP_STREAM_STAGE =
       nameStartsWith("org.apache.pekko.http.impl.util.StreamUtils$")
           .and(extendsClass(named("org.apache.pekko.stream.stage.GraphStageLogic")));
@@ -83,7 +71,6 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "rx.internal.operators.OperatorTimeoutBase",
       "com.amazonaws.http.timers.request.HttpRequestTimer",
       "io.netty.handler.timeout.WriteTimeoutHandler",
       "java.util.concurrent.ScheduledThreadPoolExecutor",
@@ -93,7 +80,6 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       "io.grpc.netty.shaded.io.netty.channel.epoll.AbstractEpollChannel$AbstractEpollUnsafe",
       "io.netty.channel.kqueue.AbstractKQueueChannel$AbstractKQueueUnsafe",
       "io.grpc.netty.shaded.io.netty.channel.kqueue.AbstractKQueueChannel$AbstractKQueueUnsafe",
-      "rx.internal.util.ObjectPool",
       "io.grpc.internal.ServerImpl$ServerTransportListenerImpl",
       "okhttp3.ConnectionPool",
       "okhttp3.internal.connection.RealConnectionPool",
@@ -109,9 +95,7 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       "org.apache.activemq.broker.TransactionBroker",
       "com.mongodb.internal.connection.DefaultConnectionPool$AsyncWorkManager",
       "io.reactivex.internal.schedulers.AbstractDirectTask",
-      "io.reactivex.rxjava3.internal.schedulers.AbstractDirectTask",
       "jdk.internal.net.http.HttpClientImpl",
-      LETTUCE_HANDSHAKE_HANDLER,
       "io.netty.util.concurrent.GlobalEventExecutor",
       "io.grpc.netty.shaded.io.netty.util.concurrent.GlobalEventExecutor",
       "com.couchbase.client.deps.io.netty.util.concurrent.GlobalEventExecutor",
@@ -129,22 +113,16 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return RX_WORKERS
+    return REACTOR_DISABLED_TYPE_INITIALIZERS
         .or(GRPC_MANAGED_CHANNEL)
-        .or(REACTOR_DISABLED_TYPE_INITIALIZERS)
         .or(RXJAVA2_DISABLED_TYPE_INITIALIZERS)
-        .or(RXJAVA3_DISABLED_TYPE_INITIALIZERS)
         .or(JAVA_HTTP_CLIENT)
         .or(PEKKO_HTTP_STREAM_STAGE);
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    String advice = getClass().getName() + "$DisableAsyncAdvice";
-    transformer.applyAdvice(named("schedulePeriodically").and(isDeclaredBy(RX_WORKERS)), advice);
-    transformer.applyAdvice(
-        named("call").and(isDeclaredBy(named("rx.internal.operators.OperatorTimeoutBase"))),
-        advice);
+    String advice = SuppressAsyncPropagationAdvice.class.getName();
     transformer.applyAdvice(named("connect").and(isDeclaredBy(NETTY_UNSAFE)), advice);
     transformer.applyAdvice(
         named("init")
@@ -164,8 +142,6 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
         namedOneOf("scheduleAtFixedRate", "scheduleWithFixedDelay")
             .and(isDeclaredBy(named("java.util.concurrent.ScheduledThreadPoolExecutor"))),
         advice);
-    transformer.applyAdvice(
-        named("start").and(isDeclaredBy(named("rx.internal.util.ObjectPool"))), advice);
     transformer.applyAdvice(
         namedOneOf("addConnection", "put")
             .and(isDeclaredBy(named("com.squareup.okhttp.ConnectionPool"))),
@@ -226,8 +202,6 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
     transformer.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(RXJAVA2_DISABLED_TYPE_INITIALIZERS)), advice);
     transformer.applyAdvice(
-        isTypeInitializer().and(isDeclaredBy(RXJAVA3_DISABLED_TYPE_INITIALIZERS)), advice);
-    transformer.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(NETTY_GLOBAL_EVENT_EXECUTOR)), advice);
     transformer.applyAdvice(
         named("initialize")
@@ -242,8 +216,6 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
         advice);
     transformer.applyAdvice(namedOneOf("sendAsync").and(isDeclaredBy(JAVA_HTTP_CLIENT)), advice);
     transformer.applyAdvice(
-        named("channelRegistered").and(isDeclaredBy(named(LETTUCE_HANDSHAKE_HANDLER))), advice);
-    transformer.applyAdvice(
         named("preStart").and(takesNoArguments()).and(isDeclaredBy(PEKKO_HTTP_STREAM_STAGE)),
         advice);
     // armeria runs its own codec/pipeline, so the active request span captured during connection
@@ -254,24 +226,5 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
     transformer.applyAdvice(
         named("connect").and(isDeclaredBy(named("com.linecorp.armeria.client.HttpChannelPool"))),
         advice);
-  }
-
-  public static class DisableAsyncAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static boolean before() {
-      if (isAsyncPropagationEnabled()) {
-        setAsyncPropagationEnabled(false);
-        return true;
-      }
-      return false;
-    }
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void after(@Advice.Enter boolean wasDisabled) {
-      if (wasDisabled) {
-        setAsyncPropagationEnabled(true);
-      }
-    }
   }
 }

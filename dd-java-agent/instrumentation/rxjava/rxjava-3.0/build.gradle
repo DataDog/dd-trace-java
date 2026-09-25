@@ -4,6 +4,7 @@ plugins {
 
 muzzle {
   pass {
+    name = "async-propagation-suppression"
     group = "io.reactivex.rxjava3"
     module = "rxjava"
     versions = "[3.0.0,)"
