@@ -70,9 +70,11 @@ import org.openjdk.jmh.infra.Blackhole;
  *       {@code int} K2 field avoids boxing inside the entry match on the write-path re-check.
  *   <li>{@code ConcurrentSkipListMap} is ~6× slower than {@code ConcurrentHashMap} due to tree
  *       traversal.
- *   <li>Synchronized {@code HashMap} is over 150× slower than the fastest options; under pollution
- *       its megamorphic {@code hashCode()}/{@code equals()} dispatch dominates its cost far more
- *       than lock contention, the same magnitude seen in {@link ThreadSafeMapD1Benchmark}.
+ *   <li>Synchronized {@code HashMap} is over 150× slower than the fastest options (8.8 vs 1573.5
+ *       ops/us) — lock contention across eight threads on a single monitor, the same magnitude seen
+ *       in {@link ThreadSafeMapD1Benchmark}. Type-profile pollution is not a factor: {@code Key2}
+ *       is a final class built at the call site, so C2 has an exact type and devirtualizes without
+ *       consulting the polluted profile.
  * </ul>
  */
 @Fork(2)

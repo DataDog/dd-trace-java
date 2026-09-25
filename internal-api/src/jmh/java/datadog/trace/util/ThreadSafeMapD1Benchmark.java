@@ -60,9 +60,11 @@ import org.openjdk.jmh.infra.Blackhole;
  *       path.
  *   <li>{@code ConcurrentSkipListMap} is ~6× slower than {@code ConcurrentHashMap} — tree traversal
  *       cost is high even under lock-free CAS.
- *   <li>Synchronized {@code HashMap} is over 150× slower than {@code ConcurrentHashtable}; under
- *       pollution its megamorphic {@code hashCode()}/{@code equals()} dispatch dominates its cost
- *       far more than the lock contention this benchmark was designed to isolate.
+ *   <li>Synchronized {@code HashMap} is over 150× slower than {@code ConcurrentHashtable} (9.2 vs
+ *       1405.8 ops/us) — lock contention across eight threads on a single monitor, which is what
+ *       this benchmark isolates. Type-profile pollution is not a factor: the keys are {@code
+ *       String}, a final class, so these lookups devirtualize by exact type and never consult the
+ *       polluted profile.
  *   <li>{@code getOrCreate} is near-identical to {@code get} because all keys are pre-populated —
  *       the lock branch is never taken during measurement.
  * </ul>
