@@ -37,6 +37,15 @@ public class InstrumentationTags {
   public static final String AWS_REQUEST_ID = "aws.requestId";
   public static final String AWS_STORAGE_CLASS = "aws.storage.class";
 
+  // Identity encoded in an Amazon RDS endpoint hostname. dbinstanceidentifier and
+  // dbclusteridentifier match the dimension tags on the aws.rds.* metrics so database client
+  // spans and Database Monitoring join on the same keys.
+  public static final String AWS_REGION = "aws.region";
+  public static final String AWS_RDS_IDENTIFIER = "aws.rds.identifier";
+  public static final String AWS_RDS_ENDPOINT_TYPE = "aws.rds.endpoint_type";
+  public static final String RDS_DB_INSTANCE_IDENTIFIER = "dbinstanceidentifier";
+  public static final String RDS_DB_CLUSTER_IDENTIFIER = "dbclusteridentifier";
+
   // These are temporary keys used for span pointer hash calculation
   public static final String S3_ETAG = "s3.eTag";
   public static final String DYNAMO_PRIMARY_KEY_1 = "dynamodb.primary_key_1";

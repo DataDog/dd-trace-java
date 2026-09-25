@@ -4,6 +4,7 @@ import datadog.trace.api.DDTags
 import datadog.trace.api.TagMap
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_HOST
@@ -86,6 +87,49 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
     true             | true               | true          | [user: "test-user", hostname: "test-hostname"]
     false            | true               | true          | [instance: "test-instance", hostname: "test-hostname"]
     true             | true               | true          | [user: "test-user", instance: "test-instance"]
+  }
+
+  def "test onConnection tags RDS endpoint identity for #hostname"() {
+    setup:
+    def decorator = newDecorator()
+
+    when:
+    decorator.onConnection(span, [user: "test-user", hostname: hostname])
+
+    then:
+    1 * span.setTag(Tags.DB_USER, "test-user")
+    1 * span.setTag(Tags.PEER_HOSTNAME, hostname)
+    1 * span.setTag(InstrumentationTags.AWS_RDS_IDENTIFIER, identifier)
+    1 * span.setTag(InstrumentationTags.AWS_RDS_ENDPOINT_TYPE, endpointType)
+    1 * span.setTag(InstrumentationTags.AWS_REGION, "us-east-1")
+    if (instanceIdentifier) {
+      1 * span.setTag(InstrumentationTags.RDS_DB_INSTANCE_IDENTIFIER, instanceIdentifier)
+    }
+    if (clusterIdentifier) {
+      1 * span.setTag(InstrumentationTags.RDS_DB_CLUSTER_IDENTIFIER, clusterIdentifier)
+    }
+    0 * _
+
+    where:
+    hostname                                                        | identifier   | endpointType     | instanceIdentifier | clusterIdentifier
+    "orders.c9akciq32bzq.us-east-1.rds.amazonaws.com"               | "orders"     | "instance"       | "orders"           | null
+    "orders.cluster-c9akciq32bzq.us-east-1.rds.amazonaws.com"       | "orders"     | "cluster"        | null               | "orders"
+    "orders.cluster-ro-c9akciq32bzq.us-east-1.rds.amazonaws.com"    | "orders"     | "cluster-ro"     | null               | "orders"
+    "reports.cluster-custom-c9akciq32bzq.us-east-1.rds.amazonaws.com" | "reports"  | "cluster-custom" | null               | null
+    "orders.proxy-c9akciq32bzq.us-east-1.rds.amazonaws.com"         | "orders"     | "proxy"          | null               | null
+  }
+
+  def "test onConnection leaves non-RDS hostname untagged"() {
+    setup:
+    def decorator = newDecorator()
+
+    when:
+    decorator.onConnection(span, [user: "test-user", hostname: "db.internal.example.com"])
+
+    then:
+    1 * span.setTag(Tags.DB_USER, "test-user")
+    1 * span.setTag(Tags.PEER_HOSTNAME, "db.internal.example.com")
+    0 * _
   }
 
   def "test onStatement"() {
