@@ -18,3 +18,7 @@ dependencies {
   testImplementation group: 'org.mongodb', name: 'mongodb-driver-async', version: '3.3.0'
   latestDepTestImplementation group: 'org.mongodb', name: 'mongodb-driver-async', version: '+'
 }
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}
