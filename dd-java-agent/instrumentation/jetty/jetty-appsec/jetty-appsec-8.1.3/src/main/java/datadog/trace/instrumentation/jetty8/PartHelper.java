@@ -232,7 +232,7 @@ public class PartHelper {
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
       BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
       if (brf != null) {
-        if (brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba)) {
+        if (brf.tryCommitBlockingResponse(reqCtx, rba)) {
           reqCtx.getTraceSegment().effectivelyBlocked();
           return new BlockingException("Blocked request (multipart form fields)");
         }
@@ -262,7 +262,7 @@ public class PartHelper {
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
       BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
       if (brf != null) {
-        if (brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba)) {
+        if (brf.tryCommitBlockingResponse(reqCtx, rba)) {
           reqCtx.getTraceSegment().effectivelyBlocked();
           return new BlockingException("Blocked request (multipart file upload)");
         }
@@ -331,7 +331,7 @@ public class PartHelper {
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
       BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
       if (brf != null) {
-        if (brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba)) {
+        if (brf.tryCommitBlockingResponse(reqCtx, rba)) {
           reqCtx.getTraceSegment().effectivelyBlocked();
           return new BlockingException("Blocked request (multipart file content)");
         }

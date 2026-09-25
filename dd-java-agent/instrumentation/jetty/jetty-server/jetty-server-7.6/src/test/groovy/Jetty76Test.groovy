@@ -2,6 +2,9 @@ import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.instrumentation.servlet3.TestServlet3
+import okhttp3.MediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import org.eclipse.jetty.server.Request
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.AbstractHandler
@@ -12,8 +15,11 @@ import javax.servlet.ServletException
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
+import static org.junit.jupiter.api.Assumptions.assumeTrue
 
 abstract class Jetty76Test extends HttpServerTest<Server> {
 
@@ -130,6 +136,35 @@ abstract class Jetty76Test extends HttpServerTest<Server> {
   @Override
   boolean testSessionId() {
     true
+  }
+
+  def 'test blocking of multipart and urlencoded request body is pinned after block-telemetry-3 wiring #variant'() {
+    setup:
+    assumeTrue(testBlocking())
+    assumeTrue(executeTest)
+
+    def request = request(endpoint, 'POST', body)
+      .header('x-block-body-converted', 'true')
+      .build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    // This pins the pre-existing blocking behavior for jetty-appsec-7.0's UrlEncodedInstrumentation
+    // and jetty-appsec-8.1.3's PartHelper after the block-telemetry-3 changes wired the
+    // reportBlockFailure() call into these advice classes. reportBlockFailure() itself remains
+    // unreachable through this end-to-end test: the real JettyBlockingHelper.tryCommitBlockingResponse
+    // always returns true for a genuine attempt (see .claude-invariants.md), so no test here can
+    // force that branch.
+    response.code() == 413
+    response.body().charStream().text.contains('"title":"You\'ve been blocked"')
+    !handlerRan
+
+    where:
+    variant      | executeTest          | endpoint        | body
+    'urlencoded' | testBodyUrlencoded() | BODY_URLENCODED | RequestBody.create(MediaType.get('application/x-www-form-urlencoded'), 'a=x')
+    'multipart'  | testBodyMultipart()  | BODY_MULTIPART  | new MultipartBody.Builder().setType(MultipartBody.FORM).addFormDataPart('a', 'x').build()
   }
 
   static class TestHandler extends AbstractHandler {
