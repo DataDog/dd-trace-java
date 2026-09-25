@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.jakarta3;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.ResourceMethodSpanTracker.isInnermost;
 import static datadog.trace.instrumentation.jakarta3.JakartaRsAnnotationsDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -74,8 +75,18 @@ public final class JakartaRsAsyncResponseInstrumentation extends InstrumenterMod
 
       final AgentSpan span = contextStore.get(asyncResponse);
       if (span != null) {
-        contextStore.put(asyncResponse, null);
         DECORATE.onError(span, throwable);
+        if (isInnermost(span)) {
+          // resume()/cancel() was called synchronously, nested inside the still-running
+          // resource method that owns this span (ResourceMethodSpanTracker.isInnermost(span)
+          // says its invocation is still the innermost open one on this thread). Let that
+          // method's own exit advice close the scope and finish the span (it will see
+          // asyncResponse.isSuspended() == false) instead of finishing it here, which would
+          // both double-finish the span and finish it prematurely while the resource method
+          // may still be doing work under it.
+          return;
+        }
+        contextStore.put(asyncResponse, null);
         DECORATE.beforeFinish(span);
         span.finish();
       }
@@ -94,8 +105,12 @@ public final class JakartaRsAsyncResponseInstrumentation extends InstrumenterMod
 
       final AgentSpan span = contextStore.get(asyncResponse);
       if (span != null) {
-        contextStore.put(asyncResponse, null);
         DECORATE.onError(span, throwable);
+        if (isInnermost(span)) {
+          // see comment in AsyncResponseAdvice#stopSpan
+          return;
+        }
+        contextStore.put(asyncResponse, null);
         DECORATE.beforeFinish(span);
         span.finish();
       }
@@ -113,12 +128,16 @@ public final class JakartaRsAsyncResponseInstrumentation extends InstrumenterMod
 
       final AgentSpan span = contextStore.get(asyncResponse);
       if (span != null) {
-        contextStore.put(asyncResponse, null);
         if (throwable != null) {
           DECORATE.onError(span, throwable);
         } else {
           span.setTag("canceled", true);
         }
+        if (isInnermost(span)) {
+          // see comment in AsyncResponseAdvice#stopSpan
+          return;
+        }
+        contextStore.put(asyncResponse, null);
         DECORATE.beforeFinish(span);
         span.finish();
       }
