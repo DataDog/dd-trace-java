@@ -10,9 +10,9 @@ import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_STATE_KEY;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import datadog.context.ContextScope;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.test.junit.utils.converter.PrioritySamplingConverter;
@@ -130,7 +130,7 @@ class W3CHttpInjectorTest extends AbstractHttpInjectorTest {
     // injecting root span context
     AgentSpan rootSpan = this.tracer.startSpan("test", "root");
     long rootSpanId = rootSpan.getSpanId();
-    AgentScope rootScope = this.tracer.activateSpan(rootSpan);
+    ContextScope rootScope = this.tracer.activateSpan(rootSpan);
 
     this.injector.inject((DDSpanContext) rootSpan.spanContext(), carrier, Map::put);
 

@@ -1,5 +1,8 @@
 # How to Test
 
+For JUnit test authoring, see the [JUnit testing guide](how_to_test_with_junit.md).
+Prefer `@TableTest` for parameterized tests with multi-column literal data. When a simple `@TypeConverter` can turn table values into the required arguments, prefer it over switching to `@MethodSource`. Use `@MethodSource` for cases requiring complex object construction, builders, or mocks.
+
 ## The Different Types of Tests
 
 The project leverages different types of tests:
@@ -15,6 +18,8 @@ The project leverages different types of tests:
 
 3. The third type of tests is **Muzzle checks**.  
    Their goal is to check the [Muzzle directives](./how_instrumentations_work.md#muzzle), making sure instrumentations are safe to load against specific library versions.
+   `coreJdk(version)` and library checks with `javaVersion` fingerprint the selected JDK's major version, vendor, full runtime/VM versions, OS, and architecture; `coreJdk()` tracks the Gradle daemon JVM instead.
+   Changing these values invalidates cached results even within the same Java major version.
 
 4. The fourth type of tests is **integration tests**.  
    They test features that require a more complex environment setup.
@@ -67,6 +72,8 @@ To run tests on a different JVM than the one used for the build, you can specify
 * `-PtestJvm=X` like `-PtestJvm=8`, `-PtestJvm=25` to run with a specific JDK version,
 * `-PtestJvm=/path/to/jdk` to run with a given JDK,
 
+To also run CI tests on the additional vendor and pre-release JVMs, include the exact, case-sensitive `[ci: NON_DEFAULT_JVMS]` text in the commit message.
+
 ### Running System Tests
 
 The system tests are setup to run on continuous integration (CI) as pull request check using [a dedicated workflow]((https://github.com/DataDog/system-tests/blob/main/.github/workflows/system-tests.yml)).
@@ -85,3 +92,9 @@ The APM Test Agent also emits helpful logging, including logging received traces
 
 Logs can be viewed in GitLab within the Test-Agent container step for all instrumentation test suites, e.g. the `test_inst` jobs.
 Read more about [the APM Test Agent](https://github.com/datadog/dd-apm-test-agent#readme).
+
+### Forwarding CI Test Logs to Datadog
+
+Test output remains available in GitLab job artifacts. To also forward JUnit-captured output to Datadog, include the exact, case-sensitive `[ci: DEBUG_LOGS]` token in the commit message or set the GitLab CI variable `DD_CIVISIBILITY_LOGS_ENABLED=true`.
+
+The opt-in forwards all JUnit-captured output, not only DEBUG messages.

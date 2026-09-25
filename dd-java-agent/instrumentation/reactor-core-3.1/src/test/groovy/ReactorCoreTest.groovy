@@ -1,6 +1,6 @@
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.Trace
-import datadog.trace.bootstrap.instrumentation.api.AgentScope
+import datadog.context.ContextScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.opentelemetry.api.GlobalOpenTelemetry
@@ -304,7 +304,7 @@ class ReactorCoreTest extends InstrumentationSpecification {
       Publisher<Integer> publisher = publisherSupplier()
 
       AgentSpan intermediate = startSpan("test", "intermediate")
-      AgentScope scope = activateSpan(intermediate)
+      ContextScope scope = activateSpan(intermediate)
       try {
         if (publisher instanceof Mono) {
           return ((Mono) publisher).map(addTwo)
@@ -564,7 +564,7 @@ class ReactorCoreTest extends InstrumentationSpecification {
   @Trace(operationName = "trace-parent", resourceName = "trace-parent")
   def cancelUnderTrace(def publisherSupplier) {
     final AgentSpan span = startSpan("test", "publisher-parent")
-    AgentScope scope = activateSpan(span)
+    ContextScope scope = activateSpan(span)
 
     def publisher = publisherSupplier()
     publisher.subscribe(new Subscriber<Integer>() {

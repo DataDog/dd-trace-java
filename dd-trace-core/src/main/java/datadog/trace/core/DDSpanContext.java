@@ -72,6 +72,9 @@ public class DDSpanContext
   public static final String SPAN_SAMPLING_RULE_RATE_TAG = "_dd.span_sampling.rule_rate";
   public static final String SPAN_SAMPLING_MAX_PER_SECOND_TAG = "_dd.span_sampling.max_per_second";
 
+  private static final UTF8BytesString OTLP_EXPORT_TRUE = UTF8BytesString.create("true");
+  private static final UTF8BytesString OTLP_EXPORT_FALSE = UTF8BytesString.create("false");
+
   private static final DDCache<String, UTF8BytesString> THREAD_NAMES =
       DDCaches.newFixedSizeCache(256);
 
@@ -1417,6 +1420,7 @@ public class DDSpanContext
               getOrigin(),
               longRunningVersion,
               ProcessTags.getTagsForSerialization(),
+              Config.get().isOtlpTracesExportEnabled() ? OTLP_EXPORT_TRUE : OTLP_EXPORT_FALSE,
               restrictedSpan.getLinks()));
     }
   }

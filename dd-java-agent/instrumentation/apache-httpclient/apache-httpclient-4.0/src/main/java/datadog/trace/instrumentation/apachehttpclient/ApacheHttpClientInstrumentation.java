@@ -3,16 +3,17 @@ package datadog.trace.instrumentation.apachehttpclient;
 import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
@@ -163,7 +164,7 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
 
   public static class UriRequestAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter(@Advice.Argument(0) final HttpUriRequest request) {
+    public static ContextScope methodEnter(@Advice.Argument(0) final HttpUriRequest request) {
       try {
         return HelperMethods.doMethodEnter(request);
       } catch (BlockingException e) {
@@ -175,7 +176,7 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Return final Object result,
         @Advice.Thrown final Throwable throwable) {
       HelperMethods.doMethodExit(scope, result, throwable);
@@ -185,7 +186,7 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
   public static class UriRequestWithHandlerAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter(
+    public static ContextScope methodEnter(
         @Advice.Argument(0) final HttpUriRequest request,
         @Advice.Argument(
                 value = 1,
@@ -195,11 +196,12 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
             Object handler) {
 
       try {
-        final AgentScope scope = HelperMethods.doMethodEnter(request);
+        final ContextScope scope = HelperMethods.doMethodEnter(request);
         // Wrap the handler so we capture the status code
         if (null != scope && handler instanceof ResponseHandler) {
           handler =
-              new WrappingStatusSettingResponseHandler(scope.span(), (ResponseHandler) handler);
+              new WrappingStatusSettingResponseHandler(
+                  spanFromScope(scope), (ResponseHandler) handler);
         }
         return scope;
       } catch (BlockingException e) {
@@ -211,7 +213,7 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Return final Object result,
         @Advice.Thrown final Throwable throwable) {
       HelperMethods.doMethodExit(scope, result, throwable);
@@ -220,7 +222,7 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
 
   public static class RequestAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter(
+    public static ContextScope methodEnter(
         @Advice.Argument(0) final HttpHost host, @Advice.Argument(1) final HttpRequest request) {
       try {
         if (request instanceof HttpUriRequest) {
@@ -237,7 +239,7 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Return final Object result,
         @Advice.Thrown final Throwable throwable) {
       HelperMethods.doMethodExit(scope, result, throwable);
@@ -247,7 +249,7 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
   public static class RequestWithHandlerAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter(
+    public static ContextScope methodEnter(
         @Advice.Argument(0) final HttpHost host,
         @Advice.Argument(1) final HttpRequest request,
         @Advice.Argument(
@@ -257,7 +259,7 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
                 readOnly = false)
             Object handler) {
       try {
-        final AgentScope scope;
+        final ContextScope scope;
         if (request instanceof HttpUriRequest) {
           scope = HelperMethods.doMethodEnter((HttpUriRequest) request);
         } else {
@@ -266,7 +268,8 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
         // Wrap the handler so we capture the status code
         if (null != scope && handler instanceof ResponseHandler) {
           handler =
-              new WrappingStatusSettingResponseHandler(scope.span(), (ResponseHandler) handler);
+              new WrappingStatusSettingResponseHandler(
+                  spanFromScope(scope), (ResponseHandler) handler);
         }
         return scope;
       } catch (BlockingException e) {
@@ -278,7 +281,7 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Return final Object result,
         @Advice.Thrown final Throwable throwable) {
       HelperMethods.doMethodExit(scope, result, throwable);

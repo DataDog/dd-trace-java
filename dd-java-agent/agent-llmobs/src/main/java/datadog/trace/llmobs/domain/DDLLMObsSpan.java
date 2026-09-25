@@ -6,6 +6,7 @@ import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTraceApiInfo;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.api.llmobs.GenAiApmTags;
 import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.api.llmobs.LLMObsPropagationValues;
@@ -13,7 +14,6 @@ import datadog.trace.api.llmobs.LLMObsSampler;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.api.llmobs.LLMObsTags;
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -45,7 +45,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private static final String SPAN_KIND = LLMOBS_TAG_PREFIX + Tags.SPAN_KIND;
   private static final String METADATA = LLMOBS_TAG_PREFIX + LLMObsTags.METADATA;
   private static final String TOOL_DEFINITIONS = LLMOBS_TAG_PREFIX + LLMObsTags.TOOL_DEFINITIONS;
-  private static final String AGENT_MANIFEST = LLMOBS_TAG_PREFIX + LLMObsTags.AGENT_MANIFEST;
+  private static final String METADATA_DD = "_dd";
   private static final String MANUAL_FRAMEWORK = "manual";
   private static final String PROMPT_TRACKING_INSTRUMENTATION_METHOD =
       LLMOBS_TAG_PREFIX + "prompt_tracking_instrumentation_method";
@@ -84,7 +84,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
   // Non-null only for agent-kind spans started without an ambient APM root. Activating the
   // agent's APM span keeps children in the same APM trace so the trace-ID gate passes and
   // they inherit agent attribution correctly.
-  private final AgentScope standaloneApmScope;
+  private final ContextScope standaloneApmScope;
 
   private boolean finished = false;
 
@@ -498,16 +498,19 @@ public class DDLLMObsSpan implements LLMObsSpan {
           "dropping agent manifest on non-agent span kind; annotateAgentManifest is only supported for agent spans");
       return;
     }
-    // Read existing manifest (may be null on first call)
-    Object existing = span.getTag(AGENT_MANIFEST);
-    @SuppressWarnings("unchecked")
-    Map<String, Object> base =
-        (existing instanceof Map)
-            ? new LinkedHashMap<>((Map<String, Object>) existing)
-            : new LinkedHashMap<>();
+    // The manifest rides inside metadata under the reserved _dd namespace, serializing to
+    // meta.metadata._dd.agent_manifest
+    Map<String, Object> metadata = copyStringKeyedMap(span.getTag(METADATA));
+    Map<String, Object> dd = copyStringKeyedMap(metadata.get(METADATA_DD));
+    // Empty on the first call; merges with itself on subsequent ones.
+    Map<String, Object> base = copyStringKeyedMap(dd.get(LLMObsTags.AGENT_MANIFEST));
+
     mergeManifest(base, manifest);
     base.put("framework", MANUAL_FRAMEWORK);
-    span.setTag(AGENT_MANIFEST, base);
+
+    dd.put(LLMObsTags.AGENT_MANIFEST, base);
+    metadata.put(METADATA_DD, dd);
+    span.setTag(METADATA, metadata);
 
     // Sync pagent name to the manifest name so the serializer emits the manifest name in
     // agent_attribution. The manifest name takes priority over the span name set at construction.
@@ -570,6 +573,13 @@ public class DDLLMObsSpan implements LLMObsSpan {
         base.put("tools", toolList);
       }
     }
+  }
+
+  /** Copies {@code source} if it is a map, else returns an empty mutable map. */
+  private static Map<String, Object> copyStringKeyedMap(Object source) {
+    return source instanceof Map
+        ? copyStringKeyedMap((Map<?, ?>) source)
+        : new LinkedHashMap<String, Object>();
   }
 
   private static Map<String, Object> copyStringKeyedMap(Map<?, ?> source) {
@@ -639,7 +649,15 @@ public class DDLLMObsSpan implements LLMObsSpan {
 
     if (value instanceof Map) {
       Map<String, Object> mergedMetadata = copyStringKeyedMap((Map<?, ?>) value);
+      // Reserved entries already under _dd, such as the agent manifest, must survive a later
+      // annotation: putAll would replace the whole _dd map if the caller supplies one, so merge
+      // that namespace key by key instead, letting the caller win per key.
+      Map<String, Object> reservedDd = copyStringKeyedMap(mergedMetadata.get(METADATA_DD));
       mergedMetadata.putAll(metadata);
+      if (!reservedDd.isEmpty()) {
+        reservedDd.putAll(copyStringKeyedMap(mergedMetadata.get(METADATA_DD)));
+        mergedMetadata.put(METADATA_DD, reservedDd);
+      }
       span.setTag(METADATA, mergedMetadata);
     } else {
       LOGGER.debug(
@@ -771,6 +789,11 @@ public class DDLLMObsSpan implements LLMObsSpan {
   public void finish() {
     if (finished) {
       return;
+    }
+    try {
+      GenAiApmTags.apply(span);
+    } catch (Throwable t) {
+      LOGGER.debug("failed to set gen_ai APM tags", t);
     }
     span.finish();
     if (standaloneApmScope != null) {

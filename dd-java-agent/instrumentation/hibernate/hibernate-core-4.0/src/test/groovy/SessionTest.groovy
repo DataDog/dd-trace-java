@@ -1,5 +1,5 @@
 import datadog.trace.api.DDSpanTypes
-import datadog.trace.bootstrap.instrumentation.api.AgentScope
+import datadog.context.ContextScope
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.hibernate.LockMode
 import org.hibernate.MappingException
@@ -9,6 +9,7 @@ import org.hibernate.Session
 import spock.lang.Shared
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
 
 class SessionTest extends AbstractHibernateTest {
@@ -466,7 +467,7 @@ class SessionTest extends AbstractHibernateTest {
   def "test hibernate overlapping Sessions"() {
     setup:
 
-    AgentScope scope = activateSpan(startSpan("test", "overlapping Sessions"))
+    ContextScope scope = activateSpan(startSpan("test", "overlapping Sessions"))
 
     def session1 = sessionFactory.openSession()
     session1.beginTransaction()
@@ -485,7 +486,7 @@ class SessionTest extends AbstractHibernateTest {
     session3.close()
 
     scope.close()
-    scope.span().finish()
+    spanFromScope(scope).finish()
 
     expect:
     assertTraces(1) {

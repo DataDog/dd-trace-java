@@ -3,13 +3,14 @@ package datadog.trace.instrumentation.ignite.v2.cache;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.ignite.v2.cache.IgniteCacheDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.apache.ignite.Ignite;
@@ -60,7 +61,7 @@ public final class IgniteCacheAsyncInstrumentation extends AbstractIgniteCacheIn
   public static class IgniteAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(
+    public static ContextScope onEnter(
         @Advice.This final IgniteCache<?, ?> that, @Advice.Origin("#m") final String methodName) {
       // Ensure that we only create a span for the top-level cache method
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(IgniteCache.class);
@@ -81,7 +82,7 @@ public final class IgniteCacheAsyncInstrumentation extends AbstractIgniteCacheIn
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Thrown final Throwable throwable,
         @Advice.Return final IgniteFuture<?> future) {
 
@@ -89,7 +90,7 @@ public final class IgniteCacheAsyncInstrumentation extends AbstractIgniteCacheIn
         return;
       }
       // If we have a scope (i.e. we were the top-level Ignite SDK invocation),
-      final AgentSpan span = scope.span();
+      final AgentSpan span = spanFromScope(scope);
       if (throwable != null) {
         // There was a synchronous error,
         // which means we shouldn't wait for a callback to close the span.
@@ -111,7 +112,7 @@ public final class IgniteCacheAsyncInstrumentation extends AbstractIgniteCacheIn
   public static class KeyedAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(
+    public static ContextScope onEnter(
         @Advice.This final IgniteCache<?, ?> that,
         @Advice.Origin("#m") final String methodName,
         @Advice.Argument(value = 0, optional = true) final Object key) {
@@ -134,14 +135,14 @@ public final class IgniteCacheAsyncInstrumentation extends AbstractIgniteCacheIn
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Thrown final Throwable throwable,
         @Advice.Return final IgniteFuture<?> future) {
       if (scope == null) {
         return;
       }
       // If we have a scope (i.e. we were the top-level Ignite SDK invocation),
-      final AgentSpan span = scope.span();
+      final AgentSpan span = spanFromScope(scope);
       if (throwable != null) {
         // There was a synchronous error,
         // which means we shouldn't wait for a callback to close the span.

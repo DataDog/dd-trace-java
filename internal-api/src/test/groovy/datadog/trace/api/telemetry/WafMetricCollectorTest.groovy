@@ -1,6 +1,13 @@
 package datadog.trace.api.telemetry
 
 import static datadog.trace.api.aiguard.AIGuard.Action.ABORT
+import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardError.BAD_RESPONSE
+import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardError.BAD_STATUS
+import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardError.CLIENT_ERROR
+import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardError.REDACTION_ERROR
+import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardRedaction.APPLIED
+import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardRedaction.DISABLED
+import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardRedaction.NOT_APPLIED
 import static datadog.trace.api.aiguard.AIGuard.Action.ALLOW
 import static datadog.trace.api.aiguard.AIGuard.Action.DENY
 import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardTruncationType.CONTENT
@@ -18,6 +25,12 @@ import static datadog.trace.api.telemetry.LoginVersion.V1
 import static datadog.trace.api.telemetry.LoginVersion.V2
 
 class WafMetricCollectorTest extends DDSpecification {
+
+  /**
+   * Call-path tags every ai_guard metric carries. Both are constant while a direct SDK call is the
+   * only way to reach an evaluation in this tracer.
+   */
+  private static final List<String> CALL_PATH = ['source:sdk', 'integration:none']
 
   public static final int DD_WAF_RUN_INTERNAL_ERROR = WafMetricCollector.WafErrorCode.INTERNAL_ERROR.getCode()
   public static final int DD_WAF_RUN_INVALID_OBJECT_ERROR = WafMetricCollector.WafErrorCode.INVALID_OBJECT.getCode()
@@ -533,19 +546,19 @@ class WafMetricCollectorTest extends DDSpecification {
     final collector = WafMetricCollector.get()
 
     when:
-    collector.aiGuardRequest(action, block)
+    collector.aiGuardRequest(action, block, NOT_APPLIED)
 
     then:
     collector.prepareMetrics()
     final metrics = collector.drain()
-    final configErrorMetrics = metrics.findAll { it.metricName == 'ai_guard.requests' }
+    final configErrorMetrics = metrics.findAll { it.metricName == 'requests' }
 
     final metric = configErrorMetrics[0]
     metric.type == 'count'
-    metric.metricName == 'ai_guard.requests'
-    metric.namespace == 'appsec'
+    metric.metricName == 'requests'
+    metric.namespace == 'ai_guard'
     metric.value == 1
-    metric.tags.toSet() == ["action:${action.name()}", "block:${block}", 'error:false'].toSet()
+    metric.tags.toSet() == (["action:${action.name()}", "block:${block}", 'error:false', 'redacted:false'] + CALL_PATH).toSet()
 
     where:
     action | block
@@ -557,24 +570,73 @@ class WafMetricCollectorTest extends DDSpecification {
     ABORT  | false
   }
 
+  void 'test ai guard redaction telemetry tag'() {
+    given:
+    final collector = WafMetricCollector.get()
+
+    when:
+    collector.aiGuardRequest(ALLOW, false, redaction)
+
+    then:
+    collector.prepareMetrics()
+    final metric = collector.drain().find { it.metricName == 'requests' }
+    metric.tags.toSet() == (expectedTags + CALL_PATH).toSet()
+
+    where:
+    redaction   | expectedTags
+    APPLIED     | ['action:ALLOW', 'block:false', 'error:false', 'redacted:true']
+    NOT_APPLIED | ['action:ALLOW', 'block:false', 'error:false', 'redacted:false']
+    // the kill switch reports no redacted tag at all
+    DISABLED    | ['action:ALLOW', 'block:false', 'error:false']
+  }
+
   void 'test ai guard error'() {
     given:
     final collector = WafMetricCollector.get()
 
     when:
-    collector.aiGuardError()
+    collector.aiGuardError(type)
 
     then:
     collector.prepareMetrics()
     final metrics = collector.drain()
-    final configErrorMetrics = metrics.findAll { it.metricName == 'ai_guard.requests' }
 
-    final metric = configErrorMetrics[0]
-    metric.type == 'count'
-    metric.metricName == 'ai_guard.requests'
-    metric.namespace == 'appsec'
-    metric.value == 1
-    metric.tags.toSet() == ['error:true'].toSet()
+    // a failed evaluation keeps the request count complete...
+    final request = metrics.find { it.metricName == 'requests' }
+    request.namespace == 'ai_guard'
+    request.value == 1
+    request.tags.toSet() == (['error:true'] + CALL_PATH).toSet()
+
+    // ...and is classified under its own metric
+    final error = metrics.find { it.metricName == 'error' }
+    error.type == 'count'
+    error.namespace == 'ai_guard'
+    error.value == 1
+    error.tags.toSet() == (["type:${type.tagValue}"] + CALL_PATH).toSet()
+
+    where:
+    type << [CLIENT_ERROR, BAD_STATUS, BAD_RESPONSE, REDACTION_ERROR]
+  }
+
+  void 'test ai guard redaction errors'() {
+    given:
+    final collector = WafMetricCollector.get()
+
+    when:
+    collector.aiGuardRedactionErrors(3)
+
+    then:
+    collector.prepareMetrics()
+    final metrics = collector.drain()
+
+    final error = metrics.find { it.metricName == 'error' }
+    error.namespace == 'ai_guard'
+    // one count per replacement that could not be applied
+    error.value == 3
+    error.tags.toSet() == (['type:redaction_error'] + CALL_PATH).toSet()
+
+    // redaction never fails the evaluation it rode in on, so no request is counted as failed
+    metrics.every { it.metricName != 'requests' }
   }
 
   void 'test ai guard truncated'() {
@@ -587,14 +649,14 @@ class WafMetricCollectorTest extends DDSpecification {
     then:
     collector.prepareMetrics()
     final metrics = collector.drain()
-    final configErrorMetrics = metrics.findAll { it.metricName == 'ai_guard.truncated' }
+    final configErrorMetrics = metrics.findAll { it.metricName == 'truncated' }
 
     final metric = configErrorMetrics[0]
     metric.type == 'count'
-    metric.metricName == 'ai_guard.truncated'
-    metric.namespace == 'appsec'
+    metric.metricName == 'truncated'
+    metric.namespace == 'ai_guard'
     metric.value == 1
-    metric.tags.toSet() == ["type:${type.tagValue}"].toSet()
+    metric.tags.toSet() == (["type:${type.tagValue}"] + CALL_PATH).toSet()
 
     where:
     type << [MESSAGES, CONTENT]
