@@ -14,7 +14,6 @@ import datadog.communication.serialization.GenerationalUtf8Cache;
 import datadog.communication.serialization.SimpleUtf8Cache;
 import datadog.communication.serialization.StreamingBuffer;
 import datadog.trace.api.Config;
-import datadog.trace.api.function.StaticLifetime;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import java.nio.ByteBuffer;
@@ -35,14 +34,12 @@ public final class OtlpCommonProto {
   public static final int I32_WIRE_TYPE = 5;
 
   // use same cache approach for attribute keys as TraceMapperV0_4
-  @StaticLifetime
   private static final SimpleUtf8Cache KEY_CACHE =
       Config.get().getTagNameUtf8CacheSize() > 0
           ? new SimpleUtf8Cache(Config.get().getTagNameUtf8CacheSize())
           : null;
 
   // use same cache approach for attribute values as TraceMapperV0_4
-  @StaticLifetime
   private static final GenerationalUtf8Cache VALUE_CACHE =
       Config.get().getTagValueUtf8CacheSize() > 0
           ? new GenerationalUtf8Cache(Config.get().getTagValueUtf8CacheSize())

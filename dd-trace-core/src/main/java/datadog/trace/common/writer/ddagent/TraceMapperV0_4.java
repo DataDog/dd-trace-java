@@ -11,7 +11,6 @@ import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.TagMap;
-import datadog.trace.api.function.StaticLifetime;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.writer.Payload;
@@ -28,13 +27,11 @@ import java.util.Map;
 import okhttp3.RequestBody;
 
 public final class TraceMapperV0_4 implements TraceMapper {
-  @StaticLifetime
   static final SimpleUtf8Cache TAG_CACHE =
       Config.get().getTagNameUtf8CacheSize() > 0
           ? new SimpleUtf8Cache(Config.get().getTagNameUtf8CacheSize())
           : null;
 
-  @StaticLifetime
   static final GenerationalUtf8Cache VALUE_CACHE =
       Config.get().getTagValueUtf8CacheSize() > 0
           ? new GenerationalUtf8Cache(Config.get().getTagValueUtf8CacheSize())
