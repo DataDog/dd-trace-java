@@ -28,12 +28,12 @@ class VertxHttpServerAppSecForkedTest extends VertxHttpServerForkedTest {
   def 'test blocking on session'() {
     setup:
     installBlockingSessionCallback()
-    def request = request(SESSION_ID, 'GET', null)
+    def req = request(SESSION_ID, 'GET', null)
       .header(IG_TEST_HEADER, BLOCK_SESSION_MARKER)
       .build()
 
     when:
-    def response = client.newCall(request).execute()
+    def response = client.newCall(req).execute()
 
     then:
     response.code() == 413
@@ -96,10 +96,10 @@ class VertxHttpServerAppSecForkedTest extends VertxHttpServerForkedTest {
       .setType(MultipartBody.FORM)
       .addFormDataPart('file', BLOCKED_FILENAME, RequestBody.create(MediaType.parse('application/octet-stream'), 'file content'))
       .build()
-    def request = request(BODY_MULTIPART, 'POST', body).build()
+    def req = request(BODY_MULTIPART, 'POST', body).build()
 
     when:
-    def response = client.newCall(request).execute()
+    def response = client.newCall(req).execute()
 
     then:
     response.code() == 403
