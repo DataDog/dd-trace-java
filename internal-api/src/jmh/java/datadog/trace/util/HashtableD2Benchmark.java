@@ -62,7 +62,7 @@ import org.openjdk.jmh.infra.Blackhole;
  * HashtableD2Benchmark.iterate_hashtable  thrpt    6    16.968 ±   0.371  ops/us
  * </code>
  *
- * <p>Rerun with {@link BenchmarkUtils#polluteHashDispatch()} added to {@code D2State.setUp()} (same
+ * <p>Rerun with {@link BenchmarkUtils#warmUpHashDispatch} added to {@code D2State.setUp()} (same
  * machine/JVM/config): results were noisy and inconsistent with a clean pollution story —
  * add_hashMap actually rose (77→103), while add_hashtable fell sharply (217→118, error bars wider
  * than the mean both times); update_hashtable fell (1446→1225) and both iterate numbers fell
@@ -179,10 +179,16 @@ public class HashtableD2Benchmark {
     int cursor;
     final BhD2Consumer consumer = new BhD2Consumer();
 
+    // Front-load pollution once per trial, entirely before JMH's warmup starts: JMH
+    // injects the Blackhole straight into this setup method, so no per-benchmark
+    // scratch state is needed.
+    @Setup(Level.Trial)
+    public void warmUpPollution(Blackhole bh) {
+      BenchmarkUtils.warmUpHashDispatch(bh);
+    }
+
     @Setup(Level.Iteration)
     public void setUp() {
-      BenchmarkUtils.polluteHashDispatch();
-
       table = new Hashtable.D2<>(CAPACITY);
       hashMap = new HashMap<>(CAPACITY);
       k1s = SOURCE_K1;

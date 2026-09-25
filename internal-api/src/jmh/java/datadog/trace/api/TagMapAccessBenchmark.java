@@ -59,7 +59,7 @@ import org.openjdk.jmh.infra.Blackhole;
  * </code>
  *
  * <p>Rerun on JDK 8 with a new top-level {@code @Setup(Level.Trial)} calling {@link
- * BenchmarkUtils#polluteHashDispatch()} (this file had none before). M ops/s, 8 threads:
+ * BenchmarkUtils#warmUpHashDispatch} (this file had none before). M ops/s, 8 threads:
  *
  * <pre>{@code
  * getEntry                        83   getObject                    87
@@ -122,8 +122,8 @@ public class TagMapAccessBenchmark {
   }
 
   @Setup(Level.Trial)
-  public void setUp() {
-    BenchmarkUtils.polluteHashDispatch();
+  public void setUp(Blackhole bh) {
+    BenchmarkUtils.warmUpHashDispatch(bh);
   }
 
   /**

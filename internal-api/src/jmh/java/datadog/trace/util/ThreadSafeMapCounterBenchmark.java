@@ -18,6 +18,7 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.Blackhole;
 
 /**
  * Measures lookup followed by an atomic counter increment in a shared, pre-populated table. Models
@@ -54,8 +55,8 @@ import org.openjdk.jmh.annotations.Warmup;
  *       penalty.
  * </ul>
  *
- * <p>Rerun with {@link BenchmarkUtils#polluteHashDispatch()} wired into {@code
- * SharedState.setUp()}, same JDK 17 as the table above -- a clean pollution-only delta:
+ * <p>Rerun with {@link BenchmarkUtils#warmUpHashDispatch} wired into {@code SharedState.setUp()},
+ * same JDK 17 as the table above -- a clean pollution-only delta:
  *
  * <pre>{@code
  * Benchmark                          Score   Units
@@ -114,9 +115,16 @@ public class ThreadSafeMapCounterBenchmark {
     ConcurrentHashMap<String, AtomicLong> atomicLongMap;
     ConcurrentHashMap<String, LongAdder> longAdderMap;
 
+    // Front-load pollution once per trial, entirely before JMH's warmup starts: JMH
+    // injects the Blackhole straight into this setup method, so no per-benchmark
+    // scratch state is needed.
+    @Setup(Level.Trial)
+    public void warmUpPollution(Blackhole bh) {
+      BenchmarkUtils.warmUpHashDispatch(bh);
+    }
+
     @Setup(Level.Iteration)
     public void setUp() {
-      BenchmarkUtils.polluteHashDispatch();
       table = ConcurrentHashtable.D1.createBounded(CounterEntry.class, CAPACITY);
       atomicLongMap = new ConcurrentHashMap<>(CAPACITY);
       longAdderMap = new ConcurrentHashMap<>(CAPACITY);

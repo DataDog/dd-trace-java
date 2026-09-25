@@ -59,15 +59,15 @@ import org.openjdk.jmh.infra.Blackhole;
  * HashtableD1Benchmark.iterate_hashtable  thrpt    6    22.208 ±   0.956  ops/us
  * </code>
  *
- * <p>Rerun with {@link BenchmarkUtils#polluteHashDispatch()} added to {@code D1State.setUp()} (same
+ * <p>Rerun with {@link BenchmarkUtils#warmUpHashDispatch} added to {@code D1State.setUp()} (same
  * machine/JVM/config): every number moved down somewhat (add_hashMap 188→101, update_hashtable
  * 1810→1465, iterate_hashtable 22→17 ops/us), including {@code *_hashtable}. That's expected to be
  * a no-op for {@code *_hashtable}: {@link Hashtable.D1.Entry#hash} and {@link
  * Hashtable.D1.Entry#matches} are call sites private to {@code Hashtable.java}, structurally
  * distinct from {@code java.util.HashMap}/{@code HashSet}'s internal {@code hashCode()}/{@code
- * equals()} call sites — JIT type profiles are keyed per call site, so {@code
- * polluteHashDispatch()} cannot reach them regardless of key-type overlap. Since the JDK and
- * machine were held constant across this rerun (unlike the JDK 8-vs-17 comparisons in {@link
+ * equals()} call sites — JIT type profiles are keyed per call site, so {@code warmUpHashDispatch}
+ * cannot reach them regardless of key-type overlap. Since the JDK and machine were held constant
+ * across this rerun (unlike the JDK 8-vs-17 comparisons in {@link
  * datadog.trace.util.CaseInsensitiveMapBenchmark} and {@link
  * datadog.trace.api.TagMapAccessBenchmark}), the drop here is same-session run-to-run noise
  * (thermal/power, not controlled for) rather than either a pollution effect or a JDK effect. The
@@ -143,10 +143,16 @@ public class HashtableD1Benchmark {
     int cursor;
     final BhD1Consumer consumer = new BhD1Consumer();
 
+    // Front-load pollution once per trial, entirely before JMH's warmup starts: JMH
+    // injects the Blackhole straight into this setup method, so no per-benchmark
+    // scratch state is needed.
+    @Setup(Level.Trial)
+    public void warmUpPollution(Blackhole bh) {
+      BenchmarkUtils.warmUpHashDispatch(bh);
+    }
+
     @Setup(Level.Iteration)
     public void setUp() {
-      BenchmarkUtils.polluteHashDispatch();
-
       table = new Hashtable.D1<>(CAPACITY);
       hashMap = new HashMap<>(CAPACITY);
       keys = SOURCE_KEYS;

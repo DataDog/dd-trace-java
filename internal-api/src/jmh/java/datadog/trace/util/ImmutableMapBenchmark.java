@@ -44,7 +44,7 @@ import org.openjdk.jmh.infra.Blackhole;
  * {@code *_sameKey} variants reuse the original interned key instances to show the identity fast
  * path — which is the common tracer case, since map keys are typically interned tag-name constants.
  *
- * <p>{@link BenchmarkUtils#polluteHashDispatch()} prepares shared {@code hashCode()} and {@code
+ * <p>{@link BenchmarkUtils#warmUpHashDispatch} prepares shared {@code hashCode()} and {@code
  * equals()} call sites before measurement. This avoids giving hash-based structures an
  * unrealistically monomorphic type profile.
  *
@@ -53,29 +53,29 @@ import org.openjdk.jmh.infra.Blackhole;
  * set dominates. HotSpot can usually devirtualize and inline the monomorphic case, sometimes a
  * small polymorphic one; megamorphic sites generally retain virtual dispatch.
  *
- * <p>Results on an Apple M1 with Java 8u382, {@code @Fork(5)}, and {@code @Threads(8)} (M ops/s):
+ * <p>Java 17 results on an Apple M1 with the front-loaded {@link BenchmarkUtils#warmUpHashDispatch}
+ * pollution design, {@code @Fork(5)}, {@code @Threads(8)} (M ops/s):
  *
  * <pre>{@code
  * Structure                get sameKey iterate iterate_forEach
- * hashMap                 1202    1438     120        -
- * linkedHashMap           1097       -     127        -
- * treeMap                  487       -     121        -
- * tagMap                  1005    1235     109       121
- * tracerImmutableMap      1052    1249     123        -   (MapN)
- * stringIndex             1366    1724       -        -
- * stringIndex_embedded    1479    1846       -        -
+ * hashMap                1240.9  1827.4  109.95        -
+ * linkedHashMap          1259.5     -    139.86        -
+ * treeMap                 665.0     -    139.49        -
+ * tagMap                 1200.3  1420.9  100.66     146.69
+ * tracerImmutableMap     1067.3  1395.9  137.93        -   (MapN)
+ * stringIndex             1452.4  1864.8       -        -
+ * stringIndex_embedded    1605.2  2063.5       -        -
  * }</pre>
  *
  * <p>In this run:
  *
  * <ul>
- *   <li>The embedded StringIndex has the fastest {@code get}; the instance wrapper is second.
- *   <li>Both StringIndex variants outperform the map-based alternatives for distinct and identical
- *       key instances.
- *   <li>{@code TreeMap.get} varies widely across forks (roughly 230-610 M ops/s), so its mean is
- *       less stable than the other results.
- *   <li>{@code TagMap.forEach} is about 10% faster than its iterator (121 vs. 109 M ops/s). Its
- *       advantage widens as TagMap's entry model grows.
+ *   <li>The embedded StringIndex has the fastest {@code get}; the instance wrapper is second — both
+ *       StringIndex variants outperform the map-based alternatives for distinct and identical key
+ *       instances.
+ *   <li>{@code stringIndex} is also slightly better than {@code hashMap} when used as an immutable
+ *       map (1452.4 vs 1240.9 on {@code get}).
+ *   <li>{@code TagMap.forEach} is about 46% faster than its iterator (146.69 vs. 100.66 M ops/s).
  * </ul>
  */
 // @Fork(5): get_tracerImmutableMap* (MapN reached via interface dispatch) is JIT-bimodal at fewer
@@ -139,8 +139,9 @@ public class ImmutableMapBenchmark {
 
   @Setup(Level.Trial)
   public void setUp() {
-    BenchmarkUtils.polluteHashDispatch();
-
+    // Superseded by Cursor#warmUpPollution's heavier front-load below -- this single call isn't
+    // enough on its own to drive HotSpot's tiered compiler through both C1 and C2 on the shared
+    // hash-dispatch call sites (see BenchmarkUtils#warmUpHashDispatch).
     hashMap = new HashMap<>();
     fill(hashMap);
     linkedHashMap = new LinkedHashMap<>();
@@ -161,13 +162,12 @@ public class ImmutableMapBenchmark {
   public static class Cursor {
     int index = 0;
 
-    // Re-pollute every invocation: a one-shot Level.Trial call gets drowned out by this
-    // benchmark's own real-key traffic well before HotSpot compiles the shared hash dispatch call
-    // sites, letting them re-specialize to a dominant receiver (see
-    // BenchmarkUtils#polluteHashDispatch).
-    @Setup(Level.Invocation)
-    public void pollute() {
-      BenchmarkUtils.polluteHashDispatch();
+    // Front-load pollution once per trial, entirely before JMH's warmup starts: JMH
+    // injects the Blackhole straight into this setup method, so no per-benchmark
+    // scratch state is needed.
+    @Setup(Level.Trial)
+    public void warmUpPollution(Blackhole bh) {
+      BenchmarkUtils.warmUpHashDispatch(bh);
     }
 
     String nextKey() {

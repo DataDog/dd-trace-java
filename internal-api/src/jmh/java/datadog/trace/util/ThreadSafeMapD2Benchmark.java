@@ -20,6 +20,7 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.Blackhole;
 
 /**
  * Measures steady-state composite-key lookups in a shared, pre-populated table.
@@ -39,68 +40,40 @@ import org.openjdk.jmh.annotations.Warmup;
  * <p>Lookups reuse the key-part instances installed during setup, taking the identity fast path for
  * their object comparisons. See {@link ThreadSafeMapD1Benchmark} for single-key lookups.
  *
- * <p>Java 17 results ({@code @Fork(2)}, {@code @Threads(8)}, 64 pre-populated keys):
+ * <p>Java 17 results with the front-loaded {@link BenchmarkUtils#warmUpHashDispatch} pollution
+ * design ({@code @Fork(2)}, {@code @Threads(8)}, 64 pre-populated keys; ops/us):
  *
  * <pre>{@code
  * Benchmark                              Score   Units
- * get_concurrentHashtable                1452   ops/us
- * get_support                            1450   ops/us
- * get_concurrentHashMap                   777   ops/us
- * get_concurrentSkipListMap               146   ops/us
- * get_synchronizedHashMap                  27   ops/us
+ * get_support                           1573.5   ops/us
+ * get_concurrentHashtable               1412.7   ops/us
+ * get_concurrentHashMap                 1055.3   ops/us
+ * get_concurrentSkipListMap              172.5   ops/us
+ * get_synchronizedHashMap                  8.8   ops/us
  *
- * getOrCreate_support                    1379   ops/us
- * getOrCreate_concurrentHashtable        1119   ops/us
- * getOrCreate_concurrentHashMap           769   ops/us
- * getOrCreate_concurrentSkipListMap       151   ops/us
- * getOrCreate_synchronizedHashMap          28   ops/us
+ * getOrCreate_support                   1492.8   ops/us
+ * getOrCreate_concurrentHashtable       1416.7   ops/us
+ * getOrCreate_concurrentHashMap         1083.2   ops/us
+ * getOrCreate_concurrentSkipListMap      169.9   ops/us
+ * getOrCreate_synchronizedHashMap          8.6   ops/us
  * }</pre>
  *
  * <p>Key findings:
  *
  * <ul>
- *   <li>{@code ConcurrentHashtable} and {@code Support} are neck-and-neck on {@code get} (1452 vs
- *       1450 ops/us); both avoid the {@link Key2} wrapper allocation that {@code ConcurrentHashMap}
- *       requires on every lookup.
- *   <li>{@code ConcurrentHashMap} is ~2× slower than {@code ConcurrentHashtable} on {@code get}
- *       (777 vs 1452 ops/us) — the {@link Key2} allocation plus two-level hash lookup adds up.
- *   <li>{@code Support} shows slightly higher {@code getOrCreate} throughput than {@code D2} (1379
- *       vs 1119 ops/us) because its primitive {@code int} K2 field avoids boxing inside the entry
- *       match on the write-path re-check.
- *   <li>{@code ConcurrentSkipListMap} is ~5× slower than {@code ConcurrentHashMap} due to tree
- *       traversal; the two-traversal {@code getOrCreate} pattern adds further overhead on misses.
- *   <li>Synchronized {@code HashMap} is ~50× slower than {@code ConcurrentHashtable}.
+ *   <li>{@code Support} and {@code ConcurrentHashtable} are the two fastest and stay close to each
+ *       other on both {@code get} and {@code getOrCreate}; both avoid the {@link Key2} wrapper
+ *       allocation that {@code ConcurrentHashMap} requires on every lookup.
+ *   <li>{@code ConcurrentHashMap} is ~30-35% slower than {@code ConcurrentHashtable} — the {@link
+ *       Key2} allocation plus two-level hash lookup adds up.
+ *   <li>{@code Support} shows slightly higher throughput than {@code D2} because its primitive
+ *       {@code int} K2 field avoids boxing inside the entry match on the write-path re-check.
+ *   <li>{@code ConcurrentSkipListMap} is ~6× slower than {@code ConcurrentHashMap} due to tree
+ *       traversal.
+ *   <li>Synchronized {@code HashMap} is over 150× slower than the fastest options; under pollution
+ *       its megamorphic {@code hashCode()}/{@code equals()} dispatch dominates its cost far more
+ *       than lock contention, the same magnitude seen in {@link ThreadSafeMapD1Benchmark}.
  * </ul>
- *
- * <p>Rerun with {@link BenchmarkUtils#polluteHashDispatch()} wired into {@code
- * SharedState.setUp()}, same JDK 17 as the table above -- a clean pollution-only delta:
- *
- * <pre>{@code
- * Benchmark                              Score   Units
- * get_concurrentHashtable                1505   ops/us
- * get_support                            1313   ops/us
- * get_concurrentHashMap                  1072   ops/us
- * get_concurrentSkipListMap               172   ops/us
- * get_synchronizedHashMap                   9   ops/us
- *
- * getOrCreate_support                    1516   ops/us
- * getOrCreate_concurrentHashtable        1300   ops/us
- * getOrCreate_concurrentHashMap          1108   ops/us
- * getOrCreate_concurrentSkipListMap       178   ops/us
- * getOrCreate_synchronizedHashMap           9   ops/us
- * }</pre>
- *
- * <p>Synchronized {@code HashMap} collapses by ~67% (30/28 to 9 ops/us), the same magnitude seen in
- * {@link ThreadSafeMapD1Benchmark} -- pollution dominates its cost far more than lock contention.
- * {@code ConcurrentHashMap} rises ~38-44% over the unpolluted table (777→1072, 769→1108) with tight
- * error bars (under 8% of the mean) -- a real effect, not noise; the {@link Key2} allocation this
- * benchmark forces on every {@code ConcurrentHashMap} lookup apparently costs relatively less once
- * the JIT already treats the surrounding dispatch as megamorphic. {@code Support} and {@code
- * ConcurrentHashtable} are still the two fastest and remain close to each other, but neither can be
- * called ahead here: their error bars are enormous (±520 and ±591, roughly 35-45% of their own
- * means) and their relative order flips between {@code get} and {@code getOrCreate} -- read both as
- * noise, not as a real reordering. {@code ConcurrentSkipListMap} rises modestly, also within a wide
- * error bar -- directional only.
  */
 @Fork(2)
 @Warmup(iterations = 2)
@@ -214,7 +187,6 @@ public class ThreadSafeMapD2Benchmark {
 
     @Setup(Level.Iteration)
     public void setUp() {
-      BenchmarkUtils.polluteHashDispatch();
       table = ConcurrentHashtable.D2.createBounded(D2Entry.class, CAPACITY);
       supportBuckets = ConcurrentHashtable.createFixedBuckets(SupportEntry.class, CAPACITY);
       concurrentHashMap = new ConcurrentHashMap<>(CAPACITY);
@@ -241,13 +213,12 @@ public class ThreadSafeMapD2Benchmark {
   public static class ThreadState {
     int cursor;
 
-    // Re-pollute every invocation: a one-shot Level.Iteration call gets drowned out by this
-    // benchmark's own real-key traffic well before HotSpot compiles the shared hash dispatch call
-    // sites, letting them re-specialize to a dominant receiver (see
-    // BenchmarkUtils#polluteHashDispatch).
-    @Setup(Level.Invocation)
-    public void pollute() {
-      BenchmarkUtils.polluteHashDispatch();
+    // Front-load pollution once per trial, entirely before JMH's warmup starts: JMH
+    // injects the Blackhole straight into this setup method, so no per-benchmark
+    // scratch state is needed.
+    @Setup(Level.Trial)
+    public void warmUpPollution(Blackhole bh) {
+      BenchmarkUtils.warmUpHashDispatch(bh);
     }
 
     int next() {
