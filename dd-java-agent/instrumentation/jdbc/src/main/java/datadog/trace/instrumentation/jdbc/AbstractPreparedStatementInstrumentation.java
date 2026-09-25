@@ -40,13 +40,6 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JDBCDecorator",
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     Map<String, String> contextStore = new HashMap<>(4);
     contextStore.put("java.sql.Statement", DBQueryInfo.class.getName());

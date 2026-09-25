@@ -61,13 +61,6 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JDBCDecorator", packageName + ".SQLCommenter",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         nameStartsWith("execute").and(takesArgument(0, String.class)).and(isPublic()),

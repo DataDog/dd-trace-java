@@ -57,17 +57,6 @@ public class JUnit4ExecutionInstrumentation extends InstrumenterModule.CiVisibil
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      parentPackageName + ".SkippedByDatadog",
-      parentPackageName + ".JUnit4Utils",
-      parentPackageName + ".TracingListener",
-      parentPackageName + ".TestEventsHandlerHolder",
-      packageName + ".FailureSuppressingNotifier"
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
         "org.junit.runner.Description", TestExecutionTracker.class.getName());

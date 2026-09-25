@@ -32,17 +32,6 @@ public class SqsReceiveResultInstrumentation extends AbstractSqsInstrumentation
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".MessageExtractAdapter",
-      packageName + ".SqsDecorator",
-      packageName + ".TracingIterator",
-      packageName + ".TracingList",
-      packageName + ".TracingListIterator"
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     return singletonMap(
         "com.amazonaws.services.sqs.model.ReceiveMessageResult", "java.lang.String");

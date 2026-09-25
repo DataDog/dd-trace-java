@@ -39,16 +39,6 @@ public final class DispatcherServletInstrumentation extends InstrumenterModule.T
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".SpringWebHttpServerDecorator",
-      packageName + ".ServletRequestURIAdapter",
-      packageName + ".HandlerMappingResourceNameFilter",
-      packageName + ".PathMatchingHttpServletRequestWrapper",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()

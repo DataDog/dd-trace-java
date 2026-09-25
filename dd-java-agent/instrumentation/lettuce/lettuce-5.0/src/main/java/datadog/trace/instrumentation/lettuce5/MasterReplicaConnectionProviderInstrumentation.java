@@ -54,15 +54,6 @@ public class MasterReplicaConnectionProviderInstrumentation extends Instrumenter
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".LettuceClientDecorator",
-      packageName + ".MasterReplicaConnectionHelper",
-      packageName + ".LettuceInstrumentationUtil"
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     // Intent argument types move across Lettuce versions, but only the returned connection is used.
     transformer.applyAdvice(

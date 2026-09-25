@@ -61,17 +61,6 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ApacheHttpClientDecorator",
-      packageName + ".HttpHeadersInjectAdapter",
-      packageName + ".HostAndRequestAsHttpUriRequest",
-      packageName + ".HelperMethods",
-      packageName + ".WrappingStatusSettingResponseHandler",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvices(
         isMethod()

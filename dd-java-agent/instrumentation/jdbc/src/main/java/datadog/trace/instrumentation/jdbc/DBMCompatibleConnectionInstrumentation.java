@@ -78,13 +78,6 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
   };
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JDBCDecorator", packageName + ".SQLCommenter",
-    };
-  }
-
-  @Override
   public String[] knownMatchingTypes() {
     return CONCRETE_TYPES;
   }

@@ -55,36 +55,6 @@ public class OpenTelemetryInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.opentelemetry.shim.context.OtelContext",
-      "datadog.opentelemetry.shim.context.OtelScope",
-      "datadog.opentelemetry.shim.context.propagation.AgentTextMapPropagator",
-      "datadog.opentelemetry.shim.context.propagation.OtelContextPropagators",
-      "datadog.opentelemetry.shim.context.propagation.TraceStateHelper",
-      "datadog.opentelemetry.shim.baggage.OtelBaggage",
-      "datadog.opentelemetry.shim.baggage.OtelBaggage$ValueOnly",
-      "datadog.opentelemetry.shim.baggage.OtelBaggageBuilder",
-      "datadog.opentelemetry.shim.trace.OtelExtractedContext",
-      "datadog.opentelemetry.shim.trace.OtelConventions",
-      "datadog.opentelemetry.shim.trace.OtelConventions$1",
-      "datadog.opentelemetry.shim.trace.OtelSpan",
-      "datadog.opentelemetry.shim.trace.OtelSpan$1",
-      "datadog.opentelemetry.shim.trace.OtelSpan$NoopSpan",
-      "datadog.opentelemetry.shim.trace.OtelSpan$NoopSpanContext",
-      "datadog.opentelemetry.shim.trace.OtelSpanBuilder",
-      "datadog.opentelemetry.shim.trace.OtelSpanBuilder$1",
-      "datadog.opentelemetry.shim.trace.OtelSpanContext",
-      "datadog.opentelemetry.shim.trace.OtelSpanEvent",
-      "datadog.opentelemetry.shim.trace.OtelSpanEvent$AttributesJsonParser",
-      "datadog.opentelemetry.shim.trace.OtelSpanLink",
-      "datadog.opentelemetry.shim.trace.OtelTracer",
-      "datadog.opentelemetry.shim.trace.OtelTracerBuilder",
-      "datadog.opentelemetry.shim.trace.OtelTracerProvider",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     // TracerProvider OpenTelemetry.getTracerProvider()
     transformer.applyAdvice(

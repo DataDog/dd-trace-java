@@ -24,16 +24,6 @@ public final class HazelcastLegacyModule extends InstrumenterModule.Tracing {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".HazelcastConstants",
-      packageName + ".DistributedObjectDecorator",
-      packageName + ".DistributedObjectDecorator$1",
-      packageName + ".SpanFinishingExecutionCallback"
-    };
-  }
-
-  @Override
   public List<Instrumenter> typeInstrumentations() {
     return Arrays.asList(
         new ClientInvocationInstrumentation(), new DistributedObjectInstrumentation());

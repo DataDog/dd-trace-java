@@ -23,11 +23,6 @@ public class StandardUtextTagProcessorInstrumentation extends InstrumenterModule
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".ThymeleafContext"};
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     return singletonMap(
         "org.thymeleaf.processor.element.IElementTagStructureHandler",

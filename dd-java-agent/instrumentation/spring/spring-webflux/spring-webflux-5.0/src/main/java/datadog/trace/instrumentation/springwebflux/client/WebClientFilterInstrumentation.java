@@ -18,17 +18,6 @@ public class WebClientFilterInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".SpringWebfluxHttpClientDecorator",
-      packageName + ".StatusCodes",
-      packageName + ".TraceWebClientSubscriber",
-      packageName + ".WebClientTracingFilter",
-      packageName + ".WebClientTracingFilter$MonoWebClientTrace",
-    };
-  }
-
-  @Override
   public String instrumentedType() {
     return "org.springframework.web.reactive.function.client.DefaultWebClientBuilder";
   }

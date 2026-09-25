@@ -28,13 +28,6 @@ public class TolerantTextInstrumentation extends InstrumenterModule.AppSec
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".BodyParserHelpers", packageName + ".BodyParserHelpers$ScalaIteratorAdapter",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("parse")

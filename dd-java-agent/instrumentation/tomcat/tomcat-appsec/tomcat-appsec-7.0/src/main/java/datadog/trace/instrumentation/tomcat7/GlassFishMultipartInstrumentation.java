@@ -48,13 +48,6 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.tomcat7.GlassFishBlockingHelper",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("getParts").and(takesArguments(0)).and(isPublic()),

@@ -51,11 +51,6 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
     return new Reference[] {EXCHANGE_REFERENCE};
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".FormDataMap", packageName + ".FormDataContentHelper"};
-  }
-
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("parseBlocking")

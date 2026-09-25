@@ -35,15 +35,6 @@ public final class RedissonInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".RedissonClientDecorator",
-      packageName + ".SpanFinishListener",
-      packageName + ".PromiseHelper",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()

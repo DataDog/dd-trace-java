@@ -28,15 +28,6 @@ public class KarateInstrumentation extends InstrumenterModule.CiVisibility
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".KarateUtils",
-      packageName + ".TestEventsHandlerHolder",
-      packageName + ".KarateTracingHook"
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap("com.intuit.karate.core.FeatureRuntime", "java.lang.Boolean");
   }

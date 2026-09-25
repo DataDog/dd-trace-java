@@ -35,11 +35,6 @@ public final class SnsClientInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".SnsInterceptor", packageName + ".TextMapInjectAdapter"};
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
         "com.amazonaws.AmazonWebServiceRequest", "datadog.context.Context");

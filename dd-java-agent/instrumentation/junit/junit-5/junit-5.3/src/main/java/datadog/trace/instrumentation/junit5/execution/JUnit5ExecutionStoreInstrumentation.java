@@ -48,13 +48,6 @@ public class JUnit5ExecutionStoreInstrumentation extends InstrumenterModule.CiVi
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      parentPackageName + ".JUnitPlatformUtils", parentPackageName + ".TestEventsHandlerHolder",
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
         "org.junit.platform.engine.TestDescriptor",

@@ -48,13 +48,6 @@ public final class JaxRsClientV1Instrumentation extends InstrumenterModule.Traci
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JaxRsClientV1Decorator", packageName + ".InjectAdapter",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvices(
         named("handle")
