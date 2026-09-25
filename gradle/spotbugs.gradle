@@ -5,7 +5,8 @@ spotbugs {
   excludeFilter = file("$rootDir/gradle/spotbugFilters/exclude.xml")
 }
 
-// Configure spotbugs for Main tasks and disable it for all other
+// Configure spotbugs for Main tasks, restrict it to the unclosed-resource check on Test and Jmh
+// tasks, and disable it for all other
 // Can't use the class here due to being different class
 tasks.matching { it.name.startsWith('spotbugs') }.configureEach {
   // Needs Java 11+ to run spotbugs
@@ -14,10 +15,42 @@ tasks.matching { it.name.startsWith('spotbugs') }.configureEach {
   }
 
   def name = it.name
-  if (project.path.startsWith(":dd-smoke-tests")
-    || !(name.endsWith("Main")
-    || name.endsWith("Main_java11"))
-    ) {
+  if (project.path.startsWith(":dd-smoke-tests")) {
+    it.enabled = false
+    return
+  }
+
+  // Unclosed-resource check for test and JMH sources.
+  //
+  // Test and benchmark code regularly allocates an AutoCloseable/Closeable and then fails to close it
+  // on every path - most often the early-return and exceptional ones - because the resource is never
+  // put in a try-with-resources. Reviewers keep catching this by hand, which is slow and unreliable
+  // for a defect the 'FindUnsatisfiedObligation' detector (OBL_UNSATISFIED_OBLIGATION) finds
+  // mechanically. Only that detector runs here, so the check stays scoped to leaked resources and
+  // cannot start failing these sources for unrelated reasons as SpotBugs gains new detectors.
+  //
+  // It flags the obligation types SpotBugs knows: streams, readers, writers and the java.sql handles,
+  // plus any type annotated '@CleanupObligation' with a '@CreatesObligation' constructor and a
+  // '@DischargesObligation' close method. Project-specific handles are only covered once they carry
+  // those annotations; plain 'implements AutoCloseable' is not enough for SpotBugs to track them.
+  //
+  // Violations fail the build, exactly like main sources. Findings that predate this check are
+  // grandfathered in 'gradle/spotbugFilters/exclude.xml'; they are not a precedent for new code.
+  if (name.endsWith("Test") || name.endsWith("Jmh")) {
+    it.showProgress = !providers.environmentVariable("CI").isPresent()
+    it.ignoreFailures = false
+    it.visitors = ['FindUnsatisfiedObligation']
+    it.reports {
+      html {
+        required = true
+        destination(file("$buildDir/reports/spotbugs/${name}.html"))
+        stylesheet = 'fancy-hist.xsl'
+      }
+    }
+    return
+  }
+
+  if (!(name.endsWith("Main") || name.endsWith("Main_java11"))) {
     it.enabled = false
     return
   }
