@@ -10,10 +10,6 @@ muzzle {
   }
 }
 
-tasks.named("compileJava") {
-  configureCompiler(it, 8)
-}
-
 dependencies {
   // Not required (the module self-activates in $Activate); kept so the test also exercises the
   // default config where RunnableInstrumentation wraps run() too — the double activation is safe.
