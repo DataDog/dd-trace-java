@@ -81,6 +81,16 @@ class StringIndexTest {
     assertEquals(-1, EmbeddingSupport.indexOf(d.hashes, d.names, "q"));
   }
 
+  @Test
+  void support_contains_internedAndCopy_andMiss() {
+    Data d = EmbeddingSupport.create("foo", "bar", "baz");
+
+    assertTrue(
+        EmbeddingSupport.contains(d.hashes, d.names, "foo")); // interned literal -> == fast path
+    assertTrue(EmbeddingSupport.contains(d.hashes, d.names, new String("bar"))); // non-interned
+    assertFalse(EmbeddingSupport.contains(d.hashes, d.names, "nope"));
+  }
+
   /** Controlled hashes force collision, linear-probe wraparound, and the already-present path. */
   @Test
   void put_and_indexOf_collisionAndWraparound() {

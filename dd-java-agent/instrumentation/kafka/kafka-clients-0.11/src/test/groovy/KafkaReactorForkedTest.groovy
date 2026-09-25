@@ -129,17 +129,17 @@ class KafkaReactorForkedTest extends InstrumentationSpecification {
       }
     })
 
-    // create a thread safe queue to store the received message
-    kafkaReceiver.receive()
+    def commitsCompleted = new CountDownLatch(100)
+    def receiverSubscription = kafkaReceiver.receive()
     // publish on another thread to be sure we're propagating that receive span correctly
     .publishOn(Schedulers.parallel())
-    .flatMap {
-      receiverRecord -> {
-        receiverRecord.receiverOffset().commit()
-      }
+    .flatMap { receiverRecord ->
+      receiverRecord.receiverOffset().commit().then(Mono.just(receiverRecord))
     }
     .subscribeOn(Schedulers.parallel())
-    .subscribe()
+    .subscribe {
+      commitsCompleted.countDown()
+    }
 
 
     // wait until the container has the required number of assigned partitions
@@ -152,12 +152,13 @@ class KafkaReactorForkedTest extends InstrumentationSpecification {
       kafkaSender.send(Mono.just(SenderRecord.create(new ProducerRecord<>(KafkaClientTestBase.SHARED_TOPIC, greeting), null)))
     }
     .publishOn(Schedulers.parallel())
-    .subscribe()
+    .blockLast()
+    assert commitsCompleted.await(30, TimeUnit.SECONDS)
+    receiverSubscription.dispose()
     then:
     // check that the all the consume (100) and the send (100) are reported
     TEST_WRITER.waitForTraces(200)
-    Map<String, List<DDSpan>> traces = TEST_WRITER.inject([:]) {
-      map, entry ->
+    Map<String, List<DDSpan>> traces = TEST_WRITER.inject([:]) { map, entry ->
       def key = entry.get(0).getTraceId().toString()
       map[key] = (map[key] ?: []) + entry
       return map
@@ -174,6 +175,9 @@ class KafkaReactorForkedTest extends InstrumentationSpecification {
       assert it.get(consumeIndex).getParentId() == it.get(produceIndex).getSpanId()
       assert it.get(produceIndex).getParentId() == 0
     }
+    cleanup:
+    receiverSubscription?.dispose()
+    kafkaSender?.close()
   }
 
   def producerSpan(

@@ -10,8 +10,8 @@ plugins {
   id 'dd-trace-java.module.product-subsystem'
 }
 
-tasks.withType(AbstractCompile).configureEach {
-  configureCompiler(it, 11, JavaVersion.VERSION_1_8, "Ensure no APIs beyond JDK8 are used")
+tasks.named("compileJava", JavaCompile) {
+  configureCompiler(it, 11, JavaVersion.VERSION_1_8, "Error Prone 2.23.0 / NullAway 0.10.15 are incompatible with JDK 25 javac")
 }
 
 // First version with Mac M1 support

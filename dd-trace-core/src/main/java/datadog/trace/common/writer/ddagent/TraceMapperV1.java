@@ -1,6 +1,7 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
+import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
@@ -378,8 +379,9 @@ public final class TraceMapperV1 implements TraceMapper {
       Writable writable, int fieldId, Metadata meta, Map<String, Object> metaStruct) {
     TagMap tags = meta.getTags();
     Map<String, String> baggage = meta.getBaggage();
+    // Kept as a String: writeAttribute below logs a debug line for any non-String value.
     String httpStatusCode =
-        meta.getHttpStatusCode() == null ? null : meta.getHttpStatusCode().toString();
+        meta.getHttpStatusCode() == UNSET_STATUS ? null : meta.getHttpStatusCodeString().toString();
     boolean writeHttpStatus = httpStatusCode != null && tags.getString(HTTP_STATUS) == null;
     boolean writeTopLevel = meta.topLevel();
     int tagCount = 0;
@@ -663,8 +665,11 @@ public final class TraceMapperV1 implements TraceMapper {
 
     // attributes = 10, a collection of key to value pairs common in all `chunks`
     CharSequence processTags = ProcessTags.getTagsForSerialization();
-    Map<String, Object> tags =
-        processTags != null ? singletonMap(DDTags.PROCESS_TAGS, processTags) : emptyMap();
+    Map<String, Object> tags = new HashMap<>(4);
+    tags.put(DDTags.SDK_OTLP_EXPORT, String.valueOf(cfg.isOtlpTracesExportEnabled()));
+    if (processTags != null) {
+      tags.put(DDTags.PROCESS_TAGS, processTags);
+    }
     encodeAttributes(headerWriter, 10, tags);
 
     // chunks = 11, a list of trace `chunks`, value is written by PayloadV1

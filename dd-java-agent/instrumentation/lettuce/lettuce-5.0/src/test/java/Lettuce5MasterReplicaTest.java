@@ -33,7 +33,9 @@ class Lettuce5MasterReplicaTest extends AbstractInstrumentationTest {
   @BeforeEach
   void setUpRedis() throws Exception {
     redisServer =
-        new RedisContainer(DockerImageName.parse("redis:6.2.6"))
+        new RedisContainer(
+                DockerImageName.parse(System.getProperty("test.redis.image"))
+                    .asCompatibleSubstituteFor("redis"))
             .waitingFor(Wait.forListeningPort());
     redisServer.start();
 
@@ -71,17 +73,7 @@ class Lettuce5MasterReplicaTest extends AbstractInstrumentationTest {
     String result = connection.sync().set("TESTSETKEY", "TESTSETVAL");
 
     assertEquals("OK", result);
-    writer.waitForTraces(1);
-
-    List<DDSpan> setSpans = new ArrayList<>();
-    for (List<DDSpan> trace : writer) {
-      for (DDSpan span : trace) {
-        if ("SET".contentEquals(span.getResourceName())
-            && "redis-client".equals(String.valueOf(span.getTag(Tags.COMPONENT)))) {
-          setSpans.add(span);
-        }
-      }
-    }
+    List<DDSpan> setSpans = waitForSetSpans();
 
     assertEquals(1, setSpans.size(), "expected exactly one SET command span");
     DDSpan span = setSpans.get(0);
@@ -90,6 +82,24 @@ class Lettuce5MasterReplicaTest extends AbstractInstrumentationTest {
     assertEquals("redis", span.getTag(Tags.DB_TYPE));
     assertNotNull(span.getTag(Tags.PEER_HOSTNAME), "command span should include peer.hostname");
     assertEquals(host, span.getTag(Tags.PEER_HOSTNAME));
+  }
+
+  private List<DDSpan> waitForSetSpans() {
+    blockUntilTracesMatch(traces -> !findSetSpans(traces).isEmpty());
+    return findSetSpans(writer);
+  }
+
+  private static List<DDSpan> findSetSpans(Iterable<List<DDSpan>> traces) {
+    List<DDSpan> setSpans = new ArrayList<>();
+    for (List<DDSpan> trace : traces) {
+      for (DDSpan span : trace) {
+        if ("SET".contentEquals(span.getResourceName())
+            && "redis-client".equals(String.valueOf(span.getTag(Tags.COMPONENT)))) {
+          setSpans.add(span);
+        }
+      }
+    }
+    return setSpans;
   }
 
   @SuppressWarnings("unchecked")

@@ -43,7 +43,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiFunction;
 
-public class AppSecEventTracker extends EventTracker implements UserService, EventTrackerService {
+public class AppSecEventTracker extends EventTracker implements UserService {
 
   private static final int HASH_SIZE_BYTES = 16; // 128 bits
   private static final String ANON_PREFIX = "anon_";
@@ -66,8 +66,51 @@ public class AppSecEventTracker extends EventTracker implements UserService, Eve
   public static void install() {
     final AppSecEventTracker tracker = new AppSecEventTracker();
     GlobalTracer.setEventTracker(tracker);
-    EventTrackerV2.setEventTrackerService(tracker);
+    EventTrackerV2.setEventTrackerService(tracker.v2Service);
     User.setUserService(tracker);
+  }
+
+  /**
+   * The v2 SDK surface, kept separate from the v1 {@link EventTracker} surface this class extends.
+   * {@code trackCustomEvent} has an identical signature on both APIs, so a single implementation
+   * cannot tell which one the caller used; routing v2 calls through this adapter lets each API
+   * report its own version to telemetry.
+   */
+  private final EventTrackerService v2Service =
+      new EventTrackerService() {
+        @Override
+        public void trackUserLoginSuccess(
+            final String login, final String userId, final Map<String, String> metadata) {
+          if (login == null || login.isEmpty()) {
+            throw new IllegalArgumentException("login is null or empty");
+          }
+          WafMetricCollector.get().appSecSdkEvent(LOGIN_SUCCESS, V2);
+          if (handleLoginEvent(V2, LOGIN_SUCCESS_EVENT, SDK, login, userId, null, metadata)) {
+            throw new BlockingException("Blocked request (for login success)");
+          }
+        }
+
+        @Override
+        public void trackUserLoginFailure(
+            final String login, final boolean exists, final Map<String, String> metadata) {
+          if (login == null || login.isEmpty()) {
+            throw new IllegalArgumentException("login is null or empty");
+          }
+          WafMetricCollector.get().appSecSdkEvent(LOGIN_FAILURE, V2);
+          if (handleLoginEvent(V2, LOGIN_FAILURE_EVENT, SDK, login, null, exists, metadata)) {
+            throw new BlockingException("Blocked request (for login failure)");
+          }
+        }
+
+        @Override
+        public void trackCustomEvent(final String eventName, final Map<String, String> metadata) {
+          AppSecEventTracker.this.trackCustomEvent(eventName, metadata, V2);
+        }
+      };
+
+  /** Returns the v2 SDK implementation to register with {@link EventTrackerV2}. */
+  public final EventTrackerService v2EventTrackerService() {
+    return v2Service;
   }
 
   @Override
@@ -93,38 +136,19 @@ public class AppSecEventTracker extends EventTracker implements UserService, Eve
     }
   }
 
-  @Override
-  public void trackUserLoginSuccess(
-      final String login, final String userId, final Map<String, String> metadata) {
-    if (login == null || login.isEmpty()) {
-      throw new IllegalArgumentException("login is null or empty");
-    }
-    WafMetricCollector.get().appSecSdkEvent(LOGIN_SUCCESS, V2);
-    if (handleLoginEvent(V2, LOGIN_SUCCESS_EVENT, SDK, login, userId, null, metadata)) {
-      throw new BlockingException("Blocked request (for login success)");
-    }
-  }
-
-  @Override
-  public void trackUserLoginFailure(
-      final String login, final boolean exists, final Map<String, String> metadata) {
-    if (login == null || login.isEmpty()) {
-      throw new IllegalArgumentException("login is null or empty");
-    }
-    WafMetricCollector.get().appSecSdkEvent(LOGIN_FAILURE, V2);
-    if (handleLoginEvent(V2, LOGIN_FAILURE_EVENT, SDK, login, null, exists, metadata)) {
-      throw new BlockingException("Blocked request (for login failure)");
-    }
-  }
-
   @SuppressWarnings("deprecation")
   @Override
   public final void trackCustomEvent(String eventName, Map<String, String> metadata) {
+    trackCustomEvent(eventName, metadata, V1);
+  }
+
+  private void trackCustomEvent(
+      final String eventName, final Map<String, String> metadata, final LoginVersion version) {
     if (eventName == null || eventName.isEmpty()) {
       throw new IllegalArgumentException("eventName is null or empty");
     }
-    WafMetricCollector.get().appSecSdkEvent(CUSTOM, V2);
-    if (handleLoginEvent(V2, eventName, SDK, null, null, null, metadata)) {
+    WafMetricCollector.get().appSecSdkEvent(CUSTOM, version);
+    if (handleLoginEvent(version, eventName, SDK, null, null, null, metadata)) {
       throw new BlockingException("Blocked request (for custom event)");
     }
   }

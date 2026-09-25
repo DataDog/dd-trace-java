@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.undertow;
 
 import datadog.trace.bootstrap.instrumentation.api.URIRawDataAdapter;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.undertow.server.HttpServerExchange;
 
 final class HttpServerExchangeURIDataAdapter extends URIRawDataAdapter {
@@ -16,13 +17,33 @@ final class HttpServerExchangeURIDataAdapter extends URIRawDataAdapter {
   }
 
   @Override
+  @SuppressFBWarnings(
+      value = "DCN_NULLPOINTER_EXCEPTION",
+      justification =
+          "getHostName() NPEs inside Undertow itself, not on a null we could check beforehand"
+              + " (e.g. no Host header and a connection whose local address isn't an"
+              + " InetSocketAddress, such as AJP or a Unix domain socket transport)")
   public String host() {
-    return httpServerExchange.getHostName();
+    try {
+      return httpServerExchange.getHostName();
+    } catch (final NullPointerException e) {
+      return null;
+    }
   }
 
   @Override
+  @SuppressFBWarnings(
+      value = "DCN_NULLPOINTER_EXCEPTION",
+      justification =
+          "getHostPort() NPEs inside Undertow itself, not on a null we could check beforehand"
+              + " (e.g. no Host header and a connection whose local address isn't an"
+              + " InetSocketAddress, such as AJP or a Unix domain socket transport)")
   public int port() {
-    return httpServerExchange.getHostPort();
+    try {
+      return httpServerExchange.getHostPort();
+    } catch (final NullPointerException e) {
+      return 0;
+    }
   }
 
   @Override
