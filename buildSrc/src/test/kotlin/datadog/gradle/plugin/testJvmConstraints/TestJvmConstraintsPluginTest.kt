@@ -46,6 +46,8 @@ class TestJvmConstraintsPluginTest {
       "vendor" to metadata.vendor,
       "runtimeVersion" to metadata.javaRuntimeVersion,
       "vmVersion" to metadata.jvmVersion,
+      "operatingSystem" to System.getProperty("os.name"),
+      "architecture" to System.getProperty("os.arch"),
     ))
   }
 
