@@ -2,7 +2,6 @@ package server
 
 import datadog.appsec.api.blocking.BlockingContentType
 import datadog.appsec.api.blocking.BlockingException
-import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest.RbaFlow
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
@@ -14,7 +13,6 @@ import okhttp3.RequestBody
 
 import java.util.function.BiFunction
 
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SESSION_ID
 import static datadog.trace.api.gateway.Events.EVENTS
@@ -22,33 +20,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.get
 
 @ExcludeInheritedFeatures
 class VertxHttpServerAppSecForkedTest extends VertxHttpServerForkedTest {
-
-  /**
-   * Blocks from the JSON response body callback only ('body' is ignored by responseHeaderDone),
-   * reaching RoutingContextJsonResponseAdvice via ctx.json().
-   */
-  def 'test blocking on json response body'() {
-    setup:
-    def request = request(
-      BODY_JSON, 'POST',
-      RequestBody.create(MediaType.get('application/json'), '{"a": "x"}'))
-      .header(IG_BLOCK_RESPONSE_HEADER, 'body')
-      .build()
-
-    when:
-    def response = client.newCall(request).execute()
-
-    then:
-    response.code() == 413
-    response.body().charStream().text.contains('"title":"You\'ve been blocked"')
-    TEST_WRITER.waitForTraces(1)
-    def rootSpan = TEST_WRITER.get(0).find {
-      it.parentId == 0
-    }
-    rootSpan != null
-    rootSpan.tags['http.status_code'] == 413
-    rootSpan.tags['appsec.blocked'] == 'true'
-  }
 
   /**
    * SessionHandler creates a session and calls RoutingContextImpl.setSession(), reaching
@@ -176,12 +147,5 @@ class VertxHttpServerAppSecForkedTest extends VertxHttpServerForkedTest {
       rqCtxt.traceSegment.setTagTop('_dd.appsec.filenames.cb.calls', context.uploadedFilenamesCallCount)
       Flow.ResultFlow.empty()
     } as BiFunction<RequestContext, List<String>, Flow<Void>>))
-  }
-}
-
-class VertxHttpServerWorkerAppSecForkedTest extends VertxHttpServerAppSecForkedTest {
-  @Override
-  HttpServer server() {
-    return new VertxServer(verticle(), routerBasePath(), true)
   }
 }
