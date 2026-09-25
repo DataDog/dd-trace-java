@@ -172,6 +172,7 @@
 /dd-java-agent/instrumentation/aws-java/aws-java-lambda-handler-1.2/    @DataDog/apm-serverless
 /dd-java-agent/instrumentation/azure-functions/                         @DataDog/apm-serverless
 /dd-java-agent/instrumentation/azure-functions-1.2.2/                   @DataDog/apm-serverless
+/dd-java-agent/instrumentation/azure-functions-worker-2.7/              @DataDog/apm-serverless
 
 # @DataDog/apm-lang-platform-java
 /.editorconfig                          @DataDog/apm-lang-platform-java
