@@ -16,13 +16,6 @@ public final class AerospikeModule extends InstrumenterModule.Tracing {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".AerospikeClientDecorator", packageName + ".TracingListener",
-    };
-  }
-
-  @Override
   public List<Instrumenter> typeInstrumentations() {
     final List<Instrumenter> ret = new ArrayList<>(4);
     ret.add(new AerospikeClientInstrumentation());

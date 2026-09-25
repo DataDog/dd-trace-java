@@ -35,13 +35,6 @@ public final class DataSourceInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".DataSourceDecorator",
-    };
-  }
-
-  @Override
   public String hierarchyMarkerType() {
     return null; // bootstrap type
   }

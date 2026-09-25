@@ -36,14 +36,6 @@ public class CookieDirectivesInstrumentation extends InstrumenterModule.Iast
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".helpers.TaintCookieFunction",
-      packageName + ".helpers.TaintOptionalCookieFunction",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     String traitName = "akka.http.scaladsl.server.directives.CookieDirectives";
     transformer.applyAdvice(

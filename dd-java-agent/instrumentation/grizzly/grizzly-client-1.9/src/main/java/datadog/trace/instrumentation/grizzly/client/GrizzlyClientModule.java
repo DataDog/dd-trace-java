@@ -21,15 +21,6 @@ public class GrizzlyClientModule extends InstrumenterModule.Tracing {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ClientDecorator",
-      packageName + ".InjectAdapter",
-      packageName + ".AsyncHandlerAdapter",
-    };
-  }
-
-  @Override
   public List<Instrumenter> typeInstrumentations() {
     return singletonList(new AsyncHttpClientInstrumentation());
   }

@@ -16,18 +16,6 @@ public class ApacheHttpAsyncClientModule extends InstrumenterModule.Tracing {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".HttpHeadersInjectAdapter",
-      packageName + ".DelegatingRequestProducer",
-      packageName + ".TraceContinuedFutureCallback",
-      packageName + ".ApacheHttpAsyncClientDecorator",
-      packageName + ".HostAndRequestAsHttpUriRequest",
-      packageName + ".RedirectHelper"
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     return singletonMap(
         "org.apache.http.concurrent.BasicFuture", "org.apache.http.concurrent.FutureCallback");

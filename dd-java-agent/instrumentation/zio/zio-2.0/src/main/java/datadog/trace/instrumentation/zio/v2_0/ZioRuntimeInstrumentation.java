@@ -43,11 +43,6 @@ public class ZioRuntimeInstrumentation extends InstrumenterModule.ContextTrackin
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".FiberContext", packageName + ".TracingSupervisor"};
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     return singletonMap("zio.Fiber$Runtime", packageName + ".FiberContext");
   }

@@ -30,20 +30,6 @@ public class PredefinedFromEntityUnmarshallersInstrumentation extends Instrument
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".UnmarshallerHelpers",
-      packageName + ".UnmarshallerHelpers$UnmarkStrictFormOngoingOnUnsupportedException",
-      packageName + ".AkkaBlockResponseFunction",
-      packageName + ".BlockingResponseHelper",
-      packageName + ".ScalaListCollector",
-      "datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator",
-      "datadog.trace.instrumentation.akkahttp.AkkaHttpServerHeaders",
-      "datadog.trace.instrumentation.akkahttp.UriAdapter",
-    };
-  }
-
-  @Override
   public Reference[] additionalMuzzleReferences() {
     return ScalaListCollectorMuzzleReferences.additionalMuzzleReferences();
   }

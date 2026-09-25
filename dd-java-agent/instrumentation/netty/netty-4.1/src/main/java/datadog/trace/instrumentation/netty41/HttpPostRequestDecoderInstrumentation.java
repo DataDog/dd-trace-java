@@ -65,13 +65,6 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".NettyMultipartHelper",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("parseBody").and(takesArguments(0)).and(isPrivate()),

@@ -65,34 +65,6 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".AttributeKeys",
-      // client helpers
-      packageName + ".client.NettyHttpClientDecorator",
-      packageName + ".client.NettyResponseInjectAdapter",
-      packageName + ".client.HttpClientRequestTracingHandler",
-      packageName + ".client.HttpClientResponseTracingHandler",
-      packageName + ".client.HttpClientTracingHandler",
-      // server helpers
-      packageName + ".server.ResponseExtractAdapter",
-      packageName + ".server.NettyHttpServerDecorator",
-      packageName + ".server.NettyHttpServerDecorator$NettyBlockResponseFunction",
-      packageName + ".server.BlockingResponseHandler",
-      packageName + ".server.BlockingResponseHandler$IgnoreAllWritesHandler",
-      packageName + ".server.HttpServerContextTrackingHandler",
-      packageName + ".server.HttpServerRequestTracingHandler",
-      packageName + ".server.HttpServerResponseTracingHandler",
-      packageName + ".server.HttpServerTracingHandler",
-      packageName + ".server.MaybeBlockResponseHandler",
-      packageName + ".server.websocket.WebSocketServerTracingHandler",
-      packageName + ".server.websocket.WebSocketServerResponseTracingHandler",
-      packageName + ".server.websocket.WebSocketServerRequestTracingHandler",
-      packageName + ".NettyPipelineHelper"
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvices(
         isMethod()

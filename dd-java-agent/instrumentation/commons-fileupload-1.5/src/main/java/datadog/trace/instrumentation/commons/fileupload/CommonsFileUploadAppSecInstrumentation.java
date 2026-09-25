@@ -36,13 +36,6 @@ public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.A
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.commons.fileupload.FileItemContentReader",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("parseRequest")

@@ -34,13 +34,6 @@ public class InvocableHandlerMethodInstrumentation extends InstrumenterModule.Tr
         named("invokeForRequest"), getClass().getName() + "$WrapContinuableResultAdvice");
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".SpringWebHttpServerDecorator", packageName + ".ServletRequestURIAdapter",
-    };
-  }
-
   public static class WrapContinuableResultAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void after(

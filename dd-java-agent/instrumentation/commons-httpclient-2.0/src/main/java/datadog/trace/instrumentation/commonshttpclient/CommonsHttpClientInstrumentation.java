@@ -39,13 +39,6 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".CommonsHttpClientDecorator", packageName + ".HttpHeadersInjectAdapter",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvices(
         isMethod()

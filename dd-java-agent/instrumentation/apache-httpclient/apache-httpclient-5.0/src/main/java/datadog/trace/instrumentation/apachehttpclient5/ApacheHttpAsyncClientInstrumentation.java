@@ -69,17 +69,6 @@ public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tra
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ApacheHttpClientDecorator",
-      packageName + ".HttpHeadersInjectAdapter",
-      packageName + ".DelegatingRequestChannel",
-      packageName + ".DelegatingRequestProducer",
-      packageName + ".TraceContinuedFutureCallback"
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvices(
         isMethod()

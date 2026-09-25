@@ -21,13 +21,6 @@ public class SpringServletInitializerInstrumentation extends InstrumenterModule.
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".DeploymentHelper",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("onStartup").and(ElementMatchers.takesArguments(1)),

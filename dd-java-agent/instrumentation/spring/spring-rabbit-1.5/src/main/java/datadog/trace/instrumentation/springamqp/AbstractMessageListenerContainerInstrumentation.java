@@ -40,11 +40,6 @@ public class AbstractMessageListenerContainerInstrumentation extends Instrumente
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".RabbitListenerDecorator"};
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     return singletonMap("org.springframework.amqp.core.Message", State.class.getName());
   }

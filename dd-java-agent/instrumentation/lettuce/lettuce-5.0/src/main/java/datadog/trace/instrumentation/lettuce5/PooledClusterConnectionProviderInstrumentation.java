@@ -47,15 +47,6 @@ public class PooledClusterConnectionProviderInstrumentation extends Instrumenter
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".LettuceClientDecorator",
-      packageName + ".MasterReplicaConnectionHelper",
-      packageName + ".LettuceInstrumentationUtil"
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()

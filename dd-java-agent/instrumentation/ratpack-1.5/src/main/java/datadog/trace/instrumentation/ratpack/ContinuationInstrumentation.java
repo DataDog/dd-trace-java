@@ -35,13 +35,6 @@ public final class ContinuationInstrumentation extends InstrumenterModule.Tracin
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".BlockWrapper",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("resume").and(takesArgument(0, named("ratpack.func.Block"))),

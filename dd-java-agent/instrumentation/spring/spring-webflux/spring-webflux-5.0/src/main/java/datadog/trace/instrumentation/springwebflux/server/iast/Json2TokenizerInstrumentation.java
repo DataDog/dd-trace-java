@@ -31,13 +31,6 @@ public class Json2TokenizerInstrumentation extends InstrumenterModule.Iast
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.springwebflux.server.iast.TaintFluxElementsFunction"
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
