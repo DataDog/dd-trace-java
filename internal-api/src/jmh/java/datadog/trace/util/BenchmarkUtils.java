@@ -248,8 +248,10 @@ public final class BenchmarkUtils {
    * @return a distinct-but-equal copy, or {@code key} itself if it has no distinct-but-equal form
    */
   @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-  @SuppressWarnings(
-      "deprecation") // boxed-type constructors: only way to force a non-cached instance
+  @SuppressWarnings({
+    "deprecation",
+    "removal"
+  }) // boxed-type constructors: only way to force a non-cached instance
   private static Object distinctEqualCopy(Object key) {
     if (key instanceof String) {
       return new String((String) key);

@@ -144,9 +144,6 @@ public class ImmutableMapBenchmark {
 
   @Setup(Level.Trial)
   public void setUp() {
-    // Superseded by Cursor#warmUpPollution's heavier front-load below -- this single call isn't
-    // enough on its own to drive HotSpot's tiered compiler through both C1 and C2 on the shared
-    // hash-dispatch call sites (see BenchmarkUtils#warmUpHashDispatch).
     hashMap = new HashMap<>();
     fill(hashMap);
     linkedHashMap = new LinkedHashMap<>();
