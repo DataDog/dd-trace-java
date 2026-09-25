@@ -13,10 +13,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
-/**
- * JDK specific tests for the structured-task-scope continuation cleanup, isolated from {@code
- * StructuredTaskScope25Test} because it uses the Java 26 {@code StructuredTaskScope.Joiner} API.
- */
+/** Tests structured-task-scope continuation cleanup with a Joiner adapter for each preview JDK. */
 @SuppressWarnings("preview")
 public class StructuredTaskScopeCancelTest extends AbstractInstrumentationTest {
   @Test
@@ -106,8 +103,7 @@ public class StructuredTaskScopeCancelTest extends AbstractInstrumentationTest {
     var span = tracer.startSpan("test", "parent");
     try (var ignored = tracer.activateSpan(span)) {
       try (var scope =
-          StructuredTaskScope.open(
-              StructuredTaskScope.Joiner.awaitAll(), cf -> cf.withThreadFactory(gatedFactory))) {
+          StructuredTaskScope.open(new TestJoiner<>(), cf -> cf.withThreadFactory(gatedFactory))) {
         scope.fork(this::task);
         var closeFailure = new AtomicReference<Throwable>();
         var nonOwner =
@@ -141,43 +137,28 @@ public class StructuredTaskScopeCancelTest extends AbstractInstrumentationTest {
   }
 
   /** Cancels the scope as soon as the first subtask is forked. */
-  static final class CancelOnForkJoiner<T> implements StructuredTaskScope.Joiner<T, Void> {
+  static final class CancelOnForkJoiner<T> extends TestJoiner<T> {
     @Override
-    public boolean onFork(StructuredTaskScope.Subtask<T> subtask) {
+    boolean onFork() {
       return true; // Cancel the scope as soon as the first subtask is forked.
-    }
-
-    @Override
-    public Void result() {
-      return null;
     }
   }
 
   /** Lets the first subtask start, then cancels the scope when a second subtask is forked. */
-  static final class CancelOnSecondForkJoiner<T> implements StructuredTaskScope.Joiner<T, Void> {
+  static final class CancelOnSecondForkJoiner<T> extends TestJoiner<T> {
     private int forks = 0; // onFork is only called on the scope owner thread
 
     @Override
-    public boolean onFork(StructuredTaskScope.Subtask<T> subtask) {
+    boolean onFork() {
       return ++forks >= 2; // cancel the scope when the second subtask is forked
-    }
-
-    @Override
-    public Void result() {
-      return null;
     }
   }
 
   /** Fails every fork after the subtask is created. */
-  static final class FailOnForkJoiner<T> implements StructuredTaskScope.Joiner<T, Void> {
+  static final class FailOnForkJoiner<T> extends TestJoiner<T> {
     @Override
-    public boolean onFork(StructuredTaskScope.Subtask<T> subtask) {
+    boolean onFork() {
       throw new IllegalStateException("fork rejected");
-    }
-
-    @Override
-    public Void result() {
-      return null;
     }
   }
 }
