@@ -40,6 +40,16 @@ public class OpenTelemetry14ConventionsTest extends AbstractOpenTelemetry14Test 
   private static final String SPAN_KIND_INTERNAL = "internal";
   private static final String OPERATION_NAME_SPECIFIC_ATTRIBUTE = "operation.name";
 
+  // Attributes with a dd-name registered under a different otel-name in tag-conventions.yaml are
+  // stored (and must be asserted) under their canonical Datadog name, not the raw OTel attribute
+  // key.
+  private static final Map<String, String> CANONICAL_TAG_NAMES = new HashMap<>();
+
+  static {
+    CANONICAL_TAG_NAMES.put("http.request.method", "http.method");
+    CANONICAL_TAG_NAMES.put("db.system", "db.type");
+  }
+
   static Stream<Arguments> testSpanNameConventionsArguments() {
     return Stream.of(
         // Fallback behavior
@@ -121,7 +131,8 @@ public class OpenTelemetry14ConventionsTest extends AbstractOpenTelemetry14Test 
     attributes.forEach(
         (key, value) -> {
           if (!OPERATION_NAME_SPECIFIC_ATTRIBUTE.equals(key)) {
-            tagMatchers.add(tag(key, is(value)));
+            String tagName = CANONICAL_TAG_NAMES.getOrDefault(key, key);
+            tagMatchers.add(tag(tagName, is(value)));
           }
         });
 

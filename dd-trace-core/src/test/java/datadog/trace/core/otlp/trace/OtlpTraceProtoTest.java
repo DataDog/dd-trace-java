@@ -19,12 +19,15 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
+import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
@@ -50,6 +53,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.AdditionalAnswers;
+import org.mockito.MockedStatic;
 
 /**
  * Tests for {@link OtlpTraceProto} via {@link OtlpTraceProtoCollector#collectTraces}.
@@ -456,11 +461,43 @@ class OtlpTraceProtoTest {
                 kindSpan("third.span", SPAN_KIND_SERVER))));
   }
 
+  /**
+   * Cartesian product of {@link #cases()} with both settings of the OTel-semantics flag, so every
+   * case is verified both with the OpenTelemetry-namespace renames applied and with them off (the
+   * default): the rename is opt-in, so both states must serialize correctly.
+   */
+  @SuppressWarnings("unchecked")
+  static Stream<Arguments> casesWithOtelSemantics() {
+    return cases()
+        .flatMap(
+            args -> {
+              Object[] raw = args.get();
+              String caseName = (String) raw[0];
+              List<SpanSpec> specs = (List<SpanSpec>) raw[1];
+              return Stream.of(
+                  Arguments.of(caseName + " [otel semantics enabled]", specs, true),
+                  Arguments.of(caseName + " [otel semantics disabled]", specs, false));
+            });
+  }
+
   // ── parameterized test ────────────────────────────────────────────────────
 
   @ParameterizedTest(name = "{0}")
-  @MethodSource("cases")
-  void testCollectTraces(String caseName, List<SpanSpec> specs) throws IOException {
+  @MethodSource("casesWithOtelSemantics")
+  void testCollectTraces(String caseName, List<SpanSpec> specs, boolean otelSemanticsEnabled)
+      throws IOException {
+    Config realConfig = Config.get();
+    try (MockedStatic<Config> configMock = mockStatic(Config.class)) {
+      Config config = mock(Config.class, AdditionalAnswers.delegatesTo(realConfig));
+      when(config.isTraceOtelSemanticsEnabled()).thenReturn(otelSemanticsEnabled);
+      configMock.when(Config::get).thenReturn(config);
+
+      testCollectTracesImpl(caseName, specs, otelSemanticsEnabled);
+    }
+  }
+
+  private void testCollectTracesImpl(
+      String caseName, List<SpanSpec> specs, boolean otelSemanticsEnabled) throws IOException {
     List<DDSpan> spans = buildSpans(specs);
 
     OtlpTraceProtoCollector collector = new OtlpTraceProtoCollector();
@@ -526,7 +563,11 @@ class OtlpTraceProtoTest {
     // ── verify each span ─────────────────────────────────────────────────
     for (int i = 0; i < spans.size(); i++) {
       verifySpan(
-          CodedInputStream.newInstance(spanBlobs.get(i)), spans.get(i), specs.get(i), caseName);
+          CodedInputStream.newInstance(spanBlobs.get(i)),
+          spans.get(i),
+          specs.get(i),
+          caseName,
+          otelSemanticsEnabled);
     }
   }
 
@@ -859,7 +900,11 @@ class OtlpTraceProtoTest {
    * </pre>
    */
   private static void verifySpan(
-      CodedInputStream spanData, DDSpan originalSpan, SpanSpec spec, String caseName)
+      CodedInputStream spanData,
+      DDSpan originalSpan,
+      SpanSpec spec,
+      String caseName,
+      boolean otelSemanticsEnabled)
       throws IOException {
     byte[] parsedTraceId = null;
     byte[] parsedSpanId = null;
@@ -1027,11 +1072,71 @@ class OtlpTraceProtoTest {
           "attributes must include 'service.name' when service is overridden [" + caseName + "]");
     }
 
-    // extra user tags must appear as attributes
+    // extra user tags must appear as attributes, under their OpenTelemetry name when the registry
+    // declares a rename (e.g. http.method -> http.request.method) AND OTel semantics are enabled,
+    // and under their Datadog name otherwise (pass-through, the default, and always while the
+    // rename is opt-out). Asserted EXACTLY, on the one name we expect: accepting either would let
+    // a rename silently stop firing -- which is precisely how the http.status_code rename hid,
+    // since that tag is intercepted into span metadata rather than left in the tag map.
     for (String key : spec.extraTags.keySet()) {
+      if ("http.status_code".equals(key)) {
+        // Not a tag-map entry by the time it is serialized: the set path intercepts it into
+        // Metadata.httpStatusCode, so it never reaches the per-entry projection and instead is
+        // resolved through the fixed HTTP_STATUS_CODE_KEY constant (see the intercepted-status
+        // assertion below).
+        String expectedStatusKey =
+            otelSemanticsEnabled ? "http.response.status_code" : "http.status_code";
+        String otherStatusKey =
+            otelSemanticsEnabled ? "http.status_code" : "http.response.status_code";
+        assertTrue(
+            attrKeys.contains(expectedStatusKey),
+            "intercepted status must be emitted as '"
+                + expectedStatusKey
+                + "' ["
+                + caseName
+                + "]; got "
+                + attrKeys);
+        assertFalse(
+            attrKeys.contains(otherStatusKey),
+            "intercepted status must not also appear as '"
+                + otherStatusKey
+                + "' ["
+                + caseName
+                + "]");
+        continue;
+      }
+      long id = KnownTagCodec.keyOf(key);
+      String otelName = id != 0L ? KnownTagCodec.openTelemetryNameOf(id) : null;
+      String expected = otelSemanticsEnabled && otelName != null ? otelName : key;
       assertTrue(
-          attrKeys.contains(key),
-          "attributes must include extra tag '" + key + "' [" + caseName + "]");
+          attrKeys.contains(expected),
+          "attributes must include extra tag '"
+              + key
+              + "' as '"
+              + expected
+              + "' ["
+              + caseName
+              + "]; got "
+              + attrKeys);
+      if (otelSemanticsEnabled && otelName != null) {
+        assertFalse(
+            attrKeys.contains(key),
+            "renamed tag '"
+                + key
+                + "' must not also appear under its Datadog name ["
+                + caseName
+                + "]");
+      } else if (otelName != null) {
+        assertFalse(
+            attrKeys.contains(otelName),
+            "tag '"
+                + key
+                + "' must not appear under its OpenTelemetry name '"
+                + otelName
+                + "' when OTel semantics are disabled ["
+                + caseName
+                + "]");
+      }
     }
 
     if (spec.measured) {
@@ -1040,11 +1145,26 @@ class OtlpTraceProtoTest {
           "attributes must include '_dd.measured' for measured spans [" + caseName + "]");
     }
     if (spec.httpStatusCode != 0) {
+      // Intercepted into Metadata.httpStatusCode rather than left in the tag map, so its name comes
+      // from a key constant in OtlpTraceProto (HTTP_STATUS_CODE_KEY / HTTP_STATUS_CODE_KEY_DD) and
+      // not from the per-entry projection. Emitted as an int attribute, matching the
+      // semantic-conventions type, since Metadata now carries the status as an int; under its
+      // OpenTelemetry name only when OTel semantics are enabled, else its Datadog name.
+      String expectedStatusKey =
+          otelSemanticsEnabled ? "http.response.status_code" : "http.status_code";
+      String otherStatusKey =
+          otelSemanticsEnabled ? "http.status_code" : "http.response.status_code";
       assertTrue(
-          attrKeys.contains("http.status_code"),
-          "attributes must include 'http.status_code' when set via setHttpStatusCode ["
+          attrKeys.contains(expectedStatusKey),
+          "attributes must include '"
+              + expectedStatusKey
+              + "' when set via setHttpStatusCode ["
               + caseName
-              + "]");
+              + "]; got "
+              + attrKeys);
+      assertFalse(
+          attrKeys.contains(otherStatusKey),
+          "status code must not also be emitted as '" + otherStatusKey + "' [" + caseName + "]");
     }
     if (spec.origin != null) {
       assertTrue(

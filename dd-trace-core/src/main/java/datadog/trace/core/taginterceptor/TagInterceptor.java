@@ -4,6 +4,8 @@ import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.DDTags.MEASURED;
 import static datadog.trace.api.DDTags.ORIGIN_KEY;
 import static datadog.trace.api.DDTags.SPAN_TYPE;
+import static datadog.trace.api.KnownTags.HTTP_METHOD_OTEL_NAME;
+import static datadog.trace.api.KnownTags.HTTP_STATUS_CODE_OTEL_NAME;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_CONTEXT;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.SPLIT_BY_SERVLET_CONTEXT;
@@ -118,7 +120,9 @@ public class TagInterceptor {
       case ANALYTICS_SAMPLE_RATE:
       case Tags.ERROR:
       case HTTP_STATUS:
+      case HTTP_STATUS_CODE_OTEL_NAME:
       case HTTP_METHOD:
+      case HTTP_METHOD_OTEL_NAME:
       case HTTP_URL:
       case ORIGIN_KEY:
       case MEASURED:
@@ -184,9 +188,11 @@ public class TagInterceptor {
       case Tags.ERROR:
         return interceptError(span, value);
       case HTTP_STATUS:
+      case HTTP_STATUS_CODE_OTEL_NAME:
         // not set internally but may come from manual instrumentation
         return interceptHttpStatusCode(span, value);
       case HTTP_METHOD:
+      case HTTP_METHOD_OTEL_NAME:
       case HTTP_URL:
         return interceptUrlResourceAsNameRule(span, tag, value);
       case ORIGIN_KEY:
@@ -205,13 +211,17 @@ public class TagInterceptor {
 
   private boolean interceptUrlResourceAsNameRule(DDSpanContext span, String tag, Object value) {
     if (shouldSetUrlResourceAsName) {
-      if (HTTP_METHOD.equals(tag)) {
+      if (HTTP_METHOD.equals(tag) || HTTP_METHOD_OTEL_NAME.equals(tag)) {
         final Object url = span.unsafeGetTag(HTTP_URL);
         if (url != null) {
           setResourceFromUrl(span, value.toString(), url);
         }
       } else if (HTTP_URL.equals(tag)) {
-        final Object method = span.unsafeGetTag(HTTP_METHOD);
+        // the method may have been set under either spelling -- see HTTP_METHOD_OTEL_NAME.
+        Object method = span.unsafeGetTag(HTTP_METHOD);
+        if (method == null) {
+          method = span.unsafeGetTag(HTTP_METHOD_OTEL_NAME);
+        }
         setResourceFromUrl(span, method != null ? method.toString() : null, value);
       }
     }
