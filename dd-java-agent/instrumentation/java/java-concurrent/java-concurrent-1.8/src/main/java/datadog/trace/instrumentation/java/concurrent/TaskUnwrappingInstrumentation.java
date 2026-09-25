@@ -8,10 +8,13 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.profiling.UnwrappingVisitor;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.trace.bootstrap.instrumentation.api.TaskWrapper;
 
 @AutoService(InstrumenterModule.class)
 public class TaskUnwrappingInstrumentation extends InstrumenterModule.Profiling
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasTypeAdvice {
+    implements Instrumenter.ForKnownTypes,
+        Instrumenter.HasTypeAdvice,
+        Instrumenter.WithStructuralChange {
   public TaskUnwrappingInstrumentation() {
     super(EXECUTOR_INSTRUMENTATION_NAME, "task-unwrapping");
   }
@@ -84,5 +87,10 @@ public class TaskUnwrappingInstrumentation extends InstrumenterModule.Profiling
       types[i] = TYPES_WITH_FIELDS[i * 2];
     }
     return types;
+  }
+
+  @Override
+  public Class<?> structuralChangeMarker() {
+    return TaskWrapper.class;
   }
 }

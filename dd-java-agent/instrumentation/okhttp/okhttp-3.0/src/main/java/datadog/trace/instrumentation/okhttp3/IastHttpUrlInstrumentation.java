@@ -17,17 +17,10 @@ import java.net.URL;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public class IastHttpUrlInstrumentation extends InstrumenterModule.Iast
+public class IastHttpUrlInstrumentation extends InstrumenterModule.TaintableIast
     implements Instrumenter.ForSingleType,
         Instrumenter.HasTypeAdvice,
         Instrumenter.HasMethodAdvice {
-
-  /**
-   * Adding fields to a loaded class is not possible, during testing okhttp3.HttpUrl gets loaded
-   * before the instrumenter kicks in, so we must disable the advice transformer or none of the
-   * transformations will be applied happen
-   */
-  protected static boolean ENABLE_ADVICE_TRANSFORMER = true;
 
   private final String className = IastHttpUrlInstrumentation.class.getName();
 
@@ -42,9 +35,7 @@ public class IastHttpUrlInstrumentation extends InstrumenterModule.Iast
 
   @Override
   public void typeAdvice(TypeTransformer transformer) {
-    if (ENABLE_ADVICE_TRANSFORMER) {
-      transformer.applyAdvice(new TaintableVisitor(instrumentedType()));
-    }
+    transformer.applyAdvice(new TaintableVisitor(instrumentedType()));
   }
 
   @Override
