@@ -48,8 +48,11 @@ import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.junit.utils.converter.ConfigDefaultsConverter;
 import datadog.trace.test.junit.utils.converter.TagsConverter;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -191,14 +194,16 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
   }
 
   private CoreTracer createSplittingTracer(String tag) {
+    return createSplittingTracer(Collections.singleton(tag));
+  }
+
+  private CoreTracer createSplittingTracer(Set<String> tags) {
     return tracerBuilder()
         .serviceName("my-service")
         .writer(new LoggingWriter())
         .sampler(new AllSampler())
-        // equivalent to split-by-tags: tag
-        .tagInterceptor(
-            new TagInterceptor(
-                true, "my-service", Collections.singleton(tag), new RuleFlags(), false))
+        // equivalent to split-by-tags: tags
+        .tagInterceptor(new TagInterceptor(true, "my-service", tags, new RuleFlags(), false))
         .build();
   }
 
@@ -280,6 +285,33 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     span.finish();
 
     assertEquals("peer-service", span.getServiceName());
+  }
+
+  /**
+   * A server decorator's own identity tags -- {@code component} and {@code language} -- can both be
+   * split-by-tags candidates. The decorator applies them together (e.g. via a single {@code
+   * SpanPrototype}), so {@code component} must win over {@code language} for the service name
+   * regardless of which order they happen to be processed in -- matching the old, sequential {@code
+   * setTag} calls that used to set language before component unconditionally.
+   */
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void splitByTagsComponentWinsOverLanguageRegardlessOfOrder(boolean componentFirst) {
+    CoreTracer tracer =
+        createSplittingTracer(
+            new HashSet<>(Arrays.asList(Tags.COMPONENT, DDTags.LANGUAGE_TAG_KEY)));
+
+    AgentSpan span = tracer.buildSpan("datadog", "some span").start();
+    if (componentFirst) {
+      span.setTag(Tags.COMPONENT, "my-component");
+      span.setTag(DDTags.LANGUAGE_TAG_KEY, DDTags.LANGUAGE_TAG_VALUE);
+    } else {
+      span.setTag(DDTags.LANGUAGE_TAG_KEY, DDTags.LANGUAGE_TAG_VALUE);
+      span.setTag(Tags.COMPONENT, "my-component");
+    }
+    span.finish();
+
+    assertEquals("my-component", span.getServiceName());
   }
 
   @Test

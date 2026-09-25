@@ -4,6 +4,7 @@ import static datadog.trace.api.DDTags.PARENT_ID;
 import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.UNSET;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.MANUAL;
+import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.SPLIT_BY_TAGS;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
@@ -30,6 +31,7 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
+import datadog.trace.bootstrap.instrumentation.api.SplitByTagsPriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.propagation.PropagationTags;
@@ -148,6 +150,13 @@ public class DDSpanContext
   private volatile CharSequence resourceName;
 
   private volatile byte resourceNamePriority = ResourceNamePriorities.DEFAULT;
+
+  /**
+   * Tracks the highest-priority {@code trace.split-by-tags} candidate applied so far, so that e.g.
+   * {@code component} always wins over {@code language} regardless of which order they're processed
+   * in when several land on the span together. See {@link SplitByTagsPriorities}.
+   */
+  private volatile byte splitByTagsPriority = SplitByTagsPriorities.UNSET;
 
   /** Each span have an operation name describing the current span */
   private volatile CharSequence operationName;
@@ -510,6 +519,20 @@ public class DDSpanContext
     setServiceNameSource(Objects.requireNonNull(source));
   }
 
+  /**
+   * Sets the service name from a {@code trace.split-by-tags} candidate tag, but only if {@code
+   * priority} is at least as high as the last such candidate that won -- see {@link
+   * SplitByTagsPriorities}. Guards against split-by-tags candidates that land on the span together
+   * (e.g. {@code component} and {@code language} via a single {@code SpanPrototype} application)
+   * from overwriting each other in whatever order they happen to be processed.
+   */
+  public void setSplitByTagsServiceName(String serviceName, byte priority) {
+    if (priority >= this.splitByTagsPriority) {
+      this.splitByTagsPriority = priority;
+      setServiceName(serviceName, SPLIT_BY_TAGS);
+    }
+  }
+
   public CharSequence getServiceNameSource() {
     return serviceNameSource;
   }
@@ -611,9 +634,10 @@ public class DDSpanContext
    * earlier decorator) wins. Because it never clobbers, {@code apply} is order-independent and
    * self-neutralizes once construction has already seeded the same prototype.
    *
-   * <p>This is the shared seam for both the construction path ({@code CoreSpanBuilder}) and
-   * decorator {@code afterStart} (via {@link DDSpan#apply}). The context owns the tag map, so the
-   * eventual cheaper bulk-share path (skipping interception for non-intercepted tags) and the
+   * <p>This is the construction-time seam ({@code CoreSpanBuilder}) -- see {@link
+   * #applyOverwriting} for the decorator {@code afterStart} seam (via {@link
+   * DDSpan#applyOverwriting}), which needs different precedence. The context owns the tag map, so
+   * the eventual cheaper bulk-share path (skipping interception for non-intercepted tags) and the
    * identity short-circuit will land here -- deferred to the dense-store / tag-registry work, which
    * exposes intercept status at the internal-api level. Until then the constant tags route through
    * the interceptor, identical to the per-tag calls this replaces.
@@ -631,6 +655,24 @@ public class DDSpanContext
       if (integrationName != null) {
         setIntegrationName(integrationName);
       }
+    }
+  }
+
+  /**
+   * Applies a {@link SpanPrototype} unconditionally: stamps its span type, constant tags, and
+   * integration name over whatever is already present. This is the decorator {@code afterStart}
+   * seam -- see {@link datadog.trace.bootstrap.instrumentation.api.AgentSpan#applyOverwriting} for
+   * why it needs different precedence than {@link #apply}.
+   */
+  public void applyOverwriting(@Nonnull final SpanPrototype prototype) {
+    final CharSequence spanType = prototype.spanType();
+    if (spanType != null) {
+      setSpanType(spanType);
+    }
+    setAllTags(prototype.tags(), true);
+    final CharSequence integrationName = prototype.integrationName();
+    if (integrationName != null) {
+      setIntegrationName(integrationName);
     }
   }
 
