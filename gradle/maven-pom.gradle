@@ -1,28 +1,26 @@
 /** Applies the common elements to our generated POM files */
-afterEvaluate {
-  publishing.publications.withType(MavenPublication).configureEach {
-    MavenPom pom = it.pom
-    pom.name = project.name
-    pom.description = project.description
-    pom.packaging = "jar"
-    pom.url = "https://github.com/datadog/dd-trace-java"
-    pom.licenses {
-      license {
-        name = "The Apache Software License, Version 2.0"
-        url = "http://www.apache.org/licenses/LICENSE-2.0.txt"
-        distribution = "repo"
-      }
+publishing.publications.withType(MavenPublication).configureEach {
+  MavenPom pom = it.pom
+  pom.name = project.name
+  pom.description = providers.provider { project.description }
+  pom.packaging = "jar"
+  pom.url = "https://github.com/datadog/dd-trace-java"
+  pom.licenses {
+    license {
+      name = "The Apache Software License, Version 2.0"
+      url = "http://www.apache.org/licenses/LICENSE-2.0.txt"
+      distribution = "repo"
     }
-    pom.scm {
-      connection = "scm:https://datadog@github.com/datadog/dd-trace-java"
-      developerConnection = "scm:git@github.com:datadog/dd-trace-java.git"
-      url = "https://github.com/datadog/dd-trace-java"
-    }
-    pom.developers {
-      developer {
-        id = "datadog"
-        name = "Datadog"
-      }
+  }
+  pom.scm {
+    connection = "scm:https://datadog@github.com/datadog/dd-trace-java"
+    developerConnection = "scm:git@github.com:datadog/dd-trace-java.git"
+    url = "https://github.com/datadog/dd-trace-java"
+  }
+  pom.developers {
+    developer {
+      id = "datadog"
+      name = "Datadog"
     }
   }
 }

@@ -1,15 +1,15 @@
 pluginManagement {
   repositories {
     mavenLocal()
-    if (settings.extra.has("gradlePluginProxy")) {
+    providers.gradleProperty("gradlePluginProxy").orNull?.let { proxy ->
       maven {
-        url = uri(settings.extra["gradlePluginProxy"] as String)
+        url = uri(proxy)
         isAllowInsecureProtocol = true
       }
     }
-    if (settings.extra.has("mavenRepositoryProxy")) {
+    providers.gradleProperty("mavenRepositoryProxy").orNull?.let { proxy ->
       maven {
-        url = uri(settings.extra["mavenRepositoryProxy"] as String)
+        url = uri(proxy)
         isAllowInsecureProtocol = true
       }
     }
