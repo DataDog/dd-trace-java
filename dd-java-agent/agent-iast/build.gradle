@@ -10,10 +10,6 @@ plugins {
   id 'dd-trace-java.module.product-subsystem'
 }
 
-tasks.named("compileJava", JavaCompile) {
-  configureCompiler(it, 25, JavaVersion.VERSION_1_8)
-}
-
 // First version with Mac M1 support
 def grpcVersion = '1.42.2'
 protobuf {
@@ -117,7 +113,6 @@ tasks.named("forbiddenApisJmh") {
 
 tasks.withType(JavaCompile).configureEach {
   if (name == 'compileJava') {
-    options.release = 8
     options.compilerArgs.add('--should-stop=ifError=FLOW')
     options.errorprone {
       check("NullAway", CheckSeverity.ERROR)
