@@ -31,9 +31,8 @@ public final class NettyPromiseTaskInstrumentation extends InstrumenterModule.Co
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public NettyPromiseTaskInstrumentation() {
-    // Use the same names as RunnableFutureInstrumentation: it captures the continuation and
-    // delegates scheduled task activation here. A separate netty-concurrent toggle could disable
-    // this half of propagation when only java_concurrent or runnable-future is enabled.
+    // Share both names with RunnableFutureInstrumentation because it captures continuations that
+    // this instrumentation activates for scheduled tasks; either name must enable both halves.
     super("java_concurrent", "runnable-future");
   }
 
