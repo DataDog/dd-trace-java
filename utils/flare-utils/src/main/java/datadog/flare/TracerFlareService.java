@@ -24,6 +24,8 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipOutputStream;
 import okhttp3.HttpUrl;
@@ -49,11 +51,23 @@ final class TracerFlareService {
 
   private static final int MAX_LOGFILE_SIZE_BYTES = MAX_LOGFILE_SIZE_MB << 20;
 
+  static final Map<String, String[]> BUILT_IN_SOURCES = new HashMap<>();
+
+  static {
+    BUILT_IN_SOURCES.put("prelude", new String[] {"flare_info.txt", "tracer_version.txt"});
+    BUILT_IN_SOURCES.put("config", new String[] {"initial_config.txt"});
+    BUILT_IN_SOURCES.put(
+        "runtime",
+        new String[] {"jvm_args.txt", "classpath.txt", "library_path.txt", "boot_classpath.txt"});
+    BUILT_IN_SOURCES.put("threads", new String[] {"threads.txt"});
+  }
+
   private final AgentTaskScheduler scheduler = new AgentTaskScheduler(TRACER_FLARE);
 
   private final Config config;
   private final OkHttpClient okHttpClient;
   private final HttpUrl flareUrl;
+  private final TracerFlareManager jmxManager;
 
   private boolean logLevelOverridden;
   private volatile long flareStartMillis;
@@ -65,7 +79,20 @@ final class TracerFlareService {
     this.okHttpClient = okHttpClient;
     this.flareUrl = agentUrl.newBuilder().addPathSegments(FLARE_ENDPOINT).build();
 
+    if (config.isTelemetryJmxEnabled()) {
+      jmxManager = new TracerFlareManager(this);
+      jmxManager.registerMBean();
+    } else {
+      jmxManager = null;
+    }
+
     applyTriageReportTrigger(config.getTriageReportTrigger());
+  }
+
+  public void close() {
+    if (jmxManager != null) {
+      jmxManager.unregisterMBean();
+    }
   }
 
   private void applyTriageReportTrigger(String triageTrigger) {
@@ -194,11 +221,13 @@ final class TracerFlareService {
     return REPORT_PREFIX + config.getRuntimeId() + "-" + endMillis + ".zip";
   }
 
-  private byte[] buildFlareZip(long startMillis, long endMillis, boolean dumpThreads)
+  public byte[] buildFlareZip(long startMillis, long endMillis, boolean dumpThreads)
       throws IOException {
     try (ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         ZipOutputStream zip = new ZipOutputStream(bytes)) {
 
+      // Make sure to update BUILT_IN_SOURCES and getBuiltInSourceZip if this list of functions
+      // changes
       addPrelude(zip, startMillis, endMillis);
       addConfig(zip);
       addRuntime(zip);
@@ -212,17 +241,47 @@ final class TracerFlareService {
     }
   }
 
+  /** Generates a ZIP file for JMX fetch for a built-in source. */
+  byte[] getBuiltInSourceZip(String sourceName) throws IOException {
+    try (ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        ZipOutputStream zip = new ZipOutputStream(bytes)) {
+
+      switch (sourceName) {
+        case "prelude":
+          addPrelude(zip, flareStartMillis, System.currentTimeMillis());
+          break;
+        case "config":
+          addConfig(zip);
+          break;
+        case "runtime":
+          addRuntime(zip);
+          break;
+        case "threads":
+          addThreadDump(zip);
+          break;
+        default:
+          throw new IOException("Unknown source name: " + sourceName);
+      }
+
+      zip.finish();
+      return bytes.toByteArray();
+    }
+  }
+
   private void addPrelude(ZipOutputStream zip, long startMillis, long endMillis)
       throws IOException {
+    // Make sure to update BUILT_IN_SOURCES if the files change here.
     TracerFlare.addText(zip, "flare_info.txt", flareInfo(startMillis, endMillis));
     TracerFlare.addText(zip, "tracer_version.txt", VERSION);
   }
 
   private void addConfig(ZipOutputStream zip) throws IOException {
+    // Make sure to update BUILT_IN_SOURCES if the files change here.
     TracerFlare.addText(zip, "initial_config.txt", config.toString());
   }
 
   private void addRuntime(ZipOutputStream zip) throws IOException {
+    // Make sure to update BUILT_IN_SOURCES if the files change here.
     try {
       RuntimeMXBean runtimeMXBean = ManagementFactory.getRuntimeMXBean();
       TracerFlare.addText(zip, "jvm_args.txt", String.join(" ", runtimeMXBean.getInputArguments()));
