@@ -53,6 +53,22 @@ import org.openjdk.jmh.annotations.Warmup;
  *       embedding the counter directly in the entry — one object instead of two, with no throughput
  *       penalty.
  * </ul>
+ *
+ * <p>Rerun with {@link BenchmarkUtils#polluteHashDispatch()} wired into {@code
+ * SharedState.setUp()}, same JDK 17 as the table above -- a clean pollution-only delta:
+ *
+ * <pre>{@code
+ * Benchmark                          Score   Units
+ * increment_longAdder                  205   ops/us
+ * increment_atomicLong                  72   ops/us
+ * increment_concurrentHashtable         68   ops/us
+ * }</pre>
+ *
+ * <p>{@code ConcurrentHashtable} and {@code AtomicLong} are still within 6% of each other (68 vs 72
+ * ops/us), unchanged from above. {@code LongAdder}'s score jumped to 205 ops/us, but its error bar
+ * ({@code ±429}) is more than double its own mean -- unusable at this fork count, not evidence of a
+ * real pollution effect; take the "within 15%" finding above as still the reliable read for {@code
+ * LongAdder} too.
  */
 @Fork(2)
 @Warmup(iterations = 2)
@@ -100,6 +116,7 @@ public class ThreadSafeMapCounterBenchmark {
 
     @Setup(Level.Iteration)
     public void setUp() {
+      BenchmarkUtils.polluteHashDispatch();
       table = ConcurrentHashtable.D1.createBounded(CounterEntry.class, CAPACITY);
       atomicLongMap = new ConcurrentHashMap<>(CAPACITY);
       longAdderMap = new ConcurrentHashMap<>(CAPACITY);

@@ -164,6 +164,15 @@ public class ImmutableSetBenchmark {
     int hitFreshIndex = 0;
     int missIndex = 0;
 
+    // Re-pollute every invocation: a one-shot Level.Trial call gets drowned out by this
+    // benchmark's own real-key traffic well before HotSpot compiles the shared hash dispatch call
+    // sites, letting them re-specialize to a dominant receiver (see
+    // BenchmarkUtils#polluteHashDispatch).
+    @Setup(Level.Invocation)
+    public void pollute() {
+      BenchmarkUtils.polluteHashDispatch();
+    }
+
     String nextHit() {
       int i = hitIndex + 1;
       if (i >= STRINGS.length) {

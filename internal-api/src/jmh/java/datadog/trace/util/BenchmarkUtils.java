@@ -2,7 +2,13 @@ package datadog.trace.util;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 
 /** Shared setup helpers for JMH benchmarks in this module. */
 public final class BenchmarkUtils {
@@ -13,14 +19,46 @@ public final class BenchmarkUtils {
   };
 
   /**
-   * Makes the internal {@code hashCode()} and {@code equals()} call sites of common hash-based
-   * collections megamorphic before measurement.
+   * Exercises {@link HashSet}/{@link java.util.HashMap}, the tracer's {@link
+   * CollectionUtils#tryMakeImmutableSet} immutable sets, and {@link ConcurrentHashMap} with several
+   * distinct key classes, so each structure's internal {@code hashCode()}/{@code equals()} dispatch
+   * -- a call site shared JVM-wide by every instance of that structure in the process, regardless
+   * of which specific instance or call site invokes {@code add}/{@code contains}/{@code get} -- is
+   * already megamorphic before a benchmark measures lookups against a single key type.
    *
-   * <p>HotSpot records receiver classes at each virtual call site. A benchmark using only {@code
-   * String} keys leaves the sites inside these shared implementations monomorphic, allowing C2 to
-   * devirtualize and inline them. Production uses many key types, so the same sites are often
-   * megamorphic and retain virtual dispatch. Exercising several key classes avoids reporting
-   * unrealistically fast collection lookups.
+   * <p>This matches production: those shared internal call sites are hit by every hash-based
+   * structure in the JVM across whatever key types the whole application uses, so they're
+   * realistically almost always megamorphic. An isolated benchmark that only ever looks up one key
+   * type (e.g. {@code String}) would otherwise leave them artificially monomorphic for the entire
+   * run, understating real dispatch cost.
+   *
+   * <p>{@code HashSet} is backed by {@code HashMap} in the JDK, so polluting it also covers plain
+   * {@code HashMap} and {@code LinkedHashMap} (which extends {@code HashMap}) -- they share the
+   * same internal dispatch call site. {@code ConcurrentHashMap} does not: it's an unrelated class
+   * with its own {@code hashCode()}/{@code equals()} call sites, so it needs its own scratch
+   * instance (also covers {@code ConcurrentHashMap#newKeySet()}, which is backed by a {@code
+   * ConcurrentHashMap}). The JDK's immutable {@code Set.copyOf}/{@code Map.copyOf} ({@code SetN}/
+   * {@code MapN}) have their own internal {@code equals()} call sites too, distinct from {@code
+   * HashSet}/{@code HashMap}'s, so they get their own scratch instances as well.
+   *
+   * <p>{@code TreeMap}/{@code TreeSet}/{@code ConcurrentSkipListMap} dispatch on {@code compareTo}
+   * instead of {@code hashCode()}/{@code equals()}, so they need a separate pass -- see {@link
+   * #polluteCompareToDispatch()}, which this method also drives, since every caller of this method
+   * wants both passes.
+   *
+   * <p>Deliberately does not touch the benchmark's own {@code contains}/{@code add}/{@code get}
+   * call sites -- those are realistically free to specialize per caller, the way a genuinely hot,
+   * narrowly-typed call site would in production.
+   *
+   * <p>Not to be confused with the CHA-defeat decoys in {@code SingleThreadedMapBenchmark}/{@code
+   * ThreadSafeMapBenchmark} ({@code KeyStrategy} implementors referenced only so they're loaded,
+   * never invoked): that technique denies class-hierarchy analysis a single-implementor bet for a
+   * narrow, dd-trace-java-owned interface, and works by class-loading alone. It doesn't apply here
+   * -- {@code Object.hashCode()}/{@code equals()} already have countless implementors loaded in any
+   * real JVM, so a single-implementor CHA bet was never available for them. What gates their
+   * dispatch is the interpreter's per-call-site type profile, which only invocation can pollute --
+   * hence this helper actually calls {@code add}/{@code contains}/{@code get}, rather than just
+   * loading classes.
    */
   public static void polluteHashDispatch() {
     polluteHashDispatch(DEFAULT_DECOY_KEYS);
@@ -29,6 +67,57 @@ public final class BenchmarkUtils {
   public static void polluteHashDispatch(Object... decoyKeys) {
     populateTypeProfileMutable(new HashSet<>(), decoyKeys);
     populateTypeProfile(CollectionUtils.tryMakeImmutableSet(Arrays.asList(decoyKeys)), decoyKeys);
+    populateTypeProfileMutableMap(new ConcurrentHashMap<>(), decoyKeys);
+
+    Map<Object, Object> mapCopySource = new HashMap<>();
+    for (Object key : decoyKeys) {
+      mapCopySource.put(key, key);
+    }
+    populateTypeProfileMap(CollectionUtils.tryMakeImmutableMap(mapCopySource), decoyKeys);
+
+    polluteCompareToDispatch(decoyKeys);
+  }
+
+  /**
+   * Counterpart to the rest of this class for the {@code compareTo}-based dispatch used by {@code
+   * TreeMap}/{@code TreeSet}/{@code ConcurrentSkipListMap}, instead of {@code hashCode()}/{@code
+   * equals()}.
+   *
+   * <p>Unlike the hash-based structures above, a single sorted collection can't hold multiple decoy
+   * key classes at once: natural ordering calls {@code key.compareTo(existing)}, which throws
+   * {@code ClassCastException} the moment two mutually-incomparable types meet (e.g. a {@code
+   * String} and an {@code Integer}). So each key type gets its own scratch instance here, one type
+   * at a time. That's still enough to make the dispatch megamorphic: HotSpot's type profile lives
+   * on the bytecode call site inside {@code TreeMap}/{@code TreeSet}/{@code
+   * ConcurrentSkipListMap}'s shared implementation, not on any one collection instance, so driving
+   * several receiver types through that site across several scratch instances pollutes it exactly
+   * as effectively as driving them through one shared instance would.
+   *
+   * <p>{@code Object}'s decoy is skipped: it isn't {@link Comparable}, so it has no natural
+   * ordering to dispatch through in the first place -- the same reason it's exempt from an {@code
+   * equals()}-identity copy in {@link #distinctEqualCopy}.
+   */
+  public static void polluteCompareToDispatch() {
+    polluteCompareToDispatch(DEFAULT_DECOY_KEYS);
+  }
+
+  public static void polluteCompareToDispatch(Object... decoyKeys) {
+    for (Object key : decoyKeys) {
+      if (!(key instanceof Comparable)) {
+        continue;
+      }
+      TreeSet<Object> treeSet = new TreeSet<>();
+      treeSet.add(key);
+      treeSet.contains(distinctEqualCopy(key));
+
+      TreeMap<Object, Object> treeMap = new TreeMap<>();
+      treeMap.put(key, key);
+      treeMap.get(distinctEqualCopy(key));
+
+      ConcurrentSkipListMap<Object, Object> skipListMap = new ConcurrentSkipListMap<>();
+      skipListMap.put(key, key);
+      skipListMap.get(distinctEqualCopy(key));
+    }
   }
 
   /**
@@ -45,7 +134,7 @@ public final class BenchmarkUtils {
 
   public static void populateTypeProfile(Collection<Object> populated, Object... decoyKeys) {
     for (Object key : decoyKeys) {
-      populated.contains(key);
+      populated.contains(distinctEqualCopy(key));
     }
   }
 
@@ -53,7 +142,61 @@ public final class BenchmarkUtils {
   public static void populateTypeProfileMutable(Collection<Object> scratch, Object... decoyKeys) {
     for (Object key : decoyKeys) {
       scratch.add(key);
-      scratch.contains(key);
+      scratch.contains(distinctEqualCopy(key));
+    }
+  }
+
+  /**
+   * {@link Map} counterpart to {@link #populateTypeProfile(Collection)}: pass the map instance
+   * under test (or an equivalent scratch instance) to drive its {@code get()} dispatch. Safe
+   * against immutable maps too, since it only calls {@code get()}.
+   */
+  public static void populateTypeProfileMap(Map<Object, Object> populated) {
+    populateTypeProfileMap(populated, DEFAULT_DECOY_KEYS);
+  }
+
+  public static void populateTypeProfileMap(Map<Object, Object> populated, Object... decoyKeys) {
+    for (Object key : decoyKeys) {
+      populated.get(distinctEqualCopy(key));
+    }
+  }
+
+  /**
+   * Lower-level control, {@link Map} counterpart to {@link #populateTypeProfileMutable}: also
+   * drives {@code put()} dispatch, so {@code scratch} must genuinely support mutation.
+   */
+  public static void populateTypeProfileMutableMap(
+      Map<Object, Object> scratch, Object... decoyKeys) {
+    for (Object key : decoyKeys) {
+      scratch.put(key, key);
+      scratch.get(distinctEqualCopy(key));
+    }
+  }
+
+  /**
+   * Returns a distinct instance that's {@code .equals()} to {@code key} but never {@code ==} it, so
+   * the lookup that follows can't take {@code HashMap}/{@code ConcurrentHashMap}'s internal {@code
+   * key == storedKey || key.equals(storedKey)} identity fast path and skip calling {@code equals()}
+   * -- which is exactly the dispatch this class exists to pollute. {@code Object}'s own {@code
+   * equals()} is identity, so a decoy of that type has no distinct-but-equal instance to make; it's
+   * returned as-is, and the identity fast path is then indistinguishable from a genuine {@code
+   * equals()} call anyway.
+   */
+  @SuppressWarnings(
+      "deprecation") // boxed-type constructors: only way to force a non-cached instance
+  private static Object distinctEqualCopy(Object key) {
+    if (key instanceof String) {
+      return new String((String) key);
+    } else if (key instanceof Integer) {
+      return new Integer((Integer) key);
+    } else if (key instanceof Long) {
+      return new Long((Long) key);
+    } else if (key instanceof Double) {
+      return new Double((Double) key);
+    } else if (key instanceof Boolean) {
+      return new Boolean((Boolean) key);
+    } else {
+      return key;
     }
   }
 }

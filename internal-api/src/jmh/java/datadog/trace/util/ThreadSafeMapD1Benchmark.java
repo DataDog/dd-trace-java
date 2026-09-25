@@ -63,6 +63,30 @@ import org.openjdk.jmh.annotations.Warmup;
  *   <li>{@code getOrCreate} is near-identical to {@code get} because all keys are pre-populated —
  *       the lock branch is never taken during measurement.
  * </ul>
+ *
+ * <p>Rerun with {@link BenchmarkUtils#polluteHashDispatch()} wired into {@code
+ * SharedState.setUp()}, same JDK 17 as the table above -- a clean pollution-only delta:
+ *
+ * <pre>{@code
+ * Benchmark                             Score   Units
+ * get_concurrentHashtable               1478   ops/us
+ * get_concurrentHashMap                 1188   ops/us
+ * get_concurrentSkipListMap              207   ops/us
+ * get_synchronizedHashMap                  9   ops/us
+ *
+ * getOrCreate_concurrentHashtable       1549   ops/us
+ * getOrCreate_concurrentHashMap         1188   ops/us
+ * getOrCreate_synchronizedHashMap          9   ops/us
+ * }</pre>
+ *
+ * <p>Synchronized {@code HashMap} collapses by ~73% (33/31 to 9 ops/us on {@code get}/{@code
+ * getOrCreate}) -- pollution turns its megamorphic {@code hashCode()}/{@code equals()} dispatch
+ * into most of its cost, far more than the lock contention this benchmark was designed to isolate.
+ * {@code ConcurrentHashtable} and {@code ConcurrentHashMap} both hold roughly steady (within ~7%),
+ * so the {@code ConcurrentHashtable} lead over {@code ConcurrentHashMap} narrows only slightly
+ * (~24-30%, down from ~38%) -- this table's own low error bars (all under 2% of their means) make
+ * that narrowing a real, if modest, effect rather than noise. {@code ConcurrentSkipListMap} rises
+ * slightly (~22%) but with an error bar spanning ~21% of its mean -- directional, not decisive.
  */
 @Fork(2)
 @Warmup(iterations = 2)
@@ -104,6 +128,7 @@ public class ThreadSafeMapD1Benchmark {
 
     @Setup(Level.Iteration)
     public void setUp() {
+      BenchmarkUtils.polluteHashDispatch();
       table = ConcurrentHashtable.D1.createBounded(D1Entry.class, CAPACITY);
       concurrentHashMap = new ConcurrentHashMap<>(CAPACITY);
       skipListMap = new ConcurrentSkipListMap<>();
@@ -121,6 +146,15 @@ public class ThreadSafeMapD1Benchmark {
   @State(Scope.Thread)
   public static class ThreadState {
     int cursor;
+
+    // Re-pollute every invocation: a one-shot Level.Iteration call gets drowned out by this
+    // benchmark's own real-key traffic well before HotSpot compiles the shared hash dispatch call
+    // sites, letting them re-specialize to a dominant receiver (see
+    // BenchmarkUtils#polluteHashDispatch).
+    @Setup(Level.Invocation)
+    public void pollute() {
+      BenchmarkUtils.polluteHashDispatch();
+    }
 
     int next() {
       int i = cursor;

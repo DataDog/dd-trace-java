@@ -45,16 +45,39 @@ import org.openjdk.jmh.infra.Blackhole;
  * create_treeSet         36
  * }</pre>
  *
+ * <p>JDK 8 results (Apple M1, {@code @Fork(2)}, {@code @Threads(8)}, with {@link
+ * BenchmarkUtils#polluteHashDispatch()} in effect; M ops/s):
+ *
+ * <pre>{@code
+ * contains_hashSet            1421
+ * contains_synchronizedSet     746    (~48% slower — the uncontended sync tax)
+ * iterate_hashSet              134
+ * iterate_synchronizedSet      129    (one monitor acquire amortized over the walk)
+ *
+ * create_hashSet         67    clone_hashSet          56
+ * create_hashSet_sized   83*   clone_synchronizedSet  48*
+ * create_linkedHashSet   63    clone_linkedHashSet    56
+ * create_synchronizedSet 71*   clone_treeSet          77
+ * create_treeSet         38
+ * }</pre>
+ *
+ * <p>* = error bar over half the mean at {@code @Fork(2)} — directional only.
+ *
  * <p>Key findings:
  *
  * <ul>
- *   <li><b>Uncontended synchronization tax</b> on {@code contains} is ~37% (1291 → 808M ops/s) even
- *       with no contention and biased locking disabled (Java 17, JEP 374) — the full per-lock CAS
- *       cost. On {@code iterate} it nearly vanishes: a single monitor acquire amortized over the
- *       traversal.
- *   <li>Construction: {@code TreeSet} is the slowest to build (~36M); the {@code synchronizedSet}
- *       wrapper adds a modest cost over plain {@code HashSet}. (Allocation-path numbers carry more
- *       run-to-run variance than the read paths.)
+ *   <li><b>Uncontended synchronization tax</b> holds up under pollution and on a different JDK:
+ *       {@code contains} is ~48% slower synchronized (1421 → 746M ops/s on JDK 8, vs. ~37% on Java
+ *       17) — same story, somewhat larger tax. {@code iterate}'s tax stays small either way (~4%
+ *       here): one monitor acquire amortized over the walk.
+ *   <li>{@code contains_hashSet} and {@code iterate_hashSet} land in the same range as the original
+ *       Java 17 run (1291 vs 1421M, 91 vs 134M) rather than collapsing, unlike {@link
+ *       ImmutableSetBenchmark}'s {@code hitFresh} case -- but that run is also on a different JDK,
+ *       so it isn't a clean pollution-only comparison (same caveat as {@link
+ *       HashtableD1Benchmark}'s Javadoc); read it as weak, not decisive, evidence that pollution
+ *       didn't change the qualitative story. Construction numbers remain the noisiest (several
+ *       {@code @Fork(2)} error bars exceed half the mean); {@code TreeSet} stays the slowest to
+ *       build across both runs.
  * </ul>
  */
 @Fork(2)
@@ -91,6 +114,15 @@ public class SingleThreadedSetBenchmark {
   TreeSet<String> treeSet;
   LinkedHashSet<String> linkedHashSet;
   int index = 0;
+
+  // Re-pollute every invocation: a one-shot Level.Trial call gets drowned out by this
+  // benchmark's own real-key traffic well before HotSpot compiles the shared hash dispatch call
+  // sites, letting them re-specialize to a dominant receiver (see
+  // BenchmarkUtils#polluteHashDispatch).
+  @Setup(Level.Invocation)
+  public void pollute() {
+    BenchmarkUtils.polluteHashDispatch();
+  }
 
   @Setup(Level.Trial)
   public void setUp() {

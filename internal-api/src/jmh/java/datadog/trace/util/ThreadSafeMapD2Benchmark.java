@@ -71,6 +71,36 @@ import org.openjdk.jmh.annotations.Warmup;
  *       traversal; the two-traversal {@code getOrCreate} pattern adds further overhead on misses.
  *   <li>Synchronized {@code HashMap} is ~50× slower than {@code ConcurrentHashtable}.
  * </ul>
+ *
+ * <p>Rerun with {@link BenchmarkUtils#polluteHashDispatch()} wired into {@code
+ * SharedState.setUp()}, same JDK 17 as the table above -- a clean pollution-only delta:
+ *
+ * <pre>{@code
+ * Benchmark                              Score   Units
+ * get_concurrentHashtable                1505   ops/us
+ * get_support                            1313   ops/us
+ * get_concurrentHashMap                  1072   ops/us
+ * get_concurrentSkipListMap               172   ops/us
+ * get_synchronizedHashMap                   9   ops/us
+ *
+ * getOrCreate_support                    1516   ops/us
+ * getOrCreate_concurrentHashtable        1300   ops/us
+ * getOrCreate_concurrentHashMap          1108   ops/us
+ * getOrCreate_concurrentSkipListMap       178   ops/us
+ * getOrCreate_synchronizedHashMap           9   ops/us
+ * }</pre>
+ *
+ * <p>Synchronized {@code HashMap} collapses by ~67% (30/28 to 9 ops/us), the same magnitude seen in
+ * {@link ThreadSafeMapD1Benchmark} -- pollution dominates its cost far more than lock contention.
+ * {@code ConcurrentHashMap} rises ~38-44% over the unpolluted table (777→1072, 769→1108) with tight
+ * error bars (under 8% of the mean) -- a real effect, not noise; the {@link Key2} allocation this
+ * benchmark forces on every {@code ConcurrentHashMap} lookup apparently costs relatively less once
+ * the JIT already treats the surrounding dispatch as megamorphic. {@code Support} and {@code
+ * ConcurrentHashtable} are still the two fastest and remain close to each other, but neither can be
+ * called ahead here: their error bars are enormous (±520 and ±591, roughly 35-45% of their own
+ * means) and their relative order flips between {@code get} and {@code getOrCreate} -- read both as
+ * noise, not as a real reordering. {@code ConcurrentSkipListMap} rises modestly, also within a wide
+ * error bar -- directional only.
  */
 @Fork(2)
 @Warmup(iterations = 2)
@@ -184,6 +214,7 @@ public class ThreadSafeMapD2Benchmark {
 
     @Setup(Level.Iteration)
     public void setUp() {
+      BenchmarkUtils.polluteHashDispatch();
       table = ConcurrentHashtable.D2.createBounded(D2Entry.class, CAPACITY);
       supportBuckets = ConcurrentHashtable.createFixedBuckets(SupportEntry.class, CAPACITY);
       concurrentHashMap = new ConcurrentHashMap<>(CAPACITY);
@@ -209,6 +240,15 @@ public class ThreadSafeMapD2Benchmark {
   @State(Scope.Thread)
   public static class ThreadState {
     int cursor;
+
+    // Re-pollute every invocation: a one-shot Level.Iteration call gets drowned out by this
+    // benchmark's own real-key traffic well before HotSpot compiles the shared hash dispatch call
+    // sites, letting them re-specialize to a dominant receiver (see
+    // BenchmarkUtils#polluteHashDispatch).
+    @Setup(Level.Invocation)
+    public void pollute() {
+      BenchmarkUtils.polluteHashDispatch();
+    }
 
     int next() {
       int i = cursor;

@@ -161,6 +161,15 @@ escape analysis eliminates *local* short-lived allocations, but only when the ob
 Stored in a map, returned, captured by a lambda, or passed to a non-inlined virtual call: it
 escapes, and it's real.
 
+**Map/Set JMH benchmarks that never pollute dispatch — treat as unverified.** A benchmark that
+looks up only one key class for its whole run leaves the collection's internal
+`hashCode()`/`equals()` (or `compareTo` for sorted maps/sets) call site artificially
+monomorphic — production hits that same shared call site with whatever key types the whole
+process uses, so it's realistically almost always megamorphic. An unpolluted benchmark can
+overstate a structure's throughput and flip a comparison (PR #12298: a synchronized `HashMap`
+collapsed ~70% once pollution was added). Check that the benchmark's `@Setup` calls
+`datadog.trace.util.BenchmarkUtils.polluteHashDispatch()` before trusting its numbers.
+
 **EA claims for scope/wrapper objects spanning I/O — treat as unverified.** A microbenchmark
 tight-loop can show zero allocation for a scope or wrapper object because C2 inlines through
 everything and scalar-replaces it. In production, scopes almost always wrap I/O — and C2 cannot
