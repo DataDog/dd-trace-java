@@ -38,6 +38,8 @@ dependencies {
 
   testImplementation libs.bundles.jmc
   testImplementation libs.bundles.junit5
+  testImplementation libs.bundles.mockito
+  testImplementation group: 'org.mockito', name: 'mockito-inline', version: '4.11.0'
 }
 
 
@@ -60,7 +62,6 @@ configurations.configureEach {
 
 [JavaCompile, GroovyCompile].each {
   tasks.withType(it).configureEach {
-    configureCompiler(it, 11, JavaVersion.VERSION_1_8)
     // Disable '-processing' because some annotations are not claimed.
     // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
     // Disable '-path' because we do not have some of the paths seem to be missing.

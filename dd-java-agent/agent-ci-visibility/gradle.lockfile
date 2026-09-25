@@ -134,7 +134,6 @@ org.junit.platform:junit-platform-runner:1.14.1=testRuntimeClasspath
 org.junit.platform:junit-platform-suite-api:1.14.1=testRuntimeClasspath
 org.junit.platform:junit-platform-suite-commons:1.14.1=testRuntimeClasspath
 org.junit:junit-bom:5.14.1=testCompileClasspath,testImplementationDependenciesMetadata,testRuntimeClasspath
-org.junit:junit-bom:6.1.2=spotbugs
 org.mockito:mockito-core:4.4.0=testCompileClasspath,testImplementationDependenciesMetadata,testRuntimeClasspath
 org.mockito:mockito-junit-jupiter:4.4.0=testCompileClasspath,testImplementationDependenciesMetadata,testRuntimeClasspath
 org.msgpack:jackson-dataformat-msgpack:0.9.6=testCompileClasspath,testImplementationDependenciesMetadata,testRuntimeClasspath

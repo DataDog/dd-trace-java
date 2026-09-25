@@ -250,6 +250,7 @@ abstract class CiVisibilityInstrumentationTest extends InstrumentationSpecificat
       false,
       settings.failedTestReplayEnabled,
       earlyFlakinessDetectionSettings,
+      DynamicAutoTestRetrySettings.DEFAULT,
       testManagementSettings,
       settings.itrEnabled ? "itrCorrelationId" : null,
       skippableTestsWithMetadata,

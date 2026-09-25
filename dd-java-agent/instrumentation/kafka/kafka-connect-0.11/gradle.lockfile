@@ -214,7 +214,6 @@ org.junit.platform:junit-platform-runner:1.14.1=testRuntimeClasspath
 org.junit.platform:junit-platform-suite-api:1.14.1=testRuntimeClasspath
 org.junit.platform:junit-platform-suite-commons:1.14.1=testRuntimeClasspath
 org.junit:junit-bom:5.14.1=testCompileClasspath,testRuntimeClasspath
-org.junit:junit-bom:6.1.2=spotbugs
 org.lz4:lz4-java:1.7.1=testCompileClasspath,testRuntimeClasspath
 org.mockito:mockito-core:2.19.0=testCompileClasspath
 org.mockito:mockito-core:4.4.0=testRuntimeClasspath

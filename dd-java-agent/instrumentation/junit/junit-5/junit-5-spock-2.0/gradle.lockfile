@@ -120,7 +120,6 @@ org.junit.platform:junit-platform-suite-commons:1.14.1=latestDepTestRuntimeClass
 org.junit.platform:junit-platform-testkit:1.7.2=compileClasspath
 org.junit:junit-bom:5.14.1=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.junit:junit-bom:5.7.2=compileClasspath
-org.junit:junit-bom:6.1.2=spotbugs
 org.mockito:mockito-core:4.4.0=latestDepTestRuntimeClasspath,testRuntimeClasspath
 org.msgpack:jackson-dataformat-msgpack:0.9.6=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.msgpack:msgpack-core:0.9.6=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath

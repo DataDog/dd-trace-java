@@ -1,5 +1,3 @@
-import datadog.gradle.plugin.HostPlatform
-
 plugins {
   id 'dd-trace-java.module.instrumentation'
 }
@@ -15,9 +13,10 @@ muzzle {
 
 addTestSuiteForDir('latestDepTest', 'test')
 
-tasks.named('latestDepTest', Test) {
-  onlyIf('Embedded Maven latest-dependency tests do not terminate on Windows') {
-    !HostPlatform.isWindows()
+def mavenRepositoryProxy = providers.gradleProperty('mavenRepositoryProxy')
+tasks.withType(Test).configureEach {
+  if (mavenRepositoryProxy.isPresent()) {
+    environment 'MAVEN_REPOSITORY_PROXY', mavenRepositoryProxy.get()
   }
 }
 

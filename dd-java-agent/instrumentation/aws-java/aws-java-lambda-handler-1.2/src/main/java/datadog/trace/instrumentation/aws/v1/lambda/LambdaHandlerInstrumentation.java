@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.aws.v1.lambda.LambdaHandlerDecorator.INVOCATION_SPAN_NAME;
 import static net.bytebuddy.asm.Advice.Enter;
 import static net.bytebuddy.asm.Advice.OnMethodEnter;
@@ -16,10 +17,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -80,7 +81,7 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
 
   public static class ExtensionCommunicationAdvice {
     @OnMethodEnter
-    static AgentScope enter(
+    static ContextScope enter(
         @This final Object that,
         @Advice.Argument(0) final Object in,
         @Advice.Argument(1) final Object out,
@@ -101,14 +102,14 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
       span.setSpanType(InternalSpanTypes.SERVERLESS);
       span.setTag("request_id", lambdaRequestId);
 
-      final AgentScope scope = activateSpan(span);
+      final ContextScope scope = activateSpan(span);
       return scope;
     }
 
     @OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void exit(
         @Origin String method,
-        @Enter final AgentScope scope,
+        @Enter final ContextScope scope,
         @Advice.Argument(1) final Object result,
         @Advice.Argument(2) final Context awsContext,
         @Advice.Thrown final Throwable throwable) {
@@ -119,13 +120,14 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
 
       CallDepthThreadLocalMap.reset(RequestHandler.class);
 
-      final AgentSpan span = scope.span();
+      final AgentSpan span = spanFromScope(scope);
       try {
-        if (throwable == null) {
-          AgentTracer.get().notifyAppSecEnd(span, result);
-        } else {
+        if (throwable != null) {
           span.addThrowable(throwable);
         }
+
+        AgentTracer.get().notifyAppSecEnd(span, throwable == null ? result : null);
+      } finally {
         // Force the resource name back to the literal placeholder marker right
         // before finish so that the Datadog Lambda Extension's filter
         // (filter_span_from_lambda_library_or_runtime in
@@ -141,7 +143,6 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
         // and the HTTP/JAX-RS instrumentation will already have written
         // HTTP_FRAMEWORK_ROUTE (3) by this point.
         span.setResourceName(INVOCATION_SPAN_NAME, ResourceNamePriorities.TAG_INTERCEPTOR);
-      } finally {
         scope.close();
         span.finish();
         AgentTracer.get()

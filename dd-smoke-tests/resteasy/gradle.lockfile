@@ -136,7 +136,6 @@ org.junit.platform:junit-platform-runner:1.14.1=testRuntimeClasspath
 org.junit.platform:junit-platform-suite-api:1.14.1=testRuntimeClasspath
 org.junit.platform:junit-platform-suite-commons:1.14.1=testRuntimeClasspath
 org.junit:junit-bom:5.14.1=testCompileClasspath,testRuntimeClasspath
-org.junit:junit-bom:6.1.2=spotbugs
 org.jvnet.staxex:stax-ex:1.8.1=compileClasspath,runtimeClasspath,testCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 org.mockito:mockito-core:4.4.0=testRuntimeClasspath
 org.msgpack:msgpack-core:0.8.24=testRuntimeClasspath

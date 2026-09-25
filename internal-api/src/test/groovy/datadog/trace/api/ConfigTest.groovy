@@ -24,6 +24,8 @@ import static datadog.trace.api.TracePropagationStyle.DATADOG
 import static datadog.trace.api.TracePropagationStyle.HAYSTACK
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DYNAMIC_ATR_BUCKETS
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DYNAMIC_ATR_ENABLED
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL
@@ -2795,6 +2797,38 @@ class ConfigTest extends DDSpecification {
     noExceptionThrown()
     config.isCiVisibilityEnabled()
     config.isCiVisibilityAgentlessEnabled()
+  }
+
+  def "dynamic ATR buckets are parsed by Config: #configuredBuckets"() {
+    setup:
+    Properties properties = new Properties()
+    properties.setProperty(CIVISIBILITY_DYNAMIC_ATR_ENABLED, "true")
+    properties.setProperty(CIVISIBILITY_DYNAMIC_ATR_BUCKETS, configuredBuckets)
+
+    when:
+    def config = new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    config.ciVisibilityDynamicAtrBuckets == expectedBuckets
+
+    where:
+    configuredBuckets | expectedBuckets
+    "5,4,3,2,1"     | [5, 4, 3, 2, 1]
+    "5, 4, 3, 2, 1" | [5, 4, 3, 2, 1]
+    "5,4,3,2"       | null
+    "5,4,3,2,1,"    | null
+    "5,4,3,2,0"     | null
+    "5,4,3,2,21"    | null
+    "5,4,3,2,nope"  | null
+  }
+
+  def "dynamic ATR buckets are ignored when dynamic ATR is disabled"() {
+    setup:
+    Properties properties = new Properties()
+    properties.setProperty(CIVISIBILITY_DYNAMIC_ATR_BUCKETS, "5,4,3,2,1")
+
+    expect:
+    new Config(ConfigProvider.withPropertiesOverride(properties)).ciVisibilityDynamicAtrBuckets == null
   }
 
   static class ClassThrowsExceptionForValueOfMethod {

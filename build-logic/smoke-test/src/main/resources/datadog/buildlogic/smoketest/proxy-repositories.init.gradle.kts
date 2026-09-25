@@ -5,6 +5,8 @@ import org.gradle.api.artifacts.repositories.MavenArtifactRepository
 import org.gradle.api.initialization.Settings
 import java.net.URI
 
+// Requires Gradle 6.8+ and assumes project repositories are allowed by the target build.
+
 gradle.beforeSettings(Action<Settings> {
   val gradlePluginProxy = providers.gradleProperty("gradlePluginProxy").orNull
   val mavenRepositoryProxy = providers.gradleProperty("mavenRepositoryProxy").orNull

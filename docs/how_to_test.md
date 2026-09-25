@@ -1,5 +1,8 @@
 # How to Test
 
+For JUnit test authoring, see the [JUnit testing guide](how_to_test_with_junit.md).
+Prefer `@TableTest` for parameterized tests with multi-column literal data. When a simple `@TypeConverter` can turn table values into the required arguments, prefer it over switching to `@MethodSource`. Use `@MethodSource` for cases requiring complex object construction, builders, or mocks.
+
 ## The Different Types of Tests
 
 The project leverages different types of tests:
@@ -15,6 +18,8 @@ The project leverages different types of tests:
 
 3. The third type of tests is **Muzzle checks**.  
    Their goal is to check the [Muzzle directives](./how_instrumentations_work.md#muzzle), making sure instrumentations are safe to load against specific library versions.
+   `coreJdk(version)` and library checks with `javaVersion` fingerprint the selected JDK's major version, vendor, full runtime/VM versions, OS, and architecture; `coreJdk()` tracks the Gradle daemon JVM instead.
+   Changing these values invalidates cached results even within the same Java major version.
 
 4. The fourth type of tests is **integration tests**.  
    They test features that require a more complex environment setup.
