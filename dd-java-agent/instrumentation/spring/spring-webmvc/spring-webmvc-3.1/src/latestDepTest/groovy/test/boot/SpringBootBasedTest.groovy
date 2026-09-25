@@ -38,12 +38,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.WEBSOC
 
 class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext> {
 
-  @Override
-  boolean useStrictTraceWrites() {
-    // TODO fix this by making sure that spans get closed properly
-    return false
-  }
-
   Map<String, String> extraServerTags = [:]
 
   SpringApplication application() {
