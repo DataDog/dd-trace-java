@@ -8,17 +8,15 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Meta-annotation marking an annotation as a <b>perf-contract marker</b>: a
- * documentation-and-tooling annotation, like {@link NoEscape}, that names a performance discipline
- * without changing behavior, and whose findings {@link SuppressPerfContract} can suppress.
+ * Marks an annotation as a performance contract for documentation and static analysis. Contract
+ * annotations describe performance constraints, such as the retention rule documented by {@link
+ * NoEscape}, without changing runtime behavior.
  *
- * <p>This carries no rule of its own. It exists so tooling -- a future static checker, or an AI
- * reviewer in the meantime -- has one place to discover "which annotations here are perf-contract
- * markers" rather than a hardcoded list that drifts as new markers are added.
+ * <p>Tools use this meta-annotation to discover contracts and recognize {@link
+ * SuppressPerfContract} exemptions. This annotation defines no rule itself.
  *
- * <p><b>On an annotation type</b> ({@link ElementType#ANNOTATION_TYPE}): the annotated annotation
- * is a perf-contract marker, and {@code @SuppressPerfContract(TheMarker.class, reason = "...")} is
- * a valid way to suppress a finding it would otherwise raise on the same declaration.
+ * <p>{@link RetentionPolicy#CLASS} lets tools discover contracts in dependency class files without
+ * exposing them through runtime reflection.
  */
 @Documented
 @Retention(RetentionPolicy.CLASS)

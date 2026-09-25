@@ -1,5 +1,6 @@
 package datadog.trace.api.function;
 
+import datadog.perfcontract.PerfContract;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -91,6 +92,7 @@ import java.lang.annotation.Target;
  * </ul>
  */
 @Documented
+@PerfContract
 @Retention(RetentionPolicy.CLASS)
 @Target({ElementType.TYPE, ElementType.METHOD})
 public @interface NoEscape {}
