@@ -13,6 +13,8 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sns.SnsClient
+import software.amazon.awssdk.core.exception.SdkException
+import software.amazon.awssdk.services.sns.model.PublishBatchRequestEntry
 import software.amazon.awssdk.services.sns.model.PublishResponse
 import software.amazon.awssdk.services.sqs.SqsClient
 import software.amazon.awssdk.services.sqs.model.QueueAttributeName
@@ -182,6 +184,16 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
 
     then:
     noExceptionThrown()
+  }
+
+  def "SNS batch without topic ARN doesn't leak exception"() {
+    when:
+    snsClient.publishBatch {
+      it.publishBatchRequestEntries(PublishBatchRequestEntry.builder().id("1").message("sometext").build())
+    }
+
+    then:
+    thrown(SdkException)
   }
 
   def "test propagation styles"() {
