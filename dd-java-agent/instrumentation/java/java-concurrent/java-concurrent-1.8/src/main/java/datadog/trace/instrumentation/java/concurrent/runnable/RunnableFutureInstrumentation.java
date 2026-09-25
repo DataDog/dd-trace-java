@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.java.concurrent.runnable;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEndsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
@@ -16,6 +18,7 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -84,7 +87,16 @@ public final class RunnableFutureInstrumentation extends InstrumenterModule.Cont
                             .and(takesArgument(1, named(Callable.class.getName()))))),
         getClass().getName() + "$Construct");
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
-    transformer.applyAdvice(isMethod().and(named("run")), getClass().getName() + "$Run");
+    // Netty 4.1.44+ separates delayed scheduling in run() from execution in runTask().
+    transformer.applyAdvice(
+        isMethod()
+            .and(named("run"))
+            .and(
+                not(
+                    isDeclaredBy(
+                        nameEndsWith(".netty.util.concurrent.ScheduledFutureTask")
+                            .and(hasSuperType(declaresMethod(named("runTask"))))))),
+        getClass().getName() + "$Run");
     transformer.applyAdvice(
         isMethod().and(namedOneOf("cancel", "set", "setException")),
         getClass().getName() + "$Cancel");
