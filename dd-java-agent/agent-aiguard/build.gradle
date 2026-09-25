@@ -22,6 +22,7 @@ dependencies {
   implementation project(':communication')
 
   testImplementation project(':utils:test-utils')
+  testImplementation project(':dd-trace-core')
   testImplementation libs.bundles.junit5
   testImplementation libs.bundles.mockito
   testImplementation('org.skyscreamer:jsonassert:1.5.3')

@@ -364,7 +364,7 @@ public class AIGuardInternal implements Evaluator {
               .url(url)
               .method("POST", new MoshiJsonRequestBody(moshi, messages, meta));
       headers.forEach(request::header);
-      try (final Response response = client.newCall(request.build()).execute()) {
+      try (final Response response = executeRequest(tracer, request.build())) {
         final Map<String, Object> result;
         try {
           result = parseResponseBody(response);
@@ -452,6 +452,18 @@ public class AIGuardInternal implements Evaluator {
       throw error;
     } finally {
       span.finish();
+    }
+  }
+
+  private Response executeRequest(final AgentTracer.TracerAPI tracer, final Request request)
+      throws IOException {
+    final boolean asyncPropagation = tracer.isAsyncPropagationEnabled();
+    try {
+      // The synchronous HTTP call must not pass its context to pool maintenance threads.
+      tracer.setAsyncPropagationEnabled(false);
+      return client.newCall(request).execute();
+    } finally {
+      tracer.setAsyncPropagationEnabled(asyncPropagation);
     }
   }
 
