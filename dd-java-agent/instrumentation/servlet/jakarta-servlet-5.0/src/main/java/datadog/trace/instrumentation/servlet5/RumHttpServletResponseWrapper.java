@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.servlet5;
 import datadog.trace.api.rum.RumInjector;
 import datadog.trace.bootstrap.instrumentation.buffer.InjectingPipeWriter;
 import datadog.trace.bootstrap.instrumentation.rum.RumControllableResponse;
+import datadog.trace.util.MethodHandles;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletRequest;
@@ -10,6 +11,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletResponseWrapper;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.lang.invoke.MethodHandle;
 import java.nio.charset.Charset;
 
 public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
@@ -20,7 +22,23 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
   private InjectingPipeWriter wrappedPipeWriter;
   private PrintWriter printWriter;
   private boolean shouldInject = true;
+  private boolean retired;
   private String contentEncoding = null;
+
+  private static final MethodHandles METHOD_HANDLES =
+      new MethodHandles(HttpServletResponse.class.getClassLoader());
+  private static final MethodHandle SEND_REDIRECT_WITH_BUFFER_6_1 =
+      METHOD_HANDLES.method(HttpServletResponse.class, "sendRedirect", String.class, boolean.class);
+  private static final MethodHandle SEND_REDIRECT_WITH_STATUS_6_1 =
+      METHOD_HANDLES.method(HttpServletResponse.class, "sendRedirect", String.class, int.class);
+  private static final MethodHandle SEND_REDIRECT_6_1 =
+      METHOD_HANDLES.method(
+          HttpServletResponse.class, "sendRedirect", String.class, int.class, boolean.class);
+
+  @SuppressWarnings("unchecked")
+  private static <E extends Throwable> void sneakyThrow(Throwable e) throws E {
+    throw (E) e;
+  }
 
   public RumHttpServletResponseWrapper(HttpServletRequest request, HttpServletResponse response) {
     super(response);
@@ -166,19 +184,117 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
 
   @Override
   public void reset() {
+    super.reset();
+    discardBufferedContent();
+    setActiveFilters(false);
     this.outputStream = null;
     this.wrappedPipeWriter = null;
     this.printWriter = null;
-    this.shouldInject = false;
-    super.reset();
+    this.shouldInject = !retired;
+    this.contentEncoding = null;
   }
 
   @Override
   public void resetBuffer() {
-    this.outputStream = null;
-    this.wrappedPipeWriter = null;
-    this.printWriter = null;
     super.resetBuffer();
+    discardBufferedContent();
+    setActiveFilters(shouldInject);
+  }
+
+  @Override
+  public void flushBuffer() throws IOException {
+    flushBufferedContent();
+    super.flushBuffer();
+  }
+
+  @Override
+  public void sendError(int sc) throws IOException {
+    boolean rejected = false;
+    try {
+      super.sendError(sc);
+    } catch (IllegalStateException e) {
+      rejected = true;
+      throw e;
+    } finally {
+      if (!rejected) {
+        discardBufferedContent();
+        stopFiltering();
+      }
+    }
+  }
+
+  @Override
+  public void sendError(int sc, String msg) throws IOException {
+    boolean rejected = false;
+    try {
+      super.sendError(sc, msg);
+    } catch (IllegalStateException e) {
+      rejected = true;
+      throw e;
+    } finally {
+      if (!rejected) {
+        discardBufferedContent();
+        stopFiltering();
+      }
+    }
+  }
+
+  @Override
+  public void sendRedirect(String location) throws IOException {
+    boolean rejected = false;
+    try {
+      super.sendRedirect(location);
+    } catch (IllegalStateException e) {
+      rejected = true;
+      throw e;
+    } finally {
+      if (!rejected) {
+        discardBufferedContent();
+        stopFiltering();
+      }
+    }
+  }
+
+  public void sendRedirect(String location, boolean clearBuffer) throws IOException {
+    sendRedirect(
+        location, clearBuffer, SEND_REDIRECT_WITH_BUFFER_6_1, getResponse(), location, clearBuffer);
+  }
+
+  public void sendRedirect(String location, int sc) throws IOException {
+    sendRedirect(location, true, SEND_REDIRECT_WITH_STATUS_6_1, getResponse(), location, sc);
+  }
+
+  public void sendRedirect(String location, int sc, boolean clearBuffer) throws IOException {
+    sendRedirect(
+        location, clearBuffer, SEND_REDIRECT_6_1, getResponse(), location, sc, clearBuffer);
+  }
+
+  private void sendRedirect(
+      String location, boolean clearBuffer, MethodHandle method, Object... arguments)
+      throws IOException {
+    boolean rejected = false;
+    try {
+      if (!clearBuffer) {
+        commit();
+      }
+      if (method == null) {
+        super.sendRedirect(location);
+      } else {
+        method.invokeWithArguments(arguments);
+      }
+    } catch (IllegalStateException e) {
+      rejected = true;
+      throw e;
+    } catch (Throwable t) {
+      sneakyThrow(t);
+    } finally {
+      if (!rejected) {
+        if (clearBuffer) {
+          discardBufferedContent();
+        }
+        stopFiltering();
+      }
+    }
   }
 
   public void onInjected() {
@@ -197,7 +313,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
     }
     if (wasInjecting && !shouldInject) {
       commit();
-      stopFiltering();
+      disableFiltering();
     }
   }
 
@@ -225,12 +341,39 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
 
   @Override
   public void stopFiltering() {
+    retired = true;
+    disableFiltering();
+  }
+
+  private void disableFiltering() {
     shouldInject = false;
+    setActiveFilters(false);
+  }
+
+  private void flushBufferedContent() throws IOException {
     if (wrappedPipeWriter != null) {
-      wrappedPipeWriter.setFilter(false);
+      wrappedPipeWriter.commit();
     }
     if (outputStream != null) {
-      outputStream.setFilter(false);
+      outputStream.commit();
+    }
+  }
+
+  private void discardBufferedContent() {
+    if (wrappedPipeWriter != null) {
+      wrappedPipeWriter.discard();
+    }
+    if (outputStream != null) {
+      outputStream.discard();
+    }
+  }
+
+  private void setActiveFilters(boolean filter) {
+    if (wrappedPipeWriter != null) {
+      wrappedPipeWriter.setFilter(filter);
+    }
+    if (outputStream != null) {
+      outputStream.setFilter(filter);
     }
   }
 }
