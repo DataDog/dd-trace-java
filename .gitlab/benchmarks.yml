@@ -33,6 +33,8 @@
     UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME # The branch or tag name for which project is built.
     UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA # The commit revision the project is built for.
     FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true"
+    # See https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/7223313012/Flaky+Benchmarks+Monitoring for more details.
+    FLAKY_BENCHMARKS_REGEX: ""
 
 dsm-kafka-producer-benchmark:
   extends: .dsm-kafka-benchmarks
@@ -80,3 +82,5 @@ debugger-benchmarks:
     UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME # The branch or tag name for which project is built.
     UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA # The commit revision the project is built for.
     FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true"
+    # See https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/7223313012/Flaky+Benchmarks+Monitoring for more details.
+    FLAKY_BENCHMARKS_REGEX: ""
