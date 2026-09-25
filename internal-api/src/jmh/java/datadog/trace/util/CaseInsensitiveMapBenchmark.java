@@ -6,8 +6,10 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
+import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
@@ -22,36 +24,38 @@ import org.openjdk.jmh.infra.Blackhole;
  *       allocation-free (case folded inside hash/matches), value stored unboxed
  * </ul>
  *
- * <p><b>Takeaways.</b> FlatHashtable is ~2x the (previously recommended) TreeMap at the same zero
- * allocation, and matches HashMap's look-up throughput <i>without</i> HashMap's per-look-up folded
- * String (which drives the multi-threaded GC pressure). The case-insensitive hash is the
- * consistent-for-all-inputs two-way fold ({@link
- * datadog.trace.util.Strings#caseInsensitiveHashCode} — see its note); a cheaper ASCII-only fold
- * would recover a few percent for header-name-only hot paths, deliberately not the default. {@code
- * LOW_LOAD_FACTOR} makes no difference here (the fold, not the probe count, dominates), so the
- * default 0.5 is used.
+ * <p><b>Takeaways.</b> FlatHashtable is ~1.8x the (previously recommended) TreeMap at the same zero
+ * allocation, but — see the revised takeaway below — trails HashMap's look-up throughput; its case
+ * is the allocation win (no per-look-up folded String, which drives the multi-threaded GC pressure
+ * HashMap pays), not a throughput win. The case-insensitive hash is the consistent-for-all-inputs
+ * two-way fold ({@link datadog.trace.util.Strings#caseInsensitiveHashCode} — see its note); a
+ * cheaper ASCII-only fold would recover a few percent for header-name-only hot paths, deliberately
+ * not the default. {@code LOW_LOAD_FACTOR} makes no difference here (the fold, not the probe count,
+ * dominates), so the default 0.5 is used.
  *
- * <p>Numbers below: MacBook M1, Zulu 21, per-thread lookup index, @Fork(5). <code>
- * 1 thread
+ * <p>Java 17 results (MacBook M1, {@code @Fork(5)}, {@code @Threads(8)}) with the front-loaded
+ * {@link BenchmarkUtils#warmUpHashDispatch} pollution design (M ops/s):
  *
- * Benchmark                                     Mode  Cnt          Score        Error  Units
- * create_flatHashtable                         thrpt   15     2158595.7 ±    73576.7  ops/s
- * create_hashMap                               thrpt   15      944890.9 ±    34398.7  ops/s
- * create_treeMap                               thrpt   15     1285085.3 ±   133648.6  ops/s
+ * <pre>{@code
+ * create_baseline        25.2    create_flatHashtable    15.3
+ * create_hashMap          7.3    create_treeMap           8.4
  *
- * lookup_flatHashtable                         thrpt   15    75350287.4 ±  4128577.5  ops/s
- * lookup_flatHashtable_lowLoad                 thrpt   15    77127204.7 ±  2546322.0  ops/s
- * lookup_hashMap                               thrpt   15    76615721.1 ±  4615488.0  ops/s
- * lookup_treeMap                               thrpt   15    45777645.5 ±  4551223.1  ops/s
- * </code> <code>
- * 8 threads (with -prof gc; alloc = gc.alloc.rate.norm)
+ * lookup_baseline       2760.8   lookup_flatHashtable    380.3
+ * lookup_flatHashtable_lowLoad  430.7  lookup_hashMap    488.5
+ * lookup_treeMap         214.7
+ * }</pre>
  *
- * Benchmark                          Mode  Cnt          Score         Error  Units      alloc
- * lookup_flatHashtable              thrpt   15  537007985.7 ±  21864181.3  ops/s     ~0 B/op
- * lookup_flatHashtable_lowLoad      thrpt   15  540434673.5 ±  20451984.4  ops/s     ~0 B/op
- * lookup_hashMap                    thrpt   15  441875038.1 ± 110408182.2  ops/s   24.0 B/op (129 GCs)
- * lookup_treeMap                    thrpt   15  251195415.1 ±  14662568.3  ops/s     ~0 B/op
- * </code>
+ * <p>{@code lookup_flatHashtable}/{@code lookup_hashMap}/{@code lookup_treeMap} carry error bars of
+ * ~13-17% of their means at {@code @Fork(5)} (down from 44-66% at {@code @Fork(2)}, which wasn't
+ * decisive) — tight enough that {@code hashMap}'s lead over {@code flatHashtable} (488.5 vs 380.3,
+ * ~28%) is a real, if not perfectly clean-cut, result rather than noise.
+ *
+ * <p><b>Takeaway, revised.</b> {@code HashMap} keyed on {@code toLowerCase()} is faster than {@code
+ * FlatHashtable} for this lookup shape, not merely comparable to it as earlier (noisier) runs
+ * suggested. {@code FlatHashtable} still wins on allocation — it is the zero-allocation option, and
+ * that stays true regardless of the throughput ordering — but the throughput case for it over
+ * {@code HashMap} on case-insensitive lookups does not hold up under this rerun. {@code TreeMap}
+ * remains the slowest of the three at every fork count measured.
  */
 @Fork(2)
 @Warmup(iterations = 2)
@@ -100,6 +104,14 @@ public class CaseInsensitiveMapBenchmark {
   // counter's cache-line ping-pong would floor the fastest lookups (the flat probe) at @Threads(8),
   // masking exactly the differences this benchmark compares.
   int lookupIndex = 0;
+
+  // Front-load pollution once per trial, entirely before JMH's warmup starts: JMH
+  // injects the Blackhole straight into this setup method, so no per-benchmark
+  // scratch state is needed.
+  @Setup(Level.Trial)
+  public void warmUpPollution(Blackhole bh) {
+    BenchmarkUtils.warmUpHashDispatch(bh);
+  }
 
   String nextLookupKey() {
     int localIndex = ++lookupIndex;

@@ -13,6 +13,7 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.Blackhole;
 
 /**
  * Membership over a small, fixed, read-only string set shared across threads — split into hit and
@@ -47,50 +48,43 @@ import org.openjdk.jmh.annotations.Warmup;
  * <p>Lookup variants:
  *
  * <ul>
- *   <li>{@code hit} uses the same interned strings that were inserted, exercising the identity fast
- *       path.
- *   <li>{@code hitFresh} uses equal, non-interned strings, avoiding the identity fast path. It is
- *       measured only for the hash-based structures.
- *   <li>{@code miss} uses non-interned strings that are not in the set.
+ *   <li>{@code hit} reuses the inserted interned strings, exercising identity fast paths where
+ *       available.
+ *   <li>{@code hitFresh} reuses equal, non-interned copies created before measurement, avoiding
+ *       identity matches without allocating per lookup; only hash-based structures have this case.
+ *   <li>{@code miss} reuses non-interned strings that are not in the set.
  * </ul>
  *
- * <p>Results on an Apple M1 with Java 8u382, {@link BenchmarkUtils#polluteHashDispatch()} enabled,
- * {@code @Fork(5)}, and {@code @Threads(8)} (M ops/s):
+ * <p>For hash-based lookups, warmup populates the reused strings' cached hashes; these cases do not
+ * measure repeated string hashing from characters.
+ *
+ * <p>Java 17 results on an Apple M1 with the front-loaded {@link BenchmarkUtils#warmUpHashDispatch}
+ * pollution design, {@code @Fork(5)}, {@code @Threads(8)} (M ops/s):
  *
  * <pre>{@code
  * Structure                    hit   hitFresh    miss
- * stringIndex_embedded (static) 2098      1563    2030
- * hashSet                       1723      1276    1823
- * stringIndex (inst)            1883      1184 *  1700 *
- * tracerImmutableSet            1632      1232    1625    (SetN)
- * array                          854         -     495
- * sortedArray                    713         -     613
- * treeSet                        646         -     544
+ * stringIndex_embedded        2231.9   1663.2   2207.7
+ * hashSet                     2172.8   1359.2   2252.9
+ * tracerImmutableSet          2045.4   1394.9   1711.8
+ * stringIndex (inst)          2037.6   1505.7   2060.7
+ * array                        967.4        -    611.0
+ * sortedArray                  691.4        -    598.6
+ * treeSet                      657.2        -    607.2
  * }</pre>
  *
  * <p>In this run:
  *
  * <ul>
- *   <li>The embedded {@code StringIndex} is fastest for all three lookup variants.
- *   <li>The {@code StringIndex} wrapper beats {@code HashSet} for interned hits. Its fresh-hit and
- *       miss results are bimodal and have lower means than {@code HashSet}; prefer the embedded
- *       form when these paths matter.
- *   <li>{@code SetN} is slower than the embedded form but about 27% smaller. StringIndex trades
- *       that space for speed and support for slot-aligned payload arrays.
- *   <li>Fresh hits are slower than misses for each hash-based structure: a matching distinct string
- *       reaches {@code equals()}, while a miss can stop on a hash mismatch.
+ *   <li>{@code stringIndex} is slightly better than {@code hashSet} on {@code hitFresh}, but not
+ *       uniformly ahead across all three lookup variants the way earlier runs suggested; the two
+ *       trade the lead depending on the variant.
+ *   <li>The embedded {@code StringIndex} form remains at or near the front for all three lookup
+ *       variants, and is now about as fast as the instance wrapper rather than clearly ahead of it.
+ *   <li>{@code tracerImmutableSet} ({@code SetN}) is competitive with the hash-based structures on
+ *       {@code hit}/{@code hitFresh} but falls behind on {@code miss}.
  * </ul>
- *
- * <p><b>Caveat — the instance {@code stringIndex} miss is bimodal across forks</b> (confirmed at
- * {@code @Fork(10)}: 6 forks fast, 4 slow, nothing between). ~60% of forks compile to a fast mode
- * (~2000, ≈ {@code stringIndex_embedded_miss} — the wrapper indirection is then free) and ~40% to a
- * slow mode (~1070, ~half); each fork locks one at warmup. So the {@code 1548 ±27%} above is a
- * mode-mix, not noise. Cause: C2 hoists the instance field-loads ({@code this.hashes}/{@code
- * names}) out of the miss-path probe loop only in the fast mode; the static {@code
- * EmbeddingSupport} path const-folds those refs and is never bimodal ({@code
- * stringIndex_embedded_miss} ±0.3%). Prefer {@code EmbeddingSupport} where miss latency matters.
  */
-@Fork(5) // 5 forks settle the bimodal stringIndex_miss / interface-dispatch arms (see header)
+@Fork(5) // extra forks needed historically to settle bimodal JIT behavior on some arms
 @Warmup(iterations = 2)
 @Measurement(iterations = 3)
 @Threads(8)
@@ -146,8 +140,6 @@ public class ImmutableSetBenchmark {
 
   @Setup(Level.Trial)
   public void setUp() {
-    BenchmarkUtils.polluteHashDispatch();
-
     array = STRINGS;
     sortedArray = Arrays.copyOf(STRINGS, STRINGS.length);
     Arrays.sort(sortedArray);
@@ -163,6 +155,14 @@ public class ImmutableSetBenchmark {
     int hitIndex = 0;
     int hitFreshIndex = 0;
     int missIndex = 0;
+
+    // Front-load pollution once per trial, entirely before JMH's warmup starts: JMH
+    // injects the Blackhole straight into this setup method, so no per-benchmark
+    // scratch state is needed.
+    @Setup(Level.Trial)
+    public void warmUpPollution(Blackhole bh) {
+      BenchmarkUtils.warmUpHashDispatch(bh);
+    }
 
     String nextHit() {
       int i = hitIndex + 1;

@@ -50,6 +50,41 @@ import org.openjdk.jmh.infra.Blackhole;
  * unsynchronized {@code hashMap} {@code get}/{@code iterate} methods are the in-harness baseline;
  * the tax is the delta to the {@code synchronizedHashMap} equivalents. Comparing across JVM
  * versions at stock flags shows the biased-locking effect. (Results pending a fresh multi-JVM run.)
+ *
+ * <p>Java 17 results (Apple M1, {@code @Fork(2)}, {@code @Threads(8)}) with the front-loaded {@link
+ * BenchmarkUtils#warmUpHashDispatch} pollution design (M ops/s):
+ *
+ * <pre>{@code
+ * create_flatHashtable          183.4   create_hashMap                 104.7
+ * create_hashMap_sized          110.3   create_linkedHashMap            57.4
+ * create_synchronizedHashMap     52.0   create_tagMap                  103.6
+ * create_tagMap_via_ledger       76.2   create_treeMap                  34.6
+ *
+ * clone_tagMap                  301.8   clone_treeMap                  101.5
+ * clone_hashMap                  61.2   clone_synchronizedHashMap       54.9
+ * clone_linkedHashMap            50.8
+ *
+ * get_flatHashtable             1583.7  get_hashMap                    1352.1
+ * get_synchronizedHashMap        843.2
+ *
+ * iterate_flatHashtable          182.6  iterate_hashMap                 106.3
+ * iterate_synchronizedHashMap     93.2
+ * }</pre>
+ *
+ * <p>Key findings:
+ *
+ * <ul>
+ *   <li>{@code flatHashtable} dominates {@code create}, {@code get}, and {@code iterate} — the
+ *       unboxed, self-contained entry and comparison-free insert pay off, consistent with every
+ *       other FlatHashtable comparison in this module.
+ *   <li>{@code tagMap} clone (301.8M) is ~4.9x {@code hashMap} clone (61.2M) — the same story
+ *       {@link datadog.trace.api.TagMapAccessBenchmark} reports, by design ({@code TagMap} clone is
+ *       a purpose-built fast path).
+ *   <li>The uncontended synchronization tax is visible even with no contention, consistent with
+ *       Java 15+'s biased locking being disabled by default (JEP 374): {@code get_hashMap}
+ *       (1352.1M) → {@code get_synchronizedHashMap} (843.2M) is a ~38% hit, and {@code iterate}
+ *       (106.3M → 93.2M) is ~12%.
+ * </ul>
  */
 @Fork(2)
 @Warmup(iterations = 2)
@@ -189,8 +224,13 @@ public class SingleThreadedMapBenchmark {
   IntEntry[] flatTable;
   int index = 0;
 
+  // Front-load pollution once per trial, entirely before JMH's warmup starts: JMH
+  // injects the Blackhole straight into this setup method, so no per-benchmark
+  // scratch state is needed.
   @Setup(Level.Trial)
-  public void setUp() {
+  public void setUp(Blackhole bh) {
+    BenchmarkUtils.warmUpHashDispatch(bh);
+
     hashMap = new HashMap<>();
     fill(hashMap);
     synchronizedHashMap = Collections.synchronizedMap(new HashMap<>(hashMap));

@@ -42,10 +42,27 @@ import org.openjdk.jmh.infra.Blackhole;
  * <p>The D2 variants additionally pay for a composite-key wrapper allocation in the HashMap path
  * (Java has no built-in tuple-as-key) — D2 sidesteps it by taking both key parts directly.
  *
- * <p><b>Update</b> is where Hashtable dominates: D2 is ~26x faster, because the HashMap path
- * allocates per call (a {@code Long}, plus a {@code Key2}) and the resulting GC pressure throttles
- * throughput under multiple threads. <b>Add</b> is ~3x faster for D2 (Hashtable sidesteps the
- * {@code Key2} allocation). <b>Iterate</b> is essentially a wash — both are bucket walks. <code>
+ * <p><b>Update</b> is where Hashtable dominates: D2 is ~26x faster on JDK 8 (see the Java 17 rerun
+ * below for a narrower but still decisive margin), because the HashMap path allocates per call.
+ * Measured with {@code -prof gc} on Zulu 17, {@code update_hashMap} allocates 48.000 ± 0.001 B/op,
+ * which decomposes exactly: 24 for the boxed {@code Long} and 24 for the {@code Key2} wrapper
+ * (12-byte header, two references, one {@code int}). {@code update_hashtable} allocates ≈0 B/op.
+ * Collections over the run were 420 against none.
+ *
+ * <p>That 48 also answers a common assumption: escape analysis does <i>not</i> eliminate the
+ * temporary {@code Key2}, even though every key in this benchmark is already present and the
+ * wrapper is discarded immediately. C2 assigns one escape state per allocation site rather than per
+ * path, and {@code merge} stores the key into a {@code Node} on the absent branch, so the
+ * allocation is GlobalEscape for the whole compiled method. Eliminating it would require
+ * specializing the present and absent cases separately, which HotSpot does not do. (The wrapper's
+ * hash uses {@link HashingUtils#hash(Object, Object)} rather than {@code Objects.hash}, whose
+ * varargs array would otherwise add a third 24-byte allocation per lookup and handicap the
+ * baseline.)
+ *
+ * <p>Like D1, this is the headline case for {@code Hashtable}: a simple counter/tally with a
+ * primitive value is exactly where HashMap's autoboxing tax bites hardest. <b>Add</b> is ~3x faster
+ * for D2 (Hashtable sidesteps the {@code Key2} allocation). <b>Iterate</b> is essentially a wash on
+ * JDK 8, though not on Java 17 (see below). <code>
  * MacBook M1 8 threads (Java 8)
  *
  * Benchmark                                Mode  Cnt     Score     Error   Units
@@ -58,6 +75,70 @@ import org.openjdk.jmh.infra.Blackhole;
  * HashtableD2Benchmark.iterate_hashMap    thrpt    6    19.508 ±   0.760  ops/us
  * HashtableD2Benchmark.iterate_hashtable  thrpt    6    16.968 ±   0.371  ops/us
  * </code>
+ *
+ * <p>Rerun with {@link BenchmarkUtils#warmUpHashDispatch} added to {@code D2State.setUp()} (same
+ * machine/JVM/config): results were noisy and inconsistent with a clean pollution story —
+ * add_hashMap actually rose (77→103), while add_hashtable fell sharply (217→118, error bars wider
+ * than the mean both times); update_hashtable fell (1446→1225) and both iterate numbers fell
+ * (19.5→15.4, 17.0→13.1). As with {@link HashtableD1Benchmark}, {@code *_hashtable} is expected to
+ * be a no-op here: {@link Hashtable.D2.Entry#hash} and {@link Hashtable.D2.Entry#matches} are call
+ * sites private to {@code Hashtable.java}, structurally distinct from {@code
+ * java.util.HashMap}/{@code HashSet}'s internal dispatch call sites — pollution cannot reach them.
+ * It is equally a no-op for {@code *_hashMap}: {@code Key2} is a final class and every lookup key
+ * is built at the call site with {@code new Key2(...)}, so C2 has an exact type either way and
+ * devirtualizes {@code hashCode()}/{@code equals()} without consulting the polluted profile.
+ * Pollution therefore cannot explain a move on either side. With the JDK and machine held constant,
+ * what remains is uncontrolled run-to-run variation plus one concrete candidate: {@code
+ * warmUpHashDispatch} itself allocates heavily before measurement starts, which can shift GC state
+ * for the whole trial. Neither was measured. Treat these two runs as not directly comparable on
+ * absolute numbers. The <b>relative</b> conclusion (D2 dominates {@code update}, wins {@code add}
+ * by avoiding the {@code Key2} allocation, ties on {@code iterate}) is unchanged either way.
+ *
+ * <p>Separately rerun on Zulu 17.0.7 (native AArch64, same machine, pollution wiring unchanged).
+ * JMH auto-detected the cheap "compiler" Blackhole mode on Java 17 (its log explicitly warns that
+ * Blackhole-mode differences between JVMs can swing results significantly), which JDK 8 cannot use
+ * — so absolute numbers below are <b>not</b> comparable to the JDK 8 tables above; only within-run
+ * ratios are, since both benchmark methods in a given run get identical Blackhole treatment.
+ * ops/us, 8 threads:
+ *
+ * <pre>{@code
+ * Benchmark            ops/us            B/op   gc.count
+ * add_hashMap        1009.6 ± 190.2      56.0       1819
+ * add_hashtable      1018.9 ± 235.0      40.0       1589
+ * update_hashMap      463.0 ±  95.7      48.0       1064
+ * update_hashtable   2492.7 ±  51.9       ~0          ~0
+ * iterate_hashMap      19.8 ±   0.3      40.0         60
+ * iterate_hashtable    72.0 ±   1.6       ~0          ~0
+ * }</pre>
+ *
+ * <p>These numbers postdate the switch from {@code Objects.hash} to {@link
+ * HashingUtils#hash(Object, Object)} in {@code Key2}, which removed a varargs {@code Object[]} per
+ * key construction. Earlier tables in this file predate it and had the HashMap baseline carrying
+ * that extra 24 B/op.
+ *
+ * <p>Allocation decomposes exactly. {@code add_hashMap} at 56 B/op is a {@code Key2} (24) plus a
+ * {@code HashMap.Node} (32), with no box because {@code (long) i} for {@code i < 128} hits the
+ * {@code Long.valueOf} cache. {@code update_hashMap} at 48 B/op is a boxed {@code Long} (24) plus
+ * the {@code Key2} (24) — see the escape-analysis note above. Both hashtable paths that avoid the
+ * wrapper allocate nothing on {@code update} and {@code iterate}.
+ *
+ * <p>{@code update_hashtable} wins by ~5.4x — down from ~26x on JDK 8, and also down from the
+ * ~11.6x this file previously reported. The difference is the {@code Objects.hash} fix: removing
+ * that varargs {@code Object[]} took 24 B/op off {@code update_hashMap} and roughly doubled its
+ * throughput (196.7 to 463.0). {@code iterate_hashtable} wins ~3.6x, flipping JDK 8's wash —
+ * HashMap's {@code entrySet()} iterator does more per-entry work than a modern JIT's allocation
+ * improvements erase.
+ *
+ * <p>{@code add} is now a tie (1018.9 vs 1009.6, comfortably inside both error bars), where this
+ * file previously claimed a ~1.8x hashtable win. That claim was an artifact of the varargs
+ * allocation in the old {@code Key2} constructor; with it gone the two are indistinguishable on the
+ * insert path, which makes sense — both allocate one entry per insert.
+ *
+ * <p>Net takeaway, consistent with {@link HashtableD1Benchmark}: {@code Hashtable} is a strong
+ * substitute for {@code HashMap} for counter/tally use cases with a primitive value, where avoiding
+ * the per-update boxing pays off even on a JVM with much better allocation handling than JDK 8 had.
+ * For D2 specifically, avoiding the composite-key wrapper pays off on {@code update} and {@code
+ * iterate} — but not on {@code add}, contrary to what this file said before the baseline was fixed.
  */
 @Fork(2)
 @Warmup(iterations = 2)
@@ -97,7 +178,7 @@ public class HashtableD2Benchmark {
     Key2(String k1, Integer k2) {
       this.k1 = k1;
       this.k2 = k2;
-      this.hash = Objects.hash(k1, k2);
+      this.hash = HashingUtils.hash(k1, k2);
     }
 
     @Override
@@ -135,6 +216,14 @@ public class HashtableD2Benchmark {
     Integer[] k2s;
     int cursor;
     final BhD2Consumer consumer = new BhD2Consumer();
+
+    // Front-load pollution once per trial, entirely before JMH's warmup starts: JMH
+    // injects the Blackhole straight into this setup method, so no per-benchmark
+    // scratch state is needed.
+    @Setup(Level.Trial)
+    public void warmUpPollution(Blackhole bh) {
+      BenchmarkUtils.warmUpHashDispatch(bh);
+    }
 
     @Setup(Level.Iteration)
     public void setUp() {
