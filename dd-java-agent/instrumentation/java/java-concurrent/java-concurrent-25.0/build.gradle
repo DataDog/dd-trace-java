@@ -61,7 +61,7 @@ def addJoinerLeakSuite = { int jdk, JavaVersion version ->
   String suite = "previewJdk${jdk}Test"
   addTestSuite(suite)
   tasks.named("compile${suite.capitalize()}Java", JavaCompile) {
-    configureCompiler(it, jdk)
+    configureCompiler(it, jdk, version, "Java preview features must be compiled with the matching JDK $jdk toolchain")
     options.compilerArgs.add("--enable-preview")
   }
   tasks.named(suite, Test) {
