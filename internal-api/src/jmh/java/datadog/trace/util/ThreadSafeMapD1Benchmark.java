@@ -41,27 +41,31 @@ import org.openjdk.jmh.infra.Blackhole;
  * design ({@code @Fork(2)}, {@code @Threads(8)}, 64 pre-populated keys; ops/us):
  *
  * <pre>{@code
- * Benchmark                             Score   Units
- * get_concurrentHashtable               1405.8 ops/us
- * get_concurrentHashMap                 1167.3 ops/us
- * get_concurrentSkipListMap              193.3 ops/us
- * get_synchronizedHashMap                  9.2 ops/us
+ * Benchmark                              ops/us          B/op
+ * get_concurrentHashtable            2593.6 ± 116.7        ~0
+ * get_concurrentHashMap              1830.7 ±  31.5        ~0
+ * get_concurrentSkipListMap           202.7 ±  75.6        ~0
+ * get_synchronizedHashMap               9.2 ±   0.8        ~0
  *
- * getOrCreate_concurrentHashtable       1495.2 ops/us
- * getOrCreate_concurrentHashMap         1186.6 ops/us
- * getOrCreate_synchronizedHashMap          8.9 ops/us
+ * getOrCreate_concurrentHashtable    2580.6 ±  28.3        ~0
+ * getOrCreate_concurrentHashMap      1823.9 ±  50.2        ~0
+ * getOrCreate_synchronizedHashMap       9.3 ±   0.7        ~0
  * }</pre>
+ *
+ * <p>Allocation is measured with {@code -prof gc}. Every arm is allocation-free: the keys are
+ * pre-installed {@code String}s reused on each lookup, so nothing is constructed per operation.
  *
  * <p>Key findings:
  *
  * <ul>
- *   <li>{@code ConcurrentHashtable} is ~20% faster than {@code ConcurrentHashMap} on {@code get}
- *       (1405.8 vs 1167.3 ops/us); avoids the hash-to-segment translation CHM pays even on its fast
+ *   <li>{@code ConcurrentHashtable} is ~40% faster than {@code ConcurrentHashMap} on {@code get}
+ *       (2593.6 vs 1830.7 ops/us); avoids the hash-to-segment translation CHM pays even on its fast
  *       path.
- *   <li>{@code ConcurrentSkipListMap} is ~6× slower than {@code ConcurrentHashMap} — tree traversal
- *       cost is high even under lock-free CAS.
- *   <li>Synchronized {@code HashMap} is over 150× slower than {@code ConcurrentHashtable} (9.2 vs
- *       1405.8 ops/us) — lock contention across eight threads on a single monitor, which is what
+ *   <li>{@code ConcurrentSkipListMap} is ~9× slower than {@code ConcurrentHashMap} — tree traversal
+ *       cost is high even under lock-free CAS. Its error bar is wide (±75.6 on a 202.7 mean), so
+ *       treat that multiple as approximate.
+ *   <li>Synchronized {@code HashMap} is roughly 280× slower than {@code ConcurrentHashtable} (9.2
+ *       vs 2593.6 ops/us) — lock contention across eight threads on a single monitor, which is what
  *       this benchmark isolates. Type-profile pollution is not a factor: the keys are {@code
  *       String}, a final class, so these lookups devirtualize by exact type and never consult the
  *       polluted profile.

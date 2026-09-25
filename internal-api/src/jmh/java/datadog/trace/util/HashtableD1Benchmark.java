@@ -43,7 +43,7 @@ import org.openjdk.jmh.infra.Blackhole;
  * entry; the HashMap path boxes a {@code Long} on every {@code merge}. Measured with {@code -prof
  * gc} on Zulu 17, {@code update_hashMap} allocates 24.000 ± 0.001 B/op — exactly one boxed {@code
  * Long} (12-byte header plus an 8-byte value, aligned to 24) — against ≈0 B/op for {@code
- * update_hashtable}, and 386 collections over the run against none. The GC pressure is measured
+ * update_hashtable}, and 852 collections over the run against none. The GC pressure is measured
  * rather than inferred from throughput. This is the headline case for {@code Hashtable}: a simple
  * counter/tally with a primitive value is exactly where HashMap's autoboxing tax bites hardest, and
  * {@code Hashtable.D1} sidesteps it entirely by mutating a field on the retrieved entry in place.
@@ -86,22 +86,34 @@ import org.openjdk.jmh.infra.Blackhole;
  * full caveat). ops/us, 8 threads:
  *
  * <pre>{@code
- * add_hashMap        1502.6   add_hashtable      1377.3
- * update_hashMap      644.2   update_hashtable   2706.5
- * iterate_hashMap      19.3   iterate_hashtable    78.0
+ * Benchmark            ops/us            B/op   gc.count
+ * add_hashMap        1517.5 ± 242.9      32.0       1820
+ * add_hashtable      1302.1 ± 403.9      40.0       1933
+ * update_hashMap      686.0 ± 140.4      24.0        852
+ * update_hashtable   2770.7 ± 169.4       ~0          ~0
+ * iterate_hashMap      19.8 ±   0.6      40.0         55
+ * iterate_hashtable    79.6 ±   9.6       ~0          ~0
  * }</pre>
  *
+ * <p>Allocation is measured with {@code -prof gc} and decomposes exactly: 24 B/op for {@code
+ * update_hashMap} is one boxed {@code Long}; 32 B/op for {@code add_hashMap} is one {@code
+ * HashMap.Node}, with no box because {@code (long) i} for {@code i < 128} hits the {@code
+ * Long.valueOf} cache; 40 B/op for {@code add_hashtable} is the {@code D1Counter} entry. The
+ * hashtable's {@code update} and {@code iterate} paths allocate nothing at all, which is the point
+ * of the design.
+ *
  * <p>Within this single run (so the cross-JDK Blackhole-mode confound doesn't apply to the ratios),
- * {@code update_hashtable} still wins by ~4.2x — down from ~14x on JDK 8, because Java 17's
- * allocator/GC absorbs {@code update_hashMap}'s per-call {@code Long} boxing far better than JDK 8
- * did (update_hashMap itself got ~5x faster; update_hashtable only ~1.5x faster). {@code
+ * {@code update_hashtable} wins by ~4.0x — down from ~14x on JDK 8, because Java 17's allocator/GC
+ * absorbs {@code update_hashMap}'s per-call {@code Long} boxing far better than JDK 8 did
+ * (update_hashMap itself got ~5x faster; update_hashtable only ~1.5x faster). {@code
  * iterate_hashtable} also now clearly wins (~4.0x), flipping from JDK 8's "wash" — HashMap's {@code
  * entrySet()} iterator does more per-entry work than a modern JIT's allocation improvements erase.
- * {@code add} is the one case that flips the other way: {@code add_hashMap} edges out {@code
- * add_hashtable} slightly (1502.6 vs 1377.3). Net takeaway: {@code Hashtable} is a strong
- * substitute for {@code HashMap} particularly for simple counter/tally use cases with a primitive
- * value, where avoiding the per-update boxing allocation pays off even on a JVM with much better
- * allocation handling than JDK 8 had.
+ * {@code add} is the one case that flips the other way: {@code add_hashMap} leads on the means
+ * (1517.5 vs 1302.1), though both error bars are wide enough to overlap, so treat that one as
+ * undecided rather than a HashMap win. Net takeaway: {@code Hashtable} is a strong substitute for
+ * {@code HashMap} particularly for simple counter/tally use cases with a primitive value, where
+ * avoiding the per-update boxing allocation pays off even on a JVM with much better allocation
+ * handling than JDK 8 had.
  */
 @Fork(2)
 @Warmup(iterations = 2)

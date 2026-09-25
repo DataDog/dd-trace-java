@@ -102,23 +102,43 @@ import org.openjdk.jmh.infra.Blackhole;
  * ops/us, 8 threads:
  *
  * <pre>{@code
- * add_hashMap         656.7   add_hashtable     1185.5
- * update_hashMap      196.7   update_hashtable  2292.2
- * iterate_hashMap      20.5   iterate_hashtable   69.2
+ * Benchmark            ops/us            B/op   gc.count
+ * add_hashMap        1009.6 ± 190.2      56.0       1819
+ * add_hashtable      1018.9 ± 235.0      40.0       1589
+ * update_hashMap      463.0 ±  95.7      48.0       1064
+ * update_hashtable   2492.7 ±  51.9       ~0          ~0
+ * iterate_hashMap      19.8 ±   0.3      40.0         60
+ * iterate_hashtable    72.0 ±   1.6       ~0          ~0
  * }</pre>
  *
- * <p>{@code update_hashtable} still wins decisively (~11.6x, down from ~26x on JDK 8 — Java 17's
- * allocator/GC absorbs {@code update_hashMap}'s per-call {@code Long}+{@code Key2} boxing far
- * better than JDK 8 did: update_hashMap got ~3.5x faster, update_hashtable only ~1.6x faster).
- * Unlike JDK 8, Hashtable now wins clearly on <i>every</i> operation: {@code add_hashtable} wins
- * ~1.8x (vs. JDK 8's ~3x — HashMap's {@code Key2} allocation also got relatively cheaper), and
- * {@code iterate_hashtable} flips from JDK 8's wash to a ~3.4x win (HashMap's {@code entrySet()}
- * iterator does more per-entry work than a modern JIT's allocation improvements erase). Net
- * takeaway, consistent with {@link HashtableD1Benchmark}: {@code Hashtable} is a strong substitute
- * for {@code HashMap} particularly for simple counter/tally use cases with a primitive value, where
- * avoiding the per-update boxing allocation pays off even on a JVM with much better allocation
- * handling than JDK 8 had — and for D2 specifically, avoiding the composite-key wrapper allocation
- * pays off across the board, not just on {@code update}.
+ * <p>These numbers postdate the switch from {@code Objects.hash} to {@link
+ * HashingUtils#hash(Object, Object)} in {@code Key2}, which removed a varargs {@code Object[]} per
+ * key construction. Earlier tables in this file predate it and had the HashMap baseline carrying
+ * that extra 24 B/op.
+ *
+ * <p>Allocation decomposes exactly. {@code add_hashMap} at 56 B/op is a {@code Key2} (24) plus a
+ * {@code HashMap.Node} (32), with no box because {@code (long) i} for {@code i < 128} hits the
+ * {@code Long.valueOf} cache. {@code update_hashMap} at 48 B/op is a boxed {@code Long} (24) plus
+ * the {@code Key2} (24) — see the escape-analysis note above. Both hashtable paths that avoid the
+ * wrapper allocate nothing on {@code update} and {@code iterate}.
+ *
+ * <p>{@code update_hashtable} wins by ~5.4x — down from ~26x on JDK 8, and also down from the
+ * ~11.6x this file previously reported. The difference is the {@code Objects.hash} fix: removing
+ * that varargs {@code Object[]} took 24 B/op off {@code update_hashMap} and roughly doubled its
+ * throughput (196.7 to 463.0). {@code iterate_hashtable} wins ~3.6x, flipping JDK 8's wash —
+ * HashMap's {@code entrySet()} iterator does more per-entry work than a modern JIT's allocation
+ * improvements erase.
+ *
+ * <p>{@code add} is now a tie (1018.9 vs 1009.6, comfortably inside both error bars), where this
+ * file previously claimed a ~1.8x hashtable win. That claim was an artifact of the varargs
+ * allocation in the old {@code Key2} constructor; with it gone the two are indistinguishable on the
+ * insert path, which makes sense — both allocate one entry per insert.
+ *
+ * <p>Net takeaway, consistent with {@link HashtableD1Benchmark}: {@code Hashtable} is a strong
+ * substitute for {@code HashMap} for counter/tally use cases with a primitive value, where avoiding
+ * the per-update boxing pays off even on a JVM with much better allocation handling than JDK 8 had.
+ * For D2 specifically, avoiding the composite-key wrapper pays off on {@code update} and {@code
+ * iterate} — but not on {@code add}, contrary to what this file said before the baseline was fixed.
  */
 @Fork(2)
 @Warmup(iterations = 2)
