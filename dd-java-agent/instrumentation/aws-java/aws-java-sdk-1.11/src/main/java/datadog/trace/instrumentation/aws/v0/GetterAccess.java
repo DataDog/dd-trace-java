@@ -39,6 +39,9 @@ final class GetterAccess {
   private final MethodHandle getPublishBatchRequestEntries;
   private final MethodHandle getApproximateArrivalTimestamp;
   private final MethodHandle getTableName;
+  private final MethodHandle getStateMachineArn;
+  private final MethodHandle getExecutionArn;
+  private final MethodHandle getFunctionName;
 
   private GetterAccess(final Class<?> objectType) {
     operationName =
@@ -55,6 +58,9 @@ final class GetterAccess {
     getApproximateArrivalTimestamp =
         findGetter(objectType, "getApproximateArrivalTimestamp", Date.class);
     getTableName = findStringGetter(objectType, "getTableName");
+    getStateMachineArn = findStringGetter(objectType, "getStateMachineArn");
+    getExecutionArn = findStringGetter(objectType, "getExecutionArn");
+    getFunctionName = findStringGetter(objectType, "getFunctionName");
   }
 
   String getOperationNameFromType() {
@@ -99,6 +105,18 @@ final class GetterAccess {
 
   String getTableName(final Object object) {
     return invokeForString(getTableName, object);
+  }
+
+  String getStateMachineArn(final Object object) {
+    return invokeForString(getStateMachineArn, object);
+  }
+
+  String getExecutionArn(final Object object) {
+    return invokeForString(getExecutionArn, object);
+  }
+
+  String getFunctionName(final Object object) {
+    return invokeForString(getFunctionName, object);
   }
 
   Date getApproximateArrivalTimestamp(final Object object) {
