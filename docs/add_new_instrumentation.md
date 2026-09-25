@@ -258,9 +258,13 @@ public class GoogleHttpClientDecorator
 
 ## Add helper class names
 
-The `GoogleHttpClientDecorator` and `HeadersInjectAdapter` class names must be included in helper classes defined in the
-Instrumentation class, or they will not be available at runtime.  `packageName` is used for convenience but helper
-classes outside the current package could also be included.
+`GoogleHttpClientDecorator` and `HeadersInjectAdapter` are discovered automatically from the advice's bytecode
+dependencies at build time, so this example does not need a `helperClassNames()` override. The generated list
+includes reachable nested helpers and orders required helper dependencies first.
+
+If an instrumentation needs helpers loaded through reflection or class-name strings that may not be automatically
+discovered, declare the complete helper list manually. A non-empty list overrides discovery results for that module;
+manual and discovered lists are not merged. For example, a manual list containing only these two helpers would be:
 
 ```java
 
@@ -272,6 +276,9 @@ public String[] helperClassNames() {
     };
 }
 ```
+
+See [Helper Classes](./how_instrumentations_work.md#helper-classes) for discovery rules, migration guidance,
+and limitations.
 
 ## Add Advice class
 
