@@ -23,9 +23,9 @@ import javax.annotation.Nullable;
  * <p><b>Concurrent use is racy by design, not lock-free-safe in general.</b> The single-reference
  * guarantee above covers only the slot reference and an entry's {@code final} fields; a non-final
  * payload field written after construction is <b>not</b> safely published by a racing {@link
- * #getOrCreate}, and a freshly built entry that loses the slot race is discarded without ever being
- * retained by the table. That is fine for build-then-publish usage (populate on one thread, e.g. a
- * static-final table, then read from many) and for a payload where a stale/default read or a
+ * #tryGetOrCreate}, and a freshly built entry that loses the slot race is discarded without ever
+ * being retained by the table. That is fine for build-then-publish usage (populate on one thread,
+ * e.g. a static-final table, then read from many) and for a payload where a stale/default read or a
  * discarded race-loser is <b>benign</b> (miss → recreate; clobber → one wins). For concurrent
  * <i>creation</i> of entries with meaningful post-construction state, keep entry state fully {@code
  * final} — do not rely on this class for safe publication of mutable entry fields.
@@ -35,13 +35,33 @@ import javax.annotation.Nullable;
  * the question whose unasked version becomes an unbounded-growth leak in a long-lived agent living
  * in someone else's process. A regular {@code Map}'s auto-resize lets you forget that (fine when
  * you own the heap; the wrong default when you are a guest in one). This table never grows on its
- * own: {@link #get} / {@link #getOrCreate} / {@link #insert} <i>cap</i> rather than churn — a full
- * table degrades to recompute-on-miss with bounded memory and no reallocation — and growth is an
- * explicit, deliberate {@link #resize} / {@link #resizingInsert}. So it defaults to the
+ * own: {@link #get} / {@link #tryGetOrCreate} / {@link #insert} <i>cap</i> rather than churn — a
+ * full table degrades to recompute-on-miss with bounded memory and no reallocation — and growth is
+ * an explicit, deliberate {@link #resize} / {@link #resizingInsert}. So it defaults to the
  * bounded-footprint posture the agent needs, with unbounded growth an opt-in you have to reach for
  * (and one that, over externally-controlled keys, is the leak this structure otherwise prevents —
  * see {@link #resizingInsert}). The trade only pays when a miss is benign (a cache / interner), not
  * for a must-hold-everything map.
+ *
+ * <h2>Choosing between the three tables</h2>
+ *
+ * <ol>
+ *   <li><b>Concurrent access?</b> Use {@code ConcurrentHashtable} -- the only thread-safe one of
+ *       the three. This class is racy by design (see above), and {@code Hashtable} is not
+ *       thread-safe at all.
+ *   <li><b>Otherwise: does the population reset wholesale, or evolve?</b> A table cleared as a unit
+ *       -- once per cycle, per request, or built and then discarded -- wants this class, whose open
+ *       addressing has no tombstones and so offers no removal beyond clearing. A table whose
+ *       entries come and go independently wants the chained {@code Hashtable}, which removes and
+ *       evicts in place.
+ * </ol>
+ *
+ * <p>Lifetime is the usual shorthand for that second question and mostly works, because a
+ * short-lived table never needs to remove -- it just dies. The case it mis-sorts is a long-lived
+ * table that resets on a cycle: that is a sequence of short lives, and belongs with the short-lived
+ * ones. Compare a table that evicts stale entries one at a time while the busy ones survive the
+ * cycle (evolving -- {@code Hashtable}) against one that clears every entry each time it reports
+ * (resets -- this class).
  *
  * <p><b>Strategy roles, split by concern.</b> The per-use policy is a small set of {@link Strategy
  * strategy} objects rather than one, so a caller supplies only what an operation needs:
@@ -49,7 +69,7 @@ import javax.annotation.Nullable;
  * <ul>
  *   <li>a {@link MatchingStrategy} — the <i>key side</i>: {@link MatchingStrategy#hashKey hash a
  *       lookup key} (defaults to {@code hashCode}) and {@link MatchingStrategy#matches match} it
- *       against a stored entry. Used by {@link #get} / {@link #getOrCreate}.
+ *       against a stored entry. Used by {@link #get} / {@link #tryGetOrCreate}.
  *   <li>a {@link HashStrategy} — the <i>entry side</i>: {@link HashStrategy#hashOf hash a stored
  *       entry}. Used by {@link #insert} / {@link #iterator} / {@link #resize} (which have an entry,
  *       not a key). For {@link Entry}-based tables this is just the cached {@link Entry#hash}, so
@@ -63,7 +83,7 @@ import javax.annotation.Nullable;
  * <pre>{@code
  * private static final MyStrategy S = new MyStrategy();          // concrete type => exact type pinned
  * ...
- * E e = FlatHashtable.getOrCreate(table, key, S, MyEntry::new);  // non-capturing create
+ * E e = FlatHashtable.tryGetOrCreate(table, key, S, MyEntry::new);  // non-capturing create
  * }</pre>
  *
  * <p><b>Contract:</b> {@code table.length} must be a power of two ({@link #capacityFor}). Both
@@ -73,7 +93,7 @@ import javax.annotation.Nullable;
  * where the entry was placed (trivially true when both default to {@code hashCode}). Cardinality
  * cap / overflow / a live-size counter are <b>caller policy</b> (this class is pure mechanism): a
  * capped caller does {@link #get} first, and only on a miss checks its budget before {@link
- * #getOrCreate} (so hits stay a single probe and the create path is warmup-rare).
+ * #tryGetOrCreate} (so hits stay a single probe and the create path is warmup-rare).
  */
 public final class FlatHashtable {
   private FlatHashtable() {}
@@ -96,20 +116,21 @@ public final class FlatHashtable {
 
   /**
    * Single-key, {@code HashMap}-style convenience over the {@linkplain FlatHashtable static core}:
-   * {@link #get} / {@link #getOrCreate} / {@link #insert} / {@link #forEach} without writing a
+   * {@link #get} / {@link #tryGetOrCreate} / {@link #insert} / {@link #forEach} without writing a
    * {@link MatchingStrategy}. Reach for it when you want something quick that beats {@code
    * HashMap<K, V>} — the entry carries its own value fields, so updating an existing value is
    * allocation-free (look up once, then write the returned entry).
    *
    * <p><b>Fixed or growable, chosen at construction.</b> {@link #createFixed} keeps the raw core's
-   * bounded posture — the table holds up to {@code maxCapacity} entries, then {@link #getOrCreate}
-   * caps and returns {@code null} (the caller supplies the overflow default). {@link
-   * #createGrowable} trades that for {@code HashMap}-like ergonomics — its {@code initialCapacity}
-   * is a sizing hint, not a cap, the table doubles when it fills past its load factor, and {@code
-   * getOrCreate} never returns {@code null}. The distinct factory names make the choice explicit at
-   * the call site (there's no ambiguous {@code (Class, int)} constructor); {@code Capacity} always
-   * counts <i>entries</i> — contrast the chained {@code Hashtable.D1}, whose factory counts
-   * <i>buckets</i>.
+   * bounded posture — the table holds up to {@code maxCapacity} entries, then {@link
+   * #tryGetOrCreateOrNull} caps and returns {@code null} (the caller supplies the overflow
+   * default). {@link #createGrowable} trades that for {@code HashMap}-like ergonomics — its {@code
+   * initialCapacity} is a sizing hint, not a cap, the table doubles when it fills past its load
+   * factor, and {@code tryGetOrCreateOrNull} never returns {@code null}. The distinct factory names
+   * make the choice explicit at the call site (there's no ambiguous {@code (Class, int)}
+   * constructor); {@code Capacity} always counts <i>entries</i>, matching the chained {@code
+   * Hashtable.D1.createBounded}. Across the family a table factory's number is always entries —
+   * only the low-level array allocators take a bucket count.
    *
    * <p><b>Entry-centric, not strategy-based.</b> Supply a {@link D1.Entry} subclass carrying the
    * key and value fields; key equality is {@link Object#equals} by default (override {@link
@@ -176,7 +197,7 @@ public final class FlatHashtable {
 
     /**
      * A bounded {@link D1} holding up to {@code maxCapacity} entries at the {@link
-     * #DEFAULT_LOAD_FACTOR}, then capping ({@link #getOrCreate} returns {@code null}).
+     * #DEFAULT_LOAD_FACTOR}, then capping ({@link #tryGetOrCreateOrNull} returns {@code null}).
      */
     @Nonnull
     public static <K, E extends D1.Entry<K>> D1<K, E> createFixed(
@@ -236,12 +257,38 @@ public final class FlatHashtable {
 
     /**
      * Existing entry for {@code key}, or a freshly {@link CreateStrategy#create created} + inserted
-     * one. A growable table never returns {@code null}; a fixed one returns {@code null} when full
-     * and {@code key} is absent (the caller supplies the overflow default). A hit is always
-     * returned even at capacity — the cap blocks only creation, not lookup.
+     * one, wrapped in a {@link Maybe}. A growable table's {@link Maybe} is always present; a fixed
+     * one's is absent when full and {@code key} is absent (the caller supplies the overflow
+     * default). A hit is always returned even at capacity — the cap blocks only creation, not
+     * lookup.
+     *
+     * <p>The {@code try} prefix marks "this may refuse" — a growable table simply never exercises
+     * it.
+     *
+     * <p>Delegates to {@link #tryGetOrCreateOrNull} as the sole {@link Maybe#of} call site -- see
+     * {@link Maybe}'s class javadoc for why that shape is required to stay allocation-free.
+     */
+    @Nonnull
+    public Maybe<TEntry> tryGetOrCreate(
+        @Nullable K key, @Nonnull CreateStrategy<TEntry, K> createStrat) {
+      return Maybe.of(tryGetOrCreateOrNull(key, createStrat));
+    }
+
+    /**
+     * Low-level, {@code null}-returning form of {@link #tryGetOrCreate}. Prefer the {@link Maybe}
+     * form above for new call sites; this one remains as an escape hatch for callers where the
+     * {@link Maybe} allocation-free contract doesn't fit or that pre-date it. Under-promising
+     * refusal here costs an NPE at the cap; over-promising it costs a redundant null check on a
+     * growable table -- so it errs toward {@code try}.
+     *
+     * @param key key to look up
+     * @param createStrat creates an entry when the key is absent
+     * @return the existing or created entry, or {@code null} when a fixed table is full and {@code
+     *     key} is absent
      */
     @Nullable
-    public TEntry getOrCreate(@Nullable K key, @Nonnull CreateStrategy<TEntry, K> createStrat) {
+    public TEntry tryGetOrCreateOrNull(
+        @Nullable K key, @Nonnull CreateStrategy<TEntry, K> createStrat) {
       final TEntry existing = get(key);
       if (existing != null) {
         return existing;
@@ -300,7 +347,7 @@ public final class FlatHashtable {
 
   /**
    * Two-key (composite-key) analogue of {@link D1}. Both key parts pass directly through {@link
-   * #get} / {@link #getOrCreate}, so a lookup allocates no {@code Pair} — the win over {@code
+   * #get} / {@link #tryGetOrCreate}, so a lookup allocates no {@code Pair} — the win over {@code
    * HashMap<Pair, V>}. Same fixed-or-growable ({@link #createFixed} / {@link #createGrowable}),
    * entry-centric, no-{@code remove}, not-thread-safe contract as {@link D1}.
    *
@@ -366,7 +413,7 @@ public final class FlatHashtable {
 
     /**
      * A bounded {@link D2} holding up to {@code maxCapacity} entries at the {@link
-     * #DEFAULT_LOAD_FACTOR}, then capping ({@link #getOrCreate} returns {@code null}).
+     * #DEFAULT_LOAD_FACTOR}, then capping ({@link #tryGetOrCreateOrNull} returns {@code null}).
      */
     @Nonnull
     public static <K1, K2, E extends D2.Entry<K1, K2>> D2<K1, K2, E> createFixed(
@@ -425,11 +472,31 @@ public final class FlatHashtable {
     }
 
     /**
-     * Two-key analogue of {@link D1#getOrCreate}: growable never returns {@code null}; fixed
-     * returns {@code null} when full and {@code (key1, key2)} is absent.
+     * Two-key analogue of {@link D1#tryGetOrCreate}: {@link Maybe}-wrapped form, delegating to
+     * {@link #tryGetOrCreateOrNull} as the sole {@link Maybe#of} call site. Growable's {@link
+     * Maybe} is always present; fixed's is absent when full and {@code (key1, key2)} is absent.
+     */
+    @Nonnull
+    public Maybe<TEntry> tryGetOrCreate(
+        @Nullable K1 key1,
+        @Nullable K2 key2,
+        @Nonnull CreateStrategy2<TEntry, K1, K2> createStrat) {
+      return Maybe.of(tryGetOrCreateOrNull(key1, key2, createStrat));
+    }
+
+    /**
+     * Two-key analogue of {@link D1#tryGetOrCreateOrNull}: low-level, {@code null}-returning form
+     * of {@link #tryGetOrCreate}. Growable never returns {@code null}; fixed returns {@code null}
+     * when full and {@code (key1, key2)} is absent.
+     *
+     * @param key1 first key component
+     * @param key2 second key component
+     * @param createStrat creates an entry when the key pair is absent
+     * @return the existing or created entry, or {@code null} when a fixed table is full and the key
+     *     pair is absent
      */
     @Nullable
-    public TEntry getOrCreate(
+    public TEntry tryGetOrCreateOrNull(
         @Nullable K1 key1,
         @Nullable K2 key2,
         @Nonnull CreateStrategy2<TEntry, K1, K2> createStrat) {
@@ -486,7 +553,7 @@ public final class FlatHashtable {
   }
 
   /**
-   * Two-key creation strategy for {@link D2#getOrCreate}: mint a new entry for {@code (key1,
+   * Two-key creation strategy for {@link D2#tryGetOrCreate}: mint a new entry for {@code (key1,
    * key2)}. Like {@link CreateStrategy}, supply a {@code static final} constant or a
    * <i>non-capturing</i> lambda (e.g. {@code MyEntry::new}) so it stays a single monomorphic,
    * allocation-free instance.
@@ -523,7 +590,7 @@ public final class FlatHashtable {
    * #matches}), and how to hash that key ({@link #hashKey}). {@code hashKey} <b>defaults to {@code
    * key.hashCode()}</b> — override it only when the key's identity needs different hashing (e.g.
    * case-insensitive), and then keep it consistent with the table's {@link HashStrategy#hashOf}.
-   * Used by {@link #get} / {@link #getOrCreate}.
+   * Used by {@link #get} / {@link #tryGetOrCreate}.
    *
    * <p>A {@link FunctionalInterface} ({@code matches} is the sole abstract method), so the common
    * case can be a non-capturing lambda; a strategy that also customizes hashing is a named class
@@ -704,7 +771,7 @@ public final class FlatHashtable {
    */
   @StrategyConsumer
   @Nullable
-  public static <E, K> E getOrCreate(
+  public static <E, K> E tryGetOrCreate(
       @Nonnull E[] table,
       K key,
       @Nonnull MatchingStrategy<E, K> matchStrat,

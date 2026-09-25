@@ -242,6 +242,8 @@ public class SingleThreadedMapBenchmark {
 
   @Setup(Level.Trial)
   public void setUp() {
+    BenchmarkUtils.polluteHashDispatch();
+
     hashMap = new HashMap<>();
     fill(hashMap);
     synchronizedHashMap = Collections.synchronizedMap(new HashMap<>(hashMap));

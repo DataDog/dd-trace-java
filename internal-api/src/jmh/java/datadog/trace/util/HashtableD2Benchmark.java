@@ -179,11 +179,14 @@ public class HashtableD2Benchmark {
     int cursor;
     final BhD2Consumer consumer = new BhD2Consumer();
 
+    // Level.Iteration, not Trial: this rebuilds the table and the HashMap, so each iteration must
+    // start from a fresh, identically-sized state rather than inheriting mutated counters. The
+    // pollution call rides along -- it is idempotent and untimed, so repeating it costs nothing.
     @Setup(Level.Iteration)
     public void setUp() {
       BenchmarkUtils.polluteHashDispatch();
 
-      table = new Hashtable.D2<>(CAPACITY);
+      table = Hashtable.D2.createBounded(D2Counter.class, CAPACITY);
       hashMap = new HashMap<>(CAPACITY);
       k1s = SOURCE_K1;
       k2s = SOURCE_K2;
