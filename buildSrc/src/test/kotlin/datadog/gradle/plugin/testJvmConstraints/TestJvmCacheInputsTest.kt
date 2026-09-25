@@ -10,7 +10,7 @@ import org.junit.jupiter.params.provider.ValueSource
 
 class TestJvmCacheInputsTest : GradleFixture() {
   @ParameterizedTest
-  @ValueSource(strings = ["vendor", "runtimeVersion", "vmVersion"])
+  @ValueSource(strings = ["vendor", "runtimeVersion", "vmVersion", "os.name", "os.arch"])
   fun `test cache follows the selected launcher identity`(changedField: String) {
     writeSettings(
       """
@@ -50,10 +50,15 @@ class TestJvmCacheInputsTest : GradleFixture() {
       }
 
       val launcher = javaToolchains.launcherFor {}
-      val changedField = providers.gradleProperty("changedJvmField").orElse("")
+      val changedField = providers.gradleProperty("changedJvmField").orNull
+      if (changedField?.startsWith("os.") == true) {
+        val original = System.getProperty(changedField)
+        System.setProperty(changedField, "different-platform")
+        gradle.buildFinished { System.setProperty(changedField, original) }
+      }
       tasks.test {
         useJUnitPlatform()
-        javaLauncher.set(launcher.map { SelectedLauncher(it, changedField.get()) })
+        javaLauncher.set(launcher.map { SelectedLauncher(it, changedField ?: "") })
       }
       """
     )
