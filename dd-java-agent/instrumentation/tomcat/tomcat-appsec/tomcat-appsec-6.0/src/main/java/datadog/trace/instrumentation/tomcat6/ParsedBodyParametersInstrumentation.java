@@ -12,13 +12,13 @@ import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.instrumentation.tomcat.BlockFailureReporter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -51,6 +51,11 @@ public class ParsedBodyParametersInstrumentation extends InstrumenterModule.AppS
   @Override
   public Reference[] additionalMuzzleReferences() {
     return new Reference[] {PARAM_HASH_VALUES_MAP_REFERENCE};
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {"datadog.trace.instrumentation.tomcat.BlockFailureReporter"};
   }
 
   @Override
@@ -129,15 +134,8 @@ public class ParsedBodyParametersInstrumentation extends InstrumenterModule.AppS
         Flow.Action action = flow.getAction();
         if (action instanceof Flow.Action.RequestBlockingAction) {
           Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-          BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
-          if (blockResponseFunction != null) {
-            boolean committedBlockingResponse =
-                blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-            if (committedBlockingResponse) {
-              if (t == null) {
-                t = new BlockingException("Blocked request (for processParameters)");
-              }
-            }
+          if (BlockFailureReporter.tryCommitAndReport(reqCtx, rba) && t == null) {
+            t = new BlockingException("Blocked request (for processParameters)");
           }
         }
       } finally {

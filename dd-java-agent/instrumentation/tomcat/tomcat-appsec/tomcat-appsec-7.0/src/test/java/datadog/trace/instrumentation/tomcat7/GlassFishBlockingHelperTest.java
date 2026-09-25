@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -12,9 +13,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import datadog.appsec.api.blocking.BlockingContentType;
+import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -120,7 +123,7 @@ class GlassFishBlockingHelperTest {
   @Test
   void tryBlock_withBrf_commitsViaFunctionAndReturnsTrue() throws Exception {
     TraceSegment segment = mock(TraceSegment.class);
-    BlockResponseFunction brf = mock(BlockResponseFunction.class);
+    BlockResponseFunction brf = mockCommittingBrf();
     RequestContext reqCtx = mockReqCtx(brf, segment);
 
     Flow.Action.RequestBlockingAction action = rba(403);
@@ -169,11 +172,95 @@ class GlassFishBlockingHelperTest {
   @Test
   void tryBlock_effectivelyBlockedThrows_stillReturnsTrue() throws Exception {
     TraceSegment segment = mock(TraceSegment.class);
-    BlockResponseFunction brf = mock(BlockResponseFunction.class);
+    BlockResponseFunction brf = mockCommittingBrf();
     RequestContext reqCtx = mockReqCtx(brf, segment);
     doThrow(new RuntimeException("span already finished")).when(segment).effectivelyBlocked();
 
     assertTrue(GlassFishBlockingHelper.tryBlock(reqCtx, null, null, rba(403)));
+  }
+
+  // ------- tryBlock() block_failure telemetry -------
+
+  @Test
+  void tryBlock_brfCommitFails_reportsBlockFailure() {
+    TraceSegment segment = mock(TraceSegment.class);
+    BlockResponseFunction brf = mock(BlockResponseFunction.class); // tryCommit... returns false
+    RequestContext reqCtx = mockReqCtx(brf, segment);
+    AppSecContext appSecCtx = mockAppSecCtx(reqCtx);
+
+    assertFalse(GlassFishBlockingHelper.tryBlock(reqCtx, null, null, rba(403)));
+
+    verify(appSecCtx).reportBlockFailure();
+  }
+
+  @Test
+  void tryBlock_brfCommitFails_doesNotMarkEffectivelyBlocked() {
+    TraceSegment segment = mock(TraceSegment.class);
+    BlockResponseFunction brf = mock(BlockResponseFunction.class); // tryCommit... returns false
+    RequestContext reqCtx = mockReqCtx(brf, segment);
+    mockAppSecCtx(reqCtx);
+
+    assertFalse(GlassFishBlockingHelper.tryBlock(reqCtx, null, null, rba(403)));
+
+    verify(segment, never()).effectivelyBlocked();
+  }
+
+  @Test
+  void tryBlock_noBrf_fallbackCommitFails_reportsBlockFailure() {
+    TraceSegment segment = mock(TraceSegment.class);
+    RequestContext reqCtx = mockReqCtx(null, segment);
+    AppSecContext appSecCtx = mockAppSecCtx(reqCtx);
+    // an already committed response makes commitBlocking() return false
+    HttpServletResponse resp = mock(HttpServletResponse.class);
+    when(resp.isCommitted()).thenReturn(true);
+
+    assertFalse(GlassFishBlockingHelper.tryBlock(reqCtx, null, resp, rba(403)));
+
+    verify(appSecCtx).reportBlockFailure();
+    verify(segment, never()).effectivelyBlocked();
+  }
+
+  @Test
+  void tryBlock_noBrf_nullFallbackResponse_doesNotReportBlockFailure() {
+    TraceSegment segment = mock(TraceSegment.class);
+    RequestContext reqCtx = mockReqCtx(null, segment);
+    AppSecContext appSecCtx = mockAppSecCtx(reqCtx);
+
+    // brf == null and fallbackResp == null: no response was ever available to commit through,
+    // so nothing was genuinely attempted and no block_failure should be reported.
+    assertFalse(GlassFishBlockingHelper.tryBlock(reqCtx, null, null, rba(403)));
+
+    verify(appSecCtx, never()).reportBlockFailure();
+  }
+
+  @Test
+  void tryBlock_commitThrows_reportsBlockFailure() throws Exception {
+    TraceSegment segment = mock(TraceSegment.class);
+    BlockResponseFunction brf = mock(BlockResponseFunction.class);
+    RequestContext reqCtx = mockReqCtx(brf, segment);
+    AppSecContext appSecCtx = mockAppSecCtx(reqCtx);
+    doThrow(new RuntimeException("commit failed"))
+        .when(brf)
+        .tryCommitBlockingResponse(
+            any(TraceSegment.class), any(Flow.Action.RequestBlockingAction.class));
+
+    assertFalse(GlassFishBlockingHelper.tryBlock(reqCtx, null, null, rba(403)));
+
+    verify(appSecCtx).reportBlockFailure();
+    verify(segment, never()).effectivelyBlocked();
+  }
+
+  @Test
+  void tryBlock_success_doesNotReportBlockFailure() {
+    TraceSegment segment = mock(TraceSegment.class);
+    BlockResponseFunction brf = mockCommittingBrf();
+    RequestContext reqCtx = mockReqCtx(brf, segment);
+    AppSecContext appSecCtx = mockAppSecCtx(reqCtx);
+
+    assertTrue(GlassFishBlockingHelper.tryBlock(reqCtx, null, null, rba(403)));
+
+    verify(appSecCtx, never()).reportBlockFailure();
+    verify(segment).effectivelyBlocked();
   }
 
   // ------- processPartsAndBlock() -------
@@ -272,7 +359,7 @@ class GlassFishBlockingHelperTest {
   void processPartsAndBlock_filenamesCbBlocks_contentCbNotFired() throws Exception {
     Part filePart = mockPart("evil.exe", "application/octet-stream", "content".getBytes());
     TraceSegment segment = mock(TraceSegment.class);
-    BlockResponseFunction brf = mock(BlockResponseFunction.class);
+    BlockResponseFunction brf = mockCommittingBrf();
     RequestContext reqCtx = mockReqCtx(brf, segment);
     BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb = mockBlockingCb(403);
     BiFunction<RequestContext, List<String>, Flow<Void>> contentCb = mockPassThroughCb();
@@ -288,7 +375,7 @@ class GlassFishBlockingHelperTest {
   void processPartsAndBlock_contentCbBlocks_returnsTrue() throws Exception {
     Part filePart = mockPart("upload.bin", "application/octet-stream", "payload".getBytes());
     TraceSegment segment = mock(TraceSegment.class);
-    BlockResponseFunction brf = mock(BlockResponseFunction.class);
+    BlockResponseFunction brf = mockCommittingBrf();
     RequestContext reqCtx = mockReqCtx(brf, segment);
     BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb = mockPassThroughCb();
     BiFunction<RequestContext, List<String>, Flow<Void>> contentCb = mockBlockingCb(403);
@@ -321,6 +408,22 @@ class GlassFishBlockingHelperTest {
     when(reqCtx.getBlockResponseFunction()).thenReturn(brf);
     when(reqCtx.getTraceSegment()).thenReturn(segment);
     return reqCtx;
+  }
+
+  /** A {@link BlockResponseFunction} whose commit attempt succeeds. */
+  private static BlockResponseFunction mockCommittingBrf() {
+    BlockResponseFunction brf = mock(BlockResponseFunction.class);
+    when(brf.tryCommitBlockingResponse(
+            any(TraceSegment.class), any(Flow.Action.RequestBlockingAction.class)))
+        .thenReturn(true);
+    return brf;
+  }
+
+  /** Binds an {@link AppSecContext} mock to the APPSEC slot of the given request context. */
+  private static AppSecContext mockAppSecCtx(RequestContext reqCtx) {
+    AppSecContext appSecCtx = mock(AppSecContext.class);
+    doReturn(appSecCtx).when(reqCtx).getData(RequestContextSlot.APPSEC);
+    return appSecCtx;
   }
 
   private static Part mockPart(String submittedFilename, String contentType, byte[] content)
