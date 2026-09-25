@@ -1503,10 +1503,13 @@ public class Agent {
         if (integration != null) {
           return integration;
         }
-      } else if (config.isOtelThreadContextEnabled()) {
+      } else if (!config.isProfilingEnabled() && config.isOtelThreadContextEnabled()) {
         // No profiler, we only want the context exposed: loading ddprof pulls in the native
         // library and touches java.nio.file, which must not happen on the primordial premain
         // thread, so it is deferred.
+        // The explicit !isProfilingEnabled() guard (redundant with isOtelThreadContextEnabled()'s
+        // own isDatadogProfilerSafeAndConfigured() factor) keeps this branch provably unreachable
+        // whenever profiling is enabled, so the JFR-events fallback below is never skipped.
         return deferDdprofContextIntegration(AGENT_CLASSLOADER);
       }
     }

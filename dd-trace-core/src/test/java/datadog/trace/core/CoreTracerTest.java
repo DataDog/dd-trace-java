@@ -4,6 +4,7 @@ import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSy
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -377,6 +378,34 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
 
       AgentSpan afterSwap = tracer.buildSpan("datadog", "after").start();
       assertEquals(FAKE_ENGINE, afterSwap.getTags().get(DDTags.PROFILING_CONTEXT_ENGINE));
+      afterSwap.finish();
+    } finally {
+      tracer.close();
+    }
+  }
+
+  /**
+   * Pins the needsIntercept half of the {@code LocalRootSpanTags} swap: {@code
+   * stampProfilingContextEngine()} recomputes {@code tagInterceptor.needsIntercept()} on the frozen
+   * tag map, so a root span started after the swap must apply interception rules (here, {@code
+   * trace.split-by-tags}) to the newly-stamped {@code _dd.profiling.ctx} tag exactly like any other
+   * tag present at span-start time, while one started before the swap must not.
+   */
+  @Test
+  @WithConfig(key = TracerConfig.SPLIT_BY_TAGS, value = DDTags.PROFILING_CONTEXT_ENGINE)
+  void needsInterceptRecomputationAppliesSplitByTagsOnceProfilingContextEngineTagIsStamped() {
+    FakeContextIntegration integration = new FakeContextIntegration();
+    integration.deferAvailability = true;
+    CoreTracer tracer = tracerBuilder().profilingContextIntegration(integration).build();
+    try {
+      DDSpan beforeSwap = (DDSpan) tracer.buildSpan("datadog", "before").start();
+      assertNotEquals(FAKE_ENGINE, beforeSwap.getServiceName());
+      beforeSwap.finish();
+
+      integration.becomeAvailable();
+
+      DDSpan afterSwap = (DDSpan) tracer.buildSpan("datadog", "after").start();
+      assertEquals(FAKE_ENGINE, afterSwap.getServiceName());
       afterSwap.finish();
     } finally {
       tracer.close();
