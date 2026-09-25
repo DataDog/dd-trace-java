@@ -5,6 +5,14 @@ plugins {
   id 'dd-trace-java.conventions.testing.slf4j-simple'
 }
 
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_25
+}
+
+tasks.named('compileTestJava', JavaCompile) {
+  configureCompiler(it, 25)
+}
+
 muzzle {
   pass {
     coreJdk('25')
