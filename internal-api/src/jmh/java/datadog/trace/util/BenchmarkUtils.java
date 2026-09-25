@@ -1,16 +1,27 @@
 package datadog.trace.util;
 
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.function.ToLongBiFunction;
+import java.util.function.ToLongFunction;
+import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.CompilerControl;
 import org.openjdk.jmh.infra.Blackhole;
 
@@ -65,9 +76,20 @@ import org.openjdk.jmh.infra.Blackhole;
  * <p>Such a helper should drive the arms in a shuffled order rather than a fixed round-robin, since
  * compilation can trigger part-way through a warmup and would otherwise see whichever arm dominates
  * that point in the sequence; a regular pattern also gives the hardware branch predictor an
- * unrealistically easy time. Seeding the shuffle keeps it irregular but reproducible. A {@code
- * warmUpArms} along those lines is planned as a follow-on, because adopting it changes benchmark
- * setup and requires re-measuring whatever adopts it.
+ * unrealistically easy time. Seeding the shuffle keeps it irregular but reproducible.
+ *
+ * <p>{@link #warmUpArms} is that helper, for the third gap above. An "arm" is one path through a
+ * benchmark class -- ordinarily one {@code @Benchmark} method, or one outcome of a method that has
+ * several (e.g. {@code getOrCreate}'s hit and miss paths). Rather than ask the author to wrap each
+ * arm in a bespoke adapter, {@code arm(...)} is overloaded on the standard {@code
+ * java.util.function} shapes that real benchmark methods already have, mirroring how {@code
+ * TagMapFuzzTest.MapAction}'s {@code BasicAction}/{@code BasicReturningAction} adapters bridge
+ * differently-shaped map operations onto one common interface -- so a state-capturing lambda like
+ * {@code () -> update_hashMap(state)} or an unbound method reference like {@code
+ * Foo::create_hashMap} coerces directly into one of the overloads, and overload resolution picks
+ * the non-boxing primitive interface (e.g. {@code ToLongFunction}) over the boxing one ({@code
+ * Function}) whenever the referenced method returns an unboxed primitive, so driving a {@code
+ * long}-returning arm never boxes it.
  */
 public final class BenchmarkUtils {
   private BenchmarkUtils() {}
@@ -279,6 +301,275 @@ public final class BenchmarkUtils {
       return new Boolean((Boolean) key);
     } else {
       return key;
+    }
+  }
+
+  // ---- warmUpArms: restores cross-arm profile pollution that per-method forking removes ----
+
+  /**
+   * Fixed seed for the warmup shuffle, so the order is irregular (unlike round-robin) but
+   * reproducible from run to run.
+   */
+  private static final long ARM_SHUFFLE_SEED = 0x415233A2C0FFEEL;
+
+  /** One no-argument arm -- see {@link #warmUpArms(Object, Blackhole, Arm0[])}. */
+  public abstract static class Arm0<B> {
+    abstract void invokeAndConsume(B bench, Blackhole bh);
+  }
+
+  /**
+   * One single-{@code @State}-parameter arm -- see {@link #warmUpArms(Object, Object, Blackhole,
+   * Arm1[])}.
+   */
+  public abstract static class Arm1<B, S> {
+    abstract void invokeAndConsume(B bench, S state, Blackhole bh);
+  }
+
+  /**
+   * One two-{@code @State}-parameter arm -- see {@link #warmUpArms(Object, Object, Object,
+   * Blackhole, Arm2[])}.
+   */
+  public abstract static class Arm2<B, S1, S2> {
+    abstract void invokeAndConsume(B bench, S1 s1, S2 s2, Blackhole bh);
+  }
+
+  /** Two-{@code @State}-parameter function, for arms shaped like {@code R method(S1 s1, S2 s2)}. */
+  @FunctionalInterface
+  public interface TriFunction<A, B, C, R> {
+    R apply(A a, B b, C c);
+  }
+
+  /**
+   * Three-argument consumer, for arms shaped like {@code void method(S state, Blackhole bh)} that
+   * consume the {@link Blackhole} themselves rather than returning a value for {@code warmUpArms}
+   * to consume on their behalf.
+   */
+  @FunctionalInterface
+  public interface TriConsumer<A, B, C> {
+    void accept(A a, B b, C c);
+  }
+
+  // Arm0 adapters -- an unbound reference to a no-arg @Benchmark method, or a state-capturing
+  // lambda like `() -> update_hashMap(state)`, coerces directly into one of these.
+
+  public static <B> Arm0<B> arm(Function<B, ?> fn) {
+    return new Arm0<B>() {
+      @Override
+      void invokeAndConsume(B bench, Blackhole bh) {
+        bh.consume(fn.apply(bench));
+      }
+    };
+  }
+
+  public static <B> Arm0<B> arm(ToLongFunction<B> fn) {
+    return new Arm0<B>() {
+      @Override
+      void invokeAndConsume(B bench, Blackhole bh) {
+        bh.consume(fn.applyAsLong(bench));
+      }
+    };
+  }
+
+  public static <B> Arm0<B> arm(Predicate<B> fn) {
+    return new Arm0<B>() {
+      @Override
+      void invokeAndConsume(B bench, Blackhole bh) {
+        bh.consume(fn.test(bench));
+      }
+    };
+  }
+
+  public static <B> Arm0<B> arm(Consumer<B> fn) {
+    return new Arm0<B>() {
+      @Override
+      void invokeAndConsume(B bench, Blackhole bh) {
+        fn.accept(bench);
+      }
+    };
+  }
+
+  // Arm1 adapters -- an unbound reference to a single-@State-parameter @Benchmark method coerces
+  // directly into one of these (a trailing Blackhole parameter on the real method is unaffected,
+  // since JMH passes that in separately from the arm's own signature).
+
+  public static <B, S> Arm1<B, S> arm(BiFunction<B, S, ?> fn) {
+    return new Arm1<B, S>() {
+      @Override
+      void invokeAndConsume(B bench, S state, Blackhole bh) {
+        bh.consume(fn.apply(bench, state));
+      }
+    };
+  }
+
+  public static <B, S> Arm1<B, S> arm(ToLongBiFunction<B, S> fn) {
+    return new Arm1<B, S>() {
+      @Override
+      void invokeAndConsume(B bench, S state, Blackhole bh) {
+        bh.consume(fn.applyAsLong(bench, state));
+      }
+    };
+  }
+
+  public static <B, S> Arm1<B, S> arm(BiPredicate<B, S> fn) {
+    return new Arm1<B, S>() {
+      @Override
+      void invokeAndConsume(B bench, S state, Blackhole bh) {
+        bh.consume(fn.test(bench, state));
+      }
+    };
+  }
+
+  public static <B, S> Arm1<B, S> arm(BiConsumer<B, S> fn) {
+    return new Arm1<B, S>() {
+      @Override
+      void invokeAndConsume(B bench, S state, Blackhole bh) {
+        fn.accept(bench, state);
+      }
+    };
+  }
+
+  // A method reference to a void method that also takes a trailing Blackhole (e.g. `void
+  // iterate_hashtable(D1State s, Blackhole bh)`) is a 3-arg unbound reference (receiver, state,
+  // Blackhole), so it needs its own adapter rather than fitting BiConsumer<B, S> above.
+  public static <B, S> Arm1<B, S> arm(TriConsumer<B, S, Blackhole> fn) {
+    return new Arm1<B, S>() {
+      @Override
+      void invokeAndConsume(B bench, S state, Blackhole bh) {
+        fn.accept(bench, state, bh);
+      }
+    };
+  }
+
+  // Arm2 adapters -- an unbound reference to a two-@State-parameter @Benchmark method (e.g.
+  // getOrCreate(SharedState, ThreadState)) coerces directly into this one.
+
+  public static <B, S1, S2> Arm2<B, S1, S2> arm(TriFunction<B, S1, S2, ?> fn) {
+    return new Arm2<B, S1, S2>() {
+      @Override
+      void invokeAndConsume(B bench, S1 s1, S2 s2, Blackhole bh) {
+        bh.consume(fn.apply(bench, s1, s2));
+      }
+    };
+  }
+
+  /**
+   * Drives every registered no-argument arm {@link #WARM_UP_ITERATIONS} times, in a shuffled order
+   * re-permuted each pass, so that by the time a {@code @Benchmark} method is measured, C2 has
+   * already compiled against the whole class's mix of outcomes rather than the one path the fork is
+   * about to isolate.
+   *
+   * <p>Coverage is declared, not inferred: register one arm per {@code @Benchmark} method, and one
+   * per interesting outcome of a method that has several (e.g. {@code getOrCreate}'s hit and miss
+   * paths) -- registering only the hit path is worse than not calling this at all, since it turns a
+   * known gap into a silent one. {@link #warmUpArms(Object, Blackhole, Arm0[])} can only check that
+   * at least as many arms were registered as there are matching {@code @Benchmark} methods; it
+   * cannot tell that every outcome of a multi-outcome method was covered.
+   */
+  @SafeVarargs
+  public static <B> void warmUpArms(B bench, Blackhole bh, Arm0<B>... arms) {
+    checkArmCoverage(bench.getClass(), 0, arms.length);
+    int[] order = identityOrder(arms.length);
+    Random random = new Random(ARM_SHUFFLE_SEED);
+    for (int pass = 0; pass < WARM_UP_ITERATIONS; ++pass) {
+      shuffle(order, random);
+      for (int idx : order) {
+        arms[idx].invokeAndConsume(bench, bh);
+      }
+    }
+  }
+
+  /**
+   * As {@link #warmUpArms(Object, Blackhole, Arm0[])}, for arms taking one {@code @State}
+   * parameter.
+   */
+  @SafeVarargs
+  public static <B, S> void warmUpArms(B bench, S state, Blackhole bh, Arm1<B, S>... arms) {
+    checkArmCoverage(bench.getClass(), 1, arms.length);
+    int[] order = identityOrder(arms.length);
+    Random random = new Random(ARM_SHUFFLE_SEED);
+    for (int pass = 0; pass < WARM_UP_ITERATIONS; ++pass) {
+      shuffle(order, random);
+      for (int idx : order) {
+        arms[idx].invokeAndConsume(bench, state, bh);
+      }
+    }
+  }
+
+  /**
+   * As {@link #warmUpArms(Object, Blackhole, Arm0[])}, for arms taking two {@code @State}
+   * parameters.
+   */
+  @SafeVarargs
+  public static <B, S1, S2> void warmUpArms(
+      B bench, S1 s1, S2 s2, Blackhole bh, Arm2<B, S1, S2>... arms) {
+    checkArmCoverage(bench.getClass(), 2, arms.length);
+    int[] order = identityOrder(arms.length);
+    Random random = new Random(ARM_SHUFFLE_SEED);
+    for (int pass = 0; pass < WARM_UP_ITERATIONS; ++pass) {
+      shuffle(order, random);
+      for (int idx : order) {
+        arms[idx].invokeAndConsume(bench, s1, s2, bh);
+      }
+    }
+  }
+
+  private static int[] identityOrder(int length) {
+    int[] order = new int[length];
+    for (int i = 0; i < length; ++i) {
+      order[i] = i;
+    }
+    return order;
+  }
+
+  /** Fisher-Yates shuffle, in place, no per-pass allocation. */
+  private static void shuffle(int[] order, Random random) {
+    for (int i = order.length - 1; i > 0; --i) {
+      int j = random.nextInt(i + 1);
+      int tmp = order[i];
+      order[i] = order[j];
+      order[j] = tmp;
+    }
+  }
+
+  /**
+   * Coarse "did you forget to register an arm" check: counts the {@code @Benchmark} methods
+   * declared on {@code benchClass} whose parameter list -- ignoring a trailing {@link Blackhole}
+   * parameter, which JMH supplies independently of an arm's own state parameters -- has {@code
+   * expectedStateArity} parameters, and fails loudly if fewer arms than that were registered.
+   *
+   * <p>This is deliberately weak: it can't tell which method is missing, and it can't tell whether
+   * a multi-outcome method had every outcome driven, only that <i>some</i> arm exists for its
+   * shape. Widening this to per-method, per-outcome tracking is a real follow-on once this coarse
+   * form proves insufficient in practice, not before.
+   */
+  private static void checkArmCoverage(
+      Class<?> benchClass, int expectedStateArity, int registeredArms) {
+    int declaredBenchmarks = 0;
+    for (Method m : benchClass.getDeclaredMethods()) {
+      if (!m.isAnnotationPresent(Benchmark.class)) {
+        continue;
+      }
+      Class<?>[] params = m.getParameterTypes();
+      int arity = params.length;
+      if (arity > 0 && params[arity - 1] == Blackhole.class) {
+        --arity;
+      }
+      if (arity == expectedStateArity) {
+        ++declaredBenchmarks;
+      }
+    }
+    if (registeredArms < declaredBenchmarks) {
+      throw new AssertionError(
+          "warmUpArms: "
+              + benchClass.getSimpleName()
+              + " declares "
+              + declaredBenchmarks
+              + " @Benchmark method(s) with "
+              + expectedStateArity
+              + " state parameter(s), but only "
+              + registeredArms
+              + " arm(s) were registered for that shape -- coverage is declared, not inferred; see"
+              + " the Arm0/Arm1/Arm2 javadoc.");
     }
   }
 }
