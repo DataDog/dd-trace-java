@@ -269,8 +269,11 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
 
     TraceMapper mapper =
         agentVersion.equals("v0.5/traces") ? new TraceMapperV0_5() : new TraceMapperV0_4();
-    int traceSize = calculateSize(minimalTrace, mapper);
-    int maxedPayloadTraceCount = (mapper.messageBufferSize() / traceSize);
+    // The first trace of a payload is larger: it carries the payload-scoped _dd.sdk.otlp_export
+    // marker on its first span. Size both cases so the overflow point is exact.
+    int firstTraceSize = calculateSize(minimalTrace, mapper, true);
+    int traceSize = calculateSize(minimalTrace, mapper, false);
+    int maxedPayloadTraceCount = 1 + (mapper.messageBufferSize() - firstTraceSize) / traceSize;
 
     when(discovery.getTraceEndpoint()).thenReturn(agentVersion);
     when(api.sendSerializedTraces(
@@ -824,13 +827,25 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
     healthMetrics.close();
   }
 
-  static int calculateSize(List<DDSpan> trace, TraceMapper mapper) {
+  /**
+   * Serialized size of {@code trace}, either as the first trace of a payload (which carries the
+   * payload-scoped markers on its first span) or as any later trace. Uses a throwaway mapper of the
+   * same kind so the caller's mapper keeps its state.
+   */
+  static int calculateSize(List<DDSpan> trace, TraceMapper mapper, boolean firstInPayload) {
     AtomicInteger size = new AtomicInteger();
     MsgPackWriter packer =
         new MsgPackWriter(
             new FlushingBuffer(
                 1024, (messageCount, buffer) -> size.set(buffer.limit() - buffer.position())));
-    packer.format(trace, mapper);
+    TraceMapper sizingMapper =
+        mapper instanceof TraceMapperV0_5 ? new TraceMapperV0_5() : new TraceMapperV0_4();
+    if (!firstInPayload) {
+      // burn the payload-scoped markers on a throwaway trace
+      packer.format(trace, sizingMapper);
+      packer.flush();
+    }
+    packer.format(trace, sizingMapper);
     packer.flush();
     return size.get();
   }

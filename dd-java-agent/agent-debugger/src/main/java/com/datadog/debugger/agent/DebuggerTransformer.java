@@ -1,6 +1,7 @@
 package com.datadog.debugger.agent;
 
 import static com.datadog.debugger.instrumentation.ASMHelper.getLineNumbers;
+import static com.datadog.debugger.util.DebuggerInternalPackages.isDebuggerInternalClass;
 import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 
@@ -99,18 +100,6 @@ public class DebuggerTransformer implements ClassFileTransformer {
   private static final boolean JAVA_AT_LEAST_17_0_20 =
       JavaVirtualMachine.isJavaVersionAtLeast(17, 0, 20);
   public static Path DUMP_PATH = Paths.get(SystemProperties.get(JAVA_IO_TMPDIR), "debugger");
-  private static final String[] SKIPPED_PACKAGES =
-      new String[] {
-        "com/datadog/debugger/agent/",
-        "com/datadog/debugger/codeorigin/",
-        "com/datadog/debugger/exception/",
-        "com/datadog/debugger/instrumentation/",
-        "com/datadog/debugger/probe/",
-        "com/datadog/debugger/sink/",
-        "com/datadog/debugger/symbol/",
-        "com/datadog/debugger/uploader/",
-        "com/datadog/debugger/util/"
-      };
 
   private final Config config;
   private final TransformerDefinitionMatcher definitionMatcher;
@@ -183,6 +172,11 @@ public class DebuggerTransformer implements ClassFileTransformer {
       includeClasses = null;
       includeMethods = null;
       probeCreator = null;
+    }
+    if (isDebuggerInternalClass(null)) {
+      // Force DebuggerInternalPAckages to be loaded before calling it into the transform method
+      // avoid LinkageError for duplicated class definition
+      throw new IllegalArgumentException("DebuggerInternalClass should be loaded");
     }
   }
 
@@ -389,17 +383,10 @@ public class DebuggerTransformer implements ClassFileTransformer {
       // in case of anonymous classes
       return true;
     }
-    if (classFilePath.startsWith("com/datadog/debugger/")) {
-      // skip classes/packages that are part of debugger agent to avoid
-      // LinkageError: attempted duplicate class definition
-      // while retransforming a class used by instrumentation
-      for (int i = 0; i < SKIPPED_PACKAGES.length; i++) {
-        if (classFilePath.startsWith(SKIPPED_PACKAGES[i])) {
-          return true;
-        }
-      }
-    }
-    return false;
+    // skip classes/packages that are part of debugger agent to avoid
+    // LinkageError: attempted duplicate class definition
+    // while retransforming a class used by instrumentation
+    return isDebuggerInternalClass(classFilePath);
   }
 
   private byte[] transformTheWorld(

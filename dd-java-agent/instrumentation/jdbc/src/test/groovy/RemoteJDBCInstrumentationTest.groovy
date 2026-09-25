@@ -154,7 +154,9 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
       return
     }
 
-    PostgreSQLContainer server = new PostgreSQLContainer("postgres:11.2")
+    def image = DockerImageName.parse(System.getProperty("test.postgres.image"))
+      .asCompatibleSubstituteFor("postgres")
+    PostgreSQLContainer server = new PostgreSQLContainer(image)
       .withDatabaseName(dbName.get(POSTGRESQL))
       .withUsername(jdbcUserNames.get(POSTGRESQL))
       .withPassword(jdbcPasswords.get(POSTGRESQL))
@@ -175,7 +177,9 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
       return
     }
 
-    MySQLContainer server = new MySQLContainer("mysql:8.0")
+    def image = DockerImageName.parse(System.getProperty("test.mysql.image"))
+      .asCompatibleSubstituteFor("mysql")
+    MySQLContainer server = new MySQLContainer(image)
       .withDatabaseName(dbName.get(MYSQL))
       .withUsername(jdbcUserNames.get(MYSQL))
       .withPassword(jdbcPasswords.get(MYSQL))
@@ -198,7 +202,9 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
       return
     }
 
-    MSSQLServerContainer server = new MSSQLServerContainer(MSSQLServerContainer.IMAGE)
+    def image = DockerImageName.parse(System.getProperty("test.sqlserver.image"))
+      .asCompatibleSubstituteFor(MSSQLServerContainer.IMAGE)
+    def server = new MSSQLServerContainer(image)
       .acceptLicense()
       .withPassword(jdbcPasswords.get(SQLSERVER))
       // SQL Server can occasionally abort while booting on virtualized CI hosts.
@@ -221,7 +227,8 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     }
 
     // Earlier Oracle version images (oracle-xe) don't work on arm64
-    DockerImageName oracleImage = DockerImageName.parse("gvenzl/oracle-free:23.5-slim-faststart").asCompatibleSubstituteFor("gvenzl/oracle-xe")
+    DockerImageName oracleImage = DockerImageName.parse(System.getProperty("test.oracle.image"))
+      .asCompatibleSubstituteFor("gvenzl/oracle-xe")
     OracleContainer server = new OracleContainer(oracleImage)
       .withStartupTimeout(Duration.ofMinutes(5))
       .withUsername(jdbcUserNames.get(ORACLE))
