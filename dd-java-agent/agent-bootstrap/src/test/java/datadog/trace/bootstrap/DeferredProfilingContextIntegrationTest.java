@@ -162,6 +162,20 @@ class DeferredProfilingContextIntegrationTest {
   }
 
   @Test
+  void staysNoOpWhenTheFactoryReturnsNull() {
+    DeferredProfilingContextIntegration deferred =
+        new DeferredProfilingContextIntegration("ddprof", () -> null);
+    AtomicInteger callbacks = new AtomicInteger();
+
+    deferred.whenAvailable(callbacks::incrementAndGet);
+    deferred.initialize();
+
+    assertEquals(0, callbacks.get());
+    assertSame(Stateful.DEFAULT, deferred.newScopeState(null));
+    assertSame(ProfilingScope.NO_OP, deferred.newScope());
+  }
+
+  @Test
   void availabilityCallbacksRunOnlyOnceTheRealIntegrationIsIn() {
     DeferredProfilingContextIntegration deferred =
         new DeferredProfilingContextIntegration("ddprof", FakeDatadogProfilingIntegration::new);
