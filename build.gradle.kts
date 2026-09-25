@@ -16,7 +16,7 @@ plugins {
   alias(libs.plugins.shadow) apply false
   alias(libs.plugins.spotless)
   id("com.github.spotbugs") version "6.5.11"
-  id("de.thetaphi.forbiddenapis") version "3.10"
+  id("de.thetaphi.forbiddenapis") version "3.11"
   id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
   id("me.champeau.gradle.japicmp") version "0.4.3"
   id("me.champeau.jmh") version "0.7.3" apply false
