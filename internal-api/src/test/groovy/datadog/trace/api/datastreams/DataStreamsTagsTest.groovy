@@ -1,11 +1,18 @@
 package datadog.trace.api.datastreams
 
 import datadog.trace.api.BaseHash
+import datadog.trace.api.Config
+import datadog.trace.api.ProcessTags
 import spock.lang.Specification
 import java.nio.ByteBuffer
 
 
 class DataStreamsTagsTest extends Specification {
+  def cleanup() {
+    BaseHash.recalcBaseHash(null)
+    ProcessTags.reset(Config.get())
+  }
+
   def getTags(int idx) {
     return new DataStreamsTags("bus" + idx, DataStreamsTags.Direction.OUTBOUND, "exchange" + idx, "topic" + idx, "type" + idx, "subscription" + idx,
       "dataset_name" + idx, "dataset_namespace" + idx, true, "group" + idx, "consumer_group" + idx, true,
@@ -80,7 +87,7 @@ class DataStreamsTagsTest extends Specification {
     DataStreamsTags.setServiceNameOverride(serviceName)
     def two = getTags(0)
 
-    BaseHash.updateBaseHash(12)
+    BaseHash.updateIdentityHash(12)
     def three = getTags(0)
 
     expect:
