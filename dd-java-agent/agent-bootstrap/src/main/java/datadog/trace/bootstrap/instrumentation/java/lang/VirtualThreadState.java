@@ -5,6 +5,7 @@ import static datadog.environment.JavaVirtualMachine.isJavaVersion;
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.trace.api.Config;
+import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
@@ -31,6 +32,15 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
  * context listener, so we simply swap in on mount and out on unmount.
  */
 public final class VirtualThreadState {
+  private static final ClassValue<Boolean> PROPAGATE_CONTEXT =
+      GenericClassValue.of(
+          type -> !type.getName().equals("jdk.internal.net.http.HttpClientImpl$SelectorManager"));
+
+  /** The HTTP selector belongs to its client, not to the request creating the client. */
+  public static boolean shouldPropagateContext(Runnable task) {
+    return PROPAGATE_CONTEXT.get(task.getClass());
+  }
+
   // CWS observes scope changes through listeners, so retain context swaps on mount and unmount.
   private static final boolean USE_PER_MOUNT_CONTEXT =
       isJavaVersion(21)

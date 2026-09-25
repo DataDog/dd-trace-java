@@ -29,3 +29,9 @@ tasks.named("compileTestJava", JavaCompile) {
 dependencies {
   testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
 }
+
+tasks.named('forkedTest', Test) {
+  jvmArgs '--add-opens=java.base/sun.nio.ch=ALL-UNNAMED',
+    '--add-opens=java.base/java.util.concurrent=ALL-UNNAMED',
+    '--add-opens=java.net.http/jdk.internal.net.http=ALL-UNNAMED'
+}
