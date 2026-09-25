@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.testcontainers'
 }
 
 muzzle {
@@ -16,6 +17,7 @@ addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'software.amazon.awssdk', name: 'dynamodb', version: '2.30.22'
+  testContainerImage(image('localstack/localstack:4.2.0', 'test.localstack.image'))
 
   // Include httpclient instrumentation for testing because it is a dependency for aws-sdk.
   testImplementation project(':dd-java-agent:instrumentation:apache-httpclient:apache-httpclient-4.0')
