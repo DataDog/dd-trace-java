@@ -1,5 +1,6 @@
-package datadog.trace.api.function;
+package datadog.perfcontract;
 
+import datadog.trace.api.function.NoEscape;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -7,7 +8,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Meta-annotation marking an annotation in this package as a <b>perf-contract marker</b>: a
+ * Meta-annotation marking an annotation as a <b>perf-contract marker</b>: a
  * documentation-and-tooling annotation, like {@link NoEscape}, that names a performance discipline
  * without changing behavior, and whose findings {@link SuppressPerfContract} can suppress.
  *

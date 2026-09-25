@@ -1,4 +1,4 @@
-package datadog.trace.api.function;
+package datadog.perfcontract;
 
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Documented;
@@ -36,17 +36,17 @@ import java.lang.annotation.Target;
  * justification is better spelled out directly.
  *
  * <p>This is <i>not</i> the right tool for a structural precondition that a marker's own Checker
- * contract accepts as satisfying the contract outright (e.g. {@link Singleton} for {@link
+ * contract accepts as satisfying the contract outright (e.g. {@code Singleton} for {@code
  * StaticLifetime}) -- those aren't exceptions being waved through, they're a case where there is no
  * finding to begin with. Reserve meta-annotation use for genuine "yes, this would otherwise be
  * flagged, and that's deliberate" cases.
  *
- * <p><b>Target.</b> The element types below are every {@code ElementType} a perf-contract marker in
- * this package targets today or plausibly could, intersected with the {@code ElementType}s a
- * classfile-only checker can actually observe -- {@code LOCAL_VARIABLE} and a few others are
- * excluded because declaration annotations on them are not retained in the classfile at all,
- * regardless of {@link RetentionPolicy}, so allowing them here would silently do nothing. {@code
- * ANNOTATION_TYPE} is included for meta-annotation use, above.
+ * <p><b>Target.</b> The element types below are every {@code ElementType} a perf-contract marker
+ * (currently in {@code datadog.trace.api.function}) targets today or plausibly could, intersected
+ * with the {@code ElementType}s a classfile-only checker can actually observe -- {@code
+ * LOCAL_VARIABLE} and a few others are excluded because declaration annotations on them are not
+ * retained in the classfile at all, regardless of {@link RetentionPolicy}, so allowing them here
+ * would silently do nothing. {@code ANNOTATION_TYPE} is included for meta-annotation use, above.
  *
  * <p>This is a documentation-and-tooling marker; it changes no behavior.
  *
