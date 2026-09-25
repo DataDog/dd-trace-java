@@ -257,13 +257,7 @@ public class BodyParserHelpers {
     Flow.Action action = flow.getAction();
     if (action instanceof Flow.Action.RequestBlockingAction) {
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-      BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-      if (brf != null) {
-        boolean success = brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-        if (success) {
-          throw new BlockingException("Blocked request (multipart file upload)");
-        }
-      }
+      commitBlockAndThrow(reqCtx, rba, "multipart file upload");
     }
   }
 
@@ -342,13 +336,7 @@ public class BodyParserHelpers {
     Flow.Action action = flow.getAction();
     if (action instanceof Flow.Action.RequestBlockingAction) {
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-      BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-      if (brf != null) {
-        boolean success = brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-        if (success) {
-          throw new BlockingException("Blocked request (multipart file upload content)");
-        }
-      }
+      commitBlockAndThrow(reqCtx, rba, "multipart file upload content");
     }
   }
 
@@ -405,13 +393,33 @@ public class BodyParserHelpers {
     Flow.Action action = flow.getAction();
     if (action instanceof Flow.Action.RequestBlockingAction) {
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-      BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
-      if (blockResponseFunction != null) {
-        boolean success =
-            blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-        if (success) {
-          throw new BlockingException("Blocked request (for " + details + ")");
-        }
+      commitBlockAndThrow(reqCtx, rba, "for " + details);
+    }
+  }
+
+  public static void handleResponseBody(RequestContext reqCtx, Object body, String details) {
+    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+    if (cbp == null) {
+      return;
+    }
+    BiFunction<RequestContext, Object, Flow<Void>> callback =
+        cbp.getCallback(EVENTS.responseBody());
+    if (callback == null) {
+      return;
+    }
+
+    executeCallback(reqCtx, callback, body, details);
+  }
+
+  private static void commitBlockAndThrow(
+      RequestContext reqCtx, Flow.Action.RequestBlockingAction rba, String details) {
+    BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+    if (brf != null) {
+      // play runs on netty, which commits the blocking response synchronously and calls
+      // TraceSegment#effectivelyBlocked() itself: never call it here
+      boolean success = brf.tryCommitBlockingResponse(reqCtx, rba);
+      if (success) {
+        throw new BlockingException("Blocked request (" + details + ")");
       }
     }
   }

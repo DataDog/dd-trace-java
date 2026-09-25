@@ -1,4 +1,4 @@
-package datadog.trace.api.appsec
+package datadog.trace.api.http
 
 
 import spock.lang.Specification

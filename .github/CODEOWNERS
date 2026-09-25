@@ -273,6 +273,44 @@
 /dd-java-agent/instrumentation/spring/spring-security/                    @DataDog/asm-java @DataDog/apm-idm-java
 /dd-java-agent/instrumentation/velocity-1.5/                              @DataDog/asm-java @DataDog/apm-idm-java
 
+# AppSec blocking glue - exclusive asm-java ownership (must stay after the dual-owned
+# /dd-java-agent/instrumentation/**/*appsec* patterns above to win last-match-wins)
+
+# vertx-web (3.4 / 4.0 / 5.0)
+/dd-java-agent/instrumentation/vertx/vertx-web/*/src/main/java/**/RoutingContext*Advice.java         @DataDog/asm-java
+/dd-java-agent/instrumentation/vertx/vertx-web/*/src/main/java/**/FileUploadHelper.java              @DataDog/asm-java
+/dd-java-agent/instrumentation/vertx/vertx-web/*/src/main/java/**/PathParameterPublishingHelper.java @DataDog/asm-java
+/dd-java-agent/instrumentation/vertx/vertx-web/*/src/main/java/**/BlockingExceptionHandler.java      @DataDog/asm-java
+/dd-java-agent/instrumentation/vertx/vertx-web/vertx-web-3.4/src/main/java/**/Vertx*Instrumentation.java @DataDog/asm-java
+/dd-java-agent/instrumentation/vertx/vertx-web/vertx-web-4.0/src/main/java/**/Vertx*Instrumentation.java @DataDog/asm-java
+/dd-java-agent/instrumentation/vertx/vertx-web/vertx-web-5.0/src/main/java/**/Vertx*Instrumentation.java @DataDog/asm-java
+
+# ratpack-1.5 (flat package, no appsec/ subpackage)
+/dd-java-agent/instrumentation/ratpack-1.5/src/main/java/**/ContextParseAdvice.java                  @DataDog/asm-java
+/dd-java-agent/instrumentation/ratpack-1.5/src/main/java/**/JsonRendererAdvice.java                  @DataDog/asm-java
+/dd-java-agent/instrumentation/ratpack-1.5/src/main/java/**/PathBindingPublishingHandler.java        @DataDog/asm-java
+/dd-java-agent/instrumentation/ratpack-1.5/src/main/java/**/RatpackRequestBody*Advice.java           @DataDog/asm-java
+/dd-java-agent/instrumentation/ratpack-1.5/src/main/java/**/RequestBodyCollectionPublisher.java      @DataDog/asm-java
+
+# jax-rs / jakarta-rs annotations
+/dd-java-agent/instrumentation/rs/**/MessageBodyWriterInstrumentation.java                           @DataDog/asm-java
+
+# netty-4.1 (blocking glue already migrated by #12519, currently apm-idm-java only)
+/dd-java-agent/instrumentation/netty/netty-4.1/src/main/java/**/NettyMultipartHelper.java            @DataDog/asm-java
+/dd-java-agent/instrumentation/netty/netty-4.1/src/main/java/**/HttpPostRequestDecoderInstrumentation.java @DataDog/asm-java
+/dd-java-agent/instrumentation/netty/**/server/BlockingResponseHandler.java                          @DataDog/asm-java
+/dd-java-agent/instrumentation/netty/**/server/MaybeBlockResponseHandler.java                        @DataDog/asm-java
+
+# cross-framework blocking helpers and BlockResponseFunction implementations
+/dd-java-agent/instrumentation/**/*BlockingHelper.java                                               @DataDog/asm-java
+/dd-java-agent/instrumentation/**/*BlockResponseFunction.java                                        @DataDog/asm-java
+/dd-java-agent/instrumentation/undertow/undertow-common/src/main/java/**/UndertowBlockingHandler.java @DataDog/asm-java
+/dd-java-agent/instrumentation/jetty/jetty-server/*/src/main/*/**/JettyCommitResponse*.java          @DataDog/asm-java
+
+# bootstrap / internal-api blocking and RASP glue
+/dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/blocking/                       @DataDog/asm-java
+/internal-api/src/*/*/datadog/trace/bootstrap/instrumentation/api/java/lang/ProcessImplInstrumentationHelpers.java @DataDog/asm-java
+
 # @DataDog/ci-app-libraries
 /dd-java-agent/agent-ci-visibility/                 @DataDog/ci-app-libraries
 /dd-smoke-tests/backend-mock/                       @DataDog/ci-app-libraries
