@@ -3,7 +3,7 @@ package com.datadog.iast.util;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import javax.annotation.Nonnull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 public abstract class Iterators {
 
@@ -34,12 +34,14 @@ public abstract class Iterators {
 
   @SuppressWarnings("unchecked")
   @Nonnull
-  public static <E> Iterator<E> of(final @Nullable E @Nullable ... items) {
+  public static <E> Iterator<E> of(
+      final @org.jetbrains.annotations.Nullable E @org.jetbrains.annotations.Nullable ... items) {
     return items == null || items.length == 0 ? empty() : new ArrayIterator<>(items);
   }
 
   @Nonnull
-  public static Iterator<?> join(final Iterator<?> @Nullable ... iterators) {
+  public static Iterator<?> join(
+      final Iterator<?> @org.jetbrains.annotations.Nullable ... iterators) {
     return iterators == null || iterators.length == 0 ? empty() : new JoinIterator(iterators);
   }
 
