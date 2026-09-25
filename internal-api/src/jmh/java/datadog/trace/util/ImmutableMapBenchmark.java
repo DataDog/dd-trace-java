@@ -50,8 +50,13 @@ import org.openjdk.jmh.infra.Blackhole;
  *
  * <p>A virtual call site is <i>monomorphic</i> when it has observed one receiver class,
  * <i>polymorphic</i> when it has observed a small set, and <i>megamorphic</i> when no small, stable
- * set dominates. HotSpot can usually devirtualize and inline the monomorphic case, sometimes a
- * small polymorphic one; megamorphic sites generally retain virtual dispatch.
+ * set dominates. HotSpot keeps one such profile per bytecode index, shared across every inlining
+ * context, and consults it as a fallback: the profile says what to speculate when the receiver type
+ * cannot be deduced. A megamorphic profile therefore does not always imply virtual dispatch in
+ * compiled code. Wherever a particular context yields a proof of the receiver type — a final class,
+ * an exact type from an allocation or a constant, or an argument sharpened by inlining — C2
+ * devirtualizes and inlines regardless of how polluted the profile is. Pollution only reaches the
+ * contexts that have no such proof.
  *
  * <p>Java 17 results on an Apple M1 with the front-loaded {@link BenchmarkUtils#warmUpHashDispatch}
  * pollution design, {@code @Fork(5)}, {@code @Threads(8)} (M ops/s):

@@ -43,12 +43,26 @@ import org.openjdk.jmh.infra.Blackhole;
  * (Java has no built-in tuple-as-key) — D2 sidesteps it by taking both key parts directly.
  *
  * <p><b>Update</b> is where Hashtable dominates: D2 is ~26x faster on JDK 8 (see the Java 17 rerun
- * below for a narrower but still decisive margin), because the HashMap path allocates per call (a
- * {@code Long}, plus a {@code Key2}) and the resulting GC pressure throttles throughput under
- * multiple threads. Like D1, this is the headline case for {@code Hashtable}: a simple
- * counter/tally with a primitive value is exactly where HashMap's autoboxing tax bites hardest.
- * <b>Add</b> is ~3x faster for D2 (Hashtable sidesteps the {@code Key2} allocation). <b>Iterate</b>
- * is essentially a wash on JDK 8, though not on Java 17 (see below). <code>
+ * below for a narrower but still decisive margin), because the HashMap path allocates per call.
+ * Measured with {@code -prof gc} on Zulu 17, {@code update_hashMap} allocates 48.000 ± 0.001 B/op,
+ * which decomposes exactly: 24 for the boxed {@code Long} and 24 for the {@code Key2} wrapper
+ * (12-byte header, two references, one {@code int}). {@code update_hashtable} allocates ≈0 B/op.
+ * Collections over the run were 420 against none.
+ *
+ * <p>That 48 also answers a common assumption: escape analysis does <i>not</i> eliminate the
+ * temporary {@code Key2}, even though every key in this benchmark is already present and the
+ * wrapper is discarded immediately. C2 assigns one escape state per allocation site rather than per
+ * path, and {@code merge} stores the key into a {@code Node} on the absent branch, so the
+ * allocation is GlobalEscape for the whole compiled method. Eliminating it would require
+ * specializing the present and absent cases separately, which HotSpot does not do. (The wrapper's
+ * hash uses {@link HashingUtils#hash(Object, Object)} rather than {@code Objects.hash}, whose
+ * varargs array would otherwise add a third 24-byte allocation per lookup and handicap the
+ * baseline.)
+ *
+ * <p>Like D1, this is the headline case for {@code Hashtable}: a simple counter/tally with a
+ * primitive value is exactly where HashMap's autoboxing tax bites hardest. <b>Add</b> is ~3x faster
+ * for D2 (Hashtable sidesteps the {@code Key2} allocation). <b>Iterate</b> is essentially a wash on
+ * JDK 8, though not on Java 17 (see below). <code>
  * MacBook M1 8 threads (Java 8)
  *
  * Benchmark                                Mode  Cnt     Score     Error   Units
@@ -70,11 +84,15 @@ import org.openjdk.jmh.infra.Blackhole;
  * be a no-op here: {@link Hashtable.D2.Entry#hash} and {@link Hashtable.D2.Entry#matches} are call
  * sites private to {@code Hashtable.java}, structurally distinct from {@code
  * java.util.HashMap}/{@code HashSet}'s internal dispatch call sites — pollution cannot reach them.
- * With the JDK and machine held constant across this rerun, the drop is same-session run-to-run
- * noise (thermal/power, not controlled for) rather than a genuine pollution effect. Treat these two
- * runs as not directly comparable on absolute numbers. The <b>relative</b> conclusion (D2 dominates
- * {@code update}, wins {@code add} by avoiding the {@code Key2} allocation, ties on {@code
- * iterate}) is unchanged either way.
+ * It is equally a no-op for {@code *_hashMap}: {@code Key2} is a final class and every lookup key
+ * is built at the call site with {@code new Key2(...)}, so C2 has an exact type either way and
+ * devirtualizes {@code hashCode()}/{@code equals()} without consulting the polluted profile.
+ * Pollution therefore cannot explain a move on either side. With the JDK and machine held constant,
+ * what remains is uncontrolled run-to-run variation plus one concrete candidate: {@code
+ * warmUpHashDispatch} itself allocates heavily before measurement starts, which can shift GC state
+ * for the whole trial. Neither was measured. Treat these two runs as not directly comparable on
+ * absolute numbers. The <b>relative</b> conclusion (D2 dominates {@code update}, wins {@code add}
+ * by avoiding the {@code Key2} allocation, ties on {@code iterate}) is unchanged either way.
  *
  * <p>Separately rerun on Zulu 17.0.7 (native AArch64, same machine, pollution wiring unchanged).
  * JMH auto-detected the cheap "compiler" Blackhole mode on Java 17 (its log explicitly warns that
@@ -140,7 +158,7 @@ public class HashtableD2Benchmark {
     Key2(String k1, Integer k2) {
       this.k1 = k1;
       this.k2 = k2;
-      this.hash = Objects.hash(k1, k2);
+      this.hash = HashingUtils.hash(k1, k2);
     }
 
     @Override

@@ -39,13 +39,17 @@ import org.openjdk.jmh.infra.Blackhole;
  * </ul>
  *
  * <p><b>Update</b> is where Hashtable dominates: D1 is ~14x faster on JDK 8 (see the Java 17 rerun
- * below for a narrower but still decisive margin), because the HashMap path allocates per call (a
- * {@code Long}) and the resulting GC pressure throttles throughput under multiple threads. This is
- * the headline case for {@code Hashtable}: a simple counter/tally with a primitive value is exactly
- * where HashMap's autoboxing tax bites hardest, and {@code Hashtable.D1} sidesteps it entirely by
- * mutating a field on the retrieved entry in place. <b>Add</b> is roughly comparable (both allocate
- * one entry per insert). <b>Iterate</b> is essentially a wash on JDK 8, though not on Java 17 (see
- * below). <code>
+ * below for a narrower but still decisive margin). D1 mutates a primitive counter in the existing
+ * entry; the HashMap path boxes a {@code Long} on every {@code merge}. Measured with {@code -prof
+ * gc} on Zulu 17, {@code update_hashMap} allocates 24.000 ± 0.001 B/op — exactly one boxed {@code
+ * Long} (12-byte header plus an 8-byte value, aligned to 24) — against ≈0 B/op for {@code
+ * update_hashtable}, and 386 collections over the run against none. The GC pressure is measured
+ * rather than inferred from throughput. This is the headline case for {@code Hashtable}: a simple
+ * counter/tally with a primitive value is exactly where HashMap's autoboxing tax bites hardest, and
+ * {@code Hashtable.D1} sidesteps it entirely by mutating a field on the retrieved entry in place.
+ * <b>Add</b> is roughly comparable — both allocate one entry per insert, and the error bars exceed
+ * the means, so no precise comparison is possible there. <b>Iterate</b> is essentially a wash on
+ * JDK 8, though not on Java 17 (see below). <code>
  * MacBook M1 8 threads (Java 8)
  *
  * Benchmark                                Mode  Cnt     Score     Error   Units
@@ -66,13 +70,15 @@ import org.openjdk.jmh.infra.Blackhole;
  * Hashtable.D1.Entry#matches} are call sites private to {@code Hashtable.java}, structurally
  * distinct from {@code java.util.HashMap}/{@code HashSet}'s internal {@code hashCode()}/{@code
  * equals()} call sites — JIT type profiles are keyed per call site, so {@code warmUpHashDispatch}
- * cannot reach them regardless of key-type overlap. Since the JDK and machine were held constant
- * across this rerun (unlike the JDK 8-vs-17 comparisons in {@link
- * datadog.trace.util.CaseInsensitiveMapBenchmark} and {@link
- * datadog.trace.api.TagMapAccessBenchmark}), the drop here is same-session run-to-run noise
- * (thermal/power, not controlled for) rather than either a pollution effect or a JDK effect. The
- * <b>relative</b> conclusion (D1 dominates {@code update}, is roughly comparable on {@code add},
- * ties on {@code iterate}) is unchanged either way.
+ * cannot reach them regardless of key-type overlap. It is equally a no-op for {@code *_hashMap}:
+ * the keys come from {@code SOURCE_KEYS}, a {@code String[]}, and {@code String} is final, so C2
+ * sharpens the {@code Object}-declared key to an exact type and devirtualizes {@code
+ * hashCode()}/{@code equals()} without consulting the polluted profile. Pollution therefore cannot
+ * explain a drop on either side. The JDK and machine were held constant, so what remains is
+ * uncontrolled run-to-run variation plus one concrete candidate: {@code warmUpHashDispatch} itself
+ * allocates heavily before measurement starts, which can shift GC state for the whole trial.
+ * Neither was measured. The <b>relative</b> conclusion (D1 dominates {@code update}, is roughly
+ * comparable on {@code add}, ties on {@code iterate}) is unchanged either way.
  *
  * <p>Separately rerun on Zulu 17.0.7 (native AArch64, same machine, pollution wiring unchanged; JMH
  * auto-detected the cheap "compiler" Blackhole mode here, unlike JDK 8, so absolute numbers below

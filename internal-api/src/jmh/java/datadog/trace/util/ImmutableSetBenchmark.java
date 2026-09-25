@@ -48,12 +48,15 @@ import org.openjdk.jmh.infra.Blackhole;
  * <p>Lookup variants:
  *
  * <ul>
- *   <li>{@code hit} uses the same interned strings that were inserted, exercising the identity fast
- *       path.
- *   <li>{@code hitFresh} uses equal, non-interned strings, avoiding the identity fast path. It is
- *       measured only for the hash-based structures.
- *   <li>{@code miss} uses non-interned strings that are not in the set.
+ *   <li>{@code hit} reuses the inserted interned strings, exercising identity fast paths where
+ *       available.
+ *   <li>{@code hitFresh} reuses equal, non-interned copies created before measurement, avoiding
+ *       identity matches without allocating per lookup; only hash-based structures have this case.
+ *   <li>{@code miss} reuses non-interned strings that are not in the set.
  * </ul>
+ *
+ * <p>For hash-based lookups, warmup populates the reused strings' cached hashes; these cases do not
+ * measure repeated string hashing from characters.
  *
  * <p>Java 17 results on an Apple M1 with the front-loaded {@link BenchmarkUtils#warmUpHashDispatch}
  * pollution design, {@code @Fork(5)}, {@code @Threads(8)} (M ops/s):

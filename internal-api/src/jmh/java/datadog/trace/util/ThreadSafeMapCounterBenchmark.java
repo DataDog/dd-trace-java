@@ -56,7 +56,13 @@ import org.openjdk.jmh.infra.Blackhole;
  * </ul>
  *
  * <p>Rerun with {@link BenchmarkUtils#warmUpHashDispatch} wired into {@code SharedState.setUp()},
- * same JDK 17 as the table above -- a clean pollution-only delta:
+ * same JDK 17 and machine as the table above. Same-JDK removes one variable, but separate JMH
+ * invocations aren't a controlled A/B -- forks of a single benchmark method run back-to-back, while
+ * the two tables here come from separate {@code ./gradlew jmh} invocations, so a systematic
+ * difference between them (thermal state, background load, where the JIT happened to land) isn't
+ * distinguishable from a pollution effect. Pollution itself is best-effort -- it raises the odds a
+ * shared call site is megamorphic going into measurement, not a guarantee -- so treat this rerun as
+ * illustrative, not as an isolated measurement of the pollution mechanism's effect:
  *
  * <pre>{@code
  * Benchmark                          Score   Units
@@ -67,9 +73,9 @@ import org.openjdk.jmh.infra.Blackhole;
  *
  * <p>{@code ConcurrentHashtable} and {@code AtomicLong} are still within 6% of each other (68 vs 72
  * ops/us), unchanged from above. {@code LongAdder}'s score jumped to 205 ops/us, but its error bar
- * ({@code ±429}) is more than double its own mean -- unusable at this fork count, not evidence of a
- * real pollution effect; take the "within 15%" finding above as still the reliable read for {@code
- * LongAdder} too.
+ * ({@code ±429}) is more than double its own mean -- unusable at this fork count, and not evidence
+ * of a real pollution effect. It equally cannot confirm the earlier within-15% comparison: that
+ * finding rests on the first table's own data, and this run neither supports nor refutes it.
  */
 @Fork(2)
 @Warmup(iterations = 2)

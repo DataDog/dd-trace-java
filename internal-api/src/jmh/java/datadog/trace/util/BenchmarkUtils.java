@@ -1,6 +1,7 @@
 package datadog.trace.util;
 
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -12,7 +13,17 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import org.openjdk.jmh.annotations.CompilerControl;
 import org.openjdk.jmh.infra.Blackhole;
 
-/** Shared setup helpers for JMH benchmarks in this module. */
+/**
+ * Shared setup helpers for JMH benchmarks in this module.
+ *
+ * <p>{@link Blackhole} solves one correctness problem: it stops the JIT from proving a result is
+ * dead and eliminating the code that produced it. It says nothing about a second, separate problem
+ * -- whether a call site's receiver-type profile still looks like production once measurement
+ * starts. A benchmark can consume every result through a {@code Blackhole} and still measure a
+ * devirtualized, artificially monomorphic fast path that never occurs in the real system. The
+ * pollution helpers here ({@link #warmUpHashDispatch}) exist to guard against that second problem;
+ * they're not redundant with {@code Blackhole}, they cover the axis it doesn't.
+ */
 public final class BenchmarkUtils {
   private BenchmarkUtils() {}
 
@@ -36,55 +47,37 @@ public final class BenchmarkUtils {
   private static final int WARM_UP_ITERATIONS = 50_000;
 
   /**
-   * Call once from {@code @Setup(Level.Trial)}, passing the {@link Blackhole} JMH injects into the
-   * setup method. Exercises {@link HashSet}/{@link java.util.HashMap}, the tracer's {@link
-   * CollectionUtils#tryMakeImmutableSet} immutable sets, {@link ConcurrentHashMap}, and {@link
-   * TreeMap}/{@link TreeSet}/{@link ConcurrentSkipListMap} with several distinct key classes, so
-   * each structure's internal {@code hashCode()}/{@code equals()}/{@code compareTo()} dispatch -- a
-   * call site shared JVM-wide by every instance of that structure in the process, regardless of
-   * which specific instance or call site invokes {@code add}/{@code contains}/{@code get} -- is
-   * already megamorphic before a benchmark measures lookups against a single key type.
+   * Exercises shared collection methods with several key classes before benchmark warmup.
    *
-   * <p>This matches production: those shared internal call sites are hit by every hash- or
-   * sorted-based structure in the JVM across whatever key types the whole application uses, so
-   * they're realistically almost always megamorphic. An isolated benchmark that only ever looks up
-   * one key type (e.g. {@code String}) would otherwise leave them artificially monomorphic for the
-   * entire run, understating real dispatch cost.
+   * <p>HotSpot records receiver types at bytecode call sites, not per collection instance. Scratch
+   * collections therefore contribute to the internal profiles used when compiling benchmark
+   * lookups. Loading extra classes alone can defeat class-hierarchy analysis (optimization based on
+   * the loaded implementations), but changing a receiver profile requires method calls.
    *
-   * <p>Deliberately does not touch the benchmark's own {@code contains}/{@code add}/{@code get}
-   * call sites -- those are realistically free to specialize per caller, the way a genuinely hot,
-   * narrowly-typed call site would in production.
+   * <p>{@link HashSet} uses {@link HashMap}'s lookup code, also used by {@code LinkedHashMap}.
+   * {@link ConcurrentHashMap}, including its key-set views, has separate internal call sites. The
+   * immutable set and map implementations selected by {@link CollectionUtils} are exercised
+   * separately too; on older JDKs these helpers fall back to mutable collections.
    *
-   * <p>Not to be confused with the CHA-defeat decoys in {@code SingleThreadedMapBenchmark}/{@code
-   * ThreadSafeMapBenchmark} ({@code KeyStrategy} implementors referenced only so they're loaded,
-   * never invoked): that technique denies class-hierarchy analysis a single-implementor bet for a
-   * narrow, dd-trace-java-owned interface, and works by class-loading alone. It doesn't apply here
-   * -- {@code Object.hashCode()}/{@code equals()}/{@code compareTo()} already have countless
-   * implementors loaded in any real JVM, so a single-implementor CHA bet was never available for
-   * them. What gates their dispatch is the interpreter's per-call-site type profile, which only
-   * invocation can pollute -- hence this helper actually calls {@code add}/{@code contains}/{@code
-   * get}, rather than just loading classes.
+   * <p>{@link #polluteCompareToDispatch(Blackhole)} also exercises natural-order lookups in {@link
+   * TreeSet}, {@link TreeMap}, and {@link ConcurrentSkipListMap}; {@link
+   * #polluteComparatorDispatch(Blackhole)} exercises the same three collections' separate {@link
+   * Comparator}-based call sites.
    *
-   * <p>{@code @Setup(Level.Trial)}, not {@code Level.Invocation}: the latter's cost is included in
-   * every {@code Throughput}/{@code AverageTime} measurement's own timed window (JMH has no way to
-   * subtract per-invocation setup cost without adding per-op {@code System.nanoTime()} overhead of
-   * its own), so once pollution isn't free relative to the benchmarked op, it would dominate the
-   * reported number instead of the thing being measured.
-   *
-   * <p>Every collection here is freshly allocated per pass and immediately consumed via {@code bh}
-   * -- not just the {@code boolean}/lookup results, but the collection instances themselves.
-   * Consuming only a lookup's result would leave the freshly-allocated, never-escaping collection
-   * open to scalar replacement: once HotSpot compiles this loop as its own unit and proves a
-   * just-allocated {@code HashSet} never escapes it, escape analysis can devirtualize the {@code
-   * hashCode()}/{@code equals()} calls against that specific instance directly, bypassing the
-   * shared, megamorphic call site entirely. Forcing every collection itself through the {@link
-   * Blackhole} closes that loophole, so the allocations here don't need to be reused across calls
-   * the way a measured hot path would.
+   * <p>The benchmark's own collection call sites are not invoked here and remain free to specialize
+   * for their receiver types. A call site's recorded type profile isn't threatened by which key
+   * type happens to dominate traffic during or after warmup -- once HotSpot has recorded multiple
+   * receiver types there, it stays megamorphic regardless of later call frequency. The risk this
+   * class guards against is a statically deducible receiver type bypassing the profile entirely:
+   * loading extra classes here defeats class-hierarchy analysis (optimization based on which
+   * implementations are actually loaded), and {@link #distinctEqualCopy}'s {@code DONT_INLINE}
+   * stops the JIT from tracing a decoy key's type back to its origin through static inference.
    */
   public static void warmUpHashDispatch(Blackhole bh) {
     for (int i = 0; i < WARM_UP_ITERATIONS; ++i) {
       polluteHashDispatch(bh);
       polluteCompareToDispatch(bh);
+      polluteComparatorDispatch(bh);
     }
   }
 
@@ -115,23 +108,16 @@ public final class BenchmarkUtils {
   }
 
   /**
-   * Counterpart to {@link #polluteHashDispatch} for the {@code compareTo}-based dispatch used by
-   * {@code TreeMap}/{@code TreeSet}/{@code ConcurrentSkipListMap}, instead of {@code hashCode()}/
-   * {@code equals()}.
+   * Exercises natural-order {@code compareTo} calls in {@link TreeSet}, {@link TreeMap}, and {@link
+   * ConcurrentSkipListMap} with the default decoy keys.
    *
-   * <p>Unlike the hash-based structures above, a single sorted collection can't hold multiple decoy
-   * key classes at once: natural ordering calls {@code key.compareTo(existing)}, which throws
-   * {@code ClassCastException} the moment two mutually-incomparable types meet (e.g. a {@code
-   * String} and an {@code Integer}). So each key type gets its own fresh collection here, one type
-   * at a time. That's still enough to make the dispatch megamorphic: HotSpot's type profile lives
-   * on the bytecode call site inside {@code TreeMap}/{@code TreeSet}/{@code
-   * ConcurrentSkipListMap}'s shared implementation, not on any one collection instance, so driving
-   * several receiver types through that site across several collection instances pollutes it
-   * exactly as effectively as driving them through one shared instance would.
+   * <p>Each key type uses a separate collection because the decoys are not mutually comparable. The
+   * instances still execute the same internal call sites and contribute to their receiver profiles.
+   * {@link #polluteComparatorDispatch(Blackhole)} is the counterpart for the separate call sites
+   * these collections use when constructed with an explicit {@link java.util.Comparator}.
    *
-   * <p>{@code Object}'s decoy is skipped: it isn't {@link Comparable}, so it has no natural
-   * ordering to dispatch through in the first place -- the same reason it's exempt from an {@code
-   * equals()}-identity copy in {@link #distinctEqualCopy}.
+   * <p>Keys that do not implement {@link Comparable}, including the plain {@code Object} decoy, are
+   * skipped.
    */
   private static void polluteCompareToDispatch(Blackhole bh) {
     for (Object key : DECOY_KEYS) {
@@ -157,6 +143,45 @@ public final class BenchmarkUtils {
   }
 
   /**
+   * Exercises {@link Comparator}-based {@code compare} calls in {@link TreeSet}, {@link TreeMap},
+   * and {@link ConcurrentSkipListMap} with the default decoy keys.
+   *
+   * <p>Constructing these collections with an explicit {@code Comparator} routes lookups through
+   * internal call sites distinct from the no-arg, natural-ordering constructors {@link
+   * #polluteCompareToDispatch(Blackhole)} exercises -- pollution there does not carry over here.
+   * The comparator itself delegates to {@link Comparable#compareTo}, so this pass also keeps that
+   * method's call site (invoked from inside the comparator, not from the collection directly) warm
+   * across the same key types.
+   *
+   * <p>Keys that do not implement {@link Comparable}, including the plain {@code Object} decoy, are
+   * skipped.
+   */
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  private static void polluteComparatorDispatch(Blackhole bh) {
+    Comparator<Object> comparator = (a, b) -> ((Comparable) a).compareTo(b);
+    for (Object key : DECOY_KEYS) {
+      if (!(key instanceof Comparable)) {
+        continue;
+      }
+
+      TreeSet<Object> treeSet = new TreeSet<>(comparator);
+      treeSet.add(key);
+      bh.consume(treeSet.contains(distinctEqualCopy(key)));
+      bh.consume(treeSet);
+
+      TreeMap<Object, Object> treeMap = new TreeMap<>(comparator);
+      treeMap.put(key, key);
+      bh.consume(treeMap.get(distinctEqualCopy(key)));
+      bh.consume(treeMap);
+
+      ConcurrentSkipListMap<Object, Object> skipListMap = new ConcurrentSkipListMap<>(comparator);
+      skipListMap.put(key, key);
+      bh.consume(skipListMap.get(distinctEqualCopy(key)));
+      bh.consume(skipListMap);
+    }
+  }
+
+  /**
    * Returns a distinct instance that's {@code .equals()} to {@code key} but never {@code ==} it, so
    * the lookup that follows can't take {@code HashMap}/{@code ConcurrentHashMap}'s internal {@code
    * key == storedKey || key.equals(storedKey)} identity fast path and skip calling {@code equals()}
@@ -171,7 +196,11 @@ public final class BenchmarkUtils {
    * and devirtualize {@code hashCode()}/{@code equals()} via static type inference alone --
    * bypassing the shared, runtime type profile this class exists to pollute, no matter how many
    * distinct instances or types are pushed through it. Keeping this a real, non-inlined call forces
-   * every caller to go through actual dispatch.
+   * every caller to go through actual dispatch -- a type-erasing wormhole, the mirror image of
+   * {@link Blackhole}'s value-erasing one.
+   *
+   * @param key the decoy key to copy
+   * @return a distinct-but-equal copy, or {@code key} itself if it has no distinct-but-equal form
    */
   @CompilerControl(CompilerControl.Mode.DONT_INLINE)
   @SuppressWarnings(
