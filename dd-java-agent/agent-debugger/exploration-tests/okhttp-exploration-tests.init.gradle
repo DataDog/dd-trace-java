@@ -1,0 +1,23 @@
+def okHttpTestHosts = [
+  "android.com",
+  "local.host",
+  "fakeurl",
+  "www.fakeurl",
+  "san.com",
+  "nonsan.com",
+  "differentdns.com",
+  "www.wildcard.com",
+  "198.51.100.1",
+]
+
+def inheritedNonProxyHosts = System.getProperty("http.nonProxyHosts", "")
+def nonProxyHosts =
+  ([inheritedNonProxyHosts] + okHttpTestHosts)
+    .findAll { !it.isEmpty() }
+    .join("|")
+
+allprojects {
+  tasks.withType(org.gradle.api.tasks.testing.Test).configureEach {
+    systemProperty "http.nonProxyHosts", nonProxyHosts
+  }
+}

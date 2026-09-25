@@ -36,6 +36,7 @@ build-exploration-tests-image:
   before_script:
     - cp workspace/dd-java-agent/build/libs/*.jar /exploration-tests/dd-java-agent.jar
     - cp dd-java-agent/agent-debugger/exploration-tests/run-exploration-tests.sh /exploration-tests
+    - cp dd-java-agent/agent-debugger/exploration-tests/okhttp-exploration-tests.init.gradle /exploration-tests
     - cp dd-java-agent/agent-debugger/exploration-tests/exclude_*.txt /exploration-tests
     - cp dd-java-agent/agent-debugger/exploration-tests/include_*.txt /exploration-tests
     - source $HOME/.sdkman/bin/sdkman-init.sh && cd / && sdk env
@@ -127,4 +128,4 @@ exploration-tests-method-okhttp:
   script:
     - sdk use java 17.0.10-tem
     - java -XshowSettings:system -version
-    - ./run-exploration-tests.sh "method" "$PROJECT" "GRADLE_OPTS=-XX:ActiveProcessorCount=4 ./gradlew --max-workers 4 jvmTest -Dtest.java.version=11" "include_${PROJECT}.txt" "exclude_$PROJECT.txt"
+    - ./run-exploration-tests.sh "method" "$PROJECT" "GRADLE_OPTS=-XX:ActiveProcessorCount=4 ./gradlew --init-script /exploration-tests/okhttp-exploration-tests.init.gradle --max-workers 4 jvmTest -Dtest.java.version=11" "include_${PROJECT}.txt" "exclude_$PROJECT.txt"
