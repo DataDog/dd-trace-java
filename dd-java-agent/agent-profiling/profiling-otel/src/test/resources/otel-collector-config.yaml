@@ -1,0 +1,25 @@
+# OpenTelemetry Collector configuration for validating OTLP profiles
+# This configuration accepts OTLP data via HTTP and logs it for validation
+
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+
+exporters:
+  # Debug exporter for validation - we can inspect logs to verify data was received.
+  # Replaces the 'logging' exporter removed in collector-contrib v0.111.0
+  debug:
+    verbosity: detailed
+
+service:
+  pipelines:
+    # Accept traces endpoint - profiles may fall back to this
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [debug]

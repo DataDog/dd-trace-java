@@ -3,13 +3,13 @@ package datadog.trace.core.otlp.logs;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.OTLP_LOGS_EXPORTER;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
+import datadog.communication.otlp.OtlpGrpcSender;
+import datadog.communication.otlp.OtlpHttpSender;
+import datadog.communication.otlp.OtlpPayload;
+import datadog.communication.otlp.OtlpResponse;
+import datadog.communication.otlp.OtlpSender;
 import datadog.trace.api.Config;
 import datadog.trace.api.telemetry.OtlpTelemetry;
-import datadog.trace.common.writer.RemoteApi;
-import datadog.trace.core.otlp.common.OtlpGrpcSender;
-import datadog.trace.core.otlp.common.OtlpHttpSender;
-import datadog.trace.core.otlp.common.OtlpPayload;
-import datadog.trace.core.otlp.common.OtlpSender;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -111,7 +111,7 @@ public final class OtlpLogsService {
         OtlpPayload payload = collector.waitForLogs(intervalMillis);
         if (payload != OtlpPayload.EMPTY) {
           int logRecordCount = collector.getLogRecordCount();
-          RemoteApi.Response response = sender.send(payload);
+          OtlpResponse response = sender.send(payload);
           if (response.success()) {
             OtlpTelemetry.getInstance().onLogRecordsSubmitted(logRecordCount);
           }

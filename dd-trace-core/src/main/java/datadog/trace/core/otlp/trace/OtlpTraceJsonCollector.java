@@ -1,17 +1,17 @@
 package datadog.trace.core.otlp.trace;
 
+import static datadog.communication.otlp.OtlpPayload.JSON_CONTENT_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonJson.writeScopeAndSchema;
-import static datadog.trace.core.otlp.common.OtlpPayload.JSON_CONTENT_TYPE;
 import static datadog.trace.core.otlp.common.OtlpProtoBuffer.MAX_CAPACITY_BYTES;
 import static datadog.trace.core.otlp.common.OtlpResourceJson.TRACE_RESOURCE_FRAGMENT;
 import static datadog.trace.core.otlp.trace.OtlpTraceJson.writeSpan;
 
+import datadog.communication.otlp.OtlpPayload;
 import datadog.json.JsonWriter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDSpan;
-import datadog.trace.core.otlp.common.OtlpPayload;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.List;

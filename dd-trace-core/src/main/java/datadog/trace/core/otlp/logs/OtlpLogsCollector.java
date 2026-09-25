@@ -1,6 +1,6 @@
 package datadog.trace.core.otlp.logs;
 
-import datadog.trace.core.otlp.common.OtlpPayload;
+import datadog.communication.otlp.OtlpPayload;
 
 /** Collects logs ready for export. */
 public abstract class OtlpLogsCollector {

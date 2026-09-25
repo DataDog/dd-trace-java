@@ -12,11 +12,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import datadog.communication.otlp.OtlpPayload;
+import datadog.communication.otlp.OtlpResponse;
+import datadog.communication.otlp.OtlpSender;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.telemetry.OtlpTelemetry;
 import datadog.trace.core.CoreSpan;
-import datadog.trace.core.otlp.common.OtlpPayload;
-import datadog.trace.core.otlp.common.OtlpSender;
 import datadog.trace.core.otlp.trace.OtlpTraceCollector;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -39,7 +40,7 @@ class OtlpPayloadDispatcherTest {
 
   @BeforeEach
   void stubSuccessfulSend() {
-    lenient().when(sender.send(any())).thenReturn(RemoteApi.Response.success(200));
+    lenient().when(sender.send(any())).thenReturn(OtlpResponse.success(200));
     OtlpTelemetry.getInstance().prepareMetrics();
     OtlpTelemetry.getInstance().drain();
   }
@@ -172,7 +173,7 @@ class OtlpPayloadDispatcherTest {
 
   @Test
   void flushRecordsSuccessfulExportTelemetry() {
-    RemoteApi.Response response = RemoteApi.Response.success(200);
+    OtlpResponse response = OtlpResponse.success(200);
     when(sender.send(any())).thenReturn(response);
     OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
 
@@ -187,7 +188,7 @@ class OtlpPayloadDispatcherTest {
 
   @Test
   void flushRecordsFailedExportTelemetry() {
-    RemoteApi.Response response = RemoteApi.Response.failed(500);
+    OtlpResponse response = OtlpResponse.failed(500);
     when(sender.send(any())).thenReturn(response);
     OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
 
