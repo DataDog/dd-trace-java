@@ -77,12 +77,26 @@ public class SamplingMechanism {
   /**
    * Returns true if sampling priority lock can be avoided for the given mechanism and priority
    *
+   * <p>With {@code dd.apm.tracing.enabled=false}, the drop decided for APM traces must also beat an
+   * already locked priority. Otherwise {@code manual.keep} — which force-keeps the span before the
+   * sampler ever votes — would leave the trace indexed and billed as APM, exactly what the setting
+   * opts out of. Traces a product does want are protected earlier: {@code
+   * TraceCollector#setSamplingPriorityIfNecessary} skips the sampler altogether when {@code
+   * _dd.p.ts} is marked for ASM or AI Guard, so only unmarked traces reach this drop. This matches
+   * dd-trace-js, whose standalone sampler honors {@code manual.keep} only alongside a product trace
+   * source tag.
+   *
+   * <p>The exemption is deliberately limited to a drop: a {@link #DEFAULT} keep must never override
+   * a priority someone else already set.
+   *
    * @param priority the sampling priority
    * @param mechanism the sampling mechanism
    * @return {@code true} if the sampling priority lock can be avoided, {@code false} otherwise
    */
   public static boolean canAvoidSamplingPriorityLock(int priority, int mechanism) {
-    return (!Config.get().isApmTracingEnabled() && mechanism == SamplingMechanism.APPSEC)
+    return (!Config.get().isApmTracingEnabled()
+            && (mechanism == SamplingMechanism.APPSEC
+                || (mechanism == DEFAULT && priority == SAMPLER_DROP)))
         || (Config.get().isDataJobsEnabled() && mechanism == DATA_JOBS);
   }
 

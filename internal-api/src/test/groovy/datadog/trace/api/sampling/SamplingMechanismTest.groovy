@@ -108,6 +108,8 @@ class SamplingMechanismTest extends DDSpecification {
     APPSEC            | UNSET        | true
     APPSEC            | SAMPLER_KEEP | true
     UNKNOWN           | SAMPLER_KEEP | false
+    // the APM traces drop has to beat a manual.keep that already locked the priority
+    DEFAULT           | SAMPLER_DROP | true
     DEFAULT           | SAMPLER_KEEP | false
     AGENT_RATE        | SAMPLER_KEEP | false
     REMOTE_AUTO_RATE  | SAMPLER_KEEP | false

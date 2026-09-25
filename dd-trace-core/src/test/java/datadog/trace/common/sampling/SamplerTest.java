@@ -11,6 +11,7 @@ import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING_FORCE;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
+import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -20,7 +21,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
+import datadog.trace.api.ProductTraceSource;
 import datadog.trace.bootstrap.ActiveSubsystems;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
@@ -29,6 +33,7 @@ import datadog.trace.test.util.DDJavaSpecification;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
 
 class SamplerTest extends DDJavaSpecification {
@@ -91,6 +96,42 @@ class SamplerTest extends DDJavaSpecification {
   @Test
   void apmTracesDroppedWhenApmTracingDisabledAndLlmObsEnabled() {
     assertApmTracesDropped();
+  }
+
+  /**
+   * {@code manual.keep} force-keeps the span long before the sampler votes, locking the sampling
+   * priority. With APM tracing disabled the drop still has to win, or the trace would be indexed
+   * and billed as APM anyway — exactly what the setting opts out of.
+   */
+  @WithConfig(key = APM_TRACING_ENABLED, value = "false")
+  @Test
+  void apmTracesDroppedWhenApmTracingDisabledAndTraceManuallyKept() {
+    Sampler sampler = Sampler.Builder.forConfig(Config.get(), null);
+
+    assertEquals(
+        SAMPLER_DROP,
+        (int) samplingPriorityOfTrace(sampler, span -> span.setTag(DDTags.MANUAL_KEEP, true)));
+  }
+
+  /**
+   * A trace a product asked for is not an APM trace the setting opts out of, so {@code manual.keep}
+   * still wins once {@code _dd.p.ts} is marked — here for ASM. This mirrors dd-trace-js, which
+   * honors {@code manual.keep} in standalone mode only alongside a product trace source.
+   */
+  @WithConfig(key = APM_TRACING_ENABLED, value = "false")
+  @Test
+  void manuallyKeptTracesKeptWhenApmTracingDisabledAndMarkedForAsm() {
+    Sampler sampler = Sampler.Builder.forConfig(Config.get(), null);
+
+    assertEquals(
+        USER_KEEP,
+        (int)
+            samplingPriorityOfTrace(
+                sampler,
+                span -> {
+                  span.setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
+                  span.setTag(DDTags.MANUAL_KEEP, true);
+                }));
   }
 
   /**
@@ -266,6 +307,27 @@ class SamplerTest extends DDJavaSpecification {
       return priorities;
     } catch (InterruptedException | TimeoutException e) {
       throw new AssertionError("the traces were never written", e);
+    } finally {
+      tracer.close();
+    }
+  }
+
+  /**
+   * Runs a single trace through a tracer using {@code sampler}, applying {@code tagger} to its root
+   * span before it is finished, and returns the priority it was written with.
+   */
+  private static int samplingPriorityOfTrace(Sampler sampler, Consumer<DDSpan> tagger) {
+    ListWriter writer = new ListWriter();
+    CoreTracer tracer = CoreTracer.builder().writer(writer).sampler(sampler).build();
+    try {
+      DDSpan span = (DDSpan) tracer.buildSpan("datadog", "test").start();
+      tagger.accept(span);
+      span.finish();
+      writer.waitForTraces(1);
+
+      return writer.firstTrace().get(0).getSamplingPriority();
+    } catch (InterruptedException | TimeoutException e) {
+      throw new AssertionError("the trace was never written", e);
     } finally {
       tracer.close();
     }
