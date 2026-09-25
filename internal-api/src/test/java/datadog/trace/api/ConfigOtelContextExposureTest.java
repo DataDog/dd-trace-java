@@ -83,7 +83,7 @@ class ConfigOtelContextExposureTest {
   @Test
   @WithConfig(key = "APPSEC_ENABLED", value = "true", env = true)
   @WithConfig(key = "PROFILING_DDPROF_ENABLED", value = "false", env = true)
-  void disabledInAnEnvironmentWhereTheDatadogProfilerIsUnsafe() {
+  void disabledWhenDatadogProfilerIsUnsafeOrExplicitlyDisabledViaEnv() {
     assertFalse(Config.get().isOtelThreadContextEnabled());
   }
 }
