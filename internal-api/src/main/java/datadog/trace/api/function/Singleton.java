@@ -31,6 +31,12 @@ import java.lang.annotation.Target;
  * <p><b>On a class</b> ({@link ElementType#TYPE}): every instance field of this class may serve as
  * the process-wide holder {@link StaticLifetime} requires, because the class itself is guaranteed
  * to have at most one instance.
+ *
+ * <p><b>Checker contract.</b> This annotation has no violation condition of its own in v1 -- there
+ * is nothing to flag on the class itself, since the declaration is trusted rather than verified.
+ * Its only role in automated review is as an input fact to {@link StaticLifetime}'s checker: a
+ * field otherwise flagged by that check is accepted instead when its enclosing class carries this
+ * annotation. See {@link StaticLifetime}'s own Checker contract section for the full rule.
  */
 @Documented
 @Retention(RetentionPolicy.CLASS)
