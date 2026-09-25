@@ -145,6 +145,22 @@ public class MavenExecutionListener extends AbstractExecutionListener {
     String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
 
     if (MavenUtils.isTestExecution(mojoExecution)) {
+      // Surefire/Failsafe complete successfully when explicitly configured to skip tests;
+      // Maven does not send mojoSkipped for these executions. Read the resolved plugin
+      // configuration, since a POM can override the command-line skip properties.
+      if (Boolean.parseBoolean(
+              MavenUtils.getConfigurationValue(session, mojoExecution, "skipTests"))
+          || Boolean.parseBoolean(MavenUtils.getConfigurationValue(session, mojoExecution, "skip"))
+          || (("maven-surefire-plugin".equals(mojoExecution.getArtifactId())
+                  || "maven-failsafe-plugin".equals(mojoExecution.getArtifactId()))
+              && Boolean.parseBoolean(
+                  MavenUtils.getConfigurationValue(session, mojoExecution, "skipExec")))
+          || ("maven-failsafe-plugin".equals(mojoExecution.getArtifactId())
+              && Boolean.parseBoolean(
+                  MavenUtils.getConfigurationValue(session, mojoExecution, "skipITs")))) {
+        buildEventsHandler.onTestModuleSkip(
+            request, moduleName, "Tests were skipped by Maven configuration");
+      }
       buildEventsHandler.onTestModuleFinish(request, moduleName);
     } else {
       buildEventsHandler.onBuildTaskFinish(request, moduleName);
