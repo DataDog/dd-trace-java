@@ -2,6 +2,7 @@ package datadog.trace.common.sampling;
 
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
+import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -214,6 +215,64 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
     } finally {
       tracer.close();
     }
+  }
+
+  @Test
+  void defaultFallbackEmitsConsistentProbabilityStateBeforeAgentResponse() {
+    RateByServiceTraceSampler serviceSampler = new RateByServiceTraceSampler();
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+    try {
+      DDSpan span =
+          (DDSpan)
+              tracer
+                  .buildSpan("datadog", "fallback")
+                  .withServiceName("spock")
+                  .ignoreActiveSpan()
+                  .start();
+
+      serviceSampler.setSamplingPriority(span);
+
+      String tracestate = span.spanContext().getPropagationTags().headerValue(W3C);
+      assertEquals(SAMPLER_KEEP, span.getSamplingPriority());
+      assertTrue(tracestate.matches(".*ot=rv:[0-9a-f]{14};th:0.*"), tracestate);
+    } finally {
+      tracer.close();
+    }
+  }
+
+  @Test
+  void emptyAndNullOnlyResponsesKeepDefaultProbabilityFallback() {
+    RateByServiceTraceSampler serviceSampler = new RateByServiceTraceSampler();
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+    try {
+      serviceSampler.onResponse("traces", rateResponse(new String[0][0]));
+      assertEquals(1.0, serviceSampler.fallbackSampleRate());
+      assertDefaultFallbackSampling(serviceSampler, tracer);
+
+      serviceSampler.onResponse("traces", rateResponse("service:,env:", null));
+      assertEquals(1.0, serviceSampler.fallbackSampleRate());
+      assertDefaultFallbackSampling(serviceSampler, tracer);
+    } finally {
+      tracer.close();
+    }
+  }
+
+  private static void assertDefaultFallbackSampling(
+      RateByServiceTraceSampler serviceSampler, CoreTracer tracer) {
+    DDSpan span =
+        (DDSpan)
+            tracer
+                .buildSpan("datadog", "fallback")
+                .withServiceName("spock")
+                .ignoreActiveSpan()
+                .start();
+
+    serviceSampler.setSamplingPriority(span);
+
+    assertEquals(SAMPLER_KEEP, span.getSamplingPriority());
+    String tracestate = span.spanContext().getPropagationTags().headerValue(W3C);
+    assertTrue(tracestate.matches(".*ot=rv:[0-9a-f]{14};th:0.*"), tracestate);
+    span.finish();
   }
 
   @Test
