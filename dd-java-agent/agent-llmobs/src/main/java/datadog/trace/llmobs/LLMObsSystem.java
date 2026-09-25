@@ -42,6 +42,17 @@ public class LLMObsSystem {
       return;
     }
 
+    // LLMObs spans are backed by tracer spans: buildSpan() returns null on the no-op tracer, so
+    // starting up with no CoreTracer installed would make every span-starting call throw into
+    // application code. Leave the no-op SDK installed instead. The condition mirrors
+    // TracerInstaller.installGlobalTracer, which still installs a CoreTracer for CI Visibility
+    // when dd.trace.enabled=false. Delivery is a separate question there: CI Visibility's trace
+    // sanitation drops any trace whose local root isn't a test span.
+    if (!config.isTraceEnabled() && !config.isCiVisibilityEnabled()) {
+      LOGGER.debug("LLM Observability is disabled: no tracer is installed (dd.trace.enabled)");
+      return;
+    }
+
     sco.createRemaining(config);
 
     String mlApp = config.getLlmObsMlApp();

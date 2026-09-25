@@ -108,6 +108,7 @@ class SamplingMechanismTest extends DDSpecification {
     APPSEC            | UNSET        | true
     APPSEC            | SAMPLER_KEEP | true
     UNKNOWN           | SAMPLER_KEEP | false
+    DEFAULT           | SAMPLER_DROP | true
     DEFAULT           | SAMPLER_KEEP | false
     AGENT_RATE        | SAMPLER_KEEP | false
     REMOTE_AUTO_RATE  | SAMPLER_KEEP | false
