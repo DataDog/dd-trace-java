@@ -11,7 +11,7 @@ plugins {
 }
 
 tasks.named("compileJava", JavaCompile) {
-  configureCompiler(it, 11, JavaVersion.VERSION_1_8, "Error Prone 2.23.0 / NullAway 0.10.15 are incompatible with JDK 25 javac")
+  configureCompiler(it, 25, JavaVersion.VERSION_1_8)
 }
 
 // First version with Mac M1 support
@@ -66,8 +66,8 @@ dependencies {
   jmh project(':dd-java-agent:instrumentation:java:java-lang:java-lang-1.8')
 
   compileOnly('org.jetbrains:annotations:24.0.0')
-  errorprone('com.uber.nullaway:nullaway:0.10.15')
-  errorprone('com.google.errorprone:error_prone_core:2.23.0')
+  errorprone('com.uber.nullaway:nullaway:0.14.2')
+  errorprone('com.google.errorprone:error_prone_core:2.50.0')
 }
 
 tasks.named("shadowJar", ShadowJar) {
@@ -117,6 +117,8 @@ tasks.named("forbiddenApisJmh") {
 
 tasks.withType(JavaCompile).configureEach {
   if (name == 'compileJava') {
+    options.release = 8
+    options.compilerArgs.add('--should-stop=ifError=FLOW')
     options.errorprone {
       check("NullAway", CheckSeverity.ERROR)
       option("NullAway:AnnotatedPackages", "com.datadog.iast")
