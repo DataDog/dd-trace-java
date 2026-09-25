@@ -151,6 +151,10 @@ public class MavenExecutionListener extends AbstractExecutionListener {
       if (Boolean.parseBoolean(
               MavenUtils.getConfigurationValue(session, mojoExecution, "skipTests"))
           || Boolean.parseBoolean(MavenUtils.getConfigurationValue(session, mojoExecution, "skip"))
+          || (("maven-surefire-plugin".equals(mojoExecution.getArtifactId())
+                  || "maven-failsafe-plugin".equals(mojoExecution.getArtifactId()))
+              && Boolean.parseBoolean(
+                  MavenUtils.getConfigurationValue(session, mojoExecution, "skipExec")))
           || ("maven-failsafe-plugin".equals(mojoExecution.getArtifactId())
               && Boolean.parseBoolean(
                   MavenUtils.getConfigurationValue(session, mojoExecution, "skipITs")))) {

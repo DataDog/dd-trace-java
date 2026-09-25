@@ -132,6 +132,42 @@ class MavenInstrumentationTest extends CiVisibilityInstrumentationTest {
     testcaseName = "test_maven_build_with_unit_and_integration_tests_generates_spans"
   }
 
+  def "Surefire and Failsafe status follows skipExec: CLI=#cliSkipExec, POM=#pomSkipExec"() {
+    given:
+    if (pomSkipExec != null) {
+      def pom = projectFolder.resolve("pom.xml").toFile()
+      ["maven-surefire-plugin", "maven-failsafe-plugin"].each { plugin ->
+        pom.text = pom.text.replace("<artifactId>${plugin}</artifactId>",
+          "<artifactId>${plugin}</artifactId><configuration><skipExec>${pomSkipExec}</skipExec></configuration>")
+      }
+    }
+
+    when:
+    def exitCode = executeMaven(["-B", "clean", "verify", "-Dmaven.test.skip.exec=${cliSkipExec}".toString()])
+
+    then:
+    exitCode == 0
+    spanFilter.waitForSpan({ span -> span.spanType == "test_session_end" }, TimeUnit.SECONDS.toMillis(20))
+    def spans = TEST_WRITER.toList().flatten()
+    def modules = spans.findAll { it.spanType == "test_module_end" }
+    def sessions = spans.findAll { it.spanType == "test_session_end" }
+    modules.size() == 2
+    sessions.size() == 1
+    modules.every { it.getTag("test.status").toString() == expectedStatus }
+    sessions[0].getTag("test.status").toString() == expectedStatus
+    expectedStatus != "skip" || modules.every { it.getTag("test.skip_reason") == "Tests were skipped by Maven configuration" }
+    projectFolder.resolve("target/surefire-reports/TEST-org.example.TestSucceed.xml").toFile().exists() == (expectedStatus == "pass")
+    projectFolder.resolve("target/failsafe-reports/TEST-org.example.ITSucceed.xml").toFile().exists() == (expectedStatus == "pass")
+
+    where:
+    cliSkipExec | pomSkipExec | expectedStatus
+    true        | null        | "skip"
+    false       | null        | "pass"
+    true        | "false"     | "pass"
+    false       | "true"      | "skip"
+    testcaseName = "test_maven_build_with_unit_and_integration_tests_generates_spans"
+  }
+
   private void givenMavenProjectFiles(String projectFilesSources) {
     def projectResourcesUri = this.getClass().getClassLoader().getResource(projectFilesSources).toURI()
     def projectResourcesPath = Paths.get(projectResourcesUri)
