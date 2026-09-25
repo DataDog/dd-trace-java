@@ -96,13 +96,14 @@ public class ApacheHttpAsyncClientInstrumentation
     public static AgentSpan methodEnter(
         @Advice.Argument(value = 0, readOnly = false) HttpAsyncRequestProducer requestProducer,
         @Advice.Argument(2) HttpContext context,
-        @Advice.Argument(value = 3, readOnly = false) FutureCallback<?> futureCallback) {
+        @Advice.Argument(value = 3, readOnly = false) FutureCallback<?> futureCallback,
+        @Advice.Local("parentContinuation") ContextContinuation parentContinuation) {
 
       if (!(requestProducer instanceof DelegatingRequestProducer)) {
         requestProducer = new DelegatingRequestProducer(requestProducer);
       }
 
-      final ContextContinuation parentContinuation = currentContext().capture();
+      parentContinuation = currentContext().capture();
       final AgentSpan clientSpan = startSpan(APACHE_HTTPASYNCCLIENT.toString(), HTTP_REQUEST);
       DECORATE.afterStart(clientSpan);
       ((DelegatingRequestProducer) requestProducer).setSpan(clientSpan);
@@ -116,12 +117,19 @@ public class ApacheHttpAsyncClientInstrumentation
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
         @Advice.Enter final AgentSpan span,
-        @Advice.Return final Object result,
+        @Advice.Local("parentContinuation") final ContextContinuation parentContinuation,
         @Advice.Thrown final Throwable throwable) {
       if (throwable != null) {
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-        span.finish();
+        try {
+          DECORATE.onError(span, throwable);
+          DECORATE.beforeFinish(span);
+          span.finish();
+        } finally {
+          // Submission failed before a callback could take ownership.
+          if (parentContinuation != null) {
+            parentContinuation.release();
+          }
+        }
       }
     }
   }

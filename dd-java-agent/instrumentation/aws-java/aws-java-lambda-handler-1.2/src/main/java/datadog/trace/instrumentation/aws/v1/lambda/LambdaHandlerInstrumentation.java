@@ -122,11 +122,12 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
 
       final AgentSpan span = spanFromScope(scope);
       try {
-        if (throwable == null) {
-          AgentTracer.get().notifyAppSecEnd(span, result);
-        } else {
+        if (throwable != null) {
           span.addThrowable(throwable);
         }
+
+        AgentTracer.get().notifyAppSecEnd(span, throwable == null ? result : null);
+      } finally {
         // Force the resource name back to the literal placeholder marker right
         // before finish so that the Datadog Lambda Extension's filter
         // (filter_span_from_lambda_library_or_runtime in
@@ -142,7 +143,6 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
         // and the HTTP/JAX-RS instrumentation will already have written
         // HTTP_FRAMEWORK_ROUTE (3) by this point.
         span.setResourceName(INVOCATION_SPAN_NAME, ResourceNamePriorities.TAG_INTERCEPTOR);
-      } finally {
         scope.close();
         span.finish();
         AgentTracer.get()
