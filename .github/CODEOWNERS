@@ -335,10 +335,6 @@
 /dd-smoke-tests/kafka-2/                                        @DataDog/data-streams-monitoring @DataDog/apm-idm-java
 /dd-smoke-tests/kafka-3/                                        @DataDog/data-streams-monitoring @DataDog/apm-idm-java
 
-# @DataDog/feature-flagging-and-experimentation-sdk
-/dd-smoke-tests/openfeature/                                    @DataDog/feature-flagging-and-experimentation-sdk
-/products/feature-flagging/                                     @DataDog/feature-flagging-and-experimentation-sdk
-
 # @DataDog/profiling-java
 /dd-java-agent/ddprof-lib/                                                                  @DataDog/profiling-java
 /dd-java-agent/agent-profiling/                                                             @DataDog/profiling-java
@@ -378,3 +374,9 @@
 **/build.gradle.kts                                @DataDog/apm-lang-platform-java
 **/gradle.lockfile                                 @DataDog/apm-lang-platform-java
 /dd-java-agent/instrumentation/**/gradle.lockfile  @DataDog/apm-idm-java
+
+# @DataDog/feature-flagging-and-experimentation-sdk
+# Keep product ownership after the generic build configuration rules.
+/dd-smoke-tests/openfeature/                                    @DataDog/feature-flagging-and-experimentation-sdk
+/products/feature-flagging/                                     @DataDog/feature-flagging-and-experimentation-sdk
+/dd-java-agent/agent-bootstrap/src/test/java/datadog/trace/bootstrap/AgentFeatureFlaggingLifecycleTest.java @DataDog/feature-flagging-and-experimentation-sdk
