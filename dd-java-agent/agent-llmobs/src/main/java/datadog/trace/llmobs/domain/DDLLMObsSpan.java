@@ -9,6 +9,7 @@ import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.GenAiApmTags;
 import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.api.llmobs.LLMObsContext;
+import datadog.trace.api.llmobs.LLMObsPropagationValues;
 import datadog.trace.api.llmobs.LLMObsSampler;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.api.llmobs.LLMObsTags;
@@ -24,6 +25,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,6 +53,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private static final String DEFAULT_PROMPT_NAME = "unnamed-prompt";
   private static final String CONTEXT_VARIABLE_KEYS = "_dd_context_variable_keys";
   private static final String QUERY_VARIABLE_KEYS = "_dd_query_variable_keys";
+  private static final String TRACE_ID_TAG_INTERNAL = "trace_id";
   private static final String PARENT_ID_TAG_INTERNAL = "parent_id";
   private static final String SAMPLE_RATE_TAG_INTERNAL = "sample_rate";
   private static final String SAMPLING_DECISION_TAG_INTERNAL = "sampling_decision";
@@ -72,6 +75,10 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private final AgentSpan span;
   private final String spanKind;
   private final String mlApp;
+
+  /** The LLMObs trace id, as 32 lowercase hex characters. Distinct from the APM trace id. */
+  private final String llmObsTraceId;
+
   private final boolean hasSessionId;
   private final ContextScope scope;
   // Non-null only for agent-kind spans started without an ambient APM root. Activating the
@@ -84,7 +91,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
   public DDLLMObsSpan(
       @Nonnull String kind,
       String spanName,
-      @Nonnull String mlApp,
+      @Nullable String mlApp,
       String sessionId,
       @Nonnull String serviceName,
       WellKnownTags wellKnownTags) {
@@ -94,7 +101,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
   public DDLLMObsSpan(
       @Nonnull String kind,
       String spanName,
-      @Nonnull String mlApp,
+      @Nullable String mlApp,
       String sessionId,
       @Nonnull String serviceName,
       WellKnownTags wellKnownTags,
@@ -113,7 +120,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
   DDLLMObsSpan(
       @Nonnull String kind,
       String spanName,
-      @Nonnull String mlApp,
+      @Nullable String mlApp,
       String sessionId,
       @Nonnull String serviceName,
       WellKnownTags wellKnownTags,
@@ -145,22 +152,23 @@ public class DDLLMObsSpan implements LLMObsSpan {
 
     span.setTag(SPAN_KIND, kind);
     spanKind = kind;
-    this.mlApp = mlApp;
-    span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.ML_APP, mlApp);
-    // Resolve effective parent_id, session_id, agent_version, agent attribution and sampling
-    // decision from the LLMObs context, all gated on trace-id consistency. A stale context from a
-    // different trace (e.g. async boundary leakage) must not contribute any of them. Every
-    // inherited value is read inside the one same-trace branch below, so a newly propagated tag
-    // cannot ship with a weaker gate of its own.
+    // Resolve effective ml_app, parent_id, session_id, agent_version, agent attribution and
+    // sampling decision from the LLMObs context, all gated on trace-id consistency. A stale
+    // context from a different trace (e.g. async boundary leakage) must not contribute any of
+    // them. Every inherited value is read inside the one same-trace branch below, so a newly
+    // propagated tag cannot ship with a weaker gate of its own.
     AgentSpanContext parent = LLMObsContext.current();
     String parentSpanID = LLMObsContext.ROOT_SPAN_ID;
+    String resolvedTraceId = null;
+    String resolvedMlApp = mlApp;
     String resolvedAgentVersion = agentVersion;
     String sampleRate = null;
     String samplingDecision = null;
     String resolvedParentAgentSpanId = null;
     String resolvedParentAgentName = null;
+    boolean inheritedInProcess = false;
     if (null != parent) {
-      if (parent.getTraceId() != span.getTraceId()) {
+      if (!parent.getTraceId().equals(span.getTraceId())) {
         LOGGER.error(
             "trace ID mismatch, retrieved parent from context trace_id={}, span_id={}, started span trace_id={}, span_id={}",
             parent.getTraceId(),
@@ -168,7 +176,21 @@ public class DDLLMObsSpan implements LLMObsSpan {
             span.getTraceId(),
             span.getSpanId());
       } else {
+        inheritedInProcess = true;
         parentSpanID = String.valueOf(parent.getSpanId());
+        // Stay on the enclosing span's LLMObs trace. Never re-seeded from the APM trace id here:
+        // the enclosing span may itself have adopted a trace id from another service, and every
+        // span below it has to keep reporting that one.
+        resolvedTraceId = LLMObsContext.currentTraceId();
+        // Inherit ml_app from the enclosing LLMObs span, if this span doesn't name its own, so a
+        // whole agent subtree stays in one application rather than each nested span falling back
+        // to the service default.
+        if (resolvedMlApp == null || resolvedMlApp.isEmpty()) {
+          String inherited = LLMObsContext.currentMlApp();
+          if (inherited != null && !inherited.isEmpty()) {
+            resolvedMlApp = inherited;
+          }
+        }
         // Inherit session_id from parent context only when it belongs to the same trace.
         // Matches dd-trace-py and dd-trace-js: session_id need only be set on the root
         // span; descendants inherit transitively via context propagation.
@@ -196,6 +218,63 @@ public class DDLLMObsSpan implements LLMObsSpan {
         resolvedParentAgentName = LLMObsContext.currentParentAgentName();
       }
     }
+
+    // No usable in-process LLMObs parent, so fall back to what arrived from another service on
+    // the span context's propagation tags. Null when nothing did, which leaves every value below
+    // at the default it already holds.
+    LLMObsPropagationValues propagated =
+        inheritedInProcess ? null : span.spanContext().getExtractedLLMObsValues();
+    if (propagated != null) {
+      if (propagated.parentId != null) {
+        parentSpanID = propagated.parentId;
+      }
+      // Adopt the caller's LLMObs trace id so the trace stays whole across the boundary. The APM
+      // trace id can't stand in for it: an intermediate service that starts a fresh APM trace
+      // would split the LLMObs trace in two, and dd-trace-py has been propagating this since it
+      // gained the tag. The value arrives as decimal and is stored as hex.
+      resolvedTraceId = LLMObsTraceId.fromWire(propagated.traceId);
+      if (resolvedMlApp == null || resolvedMlApp.isEmpty()) {
+        resolvedMlApp = propagated.mlApp;
+      }
+      if (sessionId == null || sessionId.isEmpty()) {
+        sessionId = propagated.sessionId;
+      }
+      resolvedParentAgentSpanId = propagated.parentAgentSpanId;
+      if (resolvedParentAgentSpanId != null) {
+        resolvedParentAgentName = propagated.parentAgentName;
+      }
+      // Adopt the upstream sampling verdict so a distributed LLMObs trace is retained or dropped
+      // as a whole. Re-rolling locally only agrees with the caller when both services happen to
+      // be configured at the same rate; honouring the propagated decision removes that
+      // coincidence. Both tags are required together — the rate is meaningless without the
+      // decision it produced, and a lone decision would be reported against this service's rate,
+      // which is not the rate that produced it.
+      if (propagated.sampleRate != null && propagated.samplingDecision != null) {
+        sampleRate = propagated.sampleRate;
+        samplingDecision = propagated.samplingDecision;
+      }
+    }
+
+    // Root of an LLMObs trace: seed the LLMObs trace id from the APM one. DDTraceId.toHexString()
+    // is already zero-padded to 32 characters, so a trace that never crosses a process boundary
+    // reports exactly the trace_id it reported before this tag existed.
+    if (resolvedTraceId == null || resolvedTraceId.isEmpty()) {
+      resolvedTraceId = span.getTraceId().toHexString();
+    }
+    this.llmObsTraceId = resolvedTraceId;
+    span.setTag(LLMOBS_TAG_PREFIX + TRACE_ID_TAG_INTERNAL, resolvedTraceId);
+
+    // The service default goes last, once the explicit, in-process and propagated values have all
+    // had their chance — applying it any earlier is indistinguishable from the caller naming the
+    // service explicitly, which is what would silently discard an upstream ml_app. Config already
+    // resolves this to DD_LLMOBS_ML_APP or DD_SERVICE, so the full order is
+    // explicit > in-process parent > propagated > DD_LLMOBS_ML_APP > DD_SERVICE, matching
+    // dd-trace-py's documented precedence.
+    if (resolvedMlApp == null || resolvedMlApp.isEmpty()) {
+      resolvedMlApp = Config.get().getLlmObsMlApp();
+    }
+    this.mlApp = resolvedMlApp;
+    span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.ML_APP, resolvedMlApp);
 
     // An agent span is its own descendants' nearest agent ancestor, replacing anything inherited.
     // Use the span name as the initial pagent name; annotateAgentManifest() will update it to the
@@ -231,11 +310,13 @@ public class DDLLMObsSpan implements LLMObsSpan {
       }
     }
 
-    // Propagate the effective sessionId, agent_version, sampling decision and agent attribution
-    // to descendant LLMObs spans via the context.
+    // Propagate the effective LLMObs trace id, mlApp, sessionId, agent_version, sampling decision
+    // and agent attribution to descendant LLMObs spans via the context.
     scope =
         LLMObsContext.attach(
             span.spanContext(),
+            resolvedTraceId,
+            resolvedMlApp,
             sessionId,
             resolvedAgentVersion,
             sampleRate,
@@ -734,6 +815,16 @@ public class DDLLMObsSpan implements LLMObsSpan {
   @Override
   public DDTraceId getTraceId() {
     return span.getTraceId();
+  }
+
+  /**
+   * The LLM Observability trace id this span reports, as 32 lowercase hex characters. Equal to the
+   * APM trace id for a trace that starts here, and the caller's id for one that arrived from
+   * another service. Evaluations have to join on this rather than on {@link #getTraceId()}, which
+   * is the APM trace id the two stop agreeing on at the first process boundary.
+   */
+  public String getLLMObsTraceId() {
+    return llmObsTraceId;
   }
 
   @Override

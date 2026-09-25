@@ -22,6 +22,10 @@ final class DatadogPTagsCodec extends PTagsCodec {
   private static final int MIN_ALLOWED_CHAR = 32;
   private static final int MAX_ALLOWED_CHAR = 126;
 
+  /** What a {@code _dd.p.llmobs_pagent_name=} entry costs before its value: {@code ,_dd.p.k=}. */
+  private static final int PAGENT_NAME_ENTRY_OVERHEAD =
+      1 + Encoding.DATADOG.getPrefixLength() + LLMOBS_PAGENT_NAME_TAG.length() + 1;
+
   private final int xDatadogTagsLimit;
 
   DatadogPTagsCodec(int xDatadogTagsLimit) {
@@ -64,6 +68,14 @@ final class DatadogPTagsCodec extends PTagsCodec {
     TagValue traceIdTagValue = null;
     int traceSource = 0;
     TagValue orgPropagationMarkerTagValue = null;
+    TagValue llmObsTraceIdTagValue = null;
+    TagValue llmObsMlAppTagValue = null;
+    TagValue llmObsSessionIdTagValue = null;
+    TagValue llmObsParentAgentSpanIdTagValue = null;
+    TagValue llmObsParentAgentNameTagValue = null;
+    TagValue llmObsParentIdTagValue = null;
+    TagValue llmObsSampleRateTagValue = null;
+    TagValue llmObsSamplingDecisionTagValue = null;
     while (tagPos < len) {
       int tagKeyEndsAt =
           validateCharsUntilSeparatorOrEnd(
@@ -102,6 +114,22 @@ final class DatadogPTagsCodec extends PTagsCodec {
             traceSource = ProductTraceSource.parseBitfieldHex(tagValue.toString());
           } else if (tagKey.equals(ORG_PROPAGATION_MARKER_TAG)) {
             orgPropagationMarkerTagValue = tagValue;
+          } else if (tagKey.equals(LLMOBS_TRACE_ID_TAG)) {
+            llmObsTraceIdTagValue = tagValue;
+          } else if (tagKey.equals(LLMOBS_ML_APP_TAG)) {
+            llmObsMlAppTagValue = tagValue;
+          } else if (tagKey.equals(LLMOBS_SESSION_ID_TAG)) {
+            llmObsSessionIdTagValue = tagValue;
+          } else if (tagKey.equals(LLMOBS_PAGENT_SPAN_ID_TAG)) {
+            llmObsParentAgentSpanIdTagValue = tagValue;
+          } else if (tagKey.equals(LLMOBS_PAGENT_NAME_TAG)) {
+            llmObsParentAgentNameTagValue = tagValue;
+          } else if (tagKey.equals(LLMOBS_PARENT_ID_TAG)) {
+            llmObsParentIdTagValue = tagValue;
+          } else if (tagKey.equals(LLMOBS_SAMPLE_RATE_TAG)) {
+            llmObsSampleRateTagValue = tagValue;
+          } else if (tagKey.equals(LLMOBS_SAMPLING_DECISION_TAG)) {
+            llmObsSamplingDecisionTagValue = tagValue;
           } else {
             if (tagPairs == null) {
               // This is roughly the size of a two element linked list but can hold six
@@ -119,12 +147,91 @@ final class DatadogPTagsCodec extends PTagsCodec {
         decisionMakerTagValue,
         traceIdTagValue,
         traceSource,
-        orgPropagationMarkerTagValue);
+        orgPropagationMarkerTagValue,
+        LLMObsTagValues.of(
+            llmObsTraceIdTagValue,
+            llmObsMlAppTagValue,
+            llmObsSessionIdTagValue,
+            llmObsParentAgentSpanIdTagValue,
+            llmObsParentAgentNameTagValue,
+            llmObsParentIdTagValue,
+            llmObsSampleRateTagValue,
+            llmObsSamplingDecisionTagValue));
   }
 
   @Override
   protected int estimateHeaderSize(PTags pTags) {
     return pTags.getXDatadogTagsSize();
+  }
+
+  /**
+   * Counts them up front, because this codec's {@code size} is a total rather than a running sum.
+   */
+  @Override
+  protected int addLLMObsSize(int size, LLMObsTagValues llmObsTags) {
+    return calcLLMObsSize(size, llmObsTags);
+  }
+
+  /**
+   * Trims agent attribution until the {@code x-datadog-tags} tag set fits its configured limit.
+   *
+   * <p>This codec is all-or-nothing: one byte over the limit and {@link PTagsCodec#headerValue}
+   * returns {@code null}, dropping the whole header — the APM tags along with ml_app, session and
+   * parent_id. Agent attribution is the only part of the set with a user-supplied, unbounded value
+   * (an agent's name), so it is also the only part worth sacrificing to keep the rest. The ladder
+   * mirrors {@code _stamp_agent_attribution} in dd-trace-py:
+   *
+   * <ol>
+   *   <li>id and full name, when they fit;
+   *   <li>id and a name truncated to the remaining room;
+   *   <li>id alone, when no room is left for any of the name;
+   *   <li>neither, when even the id overflows.
+   * </ol>
+   *
+   * <p>If the set is still too large with attribution gone, the overflow is somewhere this can't
+   * help and the header drops as before. Unlike dd-trace-py, which reserves headroom for a {@code
+   * _dd.p.tid} that is added after its check runs, every tag is counted here, so the full limit is
+   * available.
+   *
+   * <p>{@link W3CPTagsCodec} needs no equivalent: it rolls back any single tag that would overflow
+   * the tracestate and keeps going, so it degrades on its own.
+   */
+  @Override
+  protected LLMObsTagValues degradeLLMObsToFit(PTags ptags, LLMObsTagValues tags) {
+    if (tags.parentAgentSpanId == null) {
+      // Nothing to degrade: a name is only ever written alongside an id.
+      return tags;
+    }
+    int base = ptags.getXDatadogTagsSize();
+    if (calcLLMObsSize(base, tags) <= xDatadogTagsLimit) {
+      return tags;
+    }
+
+    if (tags.parentAgentName != null) {
+      // Measure without the name, then give whatever room is left back to a truncated one.
+      LLMObsTagValues idOnly = tags.withAgentAttribution(tags.parentAgentSpanId, null);
+      int sizeWithoutName = calcLLMObsSize(base, idOnly);
+      if (sizeWithoutName <= xDatadogTagsLimit) {
+        int room = xDatadogTagsLimit - sizeWithoutName - PAGENT_NAME_ENTRY_OVERHEAD;
+        CharSequence name = tags.parentAgentName.forType(Encoding.DATADOG);
+        if (room > 0 && room < name.length()) {
+          TagValue truncated = LLMObsTagValues.toTagValue(name.subSequence(0, room));
+          if (truncated != null) {
+            LLMObsTagValues withTruncatedName =
+                tags.withAgentAttribution(tags.parentAgentSpanId, truncated);
+            // Encoding the truncated value can cost more than its characters; keep id only then.
+            return calcLLMObsSize(base, withTruncatedName) > xDatadogTagsLimit
+                ? idOnly
+                : withTruncatedName;
+          }
+        }
+        return idOnly;
+      }
+    }
+
+    // Either there was no name to sacrifice, or the id alone still overflows. Drop attribution
+    // rather than lose the whole header.
+    return tags.withAgentAttribution(null, null);
   }
 
   @Override

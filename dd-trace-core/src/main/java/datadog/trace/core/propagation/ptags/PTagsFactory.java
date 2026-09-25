@@ -10,6 +10,7 @@ import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_SOURCE_TAG;
 
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.internal.util.LongStringUtils;
+import datadog.trace.api.llmobs.LLMObsPropagationValues;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.core.propagation.PropagationTags;
@@ -50,7 +51,7 @@ public class PTagsFactory implements PropagationTags.Factory {
 
   @Override
   public final PropagationTags empty() {
-    return createValid(null, null, null, ProductTraceSource.UNSET, null);
+    return createValid(null, null, null, ProductTraceSource.UNSET, null, LLMObsTagValues.EMPTY);
   }
 
   @Override
@@ -71,14 +72,16 @@ public class PTagsFactory implements PropagationTags.Factory {
       TagValue decisionMakerTagValue,
       TagValue traceIdTagValue,
       int productTraceSource,
-      TagValue orgPropagationMarkerTagValue) {
+      TagValue orgPropagationMarkerTagValue,
+      @Nonnull LLMObsTagValues llmObsTagValues) {
     return new PTags(
         this,
         tagPairs,
         decisionMakerTagValue,
         traceIdTagValue,
         productTraceSource,
-        orgPropagationMarkerTagValue);
+        orgPropagationMarkerTagValue,
+        llmObsTagValues);
   }
 
   PropagationTags createInvalid(String error) {
@@ -114,13 +117,28 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     private volatile OtelTraceState otelTraceState;
 
+    /**
+     * The LLM Observability tags as they arrived on the wire, held as one immutable bundle. Never
+     * {@code null} — {@link LLMObsTagValues#EMPTY} means "none".
+     *
+     * <p>These are the only LLMObs tags this object holds. A local LLMObs span's own tags are not
+     * stored here: they belong to the span being injected, while a {@code PTags} instance is shared
+     * by every span in a local trace (see {@code DDSpanContext#getPropagationTags()}), so holding
+     * them would let concurrent injections serialize each other's context. They are resolved per
+     * injection instead and passed to {@link #headerValue(HeaderType, CharSequence,
+     * LLMObsPropagationValues)}, which is also why these tags survive as the value to write when a
+     * service forwards a request without an LLMObs span of its own.
+     */
+    private final LLMObsTagValues extractedLLMObsTags;
+
     // Static cache for the most-recently-seen rate → TagValue. In steady state a service uses one
     // rate, so this eliminates the char[] + String allocation on every new PTags instance.
     // Writes are benign-racy: two threads computing the same rate produce equal TagValues.
     private static volatile double cachedKsrRate = Double.NaN;
     private static volatile TagValue cachedKsrTagValue;
 
-    // xDatadogTagsSize of the tagPairs, does not include the decision maker tag
+    // xDatadogTagsSize of the trace-level tags. Memoizable because every tag it counts is held
+    // here; the per-injection LLMObs tags are added on top of it by DatadogPTagsCodec.
     private volatile int xDatadogTagsSize = -1;
 
     private volatile int samplingPriority;
@@ -160,7 +178,8 @@ public class PTagsFactory implements PropagationTags.Factory {
         TagValue decisionMakerTagValue,
         TagValue traceIdTagValue,
         int traceSource,
-        TagValue orgPropagationMarkerTagValue) {
+        TagValue orgPropagationMarkerTagValue,
+        @Nonnull LLMObsTagValues llmObsTagValues) {
       this(
           factory,
           tagPairs,
@@ -170,7 +189,8 @@ public class PTagsFactory implements PropagationTags.Factory {
           PrioritySampling.UNSET,
           null,
           null,
-          orgPropagationMarkerTagValue);
+          orgPropagationMarkerTagValue,
+          llmObsTagValues);
     }
 
     PTags(
@@ -182,7 +202,8 @@ public class PTagsFactory implements PropagationTags.Factory {
         int samplingPriority,
         CharSequence origin,
         CharSequence lastParentId,
-        TagValue orgPropagationMarkerTagValue) {
+        TagValue orgPropagationMarkerTagValue,
+        @Nonnull LLMObsTagValues llmObsTagValues) {
       assert tagPairs == null || tagPairs.size() % 2 == 0;
       this.factory = factory;
       this.tagPairs = tagPairs;
@@ -193,6 +214,7 @@ public class PTagsFactory implements PropagationTags.Factory {
       this.origin = origin;
       this.lastParentId = lastParentId;
       this.orgPropagationMarkerTagValue = orgPropagationMarkerTagValue;
+      this.extractedLLMObsTags = llmObsTagValues;
       if (traceIdTagValue != null) {
         CharSequence traceIdHighOrderBitsHex = traceIdTagValue.forType(TagElement.Encoding.DATADOG);
         this.traceIdHighOrderBits =
@@ -214,7 +236,8 @@ public class PTagsFactory implements PropagationTags.Factory {
               PrioritySampling.UNSET,
               null,
               null,
-              null);
+              null,
+              LLMObsTagValues.EMPTY);
       pTags.error = error;
       return pTags;
     }
@@ -250,8 +273,7 @@ public class PTagsFactory implements PropagationTags.Factory {
           TagValue newDM = TagValue.from("-" + samplingMechanism);
           if (!newDM.equals(decisionMakerTagValue)) {
             // This should invalidate any cached w3c and datadog header
-            clearCachedHeader(DATADOG);
-            clearCachedHeader(W3C);
+            clearCachedHeaders();
           }
           decisionMakerTagValue = newDM;
         }
@@ -259,8 +281,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         // Drop the decision maker tag
         if (decisionMakerTagValue != null) {
           // This should invalidate any cached w3c and datadog header
-          clearCachedHeader(DATADOG);
-          clearCachedHeader(W3C);
+          clearCachedHeaders();
         }
         decisionMakerTagValue = null;
       }
@@ -277,8 +298,7 @@ public class PTagsFactory implements PropagationTags.Factory {
             }
 
             // Invalidate cached headers (atomic context ensures correctness)
-            clearCachedHeader(DATADOG);
-            clearCachedHeader(W3C);
+            clearCachedHeaders();
 
             // Set the bit for the given product
             return ProductTraceSource.updateProduct(currentValue, product);
@@ -303,8 +323,7 @@ public class PTagsFactory implements PropagationTags.Factory {
     @Override
     public void updateKnuthSamplingRate(double rate) {
       if (Double.compare(knuthSamplingRate, rate) != 0) {
-        clearCachedHeader(DATADOG);
-        clearCachedHeader(W3C);
+        clearCachedHeaders();
         knuthSamplingRate = rate;
         if (Double.isNaN(rate)) {
           knuthSamplingRateTagValue = null;
@@ -369,14 +388,57 @@ public class PTagsFactory implements PropagationTags.Factory {
     public void updateOrgPropagationMarker(CharSequence opm) {
       TagValue newValue = opm == null ? null : TagValue.from(opm);
       if (!Objects.equals(this.orgPropagationMarkerTagValue, newValue)) {
-        clearCachedHeader(DATADOG);
-        clearCachedHeader(W3C);
+        clearCachedHeaders();
         this.orgPropagationMarkerTagValue = newValue;
       }
     }
 
     TagValue getOrgPropagationMarkerTagValue() {
       return orgPropagationMarkerTagValue;
+    }
+
+    @Override
+    public LLMObsPropagationValues getExtractedLLMObsValues() {
+      if (extractedLLMObsTags == LLMObsTagValues.EMPTY) {
+        // The common case in a service not using LLM Observability: nothing to hand out, and
+        // nothing allocated to say so.
+        return null;
+      }
+      return new LLMObsPropagationValues(
+          decoded(extractedLLMObsTags.traceId),
+          decoded(extractedLLMObsTags.mlApp),
+          decoded(extractedLLMObsTags.sessionId),
+          decoded(extractedLLMObsTags.parentAgentSpanId),
+          decoded(extractedLLMObsTags.parentAgentName),
+          decoded(extractedLLMObsTags.parentId),
+          decoded(extractedLLMObsTags.sampleRate),
+          decoded(extractedLLMObsTags.samplingDecision));
+    }
+
+    /**
+     * The value as the application wrote it, undoing the {@code tracestate} substitutions when the
+     * value came in on that carrier. {@link TagValue#toString()} would return it in whichever
+     * encoding it arrived in, so a {@code ml_app} of {@code a=b} would read back as {@code a~b}
+     * after a W3C-only hop. Same conversion {@link PTagsCodec#fillTagMap} applies to every other
+     * {@code _dd.p.*} tag.
+     *
+     * <p>An empty value reads back as {@code null}: absent and present-but-empty mean the same
+     * thing to every consumer, and {@link TagValue} cannot hold an empty value anyway.
+     */
+    private static String decoded(TagValue value) {
+      if (value == null) {
+        return null;
+      }
+      CharSequence decoded = value.forType(TagElement.Encoding.DATADOG);
+      return decoded.length() == 0 ? null : decoded.toString();
+    }
+
+    /**
+     * The LLM Observability tags that arrived on the wire. Written when an injection supplies no
+     * LLMObs values of its own.
+     */
+    LLMObsTagValues getExtractedLLMObsTagValues() {
+      return extractedLLMObsTags;
     }
 
     @Override
@@ -455,6 +517,22 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     @Override
+    public String headerValue(
+        HeaderType headerType,
+        CharSequence lastParentIdOverride,
+        LLMObsPropagationValues llmObsValues) {
+      if (llmObsValues == null) {
+        return headerValue(headerType, lastParentIdOverride);
+      }
+      // Inject-time path: encode fresh with this span's LLMObs values, and do not cache, for the
+      // same reason as lastParentIdOverride — they describe the span being injected, not the trace.
+      String header =
+          PTagsCodec.headerValue(
+              factory.getDecoderEncoder(headerType), this, lastParentIdOverride, llmObsValues);
+      return (header == null || header.isEmpty()) ? null : header;
+    }
+
+    @Override
     public void fillTagMap(Map<String, String> tagMap) {
       PTagsCodec.fillTagMap(this, tagMap);
     }
@@ -473,6 +551,15 @@ public class PTagsFactory implements PropagationTags.Factory {
         cache = headerCache = new String[HeaderType.getNumValues()];
       }
       cache[headerType.ordinal()] = header;
+    }
+
+    /**
+     * Invalidate every encoding's cached header, and the memoized x-datadog-tags size with them.
+     * Use this whenever a change affects both wire formats.
+     */
+    private void clearCachedHeaders() {
+      clearCachedHeader(DATADOG);
+      clearCachedHeader(W3C);
     }
 
     private void clearCachedHeader(HeaderType headerType) {
@@ -582,8 +669,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         canChangeDecisionMaker = false;
         decisionMakerTagValue = ((PTags) source).getDecisionMakerTagValue();
         if (decisionMakerTagValue != null) {
-          clearCachedHeader(DATADOG);
-          clearCachedHeader(W3C);
+          clearCachedHeaders();
         }
       }
     }

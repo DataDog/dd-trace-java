@@ -20,6 +20,7 @@ import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.llmobs.LLMObsPropagationValues;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -1550,6 +1551,11 @@ public class DDSpanContext
 
   public PropagationTags getPropagationTags() {
     return getRootSpanContextOrThis().propagationTags;
+  }
+
+  @Override
+  public LLMObsPropagationValues getExtractedLLMObsValues() {
+    return getPropagationTags().getExtractedLLMObsValues();
   }
 
   /** TraceSegment Implementation */

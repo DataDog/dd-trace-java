@@ -15,6 +15,9 @@ public final class DatadogAttributeParser {
 
   private static final Base64.Decoder BASE_64 = Base64.getDecoder();
 
+  private static final String TAGS_KEY = "x-datadog-tags";
+  private static final String LLMOBS_TAG_PREFIX = "_dd.p.llmobs_";
+
   /** Parses trace context properties from the given JSON and passes them to the classifier. */
   public static void forEachProperty(AgentPropagation.KeyClassifier classifier, String json) {
     if (null == json) {
@@ -24,6 +27,7 @@ public final class DatadogAttributeParser {
       if (acceptJsonProperty(classifier, json, "x-datadog-trace-id")) {
         acceptJsonProperty(classifier, json, "x-datadog-parent-id");
         acceptJsonProperty(classifier, json, "x-datadog-sampling-priority");
+        acceptLlmObsPropagationTags(classifier, json);
       }
       if (Config.get().isDataStreamsEnabled()) {
         acceptJsonProperty(classifier, json, "dd-pathway-ctx-base64");
@@ -56,10 +60,48 @@ public final class DatadogAttributeParser {
     }
   }
 
-  // Simple parser that assumes values are JSON strings that don't contain escaped quotes
+  /**
+   * Forwards the {@code _dd.p.llmobs_*} propagation tags out of {@code x-datadog-tags}, dropping
+   * the rest.
+   */
+  private static void acceptLlmObsPropagationTags(
+      AgentPropagation.KeyClassifier classifier, String json) {
+    String tags = jsonPropertyValue(json, TAGS_KEY);
+    // Nothing to forward is the common case, and it costs a scan rather than a parse.
+    if (null == tags || !tags.contains(LLMOBS_TAG_PREFIX)) {
+      return;
+    }
+    StringBuilder filtered = null;
+    int start = 0;
+    while (start < tags.length()) {
+      int end = tags.indexOf(',', start);
+      if (end < 0) {
+        end = tags.length();
+      }
+      if (tags.startsWith(LLMOBS_TAG_PREFIX, start)) {
+        if (null == filtered) {
+          filtered = new StringBuilder(tags.length());
+        } else {
+          filtered.append(',');
+        }
+        filtered.append(tags, start, end);
+      }
+      start = end + 1;
+    }
+    if (null != filtered) {
+      classifier.accept(TAGS_KEY, filtered.toString());
+    }
+  }
+
   private static boolean acceptJsonProperty(
       AgentPropagation.KeyClassifier classifier, String json, String key) {
-    int keyStart = json.indexOf(key);
+    String value = jsonPropertyValue(json, key);
+    return null != value && classifier.accept(key, value);
+  }
+
+  // Simple parser that assumes values are JSON strings that don't contain escaped quotes
+  private static String jsonPropertyValue(String json, String key) {
+    int keyStart = indexOfPropertyName(json, key);
     if (keyStart > 0) {
       int separator = json.indexOf(':', keyStart + key.length());
       if (separator > 0) {
@@ -67,11 +109,32 @@ public final class DatadogAttributeParser {
         if (valueStart > 0) {
           int valueEnd = json.indexOf('"', valueStart + 1);
           if (valueEnd > 0) {
-            return classifier.accept(key, json.substring(valueStart + 1, valueEnd));
+            return json.substring(valueStart + 1, valueEnd);
           }
         }
       }
     }
-    return false;
+    return null;
+  }
+
+  /**
+   * Finds where {@code key} is used as a property name, that is quoted on both sides, skipping any
+   * copy of the same text that sits inside a value. The {@code x-datadog-tags} header now carries
+   * application-supplied values, so a value can contain whatever the application named its ML app
+   * or session, including the name of another property.
+   */
+  private static int indexOfPropertyName(String json, String key) {
+    int from = 0;
+    while (true) {
+      int at = json.indexOf(key, from);
+      if (at < 1) {
+        return -1;
+      }
+      int after = at + key.length();
+      if ('"' == json.charAt(at - 1) && after < json.length() && '"' == json.charAt(after)) {
+        return at;
+      }
+      from = after;
+    }
   }
 }
