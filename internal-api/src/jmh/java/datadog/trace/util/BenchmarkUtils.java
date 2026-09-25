@@ -186,9 +186,10 @@ public final class BenchmarkUtils {
    * the lookup that follows can't take {@code HashMap}/{@code ConcurrentHashMap}'s internal {@code
    * key == storedKey || key.equals(storedKey)} identity fast path and skip calling {@code equals()}
    * -- which is exactly the dispatch this class exists to pollute. {@code Object}'s own {@code
-   * equals()} is identity, so a decoy of that type has no distinct-but-equal instance to make; it's
-   * returned as-is, and the identity fast path is then indistinguishable from a genuine {@code
-   * equals()} call anyway.
+   * equals()} is identity, so a decoy of that type has no distinct-but-equal instance to make and
+   * is returned as-is. The lookup then matches on identity: same result, but {@code equals()} is
+   * never invoked, so the {@code Object} decoy contributes a {@code hashCode()} receiver sample
+   * (the hash is computed before the identity check) and no {@code equals()} one.
    *
    * <p>{@code DONT_INLINE} makes this call boundary an optimization black box: without it, once a
    * caller like {@link #polluteHashDispatch} is inlined into a tight loop, the JIT can trace a
