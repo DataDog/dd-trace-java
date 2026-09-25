@@ -21,6 +21,7 @@ import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.telemetry.IntegrationsCollector;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
+import datadog.trace.bootstrap.instrumentation.java.lang.invoke.LambdaTransformerHelper;
 import datadog.trace.bootstrap.instrumentation.java.module.JpmsHelper;
 import datadog.trace.util.AgentTaskScheduler;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -178,6 +179,15 @@ public class AgentInstaller {
             // .with(AgentBuilder.LambdaInstrumentationStrategy.ENABLED)
             .ignore(globalIgnoresMatcher(skipAdditionalLibraryMatcher));
 
+    boolean lambdaTransformationEnabled =
+        !Platform.isNativeImageBuilder()
+            && InstrumenterConfig.get()
+                .isIntegrationEnabled(Collections.singleton("lambda"), false);
+    if (lambdaTransformationEnabled) {
+      // The injected metafactory call needs java.base to read the bootstrap helper's module.
+      agentBuilder = agentBuilder.assureReadEdgeTo(inst, LambdaTransformerHelper.class);
+    }
+
     if (DEBUG) {
       agentBuilder =
           agentBuilder
@@ -232,7 +242,8 @@ public class AgentInstaller {
             agentBuilder,
             instrumenterIndex,
             enabledSystems,
-            adviceTransformationDiagnosticsEnabled);
+            adviceTransformationDiagnosticsEnabled,
+            lambdaTransformationEnabled);
 
     int installedCount = 0;
     for (InstrumenterModule module : instrumenterModules) {
