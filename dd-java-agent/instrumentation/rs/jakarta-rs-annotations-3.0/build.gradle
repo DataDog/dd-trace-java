@@ -31,6 +31,7 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0')
   testImplementation group: 'jakarta.ws.rs', name: 'jakarta.ws.rs-api', version: '3.0.0'
   testImplementation group: 'jakarta.xml.bind', name: 'jakarta.xml.bind-api', version: '3.0.0'
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
 
   latestDepTestImplementation group: 'jakarta.ws.rs', name: 'jakarta.ws.rs-api', version: '3.0.+'
   latestDepTestImplementation group: 'jakarta.xml.bind', name: 'jakarta.xml.bind-api', version: '3.0.+'

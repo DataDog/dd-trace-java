@@ -7,6 +7,8 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ha
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.isAnnotatedWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static datadog.trace.bootstrap.ResourceMethodSpanTracker.enter;
+import static datadog.trace.bootstrap.ResourceMethodSpanTracker.exit;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -97,7 +99,6 @@ public final class JakartaRsAnnotationsInstrumentation extends InstrumenterModul
         @Advice.Origin final Method method,
         @Advice.AllArguments final Object[] args,
         @Advice.Local("asyncResponse") AsyncResponse asyncResponse) {
-      JakartaRsAnnotationsDecorator.enterResourceMethod();
       ContextStore<AsyncResponse, AgentSpan> contextStore = null;
       for (final Object arg : args) {
         if (arg instanceof AsyncResponse) {
@@ -129,6 +130,9 @@ public final class JakartaRsAnnotationsInstrumentation extends InstrumenterModul
 
       if (contextStore != null && asyncResponse != null) {
         contextStore.put(asyncResponse, span);
+        // Only tracked for methods that can hand off to AsyncResponse#resume()/cancel();
+        // see ResourceMethodSpanTracker for why this can't just be a bare counter.
+        enter(span);
       }
 
       return scope;
@@ -139,12 +143,19 @@ public final class JakartaRsAnnotationsInstrumentation extends InstrumenterModul
         @Advice.Enter final ContextScope scope,
         @Advice.Thrown final Throwable throwable,
         @Advice.Local("asyncResponse") final AsyncResponse asyncResponse) {
-      JakartaRsAnnotationsDecorator.exitResourceMethod();
       if (scope == null) {
         return;
       }
+      if (asyncResponse != null) {
+        exit();
+      }
       final AgentSpan span = spanFromScope(scope);
       if (throwable != null) {
+        if (asyncResponse != null) {
+          // Clear span from the asyncResponse so a later resume()/cancel() call (e.g. from
+          // container exception-mapping) doesn't find a stale mapping and double-finish it.
+          InstrumentationContext.get(AsyncResponse.class, AgentSpan.class).put(asyncResponse, null);
+        }
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);
         scope.close();

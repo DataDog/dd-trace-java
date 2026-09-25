@@ -1,6 +1,6 @@
 import datadog.trace.api.Trace;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -15,20 +15,27 @@ import javax.ws.rs.container.Suspended;
 @Path("/trueasyncresume")
 public class TrueAsyncResumeResource {
 
-  private static final ScheduledExecutorService EXECUTOR = Executors.newScheduledThreadPool(2);
+  private static final ExecutorService EXECUTOR = Executors.newFixedThreadPool(2);
 
   @GET
   public void suspendThenResumeFromAnotherThread(@Suspended final AsyncResponse response) {
-    // A short delay ensures the request thread has genuinely returned/suspended before
-    // resume() is called, matching how a real background worker would behave (avoids a
-    // resume-before-suspend-completes race in the test transport).
-    EXECUTOR.schedule(
+    EXECUTOR.submit(
         () -> {
+          try {
+            // Wait for the actual condition (the container has genuinely suspended the
+            // response) instead of guessing a fixed delay, so this can't race under a slow
+            // or overloaded test runner.
+            final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            while (!response.isSuspended() && System.nanoTime() < deadline) {
+              Thread.sleep(1);
+            }
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return;
+          }
           doWorkOnBackgroundThread();
           response.resume("OK");
-        },
-        50,
-        TimeUnit.MILLISECONDS);
+        });
   }
 
   @Trace

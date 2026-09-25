@@ -22,7 +22,7 @@ class CxfContextPropagationTest extends InstrumentationSpecification {
   @Override
   void setupSpec() {
     JAXRSServerFactoryBean sf = new JAXRSServerFactoryBean()
-    sf.setResourceClasses(TestResource, AsyncResumeResource, TrueAsyncResumeResource, AsyncCancelResource)
+    sf.setResourceClasses(TestResource, AsyncResumeResource, TrueAsyncResumeResource, AsyncCancelResource, NestedResumeResource)
     List<Object> providers = [new TestExceptionMapper()]
     sf.setProviders(providers)
 
@@ -34,6 +34,8 @@ class CxfContextPropagationTest extends InstrumentationSpecification {
       new SingletonResourceProvider(new TrueAsyncResumeResource(), true))
     sf.setResourceProvider(AsyncCancelResource,
       new SingletonResourceProvider(new AsyncCancelResource(), true))
+    sf.setResourceProvider(NestedResumeResource,
+      new SingletonResourceProvider(new NestedResumeResource(), true))
     sf.setAddress("http://localhost:0")
 
     server = sf.create()
@@ -292,6 +294,70 @@ class CxfContextPropagationTest extends InstrumentationSpecification {
         // Runs on the background thread, before resume() -- still correctly parented
         // under the (still-open, cross-thread-propagated) jax-rs.request span.
         TraceUtils.basicSpan(it, "trace.annotation", "TrueAsyncResumeResource.doWorkOnBackgroundThread", span(1), null, ["component": "trace"])
+      }
+    }
+  }
+
+  def "resume() called synchronously from a nested @Trace helper finishes the span only once"() {
+    // Regression test for a gap found reviewing the fix for GH-12597: resume() is called
+    // synchronously, but from a @Trace-annotated helper method rather than directly from
+    // the resource method's own body. At that moment, the *helper's* span is the active
+    // one on this thread, not the resource method's -- checking activeSpan() against the
+    // resource method's span directly (an earlier version of this fix) would wrongly treat
+    // this as a genuinely-async resume and finish the span right there, then finish it
+    // again when the resource method itself returns (caught by enabledFinishTimingChecks()).
+    setup:
+    def client = OkHttpUtils.client()
+    when:
+    def response = client.newCall(new Request.Builder()
+      .url("http://localhost:$port/nestedresume")
+      .get().build()).execute()
+    then:
+    assert response.code() == 200
+    assert response.body().string() == "OK"
+
+    assertTraces(1) {
+      trace(3) {
+        sortSpansByStart()
+        span {
+          operationName "servlet.request"
+          resourceName "GET /nestedresume"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          parent()
+          tags {
+            "$Tags.COMPONENT" "jax-rs"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "$Tags.PEER_HOST_IPV4" "127.0.0.1"
+            "$Tags.PEER_PORT" Integer
+            "$Tags.HTTP_URL" "http://localhost:$port/nestedresume"
+            "$Tags.HTTP_HOSTNAME" "localhost"
+            "$Tags.HTTP_METHOD" "GET"
+            "$Tags.HTTP_STATUS" 200
+            "$Tags.HTTP_ROUTE" String
+            "servlet.path" { it == null || it == "/nestedresume" }
+            "$Tags.HTTP_USER_AGENT" String
+            "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
+            "$Tags.NETWORK_CLIENT_IP" "127.0.0.1"
+            withCustomIntegrationName("jetty-server")
+            defaultTags()
+          }
+        }
+        span {
+          operationName "jax-rs.request"
+          resourceName "NestedResumeResource.resumeViaHelper"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          childOfPrevious()
+          tags {
+            "$Tags.COMPONENT" "jax-rs-controller"
+            defaultTags()
+          }
+        }
+        // The helper that actually calls resume() -- still parented under jax-rs.request,
+        // proving the resource-method span wasn't finished/popped while the helper (and
+        // resume() inside it) was still running.
+        TraceUtils.basicSpan(it, "trace.annotation", "NestedResumeResource.resumeFromHelper", span(1), null, ["component": "trace"])
       }
     }
   }

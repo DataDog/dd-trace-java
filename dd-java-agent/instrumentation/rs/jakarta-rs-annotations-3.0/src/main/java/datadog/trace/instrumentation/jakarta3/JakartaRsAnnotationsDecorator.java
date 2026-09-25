@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.jakarta3;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.trace.api.GenericClassValue;
@@ -38,56 +37,6 @@ public class JakartaRsAnnotationsDecorator extends BaseDecorator {
 
   private static final ClassValue<ConcurrentHashMap<Method, Pair<CharSequence, CharSequence>>>
       RESOURCE_NAMES = GenericClassValue.constructing(ConcurrentHashMap.class);
-
-  /**
-   * Counts, per thread, how many jakarta-rs annotated resource-method invocations are currently on
-   * the stack. Shared (via this helper class, injected for both instrumenters) between {@code
-   * JakartaRsAnnotationsInstrumentation}, which increments/decrements it around every resource
-   * method call, and {@code JakartaRsAsyncResponseInstrumentation}, which reads it to tell a
-   * synchronous {@code AsyncResponse#resume()}/{@code cancel()} call -- one nested inside the
-   * still-running resource method that owns the response -- apart from a genuinely asynchronous one
-   * on a different thread whose scope/span happen to have been propagated onto this thread (e.g.
-   * via an instrumented {@code ExecutorService}), which would otherwise look identical from {@code
-   * activeSpan()} alone. A plain {@code int[1]} avoids boxing on every call.
-   */
-  private static final ThreadLocal<int[]> ACTIVE_RESOURCE_METHOD_INVOCATIONS = new ThreadLocal<>();
-
-  public static void enterResourceMethod() {
-    int[] counter = ACTIVE_RESOURCE_METHOD_INVOCATIONS.get();
-    if (counter == null) {
-      counter = new int[1];
-      ACTIVE_RESOURCE_METHOD_INVOCATIONS.set(counter);
-    }
-    counter[0]++;
-  }
-
-  public static void exitResourceMethod() {
-    final int[] counter = ACTIVE_RESOURCE_METHOD_INVOCATIONS.get();
-    if (counter != null) {
-      counter[0]--;
-    }
-  }
-
-  public static boolean isCurrentThreadInsideResourceMethod() {
-    final int[] counter = ACTIVE_RESOURCE_METHOD_INVOCATIONS.get();
-    return counter != null && counter[0] > 0;
-  }
-
-  /**
-   * True if {@code span} is both the currently active span on this thread <em>and</em> this thread
-   * is dynamically inside a jakarta-rs annotated resource-method invocation right now -- i.e.
-   * {@code resume()}/{@code cancel()} was called synchronously, nested inside the still-running
-   * resource method that owns this span, on this exact call stack.
-   *
-   * <p>Checking {@code activeSpan() == span} alone is not enough: an instrumented {@code
-   * ExecutorService} (or similar) can propagate a captured scope for this exact span onto a
-   * completely different, genuinely-asynchronous worker thread, which would otherwise look
-   * identical. That thread never entered a resource method, so {@link
-   * #isCurrentThreadInsideResourceMethod()} correctly returns {@code false} there.
-   */
-  public static boolean isSynchronousResumeFromWithinResourceMethod(final AgentSpan span) {
-    return activeSpan() == span && isCurrentThreadInsideResourceMethod();
-  }
 
   @Override
   protected String[] instrumentationNames() {
