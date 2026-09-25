@@ -3,6 +3,7 @@ package datadog.trace.common.sampling;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_SCA_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.APM_TRACING_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER;
@@ -23,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.ProductTraceSource;
+import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.writer.ListWriter;
@@ -132,6 +134,23 @@ class SamplerTest extends DDJavaSpecification {
                   span.setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
                   span.setTag(DDTags.MANUAL_KEEP, true);
                 }));
+  }
+
+  /**
+   * Data Jobs keeps its traces with a {@link SamplingMechanism#DATA_JOBS} priority rather than a
+   * {@code _dd.p.ts} mark, so the APM traces drop has to leave it alone.
+   */
+  @WithConfig(key = APM_TRACING_ENABLED, value = "false")
+  @WithConfig(key = DATA_JOBS_ENABLED, value = "true")
+  @Test
+  void dataJobsTracesKeptWhenApmTracingDisabled() {
+    Sampler sampler = Sampler.Builder.forConfig(Config.get(), null);
+
+    assertEquals(
+        USER_KEEP,
+        (int)
+            samplingPriorityOfTrace(
+                sampler, span -> span.setSamplingPriority(USER_KEEP, SamplingMechanism.DATA_JOBS)));
   }
 
   /**

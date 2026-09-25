@@ -89,6 +89,11 @@ public class SamplingMechanism {
    * <p>The exemption is deliberately limited to a drop: a {@link #DEFAULT} keep must never override
    * a priority someone else already set.
    *
+   * <p>Data Jobs is excluded because it has no {@code _dd.p.ts} bit to be protected by: it keeps
+   * its traces with a {@link #DATA_JOBS} priority instead, which the drop would overwrite. Marking
+   * {@link datadog.trace.api.ProductTraceSource#DJM} on the trace and skipping the sampler for it,
+   * the way ASM and AI Guard do, would let the drop stay unconditional here.
+   *
    * @param priority the sampling priority
    * @param mechanism the sampling mechanism
    * @return {@code true} if the sampling priority lock can be avoided, {@code false} otherwise
@@ -96,7 +101,9 @@ public class SamplingMechanism {
   public static boolean canAvoidSamplingPriorityLock(int priority, int mechanism) {
     return (!Config.get().isApmTracingEnabled()
             && (mechanism == SamplingMechanism.APPSEC
-                || (mechanism == DEFAULT && priority == SAMPLER_DROP)))
+                || (mechanism == DEFAULT
+                    && priority == SAMPLER_DROP
+                    && !Config.get().isDataJobsEnabled())))
         || (Config.get().isDataJobsEnabled() && mechanism == DATA_JOBS);
   }
 
