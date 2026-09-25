@@ -53,6 +53,7 @@ import datadog.trace.api.intake.Intake;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.benchmark.StaticEventLogger;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.config.provider.StableConfigSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
@@ -1489,33 +1490,94 @@ public class Agent {
    * {@see com.datadog.profiling.ddprof.DatadogProfilingIntegration} must not be modified to depend
    * on JFR.
    */
-  private static ProfilingContextIntegration createProfilingContextIntegration() {
-    if (Config.get().isProfilingEnabled()) {
-      if (Config.get().isDatadogProfilerEnabled() && !OperatingSystem.isWindows()) {
-        try {
-          return (ProfilingContextIntegration)
-              AGENT_CLASSLOADER
-                  .loadClass("com.datadog.profiling.ddprof.DatadogProfilingIntegration")
-                  .getDeclaredConstructor()
-                  .newInstance();
-        } catch (Throwable t) {
-          log.debug("ddprof-based profiling context labeling not available. {}", t.getMessage());
+  static ProfilingContextIntegration createProfilingContextIntegration() {
+    Config config = Config.get();
+    // Windows is already excluded by Config (isDatadogProfilerSafeAndConfigured), so only AWS
+    // Lambda needs to be excluded here: it has no ddprof native library support, same as
+    // startProfilingAgent().
+    if (!isAwsLambdaRuntime()) {
+      if (config.isDatadogProfilerEnabled()) {
+        // The profiler itself is running: load ddprof now, and let ProfilingAgent.run() register
+        // the process context as it always has.
+        ProfilingContextIntegration integration = loadDdprofContextIntegration(AGENT_CLASSLOADER);
+        if (integration != null) {
+          return integration;
         }
+      } else if (!config.isProfilingEnabled() && config.isOtelThreadContextEnabled()) {
+        // No profiler, we only want the context exposed: loading ddprof pulls in the native
+        // library and touches java.nio.file, which must not happen on the primordial premain
+        // thread, so it is deferred.
+        // The explicit !isProfilingEnabled() guard (redundant with isOtelThreadContextEnabled()'s
+        // own isDatadogProfilerSafeAndConfigured() factor) keeps this branch provably unreachable
+        // whenever profiling is enabled, so the JFR-events fallback below is never skipped.
+        return deferDdprofContextIntegration(AGENT_CLASSLOADER);
       }
-      if (Config.get().isProfilingTimelineEventsEnabled()) {
-        // important: note that this will not initialise JFR until onStart is called
-        try {
-          return (ProfilingContextIntegration)
-              AGENT_CLASSLOADER
-                  .loadClass("com.datadog.profiling.controller.openjdk.JFREventContextIntegration")
-                  .getDeclaredConstructor()
-                  .newInstance();
-        } catch (Throwable t) {
-          log.debug("JFR event-based profiling context labeling not available. {}", t.getMessage());
-        }
+    }
+    if (config.isProfilingEnabled() && config.isProfilingTimelineEventsEnabled()) {
+      // important: note that this will not initialise JFR until onStart is called
+      try {
+        return (ProfilingContextIntegration)
+            AGENT_CLASSLOADER
+                .loadClass("com.datadog.profiling.controller.openjdk.JFREventContextIntegration")
+                .getDeclaredConstructor()
+                .newInstance();
+      } catch (Throwable t) {
+        log.debug("JFR event-based profiling context labeling not available. {}", t.getMessage());
       }
     }
     return ProfilingContextIntegration.NoOp.INSTANCE;
+  }
+
+  /**
+   * Loads the ddprof-based profiling context integration on the calling thread, for when the
+   * Datadog profiler is running. Returns {@code null} when it isn't available, so the caller can
+   * fall back to another integration.
+   */
+  static ProfilingContextIntegration loadDdprofContextIntegration(final ClassLoader classLoader) {
+    try {
+      return newDdprofContextIntegration(classLoader);
+    } catch (Throwable t) {
+      log.debug("ddprof-based profiling context labeling not available. {}", t.getMessage());
+      return null;
+    }
+  }
+
+  /**
+   * Returns a placeholder integration that loads the ddprof-based one off the calling thread and
+   * registers the OTel process context alongside it. Only used when the profiler isn't running:
+   * otherwise {@code ProfilingAgent.run()} registers the process context itself.
+   */
+  static ProfilingContextIntegration deferDdprofContextIntegration(final ClassLoader classLoader) {
+    DeferredProfilingContextIntegration deferred =
+        new DeferredProfilingContextIntegration(
+            "ddprof",
+            () -> {
+              ProfilingContextIntegration integration = newDdprofContextIntegration(classLoader);
+              registerProcessContext(classLoader);
+              return integration;
+            });
+    deferred.scheduleInitialization();
+    return deferred;
+  }
+
+  private static ProfilingContextIntegration newDdprofContextIntegration(
+      final ClassLoader classLoader) throws ReflectiveOperationException {
+    return (ProfilingContextIntegration)
+        classLoader
+            .loadClass("com.datadog.profiling.ddprof.DatadogProfilingIntegration")
+            .getDeclaredConstructor()
+            .newInstance();
+  }
+
+  private static void registerProcessContext(final ClassLoader classLoader) {
+    try {
+      classLoader
+          .loadClass("com.datadog.profiling.agent.ProcessContext")
+          .getMethod("register", ConfigProvider.class)
+          .invoke(null, ConfigProvider.getInstance());
+    } catch (Throwable t) {
+      log.debug("Process context registration not available. {}", t.getMessage());
+    }
   }
 
   private static boolean startProfilingAgent(
