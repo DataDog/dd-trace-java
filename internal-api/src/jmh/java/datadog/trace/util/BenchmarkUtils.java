@@ -10,6 +10,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.openjdk.jmh.annotations.CompilerControl;
 import org.openjdk.jmh.infra.Blackhole;
 
@@ -91,6 +92,16 @@ public final class BenchmarkUtils {
   private static final int WARM_UP_ITERATIONS = 50_000;
 
   /**
+   * Guards {@link #warmUpHashDispatch} so the passes run once per JVM rather than once per caller.
+   * Receiver profiles live in the per-method MDO and are JVM-global, so a single pass is sufficient
+   * no matter how many threads or state classes ask for it. Most benchmarks here wire the call into
+   * a {@code @State(Scope.Thread)} setup, which JMH runs once per thread -- without this guard,
+   * {@code @Threads(8)} would perform eight times the pollution work, and the allocation it
+   * generates before measurement is not free.
+   */
+  private static final AtomicBoolean WARMED_UP = new AtomicBoolean();
+
+  /**
    * Exercises shared collection methods with several key classes before benchmark warmup.
    *
    * <p>HotSpot records receiver types at bytecode call sites, not per collection instance. Scratch
@@ -118,6 +129,9 @@ public final class BenchmarkUtils {
    * stops the JIT from tracing a decoy key's type back to its origin through static inference.
    */
   public static void warmUpHashDispatch(Blackhole bh) {
+    if (!WARMED_UP.compareAndSet(false, true)) {
+      return;
+    }
     for (int i = 0; i < WARM_UP_ITERATIONS; ++i) {
       polluteHashDispatch(bh);
       polluteCompareToDispatch(bh);
