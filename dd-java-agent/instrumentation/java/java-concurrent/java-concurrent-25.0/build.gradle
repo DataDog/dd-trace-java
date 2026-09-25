@@ -52,14 +52,16 @@ tasks.named("previewTest", Test) {
 }
 
 /*
- * Per-JDK suites test:
- * Each suite has its own source set, is compiled for one JDK,
- * and is pinned to it (preview class files are version-locked).
+ * Each per-JDK suite compiles the shared cancellation tests with its own Joiner adapter
+ * and is pinned to that JDK (preview class files are version-locked).
  */
 def previewCheckSuites = ['previewTest']
 def addJoinerLeakSuite = { int jdk, JavaVersion version ->
   String suite = "previewJdk${jdk}Test"
   addTestSuite(suite)
+  sourceSets.named(suite) {
+    java.srcDir 'src/previewSharedTest/java'
+  }
   tasks.named("compile${suite.capitalize()}Java", JavaCompile) {
     configureCompiler(it, jdk, version, "Java preview features must be compiled with the matching JDK $jdk toolchain")
     options.compilerArgs.add("--enable-preview")
@@ -86,4 +88,3 @@ if (System.getenv('JAVA_27_HOME') != null) {
 tasks.named("check") {
   dependsOn previewCheckSuites
 }
-
