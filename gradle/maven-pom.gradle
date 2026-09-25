@@ -1,6 +1,6 @@
 /** Applies the common elements to our generated POM files */
-tasks.withType(GenerateMavenPom).configureEach {
-  doFirst {
+afterEvaluate {
+  publishing.publications.withType(MavenPublication).configureEach {
     MavenPom pom = it.pom
     pom.name = project.name
     pom.description = project.description
