@@ -2,6 +2,7 @@ package datadog.gradle.plugin.muzzle
 
 import datadog.gradle.plugin.MavenRepoFixture
 import org.eclipse.aether.RepositorySystem
+import org.eclipse.aether.RepositorySystemSession
 import org.eclipse.aether.artifact.DefaultArtifact
 import org.eclipse.aether.repository.RemoteRepository
 import org.eclipse.aether.resolution.VersionRangeRequest
@@ -18,7 +19,6 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import java.io.File
 import java.io.IOException
-import java.lang.reflect.Proxy
 import java.util.concurrent.atomic.AtomicInteger
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -88,6 +88,31 @@ class MuzzleMavenRepoUtilsTest {
 
     assertThat(result.versions.map { it.toString() }).containsExactly("1.0.0")
     assertThat(attempts).hasValue(4)
+  }
+
+  @Test
+  fun `resolveVersionRange retries remote metadata after a cached failure`() {
+    val fixture = MavenRepoFixture(File(tempDir, "initially-empty"))
+    val repo = RemoteRepository.Builder("initially-empty", "default", fixture.repoUrl).build()
+    val directive = MuzzleDirective().apply {
+      group = "com.example"
+      module = "mylib"
+      versions = "[1.0,)"
+    }
+    val session = newSession()
+    val request = VersionRangeRequest(DefaultArtifact("com.example:mylib:[1.0,)"), listOf(repo), null)
+    assertThat(system.resolveVersionRange(session, request).versions).isEmpty()
+    fixture.publishVersions("com.example", "mylib", listOf("1.0.0"))
+
+    val result = MuzzleMavenRepoUtils.resolveVersionRange(
+      directive,
+      system,
+      session,
+      listOf(repo),
+      enableBackoffRetries = false
+    )
+
+    assertThat(result.versions.map { it.toString() }).containsExactly("1.0.0")
   }
 
   @Test
@@ -369,25 +394,20 @@ class MuzzleMavenRepoUtilsTest {
     result: VersionRangeResult,
     attempts: AtomicInteger
   ): RepositorySystem =
-    Proxy.newProxyInstance(
-      RepositorySystem::class.java.classLoader,
-      arrayOf(RepositorySystem::class.java)
-    ) { _, method, args ->
-      when (method.name) {
-        "resolveVersionRange" -> {
-          val attempt = attempts.incrementAndGet()
-          if (attempt <= failuresBeforeSuccess) {
-            val request = args?.get(1) as VersionRangeRequest
-            throw VersionRangeResolutionException(
-              VersionRangeResult(request),
-              "transient version range failure $attempt"
-            )
-          }
-          result
+    object : RepositorySystem by system {
+      override fun resolveVersionRange(
+        session: RepositorySystemSession,
+        request: VersionRangeRequest
+      ): VersionRangeResult {
+        val attempt = attempts.incrementAndGet()
+        if (attempt <= failuresBeforeSuccess) {
+          throw VersionRangeResolutionException(
+            VersionRangeResult(request),
+            "transient version range failure $attempt"
+          )
         }
-        "toString" -> "repositorySystemReturningAfterFailures"
-        else -> throw UnsupportedOperationException(method.name)
+        return result
       }
-    } as RepositorySystem
+    }
 
 }

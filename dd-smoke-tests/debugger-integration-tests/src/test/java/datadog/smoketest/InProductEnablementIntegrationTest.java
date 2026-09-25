@@ -49,6 +49,10 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
   @DisplayName("testDynamicInstrumentationEnablementWithLineProbe")
   void testDynamicInstrumentationEnablementWithLineProbe() throws Exception {
     additionalJvmArgs.add("-Ddd.third.party.excludes=datadog.smoketest");
+    // internal flag required to avoid racing source file tracking and class loading as
+    // source file tracking information may be missing when looking for class to retransform
+    additionalJvmArgs.add(
+        "-Ddd.internal.dynamic.instrumentation.synchronous.source.file.tracking.enabled=true");
     appUrl = startAppAndAndGetUrl();
     setConfigOverrides(createConfigOverrides(true, false));
     LogProbe probe =

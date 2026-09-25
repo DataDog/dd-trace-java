@@ -29,6 +29,7 @@ public class ExecutionSettings {
           false,
           false,
           EarlyFlakeDetectionSettings.DEFAULT,
+          DynamicAutoTestRetrySettings.DEFAULT,
           TestManagementSettings.DEFAULT,
           null,
           Collections.emptyMap(),
@@ -51,6 +52,7 @@ public class ExecutionSettings {
           false,
           false,
           EarlyFlakeDetectionSettings.DEFAULT,
+          DynamicAutoTestRetrySettings.DEFAULT,
           TestManagementSettings.DEFAULT,
           null,
           Collections.emptyMap(),
@@ -71,6 +73,7 @@ public class ExecutionSettings {
   private final boolean codeCoverageReportUploadEnabled;
   private final boolean failedTestReplayEnabled;
   @Nonnull private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
+  @Nonnull private final DynamicAutoTestRetrySettings dynamicAutoTestRetrySettings;
   @Nonnull private final TestManagementSettings testManagementSettings;
   @Nullable private final String itrCorrelationId;
   @Nonnull private final Map<TestIdentifier, TestMetadata> skippableTests;
@@ -89,6 +92,7 @@ public class ExecutionSettings {
       boolean codeCoverageReportUploadEnabled,
       boolean failedTestReplayEnabled,
       @Nonnull EarlyFlakeDetectionSettings earlyFlakeDetectionSettings,
+      @Nonnull DynamicAutoTestRetrySettings dynamicAutoTestRetrySettings,
       @Nonnull TestManagementSettings testManagementSettings,
       @Nullable String itrCorrelationId,
       @Nonnull Map<TestIdentifier, TestMetadata> skippableTests,
@@ -108,6 +112,7 @@ public class ExecutionSettings {
     this.codeCoverageReportUploadEnabled = codeCoverageReportUploadEnabled;
     this.failedTestReplayEnabled = failedTestReplayEnabled;
     this.earlyFlakeDetectionSettings = earlyFlakeDetectionSettings;
+    this.dynamicAutoTestRetrySettings = dynamicAutoTestRetrySettings;
     this.testManagementSettings = testManagementSettings;
     this.itrCorrelationId = itrCorrelationId;
     this.skippableTests = skippableTests;
@@ -147,6 +152,7 @@ public class ExecutionSettings {
       boolean codeCoverageReportUploadEnabled,
       boolean failedTestReplayEnabled,
       @Nonnull EarlyFlakeDetectionSettings earlyFlakeDetectionSettings,
+      @Nonnull DynamicAutoTestRetrySettings dynamicAutoTestRetrySettings,
       @Nonnull TestManagementSettings testManagementSettings,
       @Nullable String itrCorrelationId,
       @Nonnull Map<TestIdentifier, TestMetadata> skippableTests,
@@ -163,6 +169,7 @@ public class ExecutionSettings {
     this.codeCoverageReportUploadEnabled = codeCoverageReportUploadEnabled;
     this.failedTestReplayEnabled = failedTestReplayEnabled;
     this.earlyFlakeDetectionSettings = earlyFlakeDetectionSettings;
+    this.dynamicAutoTestRetrySettings = dynamicAutoTestRetrySettings;
     this.testManagementSettings = testManagementSettings;
     this.itrCorrelationId = itrCorrelationId;
     this.skippableTests = skippableTests;
@@ -208,6 +215,11 @@ public class ExecutionSettings {
   @Nonnull
   public EarlyFlakeDetectionSettings getEarlyFlakeDetectionSettings() {
     return earlyFlakeDetectionSettings;
+  }
+
+  @Nonnull
+  public DynamicAutoTestRetrySettings getDynamicAutoTestRetrySettings() {
+    return dynamicAutoTestRetrySettings;
   }
 
   @Nonnull
@@ -299,6 +311,7 @@ public class ExecutionSettings {
         && codeCoverageReportUploadEnabled == that.codeCoverageReportUploadEnabled
         && failedTestReplayEnabled == that.failedTestReplayEnabled
         && Objects.equals(earlyFlakeDetectionSettings, that.earlyFlakeDetectionSettings)
+        && Objects.equals(dynamicAutoTestRetrySettings, that.dynamicAutoTestRetrySettings)
         && Objects.equals(testManagementSettings, that.testManagementSettings)
         && Objects.equals(itrCorrelationId, that.itrCorrelationId)
         && Objects.equals(skippableTests, that.skippableTests)
@@ -320,6 +333,7 @@ public class ExecutionSettings {
         codeCoverageReportUploadEnabled,
         failedTestReplayEnabled,
         earlyFlakeDetectionSettings,
+        dynamicAutoTestRetrySettings,
         testManagementSettings,
         itrCorrelationId,
         skippableTests,
@@ -362,6 +376,7 @@ public class ExecutionSettings {
       ConfigurationErrors.serialize(s, settings.configurationErrors);
 
       EarlyFlakeDetectionSettings.Serializer.serialize(s, settings.earlyFlakeDetectionSettings);
+      DynamicAutoTestRetrySettings.Serializer.serialize(s, settings.dynamicAutoTestRetrySettings);
 
       TestManagementSettings.Serializer.serialize(s, settings.testManagementSettings);
 
@@ -405,6 +420,8 @@ public class ExecutionSettings {
 
       EarlyFlakeDetectionSettings earlyFlakeDetectionSettings =
           EarlyFlakeDetectionSettings.Serializer.deserialize(buffer);
+      DynamicAutoTestRetrySettings dynamicAutoTestRetrySettings =
+          DynamicAutoTestRetrySettings.Serializer.deserialize(buffer);
 
       TestManagementSettings testManagementSettings =
           TestManagementSettings.Serializer.deserialize(buffer);
@@ -447,6 +464,7 @@ public class ExecutionSettings {
           codeCoverageReportUploadEnabled,
           failedTestReplayEnabled,
           earlyFlakeDetectionSettings,
+          dynamicAutoTestRetrySettings,
           testManagementSettings,
           itrCorrelationId,
           skippableTests,
