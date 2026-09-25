@@ -16,33 +16,57 @@ import org.openjdk.jmh.infra.Blackhole;
 /**
  * Shared setup helpers for JMH benchmarks in this module.
  *
- * <p>{@link Blackhole} solves one correctness problem: it stops the JIT from proving a result is
- * dead and eliminating the code that produced it. It says nothing about a second, separate problem
- * -- whether a call site's receiver-type profile still looks like production once measurement
- * starts. A benchmark can consume every result through a {@code Blackhole} and still measure a
- * devirtualized, artificially monomorphic fast path that never occurs in the real system. The
- * pollution helpers here ({@link #warmUpHashDispatch}) exist to guard against that second problem;
- * they're not redundant with {@code Blackhole}, they cover the axis it doesn't.
+ * <p>These exist to compensate for forking. JMH runs each benchmark method in a fresh JVM, which is
+ * right for measurement -- one arm cannot contaminate another's numbers -- but it means every arm
+ * is compiled inside a process that has only ever executed that one code path, with that one arm's
+ * key types and that one arm's branch outcomes. Production is the reverse: a single JVM runs
+ * everything. So the harness hands C2 a maximally specialized view of the world, and the
+ * compilation that results can be better than anything achievable in a real application. Put
+ * another way, JMH forks to eliminate cross-benchmark profile pollution, but profile pollution
+ * <i>is</i> the production condition.
  *
- * <p>Receiver profiles are not the only kind, and branch profiles interact with escape analysis in
- * a way that can silently flatter a benchmark. When a branch is never taken during profiling, C2
- * prunes it as an {@code unstable_if} uncommon trap; if that pruned branch held the only store of
- * an object, the object becomes provably non-escaping and escape analysis scalar-replaces an
- * allocation that production would keep. The case measured in this module is {@code map.get(key)}
- * followed by a guarded {@code computeIfAbsent(key, ...)}: with every key pre-installed by
- * {@code @Setup} the absent branch never runs, so a composite key costs nothing at all. A real
- * cache records its population-phase misses in that same branch profile -- MDO counters accumulate
- * from interpretation onward and are never reset -- so the profile is two-sided, nothing is pruned,
- * and the key is allocated on every lookup. See {@code ThreadSafeMapD2Benchmark} for the
- * measurement, and {@code HashtableD2Benchmark} for the contrasting shape, where {@code merge}
- * keeps the present/absent decision inside the callee and leaves no caller-visible branch to prune.
+ * <p>That surfaces three ways. This class addresses the first two partially and the third not at
+ * all:
  *
- * <p>Nothing here addresses branch profiles yet. The more complete approach is to exercise every
- * benchmark arm during setup, across each of its outcomes; that also removes an ordering
- * dependency, since JMH runs arms sequentially and whichever runs first currently shapes the shared
- * profiles the rest inherit. A {@code warmUpArms} helper along those lines is planned as a
- * follow-on, because adopting it changes benchmark setup and requires re-measuring whatever adopts
- * it.
+ * <ul>
+ *   <li><b>Receiver-type profiles</b> collapse toward a single key type, so shared JDK dispatch
+ *       sites look monomorphic. {@link #warmUpHashDispatch} drives several key classes through
+ *       them.
+ *   <li><b>Class-hierarchy analysis</b> sees only the implementations one arm happens to load, so
+ *       C2 can devirtualize calls a real application leaves polymorphic. Loading the decoy
+ *       collections widens the hierarchy.
+ *   <li><b>Branch profiles</b> go one-sided, because only one arm's outcomes ever occur. Nothing
+ *       here addresses that.
+ * </ul>
+ *
+ * <p>{@link Blackhole} is orthogonal to all of this. It stops the JIT proving a result is dead, and
+ * says nothing about whether the surrounding code was compiled realistically -- a benchmark can
+ * consume every result through a {@code Blackhole} and still measure a devirtualized fast path that
+ * cannot occur in production.
+ *
+ * <p>One-sided branch profiles also interact with escape analysis in a way that can silently
+ * flatter a benchmark. When a branch is never taken during profiling, C2 prunes it as an {@code
+ * unstable_if} uncommon trap; if that pruned branch held the only store of an object, the object
+ * becomes provably non-escaping and escape analysis scalar-replaces an allocation that production
+ * would keep. The case measured in this module is {@code map.get(key)} followed by a guarded {@code
+ * computeIfAbsent(key, ...)}: with every key pre-installed by {@code @Setup} the absent branch
+ * never runs, so a composite key costs nothing at all. A real cache records its population-phase
+ * misses in that same branch profile -- MDO counters accumulate from interpretation onward and are
+ * never reset -- so the profile is two-sided, nothing is pruned, and the key is allocated on every
+ * lookup. See {@code ThreadSafeMapD2Benchmark} for the measurement, and {@code
+ * HashtableD2Benchmark} for the contrasting shape, where {@code merge} keeps the present/absent
+ * decision inside the callee and leaves no caller-visible branch to prune.
+ *
+ * <p>The more complete approach is to exercise every benchmark arm during setup, across each of its
+ * outcomes, so that each fork's profiles reflect the whole class rather than the one arm it is
+ * about to measure. That is what restores the mix the fork removed.
+ *
+ * <p>Such a helper should drive the arms in a shuffled order rather than a fixed round-robin, since
+ * compilation can trigger part-way through a warmup and would otherwise see whichever arm dominates
+ * that point in the sequence; a regular pattern also gives the hardware branch predictor an
+ * unrealistically easy time. Seeding the shuffle keeps it irregular but reproducible. A {@code
+ * warmUpArms} along those lines is planned as a follow-on, because adopting it changes benchmark
+ * setup and requires re-measuring whatever adopts it.
  */
 public final class BenchmarkUtils {
   private BenchmarkUtils() {}
