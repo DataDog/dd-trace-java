@@ -141,9 +141,10 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
       worker.start();
       boolean flushed = worker.flush(10, TimeUnit.SECONDS);
 
-      // the flush succeeds, triggers a dispatch, and the queue is empty
+      // the flush succeeds, triggers a dispatch for both the primary and secondary
+      // queue's flush events, and the primary queue is empty
       assertTrue(flushed);
-      assertEquals(1, flushCount.get());
+      assertEquals(2, flushCount.get());
       assertTrue(worker.getPrimaryQueue().isEmpty());
     }
   }
