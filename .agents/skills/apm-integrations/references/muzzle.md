@@ -2,6 +2,26 @@
 
 > Referenced from `SKILL.md` Step 9.2. Everything about `muzzle { pass { … } fail { … } }` blocks and the traps that fail CI.
 
+## Prerequisite: the `muzzle {}` DSL requires the module-instrumentation plugin
+
+`muzzle { ... }` is not a built-in Gradle block. The plugin that registers it is `dd-trace-java.muzzle` — but you never apply that one directly. Inside `dd-java-agent/instrumentation`, the parent `build.gradle` watches every subproject for the `dd-trace-java.module.instrumentation` plugin and, when it sees it applied, applies `dd-trace-java.muzzle` (and the build-time-instrumentation plugin) on your behalf. So the plugin id you actually need in an instrumentation module's `build.gradle` is the trigger, `dd-trace-java.module.instrumentation`, not `dd-trace-java.muzzle` itself:
+
+```groovy
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  // other plugins (e.g. 'idea', a protobuf/shading plugin) as needed
+}
+```
+
+If you write or regenerate a module's `build.gradle` from scratch and omit this plugin id — for example, substituting a hand-written `apply from: "$rootDir/gradle/..."` line instead — the build fails before any instrumentation code even compiles:
+
+```
+org.gradle.api.resources.MissingResourceException: A problem occurred evaluating project ':dd-java-agent:instrumentation:<module>'.
+Caused by: Could not find method muzzle() for arguments [...] on project ':dd-java-agent:instrumentation:<module>' of type org.gradle.api.Project.
+```
+
+**Rule:** when replacing an existing module's `build.gradle` wholesale, copy its `plugins {}` block's ids forward as a floor — don't rebuild it by inference from a template or from what "looks needed." If you're unsure which plugin registers a given DSL block or triggers another plugin indirectly, check another module's `build.gradle` in the same directory tree rather than guessing — indirection like this (a parent build file reacting to a child's plugin id) won't be visible from the module's own `build.gradle` alone.
+
 ## Muzzle directives (mandatory)
 
 In `build.gradle`, add `muzzle` blocks. **There are three valid patterns** — choose based on whether your version range is open-ended or bounded, and if bounded, why.
