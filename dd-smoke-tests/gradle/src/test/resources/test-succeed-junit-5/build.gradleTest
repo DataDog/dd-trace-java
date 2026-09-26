@@ -29,3 +29,19 @@ testing {
         }
     }
 }
+
+// Optional scenarios used to verify empty test task reporting.
+tasks.named('test', Test) {
+  if (project.hasProperty('emptyTestSelection')) {
+    useJUnitPlatform { includeTags 'not-present' }
+    if (hasProperty('failOnNoDiscoveredTests')) {
+      failOnNoDiscoveredTests = false
+    }
+  }
+  if (project.hasProperty('disableTestInstrumentation')) {
+    systemProperty 'dd.integration.junit-5.enabled', 'false'
+  }
+  if (project.hasProperty('failAfterTests')) {
+    doLast { throw new GradleException('Synthetic failure after test execution') }
+  }
+}

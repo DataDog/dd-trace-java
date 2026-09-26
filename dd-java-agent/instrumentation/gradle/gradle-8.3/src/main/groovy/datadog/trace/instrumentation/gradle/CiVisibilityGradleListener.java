@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.gradle.BuildAdapter;
 import org.gradle.BuildResult;
@@ -25,6 +26,9 @@ import org.gradle.api.provider.Provider;
 import org.gradle.api.services.BuildServiceRegistry;
 import org.gradle.api.tasks.TaskState;
 import org.gradle.api.tasks.testing.Test;
+import org.gradle.api.tasks.testing.TestDescriptor;
+import org.gradle.api.tasks.testing.TestListener;
+import org.gradle.api.tasks.testing.TestResult;
 import org.gradle.build.event.BuildEventsListenerRegistry;
 import org.gradle.execution.taskgraph.TaskListenerInternal;
 import org.gradle.internal.InternalBuildListener;
@@ -76,6 +80,7 @@ public class CiVisibilityGradleListener extends BuildAdapter
   private final Config config = Config.get();
   private final Gradle gradle;
   private final CiVisibilityService ciVisibilityService;
+  private final Set<String> emptyTestTasks = ConcurrentHashMap.newKeySet();
 
   public CiVisibilityGradleListener(
       Gradle gradle,
@@ -206,6 +211,7 @@ public class CiVisibilityGradleListener extends BuildAdapter
 
     ciVisibilityService.onModuleStart(
         taskPath, isAndroid, moduleLayout, jvmExecutable, taskClasspath, jacocoAgent);
+    task.addTestListener(new EmptyTestTaskListener(taskPath, emptyTestTasks));
   }
 
   private JavaAgent getJacocoAgent(Test task) {
@@ -247,8 +253,42 @@ public class CiVisibilityGradleListener extends BuildAdapter
       return;
     }
 
+    boolean empty = emptyTestTasks.remove(taskPath);
     String reason = state.getSkipped() || !state.getDidWork() ? state.getSkipMessage() : null;
+    if (reason == null && empty) {
+      reason = "No tests were executed";
+    }
     ciVisibilityService.onModuleFinish(taskPath, failure, reason);
+  }
+
+  static final class EmptyTestTaskListener implements TestListener {
+    private final String taskPath;
+    private final Set<String> emptyTestTasks;
+
+    EmptyTestTaskListener(String taskPath, Set<String> emptyTestTasks) {
+      this.taskPath = taskPath;
+      this.emptyTestTasks = emptyTestTasks;
+    }
+
+    @Override
+    public void beforeSuite(TestDescriptor suite) {}
+
+    @Override
+    public void afterSuite(TestDescriptor suite, TestResult result) {
+      // Use Gradle's completed root result, not absence of tracer events: tests may have run
+      // without supported or enabled framework instrumentation.
+      if (suite.getParent() == null
+          && result.getTestCount() == 0
+          && result.getResultType() == TestResult.ResultType.SUCCESS) {
+        emptyTestTasks.add(taskPath);
+      }
+    }
+
+    @Override
+    public void beforeTest(TestDescriptor test) {}
+
+    @Override
+    public void afterTest(TestDescriptor test, TestResult result) {}
   }
 
   @Override
