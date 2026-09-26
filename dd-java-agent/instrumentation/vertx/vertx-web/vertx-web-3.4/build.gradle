@@ -47,6 +47,7 @@ dependencies {
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
 
   testImplementation libs.junit.jupiter
+  testImplementation libs.bundles.mockito
 
   latestDepTestImplementation group: 'io.vertx', name: 'vertx-web', version: '3.+'
   latestDepTestImplementation group: 'io.vertx', name: 'vertx-web-client', version: '3.+'

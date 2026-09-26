@@ -1,7 +1,10 @@
 package datadog.trace.api.gateway;
 
+import static java.util.Collections.emptyMap;
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -9,19 +12,71 @@ import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 
 /**
- * Covers the {@code tryCommitBlockingResponse(RequestContext, RequestBlockingAction)} default
- * method, which reports a block failure to {@link AppSecContext#reportBlockFailure()} when the
- * blocking response cannot be committed.
+ * Covers the {@link BlockResponseFunction} default methods: {@code
+ * tryCommitBlockingResponse(TraceSegment, RequestBlockingAction)}, which forwards every field of
+ * the action to the abstract parameter-based method, and {@code
+ * tryCommitBlockingResponse(RequestContext, RequestBlockingAction)}, which reports a block failure
+ * to {@link AppSecContext#reportBlockFailure()} when the blocking response cannot be committed.
  */
 class BlockResponseFunctionTest {
 
   private static final Flow.Action.RequestBlockingAction RBA =
       new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO);
+
+  @Test
+  void segmentOverloadForwardsAllActionFieldsToParameterBasedMethod() {
+    Map<String, String> extraHeaders = new HashMap<>();
+    extraHeaders.put("X-Custom", "custom-value");
+    extraHeaders.put("Location", "https://example.com/blocked");
+    Flow.Action.RequestBlockingAction rba =
+        new Flow.Action.RequestBlockingAction(
+            418, BlockingContentType.HTML, extraHeaders, "security-response-id");
+    TraceSegment segment = TraceSegment.NoOp.INSTANCE;
+    TestBlockResponseFunction brf = new TestBlockResponseFunction(true);
+
+    assertTrue(brf.tryCommitBlockingResponse(segment, rba));
+
+    assertEquals(1, brf.invocations);
+    assertSame(segment, brf.lastSegment);
+    assertEquals(418, brf.lastStatusCode);
+    assertEquals(BlockingContentType.HTML, brf.lastTemplateType);
+    assertSame(extraHeaders, brf.lastExtraHeaders);
+    assertEquals("security-response-id", brf.lastSecurityResponseId);
+  }
+
+  @Test
+  void segmentOverloadForwardsRedirectActionFields() {
+    Flow.Action.RequestBlockingAction rba =
+        Flow.Action.RequestBlockingAction.forRedirect(
+            302, "https://example.com/redirect", "redirect-response-id");
+    TestBlockResponseFunction brf = new TestBlockResponseFunction(true);
+
+    assertTrue(brf.tryCommitBlockingResponse(TraceSegment.NoOp.INSTANCE, rba));
+
+    assertEquals(302, brf.lastStatusCode);
+    assertEquals(BlockingContentType.NONE, brf.lastTemplateType);
+    assertEquals(singletonMap("Location", "https://example.com/redirect"), brf.lastExtraHeaders);
+    assertEquals("redirect-response-id", brf.lastSecurityResponseId);
+  }
+
+  @Test
+  void segmentOverloadForwardsDefaultsAndPropagatesFailedCommit() {
+    TestBlockResponseFunction brf = new TestBlockResponseFunction(false);
+
+    assertFalse(brf.tryCommitBlockingResponse(TraceSegment.NoOp.INSTANCE, RBA));
+
+    assertEquals(1, brf.invocations);
+    assertEquals(403, brf.lastStatusCode);
+    assertEquals(BlockingContentType.AUTO, brf.lastTemplateType);
+    assertEquals(emptyMap(), brf.lastExtraHeaders);
+    assertNull(brf.lastSecurityResponseId);
+  }
 
   @Test
   void doesNotReportBlockFailureWhenCommitSucceeds() {
@@ -76,6 +131,9 @@ class BlockResponseFunctionTest {
     private TraceSegment lastSegment;
     private int lastStatusCode;
     private BlockingContentType lastTemplateType;
+    private Map<String, String> lastExtraHeaders;
+    private String lastSecurityResponseId;
+    private int invocations;
 
     private TestBlockResponseFunction(boolean committed) {
       this.committed = committed;
@@ -91,6 +149,9 @@ class BlockResponseFunctionTest {
       this.lastSegment = segment;
       this.lastStatusCode = statusCode;
       this.lastTemplateType = templateType;
+      this.lastExtraHeaders = extraHeaders;
+      this.lastSecurityResponseId = securityResponseId;
+      this.invocations++;
       return committed;
     }
   }
