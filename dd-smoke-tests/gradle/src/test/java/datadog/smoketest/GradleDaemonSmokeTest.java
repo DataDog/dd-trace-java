@@ -185,6 +185,40 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
         Collections.singletonList("content.meta.['test.android.robolectric.version']"));
   }
 
+  @TableTest({
+    "scenario | task           | warningExpected",
+    "wasm     | wasmJsNodeTest | true           ",
+    "js       | jsNodeTest     | true           ",
+    "jvm      | jvmTest        | false          ",
+    "build    | help           | false          "
+  })
+  @ParameterizedTest
+  void testUnsupportedKotlinTestWarning(String task, boolean warningExpected) throws IOException {
+    String gradleVersion = LATEST_GRADLE_VERSION;
+    givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion);
+    givenGradleVersionIsSupportedByCurrentGradleTestKit(gradleVersion);
+    givenGradleProjectFiles("test-kotlin-multiplatform");
+    givenGradleProjectProperties();
+    ensureDependenciesDownloaded(gradleVersion);
+
+    BuildResult result = runGradle(gradleVersion, Arrays.asList(task, "--rerun-tasks"), true);
+    assertBuildSuccessful(result);
+
+    String warning = "Task ':" + task + "' runs Kotlin/JS or Kotlin/Wasm tests";
+    assertEquals(
+        warningExpected,
+        result.getOutput().contains("runs Kotlin/JS or Kotlin/Wasm tests"),
+        result.getOutput());
+    if (warningExpected) {
+      assertTrue(result.getOutput().contains(warning), result.getOutput());
+      assertEquals(result.getOutput().indexOf(warning), result.getOutput().lastIndexOf(warning));
+      assertTrue(
+          result.getOutput().indexOf(warning)
+              < result.getOutput().indexOf("Starting test task :" + task));
+      assertTrue(result.getOutput().contains("https://docs.datadoghq.com/tests/setup/java/"));
+    }
+  }
+
   private static void assertRobolectricVersion(
       List<? extends Map<?, ?>> events, String expectedVersion) {
     int taggedEvents = 0;
