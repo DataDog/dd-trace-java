@@ -144,6 +144,77 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   }
 
   @TableTest({
+    "scenario       | gradleVersion | emptySelection | disableInstrumentation | failAfterTests | configurationCache | expectedStatus | expectedTests",
+    "empty-8.3      | 8.3           | true           | false                  | false          | false              | skip           | 0            ",
+    "empty-latest   | latest        | true           | false                  | false          | {false, true}      | skip           | 0            ",
+    "nonempty       | latest        | false          | false                  | false          | false              | pass           | 2            ",
+    "uninstrumented | latest        | false          | true                   | false          | false              | pass           | 0            ",
+    "empty-failure  | latest        | true           | false                  | true           | false              | fail           | 0            "
+  })
+  @ParameterizedTest
+  void testEmptyTestExecution(
+      String gradleVersion,
+      boolean emptySelection,
+      boolean disableInstrumentation,
+      boolean failAfterTests,
+      boolean configurationCache,
+      String expectedStatus,
+      int expectedTests)
+      throws IOException {
+    gradleVersion = resolveVersion(gradleVersion);
+    givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion);
+    givenGradleVersionIsSupportedByCurrentGradleTestKit(gradleVersion);
+    givenConfigurationCacheIsCompatibleWithCurrentPlatform(configurationCache);
+    givenGradleProjectFiles("test-succeed-junit-5");
+    givenGradleProjectProperties();
+    ensureDependenciesDownloaded(gradleVersion);
+
+    List<String> arguments =
+        new ArrayList<>(Arrays.asList("test", "--stacktrace", "--rerun-tasks"));
+    if (emptySelection) {
+      arguments.add("-PemptyTestSelection");
+    }
+    if (disableInstrumentation) {
+      arguments.add("-PdisableTestInstrumentation");
+    }
+    if (failAfterTests) {
+      arguments.add("-PfailAfterTests");
+    }
+    if (configurationCache) {
+      arguments.add("--configuration-cache");
+    }
+
+    for (int run = 0; run < (configurationCache ? 2 : 1); run++) {
+      mockBackend.reset();
+      BuildResult result = runGradle(gradleVersion, arguments, !failAfterTests);
+      assertNotNull(result.task(":test"));
+      assertEquals(
+          failAfterTests ? TaskOutcome.FAILED : TaskOutcome.SUCCESS,
+          result.task(":test").getOutcome());
+      List<? extends Map<?, ?>> events = mockBackend.waitForEvents(expectedTests == 0 ? 2 : 5);
+      long actualTests = events.stream().filter(event -> "test".equals(event.get("type"))).count();
+      assertEquals(expectedTests, actualTests);
+      int parents = 0;
+      for (Map<?, ?> event : events) {
+        String type = (String) event.get("type");
+        if ("test_session_end".equals(type) || "test_module_end".equals(type)) {
+          parents++;
+          Map<?, ?> content = (Map<?, ?>) event.get("content");
+          Map<?, ?> meta = (Map<?, ?>) content.get("meta");
+          assertEquals(expectedStatus, meta.get("test.status"));
+          if ("skip".equals(expectedStatus) && "test_module_end".equals(type)) {
+            assertEquals("No tests were executed", meta.get("test.skip_reason"));
+          }
+        }
+      }
+      assertEquals(2, parents);
+      if (configurationCache && run == 1) {
+        assertTrue(result.getOutput().contains("Reusing configuration cache."));
+      }
+    }
+  }
+
+  @TableTest({
     "scenario           | gradleVersion | robolectricVersion | expectedVersion | projectName              | expectedTraces",
     "robolectric-4.16   | latest        | 4.16.1             | 4.16.1          | test-succeed-robolectric | 7             ",
     "robolectric-latest | latest        | +                  | any             | test-succeed-robolectric | 7             "
