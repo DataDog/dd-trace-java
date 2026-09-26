@@ -19,7 +19,6 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.instrumentation.junit5.JUnitPlatformUtils;
 import datadog.trace.instrumentation.junit5.TestDataFactory;
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder;
-import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -36,9 +35,6 @@ import org.junit.platform.engine.support.hierarchical.ThrowableCollector;
 public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  private final String parentPackageName =
-      Strings.getPackageName(JUnitPlatformUtils.class.getName());
-
   public JUnit5ExecutionInstrumentation() {
     super("ci-visibility", "junit-5", "test-retry");
   }
@@ -51,20 +47,6 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
   @Override
   public String instrumentedType() {
     return "org.junit.platform.engine.support.hierarchical.NodeTestTask";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".TestTaskHandle",
-      packageName + ".TestDescriptorHandle",
-      packageName + ".RetryDescriptorFactory",
-      packageName + ".RetryDescriptorFactories",
-      packageName + ".ThrowableCollectorFactoryWrapper",
-      parentPackageName + ".JUnitPlatformUtils",
-      parentPackageName + ".TestDataFactory",
-      parentPackageName + ".TestEventsHandlerHolder",
-    };
   }
 
   @Override
