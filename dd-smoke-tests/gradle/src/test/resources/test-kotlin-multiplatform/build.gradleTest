@@ -1,0 +1,30 @@
+plugins {
+  id 'org.jetbrains.kotlin.multiplatform' version '2.4.0'
+}
+
+repositories {
+  mavenCentral()
+}
+
+kotlin {
+  js {
+    nodejs()
+  }
+  wasmJs {
+    nodejs()
+  }
+  jvm()
+  sourceSets {
+    commonTest {
+      dependencies {
+        implementation kotlin('test')
+      }
+    }
+  }
+}
+
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinTest).configureEach {
+  doFirst {
+    println "Starting test task $path"
+  }
+}

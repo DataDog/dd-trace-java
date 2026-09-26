@@ -33,10 +33,14 @@ import org.gradle.internal.build.NestedBuildState;
 import org.gradle.internal.build.RootBuildState;
 import org.gradle.internal.service.scopes.ListenerService;
 import org.gradle.process.CommandLineArgumentProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @ListenerService
 public class CiVisibilityGradleListener extends BuildAdapter
     implements InternalBuildListener, TaskListenerInternal {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(CiVisibilityGradleListener.class);
 
   private static final String TRACER_VERSION;
 
@@ -175,6 +179,17 @@ public class CiVisibilityGradleListener extends BuildAdapter
   public void beforeExecute(TaskIdentity<?> taskIdentity) {
     String taskPath = taskIdentity.getTaskPath();
     if (!Test.class.isAssignableFrom(taskIdentity.getTaskType())) {
+      // Match by name to avoid a dependency on the optional Kotlin Gradle plugin.
+      for (Class<?> type = taskIdentity.getTaskType(); type != null; type = type.getSuperclass()) {
+        if ("org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest".equals(type.getName())) {
+          LOGGER.warn(
+              "Task '{}' runs Kotlin/JS or Kotlin/Wasm tests, which the Datadog Java agent does not"
+                  + " automatically instrument. Individual test results will not be collected"
+                  + " automatically. See https://docs.datadoghq.com/tests/setup/java/",
+              taskPath);
+          break;
+        }
+      }
       ciVisibilityService.onBuildTaskStart(taskPath);
       return;
     }
