@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.testcontainers'
 }
 
 muzzle {
@@ -20,6 +21,8 @@ tasks.named("latestDepTest", Test) {
 }
 
 dependencies {
+  testContainerImage(image('mysql:8.0', 'test.mysql.image'))
+
   compileOnly group: 'io.vertx', name: 'vertx-mysql-client', version: '3.9.0'
 
   testImplementation group: 'io.vertx', name: 'vertx-mysql-client', version: '3.9.0'

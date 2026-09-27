@@ -12,7 +12,8 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
-import org.testcontainers.containers.CassandraContainer
+import org.testcontainers.cassandra.CassandraContainer
+import org.testcontainers.utility.DockerImageName
 import spock.lang.Shared
 import spock.util.concurrent.BlockingVariable
 
@@ -44,7 +45,9 @@ abstract class CassandraClientTest extends VersionedNamingTestBase {
   CassandraContainer container
 
   def setupSpec() {
-    container = new CassandraContainer("cassandra:4").withStartupTimeout(Duration.ofSeconds(120))
+    def image = DockerImageName.parse(System.getProperty("test.cassandra.image"))
+      .asCompatibleSubstituteFor("cassandra")
+    container = new CassandraContainer(image).withStartupTimeout(Duration.ofSeconds(120))
     container.start()
     port = container.getMappedPort(9042)
     address = new InetSocketAddress(container.getHost(), port)
