@@ -341,9 +341,13 @@ public class W3CPTagsCodec extends PTagsCodec {
       sb.setLength(0);
       size = 0;
     }
-    if (size == 0 && canForwardRawTracestate(samplingState)) {
-      sb.append(samplingState.getTracestate().trim());
-      return EMPTY_SIZE + 1;
+    if (size == 0) {
+      String original = samplingState.getTracestate();
+      String trimmed = original == null ? null : original.trim();
+      if (canForwardRawTracestate(trimmed, samplingState.getOtelTraceState())) {
+        sb.append(trimmed);
+        return EMPTY_SIZE + 1;
+      }
     }
     // Append the managed OTel member and all other non-Datadog list-members
     if (appendOtelAndVendorMembers(sb, samplingState, size != 0)) {
@@ -354,16 +358,13 @@ public class W3CPTagsCodec extends PTagsCodec {
     return size;
   }
 
-  private static boolean canForwardRawTracestate(SamplingState samplingState) {
-    String original = samplingState.getTracestate();
-    if (original == null || original.isEmpty()) {
+  private static boolean canForwardRawTracestate(String trimmed, CharSequence otelTraceState) {
+    if (trimmed == null || trimmed.isEmpty()) {
       return false;
     }
-    String trimmed = original.trim();
-    if (trimmed.isEmpty() || findNextMember(trimmed, 0) != 0) {
+    if (findNextMember(trimmed, 0) != 0) {
       return false;
     }
-    CharSequence otelTraceState = samplingState.getOtelTraceState();
     int otelMemberCount = 0;
     int memberStart = 0;
     while (memberStart < trimmed.length()) {
@@ -390,10 +391,14 @@ public class W3CPTagsCodec extends PTagsCodec {
   }
 
   private static boolean contentEquals(String value, int start, int end, CharSequence expected) {
-    if (end - start != expected.length()) {
+    if (expected instanceof OtelTraceState) {
+      expected = ((OtelTraceState) expected).comparisonValue();
+    }
+    int length = expected.length();
+    if (end - start != length) {
       return false;
     }
-    for (int i = 0; i < expected.length(); i++) {
+    for (int i = 0; i < length; i++) {
       if (value.charAt(start + i) != expected.charAt(i)) {
         return false;
       }
@@ -805,9 +810,9 @@ public class W3CPTagsCodec extends PTagsCodec {
     CharSequence otelTraceState = samplingState.getOtelTraceState();
     int remainingMembers = MAX_MEMBER_COUNT - (hasDatadogMember ? 1 : 0);
     boolean memberAppended = false;
-    boolean preserveOtelPosition = isUnchangedInheritedOtelMember(original, otelTraceState);
+    boolean preserveOtelPosition = samplingState.preservesInheritedOtelPosition();
     if (!preserveOtelPosition && otelTraceState != null && remainingMembers > 0) {
-      appendMember(sb, OTEL_MEMBER_KEY, otelTraceState);
+      appendMember(sb, OTEL_MEMBER_KEY, otelTraceState.toString());
       remainingMembers--;
       memberAppended = true;
     }
@@ -831,7 +836,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     return memberAppended;
   }
 
-  private static boolean isUnchangedInheritedOtelMember(
+  public static boolean isUnchangedInheritedOtelMember(
       String original, CharSequence otelTraceState) {
     if (original == null || otelTraceState == null) {
       return false;

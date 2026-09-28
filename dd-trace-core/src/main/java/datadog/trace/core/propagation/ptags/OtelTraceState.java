@@ -232,6 +232,10 @@ final class OtelTraceState implements CharSequence {
     return materializedValue != null;
   }
 
+  CharSequence comparisonValue() {
+    return value == null ? materialize() : value;
+  }
+
   @Override
   public int length() {
     return value == null ? materialize().length() : value.length();

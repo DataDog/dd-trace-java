@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH;
+import static datadog.trace.core.propagation.ptags.W3CPTagsCodec.isUnchangedInheritedOtelMember;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductTraceSource;
@@ -23,11 +24,16 @@ import java.util.Map;
 public abstract class PropagationTags {
 
   public static final class SamplingState {
+    private static final byte OTEL_POSITION_UNKNOWN = 0;
+    private static final byte OTEL_POSITION_PRESERVED = 1;
+    private static final byte OTEL_POSITION_REPLACED = 2;
+
     private final int samplingPriority;
     private final String tracestate;
     private final CharSequence otelTraceState;
     private final CharSequence decisionMaker;
     private final CharSequence knuthSamplingRate;
+    private volatile byte otelPosition;
 
     public SamplingState(
         int samplingPriority,
@@ -60,6 +66,21 @@ public abstract class PropagationTags {
 
     public CharSequence getKnuthSamplingRate() {
       return knuthSamplingRate;
+    }
+
+    public boolean preservesInheritedOtelPosition() {
+      if (tracestate == null || otelTraceState == null) {
+        return false;
+      }
+      byte position = otelPosition;
+      if (position == OTEL_POSITION_UNKNOWN) {
+        position =
+            isUnchangedInheritedOtelMember(tracestate, otelTraceState)
+                ? OTEL_POSITION_PRESERVED
+                : OTEL_POSITION_REPLACED;
+        otelPosition = position;
+      }
+      return position == OTEL_POSITION_PRESERVED;
     }
   }
 
