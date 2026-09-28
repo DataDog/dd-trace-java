@@ -64,14 +64,16 @@ class AwsAccountIdentityTest {
 
   @Test
   void decodesAccountFromAccessKeyId() {
-    // Key IDs built by encoding known accounts with the documented layout: 4 char prefix, then
-    // base32 of 10 bytes whose first 48 bits are (account << 7) plus arbitrary low bits.
+    // Key IDs built by encoding known accounts with the modern layout: 4 char prefix, then base32
+    // of 10 bytes with the format marker set above (account << 7), plus arbitrary low bits.
     assertEquals(
         "123456789012",
         AwsAccountIdentity.accountFromAccessKeyId(syntheticKey("AKIA", 123456789012L)));
     assertEquals(
         "640168429175",
         AwsAccountIdentity.accountFromAccessKeyId(syntheticKey("ASIA", 640168429175L)));
+    assertEquals(
+        "000000000000", AwsAccountIdentity.accountFromAccessKeyId(syntheticKey("AKIA", 0L)));
     assertEquals(
         "000000000001", AwsAccountIdentity.accountFromAccessKeyId(syntheticKey("ASIA", 1L)));
     assertEquals(
@@ -100,6 +102,17 @@ class AwsAccountIdentityTest {
     assertNull(AwsAccountIdentity.accountFromAccessKeyId(value));
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = {"AKIAIOSFODNN7EXAMPLE", "AKIAAAAAAAAAAAAAAAAA", "ASIAAAAAAAAAAAAAAAAA"})
+  void rejectsLegacyAccessKeyIds(String value) {
+    assertNull(AwsAccountIdentity.accountFromAccessKeyId(value));
+  }
+
+  @Test
+  void rejectsEncodedAccountsLargerThanTwelveDigits() {
+    assertNull(AwsAccountIdentity.accountFromAccessKeyId(syntheticKey("AKIA", 1000000000000L)));
+  }
+
   @Test
   void decodesRfc4648Base32() {
     // RFC 4648 test vector: "foobar" -> MZXW6YTBOI (unpadded)
@@ -124,17 +137,20 @@ class AwsAccountIdentityTest {
 
   @Test
   void extractsAccountFromEncodedBytes() {
-    // (123456789012 << 7) | 0x55 = 0x0E5F_4C8D_0A55 big-endian over 6 bytes; the low 7 bits and
+    // Format marker | (123456789012 << 7) | 0x55 = 0x8E5F_4C8D_0A55; the low 7 bits and
     // the trailing bytes are not part of the account and are ignored.
-    byte[] bytes = {0x0E, 0x5F, 0x4C, (byte) 0x8D, 0x0A, 0x55, 0x12, 0x34, 0x56, 0x78};
+    byte[] bytes = {(byte) 0x8E, 0x5F, 0x4C, (byte) 0x8D, 0x0A, 0x55, 0x12, 0x34, 0x56, 0x78};
     assertEquals("123456789012", AwsAccountIdentity.accountFromEncodedBytes(bytes));
-    byte[] one = {0, 0, 0, 0, 0, (byte) 0x80};
+    byte[] one = {(byte) 0x80, 0, 0, 0, 0, (byte) 0x80};
     assertEquals("000000000001", AwsAccountIdentity.accountFromEncodedBytes(one));
     assertNull(AwsAccountIdentity.accountFromEncodedBytes(new byte[5]));
+    bytes[0] &= 0x7f;
+    assertNull(AwsAccountIdentity.accountFromEncodedBytes(bytes));
   }
 
   private static String syntheticKey(String prefix, long account) {
-    long firstSixBytes = (account << 7) | 0x55L; // low 7 bits are not part of the account
+    long firstSixBytes =
+        (1L << 47) | (account << 7) | 0x55L; // low 7 bits are not part of the account
     byte[] raw = new byte[10];
     for (int i = 5; i >= 0; i--) {
       raw[i] = (byte) (firstSixBytes & 0xff);

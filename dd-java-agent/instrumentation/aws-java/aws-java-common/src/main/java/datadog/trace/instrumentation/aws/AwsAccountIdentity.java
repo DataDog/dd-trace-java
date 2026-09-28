@@ -133,11 +133,11 @@ public final class AwsAccountIdentity {
    * Extracts the account ID from the decoded bytes of an access key ID: the first 6 bytes hold
    * {@code account << 7}.
    *
-   * @return the zero-padded 12-digit account, or {@code null} when fewer than 6 bytes are given or
-   *     the value does not fit in 12 digits.
+   * @return the zero-padded 12-digit account, or {@code null} when fewer than 6 bytes are given,
+   *     the modern format marker is absent, or the value does not fit in 12 digits.
    */
   static String accountFromEncodedBytes(final byte[] decoded) {
-    if (decoded.length < 6) {
+    if (decoded.length < 6 || (decoded[0] & 0x80) == 0) {
       return null;
     }
     long firstSixBytes = 0;
