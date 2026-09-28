@@ -11,6 +11,14 @@ import java.lang.annotation.Target;
  * Marks a <b>static-polymorphism strategy</b>: a stateless policy object that lets one shared
  * algorithm specialize to straight-line code per caller, without runtime virtual dispatch.
  *
+ * <p><b>The design, in one sentence.</b> Bind the strategy to the algorithm at the call site — a
+ * <i>call-time</i> functional composition — rather than through a field wired up at some distant
+ * construction site — a <i>construction-time</i> functional composition — so the exact type is part
+ * of the static program text the JIT compiles, not something it has to discover at run time. A
+ * {@code static final} field of an abstract type, even one that's assigned exactly once and never
+ * changes again, is still construction-time composition: its declared type, not its stable runtime
+ * value, is what the JIT's dataflow analysis sees.
+ *
  * <p><b>What "static polymorphism" means here.</b> Ordinary (dynamic) polymorphism resolves the
  * implementation at run time — an {@code invokevirtual}/{@code invokeinterface} that can go
  * megamorphic on a shared call site. Static polymorphism instead makes the implementation known to
