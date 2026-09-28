@@ -2,11 +2,11 @@ package datadog.trace.llmobs.domain;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.Config;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObsTags;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -64,7 +64,7 @@ class DDLLMObsSpanMlAppTest {
   @Test
   void childSpanInheritsMlAppFromParentContext() {
     DDLLMObsSpan agent = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "agent1", "research-bot");
-    try (AgentScope ignored = AgentTracer.activateSpan(spanOf(agent))) {
+    try (ContextScope ignored = AgentTracer.activateSpan(spanOf(agent))) {
       DDLLMObsSpan child = llmObsSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "tool1", null);
       try {
         assertEquals("research-bot", spanOf(child).getTag(ML_APP_TAG));
@@ -87,9 +87,9 @@ class DDLLMObsSpanMlAppTest {
   @Test
   void explicitMlAppOverridesAnInheritedOneForItsOwnSubtree() {
     DDLLMObsSpan outer = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "agent1", "research-bot");
-    try (AgentScope ignored = AgentTracer.activateSpan(spanOf(outer))) {
+    try (ContextScope ignored = AgentTracer.activateSpan(spanOf(outer))) {
       DDLLMObsSpan inner = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "agent2", "summarizer");
-      try (AgentScope innerScope = AgentTracer.activateSpan(spanOf(inner))) {
+      try (ContextScope innerScope = AgentTracer.activateSpan(spanOf(inner))) {
         DDLLMObsSpan child = llmObsSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "tool1", null);
         try {
           assertEquals("summarizer", spanOf(inner).getTag(ML_APP_TAG));

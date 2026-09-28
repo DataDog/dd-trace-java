@@ -7,13 +7,13 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.context.propagation.Propagators;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.api.llmobs.LLMObsInternal;
 import datadog.trace.api.llmobs.LLMObsPropagationValues;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -63,7 +63,7 @@ class LLMObsContextPropagationSourceTest {
     return new DDLLMObsSpan(kind, name, mlApp, sessionId, "service", tags);
   }
 
-  private static AgentScope startRootApmScope() {
+  private static ContextScope startRootApmScope() {
     AgentSpan root = AgentTracer.get().buildSpan("apm", "sqs.produce").start();
     return AgentTracer.activateSpan(root);
   }
@@ -77,7 +77,7 @@ class LLMObsContextPropagationSourceTest {
 
   /** An outbound carrier as a producer with an active agent span would have injected it. */
   private static Map<String, String> producerCarrier(String mlApp, String sessionId) {
-    try (AgentScope apmScope = startRootApmScope()) {
+    try (ContextScope apmScope = startRootApmScope()) {
       DDLLMObsSpan producer = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "dispatcher", mlApp, sessionId);
       try {
         return autoInject(AgentTracer.activeSpan());
@@ -111,7 +111,7 @@ class LLMObsContextPropagationSourceTest {
    * This is the span whose propagation tags {@code CoreTracer} takes over from the extracted one,
    * which is what puts the wire values and anything locally staged in the same place.
    */
-  private static AgentScope startLocalChildScope(AgentSpan parent) {
+  private static ContextScope startLocalChildScope(AgentSpan parent) {
     AgentSpan local =
         AgentTracer.get().buildSpan("apm", "sqs.consume").asChildOf(parent.spanContext()).start();
     return AgentTracer.activateSpan(local);
@@ -121,7 +121,7 @@ class LLMObsContextPropagationSourceTest {
   void writesLlmObsTagsOnInjectionWithoutAnyManualPropagation() {
     Map<String, String> carrier;
     String agentSpanId;
-    try (AgentScope apmScope = startRootApmScope()) {
+    try (ContextScope apmScope = startRootApmScope()) {
       DDLLMObsSpan agent = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "planner", "my-ml-app", "sess-1");
       agentSpanId = String.valueOf(agent.getSpanId());
       try {
@@ -147,8 +147,8 @@ class LLMObsContextPropagationSourceTest {
   @Test
   void addsNothingWhenNoLlmObsSpanIsActive() {
     Map<String, String> carrier;
-    try (AgentScope apmScope = startRootApmScope()) {
-      carrier = autoInject(apmScope.span());
+    try (ContextScope apmScope = startRootApmScope()) {
+      carrier = autoInject(AgentSpan.fromScope(apmScope));
     }
 
     String tags = carrier.get("x-datadog-tags");
@@ -165,14 +165,14 @@ class LLMObsContextPropagationSourceTest {
   void doesNotLeakOneInjectionsContextIntoALaterInjectionOnTheSameTrace() {
     Map<String, String> duringScope;
     Map<String, String> afterScope;
-    try (AgentScope apmScope = startRootApmScope()) {
+    try (ContextScope apmScope = startRootApmScope()) {
       DDLLMObsSpan agent = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "planner", "my-ml-app", "sess-1");
       try {
         duringScope = autoInject(AgentTracer.activeSpan());
       } finally {
         agent.finish();
       }
-      afterScope = autoInject(apmScope.span());
+      afterScope = autoInject(AgentSpan.fromScope(apmScope));
     }
 
     assertTrue(
@@ -197,7 +197,7 @@ class LLMObsContextPropagationSourceTest {
     long producerTraceId;
     String producerAgentSpanId;
 
-    try (AgentScope apmScope = startRootApmScope()) {
+    try (ContextScope apmScope = startRootApmScope()) {
       DDLLMObsSpan producer =
           newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "dispatcher", "checkout", "sess-42");
       producerTraceId = producer.getTraceId().toLong();
@@ -215,7 +215,7 @@ class LLMObsContextPropagationSourceTest {
 
     // Worker side: a fresh context, as a message handler would have.
     AgentSpan consumeSpan = extractSpan(messageAttributes);
-    try (AgentScope consumeScope = AgentTracer.get().activateSpan(consumeSpan)) {
+    try (ContextScope consumeScope = AgentTracer.get().activateSpan(consumeSpan)) {
       // The worker names no ml_app, so its own service default would otherwise apply.
       DDLLMObsSpan workerTool = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "handler", null, null);
       try {
@@ -249,7 +249,7 @@ class LLMObsContextPropagationSourceTest {
     Map<String, String> carrier;
     String llmObsTraceId;
     String apmTraceId;
-    try (AgentScope apmScope = startRootApmScope()) {
+    try (ContextScope apmScope = startRootApmScope()) {
       DDLLMObsSpan producer = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "dispatcher", "checkout", null);
       llmObsTraceId = producer.getLLMObsTraceId();
       apmTraceId = producer.getTraceId().toHexString();
@@ -285,7 +285,7 @@ class LLMObsContextPropagationSourceTest {
                 "_dd\\.p\\.llmobs_trace_id=[0-9]+",
                 TRACE_ID_TAG + "=" + new BigInteger(upstreamTraceId, 16)));
 
-    try (AgentScope consumeScope = startLocalChildScope(extractSpan(inbound))) {
+    try (ContextScope consumeScope = startLocalChildScope(extractSpan(inbound))) {
       DDLLMObsSpan worker = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "handler", null, null);
       try {
         assertEquals(upstreamTraceId, worker.getLLMObsTraceId());
@@ -325,9 +325,9 @@ class LLMObsContextPropagationSourceTest {
         () -> "precondition: session_id should be on the wire: " + inbound);
 
     Map<String, String> outbound;
-    try (AgentScope consumeScope = startLocalChildScope(extractSpan(inbound))) {
+    try (ContextScope consumeScope = startLocalChildScope(extractSpan(inbound))) {
       // No LLMObs span here at all: this hop only relays the call.
-      outbound = autoInject(consumeScope.span());
+      outbound = autoInject(AgentSpan.fromScope(consumeScope));
 
       // Still inside the same hop, after that injection has already reset the staged tags: an
       // LLMObs span opened now must still see what arrived on the wire.
@@ -383,7 +383,7 @@ class LLMObsContextPropagationSourceTest {
             .replace(SAMPLE_RATE_TAG + "=1", SAMPLE_RATE_TAG + "=0.1")
             .replace(SAMPLING_DECISION_TAG + "=1", SAMPLING_DECISION_TAG + "=0"));
 
-    try (AgentScope consumeScope = startLocalChildScope(extractSpan(inbound))) {
+    try (ContextScope consumeScope = startLocalChildScope(extractSpan(inbound))) {
       DDLLMObsSpan consumer = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "handler", null, null);
       try {
         assertEquals("0", LLMObsContext.currentSamplingDecision());
@@ -396,7 +396,7 @@ class LLMObsContextPropagationSourceTest {
 
   @Test
   void peerSpanDoesNotInheritAFinishedSpansInjectedContext() {
-    try (AgentScope apmScope = startRootApmScope()) {
+    try (ContextScope apmScope = startRootApmScope()) {
       DDLLMObsSpan dispatcher =
           newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "dispatcher", "checkout", "sess-42");
       try {
@@ -422,12 +422,12 @@ class LLMObsContextPropagationSourceTest {
   @Test
   void workerWithoutUpstreamLlmObsContextInheritsNothing() {
     Map<String, String> messageAttributes;
-    try (AgentScope apmScope = startRootApmScope()) {
-      messageAttributes = autoInject(apmScope.span());
+    try (ContextScope apmScope = startRootApmScope()) {
+      messageAttributes = autoInject(AgentSpan.fromScope(apmScope));
     }
 
     AgentSpan consumeSpan = extractSpan(messageAttributes);
-    try (AgentScope consumeScope = AgentTracer.get().activateSpan(consumeSpan)) {
+    try (ContextScope consumeScope = AgentTracer.get().activateSpan(consumeSpan)) {
       DDLLMObsSpan workerTool = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "handler", "my-ml-app", null);
       try {
         assertNull(LLMObsContext.currentSessionId());
