@@ -3,6 +3,7 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 plugins {
   id 'com.gradleup.shadow'
   id 'dd-trace-java.module.smoke-test'
+  id 'dd-trace-java.testcontainers'
 }
 
 description = 'SpringBoot Spring-Data-Mongo Smoke Tests.'
@@ -20,6 +21,8 @@ tasks.named("shadowJar", ShadowJar) {
 }
 
 dependencies {
+  testContainerImage(image('mongo:4.4.29', 'test.mongo.image'))
+
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.4.1'
   implementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-mongodb', version: '2.4.1'
 
