@@ -4,7 +4,7 @@ import static com.datadog.featureflag.FlagEvaluationTestSupport.JSON_MAP;
 import static com.datadog.featureflag.FlagEvaluationTestSupport.backendApiSupplier;
 import static com.datadog.featureflag.FlagEvaluationTestSupport.buildTestWriter;
 import static com.datadog.featureflag.FlagEvaluationTestSupport.cfg;
-import static com.datadog.featureflag.FlagEvaluationTestSupport.clearCoreMetrics;
+import static com.datadog.featureflag.FlagEvaluationTestSupport.clearFlagEvaluationMetrics;
 import static com.datadog.featureflag.FlagEvaluationTestSupport.event;
 import static com.datadog.featureflag.FlagEvaluationTestSupport.eventForFlag;
 import static com.datadog.featureflag.FlagEvaluationTestSupport.flushAndCapture;
@@ -40,10 +40,9 @@ import datadog.trace.agent.test.server.http.JavaTestHttpServer;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
+import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationMetrics;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import datadog.trace.api.intake.Intake;
-import datadog.trace.api.telemetry.CoreMetricCollector;
-import datadog.trace.api.telemetry.MetricCollector;
 import datadog.trace.test.util.PollingConditions;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -68,14 +67,14 @@ class FlagEvaluationWriterImplTest {
   private static final double TIMEOUT_SECONDS = 5;
 
   @BeforeEach
-  void clearCoreMetricsBefore() {
-    clearCoreMetrics();
+  void clearFlagEvaluationMetricsBefore() {
+    clearFlagEvaluationMetrics();
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(true);
   }
 
   @AfterEach
-  void clearCoreMetricsAfter() {
-    clearCoreMetrics();
+  void clearFlagEvaluationMetricsAfter() {
+    clearFlagEvaluationMetrics();
     FeatureFlaggingGateway.setFlagEvalWriter(null);
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(true);
     // Reset the dispatched UFC state so observeFullEvaluationData can't leak into other tests.
@@ -90,14 +89,9 @@ class FlagEvaluationWriterImplTest {
     setup.handler.addDroppedDegradedOverflowForTest(3);
     setup.handler.flush();
 
-    final Collection<? extends MetricCollector.Metric> metrics =
-        CoreMetricCollector.getInstance().drain();
-    assertEquals(
-        3,
-        metricSum(
-            metrics,
-            FlagEvaluationWriterImpl.FLAG_EVALUATION_DROPPED_METRIC,
-            "reason:" + FlagEvaluationWriterImpl.DROP_REASON_DEGRADED_CAP));
+    final Collection<FlagEvaluationMetrics.Count> metrics =
+        FlagEvaluationMetrics.getInstance().drain();
+    assertEquals(3, metricSum(metrics, "flagevaluation.rows.dropped", "reason:degraded_cap"));
   }
 
   @Test
@@ -134,14 +128,10 @@ class FlagEvaluationWriterImplTest {
     assertTrue(writer.droppedQueueOverflow() > 0);
     final long queueDrops = writer.droppedQueueOverflow();
     writer.flushForTest();
-    final Collection<? extends MetricCollector.Metric> metrics =
-        CoreMetricCollector.getInstance().drain();
+    final Collection<FlagEvaluationMetrics.Count> metrics =
+        FlagEvaluationMetrics.getInstance().drain();
     assertEquals(
-        queueDrops,
-        metricSum(
-            metrics,
-            FlagEvaluationWriterImpl.FLAG_EVALUATION_DROPPED_METRIC,
-            "reason:" + FlagEvaluationWriterImpl.DROP_REASON_QUEUE_OVERFLOW));
+        queueDrops, metricSum(metrics, "flagevaluation.rows.dropped", "reason:queue_overflow"));
   }
 
   @Test
@@ -156,14 +146,9 @@ class FlagEvaluationWriterImplTest {
     writer.close();
     writer.enqueue(simpleEvent("closed-flag", "on"));
 
-    final Collection<? extends MetricCollector.Metric> metrics =
-        CoreMetricCollector.getInstance().drain();
-    assertEquals(
-        1,
-        metricSum(
-            metrics,
-            FlagEvaluationWriterImpl.FLAG_EVALUATION_DROPPED_METRIC,
-            "reason:" + FlagEvaluationWriterImpl.DROP_REASON_CLOSED));
+    final Collection<FlagEvaluationMetrics.Count> metrics =
+        FlagEvaluationMetrics.getInstance().drain();
+    assertEquals(1, metricSum(metrics, "flagevaluation.rows.dropped", "reason:closed"));
     assertNull(writer.pollQueuedEventForTest());
   }
 
@@ -181,14 +166,9 @@ class FlagEvaluationWriterImplTest {
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(false);
     writer.enqueue(simpleEvent("disabled-flag", "on"));
 
-    final Collection<? extends MetricCollector.Metric> metrics =
-        CoreMetricCollector.getInstance().drain();
-    assertEquals(
-        1,
-        metricSum(
-            metrics,
-            FlagEvaluationWriterImpl.FLAG_EVALUATION_DROPPED_METRIC,
-            "reason:" + FlagEvaluationWriterImpl.DROP_REASON_CLOSED));
+    final Collection<FlagEvaluationMetrics.Count> metrics =
+        FlagEvaluationMetrics.getInstance().drain();
+    assertEquals(1, metricSum(metrics, "flagevaluation.rows.dropped", "reason:closed"));
     assertNull(writer.pollQueuedEventForTest());
   }
 
@@ -208,14 +188,9 @@ class FlagEvaluationWriterImplTest {
     writer.enqueue(simpleEvent("residual-flag-2", "on"));
     writer.close();
 
-    final Collection<? extends MetricCollector.Metric> metrics =
-        CoreMetricCollector.getInstance().drain();
-    assertEquals(
-        2,
-        metricSum(
-            metrics,
-            FlagEvaluationWriterImpl.FLAG_EVALUATION_DROPPED_METRIC,
-            "reason:" + FlagEvaluationWriterImpl.DROP_REASON_CLOSED));
+    final Collection<FlagEvaluationMetrics.Count> metrics =
+        FlagEvaluationMetrics.getInstance().drain();
+    assertEquals(2, metricSum(metrics, "flagevaluation.rows.dropped", "reason:closed"));
     assertNull(writer.pollQueuedEventForTest());
   }
 
@@ -283,7 +258,6 @@ class FlagEvaluationWriterImplTest {
             TimeUnit.NANOSECONDS,
             context(),
             queueDrops,
-            new java.util.concurrent.ConcurrentHashMap<>(),
             () -> {},
             FlagEvaluationWriterImpl.FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES);
 
@@ -314,7 +288,6 @@ class FlagEvaluationWriterImplTest {
             TimeUnit.NANOSECONDS,
             context(),
             new AtomicLong(0),
-            new java.util.concurrent.ConcurrentHashMap<>(),
             () -> {},
             FlagEvaluationWriterImpl.FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES);
 
@@ -359,14 +332,9 @@ class FlagEvaluationWriterImplTest {
     setup.handler.drainAndAggregate();
     setup.handler.flush();
 
-    final Collection<? extends MetricCollector.Metric> metrics =
-        CoreMetricCollector.getInstance().drain();
-    assertEquals(
-        1,
-        metricSum(
-            metrics,
-            FlagEvaluationWriterImpl.FLAG_EVALUATION_DROPPED_METRIC,
-            "reason:" + FlagEvaluationWriterImpl.DROP_REASON_PAYLOAD_LIMIT));
+    final Collection<FlagEvaluationMetrics.Count> metrics =
+        FlagEvaluationMetrics.getInstance().drain();
+    assertEquals(1, metricSum(metrics, "flagevaluation.rows.dropped", "reason:payload_limit"));
   }
 
   @Test
@@ -728,7 +696,7 @@ class FlagEvaluationWriterImplTest {
   }
 
   @Test
-  void countContextTruncatedAccumulatesPerReason() {
+  void countContextTruncatedAccumulatesPerReasonWithoutFlushingWriter() {
     final BackendApi mockEvp = mock(BackendApi.class);
     final BackendApiFactory factory = mock(BackendApiFactory.class);
     when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
@@ -739,22 +707,13 @@ class FlagEvaluationWriterImplTest {
     writer.countContextTruncated("field_count");
     writer.countContextTruncated("field_count");
     writer.countContextTruncated("field_length");
-    writer.flushForTest();
 
-    final Collection<? extends MetricCollector.Metric> metrics =
-        CoreMetricCollector.getInstance().drain();
-    assertEquals(
-        2,
-        metricSum(
-            metrics,
-            FlagEvaluationWriterImpl.FLAG_EVALUATION_CONTEXT_TRUNCATED_METRIC,
-            "reason:field_count"));
-    assertEquals(
-        1,
-        metricSum(
-            metrics,
-            FlagEvaluationWriterImpl.FLAG_EVALUATION_CONTEXT_TRUNCATED_METRIC,
-            "reason:field_length"));
+    final Collection<FlagEvaluationMetrics.Count> metrics =
+        FlagEvaluationMetrics.getInstance().drain();
+    assertEquals(2, metricSum(metrics, "flagevaluation.context.truncated", "reason:field_count"));
+    assertEquals(1, metricSum(metrics, "flagevaluation.context.truncated", "reason:field_length"));
+    writer.flushForTest();
+    assertTrue(FlagEvaluationMetrics.getInstance().drain().isEmpty());
   }
 
   @Test
@@ -779,14 +738,9 @@ class FlagEvaluationWriterImplTest {
     writer.countPreQueueOverflow();
     writer.flushForTest();
 
-    final Collection<? extends MetricCollector.Metric> metrics =
-        CoreMetricCollector.getInstance().drain();
-    assertEquals(
-        1,
-        metricSum(
-            metrics,
-            FlagEvaluationWriterImpl.FLAG_EVALUATION_DROPPED_METRIC,
-            "reason:" + FlagEvaluationWriterImpl.DROP_REASON_QUEUE_OVERFLOW));
+    final Collection<FlagEvaluationMetrics.Count> metrics =
+        FlagEvaluationMetrics.getInstance().drain();
+    assertEquals(1, metricSum(metrics, "flagevaluation.rows.dropped", "reason:queue_overflow"));
 
     writer.close();
   }
