@@ -71,32 +71,23 @@ public class R2dbcDecorator extends DatabaseClientDecorator<ConnectionFactoryOpt
     return host != null ? host.toString() : null;
   }
 
-  // Driver names that are themselves wrappers, not a real database type — for these, PROTOCOL
-  // (the underlying driver) is the correct db type. Other drivers legitimately use the
-  // driver:protocol URL shape for their own sub-mode designators (e.g. r2dbc:h2:mem:///...,
-  // where DRIVER="h2" is already the real db type and PROTOCOL="mem" is not a wrapper), so
-  // PROTOCOL must NOT be preferred generically whenever it's present.
+  // Driver names that wrap another driver rather than being a database (e.g.
+  // r2dbc:pool:postgresql://...). Their provider resolves the delegate through a nested
+  // ConnectionFactories.find, which is instrumented and wrapped with the real driver's options, so
+  // the wrapper itself must not be wrapped again (duplicate spans, and a mis-derived db type).
   private static final Set<String> WRAPPER_DRIVERS = Collections.singleton("pool");
 
+  public static boolean isWrapperDriver(ConnectionFactoryOptions options) {
+    Object driver = options.getValue(ConnectionFactoryOptions.DRIVER);
+    return driver != null && WRAPPER_DRIVERS.contains(driver.toString());
+  }
+
   public String extractDbType(ConnectionFactoryOptions options) {
-    if (options == null) {
-      return "r2dbc";
-    }
-    String driver = null;
-    if (options.hasOption(ConnectionFactoryOptions.DRIVER)) {
-      Object driverValue = options.getValue(ConnectionFactoryOptions.DRIVER);
-      driver = driverValue != null ? driverValue.toString() : null;
-    }
-    if (driver != null
-        && WRAPPER_DRIVERS.contains(driver)
-        && options.hasOption(ConnectionFactoryOptions.PROTOCOL)) {
-      Object protocol = options.getValue(ConnectionFactoryOptions.PROTOCOL);
-      if (protocol != null && !protocol.toString().isEmpty()) {
-        return protocol.toString();
+    if (options != null && options.hasOption(ConnectionFactoryOptions.DRIVER)) {
+      Object driver = options.getValue(ConnectionFactoryOptions.DRIVER);
+      if (driver != null) {
+        return driver.toString();
       }
-    }
-    if (driver != null) {
-      return driver;
     }
     return "r2dbc";
   }

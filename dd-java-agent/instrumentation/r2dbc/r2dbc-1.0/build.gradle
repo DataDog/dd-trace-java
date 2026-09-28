@@ -46,11 +46,14 @@ dependencies {
   testImplementation group: 'io.r2dbc', name: 'r2dbc-proxy', version: '1.1.0.RELEASE'
   // H2 R2DBC driver for in-memory database testing
   testImplementation group: 'io.r2dbc', name: 'r2dbc-h2', version: '1.0.0.RELEASE'
+  // r2dbc:pool: URLs resolve their delegate via a nested ConnectionFactories.find
+  testImplementation group: 'io.r2dbc', name: 'r2dbc-pool', version: '1.0.0.RELEASE'
   // Reactor for blocking on reactive types in tests
   testImplementation group: 'io.projectreactor', name: 'reactor-core', version: '3.5.0'
 
   latestDepTestImplementation group: 'io.r2dbc', name: 'r2dbc-spi', version: '1.+'
   latestDepTestImplementation group: 'io.r2dbc', name: 'r2dbc-proxy', version: '1.+'
   latestDepTestImplementation group: 'io.r2dbc', name: 'r2dbc-h2', version: '1.+'
+  latestDepTestImplementation group: 'io.r2dbc', name: 'r2dbc-pool', version: '1.+'
   latestDepTestImplementation group: 'io.projectreactor', name: 'reactor-core', version: '3.+'
 }

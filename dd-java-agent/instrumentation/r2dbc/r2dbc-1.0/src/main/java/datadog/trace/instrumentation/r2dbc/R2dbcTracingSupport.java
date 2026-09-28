@@ -27,6 +27,12 @@ public final class R2dbcTracingSupport {
     if ("proxy".equals(options.getValue(ConnectionFactoryOptions.DRIVER))) {
       return factory;
     }
+    // Wrapper drivers (r2dbc-pool) resolve their delegate through a nested, already-instrumented
+    // find(); wrapping the outer factory too would emit a second span per query. Leaving it
+    // unwrapped also keeps the application's pool object (and its disposal API) intact.
+    if (R2dbcDecorator.isWrapperDriver(options)) {
+      return factory;
+    }
 
     TraceProxyExecutionListener queryListener = new TraceProxyExecutionListener(options);
     ConnectionMetadataListener metadataListener = new ConnectionMetadataListener(options);
