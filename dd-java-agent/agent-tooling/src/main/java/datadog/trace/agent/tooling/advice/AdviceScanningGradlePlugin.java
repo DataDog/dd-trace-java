@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonList;
 
+import datadog.trace.agent.tooling.HelperGenerationProcessor;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
@@ -25,6 +26,7 @@ public class AdviceScanningGradlePlugin extends Plugin.ForElementMatcher {
   }
 
   private final File targetDirectory;
+  private final HelperGenerationProcessor helperProcessor = new HelperGenerationProcessor();
   private final List<AdviceProcessor> processors;
 
   public AdviceScanningGradlePlugin(File targetDirectory) {
@@ -55,11 +57,12 @@ public class AdviceScanningGradlePlugin extends Plugin.ForElementMatcher {
     }
 
     AdviceScanResult scanResult = AdviceScanner.scan(module, classFileLocator);
-    AdviceProcessorContext context = new AdviceProcessorContext(module, targetDirectory);
+    String[] helpers = helperProcessor.resolveHelpers(scanResult, module);
+    AdviceProcessorContext context = new AdviceProcessorContext(module, targetDirectory, helpers);
     for (AdviceProcessor processor : processors) {
       processor.process(scanResult, context);
     }
-    return builder;
+    return helperProcessor.transform(builder, helpers, module);
   }
 
   @Override
