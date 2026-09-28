@@ -108,12 +108,12 @@ public class TraceProcessingWorker implements AutoCloseable {
   private boolean offer(MessagePassingBlockingQueue<Object> queue, FlushEvent flush, long deadline)
       throws InterruptedException {
     while (serializerThread.isAlive()) {
+      if (queue.offer(flush)) {
+        return true;
+      }
       long remaining = deadline - System.nanoTime();
       if (remaining <= 0) {
         return false;
-      }
-      if (queue.offer(flush)) {
-        return true;
       }
       NANOSECONDS.sleep(Math.min(remaining, MILLISECONDS.toNanos(1)));
     }
