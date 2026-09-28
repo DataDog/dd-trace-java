@@ -189,6 +189,10 @@ final class OtelTraceState implements CharSequence {
     return withFields(includeRandomValue, false, inheritedRandomValue);
   }
 
+  OtelTraceState withoutInheritedThreshold() {
+    return inheritedRandomValue ? withoutThreshold() : this;
+  }
+
   OtelTraceState forNonProbabilityDecision() {
     return withFields(inheritedRandomValue && includeRandomValue, false, inheritedRandomValue);
   }

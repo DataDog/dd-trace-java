@@ -210,6 +210,52 @@ class OtelTraceStatePropagationTest {
   }
 
   @Test
+  void localProbabilityDecisionDropsInheritedThresholdAtFullRate() {
+    PropagationTags tags =
+        PropagationTags.factory().fromHeaderValue(W3C, "ot=rv:00000000000000;th:8;future:value");
+
+    assertTrue(
+        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 1.0, false, 1L, false));
+
+    assertEquals(
+        "rv:00000000000000;future:value", tags.samplingState().getOtelTraceState().toString());
+  }
+
+  @Test
+  void localHalfRateDropsInheritedThresholdEvenWhenRandomValueAgrees() {
+    PropagationTags tags =
+        PropagationTags.factory().fromHeaderValue(W3C, "ot=rv:ffffffffffffff;th:4;future:value");
+
+    assertTrue(
+        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 0.5, false, 1L, false));
+
+    assertEquals(
+        "rv:ffffffffffffff;future:value", tags.samplingState().getOtelTraceState().toString());
+  }
+
+  @Test
+  void localProbabilityDecisionDropsThresholdWhenInheritedRandomValueDisagrees() {
+    PropagationTags tags =
+        PropagationTags.factory().fromHeaderValue(W3C, "ot=rv:00000000000000;th:8;future:value");
+
+    assertTrue(
+        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 0.5, false, 1L, false));
+
+    assertEquals(
+        "rv:00000000000000;future:value", tags.samplingState().getOtelTraceState().toString());
+  }
+
+  @Test
+  void localProbabilityDecisionDropsThresholdWithoutInheritedRandomValue() {
+    PropagationTags tags = PropagationTags.factory().fromHeaderValue(W3C, "ot=th:8;future:value");
+
+    assertTrue(
+        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 1.0, false, 1L, false));
+
+    assertEquals("future:value", tags.samplingState().getOtelTraceState().toString());
+  }
+
+  @Test
   void generatedManagedMembersDisplaceRightmostVendorAtMemberLimit() {
     StringBuilder original = new StringBuilder("v0=state");
     for (int i = 1; i < 31; i++) {

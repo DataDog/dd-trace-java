@@ -3,6 +3,9 @@ package datadog.trace.core.propagation;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
+import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
 import static datadog.trace.core.propagation.HttpCodecTestHelper.headers;
 import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_PARENT_KEY;
@@ -18,8 +21,10 @@ import static org.mockito.Mockito.when;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.common.sampling.RateByServiceTraceSampler;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
+import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -106,6 +111,60 @@ class W3COtelTraceStateContinuationTest extends DDCoreJavaSpecification {
       assertTrue(outboundTracestate.contains("ot=rv:" + randomValue));
       assertTrue(outboundTracestate.endsWith("vendor=state"));
       assertEquals(thresholdExpected, outboundTracestate.contains("th:" + THRESHOLD));
+    } finally {
+      tracer.close();
+    }
+  }
+
+  @Test
+  void compoundExtractionWithoutDatadogPriorityReconcilesFirstLocalDecision() {
+    String traceParent = TRACE_PARENT.substring(0, TRACE_PARENT.length() - 2) + "00";
+    String inboundTracestate = "ot=rv:00000000000000;th:8,vendor=state";
+    Map<String, String> inboundHeaders =
+        headers(
+            DatadogHttpCodec.TRACE_ID_KEY,
+            "1",
+            DatadogHttpCodec.SPAN_ID_KEY,
+            "2",
+            TRACE_PARENT_KEY,
+            traceParent,
+            TRACE_STATE_KEY,
+            inboundTracestate);
+    Config config = mock(Config.class);
+    when(config.getTracePropagationStylesToExtract())
+        .thenReturn(new LinkedHashSet<>(asList(DATADOG, TRACECONTEXT)));
+    when(config.getxDatadogTagsMaxLength()).thenReturn(DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH);
+
+    CoreTracer tracer = tracerBuilder().build();
+    try {
+      ExtractedContext w3c =
+          assertInstanceOf(
+              ExtractedContext.class,
+              W3CHttpCodec.newExtractor(config, tracer::captureTraceConfig)
+                  .extract(inboundHeaders, stringValuesMap()));
+      assertEquals(SAMPLER_DROP, w3c.getSamplingPriority());
+      assertEquals(inboundTracestate, w3c.getPropagationTags().getW3CTracestate());
+
+      ExtractedContext extracted =
+          assertInstanceOf(
+              ExtractedContext.class,
+              HttpCodec.createExtractor(config, tracer::captureTraceConfig)
+                  .extract(inboundHeaders, stringValuesMap()));
+      assertEquals(UNSET, extracted.getSamplingPriority());
+      assertEquals(inboundTracestate, extracted.getPropagationTags().getW3CTracestate());
+
+      AgentSpan span = tracer.buildSpan("test", "continued").asChildOf(extracted).start();
+      new RateByServiceTraceSampler().setSamplingPriority((DDSpan) span);
+      assertEquals(SAMPLER_KEEP, span.getSamplingPriority());
+
+      Map<String, String> outboundHeaders = new HashMap<>();
+      injector.inject((DDSpanContext) span.spanContext(), outboundHeaders, Map::put);
+      span.finish();
+
+      assertTrue(outboundHeaders.get(TRACE_PARENT_KEY).endsWith("-01"));
+      assertTrue(
+          outboundHeaders.get(TRACE_STATE_KEY).contains("ot=rv:00000000000000,vendor=state"));
+      assertFalse(outboundHeaders.get(TRACE_STATE_KEY).contains(";th:"));
     } finally {
       tracer.close();
     }

@@ -270,6 +270,8 @@ public class PTagsFactory implements PropagationTags.Factory {
           }
         } else if (rateLimiterRejected) {
           nextOtelTraceState = nextOtelTraceState.withoutThreshold();
+        } else {
+          nextOtelTraceState = nextOtelTraceState.withoutInheritedThreshold();
         }
         TagValue nextKnuthSamplingRate = knuthSamplingRateTagValue(sampleRate);
         installSamplingState(
