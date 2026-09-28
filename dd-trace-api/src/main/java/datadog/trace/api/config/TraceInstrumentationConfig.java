@@ -111,6 +111,8 @@ public final class TraceInstrumentationConfig {
       "kafka.client.propagation.disabled.topics";
   public static final String KAFKA_CLIENT_BASE64_DECODING_ENABLED =
       "kafka.client.base64.decoding.enabled";
+  public static final String KAFKA_CLIENT_BASE64_DECODING_GUARD_ENABLED =
+      "kafka.client.base64.decoding.guard.enabled";
 
   public static final String JMS_PROPAGATION_DISABLED_TOPICS = "jms.propagation.disabled.topics";
   public static final String JMS_PROPAGATION_DISABLED_QUEUES = "jms.propagation.disabled.queues";

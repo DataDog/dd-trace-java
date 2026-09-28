@@ -2300,6 +2300,14 @@
         "aliases": []
       }
     ],
+    "DD_KAFKA_CLIENT_BASE64_DECODING_GUARD_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "DD_KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS": [
       {
         "version": "A",
