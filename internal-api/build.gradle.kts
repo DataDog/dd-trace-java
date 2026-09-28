@@ -1,5 +1,5 @@
+import datadog.gradle.configureCompiler
 import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
-import groovy.lang.Closure
 
 plugins {
   `java-library`
@@ -15,10 +15,6 @@ java {
 
 tasks.withType<JavaCompile>().configureEach {
   configureCompiler(8, JavaVersion.VERSION_1_8, "Need access to sun.misc.SharedSecrets")
-}
-
-fun AbstractCompile.configureCompiler(javaVersionInteger: Int, compatibilityVersion: JavaVersion? = null, unsetReleaseFlagReason: String? = null) {
-  (project.extra["configureCompiler"] as Closure<*>).call(this, javaVersionInteger, compatibilityVersion, unsetReleaseFlagReason)
 }
 
 tasks.named<CheckForbiddenApis>("forbiddenApisMain") {

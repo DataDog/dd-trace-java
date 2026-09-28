@@ -15,8 +15,8 @@ import datadog.trace.agent.tooling.advice.AdviceScanResult.UsageKind;
 import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.AdditionalAdvice;
 import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.AdviceRoot;
 import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.AdviceSuperclass;
-import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.Dependency;
 import datadog.trace.agent.tooling.advice.AdviceScanningFixtures.ScanModule;
+import datadog.trace.agent.tooling.advice.AdviceScanningHelper.Dependency;
 import datadog.trace.instrumentation.testing.ExternalHelper;
 import java.io.IOException;
 import java.io.InputStream;
@@ -76,9 +76,31 @@ class AdviceScannerTest {
 
     assertFalse(result.getClassInfo(ClassReader.class.getName()).isScanned());
     assertFalse(result.getClassInfo(String.class.getName()).isScanned());
-    assertFalse(result.getClassInfo(Dependency.class.getName()).isScanned());
+    assertTrue(result.getClassInfo(Dependency.class.getName()).isScanned());
     assertTrue(result.getClassInfo(AdditionalAdvice.class.getName()).isScanned());
     assertTrue(result.getClassInfo(ExternalHelper.class.getName()).isScanned());
+  }
+
+  @Test
+  void onlyMarksEnclosingHelpersReachable() {
+    AdviceScanResult result = AdviceScanner.scan(new ScanModule());
+    String enclosingHelper = AdviceScanningHelper.class.getName();
+
+    assertTrue(result.getClassInfo(enclosingHelper).isScanned());
+    assertTrue(result.getClassInfo(enclosingHelper).isReachableFromAdvice());
+    for (Class<?> nested :
+        new Class<?>[] {
+          Dependency.class, AdviceScanningHelper.localClass(), AdviceScanningHelper.anonymousClass()
+        }) {
+      assertTrue(result.getClassInfo(nested.getName()).isReachableFromAdvice());
+      assertTrue(
+          result
+              .getClassInfo(nested.getName())
+              .getRequiredDependencies()
+              .contains(enclosingHelper));
+    }
+    assertFalse(
+        result.getClassInfo(AdviceScanningFixtures.class.getName()).isReachableFromAdvice());
   }
 
   @Test
@@ -157,7 +179,8 @@ class AdviceScannerTest {
     AdviceScanResult result = AdviceScanner.scan(new ScanModule());
     ClassInfo root = result.getClassInfo(AdviceRoot.class.getName());
 
-    assertNotNull(result.getClassInfo(AdviceSuperclass.class.getName()));
+    assertTrue(result.getClassInfo(AdviceSuperclass.class.getName()).isScanned());
+    assertFalse(result.getClassInfo(AdviceSuperclass.class.getName()).isReachableFromAdvice());
     assertTrue(
         root.getUsages().stream()
             .anyMatch(
@@ -200,9 +223,31 @@ class AdviceScannerTest {
     ClassInfo root = result.getClassInfo(AdviceRoot.class.getName());
     assertTrue(root.isScanned());
     assertTrue(hasUsage(root, UsageKind.METHOD, "method"));
-    assertFalse(result.getClassInfo(Dependency.class.getName()).isScanned());
+    assertTrue(result.getClassInfo(Dependency.class.getName()).isScanned());
     ClassInfo helper = result.getClassInfo(ExternalHelper.class.getName());
     assertFalse(helper.isScanned());
+  }
+
+  @Test
+  void failsWhenModuleOutputHelperIsMissing() {
+    ClassFileLocator delegate = ClassFileLocator.ForClassLoader.of(getClass().getClassLoader());
+    ClassFileLocator locator =
+        new ClassFileLocator() {
+          @Override
+          public Resolution locate(String name) throws IOException {
+            return Dependency.class.getName().equals(name)
+                ? new Resolution.Illegal(name)
+                : delegate.locate(name);
+          }
+
+          @Override
+          public void close() {}
+        };
+    IllegalStateException error =
+        assertThrows(
+            IllegalStateException.class, () -> AdviceScanner.scan(new ScanModule(), locator));
+
+    assertTrue(error.getMessage().endsWith("helper class from module output is missing"));
   }
 
   @Test

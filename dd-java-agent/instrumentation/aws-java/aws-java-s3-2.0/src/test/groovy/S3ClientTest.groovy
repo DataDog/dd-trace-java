@@ -18,7 +18,7 @@ import spock.lang.Shared
 import java.time.Duration
 
 class S3ClientTest extends InstrumentationSpecification {
-  static final LOCALSTACK = new GenericContainer(DockerImageName.parse("localstack/localstack:4.2.0"))
+  static final LOCALSTACK = new GenericContainer(DockerImageName.parse(System.getProperty("test.localstack.image")))
   .withExposedPorts(4566)
   .withEnv("SERVICES", "s3")
   .withReuse(true)

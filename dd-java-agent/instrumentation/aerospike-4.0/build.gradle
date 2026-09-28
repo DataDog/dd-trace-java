@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.testcontainers'
 }
 
 muzzle {
@@ -30,6 +31,7 @@ tasks.named("latestDepForkedTest", Test) {
 
 dependencies {
   compileOnly group: 'com.aerospike', name: 'aerospike-client', version: '4.0.0'
+  testContainerImage(image('aerospike:ce-6.2.0.2', 'test.aerospike.image'))
 
   testImplementation group: 'com.aerospike', name: 'aerospike-client', version: '4.0.0'
   testImplementation libs.testcontainers
