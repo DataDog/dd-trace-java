@@ -15,6 +15,7 @@
  */
 package com.datadog.profiling.uploader;
 
+import static com.datadog.profiling.uploader.ProfileUploader.CPU_ARCH_TAG;
 import static com.datadog.profiling.uploader.ProfileUploader.REMOTE_SYMBOLS_REQUESTED;
 import static com.datadog.profiling.uploader.ProfileUploader.REMOTE_SYMBOLS_TAG;
 import static com.datadog.profiling.uploader.ProfileUploader.SERVELESS_TAG;
@@ -349,6 +350,7 @@ public class ProfileUploaderTest {
         ProfilingTestUtils.parseTags(Arrays.asList(event.get("tags_profiler").asText().split(",")));
 
     assertTrue(!tags.containsKey(REMOTE_SYMBOLS_TAG));
+    assertTrue(!tags.containsKey(CPU_ARCH_TAG));
   }
 
   @Test
@@ -373,6 +375,9 @@ public class ProfileUploaderTest {
         ProfilingTestUtils.parseTags(Arrays.asList(event.get("tags_profiler").asText().split(",")));
 
     assertEquals(REMOTE_SYMBOLS_REQUESTED, tags.get(REMOTE_SYMBOLS_TAG));
+    String expectedArch =
+        "aarch64".equals(System.getProperty("os.arch")) ? "arm64" : System.getProperty("os.arch");
+    assertEquals(expectedArch, tags.get(CPU_ARCH_TAG));
   }
 
   @ParameterizedTest

@@ -26,6 +26,7 @@ import com.squareup.moshi.JsonWriter;
 import datadog.common.container.ServerlessInfo;
 import datadog.common.version.VersionInfo;
 import datadog.communication.http.OkHttpUtils;
+import datadog.environment.SystemProperties;
 import datadog.logging.IOLogger;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
@@ -122,6 +123,11 @@ public final class ProfileUploader {
   static final String REMOTE_SYMBOLS_TAG = "remote_symbols";
   static final String REMOTE_SYMBOLS_REQUESTED = "yes";
 
+  // The deobfuscation API's request keys on this, using GOARCH-style names ("amd64", "arm64"),
+  // not Java's os.arch ("amd64", "aarch64", ...) - only sent alongside remote_symbols, since
+  // that's the only consumer today.
+  static final String CPU_ARCH_TAG = "cpu_arch";
+
   private final Config config;
   private final ConfigProvider configProvider;
 
@@ -189,6 +195,7 @@ public final class ProfileUploader {
         PROFILING_DATADOG_PROFILER_REMOTESYM_ENABLED,
         PROFILING_DATADOG_PROFILER_REMOTESYM_ENABLED_DEFAULT)) {
       tagsMap.put(REMOTE_SYMBOLS_TAG, REMOTE_SYMBOLS_REQUESTED);
+      tagsMap.put(CPU_ARCH_TAG, cpuArch());
     }
 
     // Comma separated tags string for V2.4 format
@@ -451,6 +458,19 @@ public final class ProfileUploader {
         .filter(e -> e.getValue() != null && !e.getValue().isEmpty())
         .map(e -> e.getKey() + ":" + e.getValue())
         .collect(Collectors.toList());
+  }
+
+  /**
+   * {@code os.arch} translated to the GOARCH-style names the deobfuscation API's native
+   * symbolication path expects (matching what native/pprof profiles already send as {@code
+   * cpu_arch}) - only "aarch64" differs from Java's own spelling.
+   */
+  private static String cpuArch() {
+    String arch = SystemProperties.get("os.arch");
+    if (arch == null) {
+      return "unknown";
+    }
+    return "aarch64".equals(arch) ? "arm64" : arch;
   }
 
   @VisibleForTesting
