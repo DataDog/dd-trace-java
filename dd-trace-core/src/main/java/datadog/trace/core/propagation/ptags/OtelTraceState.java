@@ -393,7 +393,11 @@ final class OtelTraceState implements CharSequence {
   }
 
   private static int indexOf(CharSequence value, char target, int start) {
-    for (int i = start; i < value.length(); i++) {
+    return indexOf(value, target, start, value.length());
+  }
+
+  private static int indexOf(CharSequence value, char target, int start, int end) {
+    for (int i = start; i < end; i++) {
       if (value.charAt(i) == target) {
         return i;
       }
@@ -414,8 +418,7 @@ final class OtelTraceState implements CharSequence {
   }
 
   private static boolean isUnknownField(CharSequence value, int start, int end) {
-    int separator = indexOf(value, ':', start);
-    return separator > start && separator < end - 1;
+    return indexOf(value, ':', start + 1, end - 1) >= 0;
   }
 
   private static boolean isLowerHex(

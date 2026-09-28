@@ -47,6 +47,20 @@ class OtelTraceStateParsingTest {
   }
 
   @Test
+  void recognizesUnknownFieldAfterManyColonFreeFields() {
+    OtelTraceState state = OtelTraceState.parse("a;b;c;d;e;f:g", ORIGINAL_MEMBER_CONTRIBUTION_SIZE);
+
+    assertEquals("f:g", state.toString());
+  }
+
+  @Test
+  void doesNotTreatColonInLaterFieldAsPartOfEarlierField() {
+    OtelTraceState state = OtelTraceState.parse("a;b:c", ORIGINAL_MEMBER_CONTRIBUTION_SIZE);
+
+    assertEquals("b:c", state.toString());
+  }
+
+  @Test
   void removesMalformedThresholdAndRetainsValidRandomValue() {
     OtelTraceState state = OtelTraceState.parse("rv:0123456789abcd;th:not-hex;x:value", 0);
 
