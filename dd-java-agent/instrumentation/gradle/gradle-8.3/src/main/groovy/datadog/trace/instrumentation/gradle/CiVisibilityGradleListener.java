@@ -42,6 +42,7 @@ import org.gradle.process.CommandLineArgumentProvider;
 public class CiVisibilityGradleListener extends BuildAdapter
     implements InternalBuildListener, TaskListenerInternal {
 
+  private static final String NO_TESTS_EXECUTED_REASON = "No tests were executed by Gradle";
   private static final String TRACER_VERSION;
 
   static {
@@ -256,7 +257,7 @@ public class CiVisibilityGradleListener extends BuildAdapter
     boolean empty = emptyTestTasks.remove(taskPath);
     String reason = state.getSkipped() || !state.getDidWork() ? state.getSkipMessage() : null;
     if (reason == null && empty) {
-      reason = "No tests were executed";
+      reason = NO_TESTS_EXECUTED_REASON;
     }
     ciVisibilityService.onModuleFinish(taskPath, failure, reason);
   }

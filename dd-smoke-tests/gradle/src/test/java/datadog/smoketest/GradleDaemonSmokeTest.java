@@ -11,6 +11,7 @@ import datadog.trace.api.civisibility.config.TestFQN;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.CiVisibilityTableTestConverters;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -201,9 +202,9 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
           parents++;
           Map<?, ?> content = (Map<?, ?>) event.get("content");
           Map<?, ?> meta = (Map<?, ?>) content.get("meta");
-          assertEquals(expectedStatus, meta.get("test.status"));
+          assertEquals(expectedStatus, meta.get(Tags.TEST_STATUS));
           if ("skip".equals(expectedStatus) && "test_module_end".equals(type)) {
-            assertEquals("No tests were executed", meta.get("test.skip_reason"));
+            assertEquals("No tests were executed by Gradle", meta.get(Tags.TEST_SKIP_REASON));
           }
         }
       }
