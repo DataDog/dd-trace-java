@@ -67,14 +67,16 @@ import java.lang.annotation.Target;
  * lambda, so it stays a single monomorphic, allocation-free instance. A parameter can carry this
  * marker even when its type cannot — e.g. a {@code java.util.function.Function} slot we don't own.
  *
- * <p><b>The failure mode is silent.</b> Fed to a call site that also sees other implementations, or
- * filled with a capturing lambda or a freshly constructed instance per call, it still compiles and
- * runs correctly — it just allocates and/or loses the structural, dataflow-derived devirtualization
- * this pattern aims for, quietly falling back to whatever the JIT's speculative profiling manages
- * on its own. A consuming method that doesn't inline loses that same structural guarantee for the
- * strategy calls inside it, though the JIT can often still devirtualize and inline them
- * speculatively via receiver-type profiling — it doesn't simply stay megamorphic. Verify the hot
- * ones with {@code -XX:+UnlockDiagnosticVMOptions -XX:+PrintInlining}.
+ * <p><b>The failure mode is silent.</b> Fed to a call site that also sees other implementations,
+ * filled with a capturing lambda or a freshly constructed instance per call, or consumed by a
+ * method that doesn't inline, it still compiles and runs correctly — it just loses the structural,
+ * dataflow-derived guarantee this pattern aims for (and may allocate), falling back to whatever the
+ * JIT's speculative, receiver-profile-driven optimizations manage on their own (e.g. bimorphic
+ * inline caches, PGO devirtualization). Those can still recover the win, but they're inherently
+ * more fragile: they depend on the live class hierarchy and observed call profile rather than
+ * static information at the call site, so they degrade unpredictably — e.g. past two receiver types
+ * — rather than failing loud. Verify the hot ones with {@code -XX:+UnlockDiagnosticVMOptions
+ * -XX:+PrintInlining}.
  *
  * <p>Retention is {@link RetentionPolicy#CLASS}, not {@code SOURCE}: a checker that only has the
  * compiled classfiles of a module defining a {@code @Strategy} type (as opposed to its source)
