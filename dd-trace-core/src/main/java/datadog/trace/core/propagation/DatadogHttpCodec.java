@@ -135,8 +135,9 @@ class DatadogHttpCodec {
           } else if (ORIGIN_KEY.equalsIgnoreCase(key)) {
             classification = ORIGIN;
           } else if (isAwsPropagationEnabled && X_AMZN_TRACE_ID.equalsIgnoreCase(key)) {
+            // Must not return here: the header also has to reach handleTags below so an explicit
+            // DD_TRACE_REQUEST_HEADER_TAGS mapping on it is still honoured.
             handleXRayTraceHeader(this, value);
-            return true;
           } else if (handledXForwarding(key, value)) {
             return true;
           } else if (DATADOG_TAGS_KEY.equalsIgnoreCase(key)) {
