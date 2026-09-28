@@ -31,7 +31,8 @@ public class ServiceNameCollector {
 
   volatile boolean limitReachedLogged = false;
 
-  private ServiceNameCollector() {
+  @VisibleForTesting
+  ServiceNameCollector() {
     // singleton
   }
 
