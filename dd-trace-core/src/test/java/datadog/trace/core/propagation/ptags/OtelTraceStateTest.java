@@ -47,6 +47,14 @@ class OtelTraceStateTest {
   }
 
   @Test
+  void rateAboveOneSaturatesToAlwaysSampleThreshold() {
+    OtelTraceState state = OtelTraceState.fromProbabilityDecision(1L, 1.5, SAMPLER_KEEP);
+
+    assertEquals("rv:f0948a54d43b8e;th:0", state.toString());
+    assertTrue(state.isConsistentWith(true));
+  }
+
+  @Test
   void correctsOnlySerializedRandomValueAtKeepBoundary() {
     OtelTraceState state =
         OtelTraceState.fromProbabilityDecision(0x03a93ee8b1999f00L, 0.1, SAMPLER_KEEP);

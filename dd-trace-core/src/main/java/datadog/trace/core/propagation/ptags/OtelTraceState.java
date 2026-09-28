@@ -177,6 +177,9 @@ final class OtelTraceState implements CharSequence {
     long threshold = Math.round((1.0 - rate) * TWO_TO_56);
     if (threshold > MAX_56_BIT_VALUE) {
       threshold = MAX_56_BIT_VALUE;
+    } else if (threshold < 0) {
+      // rate > 1.0: saturate to "always sample", as formatKnuthSamplingRate does for t.ksr.
+      threshold = 0;
     }
     if (samplingPriority > 0 && randomValue < threshold) {
       randomValue = threshold;
