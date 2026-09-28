@@ -253,7 +253,7 @@ final class OtelTraceState implements CharSequence {
     if (current != null) {
       return current;
     }
-    StringBuilder result = new StringBuilder();
+    StringBuilder result = new StringBuilder(32);
     if (includeRandomValue) {
       appendManagedField(
           result, RANDOM_VALUE_KEY, randomValue, randomValueStart, randomValueEnd, false);
