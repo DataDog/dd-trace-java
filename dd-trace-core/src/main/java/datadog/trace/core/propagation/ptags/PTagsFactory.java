@@ -305,6 +305,11 @@ public class PTagsFactory implements PropagationTags.Factory {
           true);
     }
 
+    @SuppressWarnings("StringEquality")
+    @SuppressFBWarnings(
+        value = "ES_COMPARING_STRINGS_WITH_EQ",
+        justification =
+            "Identity preserves the raw tracestate reference used by the cached sampling state.")
     private void installSamplingState(
         int samplingPriority,
         int samplingMechanism,
