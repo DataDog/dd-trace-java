@@ -17,6 +17,7 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 
 /**
@@ -41,6 +42,8 @@ class S3BucketOwnerForkedTest extends AbstractInstrumentationTest {
     client =
         S3Client.builder()
             .endpointOverride(URI.create("http://localhost:" + server.getAddress().getPort()))
+            // Keep the bucket in the path to avoid resolving somebucket.localhost.
+            .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
             .region(Region.US_EAST_1)
             .credentialsProvider(
                 StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "test")))
