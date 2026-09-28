@@ -204,7 +204,14 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     // DynamoDB
     request
         .getValueForField("TableName", String.class)
-        .ifPresent(name -> onDynamoDbTable(span, name, attributes));
+        .ifPresent(
+            name -> {
+              if ("dynamodb".equalsIgnoreCase(awsServiceName)) {
+                onDynamoDbTable(span, name, attributes);
+              } else {
+                setTableName(span, name);
+              }
+            });
 
     // DSM
     if (traceConfig().isDataStreamsEnabled()) {
