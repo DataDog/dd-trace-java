@@ -13,9 +13,13 @@ import java.lang.annotation.Target;
  * itself doesn't live for the whole program.
  *
  * <p>The name deliberately echoes Rust's {@code 'static} lifetime rather than the Java keyword
- * {@code static} itself: the property this enforces is "lives for the whole program," and a {@link
- * java.lang.ClassValue}-backed holder satisfies that without carrying the literal {@code static}
- * modifier.
+ * {@code static} itself: the property this enforces is "lives for the whole program." A {@link
+ * java.lang.ClassValue} is the motivating case for that distinction -- each per-{@code Class} value
+ * it computes lives for the whole program without itself being declared in a {@code static} field
+ * anywhere, because {@code ClassValue} does its own process-wide caching internally. The holder
+ * field that points at the {@code ClassValue} instance still needs to be {@code static final} --
+ * see the checker contract below -- it's only the individual per-{@code Class} values inside it
+ * that get their process-wide lifetime for free.
  *
  * <p>Motivating defect: a cache constructed per-request, as an instance field on a per-request
  * object, instead of once as a {@code static} field -- so the cache was allocated and thrown away
