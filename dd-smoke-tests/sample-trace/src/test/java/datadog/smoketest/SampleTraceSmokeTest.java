@@ -13,6 +13,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+@Flaky(condition = SampleTraceSmokeTest.IbmJvm.class)
 class SampleTraceSmokeTest {
   private static final AgentBackend BACKEND = testAgent();
 
@@ -35,7 +36,6 @@ class SampleTraceSmokeTest {
 
   @Test
   @DisplayName("sample traces are sent")
-  @Flaky(condition = IbmJvm.class)
   void sampleTracesAreSent() {
     app.traces().waitForTraceCount(10);
     app.assertCompletesWithValue(30, SECONDS, 0);

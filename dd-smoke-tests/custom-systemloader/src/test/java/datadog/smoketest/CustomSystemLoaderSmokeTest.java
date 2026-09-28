@@ -16,6 +16,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+@Flaky(
+    value = "Race condition with IBM. Check APMAPI-1194",
+    condition = CustomSystemLoaderSmokeTest.IbmJvm.class)
 class CustomSystemLoaderSmokeTest {
   @RegisterExtension
   static final SmokeCliApp app =
@@ -31,7 +34,6 @@ class CustomSystemLoaderSmokeTest {
 
   @Test
   @DisplayName("resource types loaded by custom system class-loader are transformed")
-  @Flaky(value = "Race condition with IBM. Check APMAPI-1194", condition = IbmJvm.class)
   void resourceTypesLoadedByCustomSystemClassLoaderAreTransformed() {
     app.assertCompletesWithValue(30, SECONDS, 0);
 
