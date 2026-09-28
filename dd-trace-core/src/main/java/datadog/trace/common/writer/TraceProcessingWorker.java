@@ -4,7 +4,9 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_PROCESSOR;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
+import datadog.common.container.ServerlessInfo;
 import datadog.common.queue.MessagePassingBlockingQueue;
 import datadog.common.queue.Queues;
 import datadog.communication.ddagent.DroppingPolicy;
@@ -46,6 +48,11 @@ public class TraceProcessingWorker implements AutoCloseable {
 
   private final SpanSamplingWorker spanSamplingWorker;
 
+  // In Lambda the environment can freeze as soon as a flush returns, so also flush the secondary
+  // queue there rather than leaving sampled-out traces for a periodic flush that may never run.
+  private final boolean flushSecondaryQueue =
+      ServerlessInfo.get().isRunningInServerlessEnvironment();
+
   public TraceProcessingWorker(
       final int capacity,
       final HealthMetrics healthMetrics,
@@ -85,23 +92,32 @@ public class TraceProcessingWorker implements AutoCloseable {
   }
 
   public boolean flush(long timeout, TimeUnit timeUnit) {
-    // flush both queues so sampled-out traces (routed to the secondary queue) aren't left behind
-    CountDownLatch latch = new CountDownLatch(2);
-    offer(primaryQueue, new FlushEvent(latch));
-    offer(secondaryQueue, new FlushEvent(latch));
+    long deadline = System.nanoTime() + timeUnit.toNanos(timeout);
+    CountDownLatch latch = new CountDownLatch(flushSecondaryQueue ? 2 : 1);
+    FlushEvent flush = new FlushEvent(latch);
     try {
-      return latch.await(timeout, timeUnit);
+      return offer(primaryQueue, flush, deadline)
+          && (!flushSecondaryQueue || offer(secondaryQueue, flush, deadline))
+          && latch.await(deadline - System.nanoTime(), NANOSECONDS);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       return false;
     }
   }
 
-  private void offer(MessagePassingBlockingQueue<Object> queue, FlushEvent flush) {
-    boolean offered;
-    do {
-      offered = queue.offer(flush);
-    } while (!offered && serializerThread.isAlive());
+  private boolean offer(MessagePassingBlockingQueue<Object> queue, FlushEvent flush, long deadline)
+      throws InterruptedException {
+    while (serializerThread.isAlive()) {
+      long remaining = deadline - System.nanoTime();
+      if (remaining <= 0) {
+        return false;
+      }
+      if (queue.offer(flush)) {
+        return true;
+      }
+      NANOSECONDS.sleep(Math.min(remaining, MILLISECONDS.toNanos(1)));
+    }
+    return false;
   }
 
   @Override
