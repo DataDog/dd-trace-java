@@ -66,19 +66,20 @@ Reach for hand-written method advice when no such SPI exists, or when the SPI ca
 
 **Worked example — hooking a registration/factory point instead of the query methods (R2DBC + `r2dbc-proxy`):**
 
-1. **Advice target is the factory, not the query.** Hook `io.r2dbc.spi.ConnectionFactories.find(ConnectionFactoryOptions)` — NOT `Statement.execute()` / `Batch.execute()`. Replace the returned `ConnectionFactory` using `@Advice.AssignReturned.ToReturned` on method exit:
+1. **Advice target is the factory, not the query.** Hook `io.r2dbc.spi.ConnectionFactories.find(ConnectionFactoryOptions)` (it returns a nullable `ConnectionFactory`; `get(...)` delegates to it) — NOT `Statement.execute()` / `Batch.execute()`. Replace the returned `ConnectionFactory` with a writable return on method exit:
 
    ```java
-   @Advice.OnMethodExit(suppress = Throwable.class, inline = false)
-   @Advice.AssignReturned.ToReturned
-   public static ConnectionFactory wrap(
-       @Advice.Return ConnectionFactory factory,
+   @Advice.OnMethodExit(suppress = Throwable.class)
+   public static void onExit(
+       @Advice.Return(readOnly = false) ConnectionFactory factory,
        @Advice.Argument(0) ConnectionFactoryOptions options) {
-     return R2dbcTracingSupport.wrapConnectionFactory(factory, options);
+     if (factory != null) {
+       factory = R2dbcTracingSupport.wrapConnectionFactory(factory, options);
+     }
    }
    ```
 
-   Do NOT use a writable `@Advice.Return(readOnly = false) Publisher<...> ...` here — binding a reactive-streams interface to a writable return against a concrete `Mono`/`Flux` result fails Byte Buddy transformation. `@Advice.AssignReturned.ToReturned` sidesteps this because it substitutes the value rather than mutating a typed slot.
+   The writable return's declared type must match the advised method's return type exactly. Binding a reactive-streams interface (`Publisher<...>`) as a writable return on a method returning a concrete `Mono`/`Flux` fails Byte Buddy transformation.
 
 2. **Wrap helper installs the listener** (injected via `helperClassNames()`, `r2dbc-proxy` bundled as `implementation` with `transitive = false`). Skip wrapping when the factory is already a proxy (`DRIVER == "proxy"`) or a wrapper driver that resolves its delegate through a nested, already-instrumented factory lookup (`DRIVER == "pool"` for `r2dbc:pool:` URLs). Wrapping either emits duplicate spans per query, and replacing a pool with a proxy breaks casts to the pool type and its disposal API:
 
@@ -91,10 +92,10 @@ Reach for hand-written method advice when no such SPI exists, or when the SPI ca
    }
    ```
 
-3. **Listener drives the span lifecycle** — implements `ProxyMethodExecutionListener`; stash the span on the query's own value store (the interception library already carries one per call — do not add a separate `ContextStore` keyed on the driver object):
+3. **Listener drives the span lifecycle** — implements `ProxyExecutionListener` (which declares `beforeQuery`/`afterQuery`); stash the span on the query's own value store (the interception library already carries one per call — do not add a separate `ContextStore` keyed on the driver object):
 
    ```java
-   public class TraceProxyListener implements ProxyMethodExecutionListener {
+   public class TraceProxyListener implements ProxyExecutionListener {
      @Override
      public void beforeQuery(QueryExecutionInfo qei) {
        AgentSpan span = startSpan(...);
@@ -115,7 +116,7 @@ Reach for hand-written method advice when no such SPI exists, or when the SPI ca
 
    `beforeQuery`/`afterQuery` fire once per logical operation and `r2dbc-proxy` itself owns completion/error/**cancel** — you do not hand-roll a `Publisher` wrapper to catch those.
 
-4. **Muzzle needs an `extraDependency` for the bundled interception library.** Muzzle only puts the module's pinned primary dependency (here, `r2dbc-spi`) on its validation classpath by default. Since the wrap helper and listener classes reference the interception library's own types directly (`ProxyConnectionFactory`, `ProxyMethodExecutionListener`, `QueryExecutionInfo`, ...), muzzle reports them as "missing class" unless you add the interception library explicitly:
+4. **Muzzle needs an `extraDependency` for the bundled interception library.** Muzzle only puts the module's pinned primary dependency (here, `r2dbc-spi`) on its validation classpath by default. Since the wrap helper and listener classes reference the interception library's own types directly (`ProxyConnectionFactory`, `ProxyExecutionListener`, `QueryExecutionInfo`, ...), muzzle reports them as "missing class" unless you add the interception library explicitly:
 
    ```groovy
    muzzle {
