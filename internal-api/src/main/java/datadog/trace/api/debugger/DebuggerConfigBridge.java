@@ -1,6 +1,7 @@
 package datadog.trace.api.debugger;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.internal.VisibleForTesting;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -20,6 +21,26 @@ public final class DebuggerConfigBridge {
       LOGGER.debug("No config update detected, skipping");
       return;
     }
+    applyUpdate(update);
+  }
+
+  /**
+   * Resets the debugger config to the values held by the static {@link Config}, discarding any
+   * remote-config overrides. Used when the remote APM_CONFIG override is removed entirely, as
+   * opposed to {@link #updateConfig} which only applies partial overrides.
+   */
+  public static synchronized void resetToInitialConfig() {
+    LOGGER.debug("Resetting debugger config to initial state");
+    Config config = Config.get();
+    applyUpdate(
+        new DebuggerConfigUpdate(
+            config.isDynamicInstrumentationEnabled(),
+            config.isDebuggerExceptionEnabled(),
+            config.isDebuggerCodeOriginEnabled(),
+            config.isDistributedDebuggerEnabled()));
+  }
+
+  private static void applyUpdate(DebuggerConfigUpdate update) {
     if (UPDATER != null) {
       LOGGER.debug("DebuggerConfigUpdater available, performing update: {}", update);
       UPDATER.updateConfig(update);
@@ -41,7 +62,7 @@ public final class DebuggerConfigBridge {
     }
   }
 
-  // for testing purposes
+  @VisibleForTesting
   static synchronized void reset() {
     UPDATER = null;
     DEFERRED_UPDATE = null;
