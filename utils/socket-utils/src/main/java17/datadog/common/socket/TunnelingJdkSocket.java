@@ -196,6 +196,10 @@ final class TunnelingJdkSocket extends Socket {
 
   @Override
   public InputStream getInputStream() throws IOException {
+    // Configuring the channel can wait for a blocked write. Let close() interrupt that write.
+    if (!isClosed() && isConnected() && !isInputShutdown() && selector == null) {
+      unixSocketChannel.configureBlocking(false);
+    }
     // Serialize validation and selector publication with close() so close cannot miss a selector
     // that is still being initialized.
     synchronized (this) {
@@ -213,7 +217,6 @@ final class TunnelingJdkSocket extends Socket {
       if (currentSelector == null) {
         currentSelector = Selector.open();
         try {
-          unixSocketChannel.configureBlocking(false);
           unixSocketChannel.register(currentSelector, SelectionKey.OP_READ);
           selector = currentSelector;
         } catch (IOException | RuntimeException e) {

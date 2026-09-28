@@ -10,7 +10,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.junit.jupiter.api.condition.JRE.JAVA_16;
 import static org.junit.jupiter.api.condition.OS.LINUX;
 import static org.junit.jupiter.api.condition.OS.MAC;
@@ -485,9 +484,12 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
     AtomicReference<Thread> failedSendThread = new AtomicReference<>();
     AtomicReference<Thread> successfulSendThread = new AtomicReference<>();
+    CountDownLatch failedSend = new CountDownLatch(1);
+    CountDownLatch successfulSend = new CountDownLatch(1);
     doAnswer(
             invocation -> {
               failedSendThread.set(Thread.currentThread());
+              failedSend.countDown();
               return null;
             })
         .when(healthMetrics)
@@ -495,6 +497,7 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
     doAnswer(
             invocation -> {
               successfulSendThread.set(Thread.currentThread());
+              successfulSend.countDown();
               return null;
             })
         .when(healthMetrics)
@@ -508,10 +511,10 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
             DDAgentWriter.builder()
                 .featureDiscovery(discovery)
                 .unixDomainSocket(socketPath.toString())
-                .timeoutMillis(100)
+                .timeoutMillis(500)
                 .monitoring(monitoring)
                 .healthMetrics(healthMetrics)
-                .flushIntervalMilliseconds(-1)
+                .flushIntervalMilliseconds(10)
                 .flushTimeout(5, TimeUnit.SECONDS)
                 .build()) {
       server.setServerSocketFactory(new UnixDomainServerSocketFactory(socketPath.toFile()));
@@ -523,7 +526,8 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
       writer.start();
 
       writer.write(createMinimalTrace());
-      assertTrue(writer.flush());
+      assertTrue(
+          failedSend.await(5, TimeUnit.SECONDS), "The periodic flush did not report failure");
 
       RecordedRequest failedRequest = server.takeRequest(5, TimeUnit.SECONDS);
       assertNotNull(failedRequest);
@@ -532,7 +536,8 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
       verify(healthMetrics, times(1)).onFailedSend(anyInt(), anyInt(), any());
 
       writer.write(createMinimalTrace());
-      assertTrue(writer.flush());
+      assertTrue(
+          successfulSend.await(5, TimeUnit.SECONDS), "The worker did not send the next payload");
 
       RecordedRequest successfulRequest = server.takeRequest(5, TimeUnit.SECONDS);
       assertNotNull(successfulRequest);
@@ -541,8 +546,6 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
       assertEquals(2, server.getRequestCount());
       verify(healthMetrics, times(1)).onSend(anyInt(), anyInt(), any());
       assertSame(failedSendThread.get(), successfulSendThread.get());
-    } catch (IOException | UnsupportedOperationException e) {
-      assumeTrue(false, "Unix-domain sockets are not supported: " + e.getMessage());
     } finally {
       Files.deleteIfExists(socketPath);
     }

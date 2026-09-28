@@ -32,7 +32,12 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
@@ -330,6 +335,62 @@ public class TunnelingJdkSocketTest {
         reader.interrupt();
         reader.join(TimeUnit.SECONDS.toMillis(5));
       }
+    }
+  }
+
+  @Test
+  public void testCloseInterruptsWriteWhileInputStreamIsBeingCreated() throws Exception {
+    TunnelingJdkSocket clientSocket = createClient();
+    ExecutorService executor = Executors.newFixedThreadPool(3);
+    try {
+      clientSocket.setSendBufferSize(4096);
+      OutputStream output = clientSocket.getOutputStream();
+      CountDownLatch writing = new CountDownLatch(1);
+      Future<?> writer =
+          executor.submit(
+              () -> {
+                writing.countDown();
+                // The server accepts but does not read, so this exceeds the socket's send buffer.
+                output.write(new byte[1024 * 1024]);
+                return null;
+              });
+      assertTrue(writing.await(5, TimeUnit.SECONDS));
+      assertThrows(TimeoutException.class, () -> writer.get(100, TimeUnit.MILLISECONDS));
+
+      AtomicReference<Thread> inputThread = new AtomicReference<>();
+      Future<InputStream> input =
+          executor.submit(
+              () -> {
+                inputThread.set(Thread.currentThread());
+                return clientSocket.getInputStream();
+              });
+      // Wait until input setup is waiting for the channel's blocked writer before closing.
+      assertTimeoutPreemptively(
+          Duration.ofSeconds(5),
+          () -> {
+            while (inputThread.get() == null
+                || inputThread.get().getState() != Thread.State.WAITING) {
+              assertFalse(input.isDone(), "Input setup should wait for the blocked writer");
+              Thread.sleep(1);
+            }
+          });
+
+      executor.submit(clientSocket::close).get(5, TimeUnit.SECONDS);
+
+      assertTrue(clientSocket.isClosed());
+      assertFalse(clientSocket.getChannel().isOpen());
+      assertInstanceOf(
+          IOException.class,
+          assertThrows(ExecutionException.class, () -> writer.get(5, TimeUnit.SECONDS)).getCause());
+      assertInstanceOf(
+          IOException.class,
+          assertThrows(ExecutionException.class, () -> input.get(5, TimeUnit.SECONDS)).getCause());
+    } finally {
+      // Also release the writer if the regression prevents socket.close() from taking its monitor.
+      clientSocket.getChannel().close();
+      executor.shutdownNow();
+      assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
+      clientSocket.close();
     }
   }
 
