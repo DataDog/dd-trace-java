@@ -18,8 +18,8 @@ import java.lang.annotation.Target;
  * the consuming method inline. The call site then sees the exact type, so the JIT devirtualizes the
  * strategy's calls and inlines them, and the one generic algorithm compiles to specialized,
  * monomorphic code per caller — a JIT optimization opportunity, not a hard allocation-free
- * guarantee (a {@code getOrCreate}-shaped consumer can still allocate on a miss) — C++-template-like
- * specialization, driven by the JIT rather than a code generator.
+ * guarantee (a {@code getOrCreate}-shaped consumer can still allocate on a miss) —
+ * C++-template-like specialization, driven by the JIT rather than a code generator.
  *
  * <p>Two independent things determine whether this pays off, and they fail in different ways:
  *
@@ -86,11 +86,11 @@ import java.lang.annotation.Target;
  *
  * <ul>
  *   <li><b>Trigger (type target):</b> a {@code static final} field, in any class, declared with the
- *       {@code @Strategy}-annotated abstract/interface type itself (including via {@code
- *       @Inherited} from a supertype), whose initializer names a concrete implementing class (e.g.
- *       {@code new MyStrategy()}) rather than the field being declared with that concrete class
- *       directly. Scoped to {@code static final} fields in v1; instance fields are out of scope
- *       until a real case needs them.
+ *       {@code @Strategy}-annotated abstract/interface type itself (including via
+ *       {@code @Inherited} from a supertype), whose initializer names a concrete implementing class
+ *       (e.g. {@code new MyStrategy()}) rather than the field being declared with that concrete
+ *       class directly. Scoped to {@code static final} fields in v1; instance fields are out of
+ *       scope until a real case needs them.
  *   <li><b>Trigger (parameter target):</b> the argument at a call site of a {@code @Strategy}
  *       parameter is neither a {@code static final} field reference nor a lambda expression /
  *       method reference — e.g. a freshly constructed instance built per call.
@@ -112,10 +112,10 @@ import java.lang.annotation.Target;
  *       -XX:+PrintInlining}), and whether a lambda is truly non-capturing. Capture status is
  *       visible on the classfile (a captured lambda's {@code invokedynamic} call site carries
  *       constructor arguments), so this is checkable later, not inherently unknowable — just
- *       deferred until a real case proves the honor-system insufficient. If added, this should be
- *       a softer signal than the type-target trigger above: capturing costs nothing when the
- *       consumer inlines and only degrades gracefully when it doesn't, unlike the type-target case,
- *       which has no such escape. Flag only the constant shapes above for now.
+ *       deferred until a real case proves the honor-system insufficient. If added, this should be a
+ *       softer signal than the type-target trigger above: capturing costs nothing when the consumer
+ *       inlines and only degrades gracefully when it doesn't, unlike the type-target case, which
+ *       has no such escape. Flag only the constant shapes above for now.
  * </ul>
  */
 @Documented

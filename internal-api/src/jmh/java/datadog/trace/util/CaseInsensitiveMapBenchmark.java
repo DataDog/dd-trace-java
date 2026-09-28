@@ -236,7 +236,8 @@ public class CaseInsensitiveMapBenchmark {
   // benchmark is meant to be exercising. Mirrors the CHA_DEFEAT pattern in
   // SingleThreadedMapBenchmark. Each decoy overrides a different method so both call sites lose
   // their CHA guarantee.
-  static final class DecoyMatchStrategy extends FlatHashtable.CaseInsensitiveStringStrategy<CIEntry> {
+  static final class DecoyMatchStrategy
+      extends FlatHashtable.CaseInsensitiveStringStrategy<CIEntry> {
     static final DecoyMatchStrategy INSTANCE = new DecoyMatchStrategy();
 
     @Override
@@ -250,7 +251,8 @@ public class CaseInsensitiveMapBenchmark {
     }
   }
 
-  static final class DecoyHashStrategy extends FlatHashtable.CaseInsensitiveStringStrategy<CIEntry> {
+  static final class DecoyHashStrategy
+      extends FlatHashtable.CaseInsensitiveStringStrategy<CIEntry> {
     static final DecoyHashStrategy INSTANCE = new DecoyHashStrategy();
 
     @Override
