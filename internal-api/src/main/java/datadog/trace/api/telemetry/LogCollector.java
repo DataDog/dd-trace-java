@@ -1,15 +1,11 @@
 package datadog.trace.api.telemetry;
 
-import static datadog.trace.util.ConcurrentHashtable.bucketAt;
-import static datadog.trace.util.ConcurrentHashtable.bucketIndex;
 import static datadog.trace.util.ConcurrentHashtable.estimateSize;
-import static datadog.trace.util.ConcurrentHashtable.getTableWriteLock;
-import static datadog.trace.util.ConcurrentHashtable.insertReserved;
-import static datadog.trace.util.ConcurrentHashtable.isFull;
 import static datadog.trace.util.LongHashingUtils.hash;
 
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.util.ConcurrentHashtable;
+import datadog.trace.util.ConcurrentHashtable.Reservation;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -40,7 +36,7 @@ public class LogCollector {
       value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR",
       justification = "Usage in tests")
   LogCollector(int maxCapacity) {
-    this.rawLogMessages = ConcurrentHashtable.State.createBounded(RawLogMessage.class, maxCapacity);
+    this.rawLogMessages = ConcurrentHashtable.createBounded(RawLogMessage.class, maxCapacity);
   }
 
   public void addLogMessage(String logLevel, String message, @Nullable Throwable throwable) {
@@ -59,49 +55,29 @@ public class LogCollector {
   public void addLogMessage(
       String logLevel, String message, @Nullable Throwable throwable, @Nullable String tags) {
     long keyHash = RawLogMessage.computeHash(logLevel, message, throwable);
-    int bucketIndex = bucketIndex(rawLogMessages.buckets, keyHash);
-    // Fast path for duplicates: search the target bucket without locking.
-    RawLogMessage rawLogMessage = find(bucketIndex, keyHash, logLevel, message, throwable);
+    // Fast path for duplicates: search lock-free before ever taking the table lock.
+    RawLogMessage rawLogMessage = find(keyHash, logLevel, message, throwable);
     if (rawLogMessage != null) {
       rawLogMessage.increment();
       return;
     }
 
-    // Fast path after a miss for a full table: reject without locking when the target bucket is
-    // populated. If the bucket is empty, drain() may have detached it before releasing capacity,
-    // so continue to the locked capacity check.
-    if (isFull(rawLogMessages) && bucketAt(rawLogMessages, bucketIndex) != null) {
-      // Mitigate a race where another writer could claim the bucket before the previous find
-      rawLogMessage = find(bucketIndex, keyHash, logLevel, message, throwable);
-      if (rawLogMessage != null) {
-        rawLogMessage.increment();
-        return;
-      }
-      // TODO: We could emit a metric for dropped logs.
-      return;
-    }
-
-    // Slow path after a miss: repeat the lookup and capacity checks under the table write lock
-    // because another writer or drain() may have changed the table.
-    synchronized (getTableWriteLock(rawLogMessages)) {
-      rawLogMessage = find(bucketIndex, keyHash, logLevel, message, throwable);
-      if (rawLogMessage != null) {
-        rawLogMessage.increment();
-        return;
-      }
-      // Capacity may have been released by drain() or consumed by another writer while waiting.
-      if (isFull(rawLogMessages)) {
-        return;
-      }
-
-      // Allocate before reserving because a reservation cannot
-      // be rolled back if construction fails.
+    // Slow path after a miss: tryGetOrInsertOrNull does its own locked comparison -- including,
+    // via tryReserve, a recheck against a concurrent duplicate even when the table looks full --
+    // so there's no need to repeat find() here first.
+    try (Reservation<RawLogMessage> reservation =
+        ConcurrentHashtable.tryReserve(rawLogMessages, keyHash)) {
+      // Built zeroed, so this occurrence can be counted uniformly below whether or not
+      // tryGetOrInsertOrNull ends up returning this instance or an existing match.
       rawLogMessage =
-          new RawLogMessage(logLevel, message, throwable, tags, System.currentTimeMillis() / 1000);
-      // Reserve before linking so every published entry is included in the capacity count.
-      if (rawLogMessages.sizeManager.tryReserve()) {
-        insertReserved(rawLogMessages, keyHash, rawLogMessage);
+          reservation.tryGetOrInsertOrNull(
+              new RawLogMessage(
+                  logLevel, message, throwable, tags, System.currentTimeMillis() / 1000));
+      if (rawLogMessage == null) {
+        // TODO: We could emit a metric for dropped logs.
+        return;
       }
+      rawLogMessage.increment();
     }
   }
 
@@ -134,14 +110,13 @@ public class LogCollector {
 
   /**
    * Finds a <em>log group</em> with the same <em>level</em>, <em>message</em>, and
-   * <em>throwable</em> in the selected bucket.
+   * <em>throwable</em> as {@code keyHash}'s candidates.
    *
    * <p>Note, throwables are matched by identity or by class and stack trace.
    *
    * <p>The bucket chain supports lock-free reads. A caller that inserts after a miss must repeat
    * the search under the table write lock.
    *
-   * @param bucketIndex bucket selected for {@code keyHash}
    * @param keyHash precomputed hash of the level, message, and throwable class
    * @param logLevel log level to match
    * @param message message to match
@@ -150,19 +125,10 @@ public class LogCollector {
    */
   @Nullable
   private RawLogMessage find(
-      int bucketIndex,
-      long keyHash,
-      String logLevel,
-      String message,
-      @Nullable Throwable throwable) {
-    // Start searching from given bucket, and follow the entry next links
+      long keyHash, String logLevel, String message, @Nullable Throwable throwable) {
     StackTraceElement[] stackTrace = null;
-    for (RawLogMessage entry = bucketAt(rawLogMessages, bucketIndex);
-        entry != null;
-        entry = entry.next()) {
-      if (entry.keyHash != keyHash
-          || !Objects.equals(logLevel, entry.logLevel)
-          || !Objects.equals(message, entry.message)) {
+    for (RawLogMessage entry : ConcurrentHashtable.hashIterable(rawLogMessages, keyHash)) {
+      if (!Objects.equals(logLevel, entry.logLevel) || !Objects.equals(message, entry.message)) {
         continue;
       }
       // throwables are more costly to compare, check first the identity
@@ -190,7 +156,7 @@ public class LogCollector {
    * match. The first message supplies the tags and timestamp; later messages only increment the
    * occurrence count.
    */
-  public static final class RawLogMessage extends ConcurrentHashtable.Entry {
+  public static final class RawLogMessage extends ConcurrentHashtable.Entry<RawLogMessage> {
     private static final AtomicIntegerFieldUpdater<RawLogMessage> LIVE_OCCURRENCE_COUNT_UPDATER =
         AtomicIntegerFieldUpdater.newUpdater(RawLogMessage.class, "liveOccurrenceCount");
 
@@ -203,8 +169,12 @@ public class LogCollector {
     /** Number of equivalent log messages captured when this group was drained. */
     public int count;
 
-    /** Live counter equivalent log messages accumulated in this group. */
-    private volatile int liveOccurrenceCount = 1;
+    /**
+     * Live counter equivalent log messages accumulated in this group. Starts zeroed so a caller can
+     * unconditionally {@link #increment()} once after a find-or-insert, whether it landed this
+     * instance or an existing match.
+     */
+    private volatile int liveOccurrenceCount = 0;
 
     private volatile StackTraceElement[] cachedStackTrace = null;
 
@@ -240,11 +210,7 @@ public class LogCollector {
     }
 
     @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
-      RawLogMessage that = (RawLogMessage) o;
-
+    public boolean matches(RawLogMessage that) {
       if (!Objects.equals(logLevel, that.logLevel)) return false;
       if (!Objects.equals(message, that.message)) return false;
 
@@ -262,6 +228,13 @@ public class LogCollector {
         // One has an exception & the other doesn't, not equal
         return false;
       }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      return matches((RawLogMessage) o);
     }
 
     @Override
