@@ -110,7 +110,7 @@ configuration. For example, `integrationTestImplementation` gets
 `integrationTestContainerImage`. Also, see the [plugin reference](../build-logic/testcontainers/README.md)
 for inheritance and shared configuration examples.
 
-### Continuation lifecycle failures
+## Continuation lifecycle failures
 
 Instrumentation test harnesses always enable strict trace writes; there is no harness opt-out. Do
 not replace the harness tracer or introduce another way to disable strict writes.
