@@ -15,6 +15,8 @@
  */
 package com.datadog.profiling.uploader;
 
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_REMOTESYM_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_REMOTESYM_ENABLED_DEFAULT;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_HTTP_DISPATCHER;
 
 import com.datadog.profiling.uploader.util.JfrCliHelper;
@@ -115,6 +117,11 @@ public final class ProfileUploader {
 
   static final String SERVELESS_TAG = "functionname";
 
+  // Tells the backend it's worth calling the deobfuscation API for this profile's unresolved
+  // native frames; only set when ddprof was actually asked to capture them
+  static final String REMOTE_SYMBOLS_TAG = "remote_symbols";
+  static final String REMOTE_SYMBOLS_REQUESTED = "yes";
+
   private final Config config;
   private final ConfigProvider configProvider;
 
@@ -177,6 +184,11 @@ public final class ProfileUploader {
     }
     if (ServerlessInfo.get().isRunningInServerlessEnvironment()) {
       tagsMap.put(SERVELESS_TAG, ServerlessInfo.get().getFunctionName());
+    }
+    if (configProvider.getBoolean(
+        PROFILING_DATADOG_PROFILER_REMOTESYM_ENABLED,
+        PROFILING_DATADOG_PROFILER_REMOTESYM_ENABLED_DEFAULT)) {
+      tagsMap.put(REMOTE_SYMBOLS_TAG, REMOTE_SYMBOLS_REQUESTED);
     }
 
     // Comma separated tags string for V2.4 format
