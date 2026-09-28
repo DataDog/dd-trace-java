@@ -56,7 +56,9 @@ class AkkaIastTestWebServer extends AllDirectives implements Closeable {
         get {
           extractRequest {
             request ->
-            complete("IAST: ${t(var1)} ${t(request)}")
+            // report taintedness of every header and the entity directly, rather than relying on
+            // whether they ended up in the tainted objects map (that depends on class-loading order)
+            complete("IAST: ${t(var1)} ${t(request)} ${t(request.headers, 'headers')} ${t(request.entity(), 'entity')}")
           }
         }
       },

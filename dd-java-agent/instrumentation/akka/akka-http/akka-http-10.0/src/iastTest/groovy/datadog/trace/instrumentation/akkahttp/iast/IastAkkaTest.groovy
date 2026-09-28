@@ -40,8 +40,11 @@ class IastAkkaTest extends IastRequestTestRunner {
 
     then:
     response.code() == 200
-    // verify that HttpRequest is now also tainted via the Taintable interface
-    response.body().string() =~ /^IAST: myValue \(tainted\) HttpRequest\(.*\) \(tainted\)$/
+    // verify that HttpRequest, its headers and its HttpEntity are all tainted directly - this holds
+    // regardless of whether PreserveLoadedStructure managed to inject the Taintable interface into
+    // them, or (because their classes were already loaded) they fell back to being tracked in the
+    // tainted objects map instead
+    response.body().string() =~ /^IAST: myValue \(tainted\) HttpRequest\(.*\) \(tainted\) headers \(tainted\) entity \(tainted\)$/
 
     when:
     def toc = finReqTaintedObjects
@@ -51,14 +54,6 @@ class IastAkkaTest extends IastRequestTestRunner {
       value 'myValue'
       range 0, 7, source(SourceTypes.REQUEST_PATH_PARAMETER, null, 'myValue')
     }
-    // The following are always tainted:
-    // - Accept-Encoding, Connection, Host, User-Agent, Timeout-Access, Remote-Address, myValue (7 entries)
-    // HttpRequest and its HttpEntity are also always tainted, but the mechanism depends on whether their
-    // classes were already loaded when the akka-http IAST instrumentation was applied: if already loaded,
-    // PreserveLoadedStructure can't inject the Taintable interface into them (the JVM can't add an interface
-    // via retransformation), so they fall back to being tracked in the tainted objects map instead - adding
-    // up to 2 extra entries. Whether that happens depends on the akka-http version and class-loading order.
-    toc.size() >= 7 && toc.size() <= 9
   }
 
   void 'cookie — #variant variant'() {
