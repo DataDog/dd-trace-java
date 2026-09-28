@@ -21,7 +21,7 @@ import net.bytebuddy.asm.Advice;
 public final class LocalSessionStoreInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public LocalSessionStoreInstrumentation() {
-    super("java_concurrent");
+    super("vertx");
   }
 
   @Override
@@ -31,6 +31,7 @@ public final class LocalSessionStoreInstrumentation extends InstrumenterModule.C
 
   @Override
   public Reference[] additionalMuzzleReferences() {
+    // Vert.x 3.9 has the same class and timer methods.
     return new Reference[] {VertxVersionMatcher.HTTP_1X_SERVER_RESPONSE};
   }
 
