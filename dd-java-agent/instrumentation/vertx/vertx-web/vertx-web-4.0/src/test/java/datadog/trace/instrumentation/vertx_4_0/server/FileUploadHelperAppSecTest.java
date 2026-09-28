@@ -20,6 +20,8 @@ import java.util.Map;
 import java.util.function.BiFunction;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Pins the blocking behavior of {@link FileUploadHelper#commitBlockingResponse}, shared by the
@@ -59,14 +61,16 @@ class FileUploadHelperAppSecTest {
         };
   }
 
-  @Test
-  void commitsAndReturnsExceptionOnBlockingFilenames() {
-    assertCommitsAndReturnsException(asList("a.txt", "b.txt"), FILENAMES_REASON);
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void commitsAndReturnsExceptionOnBlockingFilenames(boolean commitResult) {
+    assertCommitsAndReturnsException(asList("a.txt", "b.txt"), FILENAMES_REASON, commitResult);
   }
 
-  @Test
-  void commitsAndReturnsExceptionOnBlockingFilesContent() {
-    assertCommitsAndReturnsException(singletonList("file content"), CONTENT_REASON);
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void commitsAndReturnsExceptionOnBlockingFilesContent(boolean commitResult) {
+    assertCommitsAndReturnsException(singletonList("file content"), CONTENT_REASON, commitResult);
   }
 
   @Test
@@ -85,7 +89,7 @@ class FileUploadHelperAppSecTest {
   void doesNotCommitWithoutBlockingAction() {
     List<String> data = singletonList("a.txt");
     when(flow.getAction()).thenReturn(Flow.Action.Noop.INSTANCE);
-    RecordingBlockResponseFunction brf = new RecordingBlockResponseFunction();
+    RecordingBlockResponseFunction brf = new RecordingBlockResponseFunction(true);
     when(reqCtx.getBlockResponseFunction()).thenReturn(brf);
 
     assertNull(FileUploadHelper.commitBlockingResponse(cb, reqCtx, data, FILENAMES_REASON));
@@ -94,9 +98,10 @@ class FileUploadHelperAppSecTest {
     assertEquals(0, brf.calls);
   }
 
-  private void assertCommitsAndReturnsException(List<String> data, String reason) {
+  private void assertCommitsAndReturnsException(
+      List<String> data, String reason, boolean commitResult) {
     when(flow.getAction()).thenReturn(RBA);
-    RecordingBlockResponseFunction brf = new RecordingBlockResponseFunction();
+    RecordingBlockResponseFunction brf = new RecordingBlockResponseFunction(commitResult);
     when(reqCtx.getBlockResponseFunction()).thenReturn(brf);
 
     BlockingException exception = FileUploadHelper.commitBlockingResponse(cb, reqCtx, data, reason);
@@ -113,10 +118,15 @@ class FileUploadHelperAppSecTest {
    * whichever {@code tryCommitBlockingResponse} overload the production code calls.
    */
   private static final class RecordingBlockResponseFunction implements BlockResponseFunction {
+    private final boolean commitResult;
     private int calls;
     private TraceSegment lastSegment;
     private int lastStatusCode;
     private BlockingContentType lastTemplateType;
+
+    RecordingBlockResponseFunction(boolean commitResult) {
+      this.commitResult = commitResult;
+    }
 
     @Override
     public boolean tryCommitBlockingResponse(
@@ -129,7 +139,7 @@ class FileUploadHelperAppSecTest {
       lastSegment = segment;
       lastStatusCode = statusCode;
       lastTemplateType = templateType;
-      return true;
+      return commitResult;
     }
 
     private void assertCommittedOnce(TraceSegment expectedSegment) {
