@@ -1,5 +1,7 @@
 package datadog.trace.core.propagation.ptags;
 
+import datadog.trace.api.internal.util.LongStringUtils;
+
 final class OtelTraceState implements CharSequence {
   private static final String RANDOM_VALUE_KEY = "rv:";
   private static final String THRESHOLD_KEY = "th:";
@@ -445,12 +447,7 @@ final class OtelTraceState implements CharSequence {
     if (start < 0) {
       return -1;
     }
-    long parsed = 0;
-    for (int i = start; i < end; i++) {
-      char c = value.charAt(i);
-      parsed = (parsed << 4) | (c <= '9' ? c - '0' : c - 'a' + 10);
-    }
-    return parsed;
+    return LongStringUtils.parseUnsignedLongHex(value, start, end - start, true);
   }
 
   private static long parseThreshold(CharSequence value, int start, int end) {
