@@ -21,7 +21,7 @@ import net.bytebuddy.asm.Advice;
 public final class LocalSessionStoreInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public LocalSessionStoreInstrumentation() {
-    super("vertx", "vertx-4.0");
+    super("java_concurrent");
   }
 
   @Override

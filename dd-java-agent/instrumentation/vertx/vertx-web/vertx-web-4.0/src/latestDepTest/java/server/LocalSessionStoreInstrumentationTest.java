@@ -28,7 +28,8 @@ class LocalSessionStoreInstrumentationTest extends AbstractInstrumentationTest {
         parent.finish();
       }
       try {
-        assertTrue(writer.waitForTracesMax(1, 3), "Session-store timers retained the request trace");
+        assertTrue(
+            writer.waitForTracesMax(1, 3), "Session-store timers retained the request trace");
         assertTraces(trace(span().root().operationName("parent")));
       } finally {
         store.close();
