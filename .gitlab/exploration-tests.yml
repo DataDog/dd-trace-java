@@ -123,7 +123,7 @@ exploration-tests-method-jackson-databind:
   variables:
     PROJECT: jackson-databind
   script:
-    - ./run-exploration-tests.sh "method" "$PROJECT" "./mvnw verify" "include_${PROJECT}.txt" "exclude_$PROJECT.txt"
+    - ./run-exploration-tests.sh "method" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_$PROJECT.txt"
 
 exploration-tests-line-jackson-databind:
   needs: [ build ]
@@ -133,7 +133,7 @@ exploration-tests-line-jackson-databind:
   variables:
     PROJECT: jackson-databind
   script:
-    - ./run-exploration-tests.sh "line" "$PROJECT" "./mvnw verify" "include_${PROJECT}.txt" "exclude_line_$PROJECT.txt"
+    - ./run-exploration-tests.sh "line" "$PROJECT" "mvn verify" "include_${PROJECT}.txt" "exclude_line_$PROJECT.txt"
 
 exploration-tests-method-okhttp:
   needs: [ build ]

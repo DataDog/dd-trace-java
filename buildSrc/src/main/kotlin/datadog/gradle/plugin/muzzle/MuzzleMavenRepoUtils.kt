@@ -1,6 +1,8 @@
 package datadog.gradle.plugin.muzzle
 
 import org.apache.maven.repository.internal.MavenRepositorySystemUtils
+import org.eclipse.aether.DefaultRepositorySystemSession
+import org.eclipse.aether.DefaultSessionData
 import org.eclipse.aether.RepositorySystem
 import org.eclipse.aether.RepositorySystemSession
 import org.eclipse.aether.artifact.Artifact
@@ -8,6 +10,7 @@ import org.eclipse.aether.artifact.DefaultArtifact
 import org.eclipse.aether.connector.basic.BasicRepositoryConnectorFactory
 import org.eclipse.aether.repository.LocalRepository
 import org.eclipse.aether.repository.RemoteRepository
+import org.eclipse.aether.repository.RepositoryPolicy
 import org.eclipse.aether.resolution.VersionRangeRequest
 import org.eclipse.aether.resolution.VersionRangeResolutionException
 import org.eclipse.aether.resolution.VersionRangeResult
@@ -158,9 +161,20 @@ internal object MuzzleMavenRepoUtils {
     val resultExceptions = mutableListOf<Pair<Int, List<Exception>>>()
     fun attemptResolve(): VersionRangeResult? {
       attemptCount++
+      val resolutionSession = if (attemptCount == 1) {
+        session
+      } else {
+        // Aether caches failed update checks both in the local repository and in SessionData.
+        // Bypass both caches so each Muzzle retry performs a real remote request.
+        DefaultRepositorySystemSession(session).apply {
+          data = DefaultSessionData()
+          updatePolicy = RepositoryPolicy.UPDATE_POLICY_ALWAYS
+          setReadOnly()
+        }
+      }
       val result = try {
         failure = null
-        system.resolveVersionRange(session, rangeRequest)
+        system.resolveVersionRange(resolutionSession, rangeRequest)
       } catch (e: VersionRangeResolutionException) {
         failure = e
         e.result ?: return null

@@ -24,6 +24,12 @@ import net.bytebuddy.jar.asm.Type;
 public final class HelperScanner extends ClassVisitor {
   static final int READER_OPTIONS = ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES;
 
+  private static final String[] SHARED_HELPER_PREFIXES = {
+    "datadog.opentelemetry.shim.",
+    "datadog.trace.agent.tooling.iast.",
+    "datadog.trace.agent.tooling.nativeimage."
+  };
+
   static final ClassFileLocator locator =
       ClassFileLocator.ForClassLoader.of(Utils.getAgentClassLoader());
 
@@ -47,6 +53,22 @@ public final class HelperScanner extends ClassVisitor {
   /** Expands helper class names to include any non-bootstrap classes they depend on. */
   public static String[] withClassDependencies(String... helperClassNames) {
     return new HelperScanner().simulateClassLoading(helperClassNames);
+  }
+
+  /** Whether a class can be injected as an instrumentation helper. */
+  public static boolean isHelperClass(String className, boolean fromModuleOutput) {
+    if (isBootstrapClass(className)) {
+      return false;
+    }
+    if (fromModuleOutput) {
+      return true;
+    }
+    for (String prefix : SHARED_HELPER_PREFIXES) {
+      if (className.startsWith(prefix)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -256,24 +278,30 @@ public final class HelperScanner extends ClassVisitor {
       } else if (type.getSort() == Type.OBJECT) {
         String className = type.getClassName();
         // ignore types that we expect to be on the boot-class-path
-        if (this.className.equals(className)
-            || className.startsWith("java.")
-            || className.startsWith("javax.")
-            || className.startsWith("jdk.")
-            || className.startsWith("com.sun.")
-            || className.startsWith("sun.")
-            || className.startsWith("org.slf4j.")
-            || className.startsWith("datadog.slf4j.")) {
+        if (this.className.equals(className) || isBootstrapClass(className)) {
           return;
-        }
-        for (String prefix : Constants.BOOTSTRAP_PACKAGE_PREFIXES) {
-          if (className.startsWith(prefix)) {
-            return;
-          }
         }
         action.accept(className);
       }
     }
+  }
+
+  private static boolean isBootstrapClass(String className) {
+    if (className.startsWith("java.")
+        || className.startsWith("javax.")
+        || className.startsWith("jdk.")
+        || className.startsWith("com.sun.")
+        || className.startsWith("sun.")
+        || className.startsWith("org.slf4j.")
+        || className.startsWith("datadog.slf4j.")) {
+      return true;
+    }
+    for (String prefix : Constants.BOOTSTRAP_PACKAGE_PREFIXES) {
+      if (className.startsWith(prefix)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   void record(Type[] types, Consumer<String> action) {

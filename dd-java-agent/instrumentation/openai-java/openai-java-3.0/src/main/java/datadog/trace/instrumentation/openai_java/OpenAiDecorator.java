@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.openai_java;
 
+import static datadog.trace.api.llmobs.GenAiApmTags.stringTag;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 
 import com.openai.core.ClientOptions;
@@ -9,6 +10,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceApiInfo;
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.api.llmobs.GenAiApmTags;
 import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.api.llmobs.LLMObsSampler;
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
@@ -16,6 +18,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import java.util.List;
@@ -36,6 +39,8 @@ public class OpenAiDecorator extends ClientDecorator {
   private static final String REQUESTS_REMAINING_METRIC = METRIC_PREFIX + "requests.remaining";
   private static final String TOKENS_LIMIT_METRIC = METRIC_PREFIX + "tokens.limit";
   private static final String TOKENS_REMAINING_METRIC = METRIC_PREFIX + "tokens.remaining";
+
+  private static final String EMBEDDINGS_ENDPOINT = "/v1/embeddings";
 
   private static final String HEADER_PREFIX = "x-ratelimit-";
   private static final String LIMIT_REQUESTS_HEADER = HEADER_PREFIX + "limit-requests";
@@ -179,6 +184,8 @@ public class OpenAiDecorator extends ClientDecorator {
       span.setTag(CommonTags.ERROR, span.isError() ? 1 : 0);
       span.setTag(CommonTags.ERROR_TYPE, span.getTag(DDTags.ERROR_TYPE));
 
+      GenAiApmTags.apply(span);
+
       Object spanKindTag = span.getTag(CommonTags.SPAN_KIND);
       if (spanKindTag != null) {
         String spanKind = spanKindTag.toString();
@@ -186,8 +193,28 @@ public class OpenAiDecorator extends ClientDecorator {
         LLMObsMetricCollector.get()
             .recordSpanFinished(INTEGRATION, spanKind, isRootSpan, true, span.isError(), false);
       }
+    } else if (span != null) {
+      // Tracing still runs with LLM Observability off, where these remain resolvable.
+      GenAiApmTags.apply(
+          span, operationName(span), requestedModel(span), Config.get().getLlmObsMlApp());
     }
     super.doBeforeFinish(context);
+  }
+
+  private static String operationName(AgentSpan span) {
+    String endpoint = stringTag(span, CommonTags.OPENAI_REQUEST_ENDPOINT);
+    if (endpoint == null) {
+      return null;
+    }
+    return EMBEDDINGS_ENDPOINT.equals(endpoint)
+        ? Tags.LLMOBS_EMBEDDING_SPAN_KIND
+        : Tags.LLMOBS_LLM_SPAN_KIND;
+  }
+
+  /** The response model resolves aliases the request used, so it wins. */
+  private static String requestedModel(AgentSpan span) {
+    String model = stringTag(span, CommonTags.OPENAI_RESPONSE_MODEL);
+    return model != null ? model : stringTag(span, CommonTags.OPENAI_REQUEST_MODEL);
   }
 
   public void withHttpResponse(AgentSpan span, Headers headers) {
