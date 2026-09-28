@@ -123,7 +123,7 @@ public final class AwsAccountIdentity {
       bits += 5;
       if (bits >= 8) {
         bits -= 8;
-        out[index++] = (byte) (buffer >>> bits);
+        out[index++] = (byte) (buffer >> bits);
       }
     }
     return out;
