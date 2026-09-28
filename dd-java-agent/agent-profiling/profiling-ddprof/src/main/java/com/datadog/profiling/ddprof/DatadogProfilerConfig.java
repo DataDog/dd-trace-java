@@ -40,6 +40,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVESOCKET_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVESOCKET_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVESOCKET_INTERVAL;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_REMOTESYM_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_REMOTESYM_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_SAFEMODE;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_SAFEMODE_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT;
@@ -499,6 +501,13 @@ public class DatadogProfilerConfig {
         configProvider,
         PROFILING_DATADOG_PROFILER_JMETHODID_OPTIM_ENABLED,
         PROFILING_DATADOG_PROFILER_JMETHODID_OPTIM_ENABLED_DEFAULT);
+  }
+
+  public static boolean isRemoteSymbolicationEnabled(ConfigProvider configProvider) {
+    return getBoolean(
+        configProvider,
+        PROFILING_DATADOG_PROFILER_REMOTESYM_ENABLED,
+        PROFILING_DATADOG_PROFILER_REMOTESYM_ENABLED_DEFAULT);
   }
 
   private static String normalizeKey(String key) {

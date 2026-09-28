@@ -122,6 +122,28 @@ class DatadogProfilerTest {
   }
 
   @Test
+  void testStartCmdRemoteSymbolicationDisabledByDefault() throws Exception {
+    assertDoesNotThrow(
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+
+    DatadogProfiler profiler = DatadogProfiler.newInstance(ConfigProvider.getInstance());
+    assertFalse(startCmd(profiler).contains(",remotesym="));
+  }
+
+  @Test
+  void testStartCmdEnableRemoteSymbolication() throws Exception {
+    assertDoesNotThrow(
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_REMOTESYM_ENABLED, "true");
+    DatadogProfiler profiler =
+        DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
+
+    assertTrue(startCmd(profiler).contains(",remotesym=true"));
+  }
+
+  @Test
   void testStartCmdNativeMemDisabledByDefault() throws Exception {
     assertDoesNotThrow(
         () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
