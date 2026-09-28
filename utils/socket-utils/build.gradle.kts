@@ -5,6 +5,7 @@ plugins {
   `java-library`
   idea
   id("dd-trace-java.module.internal-library")
+  id("dd-trace-java.jmh-conventions")
 }
 
 extensions.getByName("tracerJava").withGroovyBuilder {
@@ -18,13 +19,21 @@ dependencies {
   implementation(libs.slf4j)
   implementation(libs.jnr.unixsocket)
   testImplementation(files(sourceSets["main_java17"].output))
+  jmhImplementation(files(sourceSets["main_java17"].output))
+}
+
+jmh {
+  jmhVersion = libs.versions.jmh.get()
+  includeTests = false
+  resultFormat = "JSON"
+  failOnError = true
 }
 
 fun AbstractCompile.configureCompiler(javaVersionInteger: Int, compatibilityVersion: JavaVersion? = null, unsetReleaseFlagReason: String? = null) {
   (project.extra["configureCompiler"] as Closure<*>).call(this, javaVersionInteger, compatibilityVersion, unsetReleaseFlagReason)
 }
 
-listOf("compileMain_java17Java", "compileTestJava").forEach {
+listOf("compileMain_java17Java", "compileTestJava", "compileJmhJava").forEach {
   tasks.named<JavaCompile>(it) {
     configureCompiler(17, JavaVersion.VERSION_1_8)
   }
