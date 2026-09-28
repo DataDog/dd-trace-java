@@ -23,6 +23,8 @@ import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Pins the blocking behavior of {@link RoutingContextSessionAdvice} by calling the advice method
@@ -79,10 +81,11 @@ class RoutingContextSessionAdviceAppSecTest {
     AgentTracer.forceRegister(originalTracer);
   }
 
-  @Test
-  void commitsAndThrowsOnBlockingAction() {
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void commitsAndThrowsOnBlockingAction(boolean commitResult) {
     when(flow.getAction()).thenReturn(RBA);
-    RecordingBlockResponseFunction brf = new RecordingBlockResponseFunction();
+    RecordingBlockResponseFunction brf = new RecordingBlockResponseFunction(commitResult);
     when(reqCtx.getBlockResponseFunction()).thenReturn(brf);
 
     assertThrows(BlockingException.class, () -> RoutingContextSessionAdvice.after(reqCtx, session));
@@ -104,7 +107,7 @@ class RoutingContextSessionAdviceAppSecTest {
   @Test
   void doesNotCommitWithoutBlockingAction() {
     when(flow.getAction()).thenReturn(Flow.Action.Noop.INSTANCE);
-    RecordingBlockResponseFunction brf = new RecordingBlockResponseFunction();
+    RecordingBlockResponseFunction brf = new RecordingBlockResponseFunction(true);
     when(reqCtx.getBlockResponseFunction()).thenReturn(brf);
 
     assertDoesNotThrow(() -> RoutingContextSessionAdvice.after(reqCtx, session));
@@ -118,10 +121,15 @@ class RoutingContextSessionAdviceAppSecTest {
    * whichever {@code tryCommitBlockingResponse} overload the production code calls.
    */
   private static final class RecordingBlockResponseFunction implements BlockResponseFunction {
+    private final boolean commitResult;
     private int calls;
     private TraceSegment lastSegment;
     private int lastStatusCode;
     private BlockingContentType lastTemplateType;
+
+    RecordingBlockResponseFunction(boolean commitResult) {
+      this.commitResult = commitResult;
+    }
 
     @Override
     public boolean tryCommitBlockingResponse(
@@ -134,7 +142,7 @@ class RoutingContextSessionAdviceAppSecTest {
       lastSegment = segment;
       lastStatusCode = statusCode;
       lastTemplateType = templateType;
-      return true;
+      return commitResult;
     }
 
     private void assertCommittedOnce(TraceSegment expectedSegment) {
