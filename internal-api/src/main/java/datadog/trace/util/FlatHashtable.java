@@ -1027,8 +1027,8 @@ public final class FlatHashtable {
 
   /** General iterator: strategy held in a field, so {@code hashOf} stays a virtual call. */
   private static final class StrategyHashIterator<E> extends HashIterator<E> {
-    @Strategy.DynamicDispatch(
-        "general iterator fallback partner to EntryHashIterator; stays on dynamic dispatch on purpose")
+    // Dynamic dispatch on purpose: general iterator fallback partner to EntryHashIterator
+    // (see Strategy's Checker contract).
     private final HashStrategy<E> hashStrat;
 
     StrategyHashIterator(E[] table, long hash, HashStrategy<E> hashStrat) {

@@ -97,16 +97,16 @@ import java.lang.annotation.Target;
  *   <li><b>Not a trigger:</b> a local variable, an ordinary (non-{@code @Strategy}) method
  *       parameter, or a method return type. Also not a trigger: a field or argument satisfied by a
  *       non-capturing lambda or method reference — this is the weaker, speculative shape described
- *       above, accepted as compliant rather than flagged. Also not a trigger: a field or parameter
- *       annotated {@link DynamicDispatch @DynamicDispatch} — the deliberate, reviewed exception
- *       below.
+ *       above, accepted as compliant rather than flagged. Also not a trigger: the same shape with a
+ *       comment at the declaration explaining the deliberate exception to stay on dynamic dispatch
+ *       (see {@link NoEscape}'s Checker contract for the same convention).
  *   <li><b>Violation example (type target):</b> {@code private static final EntryStrategy S = new
  *       CaseInsensitiveStringStrategy();} — declared at the abstract base, not the concrete class.
  *   <li><b>Compliant example (type target):</b> {@code private static final
  *       CaseInsensitiveStringStrategy S = new CaseInsensitiveStringStrategy();}, or {@code private
  *       static final HashStrategy<Entry> S = e -> e.hash;} (lambda constant, speculative shape).
- *       Or, if staying on dynamic dispatch is a deliberate, reviewed exception:
- *       {@code @DynamicDispatch("<reason>") private final HashStrategy<E> hashStrat;}
+ *       Or, if staying on dynamic dispatch is a deliberate, reviewed exception: {@code // Dynamic
+ *       dispatch on purpose: <reason>} above the field.
  *   <li><b>Out of scope (v1):</b> whether the consuming method actually inlines (a JIT runtime
  *       decision, not a static property — verify with {@code -XX:+UnlockDiagnosticVMOptions
  *       -XX:+PrintInlining}), and whether a lambda is truly non-capturing. Capture status is
@@ -122,23 +122,4 @@ import java.lang.annotation.Target;
 @Inherited
 @Retention(RetentionPolicy.CLASS)
 @Target({ElementType.TYPE, ElementType.PARAMETER})
-public @interface Strategy {
-
-  /**
-   * Marks a field or parameter as a deliberate, reviewed exception to {@link Strategy}'s
-   * concrete-typed-field convention — held at an abstract/interface type on purpose, not by
-   * oversight. HotSpot may still devirtualize calls through it via dynamic reasoning (profile-guided
-   * speculation, or class-hierarchy analysis for an abstract type with a sole loaded implementor),
-   * but calls through it have no static-reasoning devirtualization guarantee the way a
-   * concrete-typed field does. {@code CLASS}-retained for the same reason {@link Strategy} itself
-   * is: a future classfile-level checker must be able to see the exemption without access to
-   * source, which a comment could never provide.
-   */
-  @Documented
-  @Retention(RetentionPolicy.CLASS)
-  @Target({ElementType.FIELD, ElementType.PARAMETER})
-  @interface DynamicDispatch {
-    /** Why staying on dynamic dispatch here is intentional. */
-    String value();
-  }
-}
+public @interface Strategy {}
