@@ -418,26 +418,6 @@ public class PTagsFactory implements PropagationTags.Factory {
       return debugPropagation;
     }
 
-    @Override
-    public void updateKnuthSamplingRate(double rate) {
-      synchronized (samplingStateLock) {
-        TagValue current = getKnuthSamplingRateTagValue();
-        TagValue next = knuthSamplingRateTagValue(rate);
-        if (!Objects.equals(current, next)) {
-          clearCachedHeader(DATADOG);
-          clearCachedHeader(W3C);
-          SamplingState currentState = samplingState;
-          samplingState =
-              new SamplingState(
-                  currentState.getSamplingPriority(),
-                  tracestate,
-                  getOtelTraceState(),
-                  getDecisionMakerTagValue(currentState),
-                  next);
-        }
-      }
-    }
-
     private static TagValue knuthSamplingRateTagValue(double rate) {
       if (Double.isNaN(rate)) {
         return null;

@@ -231,16 +231,6 @@ public abstract class PropagationTags {
   public abstract String getDebugPropagation();
 
   /**
-   * Updates the Knuth sampling rate (_dd.p.ksr) propagated tag. This records the sampling rate that
-   * was applied when making an agent-based or rule-based sampling decision. The rate is formatted
-   * with up to 6 significant digits and no trailing zeros, matching the Go/Python reference
-   * implementations (%.6g format).
-   *
-   * @param rate the sampling rate value
-   */
-  public abstract void updateKnuthSamplingRate(double rate);
-
-  /**
    * Returns the Org Propagation Marker (OPM) currently held in these tags, encoded as {@code
    * _dd.p.opm} in Datadog headers and {@code t.opm} in W3C tracestate. Returns {@code null} if no
    * OPM is set.
