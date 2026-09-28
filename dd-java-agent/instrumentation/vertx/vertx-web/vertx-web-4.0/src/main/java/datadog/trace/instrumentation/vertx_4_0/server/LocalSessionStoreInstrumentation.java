@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.vertx_5_0.server;
+package datadog.trace.instrumentation.vertx_4_0.server;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
@@ -21,7 +21,7 @@ import net.bytebuddy.asm.Advice;
 public final class LocalSessionStoreInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public LocalSessionStoreInstrumentation() {
-    super("vertx", "vertx-5.0");
+    super("vertx");
   }
 
   @Override
@@ -31,7 +31,8 @@ public final class LocalSessionStoreInstrumentation extends InstrumenterModule.C
 
   @Override
   public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {VertxVersionMatcher.HTTP_HEADERS_INTERNAL};
+    // Vert.x 3.9 has the same class and timer methods.
+    return new Reference[] {VertxVersionMatcher.HTTP_1X_SERVER_RESPONSE};
   }
 
   @Override
