@@ -1,5 +1,12 @@
 package com.datadog.featureflag;
 
+import static datadog.trace.api.featureflag.flagevaluation.FlagEvaluationMetrics.Metric.DEGRADED_CARDINALITY_CAP;
+import static datadog.trace.api.featureflag.flagevaluation.FlagEvaluationMetrics.Metric.DEGRADED_PAYLOAD_LIMIT;
+import static datadog.trace.api.featureflag.flagevaluation.FlagEvaluationMetrics.Metric.DROPPED_CLOSED;
+import static datadog.trace.api.featureflag.flagevaluation.FlagEvaluationMetrics.Metric.DROPPED_DEGRADED_CAP;
+import static datadog.trace.api.featureflag.flagevaluation.FlagEvaluationMetrics.Metric.DROPPED_PAYLOAD_LIMIT;
+import static datadog.trace.api.featureflag.flagevaluation.FlagEvaluationMetrics.Metric.DROPPED_QUEUE_OVERFLOW;
+import static datadog.trace.api.featureflag.flagevaluation.FlagEvaluationMetrics.Metric.PAYLOAD_SPLITS;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.FEATURE_FLAG_EVALUATION_PROCESSOR;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -12,13 +19,12 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
+import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationMetrics;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
-import datadog.trace.api.telemetry.CoreMetricCollector;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -59,18 +65,8 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
   static final int FLUSH_INTERVAL_SECONDS = 10;
 
   static final int FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES = EvpProxy.PAYLOAD_SIZE_LIMIT_BYTES;
-  static final String FLAG_EVALUATION_DROPPED_METRIC = "flagevaluation.rows.dropped";
-  static final String FLAG_EVALUATION_DEGRADED_METRIC = "flagevaluation.rows.degraded";
-  static final String FLAG_EVALUATION_SPLITS_METRIC = "flagevaluation.payload.splits";
-  static final String FLAG_EVALUATION_CONTEXT_TRUNCATED_METRIC = "flagevaluation.context.truncated";
-  static final String DROP_REASON_QUEUE_OVERFLOW = "queue_overflow";
-  static final String DROP_REASON_CLOSED = "closed";
-  static final String DROP_REASON_DEGRADED_CAP = "degraded_cap";
-  static final String DROP_REASON_PAYLOAD_LIMIT = "payload_limit";
-  static final String DEGRADED_REASON_CARDINALITY_CAP = "cardinality_cap";
-  static final String DEGRADED_REASON_PAYLOAD_LIMIT = "payload_limit";
   private static final String FLAG_EVALUATION_ROUTE = "flagevaluation";
-  private static final CoreMetricCollector CORE_METRICS = CoreMetricCollector.getInstance();
+  private static final FlagEvaluationMetrics METRICS = FlagEvaluationMetrics.getInstance();
 
   private final MessagePassingBlockingQueue<FlagEvalEvent> queue;
   private final FlagEvaluationSerializingHandler serializer;
@@ -78,26 +74,11 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
   private final Object lifecycleLock = new Object();
   private final AtomicBoolean closed = new AtomicBoolean(false);
 
-  private static void countMetric(final String metricName, final long value, final String reason) {
-    if (value <= 0) {
-      return;
-    }
-    CORE_METRICS.count(metricName, value, reason == null ? null : "reason:" + reason);
-  }
-
   /**
    * Observable counter for events dropped because the bounded hand-off queue was full when the hook
    * tried to enqueue (backpressure). Incremented on the hook thread, surfaced on flush.
    */
   private final AtomicLong droppedQueueOverflow = new AtomicLong(0);
-
-  /**
-   * Per-reason-tag counters for evaluations whose context was truncated by copyPrunedContext. Keyed
-   * by the sorted comma-separated reason string (e.g. "max_key_length,max_value_length").
-   * Incremented on the hook thread, drained and emitted on flush.
-   */
-  private final ConcurrentHashMap<String, AtomicLong> contextTruncatedCounts =
-      new ConcurrentHashMap<>();
 
   public FlagEvaluationWriterImpl(final SharedCommunicationObjects sco, final Config config) {
     this(
@@ -123,7 +104,6 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
             timeUnit,
             FeatureFlagEvpContext.from(config),
             droppedQueueOverflow,
-            contextTruncatedCounts,
             this::close,
             FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES);
     this.serializerThread = newAgentThread(FEATURE_FLAG_EVALUATION_PROCESSOR, serializer);
@@ -203,7 +183,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     while (queue.poll() != null) {
       residual++;
     }
-    countMetric(FLAG_EVALUATION_DROPPED_METRIC, residual, DROP_REASON_CLOSED);
+    METRICS.count(DROPPED_CLOSED, residual);
   }
 
   @Override
@@ -251,7 +231,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
 
   @Override
   public void countContextTruncated(final String reason) {
-    contextTruncatedCounts.computeIfAbsent(reason, k -> new AtomicLong(0)).incrementAndGet();
+    METRICS.countContextTruncated(reason, 1);
   }
 
   private boolean isClosedOrEnqueueDisabled() {
@@ -263,7 +243,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     // by the surrounding subsystem. FeatureFlaggingSystem.stop() flips the gate before this
     // writer's close() runs, so an in-flight enqueue could race that flip and see gate=false while
     // closed=false. Counting on either condition keeps shutdown-loss observable.
-    countMetric(FLAG_EVALUATION_DROPPED_METRIC, 1, DROP_REASON_CLOSED);
+    METRICS.count(DROPPED_CLOSED, 1);
   }
 
   /** Returns the count of events dropped due to queue-overflow backpressure (observable). */
@@ -296,7 +276,6 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
         evpPublisher;
     final Map<String, String> context;
     private final AtomicLong droppedQueueOverflow;
-    private final ConcurrentHashMap<String, AtomicLong> contextTruncatedCounts;
     private final Runnable errorCallback;
     private final int payloadSizeLimitBytes;
     final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
@@ -312,7 +291,6 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
         final TimeUnit timeUnit,
         final Map<String, String> context,
         final AtomicLong droppedQueueOverflow,
-        final ConcurrentHashMap<String, AtomicLong> contextTruncatedCounts,
         final Runnable errorCallback,
         final int payloadSizeLimitBytes) {
       this.queue = queue;
@@ -321,7 +299,6 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
               backendApiSupplier, FlagEvaluationPayloads.FlagEvaluationsRequest.class);
       this.context = context;
       this.droppedQueueOverflow = droppedQueueOverflow;
-      this.contextTruncatedCounts = contextTruncatedCounts;
       this.payloadSizeLimitBytes = payloadSizeLimitBytes;
       this.lastTicks = System.nanoTime();
       this.ticksRequiredToFlush = timeUnit.toNanos(flushInterval);
@@ -410,7 +387,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       // Surface backpressure (queue-overflow) drops as an observable warning even when there is
       // nothing else to flush.
       final long qDrops = droppedQueueOverflow.getAndSet(0);
-      countMetric(FLAG_EVALUATION_DROPPED_METRIC, qDrops, DROP_REASON_QUEUE_OVERFLOW);
+      METRICS.count(DROPPED_QUEUE_OVERFLOW, qDrops);
       if (qDrops > 0) {
         LOGGER.warn(
             "flag evaluation queue full - dropped {} evaluation(s) under backpressure"
@@ -418,7 +395,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
             qDrops);
       }
       final long dgDrops = aggregator.droppedDegradedOverflow.getAndSet(0);
-      countMetric(FLAG_EVALUATION_DROPPED_METRIC, dgDrops, DROP_REASON_DEGRADED_CAP);
+      METRICS.count(DROPPED_DEGRADED_CAP, dgDrops);
       if (dgDrops > 0) {
         LOGGER.warn(
             "degraded aggregation tier full - dropped {} evaluation(s); raise degraded cap"
@@ -426,38 +403,21 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
             dgDrops);
       }
 
-      // Drain per-reason context-truncation counters and emit one metric per unique reason tag.
-      for (final Map.Entry<String, AtomicLong> entry : contextTruncatedCounts.entrySet()) {
-        final long count = entry.getValue().getAndSet(0);
-        if (count > 0) {
-          countMetric(FLAG_EVALUATION_CONTEXT_TRUNCATED_METRIC, count, entry.getKey());
-        }
-      }
-
       if (aggregator.isEmpty()) {
         return;
       }
       try {
-        countMetric(
-            FLAG_EVALUATION_DEGRADED_METRIC,
-            aggregator.degradedEvaluationCount(),
-            DEGRADED_REASON_CARDINALITY_CAP);
+        METRICS.count(DEGRADED_CARDINALITY_CAP, aggregator.degradedEvaluationCount());
         final List<FlagEvaluationPayloads.FlagEvaluationEvent> events = buildEventList();
         if (events.isEmpty()) {
           return;
         }
         final FlagEvaluationPayloads.EncodedPayloads payloads =
             FlagEvaluationPayloads.buildPayloads(events, context, payloadSizeLimitBytes);
-        countMetric(
-            FLAG_EVALUATION_DROPPED_METRIC,
-            payloads.droppedPayloadLimit,
-            DROP_REASON_PAYLOAD_LIMIT);
-        countMetric(
-            FLAG_EVALUATION_DEGRADED_METRIC,
-            payloads.degradedPayloadLimit,
-            DEGRADED_REASON_PAYLOAD_LIMIT);
+        METRICS.count(DROPPED_PAYLOAD_LIMIT, payloads.droppedPayloadLimit);
+        METRICS.count(DEGRADED_PAYLOAD_LIMIT, payloads.degradedPayloadLimit);
         if (payloads.bodies.size() > 1) {
-          countMetric(FLAG_EVALUATION_SPLITS_METRIC, payloads.bodies.size() - 1, null);
+          METRICS.count(PAYLOAD_SPLITS, payloads.bodies.size() - 1);
         }
         if (payloads.droppedPayloadLimit > 0) {
           LOGGER.warn(
@@ -537,7 +497,6 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
           TimeUnit.NANOSECONDS,
           context,
           new AtomicLong(0),
-          new ConcurrentHashMap<>(),
           () -> {},
           payloadSizeLimitBytes);
     }

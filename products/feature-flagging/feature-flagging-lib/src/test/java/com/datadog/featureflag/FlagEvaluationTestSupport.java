@@ -16,9 +16,8 @@ import com.squareup.moshi.Types;
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
+import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationMetrics;
 import datadog.trace.api.intake.Intake;
-import datadog.trace.api.telemetry.CoreMetricCollector;
-import datadog.trace.api.telemetry.MetricCollector;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,6 +25,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Supplier;
 import okhttp3.RequestBody;
 import okio.Buffer;
@@ -47,8 +47,8 @@ final class FlagEvaluationTestSupport {
     return () -> factory.createBackendApi(Intake.EVENT_PLATFORM, false);
   }
 
-  static void clearCoreMetrics() {
-    CoreMetricCollector.getInstance().drain();
+  static void clearFlagEvaluationMetrics() {
+    FlagEvaluationMetrics.getInstance().drain();
   }
 
   static FlagEvalEvent event(
@@ -160,22 +160,14 @@ final class FlagEvaluationTestSupport {
   }
 
   static long metricSum(
-      final Collection<? extends MetricCollector.Metric> metrics,
+      final Collection<FlagEvaluationMetrics.Count> metrics,
       final String metricName,
       final String tag) {
     long sum = 0;
-    for (final MetricCollector.Metric metric : metrics) {
-      if (!metricName.equals(metric.metricName)) {
-        continue;
+    for (final FlagEvaluationMetrics.Count metric : metrics) {
+      if (metricName.equals(metric.name) && Objects.equals(tag, metric.tag)) {
+        sum += metric.value;
       }
-      if (tag == null) {
-        if (!metric.tags.isEmpty()) {
-          continue;
-        }
-      } else if (!metric.tags.contains(tag)) {
-        continue;
-      }
-      sum += metric.value.longValue();
     }
     return sum;
   }
