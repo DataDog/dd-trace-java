@@ -38,7 +38,25 @@ public final class ScopeDiagnosticsExtension
       ReflectiveInvocationContext<Method> invocationContext,
       ExtensionContext extensionContext)
       throws Throwable {
-    invocation.proceed();
+    try {
+      invocation.proceed();
+    } catch (Throwable setupFailure) {
+      if (suiteEnabled && suiteSetupPending) {
+        suiteSetupPending = false;
+        try {
+          report(extensionContext.getRequiredTestClass().getSimpleName() + " suite setup");
+        } catch (Throwable diagnosticFailure) {
+          setupFailure.addSuppressed(diagnosticFailure);
+        } finally {
+          try {
+            ScopeDiagnostics.startRecording();
+          } catch (Throwable diagnosticFailure) {
+            setupFailure.addSuppressed(diagnosticFailure);
+          }
+        }
+      }
+      throw setupFailure;
+    }
     if (suiteEnabled && isHarnessLifecycleMethod(invocationContext)) {
       ScopeDiagnostics.startRecording();
       suiteSetupPending = true;

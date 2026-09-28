@@ -34,6 +34,7 @@ import datadog.metrics.impl.MonitoringImpl
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TagsAssert
 import datadog.trace.agent.test.scopediag.ScopeDiagnostics
+import datadog.trace.agent.test.scopediag.ScopeDiagnosticsSpockSupport
 import datadog.trace.agent.test.scopediag.TrackScopeContinuations
 import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery
 import datadog.trace.agent.test.datastreams.RecordingDatastreamsPayloadWriter
@@ -113,7 +114,8 @@ import spock.lang.Shared
 @SuppressWarnings('UnnecessaryDotClass')
 @ExtendWith(TestClassShadowingExtension.class)
 @ExtendWith(TooManyInvocationsErrorHandler.class)
-abstract class InstrumentationSpecification extends DDSpecification implements AgentBuilder.Listener {
+@TrackScopeContinuations
+abstract class InstrumentationSpecification extends DDSpecification implements AgentBuilder.Listener, ScopeDiagnosticsSpockSupport {
   private static final long TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(20)
 
   protected static final Instrumentation INSTRUMENTATION = ByteBuddyAgent.getInstrumentation()
@@ -611,6 +613,23 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
       return failure
     } finally {
       ScopeDiagnostics.reset()
+    }
+  }
+
+  @Override
+  void onSuiteSetupFailure() {
+    if (!scopeDiagnosticsSuiteSetupPending) {
+      return
+    }
+    scopeDiagnosticsSuiteSetupPending = false
+    def diagnosticFailure = reportScopeDiagnosticsForPhase(scopeDiagClassConfig(), "suite setup")
+    try {
+      if (diagnosticFailure != null) {
+        throw diagnosticFailure
+      }
+    } finally {
+      // A pending setup window implies suite diagnostics are enabled.
+      ScopeDiagnostics.startRecording()
     }
   }
 
