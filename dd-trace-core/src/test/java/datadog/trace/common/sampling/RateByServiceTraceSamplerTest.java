@@ -222,19 +222,7 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
     RateByServiceTraceSampler serviceSampler = new RateByServiceTraceSampler();
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     try {
-      DDSpan span =
-          (DDSpan)
-              tracer
-                  .buildSpan("datadog", "fallback")
-                  .withServiceName("spock")
-                  .ignoreActiveSpan()
-                  .start();
-
-      serviceSampler.setSamplingPriority(span);
-
-      String tracestate = span.spanContext().getPropagationTags().headerValue(W3C);
-      assertEquals(SAMPLER_KEEP, span.getSamplingPriority());
-      assertTrue(tracestate.matches(".*ot=rv:[0-9a-f]{14};th:0.*"), tracestate);
+      assertDefaultFallbackSampling(serviceSampler, tracer);
     } finally {
       tracer.close();
     }
