@@ -133,6 +133,7 @@
 0 akka.http.impl.engine.client.PoolMasterActor
 0 akka.http.impl.engine.client.pool.NewHostConnectionPool$*
 0 akka.http.impl.engine.http2.Http2Ext
+0 akka.http.impl.engine.server.HttpServerBluePrint$TimeoutAccessImpl
 0 akka.http.impl.engine.server.HttpServerBluePrint$TimeoutAccessImpl$*
 0 akka.http.impl.util.StreamUtils$*
 # saves ~0.1s skipping ~233 classes

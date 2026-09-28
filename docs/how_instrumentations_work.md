@@ -216,7 +216,7 @@ For each member instrumentation:
 
 1. Remove `@AutoService(InstrumenterModule.class)`
 2. Remove `extends InstrumenterModule...`
-3. Move the list of helpers to the module, merging as necessary
+3. If helpers are manually declared, move the complete list to the module, merging as necessary
 4. Move the context store map to the module, merging as necessary
 
 ### Type Matching
@@ -336,11 +336,32 @@ Instrumentation class names should end in _Instrumentation._
 
 ## Helper Classes
 
-Classes referenced by Advice that are not provided on the bootclasspath must be defined in Helper Classes otherwise they
-will not be loaded at runtime.
-This includes any decorators, extractors/injectors, or wrapping classes such as tracing listeners that extend or implement
-types provided by the library being instrumented. Also watch out for implicit types such as anonymous/nested classes
-because they must be listed alongside the main helper class.
+Instrumentation-owned classes called from advice must be injected into the application's classloader as helpers.
+These include decorators, extractors/injectors, and wrappers such as tracing listeners. Classes supplied by the
+application's libraries or the agent's bootstrap classloader do not need helper injection.
+
+### Automatic discovery
+
+When `InstrumenterModule.helperClassNames()` returns an empty list (the default), the build-time advice scanner
+discovers helpers and generates this method. It follows dependencies from the module's advice through method
+instructions, field and method declarations, catch types, and class hierarchies.
+Module-owned classes are identified by their compiled output, not their package name. A small set of shared agent
+helper packages is also eligible.
+
+Referenced nested, local, and anonymous classes are included. Not all classes nested inside a helper are injectable:
+classes found only by nested-class enumeration, and their otherwise-unreachable dependencies, are excluded.
+Advice roots, bootstrap classes, and build-time-only Muzzle reference builders are also excluded.
+The generated list places helper superclasses and interfaces before their dependents.
+Muzzle uses the resolved helper list so it does not require the application to supply classes that will be injected.
+
+### Manual lists and limitations
+
+A non-empty `helperClassNames()` list remains authoritative: it is used as declared, without merging inferred helpers.
+Helpers loaded only through reflection or class-name strings may not be discovered. Modules needing such helpers
+must declare the **complete** list, including required nested classes, with dependencies before their dependents.
+
+To migrate an existing instrumentation, remove its override only after checking that all required helpers are
+reachable through bytecode dependencies, then run its instrumentation tests and Muzzle checks.
 
 If an instrumentation is producing no results it may be that a required class is missing. Running muzzle
 
@@ -355,7 +376,8 @@ Messages like this in debug logs also indicate that classes are missing:
 [MSC service thread 1-3] DEBUG datadog.trace.agent.tooling.muzzle.MuzzleCheck - Muzzled mismatch - instrumentation.names=[jakarta-mdb] instrumentation.class=datadog.trace.instrumentation.jakarta.jms.MDBMessageConsumerInstrumentation instrumentation.target.classloader=ModuleClassLoader for Module "deployment.cmt.war" from Service Module Loader muzzle.mismatch="datadog.trace.instrumentation.jakarta.jms.MessageExtractAdapter:20 Missing class datadog.trace.instrumentation.jakarta.jms.MessageExtractAdapter$1"
 ```
 
-The missing class must be added in the helperClassNames method, for example:
+For a module with a manual list, add the missing class to `helperClassNames()`. If automatic discovery misses a
+reflectively loaded helper, switch to a complete manual list rather than listing only that helper. For example:
 
 ```java
 @Override
@@ -370,9 +392,9 @@ public String[] helperClassNames() {
 
 ## Enums
 
-Use care when deciding to include enums in your Advice and Decorator classes because each element of the enum will need
-to be added to the helper classes individually.
-For example not just `MyDecorator.MyEnum` but also `MyDecorator.MyEnum$1, MyDecorator.MyEnum$2`, etc.
+Enum constants with class bodies generate additional classes, such as `MyDecorator.MyEnum$1` and
+`MyDecorator.MyEnum$2`. Automatic discovery follows their bytecode references. When declaring helpers manually,
+include these classes alongside `MyDecorator.MyEnum`.
 
 ## Decorator Classes
 
@@ -407,8 +429,8 @@ Instrumentations often include their own Decorators which extend those classes, 
 |          RabbitMQ          | [`RabbitDecorator`](https://github.com/DataDog/dd-trace-java/blob/297b575f0f265c1dc78f9958e7b4b9365c80d1f9/dd-java-agent/instrumentation/rabbitmq-amqp-2.7/src/main/java/datadog/trace/instrumentation/rabbitmq/amqp/RabbitDecorator.java#L34) | [`MessagingClientDecorator`](https://github.com/DataDog/dd-trace-java/blob/297b575f0f265c1dc78f9958e7b4b9365c80d1f9/dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/decorator/MessagingClientDecorator.java#L6) |
 | All HTTP Server frameworks |                                                                                                                    various                                                                                                                     |     [`HttpServerDecorator`](https://github.com/DataDog/dd-trace-java/blob/297b575f0f265c1dc78f9958e7b4b9365c80d1f9/dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/decorator/HttpServerDecorator.java#L46)      |
 
-Decorator class names must be in the instrumentation's helper classes since Decorators need to be loaded with the
-instrumentation.
+Instrumentation-specific decorators must be discovered as helpers or included in the manual helper list so they
+can be loaded in the application's classloader.
 
 Decorator class names should end in _Decorator._
 
@@ -828,12 +850,46 @@ methods.
   is used to pass context between threads.
 - Continuations must be either resumed or released.
 - If a Continuation is resumed it returns a `ContextScope` which must eventually be closed.
-- Only after all scopes are closed and any non-resumed continuations are released may the Trace finally close.
+- Resolve every continuation and close its resumed scopes. A held continuation also needs its
+  hold released. Normal reference-count completion requires all spans and continuations to resolve;
+  publication can happen earlier through buffering or partial flush.
 
 Notice
 in [`HttpClientRequestTracingHandler`](https://github.com/DataDog/dd-trace-java/blob/3fe1b2d6010e50f61518fa25af3bdeb03ae7712b/dd-java-agent/instrumentation/netty-4.1/src/main/java/datadog/trace/instrumentation/netty41/client/HttpClientRequestTracingHandler.java#L56)
 how the Continuation is used to obtain the `parentScope` which is
 finally [closed](https://github.com/DataDog/dd-trace-java/blob/3fe1b2d6010e50f61518fa25af3bdeb03ae7712b/dd-java-agent/instrumentation/netty-4.1/src/main/java/datadog/trace/instrumentation/netty41/client/HttpClientRequestTracingHandler.java#L111).
+
+### Continuation effects
+
+An unresolved continuation keeps `PendingTrace`'s reference count positive and prevents its normal
+completion write. It does not by itself prove that a production trace is lost. The default delaying
+buffer can write finished spans despite pending references: it checks for 500 ms since the last
+trace reference or 5 seconds since the oldest finished span. These are worker eligibility thresholds,
+not hard latency bounds or guarantees about UI visibility. Partial flush, explicit flush and buffer
+pressure can publish earlier; long-running and streaming trace collectors have other paths.
+
+Strict writes replace the delaying buffer with a discarding buffer, exposing unresolved ownership
+in tests. Partial flush is still possible, so seeing spans arrive does not establish that all
+continuations were released. See [PendingTrace](../dd-trace-core/src/main/java/datadog/trace/core/PendingTrace.java),
+[PendingTraceBuffer](../dd-trace-core/src/main/java/datadog/trace/core/PendingTraceBuffer.java) and
+[CoreTracer](../dd-trace-core/src/main/java/datadog/trace/core/CoreTracer.java) for the publication paths.
+
+A reachable task or callback can retain its captured context even after finished spans are written.
+This does not establish that the entire trace stays in memory or that retention grows without bound.
+Wrong parentage requires unrelated work to activate that context, or a scope to remain active on the
+thread; an abandoned continuation alone does not contaminate another thread.
+
+### Static initialization
+
+Class initialization (`<clinit>`) runs on the thread triggering first use, which may carry request
+context. If it creates singleton workers, timers or permanent sentinels, generic async instrumentation
+can capture that request for infrastructure that outlives it. Netty's `GlobalEventExecutor`, including
+its Couchbase-shaded variant, is one example: its permanent sentinel does not run or cancel normally.
+
+Reproduce first use under an active span in a fresh JVM; prewarming during test setup can hide the
+capture. Where the task has no request-context consumer, suppress propagation only at the verified
+creation boundary, including the exact type initializer when appropriate. Do not suppress propagation
+for all static initializers or for legitimate request work.
 
 ## Naming
 

@@ -23,6 +23,7 @@ public final class Metadata {
   private final CharSequence origin;
   private final int longRunningVersion;
   private final UTF8BytesString processTags;
+  private final UTF8BytesString otlpExportMarker;
   private final List<? extends AgentSpanLink> spanLinks;
 
   public Metadata(
@@ -37,6 +38,7 @@ public final class Metadata {
       CharSequence origin,
       int longRunningVersion,
       UTF8BytesString processTags,
+      UTF8BytesString otlpExportMarker,
       List<? extends AgentSpanLink> spanLinks) {
     this.threadId = threadId;
     this.threadName = threadName;
@@ -49,6 +51,7 @@ public final class Metadata {
     this.origin = origin;
     this.longRunningVersion = longRunningVersion;
     this.processTags = processTags;
+    this.otlpExportMarker = otlpExportMarker;
     this.spanLinks = spanLinks == null ? emptyList() : spanLinks;
   }
 
@@ -119,6 +122,10 @@ public final class Metadata {
 
   public UTF8BytesString processTags() {
     return processTags;
+  }
+
+  public UTF8BytesString otlpExportMarker() {
+    return otlpExportMarker;
   }
 
   public List<? extends AgentSpanLink> getSpanLinks() {

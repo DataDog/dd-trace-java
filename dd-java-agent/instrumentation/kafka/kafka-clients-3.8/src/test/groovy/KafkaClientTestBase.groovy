@@ -65,12 +65,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   }
 
   @Override
-  boolean useStrictTraceWrites() {
-    // TODO fix this by making sure that spans get closed properly
-    return false
-  }
-
-  @Override
   void configurePreAgent() {
     super.configurePreAgent()
     codeOriginSetup()
