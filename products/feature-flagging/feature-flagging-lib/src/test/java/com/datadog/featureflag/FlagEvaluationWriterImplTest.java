@@ -109,6 +109,7 @@ class FlagEvaluationWriterImplTest {
     writer.close();
     writer.close();
     writer.start();
+    writer.startForTest();
 
     assertNull(FeatureFlaggingGateway.getFlagEvalWriter());
   }
