@@ -83,9 +83,9 @@ import java.lang.annotation.Target;
  * dataflow-derived guarantee this pattern aims for (and may allocate), falling back to whatever the
  * JIT's speculative, receiver-profile-driven optimizations manage on their own (e.g. bimorphic
  * inline caches, PGO devirtualization). Those can still recover the win, but they're inherently
- * more fragile: they depend on the live class hierarchy and observed call profile rather than
- * static information at the call site, so they degrade unpredictably — e.g. past two receiver types
- * — rather than failing loud. Verify the hot ones with {@code -XX:+UnlockDiagnosticVMOptions
+ * more fragile: depending on the live class hierarchy and observed call profile rather than static
+ * call-site information, they degrade unpredictably instead of failing loud — e.g. past two
+ * receiver types. Verify the hot ones with {@code -XX:+UnlockDiagnosticVMOptions
  * -XX:+PrintInlining}.
  *
  * <p>Retention is {@link RetentionPolicy#CLASS}, not {@code SOURCE}: a checker that only has the
