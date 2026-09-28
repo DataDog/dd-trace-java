@@ -287,7 +287,7 @@ class OpenTelemetryTest extends InstrumentationSpecification {
     }
     if (contextPriority == UNSET) {
       expectedTracestate += ";t.ksr:1"
-      expectedTracestate += ",ot=${span.delegate.spanContext().propagationTags.samplingState().otelTraceState}"
+      expectedTracestate += ",ot=rv:[0-9a-f]{14};th:0"
     }
     if (traceId.toHighOrderLong() != 0) {
       expectedDataTags << "_dd.p.tid=" + traceId.toHexStringPadded(32).substring(0, 16)
@@ -300,12 +300,12 @@ class OpenTelemetryTest extends InstrumentationSpecification {
       "x-datadog-parent-id"        : "$spanId",
       "x-datadog-sampling-priority": propagatedPriority.toString(),
       "traceparent"                : expectedTraceparent,
-      "tracestate"                 : expectedTracestate,
     ]
     if (!expectedDataTags.empty) {
       expectedTextMap.put("x-datadog-tags", expectedDataTags.join(','))
     }
-    textMap == expectedTextMap
+    textMap.tracestate ==~ expectedTracestate
+    textMap.findAll { key, value -> key != "tracestate" } == expectedTextMap
 
     when:
     def extractedContext = httpPropagator.extract(context, textMap, new TextMapGetter())

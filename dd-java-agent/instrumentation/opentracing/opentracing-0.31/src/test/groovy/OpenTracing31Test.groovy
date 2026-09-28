@@ -295,7 +295,7 @@ class OpenTracing31Test extends InstrumentationSpecification {
     }
     if (contextPriority == UNSET) {
       expectedTracestate += ";t.ksr:1"
-      expectedTracestate += ",ot=${context.delegate.propagationTags.samplingState().otelTraceState}"
+      expectedTracestate += ",ot=rv:[0-9a-f]{14};th:0"
       datadogTags << "_dd.p.ksr=1"
     }
     def expectedTextMap = [
@@ -303,12 +303,12 @@ class OpenTracing31Test extends InstrumentationSpecification {
       "x-datadog-parent-id"        : "$context.delegate.spanId",
       "x-datadog-sampling-priority": propagatedPriority.toString(),
       "traceparent"                : expectedTraceparent,
-      "tracestate"                 : expectedTracestate,
     ]
     if (!datadogTags.empty) {
       expectedTextMap.put("x-datadog-tags", datadogTags.join(','))
     }
-    textMap == expectedTextMap
+    textMap.tracestate ==~ expectedTracestate
+    textMap.findAll { key, value -> key != "tracestate" } == expectedTextMap
 
     when:
     def extract = tracer.extract(Format.Builtin.TEXT_MAP, adapter)

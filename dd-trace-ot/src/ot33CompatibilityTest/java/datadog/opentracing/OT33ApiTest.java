@@ -4,6 +4,8 @@ import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.api.sampling.SamplingMechanism.AGENT_RATE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -113,17 +115,17 @@ class OT33ApiTest extends DDJavaSpecification {
             + (propagatedPriority > 0 ? ";t.dm:-" + effectiveSamplingMechanism : "")
             + ";t.tid:"
             + traceId.toHexStringPadded(32).substring(0, 16)
-            + (contextPriority == UNSET
-                ? ";t.ksr:1,ot="
-                    + ddContext.getPropagationTags().samplingState().getOtelTraceState()
-                : "");
+            + (contextPriority == UNSET ? ";t.ksr:1,ot=rv:[0-9a-f]{14};th:0" : "");
 
     Map<String, String> expectedTextMap = new HashMap<>();
     expectedTextMap.put("x-datadog-trace-id", context.toTraceId());
     expectedTextMap.put("x-datadog-parent-id", context.toSpanId());
     expectedTextMap.put("x-datadog-sampling-priority", String.valueOf(propagatedPriority));
     expectedTextMap.put("traceparent", expectedTraceparent);
-    expectedTextMap.put("tracestate", expectedTracestate);
+    Map<String, String> actualTextMap = new HashMap<>(map);
+    String actualTracestate = actualTextMap.remove("tracestate");
+    assertNotNull(actualTracestate);
+    assertTrue(actualTracestate.matches(expectedTracestate), actualTracestate);
 
     ArrayList<String> datadogTags = new ArrayList<>();
     if (propagatedPriority > 0) {
@@ -140,7 +142,7 @@ class OT33ApiTest extends DDJavaSpecification {
       expectedTextMap.put("x-datadog-tags", String.join(",", datadogTags));
     }
 
-    assertEquals(expectedTextMap, map);
+    assertEquals(expectedTextMap, actualTextMap);
 
     io.opentracing.SpanContext extract = tracer.extract(Format.Builtin.TEXT_MAP, adapter);
     assertEquals(context.toTraceId(), extract.toTraceId());
