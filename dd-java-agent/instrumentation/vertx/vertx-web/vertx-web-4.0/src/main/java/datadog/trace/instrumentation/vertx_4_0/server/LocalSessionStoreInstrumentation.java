@@ -33,7 +33,7 @@ public final class LocalSessionStoreInstrumentation extends InstrumenterModule.C
   public Reference[] additionalMuzzleReferences() {
     // Removed in Vert.x 5, which has its own session-store instrumentation.
     return new Reference[] {
-      new Reference.Builder("io.vertx.core.http.impl.Http1xServerResponse").build()
+      new Reference.Builder("io.vertx.core.http.impl.HttpServerWorker").build()
     };
   }
 
