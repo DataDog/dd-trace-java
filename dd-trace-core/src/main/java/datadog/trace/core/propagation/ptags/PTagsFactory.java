@@ -792,18 +792,27 @@ public class PTagsFactory implements PropagationTags.Factory {
       return (OtelTraceState) samplingState.getOtelTraceState();
     }
 
+    @SuppressWarnings("StringEquality")
+    @SuppressFBWarnings(
+        value = "ES_COMPARING_STRINGS_WITH_EQ",
+        justification =
+            "Identity preserves the raw tracestate reference used by the cached sampling state.")
     void setOtelTraceState(OtelTraceState otelTraceState) {
-      if (getOtelTraceState() != otelTraceState) {
+      synchronized (samplingStateLock) {
+        SamplingState currentState = samplingState;
+        if (currentState.getTracestate() == tracestate
+            && currentState.getOtelTraceState() == otelTraceState) {
+          return;
+        }
         clearCachedHeader(W3C);
+        samplingState =
+            new SamplingState(
+                currentState.getSamplingPriority(),
+                tracestate,
+                otelTraceState,
+                getDecisionMakerTagValue(currentState),
+                getKnuthSamplingRateTagValue(currentState));
       }
-      SamplingState currentState = samplingState;
-      this.samplingState =
-          new SamplingState(
-              currentState.getSamplingPriority(),
-              tracestate,
-              otelTraceState,
-              getDecisionMakerTagValue(currentState),
-              getKnuthSamplingRateTagValue(currentState));
     }
 
     String getError() {
