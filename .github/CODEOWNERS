@@ -256,15 +256,14 @@
 /dd-trace-api/**/config/AppSecConfig*                                     @DataDog/asm-java
 **/*Rasp*                                                                 @DataDog/asm-java
 **/*Waf*                                                                  @DataDog/asm-java
-/dd-java-agent/instrumentation/**/appsec/                                 @DataDog/asm-java @DataDog/apm-idm-java
 /dd-java-agent/instrumentation/**/*CallSite*                              @DataDog/asm-java @DataDog/apm-idm-java
-/dd-java-agent/instrumentation/**/iast/                                   @DataDog/asm-java @DataDog/apm-idm-java
+/dd-java-agent/instrumentation/**/*appsec*                                @DataDog/asm-java @DataDog/apm-idm-java
+/dd-java-agent/instrumentation/**/*AppSec*                                @DataDog/asm-java @DataDog/apm-idm-java
+/dd-java-agent/instrumentation/**/*iast*                                  @DataDog/asm-java @DataDog/apm-idm-java
+/dd-java-agent/instrumentation/**/*rasp*                                  @DataDog/asm-java @DataDog/apm-idm-java
 /dd-java-agent/instrumentation/**/*Iast*                                  @DataDog/asm-java @DataDog/apm-idm-java
-/dd-java-agent/instrumentation/**/rasp/                                   @DataDog/asm-java @DataDog/apm-idm-java
 /dd-java-agent/instrumentation/**/*Rasp*                                  @DataDog/asm-java @DataDog/apm-idm-java
 /dd-java-agent/instrumentation/**/*Waf*                                   @DataDog/asm-java @DataDog/apm-idm-java
-/dd-java-agent/instrumentation/*iast*                                     @DataDog/asm-java @DataDog/apm-idm-java
-/dd-java-agent/instrumentation/*appsec*                                   @DataDog/asm-java @DataDog/apm-idm-java
 /dd-java-agent/instrumentation/beanshell-2.0/                             @DataDog/asm-java @DataDog/apm-idm-java
 /dd-java-agent/instrumentation/commons-fileupload-1.5/                    @DataDog/asm-java @DataDog/apm-idm-java
 /dd-java-agent/instrumentation/datadog/asm/                               @DataDog/asm-java @DataDog/apm-idm-java

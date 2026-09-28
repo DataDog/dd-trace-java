@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import datadog.context.Context;
 import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.Stateful;
@@ -21,6 +22,22 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
 
   /** Invoked when a thread exits */
   default void onDetach() {}
+
+  /**
+   * Binds {@code context} to profiler state associated with the current carrier thread.
+   *
+   * <p>The default implementation is a no-op. Integrations that return {@code true} from {@link
+   * #isThreadContextBindingRequired()} must override this method and treat {@link Context#root()}
+   * as clearing the current binding.
+   *
+   * @param context context to bind
+   */
+  default void setContext(Context context) {}
+
+  /** Whether profiler context must be rebound when a virtual thread changes carrier threads. */
+  default boolean isThreadContextBindingRequired() {
+    return false;
+  }
 
   default Stateful newScopeState(ProfilerContext profilerContext) {
     return Stateful.DEFAULT;

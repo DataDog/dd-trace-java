@@ -118,7 +118,8 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       "io.netty.handler.timeout.IdleStateHandler",
       "io.grpc.netty.shaded.io.netty.handler.timeout.IdleStateHandler",
       "com.linecorp.armeria.client.HttpClientFactory",
-      "com.linecorp.armeria.client.HttpChannelPool"
+      "com.linecorp.armeria.client.HttpChannelPool",
+      "akka.http.impl.engine.server.HttpServerBluePrint$TimeoutAccessImpl"
     };
   }
 
@@ -141,6 +142,14 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     String advice = getClass().getName() + "$DisableAsyncAdvice";
+    // Timeout cancellation is housekeeping; its request-entity future may never complete.
+    transformer.applyAdvice(
+        named("clear")
+            .and(takesNoArguments())
+            .and(
+                isDeclaredBy(
+                    named("akka.http.impl.engine.server.HttpServerBluePrint$TimeoutAccessImpl"))),
+        advice);
     transformer.applyAdvice(named("schedulePeriodically").and(isDeclaredBy(RX_WORKERS)), advice);
     transformer.applyAdvice(
         named("call").and(isDeclaredBy(named("rx.internal.operators.OperatorTimeoutBase"))),

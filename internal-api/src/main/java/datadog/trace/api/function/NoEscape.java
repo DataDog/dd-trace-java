@@ -48,6 +48,15 @@ import java.lang.annotation.Target;
  * field or collection. Returning one, passing it to a callback, or chaining further calls on it is
  * fine -- what needs a reason is anything that keeps it alive past the operation using it.
  *
+ * <p><b>On a method</b> ({@link ElementType#METHOD}): the value returned by this method should not
+ * be retained by the caller -- the same storage-not-travel rule as the type form, attached to the
+ * method instead because the concrete return type can't itself carry the annotation: an anonymous
+ * inner class, a lambda implementing a JDK interface ({@code Iterable}, {@code Iterator}, {@code
+ * Runnable}, ...), or any other type outside this codebase's control. The two forms compose --
+ * don't bother annotating a method whose return type is already {@code @NoEscape}, since the type
+ * form already covers every caller; reach for the method form specifically when the type can't be
+ * marked.
+ *
  * <p><b>Checker contract.</b> The rule below is written to be machine-checkable -- by a future
  * static checker, or in the meantime by an AI reviewer (see the perf-review skill's {@code
  * checks.md}) -- without needing to read this class's prose above. Because the underlying rule is
@@ -55,24 +64,33 @@ import java.lang.annotation.Target;
  * failure: a field that carries a comment explaining the deliberate exception is compliant.
  *
  * <ul>
- *   <li><b>Trigger:</b> a field (instance or static, in any class) whose declared type is annotated
- *       {@code @NoEscape}, either directly (e.g. {@code SubSequence field;}) or as a generic type
- *       argument of the field's declared type (e.g. {@code List<SubSequence>}, {@code Map<K,
- *       Maybe<V>>}), with no comment at the declaration explaining why the retention is safe.
+ *   <li><b>Trigger (type form):</b> a field (instance or static, in any class) whose declared type
+ *       is annotated {@code @NoEscape}, either directly (e.g. {@code SubSequence field;}) or as a
+ *       generic type argument of the field's declared type (e.g. {@code List<SubSequence>}, {@code
+ *       Map<K, Maybe<V>>}), with no comment at the declaration explaining why the retention is
+ *       safe.
+ *   <li><b>Trigger (method form):</b> a field (instance or static, in any class) initialized
+ *       directly from a call to a method annotated {@code @NoEscape} (e.g. {@code this.it =
+ *       ConcurrentHashtable.hashIterator(state, keyHash);}), with no comment at the declaration
+ *       explaining why the retention is safe.
  *   <li><b>Not a trigger:</b> a local variable, a method parameter, or a method return type -- this
  *       rule flags <em>storage</em> that outlives the call, not ordinary use within it. Also not a
- *       trigger: the same field shape, annotated with a comment justifying the retention.
- *   <li><b>Violation example:</b> {@code private final SubSequence cached;}
+ *       trigger: the same field shape, annotated with a comment justifying the retention; or a
+ *       method call chained/consumed within the same expression/statement rather than assigned to a
+ *       field (e.g. {@code for (T t : ConcurrentHashtable.hashIterable(state, keyHash))}).
+ *   <li><b>Violation example (type):</b> {@code private final SubSequence cached;}
+ *   <li><b>Violation example (method):</b> {@code private final Iterator<T> cached =
+ *       ConcurrentHashtable.hashIterator(state, keyHash);}
  *   <li><b>Compliant example:</b> {@code private final String cached;} -- materialize the view
  *       (e.g. call {@code toString()}) before storing it. Or, if retention is a deliberate,
  *       reviewed exception: {@code // Retained on purpose: <reason>} above the field.
  *   <li><b>Out of scope (v1):</b> escape through a non-generic/raw container, a capturing lambda,
- *       or a returned value the caller goes on to store. Flag only the field-declaration shape
- *       above; widen this contract only once a real case proves it insufficient, rather than
- *       guessing ahead of one.
+ *       or a returned value the caller goes on to store several calls later (rather than at the
+ *       call site itself). Flag only the field-declaration shapes above; widen this contract only
+ *       once a real case proves it insufficient, rather than guessing ahead of one.
  * </ul>
  */
 @Documented
 @Retention(RetentionPolicy.CLASS)
-@Target(ElementType.TYPE)
+@Target({ElementType.TYPE, ElementType.METHOD})
 public @interface NoEscape {}

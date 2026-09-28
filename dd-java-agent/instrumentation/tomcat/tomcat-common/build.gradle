@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.jmh-conventions'
 }
 
 configurations.configureEach {
@@ -25,4 +26,17 @@ dependencies {
   testImplementation group: 'javax.servlet', name: 'servlet-api', version: '2.4'
   testImplementation libs.bundles.junit5
   testImplementation libs.bundles.mockito
+}
+
+jmh {
+  jmhVersion = libs.versions.jmh.get()
+  includeTests = false
+}
+
+tasks.named('compileJmhJava', JavaCompile) {
+  configureCompiler(it, JavaVersion.VERSION_1_8)
+}
+
+dependencies {
+  jmh "org.apache.tomcat.embed:tomcat-embed-core:${findProperty('jmhTomcatVersion') ?: '11.0.26'}"
 }
