@@ -20,7 +20,7 @@
     - **JAX-WS**: `jakarta.xml.ws:jakarta.xml.ws-api`
     - **Servlet**: `jakarta.servlet:jakarta.servlet-api`
   - **DO NOT classify interface-only API JARs as not_applicable.** They ARE instrumentable via `implementsInterface()`.
-  - **Database-client design rules** (applied when picking the hook target in Step 3 / writing the module in Step 5): keep the connection/session `db.instance`/keyspace as the DEFAULT, and OVERRIDE it per-operation only when the operation supplies a more specific value (e.g. a fully-qualified `other_ks.table` query, or keyspace read from the response `ColumnDefinitions`) — never drop the default, or operations with no result metadata (a Cassandra write) lose the tag; prefer a tracing wrapper of long-lived client objects (wrap the client's factory return value) over per-`execute` advice; gate DBM metadata collection behind the DBM-enabled flag; and populate connection metadata eagerly at `Driver.connect` into a `Connection`-keyed context store, while retaining a lazy `parseDBInfo`-style fallback for connections created through paths the connect hook doesn't cover (DataSource, proxy).
+  - **Database-client design rules** (applied when picking the hook target in Step 3 / writing the module in Step 5): keep the connection/session `db.instance`/keyspace as the DEFAULT, and OVERRIDE it per-operation only when the operation supplies a more specific value (e.g. a fully-qualified `other_ks.table` query, or keyspace read from the response `ColumnDefinitions`) — never drop the default, or operations with no result metadata (a Cassandra write) lose the tag; prefer a tracing wrapper of long-lived client objects (wrap the client's factory return value) over per-`execute` advice; gate DBM metadata collection behind the DBM-enabled flag; and populate connection metadata eagerly at `Driver.connect` into a `Connection`-keyed context store, while retaining a lazy `parseDBInfo`-style fallback for connections created through paths the connect hook doesn't cover (DataSource, proxy). Set the resource from normalized SQL (`DBQueryInfo.ofStatement(sql).getSql()`), never the raw query string. For DBM, set `_dd.dbm_trace_injected` only on queries whose SQL actually received the comment, and if the SQL is rewritten before the query span exists (statement creation), inject static service metadata only — a `traceparent` built at that point names the wrong span. Test the injected comment text itself, not just the tag.
 - Add `classLoaderMatcher()` if a sentinel class identifies the framework on the classpath
 - Declare **all** helper class names in `helperClassNames()`:
   - Include inner classes (`Foo$Bar`), anonymous classes (`Foo$1`), and enum synthetic classes — for enums, each constant with an anonymous body generates its own synthetic class (`MyEnum$1`, `MyEnum$2`, …), each must be listed individually
@@ -54,13 +54,15 @@ Examples of such SPIs:
 
 **Why prefer the SPI over hand-written advice, especially for reactive/async clients:** a listener SPI is designed around the library's own execution lifecycle and delivers a single well-defined start/end (and error/**cancel**) callback per logical operation, with the operation's metadata (query text, connection info, status, timing) already assembled for you. Hand-written advice on a reactive method must instead re-implement that lifecycle by wrapping the returned `Publisher`/`Mono`/`Flux` and tracking subscribe/complete/error/**cancel** by hand — this is easy to get subtly wrong. A wrapper that finishes the span only on `onComplete`/`onError` will **leak every span that gets cancelled** (reactive pipelines routinely cancel upstreams — e.g. `take(1)`, timeouts, `DiscardOnCancel` operators), so the span is created but never finished and never exported. It is also easy to wrap at the wrong granularity and emit many spans per logical query. The library's listener already handles all of this.
 
-**Do this without forcing a new runtime dependency on the user.** Using a library's listener SPI does NOT require adding it as a normal (`implementation`/`api`) dependency:
+**Bundle the interception library into the agent — without forcing it on the user.** The application usually does NOT depend on the interception library (an R2DBC app need not have `r2dbc-proxy`), so its classes must travel inside the agent jar and be injected alongside your helpers:
 
-- Declare the interception library **`compileOnly`** so it is not put on the application's runtime classpath, and inject your listener implementation and any glue via the module's `helperClassNames()` (the same mechanism used for decorators and other injected helpers). The listener classes travel inside the agent, not the user's app.
-- If helper injection is impractical for a given SPI, the alternative is to **shade/bundle** the interception library's classes into the instrumentation rather than depend on it at runtime.
-- The `compileOnly` interception library must also be added to muzzle's classpath via `extraDependency` (see the worked example below) — otherwise muzzle validation fails with "missing class" for every type the listener/wrap-helper classes reference from it.
+- Declare the interception library **`implementation`** with **`transitive = false`**. `compileOnly` does not work: the classes are absent from the agent jar, so there is nothing to inject and both muzzle and runtime helper definition fail. Its own dependencies (for `r2dbc-proxy`: `r2dbc-spi`, `reactor-core`, `reactive-streams`) are provided by the application — declare them `compileOnly`, and guard the module with a `classLoaderMatcher()` on one of them (e.g. `hasClassNamed("reactor.core.publisher.Flux")`). Bundling them transitively only bloats the jar; the injected helpers link against the application's copies.
+- List the library's FULL runtime-reachable class set in `helperClassNames()`, in topological order (supertypes before implementers), since injection uses `ClassLoader.defineClass`. A hand-picked subset breaks as soon as an un-listed class is reached.
+- **A class listed in `helperClassNames()` is injected untransformed — never also make it an instrumented type.** Advice on it never runs, and removing it from the helper list to "fix" that makes the library fail at runtime (`NoClassDefFoundError` when it instantiates the class). If you need behavior inside the interception flow that its listener cannot express (e.g. rewriting SQL for DBM), advise the application's or driver's own SPI type instead — for R2DBC, `io.r2dbc.spi.Connection#createStatement(String)` via `ForTypeHierarchy`, mirroring `DBMCompatibleConnectionInstrumentation` for JDBC.
+- Bundled bytes count against the agent jar size budget (`jar.size.budget` in `metadata/agent-jar-checks.properties`, enforced by `:dd-java-agent:verifyAgentJarContents`). Run that task before pushing; if the growth is intentional, raise the budget in the same commit with headroom (CI resolves dependencies slightly differently than a local build) and state the size cost in the PR.
+- Add the library to muzzle's classpath via `extraDependency` (see the worked example below) — otherwise muzzle reports every type the listener/wrap-helper classes reference from it as "missing class".
 
-Reach for hand-written method advice when no such SPI exists, or when the SPI cannot express what you need to capture. When one does exist and fits, prefer it — and note the choice (and the `compileOnly`/injection approach) in the PR so a reviewer sees the dependency was considered.
+Reach for hand-written method advice when no such SPI exists, or when the SPI cannot express what you need to capture. When one does exist and fits, prefer it — and note the choice, the bundling approach and its jar-size cost in the PR so a reviewer sees the dependency was considered.
 
 **Worked example — hooking a registration/factory point instead of the query methods (R2DBC + `r2dbc-proxy`):**
 
@@ -78,7 +80,7 @@ Reach for hand-written method advice when no such SPI exists, or when the SPI ca
 
    Do NOT use a writable `@Advice.Return(readOnly = false) Publisher<...> ...` here — binding a reactive-streams interface to a writable return against a concrete `Mono`/`Flux` result fails Byte Buddy transformation. `@Advice.AssignReturned.ToReturned` sidesteps this because it substitutes the value rather than mutating a typed slot.
 
-2. **Wrap helper installs the listener** (injected via `helperClassNames()`, `r2dbc-proxy` declared `compileOnly`):
+2. **Wrap helper installs the listener** (injected via `helperClassNames()`, `r2dbc-proxy` bundled as `implementation` with `transitive = false`). Skip wrapping when the factory is already a proxy (`DRIVER == "proxy"`) or a wrapper driver that resolves its delegate through a nested, already-instrumented factory lookup (`DRIVER == "pool"` for `r2dbc:pool:` URLs). Wrapping either emits duplicate spans per query, and replacing a pool with a proxy breaks casts to the pool type and its disposal API:
 
    ```java
    public static ConnectionFactory wrapConnectionFactory(
@@ -97,7 +99,8 @@ Reach for hand-written method advice when no such SPI exists, or when the SPI ca
      public void beforeQuery(QueryExecutionInfo qei) {
        AgentSpan span = startSpan(...);
        DECORATE.afterStart(span);
-       DECORATE.onStatement(span, qei);
+       // Normalized SQL, never raw query text: raw SQL leaks literals and explodes resource cardinality.
+       DECORATE.onStatement(span, DBQueryInfo.ofStatement(qei.getQueries().get(0).getQuery()).getSql());
        qei.getValueStore().put(SPAN_KEY, span);
      }
      @Override
@@ -112,7 +115,7 @@ Reach for hand-written method advice when no such SPI exists, or when the SPI ca
 
    `beforeQuery`/`afterQuery` fire once per logical operation and `r2dbc-proxy` itself owns completion/error/**cancel** — you do not hand-roll a `Publisher` wrapper to catch those.
 
-4. **Muzzle needs an `extraDependency` for the `compileOnly` interception library.** Muzzle only puts the module's pinned primary dependency (here, `r2dbc-spi`) on its validation classpath by default. Since the wrap helper and listener classes reference the interception library's own types directly (`ProxyConnectionFactory`, `ProxyMethodExecutionListener`, `QueryExecutionInfo`, ...), muzzle reports them as "missing class" unless you add the interception library explicitly:
+4. **Muzzle needs an `extraDependency` for the bundled interception library.** Muzzle only puts the module's pinned primary dependency (here, `r2dbc-spi`) on its validation classpath by default. Since the wrap helper and listener classes reference the interception library's own types directly (`ProxyConnectionFactory`, `ProxyMethodExecutionListener`, `QueryExecutionInfo`, ...), muzzle reports them as "missing class" unless you add the interception library explicitly:
 
    ```groovy
    muzzle {
