@@ -944,13 +944,14 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     sqlPlans.remove(sqlEnd.executionId());
 
     if (span != null) {
-      // Set at finish so long-running heartbeats of the running span don't carry the plan
-      span.setTag("_dd.spark.physical_plan", queryStart.physicalPlanDescription());
       if (metrics != null) {
         metrics.setSpanMetrics(span);
       }
       notifyOl(x -> openLineageSparkListener.onOtherEvent(x), sqlEnd);
 
+      // Set right before finish so long-running heartbeats of the running span don't carry the
+      // plan
+      span.setTag("_dd.spark.physical_plan", queryStart.physicalPlanDescription());
       span.finish(sqlEnd.time() * 1000);
     }
   }
