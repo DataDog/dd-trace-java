@@ -31,6 +31,45 @@ Exit method:
 6. `scope.close()`
 7. `span.finish()`
 
+### Batch-consume operations: one span per item, not one span for the whole batch
+
+**Scope: independent-consume domains only** — a message broker's poll returning N records, a job queue's bulk-dequeue returning N jobs, or any API where each returned item carries its own distributed-trace context and independent follow-on work (deserializing, dispatching to a handler, downstream calls). This does NOT apply to a single outbound client operation that happens to return many elements — a search client returning a page of hits, or a bulk API's aggregate result — those are ONE client operation and get ONE span (see `Elasticsearch7RestClientInstrumentation`'s single span around `performRequest`/`performRequestAsync` for the canonical shape); wrapping their result to emit one span per element misattributes application work to spans that don't represent independent operations and can produce thousands of spans for one request.
+
+**The pattern**: for domains in scope, wrap the returned `Iterable`/`Iterator`/`List` so that advancing to the next item closes the previous item's span and opens a new one for the current item. Do not span the method that returns the batch; span the act of consuming each item from it. Extract each item's own distributed-trace context (not the caller's active context) before starting its span — items in the same batch can carry different propagation headers from different producers.
+
+```java
+// WRONG — one span covers the whole batch; no way to attach per-item follow-on work
+@Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+public static void exit(@Advice.Return Iterable<Record> records) {
+  AgentSpan span = startSpan(DECORATE.operationName(), ...);
+  // ... consume the whole Iterable under one span — individual item work has no span of its own
+}
+
+// WRONG — per-item spans, but started under the caller's active context instead of
+// each item's own propagated context; misparents (or unparents) every record's trace
+@Advice.OnMethodExit(suppress = Throwable.class)
+public static void exit(@Advice.Return(readOnly = false) Iterable<Record> records) {
+  if (records != null) {
+    records = new TracingIterable(records, DECORATE.operationName(), DECORATE);
+    // TracingIterable/TracingIterator must extract context per item — see CORRECT below
+  }
+}
+
+// CORRECT — wrap the Iterable so each item gets its own span, extracted from that
+// item's own propagated context, started on next(), and closed when the following
+// item starts (or when iteration ends). This mirrors kafka-clients' TracingIterator:
+// AgentSpanContext ctx = extractContextAndGetSpanContext(item.headers(), GETTER);
+// AgentSpan span = startSpan(DECORATE.operationName(), ctx);
+```
+
+The wrapping iterator's `next()` starts the span for the item it returns — after extracting that item's own propagated context (e.g. from its headers), not reusing whatever context is currently active — and after first closing whichever span was opened for the previous item. Its `hasNext()` closes the last open span when the delegate has no more items — this is what closes out the final item's span if the caller finishes iterating normally, since there's no explicit "close" call for the last item otherwise.
+
+**If the caller abandons the iteration partway through** (stops calling `next()`/`hasNext()` before reaching the end), the last opened span is not closed by `hasNext()`/`next()` — but it is NOT permanently leaked either under the default (legacy) context manager: root iteration scopes opened via `activateNext` are force-finished by a background cleaner after `trace.scope.iteration.keep.alive` (default 30 seconds) — see `IterationSpansForkedTest`. Don't assume this keep-alive exists under a non-legacy context manager without checking; state the timeout behavior you're relying on rather than assuming either "never" or "always" cleans up.
+
+**If the batch is returned as a `List`** and you wrap it with a `List`-implementing delegator (mirroring `TracingList`), be aware the reference implementation does not override `equals`/`hashCode` — wrapped and unwrapped lists with identical contents will not necessarily compare equal, and equality can be asymmetric depending on operand order. If your integration's tests or downstream code rely on `List` equality, wrap a narrower type (`Iterable`/`Iterator`) instead, or add `equals`/`hashCode` overrides that delegate to the wrapped list's contents.
+
+**How to discover the right hook point**: first confirm the API is in scope (independent-consume, not a single client operation returning many elements — see above). If it is, don't span the accessor that *returns* the batch (e.g. a `records()`/`poll()` method returning `Iterable<T>` or `List<T>`) — span the iteration over it. If the batch is returned as an `Iterable`, wrap the `Iterable` (whose `iterator()` produces a wrapping `Iterator`). If it's returned as a `List`, the same wrapping applies to `List.iterator()`/`listIterator()`. See `dd-java-agent/instrumentation/kafka/kafka-clients-0.11/src/main/java/datadog/trace/instrumentation/kafka_clients/{TracingIterable,TracingIterator,TracingList,TracingListIterator}.java` for the canonical implementation — this is the reference pattern for other independent-consume batch APIs (message queues, job queues), not for client operations that happen to return a collection.
+
 ### onExit handling when the target method throws
 
 The `onThrowable = Throwable.class` attribute on `@Advice.OnMethodExit` controls whether the exit advice fires when the **instrumented target method** throws. You **must** set it explicitly to `Throwable.class` for any exit advice that closes a scope or finishes a span — the default skips exceptional termination, which leaks active scopes when the instrumented method throws.
@@ -105,6 +144,42 @@ Before adding advice to an async wrapper, trace the call path to the sync delega
 2. **Reactivate around the delegate submission** — wrap the `Runnable`/`Callable` submitted to the worker so it opens a scope with the captured context before invoking the sync call. This is the pattern used by `java-concurrent-1.8`'s wrappers. Do NOT reinvent this per client — factor into a shared helper.
 
 The completion callback advice (whenComplete-style) is still useful for span-close cleanup on the caller's future, but it does not by itself guarantee the sync client's advice sees the right parent. See `context-tracking.md` for the propagation patterns and the specific `readOnly`/lambda constraints.
+
+### One matcher spanning sync and callback-based overloads must not finish the span at method exit
+
+This is a distinct failure from the double-span case above: here there is only ONE advice, but its method matcher is broad enough to also match an overload that takes a completion callback (e.g. a JMS-style `send(Message)` and `send(Message, CompletionListener)`, or any library's `doThing(Args)` / `doThing(Args, Callback)` pair). If the exit advice unconditionally finishes the span, the callback-based overload's span is finished when the submitting call returns — not when the operation actually completes — truncating its duration and losing any error the callback would have reported.
+
+**Fix:** either (a) split into two advices with matchers narrow enough to distinguish the callback-taking overload from the synchronous one, or (b) in a single advice, branch on whether the callback parameter is present: if absent, finish the span at exit as normal; if present, wrap the callback (mirroring the delegate-wrapper pattern used for async HTTP clients above) so the wrapper's `onCompletion()`/`onSuccess()`/`onError()` finishes the span, and do NOT finish it in the exit advice for that call.
+
+```java
+// WRONG — same exit advice finishes the span whether or not a callback was supplied
+@Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+public static void exit(@Advice.Enter AgentScope scope, @Advice.Thrown Throwable thrown) {
+  if (scope != null) {
+    DECORATE.onError(scope.span(), thrown);
+    scope.close();
+    scope.span().finish();  // wrong for the callback-based overload — completes too early
+  }
+}
+
+// CORRECT — the callback-based overload's advice wraps the callback and does NOT
+// finish the span itself; only the callback-less overload's advice finishes at exit
+@Advice.OnMethodExit(suppress = Throwable.class)
+public static void exit(
+    @Advice.Enter AgentScope scope,
+    @Advice.Argument(value = 1, readOnly = false) CompletionListener listener) {
+  if (scope != null) {
+    if (listener != null) {
+      listener = new DatadogCompletionListener(listener, scope.span());
+    } else {
+      scope.span().finish();
+    }
+    scope.close();
+  }
+}
+```
+
+**How to discover**: before writing the exit advice, check whether the method being matched has a sibling overload that accepts a callback/listener parameter. If the matcher (or the matched method set) covers both, this rule applies.
 
 ## Multiple advice classes and `@AppliesOn`
 
