@@ -80,7 +80,13 @@ import org.openjdk.jmh.infra.Blackhole;
  *       instances.
  *   <li>{@code stringIndex} is also slightly better than {@code hashMap} when used as an immutable
  *       map (1452.4 vs 1240.9 on {@code get}).
- *   <li>{@code TagMap.forEach} is about 46% faster than its iterator (146.69 vs. 100.66 M ops/s).
+ *   <li>{@code TagMap.forEach} is about 46% faster than its iterator (146.69 vs. 100.66 M ops/s),
+ *       and {@code -prof gc} supplies the mechanism: {@code iterate_tagMap} allocates 40 B/op while
+ *       {@code iterate_tagMap_forEach} allocates ≈0. {@code iterate_hashMap} is also 40 B/op,
+ *       whereas {@code iterate_linkedHashMap}, {@code iterate_treeMap} and {@code
+ *       iterate_tracerImmutableMap} allocate nothing. Every {@code get} arm is allocation-free,
+ *       including the distinct-key variants. Allocation was profiled in a later run than the
+ *       throughput table above, so the two are not a matched pair on absolute numbers.
  * </ul>
  */
 // @Fork(5): get_tracerImmutableMap* (MapN reached via interface dispatch) is JIT-bimodal at fewer

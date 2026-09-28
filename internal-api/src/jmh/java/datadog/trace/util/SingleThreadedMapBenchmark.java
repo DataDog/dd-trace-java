@@ -62,7 +62,8 @@ import org.openjdk.jmh.infra.Blackhole;
  *
  * clone_tagMap                  301.8   clone_treeMap                  101.5
  * clone_hashMap                  61.2   clone_synchronizedHashMap       54.9
- * clone_linkedHashMap            50.8
+ * clone_linkedHashMap            50.8   (clone B/op: tagMap 208, hashMap 488,
+ *                                        linkedHashMap 536, treeMap 480)
  *
  * get_flatHashtable             1583.7  get_hashMap                    1352.1
  * get_synchronizedHashMap        843.2

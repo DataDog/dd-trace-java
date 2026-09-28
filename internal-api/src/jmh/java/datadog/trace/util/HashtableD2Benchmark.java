@@ -47,7 +47,7 @@ import org.openjdk.jmh.infra.Blackhole;
  * Measured with {@code -prof gc} on Zulu 17, {@code update_hashMap} allocates 48.000 ± 0.001 B/op,
  * which decomposes exactly: 24 for the boxed {@code Long} and 24 for the {@code Key2} wrapper
  * (12-byte header, two references, one {@code int}). {@code update_hashtable} allocates ≈0 B/op.
- * Collections over the run were 420 against none.
+ * Collections over the run were 890 against none.
  *
  * <p>That 48 also answers a common assumption: escape analysis does <i>not</i> eliminate the
  * temporary {@code Key2}, even though every key in this benchmark is already present and the
@@ -88,11 +88,12 @@ import org.openjdk.jmh.infra.Blackhole;
  * is built at the call site with {@code new Key2(...)}, so C2 has an exact type either way and
  * devirtualizes {@code hashCode()}/{@code equals()} without consulting the polluted profile.
  * Pollution therefore cannot explain a move on either side. With the JDK and machine held constant,
- * what remains is uncontrolled run-to-run variation plus one concrete candidate: {@code
- * warmUpHashDispatch} itself allocates heavily before measurement starts, which can shift GC state
- * for the whole trial. Neither was measured. Treat these two runs as not directly comparable on
- * absolute numbers. The <b>relative</b> conclusion (D2 dominates {@code update}, wins {@code add}
- * by avoiding the {@code Key2} allocation, ties on {@code iterate}) is unchanged either way.
+ * what remains is uncontrolled run-to-run variation. The other candidate — that {@code
+ * warmUpHashDispatch}'s own heavy pre-measurement allocation shifts GC state for the trial — has
+ * since been tested and ruled out; see {@link HashtableD1Benchmark} for the 8x-to-1x comparison
+ * that moved nothing. Treat these two runs as not directly comparable on absolute numbers. The
+ * <b>relative</b> conclusion (D2 dominates {@code update}, leads {@code add} on JDK 8 by avoiding
+ * the {@code Key2} allocation, ties on {@code iterate}) is unchanged either way.
  *
  * <p>Separately rerun on Zulu 17.0.7 (native AArch64, same machine, pollution wiring unchanged).
  * JMH auto-detected the cheap "compiler" Blackhole mode on Java 17 (its log explicitly warns that
@@ -103,12 +104,12 @@ import org.openjdk.jmh.infra.Blackhole;
  *
  * <pre>{@code
  * Benchmark            ops/us            B/op   gc.count
- * add_hashMap        1009.6 ± 190.2      56.0       1819
- * add_hashtable      1018.9 ± 235.0      40.0       1589
- * update_hashMap      463.0 ±  95.7      48.0       1064
- * update_hashtable   2492.7 ±  51.9       ~0          ~0
- * iterate_hashMap      19.8 ±   0.3      40.0         60
- * iterate_hashtable    72.0 ±   1.6       ~0          ~0
+ * add_hashMap         987.3 ± 322.9      56.0       1797
+ * add_hashtable      1163.6 ± 143.5      40.0       1709
+ * update_hashMap      427.9 ±  64.0      48.0        890
+ * update_hashtable   2346.8 ±  31.7       ~0          ~0
+ * iterate_hashMap      19.8 ±   0.5      40.0         76
+ * iterate_hashtable    71.7 ±   2.1       ~0          ~0
  * }</pre>
  *
  * <p>These numbers postdate the switch from {@code Objects.hash} to {@link
@@ -122,17 +123,18 @@ import org.openjdk.jmh.infra.Blackhole;
  * the {@code Key2} (24) — see the escape-analysis note above. Both hashtable paths that avoid the
  * wrapper allocate nothing on {@code update} and {@code iterate}.
  *
- * <p>{@code update_hashtable} wins by ~5.4x — down from ~26x on JDK 8, and also down from the
+ * <p>{@code update_hashtable} wins by ~5.5x — down from ~26x on JDK 8, and also down from the
  * ~11.6x this file previously reported. The difference is the {@code Objects.hash} fix: removing
  * that varargs {@code Object[]} took 24 B/op off {@code update_hashMap} and roughly doubled its
- * throughput (196.7 to 463.0). {@code iterate_hashtable} wins ~3.6x, flipping JDK 8's wash —
+ * throughput (196.7 to 427.9). {@code iterate_hashtable} wins ~3.6x, flipping JDK 8's wash —
  * HashMap's {@code entrySet()} iterator does more per-entry work than a modern JIT's allocation
  * improvements erase.
  *
- * <p>{@code add} is now a tie (1018.9 vs 1009.6, comfortably inside both error bars), where this
- * file previously claimed a ~1.8x hashtable win. That claim was an artifact of the varargs
- * allocation in the old {@code Key2} constructor; with it gone the two are indistinguishable on the
- * insert path, which makes sense — both allocate one entry per insert.
+ * <p>{@code add} is a tie (1163.6 vs 987.3; the hashtable leads on the means but {@code
+ * add_hashMap}'s interval is ±322.9, so the two overlap), where this file previously claimed a
+ * ~1.8x hashtable win. That claim was an artifact of the varargs allocation in the old {@code Key2}
+ * constructor; with it gone the two are indistinguishable on the insert path, which makes sense —
+ * both allocate one entry per insert.
  *
  * <p>Net takeaway, consistent with {@link HashtableD1Benchmark}: {@code Hashtable} is a strong
  * substitute for {@code HashMap} for counter/tally use cases with a primitive value, where avoiding

@@ -43,7 +43,7 @@ import org.openjdk.jmh.infra.Blackhole;
  * entry; the HashMap path boxes a {@code Long} on every {@code merge}. Measured with {@code -prof
  * gc} on Zulu 17, {@code update_hashMap} allocates 24.000 ± 0.001 B/op — exactly one boxed {@code
  * Long} (12-byte header plus an 8-byte value, aligned to 24) — against ≈0 B/op for {@code
- * update_hashtable}, and 852 collections over the run against none. The GC pressure is measured
+ * update_hashtable}, and 801 collections over the run against none. The GC pressure is measured
  * rather than inferred from throughput. This is the headline case for {@code Hashtable}: a simple
  * counter/tally with a primitive value is exactly where HashMap's autoboxing tax bites hardest, and
  * {@code Hashtable.D1} sidesteps it entirely by mutating a field on the retrieved entry in place.
@@ -75,10 +75,16 @@ import org.openjdk.jmh.infra.Blackhole;
  * sharpens the {@code Object}-declared key to an exact type and devirtualizes {@code
  * hashCode()}/{@code equals()} without consulting the polluted profile. Pollution therefore cannot
  * explain a drop on either side. The JDK and machine were held constant, so what remains is
- * uncontrolled run-to-run variation plus one concrete candidate: {@code warmUpHashDispatch} itself
- * allocates heavily before measurement starts, which can shift GC state for the whole trial.
- * Neither was measured. The <b>relative</b> conclusion (D1 dominates {@code update}, is roughly
- * comparable on {@code add}, ties on {@code iterate}) is unchanged either way.
+ * uncontrolled run-to-run variation.
+ *
+ * <p>The other candidate — that {@code warmUpHashDispatch}'s own heavy pre-measurement allocation
+ * shifts GC state for the trial — has since been <b>tested and ruled out</b>. Pollution used to run
+ * once per thread, so at {@code @Threads(8)} it did eight times the work; it now runs once per JVM.
+ * Re-measuring across that 8x reduction moved nothing: {@code update_hashMap} 686.0 to 689.6,
+ * {@code update_hashtable} 2770.7 to 2796.3, {@code iterate_hashMap} 19.83 to 19.84, all well
+ * inside their intervals. Setup allocation is therefore not what moved these numbers. The
+ * <b>relative</b> conclusion (D1 dominates {@code update}, is roughly comparable on {@code add},
+ * ties on {@code iterate}) is unchanged throughout.
  *
  * <p>Separately rerun on Zulu 17.0.7 (native AArch64, same machine, pollution wiring unchanged; JMH
  * auto-detected the cheap "compiler" Blackhole mode here, unlike JDK 8, so absolute numbers below
@@ -87,12 +93,12 @@ import org.openjdk.jmh.infra.Blackhole;
  *
  * <pre>{@code
  * Benchmark            ops/us            B/op   gc.count
- * add_hashMap        1517.5 ± 242.9      32.0       1820
- * add_hashtable      1302.1 ± 403.9      40.0       1933
- * update_hashMap      686.0 ± 140.4      24.0        852
- * update_hashtable   2770.7 ± 169.4       ~0          ~0
- * iterate_hashMap      19.8 ±   0.6      40.0         55
- * iterate_hashtable    79.6 ±   9.6       ~0          ~0
+ * add_hashMap        1658.6 ± 190.5      32.0       1839
+ * add_hashtable      1358.0 ± 213.6      40.0       1710
+ * update_hashMap      689.6 ± 140.8      24.0        801
+ * update_hashtable   2796.3 ±  79.7       ~0          ~0
+ * iterate_hashMap      19.8 ±   0.3      40.0         76
+ * iterate_hashtable    81.5 ±   2.5       ~0          ~0
  * }</pre>
  *
  * <p>Allocation is measured with {@code -prof gc} and decomposes exactly: 24 B/op for {@code
@@ -109,7 +115,7 @@ import org.openjdk.jmh.infra.Blackhole;
  * iterate_hashtable} also now clearly wins (~4.0x), flipping from JDK 8's "wash" — HashMap's {@code
  * entrySet()} iterator does more per-entry work than a modern JIT's allocation improvements erase.
  * {@code add} is the one case that flips the other way: {@code add_hashMap} leads on the means
- * (1517.5 vs 1302.1), though both error bars are wide enough to overlap, so treat that one as
+ * (1658.6 vs 1358.0), though both error bars are wide enough to overlap, so treat that one as
  * undecided rather than a HashMap win. Net takeaway: {@code Hashtable} is a strong substitute for
  * {@code HashMap} particularly for simple counter/tally use cases with a primitive value, where
  * avoiding the per-update boxing allocation pays off even on a JVM with much better allocation

@@ -50,6 +50,14 @@ import org.openjdk.jmh.infra.Blackhole;
  * decisive) — tight enough that {@code hashMap}'s lead over {@code flatHashtable} (488.5 vs 380.3,
  * ~28%) is a real, if not perfectly clean-cut, result rather than noise.
  *
+ * <p>Measured with {@code -prof gc}: {@code lookup_hashMap} is the <i>only</i> lookup arm that
+ * allocates, at 25.5 ± 4.6 B/op for the folded {@code String}, against ≈0 for {@code
+ * flatHashtable}, {@code flatHashtable_lowLoad}, {@code treeMap} and the baseline. That quantifies
+ * the allocation win claimed above. The variance is itself informative: {@code toLowerCase()}
+ * returns {@code this} when a string is already lower-case, so the figure tracks the mixed-case
+ * fraction of the key set rather than a fixed per-lookup cost. Allocation came from a later run
+ * than the throughput table, so the two are not a matched pair.
+ *
  * <p><b>Takeaway, revised.</b> {@code HashMap} keyed on {@code toLowerCase()} is faster than {@code
  * FlatHashtable} for this lookup shape, not merely comparable to it as earlier (noisier) runs
  * suggested. {@code FlatHashtable} still wins on allocation — it is the zero-allocation option, and

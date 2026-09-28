@@ -45,24 +45,26 @@ import org.openjdk.jmh.infra.Blackhole;
  *
  * <pre>{@code
  * Benchmark                               ops/us          B/op
- * get_support                         2730.0 ±  33.4        ~0
- * get_concurrentHashtable             2653.0 ±  81.6        ~0
- * get_concurrentHashMap               1665.0 ±  24.2        ~0
- * get_concurrentSkipListMap            187.3 ±  40.1        ~0
- * get_synchronizedHashMap                9.3 ±   0.4        ~0
+ * get_support                         2731.5 ±  48.2        ~0
+ * get_concurrentHashtable             2545.5 ± 322.8        ~0
+ * get_concurrentHashMap               1668.2 ±  34.2        ~0
+ * get_concurrentSkipListMap            182.2 ±  43.8        ~0
+ * get_synchronizedHashMap                9.4 ±   0.5        ~0
  *
- * getOrCreate_support                 2597.4 ± 221.5        ~0
- * getOrCreate_concurrentHashMap       1647.1 ±  75.5        ~0
- * getOrCreate_concurrentHashtable     1397.0 ±  46.5        ~0
- * getOrCreate_concurrentSkipListMap    179.1 ±  40.0        ~0
- * getOrCreate_synchronizedHashMap        9.3 ±   0.4        ~0
+ * getOrCreate_support                 2497.8 ±  73.0        ~0
+ * getOrCreate_concurrentHashMap       1655.5 ±  62.4        ~0
+ * getOrCreate_concurrentHashtable     1397.3 ±  72.7        ~0
+ * getOrCreate_concurrentSkipListMap    178.2 ±  31.7        ~0
+ * getOrCreate_synchronizedHashMap        8.7 ±   2.4      12.0
  * }</pre>
  *
  * <p><b>The {@link Key2} wrapper is not allocated in the measured code.</b> Every map arm reports
- * ≈0 B/op under {@code -prof gc}, despite the source constructing a {@code Key2} per lookup.
- * LogCompilation confirms the mechanism: C2 emits {@code eliminate_allocation} for {@code Key2},
- * because the never-taken {@code computeIfAbsent} branch is pruned as {@code unstable_if}, which
- * removes the only store of the key and leaves it provably non-escaping.
+ * ≈0 B/op under {@code -prof gc}, despite the source constructing a {@code Key2} per lookup. The
+ * lone exception is {@code getOrCreate_synchronizedHashMap} at 12 B/op, whose throughput interval
+ * (±2.4 on an 8.7 mean) is too wide to read anything into; not investigated. LogCompilation
+ * confirms the mechanism: C2 emits {@code eliminate_allocation} for {@code Key2}, because the
+ * never-taken {@code computeIfAbsent} branch is pruned as {@code unstable_if}, which removes the
+ * only store of the key and leaves it provably non-escaping.
  *
  * <p>That is a property of this workload, not of the code, and it would not survive in production.
  * Pruning is possible only because {@code @Setup} installs every key before warmup, so the absent
@@ -77,19 +79,19 @@ import org.openjdk.jmh.infra.Blackhole;
  * <p>Key findings:
  *
  * <ul>
- *   <li>{@code Support} and {@code ConcurrentHashtable} are the two fastest on {@code get} (2730.0
- *       and 2653.0 ops/us), ~60% ahead of {@code ConcurrentHashMap} (1665.0). Since the {@code
+ *   <li>{@code Support} and {@code ConcurrentHashtable} are the two fastest on {@code get} (2731.5
+ *       and 2545.5 ops/us), 53-64% ahead of {@code ConcurrentHashMap} (1668.2). Since the {@code
  *       Key2} allocation is eliminated in all three (see above), that lead is the two-level hash
  *       lookup rather than allocation.
- *   <li>On {@code getOrCreate} the ordering inverts: {@code ConcurrentHashMap} (1647.1) overtakes
- *       {@code ConcurrentHashtable} (1397.0), whose own {@code getOrCreate} is roughly half its
- *       {@code get}. {@code Support} holds up (2597.4). Not root-caused here — the write-path
+ *   <li>On {@code getOrCreate} the ordering inverts: {@code ConcurrentHashMap} (1655.5) overtakes
+ *       {@code ConcurrentHashtable} (1397.3), whose own {@code getOrCreate} is roughly half its
+ *       {@code get}. {@code Support} holds up (2497.8). Not root-caused here — the write-path
  *       re-check is the obvious suspect, but it is not measured.
  *   <li>{@code Support} edges {@code D2} on both paths, consistent with its primitive {@code int}
  *       K2 field avoiding boxing inside the entry match on the write-path re-check.
  *   <li>{@code ConcurrentSkipListMap} is ~9× slower than {@code ConcurrentHashMap} due to tree
- *       traversal, though its error bar is wide (±40.1 on a 187.3 mean).
- *   <li>Synchronized {@code HashMap} is roughly 290× slower than the fastest options (9.3 vs 2730.0
+ *       traversal, though its error bar is wide (±43.8 on a 182.2 mean).
+ *   <li>Synchronized {@code HashMap} is roughly 290× slower than the fastest options (9.4 vs 2731.5
  *       ops/us) — lock contention across eight threads on a single monitor, the same magnitude seen
  *       in {@link ThreadSafeMapD1Benchmark}. Type-profile pollution is not a factor: {@code Key2}
  *       is a final class built at the call site, so C2 has an exact type and devirtualizes without
