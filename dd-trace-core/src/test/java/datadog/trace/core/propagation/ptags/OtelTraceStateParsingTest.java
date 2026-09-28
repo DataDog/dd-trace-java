@@ -37,6 +37,16 @@ class OtelTraceStateParsingTest {
   }
 
   @Test
+  void passesThroughUnrecognizedFields() {
+    OtelTraceState state =
+        OtelTraceState.parse("simplefield;blah;foo", ORIGINAL_MEMBER_CONTRIBUTION_SIZE);
+
+    assertEquals("simplefield;blah;foo", state.toString());
+    assertEquals(ORIGINAL_MEMBER_CONTRIBUTION_SIZE, state.getOriginalSize());
+    assertEquals("simplefield;blah;foo", state.forNonProbabilityDecision().toString());
+  }
+
+  @Test
   void removesMalformedThresholdAndRetainsValidRandomValue() {
     OtelTraceState state = OtelTraceState.parse("rv:0123456789abcd;th:not-hex;x:value", 0);
 

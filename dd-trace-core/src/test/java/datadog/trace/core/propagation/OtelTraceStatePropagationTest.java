@@ -48,6 +48,8 @@ class OtelTraceStatePropagationTest {
         arguments("ot=rv:" + RV, "ot=rv:" + RV),
         arguments("ot=th:" + TH, "ot=th:" + TH),
         arguments("ot=future:value", "ot=future:value"),
+        arguments("ot=someflag", "ot=someflag"),
+        arguments("vendor=state,ot=simplefield;blah;foo", "vendor=state,ot=simplefield;blah;foo"),
         arguments(
             "vendor=state,ot=rv:invalid;th:" + TH + ";future:value",
             "ot=future:value,vendor=state"),
@@ -57,6 +59,19 @@ class OtelTraceStatePropagationTest {
             "vendor=state,ot=rv:" + RV + ",ot=rv:1234567890abcd,other=state",
             "ot=rv:" + RV + ",vendor=state,other=state"),
         arguments("dd=s:1,dd=s:0,ot=rv:" + RV, "dd=s:1,ot=rv:" + RV));
+  }
+
+  @Test
+  void forwardsOpaqueOtelStateAfterSamplingPriorityChanges() {
+    PropagationTags tags =
+        PropagationTags.factory().fromHeaderValue(W3C, "vendor=state,ot=simplefield;blah;foo");
+
+    tags.updateTraceSamplingPriority(USER_KEEP, MANUAL);
+
+    assertEquals("simplefield;blah;foo", tags.samplingState().getOtelTraceState().toString());
+    assertTrue(tags.headerValue(W3C).contains("ot=simplefield;blah;foo"));
+    assertEquals(
+        "ot=simplefield;blah;foo,vendor=state", tags.getW3CTracestate(tags.samplingState()));
   }
 
   @Test

@@ -60,6 +60,7 @@ final class OtelTraceState implements CharSequence {
     int thresholdEnd = -1;
     boolean randomValueSeen = false;
     boolean invalidRandomValue = false;
+    boolean managedFieldSeen = false;
     boolean hasUnknownField = false;
     boolean normalized = false;
     int start = 0;
@@ -69,6 +70,7 @@ final class OtelTraceState implements CharSequence {
         end = raw.length();
       }
       if (startsWith(raw, start, end, RANDOM_VALUE_KEY)) {
+        managedFieldSeen = true;
         int candidateStart = start + RANDOM_VALUE_KEY.length();
         if (!randomValueSeen) {
           randomValueSeen = true;
@@ -83,6 +85,7 @@ final class OtelTraceState implements CharSequence {
           normalized = true;
         }
       } else if (startsWith(raw, start, end, THRESHOLD_KEY)) {
+        managedFieldSeen = true;
         int candidateStart = start + THRESHOLD_KEY.length();
         if (thresholdStart < 0 && isLowerHex(raw, candidateStart, end, 1, 14)) {
           thresholdStart = candidateStart;
@@ -107,7 +110,10 @@ final class OtelTraceState implements CharSequence {
     }
 
     if (randomValueStart < 0 && thresholdStart < 0 && !hasUnknownField) {
-      return null;
+      if (managedFieldSeen) {
+        return null;
+      }
+      return new OtelTraceState(raw, raw, originalSize, -1, -1, -1, -1, -1, -1, false, false, true);
     }
     if (normalized) {
       CharSequence normalizedValue =
