@@ -4,6 +4,13 @@ plugins {
 
 muzzle {
   pass {
+    name = 'jetty-websocket-12-native'
+    group = 'org.eclipse.jetty.websocket'
+    module = 'jetty-websocket-jetty-server'
+    versions = "[12,12.0.17]"
+    javaVersion = "17"
+  }
+  pass {
     name = 'jetty-websocket-12ee8'
     group = 'org.eclipse.jetty.ee8.websocket'
     module = 'jetty-ee8-websocket-javax-server'
@@ -30,6 +37,14 @@ testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_17
 }
 
+tracerJava {
+  addSourceSetFor(JavaVersion.VERSION_17)
+}
+
+tasks.named("compileMain_java17Java", JavaCompile) {
+  configureCompiler(it, 17, JavaVersion.VERSION_1_8, "Uses Jetty 12 APIs (Java 17+) at Java 8 bytecode")
+}
+
 addTestSuiteForDir("latestDepTest", "test")
 
 ["compileTestGroovy", "compileLatestDepTestGroovy"].each { name ->
@@ -39,16 +54,22 @@ addTestSuiteForDir("latestDepTest", "test")
 }
 
 dependencies {
+  main_java17CompileOnly 'org.eclipse.jetty.websocket:jetty-websocket-jetty-server:12.0.0'
   implementation project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-10.0")
   testImplementation group: 'org.eclipse.jetty.ee8.websocket', name: 'jetty-ee8-websocket-javax-server', version: '12.0.0'
   testImplementation group: 'org.eclipse.jetty.ee9.websocket', name: 'jetty-ee9-websocket-jakarta-server', version: '12.0.0'
   testImplementation group: 'org.eclipse.jetty.ee10.websocket', name: 'jetty-ee10-websocket-jakarta-server', version: '12.0.0'
+  testImplementation 'org.eclipse.jetty.websocket:jetty-websocket-jetty-server:12.0.0'
+  testImplementation 'org.eclipse.jetty.websocket:jetty-websocket-jetty-client:12.0.0'
   //TODO: jetty-12.1.0 is still alpha but wraps MethodHandle class into a MethodHolder class.
   // Today that is not stable but we'll need to port those advices to support that once the code base will be a bit more stable
   latestDepTestImplementation group: 'org.eclipse.jetty.ee8.websocket', name: 'jetty-ee8-websocket-javax-server', version: '12.0.17'
   latestDepTestImplementation group: 'org.eclipse.jetty.ee9.websocket', name: 'jetty-ee9-websocket-jakarta-server', version: '12.0.17'
   latestDepTestImplementation group: 'org.eclipse.jetty.ee10.websocket', name: 'jetty-ee10-websocket-jakarta-server', version: '12.0.17'
+  latestDepTestImplementation 'org.eclipse.jetty.websocket:jetty-websocket-jetty-server:12.0.17'
+  latestDepTestImplementation 'org.eclipse.jetty.websocket:jetty-websocket-jetty-client:12.0.17'
 
+  testRuntimeOnly project(":dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-12.0")
   testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-10.0")
   testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-11.0")
   testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:javax-websocket-1.0")
