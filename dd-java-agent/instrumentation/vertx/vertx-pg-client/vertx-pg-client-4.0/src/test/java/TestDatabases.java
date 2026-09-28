@@ -1,21 +1,24 @@
 import datadog.trace.agent.test.utils.PortUtils;
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.utility.DockerImageName;
 
 public class TestDatabases implements Closeable {
 
-  private final PostgreSQLContainer pgsql;
+  private final PostgreSQLContainer<?> pgsql;
   private final Map<String, TestDBInfo> dbInfos;
 
+  @SuppressWarnings("resource")
   private TestDatabases(String dbName) {
     Map<String, TestDBInfo> infos = new HashMap<>();
     pgsql =
-        new PostgreSQLContainer("postgres:16-alpine")
+        new PostgreSQLContainer<>(
+                DockerImageName.parse(System.getProperty("test.postgres.image"))
+                    .asCompatibleSubstituteFor("postgres"))
             .withDatabaseName(dbName)
             .withUsername("postgres")
             .withPassword("postgres");
@@ -38,7 +41,7 @@ public class TestDatabases implements Closeable {
   }
 
   @Override
-  public void close() throws IOException {
+  public void close() {
     if (null != pgsql) {
       pgsql.close();
     }

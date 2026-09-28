@@ -16,14 +16,10 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
-import org.jboss.resteasy.plugins.providers.multipart.InputPart;
 import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
 @AutoService(InstrumenterModule.class)
@@ -67,8 +63,7 @@ public class MultipartFormDataReaderInstrumentation extends InstrumenterModule.A
     static void after(
         @Advice.Return final MultipartFormDataInput ret,
         @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t)
-        throws IOException {
+        @Advice.Thrown(readOnly = false) Throwable t) {
       if (ret == null || t != null) {
         return;
       }
@@ -85,14 +80,7 @@ public class MultipartFormDataReaderInstrumentation extends InstrumenterModule.A
       }
 
       if (callback != null) {
-        Map<String, List<String>> m = new HashMap<>();
-        for (Map.Entry<String, List<InputPart>> e : ret.getFormDataMap().entrySet()) {
-          List<String> strings = new ArrayList<>();
-          m.put(e.getKey(), strings);
-          for (InputPart inputPart : e.getValue()) {
-            strings.add(inputPart.getBodyAsString());
-          }
-        }
+        Map<String, List<String>> m = MultipartHelper.collectBodyMap(ret);
 
         Flow<Void> flow = callback.apply(reqCtx, m);
         BlockingException be =

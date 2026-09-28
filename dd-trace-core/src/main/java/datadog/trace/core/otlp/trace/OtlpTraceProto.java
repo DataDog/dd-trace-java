@@ -1,5 +1,6 @@
 package datadog.trace.core.otlp.trace;
 
+import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_PARTIAL_VERSION;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_TOP_LEVEL;
@@ -284,8 +285,8 @@ public final class OtlpTraceProto {
 
       writeSpanTag(buf, THREAD_ID, metadata.getThreadId());
       writeSpanTag(buf, THREAD_NAME, metadata.getThreadName());
-      if (metadata.getHttpStatusCode() != null) {
-        writeSpanTag(buf, HTTP_STATUS, metadata.getHttpStatusCode());
+      if (metadata.getHttpStatusCode() != UNSET_STATUS) {
+        writeSpanTag(buf, HTTP_STATUS, metadata.getHttpStatusCodeString());
       }
       if (metadata.getOrigin() != null) {
         writeSpanTag(buf, ORIGIN_KEY, metadata.getOrigin());

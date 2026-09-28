@@ -6,9 +6,9 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedNo
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import io.cucumber.core.backend.StepDefinition;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -47,13 +47,13 @@ public class CucumberInstrumentation extends InstrumenterModule.CiVisibility
 
   public static class CucumberAdvice {
     @Advice.OnMethodEnter
-    public static AgentScope onCucumberStepStart(
+    public static ContextScope onCucumberStepStart(
         @Advice.This StepDefinition step, @Advice.Argument(0) Object[] arguments) {
       return CucumberStepDecorator.DECORATE.onStepStart(step, arguments);
     }
 
     @Advice.OnMethodExit
-    public static void onCucumberStepFinish(@Advice.Enter AgentScope scope) {
+    public static void onCucumberStepFinish(@Advice.Enter ContextScope scope) {
       CucumberStepDecorator.DECORATE.onStepFinish(scope);
     }
 

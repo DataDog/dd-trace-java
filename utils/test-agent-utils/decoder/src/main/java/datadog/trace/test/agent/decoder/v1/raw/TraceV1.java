@@ -101,23 +101,21 @@ public class TraceV1 implements DecodedTrace {
     if (spans.length == 0) {
       return spans;
     }
-    final long normalizedTraceId = traceId;
-    final Integer normalizedPriority = samplingPriority;
     DecodedSpan[] updated = new DecodedSpan[spans.length];
     for (int i = 0; i < spans.length; i++) {
       DecodedSpan span = spans[i];
       final Map<String, Number> metrics = new HashMap<>(span.getMetrics());
-      if (normalizedPriority != null
+      if (samplingPriority != null
           && span.getParentId() == 0
           && !metrics.containsKey("_sampling_priority_v1")) {
-        metrics.put("_sampling_priority_v1", normalizedPriority);
+        metrics.put("_sampling_priority_v1", samplingPriority);
       }
       updated[i] =
           new SpanV1(
               span.getService(),
               span.getName(),
               span.getResource(),
-              normalizedTraceId == 0 ? span.getTraceId() : normalizedTraceId,
+              traceId == 0 ? span.getTraceId() : traceId,
               span.getSpanId(),
               span.getParentId(),
               span.getStart(),
@@ -126,7 +124,8 @@ public class TraceV1 implements DecodedTrace {
               span.getType(),
               metrics,
               span.getMeta(),
-              span.getMetaStruct());
+              span.getMetaStruct(),
+              span.getLinks());
     }
     return updated;
   }

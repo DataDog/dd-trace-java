@@ -173,18 +173,11 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       final Flag flag = config.flags.get(key);
       if (flag == null) {
         if (config.invalidFlags != null && config.invalidFlags.containsKey(key)) {
-          if ("invalid_semver_comparand".equals(config.invalidFlags.get(key))) {
-            return error(
-                defaultValue,
-                ErrorCode.PARSE_ERROR,
-                "invalid configuration for flag " + key,
-                observeFullEvaluationData);
-          }
-          return ProviderEvaluation.<T>builder()
-              .value(defaultValue)
-              .reason(Reason.DEFAULT.name())
-              .flagMetadata(consentMetadata(observeFullEvaluationData))
-              .build();
+          return error(
+              defaultValue,
+              ErrorCode.PARSE_ERROR,
+              "invalid configuration for flag " + key,
+              observeFullEvaluationData);
         }
         return error(defaultValue, ErrorCode.FLAG_NOT_FOUND, null, observeFullEvaluationData);
       }
@@ -461,21 +454,27 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   }
 
   private static boolean matchesShard(final Shard shard, final String targetingKey) {
-    final int assignedShard = getShard(shard.salt, targetingKey, shard.totalShards);
+    // The bootstrap model preserves its int ABI, so UFC uint32 values are stored as raw bits.
+    // Convert before arithmetic and comparison to retain their unsigned wire semantics.
+    final long totalShards = Integer.toUnsignedLong(shard.totalShards);
+    final long assignedShard = getShard(shard.salt, targetingKey, totalShards);
     for (final ShardRange range : shard.ranges) {
-      if (assignedShard >= range.start && assignedShard < range.end) {
+      final long rangeStart = Integer.toUnsignedLong(range.start);
+      final long rangeEnd = Integer.toUnsignedLong(range.end);
+      if (assignedShard >= rangeStart && assignedShard < rangeEnd) {
         return true;
       }
     }
     return false;
   }
 
-  private static int getShard(final String salt, final String targetingKey, final int totalShards) {
+  private static long getShard(
+      final String salt, final String targetingKey, final long totalShards) {
     final String hashKey = salt + "-" + targetingKey;
     final String md5Hash = getMD5Hash(hashKey);
     final String first8Chars = md5Hash.substring(0, Math.min(8, md5Hash.length()));
     final long intFromHash = Long.parseLong(first8Chars, 16);
-    return (int) (intFromHash % totalShards);
+    return intFromHash % totalShards;
   }
 
   private static String getMD5Hash(final String input) {

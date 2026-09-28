@@ -20,6 +20,7 @@ val excludedClassesCoverage by extra(
     "datadog.telemetry.metric.CiVisibilityMetricPeriodicAction",
     "datadog.telemetry.metric.OtelSpiMetricPeriodicAction",
     "datadog.telemetry.metric.OtlpTelemetryPeriodicAction",
+    "datadog.telemetry.metric.DebuggerMetricPeriodicAction",
   )
 )
 extra["excludedClassesBranchCoverage"] = listOf(
@@ -44,7 +45,7 @@ dependencies {
   compileOnly(project(":utils:container-utils"))
   testImplementation(project(":utils:container-utils"))
 
-  api(libs.okhttp)
+  api(libs.datadog.okhttp)
   api(libs.moshi)
 
   testImplementation(project(":utils:test-utils"))

@@ -67,8 +67,7 @@ public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecora
   }
 
   public void onCommand(final AgentSpan span, final RedisCommand command) {
-    final String commandName = LettuceInstrumentationUtil.getCommandName(command);
-    span.setResourceName(LettuceInstrumentationUtil.getCommandResourceName(commandName));
+    span.setResourceName(LettuceInstrumentationUtil.getCommandResourceName(command));
   }
 
   public String resourceNameForConnection(final RedisURI redisURI) {

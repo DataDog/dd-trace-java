@@ -8,9 +8,8 @@ plugins {
   id 'dd-trace-java.version-file'
   id 'dd-trace-java.module.product-subsystem'
   id 'dd-trace-java.conventions.testing.scala'
+  id 'dd-trace-java.conventions.testing.kotlin'
 }
-
-apply from: "$rootDir/gradle/test-with-kotlin.gradle"
 
 minimumBranchCoverage = 0.0
 minimumInstructionCoverage = 0.0

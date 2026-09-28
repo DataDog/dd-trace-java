@@ -538,6 +538,14 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
       module = "with-transitive",
       versions = listOf("1.0.0")
     )
+    // Publish the transitive dependency too, so the test still discriminates: without the
+    // exclusion guava resolves and lands on the classpath, and the scan plugin below fails.
+    // (Resolving it from the real Maven Central would defeat routing everything through the proxy.)
+    mavenRepoFixture.publishVersions(
+      group = "com.google.guava",
+      module = "guava",
+      versions = listOf("31.0-jre")
+    )
 
     // Manually create a POM with a transitive dependency
     // Write into MavenRepoFixture's repoDir, not GradleFixture's projectDir.
@@ -575,7 +583,6 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
             artifact()
           }
         }
-        mavenCentral()
       }
 
       muzzle {
@@ -589,15 +596,15 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
       """
     )
 
-    // Scan plugin verifies that guava is NOT in the classpath (it was excluded)
+    // Scan plugin verifies that guava is NOT in the classpath (it was excluded).
+    // The fixture jar carries no guava classes, so probe the Maven descriptor every
+    // MavenRepoFixture artifact embeds instead of loading a class.
     writeScanPlugin(
       """
-      try {
-        testApplicationClassLoader.loadClass("com.google.common.collect.ImmutableList");
+      if (testApplicationClassLoader.getResource("META-INF/maven/com.google.guava/guava/pom.properties") != null) {
         throw new RuntimeException("Unexpected excluded dependency (guava) SHOULD NOT be in test classpath but was found");
-      } catch (ClassNotFoundException e) {
-        System.out.println("Excluded dependency (guava) correctly not in test classpath");
       }
+      System.out.println("Excluded dependency (guava) correctly not in test classpath");
       """
     )
 

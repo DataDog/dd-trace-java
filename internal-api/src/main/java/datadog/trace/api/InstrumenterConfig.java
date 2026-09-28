@@ -17,6 +17,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_RESET_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_MAP_PER_STORE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERIALVERSIONUID_FIELD_INJECTION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANNOTATIONS;
@@ -76,6 +77,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_SIMPL
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_LOADCLASS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_USE_URL_CACHES;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
+import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_MAP_PER_STORE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERIALVERSIONUID_FIELD_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATIONS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATION_ASYNC;
@@ -208,6 +210,7 @@ public class InstrumenterConfig {
 
   private final boolean runtimeContextFieldInjection;
   private final boolean serialVersionUIDFieldInjection;
+  private final boolean runtimeContextMapPerStore;
 
   private final String traceAnnotations;
   private final boolean traceAnnotationAsync;
@@ -355,6 +358,9 @@ public class InstrumenterConfig {
     serialVersionUIDFieldInjection =
         configProvider.getBoolean(
             SERIALVERSIONUID_FIELD_INJECTION, DEFAULT_SERIALVERSIONUID_FIELD_INJECTION);
+    runtimeContextMapPerStore =
+        configProvider.getBoolean(
+            RUNTIME_CONTEXT_MAP_PER_STORE, DEFAULT_RUNTIME_CONTEXT_MAP_PER_STORE);
 
     instrumentationConfigId = configProvider.getString(INSTRUMENTATION_CONFIG_ID, "");
 
@@ -657,6 +663,10 @@ public class InstrumenterConfig {
     return serialVersionUIDFieldInjection;
   }
 
+  public boolean isRuntimeContextMapPerStore() {
+    return runtimeContextMapPerStore;
+  }
+
   public String getTraceAnnotations() {
     return traceAnnotations;
   }
@@ -835,6 +845,8 @@ public class InstrumenterConfig {
         + runtimeContextFieldInjection
         + ", serialVersionUIDFieldInjection="
         + serialVersionUIDFieldInjection
+        + ", runtimeContextMapPerStore="
+        + runtimeContextMapPerStore
         + ", codeOriginEnabled="
         + codeOriginEnabled
         + ", traceAnnotations='"

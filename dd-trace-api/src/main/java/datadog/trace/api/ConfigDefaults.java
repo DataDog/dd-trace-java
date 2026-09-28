@@ -60,6 +60,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION = true;
   static final boolean DEFAULT_SERIALVERSIONUID_FIELD_INJECTION = true;
+  static final boolean DEFAULT_RUNTIME_CONTEXT_MAP_PER_STORE = true;
 
   static final boolean DEFAULT_EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT = false;
   static final boolean DEFAULT_PRIORITY_SAMPLING_ENABLED = true;
@@ -73,6 +74,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX = false;
   static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST = false;
   static final String DEFAULT_DB_DBM_PROPAGATION_MODE_MODE = "disabled";
+  static final boolean DEFAULT_DB_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED = false;
   static final boolean DEFAULT_DB_DBM_TRACE_PREPARED_STATEMENTS = false;
   static final boolean DEFAULT_DB_DBM_ALWAYS_APPEND_SQL_COMMENT = false;
   // Default value is set to 0, it disables the latency trace interceptor
@@ -97,6 +99,8 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CLIENT_IP_ENABLED = false;
 
   static final int DEFAULT_CLOCK_SYNC_PERIOD = 30; // seconds
+
+  static final boolean DEFAULT_TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED = false;
 
   static final TracePropagationBehaviorExtract DEFAULT_TRACE_PROPAGATION_BEHAVIOR_EXTRACT =
       TracePropagationBehaviorExtract.CONTINUE;
@@ -192,6 +196,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_LLM_OBS_ENABLED = false;
   static final boolean DEFAULT_LLM_OBS_AGENTLESS_ENABLED = false;
+  static final double DEFAULT_LLM_OBS_SAMPLE_RATE = 1.0;
 
   static final boolean DEFAULT_USM_ENABLED = false;
 

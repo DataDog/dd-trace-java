@@ -4,6 +4,7 @@ import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
 
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
+import com.datadog.debugger.el.EvaluationTimeOutException;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
 
@@ -23,6 +24,8 @@ public class IsDefinedExpression implements BooleanExpression {
     try {
       Value<?> value = valueExpression.evaluate(evalContext);
       return value.isUndefined() ? Boolean.FALSE : Boolean.TRUE;
+    } catch (EvaluationTimeOutException ex) {
+      throw ex;
     } catch (EvaluationException ex) {
       return Boolean.FALSE;
     } finally {

@@ -1564,6 +1564,15 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   private static String getAgentHttpUrl() {
+    // When the Agent is reachable over a Unix Domain Socket, its URL uses the unix:// scheme.
+    // Pass it through so the OpenLineage HTTP transport sends lineage over the socket (requires
+    // OpenLineage 1.54+). Any other configuration keeps the original http://host:port behavior,
+    // so existing http(s) setups are unaffected.
+    String agentUrl = Config.get().getAgentUrl();
+    if (agentUrl != null && agentUrl.startsWith("unix:")) {
+      return agentUrl;
+    }
+
     StringBuilder sb =
         new StringBuilder("http://")
             .append(Config.get().getAgentHost())

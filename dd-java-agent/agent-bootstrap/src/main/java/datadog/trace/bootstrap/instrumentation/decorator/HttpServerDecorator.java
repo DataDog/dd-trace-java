@@ -197,7 +197,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return parentContext.with(span);
   }
 
-  private void tagSecurityTestingHeaders(AgentSpan span, REQUEST_CARRIER carrier) {
+  protected void tagSecurityTestingHeaders(AgentSpan span, REQUEST_CARRIER carrier) {
     AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
     if (carrier == null || getter == null) {
       return;

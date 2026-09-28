@@ -14,6 +14,7 @@ import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Sampled;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
+import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.MoshiHelper;
 import com.datadog.debugger.util.MoshiSnapshotTestHelper;
 import com.datadog.debugger.util.SerializerWithLimits;
@@ -158,6 +159,15 @@ public class CapturingTestBase {
       e.printStackTrace();
       return null;
     }
+  }
+
+  protected List<Snapshot> assertSnapshots(
+      TestSnapshotListener listener, int expectedCount, ProbeId... probeIds) {
+    assertEquals(expectedCount, listener.snapshots.size());
+    for (int i = 0; i < probeIds.length; i++) {
+      assertEquals(probeIds[i].getId(), listener.snapshots.get(i).getProbe().getId());
+    }
+    return listener.snapshots;
   }
 
   protected void assertCaptureFields(

@@ -129,6 +129,16 @@ _Recovery:_ Re-write the new Groovy files in Java / JUnit. To override this chec
 
 _Notes:_ The override label skips the workflow entirely.
 
+### team-freeze-guard [🔗](team-freeze-guard.yaml)
+
+_Trigger:_ When a pull request is opened, reopened, synchronized, labeled, unlabeled, or marked ready for review.
+
+_Action:_ Fail the check if the pull request author or the last committer belongs to a team currently listed in the `frozen-teams` input, blocking the PR from merging.
+
+_Recovery:_ If your PR is not dedicated to fix CI issue, it'll be block until the incident is resolved. If your Pr aims to fix CI issues, add one of the configured labels: `comp: testing`, `comp: tooling`, `tag: flaky test`, `tag: flaky test/disabled` to the pull request.
+
+_Notes:_ Configure frozen teams by editing the `frozen-teams` input in the workflow file (empty string means no team is frozen; otherwise list `@DataDog/<team>` entries one per line).
+
 ## Code Quality and Security
 
 ### analyze-changes [🔗](analyze-changes.yaml)

@@ -1,5 +1,11 @@
+import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
+
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.api.BaseHash
+import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.ProcessTags
 import datadog.trace.api.config.TraceInstrumentationConfig
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import test.TestConnection
 import test.TestDatabaseMetaData
 import test.TestPreparedStatement
@@ -73,5 +79,216 @@ class OracleInjectionForkedTest extends OracleInjectionTestBase {
     url            | expected
     sidUrl         | sidInjection
     serviceNameUrl | serviceNameInjection
+  }
+}
+
+class OracleDynamicServiceActionInjectionForkedTest extends OracleInjectionTestBase {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+
+    injectSysConfig(TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE, "dynamic_service")
+    injectSysConfig(
+      TraceInstrumentationConfig.DB_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED, "true")
+  }
+
+  def setup() {
+    ProcessTags.reset()
+    BaseHash.updateBaseHash(-6937226773133363462L)
+  }
+
+  def "Oracle dynamic service mode propagates the hash in ACTION without changing statement SQL"() {
+    setup:
+    def connection = createOracleConnection(serviceNameUrl)
+    def statement = connection.createStatement() as TestStatement
+
+    when:
+    statement.executeQuery(query)
+    statement.executeQuery(query)
+
+    then:
+    statement.sql == query
+    connection.clientInfoName == "OCSID.ACTION"
+    connection.clientInfoValue == "_DD_DDSH:-6937226773133363462"
+    connection.clientInfoSetCount == 1
+    assertTraces(2) {
+      trace(1) {
+        span {
+          spanType DDSpanTypes.SQL
+          tags(false) {
+            "$Tags.BASE_HASH" "-6937226773133363462"
+          }
+        }
+      }
+      trace(1) {
+        span {
+          spanType DDSpanTypes.SQL
+          tags(false) {
+            "$Tags.BASE_HASH" "-6937226773133363462"
+          }
+        }
+      }
+    }
+  }
+
+  def "Oracle dynamic service mode preserves prepared statement SQL"() {
+    setup:
+    def connection = createOracleConnection(sidUrl)
+
+    when:
+    def statement = connection.prepareStatement(query) as TestPreparedStatement
+    statement.execute()
+
+    then:
+    statement.sql == query
+    connection.clientInfoValue == "_DD_DDSH:-6937226773133363462"
+    connection.clientInfoSetCount == 1
+  }
+
+  def "Oracle dynamic service mode refreshes ACTION only when the hash changes"() {
+    setup:
+    def connection = createOracleConnection(serviceNameUrl)
+    def statement = connection.createStatement() as TestStatement
+
+    when:
+    statement.executeQuery(query)
+    BaseHash.updateBaseHash(123456789L)
+    statement.executeQuery(query)
+
+    then:
+    connection.clientInfoValue == "_DD_DDSH:123456789"
+    connection.clientInfoSetCount == 2
+  }
+
+  def "Oracle #statementType uses one BaseHash value for ACTION and the span"() {
+    setup:
+    def connection = createOracleConnection(serviceNameUrl)
+    connection.clientInfoSetCallback = {
+      BaseHash.updateBaseHash(123456789L)
+    }
+
+    when:
+    if (prepared) {
+      connection.prepareStatement(query).execute()
+    } else {
+      connection.createStatement().executeQuery(query)
+    }
+
+    then:
+    connection.clientInfoValue == "_DD_DDSH:-6937226773133363462"
+    BaseHash.getBaseHashStr() == "123456789"
+    assertTraces(1) {
+      trace(1) {
+        span {
+          spanType DDSpanTypes.SQL
+          tags(false) {
+            "$Tags.BASE_HASH" "-6937226773133363462"
+          }
+        }
+      }
+    }
+
+    where:
+    statementType        | prepared
+    "statement"          | false
+    "prepared statement" | true
+  }
+
+  def "Oracle dynamic service mode initializes every connection with the same URL"() {
+    setup:
+    def firstConnection = createOracleConnection(serviceNameUrl)
+    def secondConnection = createOracleConnection(serviceNameUrl)
+
+    when:
+    firstConnection.createStatement().executeQuery(query)
+    secondConnection.createStatement().executeQuery(query)
+
+    then:
+    firstConnection.clientInfoSetCount == 1
+    secondConnection.clientInfoSetCount == 1
+  }
+
+  def "Oracle dynamic service mode retries the same hash after a transient failure"() {
+    setup:
+    def connection = createOracleConnection(serviceNameUrl)
+    connection.clientInfoFailuresRemaining = 1
+    def statement = connection.createStatement() as TestStatement
+
+    when:
+    statement.executeQuery(query)
+    statement.executeQuery(query)
+
+    then:
+    connection.clientInfoValue == "_DD_DDSH:-6937226773133363462"
+    connection.clientInfoSetCount == 2
+  }
+
+  def "Oracle dynamic service mode remembers unsupported client info"() {
+    setup:
+    def connection = createOracleConnection(serviceNameUrl)
+    connection.clientInfoUnsupported = true
+    def statement = connection.createStatement() as TestStatement
+
+    when:
+    statement.executeQuery(query)
+    statement.executeQuery(query)
+
+    then:
+    connection.clientInfoValue == null
+    connection.clientInfoSetCount == 1
+  }
+}
+
+class OracleDynamicServiceActionProcessTagsDisabledForkedTest extends OracleInjectionTestBase {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+
+    injectSysConfig(TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE, "dynamic_service")
+    injectSysConfig(
+      TraceInstrumentationConfig.DB_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED, "true")
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false")
+  }
+
+  def "Oracle statement keeps SQL comments and skips ACTION when process tags are disabled"() {
+    setup:
+    def connection = createOracleConnection(serviceNameUrl)
+    def statement = connection.createStatement() as TestStatement
+
+    when:
+    statement.executeQuery(query)
+
+    then:
+    statement.sql == "/*${serviceNameInjection}*/ ${query}"
+    connection.clientInfoSetCount == 0
+    assertTraces(1) {
+      trace(1) {
+        span {
+          spanType DDSpanTypes.SQL
+          assert !span.tags.containsKey(Tags.BASE_HASH)
+        }
+      }
+    }
+  }
+
+  def "Oracle prepared statement keeps SQL comments and skips ACTION when process tags are disabled"() {
+    setup:
+    def connection = createOracleConnection(sidUrl)
+
+    when:
+    def statement = connection.prepareStatement(query) as TestPreparedStatement
+    statement.execute()
+
+    then:
+    statement.sql == "/*${sidInjection}*/ ${query}"
+    connection.clientInfoSetCount == 0
+    assertTraces(1) {
+      trace(1) {
+        span {
+          spanType DDSpanTypes.SQL
+          assert !span.tags.containsKey(Tags.BASE_HASH)
+        }
+      }
+    }
   }
 }

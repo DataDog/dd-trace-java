@@ -7,7 +7,7 @@ plugins {
 description = 'dd-smoke-tests'
 
 dependencies {
-  api libs.okhttp
+  api libs.datadog.okhttp
   api libs.testcontainers
   api project(':dd-java-agent:testing')
   api project(':utils:test-agent-utils:decoder')
@@ -18,15 +18,6 @@ dependencies {
 
   // Checks the mock backend's remote-config payload with the tracer's own response parser.
   testImplementation project(':remote-config:remote-config-core')
-}
-
-tasks.withType(GroovyCompile).configureEach {
-  configureCompiler(
-    it,
-    8,
-    JavaVersion.VERSION_1_8,
-    "CharBuffer#flip() signature needs to be ()Ljava.nio.Buffer (to run on JDK8)."
-    )
 }
 
 // Disable forbiddenApis for all smoke-test modules

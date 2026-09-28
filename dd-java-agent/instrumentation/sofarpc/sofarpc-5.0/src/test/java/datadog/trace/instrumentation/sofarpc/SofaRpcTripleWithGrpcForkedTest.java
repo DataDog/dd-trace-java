@@ -9,8 +9,8 @@ import com.alipay.sofa.rpc.config.ApplicationConfig;
 import com.alipay.sofa.rpc.config.ConsumerConfig;
 import com.alipay.sofa.rpc.config.ProviderConfig;
 import com.alipay.sofa.rpc.config.ServerConfig;
+import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.DDSpan;
 import java.util.ArrayList;
@@ -99,7 +99,7 @@ public class SofaRpcTripleWithGrpcForkedTest extends AbstractInstrumentationTest
   @Test
   void tripleServerSpanIsNestedUnderGrpcServer() throws InterruptedException, TimeoutException {
     AgentSpan callerSpan = startSpan("test", "caller");
-    AgentScope callerScope = activateSpan(callerSpan);
+    ContextScope callerScope = activateSpan(callerSpan);
     String reply;
     try {
       reply = greeterService.sayHello("World");

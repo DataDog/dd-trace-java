@@ -36,7 +36,7 @@ public class MaybeBlockResponseHandler extends SimpleChannelDownstreamHandler {
   @Override
   public void writeRequested(ChannelHandlerContext ctx, MessageEvent msg) throws Exception {
     final ChannelTraceContext channelTraceContext =
-        contextStore.putIfAbsent(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
+        contextStore.getOrCreate(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
 
     AgentSpan span = channelTraceContext.getServerSpan();
     RequestContext requestContext;

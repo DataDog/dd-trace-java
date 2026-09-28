@@ -11,18 +11,19 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator.DECORATE;
 import static datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator.JAX_RS_CONTROLLER;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.reflect.Method;
 import java.util.Collection;
@@ -99,7 +100,7 @@ public final class JaxRsAnnotationsInstrumentation extends InstrumenterModule.Tr
   public static class JaxRsAnnotationsAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope nameSpan(
+    public static ContextScope nameSpan(
         @Advice.This final Object target,
         @Advice.Origin final Method method,
         @Advice.AllArguments final Object[] args,
@@ -130,7 +131,7 @@ public final class JaxRsAnnotationsInstrumentation extends InstrumenterModule.Tr
       DECORATE.onJaxRsSpan(span, parent, target.getClass(), method);
       DECORATE.afterStart(span);
 
-      final AgentScope scope = activateSpan(span);
+      final ContextScope scope = activateSpan(span);
 
       if (contextStore != null && asyncResponse != null) {
         contextStore.put(asyncResponse, span);
@@ -141,13 +142,13 @@ public final class JaxRsAnnotationsInstrumentation extends InstrumenterModule.Tr
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope,
+        @Advice.Enter final ContextScope scope,
         @Advice.Thrown final Throwable throwable,
         @Advice.Local("asyncResponse") final AsyncResponse asyncResponse) {
       if (scope == null) {
         return;
       }
-      final AgentSpan span = scope.span();
+      final AgentSpan span = spanFromScope(scope);
       if (throwable != null) {
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);
