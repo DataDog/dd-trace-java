@@ -1,5 +1,6 @@
 package datadog.trace.api.remoteconfig;
 
+import static datadog.trace.api.remoteconfig.ServiceNameCollector.newServiceNameCollector;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -15,7 +16,7 @@ class ServiceNameCollectorTest {
 
   @Test
   void testAddExtraService() {
-    ServiceNameCollector provider = new ServiceNameCollector();
+    ServiceNameCollector provider = newServiceNameCollector();
     String service = "testService";
 
     provider.addService(service);
@@ -29,7 +30,7 @@ class ServiceNameCollectorTest {
     "empty string | ''   "
   })
   void testAddInvalidExtraService(String value) {
-    ServiceNameCollector provider = new ServiceNameCollector();
+    ServiceNameCollector provider = newServiceNameCollector();
 
     provider.addService(value);
 
@@ -38,7 +39,7 @@ class ServiceNameCollectorTest {
 
   @Test
   void extraServiceIsNotAddedIfItIsTheDefaultOne() {
-    ServiceNameCollector provider = new ServiceNameCollector();
+    ServiceNameCollector provider = newServiceNameCollector();
     String global = Config.get().getServiceName();
 
     provider.addService(global);
@@ -53,7 +54,7 @@ class ServiceNameCollectorTest {
     "different case | 'TestService'"
   })
   void extraServiceIsNotAddedIfAlreadyExist(String service) {
-    ServiceNameCollector provider = new ServiceNameCollector();
+    ServiceNameCollector provider = newServiceNameCollector();
     provider.addService("testService");
     assertEquals(1, provider.getServices().size());
 
@@ -64,7 +65,7 @@ class ServiceNameCollectorTest {
 
   @Test
   void extraServiceCanNotExceed64Elements() {
-    ServiceNameCollector provider = new ServiceNameCollector();
+    ServiceNameCollector provider = newServiceNameCollector();
     assertFalse(provider.limitReachedLogged);
     for (int i = 0; i <= 64; i++) {
       provider.addService("testService" + i);
@@ -79,7 +80,7 @@ class ServiceNameCollectorTest {
 
   @Test
   void getExtraServicesReturnsNullIfThereAreNoExtraServices() {
-    ServiceNameCollector provider = new ServiceNameCollector();
+    ServiceNameCollector provider = newServiceNameCollector();
 
     List<String> result = provider.getServices();
 
