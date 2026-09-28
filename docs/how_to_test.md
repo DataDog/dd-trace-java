@@ -69,8 +69,10 @@ static class IbmJvm implements Predicate<String> {
 }
 ```
 
-Use `suites = {"SomeSubclass"}` to limit the annotation to particular test classes, such as subclasses
-that inherit a test. When both `suites` and `condition` are specified, both must match.
+Use `suites = {"SomeSubclass"}` to limit the annotation to the concrete class executing the test,
+such as a subclass that inherits the annotated method. Simple and canonical class names are
+supported. Matching is exact, so subclasses and nested classes must each be listed. When both
+`suites` and `condition` are specified, both must match.
 
 > [!TIP]
 > In case your pull request checks failed due to some unexpected flaky tests, you can retry the continuous 

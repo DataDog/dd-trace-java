@@ -8,7 +8,7 @@ import org.junit.platform.engine.TestSource;
 import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.junit.platform.launcher.PostDiscoveryFilter;
 
-/** Excludes non-flaky JUnit tests from flaky-only runs before execution. */
+/** Selects flaky JUnit tests for flaky-only runs before execution. */
 public final class FlakyJUnitFilter implements PostDiscoveryFilter {
   @Override
   public FilterResult apply(TestDescriptor descriptor) {

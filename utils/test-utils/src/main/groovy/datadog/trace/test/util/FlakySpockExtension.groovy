@@ -70,15 +70,18 @@ class FlakySpockExtension extends AbstractGlobalExtension {
     if (suites == null || suites.length == 0) {
       return true
     }
-    final specName = getSpecName(node)
-    return suites.any { it == specName }
+    final spec = getSpec(node)
+    return suites.any {
+      it == spec.bottomSpec.name ||
+        it == spec.bottomSpec.reflection.canonicalName
+    }
   }
 
-  private static String getSpecName(final NodeInfo node) {
+  private static SpecInfo getSpec(final NodeInfo node) {
     def curNode = node
     while (curNode != null) {
       if (curNode instanceof SpecInfo) {
-        return curNode.bottomSpec.name
+        return curNode
       }
       curNode = curNode.parent
     }

@@ -21,8 +21,9 @@ public @interface Flaky {
   String value() default "";
 
   /**
-   * Names of the test suite classes where this test is flaky, typically subclasses that inherit the
-   * test. Spock uses simple class names; JUnit accepts simple or fully qualified class names.
+   * Names of the concrete classes where this test is flaky, typically subclasses that inherit the
+   * annotated method. Each entry must exactly match the executing class's simple or canonical name;
+   * subclasses and nested classes must be listed separately.
    */
   String[] suites() default {};
 

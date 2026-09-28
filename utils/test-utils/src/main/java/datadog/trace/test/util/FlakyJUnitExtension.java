@@ -11,7 +11,7 @@ import org.junit.jupiter.api.extension.ExecutionCondition;
 import org.junit.jupiter.api.extension.ExtensionConfigurationException;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
-/** Selects JUnit tests using the same flaky-test modes as {@link FlakySpockExtension}. */
+/** Selects JUnit tests using the project's flaky-test modes. */
 public final class FlakyJUnitExtension implements ExecutionCondition {
   private static final String RUN_FLAKY_TESTS = "run.flaky.tests";
 
@@ -51,7 +51,7 @@ public final class FlakyJUnitExtension implements ExecutionCondition {
     if (flaky.suites().length > 0) {
       boolean matches = false;
       for (String suite : flaky.suites()) {
-        if (suite.equals(testClass.getSimpleName()) || suite.equals(testClass.getName())) {
+        if (matchesClassName(suite, testClass)) {
           matches = true;
           break;
         }
@@ -68,10 +68,20 @@ public final class FlakyJUnitExtension implements ExecutionCondition {
           flaky.condition().getDeclaredConstructor();
       constructor.setAccessible(true);
       return constructor.newInstance().test(testClass.getSimpleName()) ? flaky : null;
+    } catch (NoSuchMethodException e) {
+      throw new ExtensionConfigurationException(
+          "@Flaky condition "
+              + flaky.condition().getName()
+              + " must have a no-argument constructor",
+          e);
     } catch (ReflectiveOperationException | RuntimeException e) {
       throw new ExtensionConfigurationException(
           "Could not evaluate @Flaky condition " + flaky.condition().getName() + " on " + element,
           e);
     }
+  }
+
+  private static boolean matchesClassName(String suite, Class<?> testClass) {
+    return suite.equals(testClass.getSimpleName()) || suite.equals(testClass.getCanonicalName());
   }
 }
