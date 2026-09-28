@@ -4,7 +4,9 @@ import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -80,6 +82,31 @@ class OtelTraceStateTest {
 
     assertEquals("rv:0123456789abcd;x:value", transformed.toString());
     assertTrue(transformed.isConsistentWith(false));
+  }
+
+  @Test
+  void forNonProbabilityDecisionReturnsSameInstanceWhenAlreadyNonProbability() {
+    OtelTraceState state = OtelTraceState.parse("rv:0123456789abcd;x:value", 0);
+
+    assertSame(state, state.forNonProbabilityDecision());
+  }
+
+  @Test
+  void forNonProbabilityDecisionReturnsSameInstanceForUnknownFieldsOnly() {
+    OtelTraceState state = OtelTraceState.parse("x:value", 0);
+
+    assertSame(state, state.forNonProbabilityDecision());
+  }
+
+  @Test
+  void forNonProbabilityDecisionStillDropsUninheritedRandomValue() {
+    OtelTraceState state =
+        OtelTraceState.fromProbabilityDecision(1L, 0.1, SAMPLER_KEEP).withoutThreshold();
+
+    OtelTraceState transformed = state.forNonProbabilityDecision();
+
+    assertNotSame(state, transformed);
+    assertNull(transformed);
   }
 
   private static void assertThreshold(double rate, String expectedThreshold) {

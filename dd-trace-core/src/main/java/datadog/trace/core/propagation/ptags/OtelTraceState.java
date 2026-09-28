@@ -200,6 +200,9 @@ final class OtelTraceState implements CharSequence {
   }
 
   OtelTraceState forNonProbabilityDecision() {
+    if (!includeThreshold && (!includeRandomValue || inheritedRandomValue)) {
+      return this;
+    }
     return withFields(inheritedRandomValue && includeRandomValue, false, inheritedRandomValue);
   }
 
