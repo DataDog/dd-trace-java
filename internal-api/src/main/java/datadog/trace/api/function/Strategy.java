@@ -60,7 +60,9 @@ import java.lang.annotation.Target;
  *
  * <p>Both point at the same practical rule: make the consuming method inline. When it does, either
  * constant shape wins on both axes. When it doesn't, a concrete-typed field or non-capturing lambda
- * still avoids allocating, but devirtualization is gone either way.
+ * still avoids allocating; what's lost is the caller's exact strategy type propagating into the
+ * consumer, not devirtualization outright -- the JIT may still devirtualize the strategy calls
+ * there using the consumer's own receiver-type profile.
  *
  * <p>This is a documentation-and-tooling marker; it changes no behavior. It exists to telegraph the
  * pattern to readers and to give a future checker something to verify. The discipline it names is
