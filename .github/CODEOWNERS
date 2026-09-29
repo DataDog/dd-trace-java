@@ -87,6 +87,7 @@
 /internal-api/src/*/*/datadog/trace/api/env/                    @DataDog/apm-java
 /internal-api/src/*/*/datadog/trace/api/flare/                  @DataDog/apm-java
 /internal-api/src/*/*/datadog/trace/api/function/               @DataDog/apm-java
+/internal-api/src/*/*/datadog/perfcontract/                     @DataDog/apm-java
 /internal-api/src/*/*/datadog/trace/api/intake/                 @DataDog/apm-java
 /internal-api/src/*/*/datadog/trace/api/logging/                @DataDog/apm-java
 /internal-api/src/*/*/datadog/trace/api/metrics/                @DataDog/apm-java
