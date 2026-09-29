@@ -1,9 +1,11 @@
 package datadog.trace.instrumentation.netty41.client;
 
-import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
-import io.netty.handler.codec.http.DefaultHttpRequest;
+import io.netty.handler.codec.http.DefaultHttpHeaders;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import java.net.URI;
@@ -21,10 +23,17 @@ class NettyHttpClientDecoratorTest {
     "unparsable connect              | CONNECT | 'bad host:443'            |                  |                             "
   })
   void urlOfRequest(String method, String uri, String host, String expected) throws Exception {
-    HttpRequest request = new DefaultHttpRequest(HTTP_1_1, HttpMethod.valueOf(method), uri);
+    // Mocked rather than a real DefaultHttpRequest: newer netty versions validate the request
+    // line eagerly in that constructor and reject the unparsable-URI fixtures before the
+    // decorator under test ever sees them.
+    HttpRequest request = mock(HttpRequest.class);
+    when(request.method()).thenReturn(HttpMethod.valueOf(method));
+    when(request.uri()).thenReturn(uri);
+    HttpHeaders headers = new DefaultHttpHeaders();
     if (host != null) {
-      request.headers().set("Host", host);
+      headers.set("Host", host);
     }
+    when(request.headers()).thenReturn(headers);
 
     URI url = NettyHttpClientDecorator.DECORATE.url(request);
 
