@@ -193,9 +193,13 @@ public final class ScopeDiagnostics {
   }
 
   static void recordActivateFailed(Object window, ContextContinuation id) {
+    recordActivateFailed(window, id, false);
+  }
+
+  static void recordActivateFailed(Object window, ContextContinuation id, boolean speculative) {
     synchronized (INSTANCE.lifecycleLock) {
       if (window != null && window == INSTANCE.recordingWindow) {
-        INSTANCE.listener.onActivateFailed(id);
+        INSTANCE.listener.onActivateFailed(id, speculative);
       }
     }
   }
@@ -292,12 +296,16 @@ public final class ScopeDiagnostics {
       }
     }
 
-    void onActivateFailed(ContextContinuation id) {
+    void onActivateFailed(ContextContinuation id, boolean speculative) {
       try {
         ContinuationRecord record = records.get(id);
         // Resolution advice can arrive after a concurrent failed resume.
         if (record != null) {
-          record.addFailedActivation(event(ScopeEvent.Type.ACTIVATE_FAILED));
+          record.addFailedActivation(
+              event(
+                  speculative
+                      ? ScopeEvent.Type.ACTIVATE_REJECTED
+                      : ScopeEvent.Type.ACTIVATE_FAILED));
         }
       } catch (Throwable ignored) {
       }

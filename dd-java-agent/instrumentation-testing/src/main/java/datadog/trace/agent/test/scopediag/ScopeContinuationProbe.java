@@ -94,8 +94,9 @@ public final class ScopeContinuationProbe {
     try {
       ContextContinuation continuation = (ContextContinuation) self;
       if (returnedScope == NoopScope.INSTANCE) {
-        // A noop result may indicate activation after resolution.
-        ScopeDiagnostics.recordActivateFailed(window, continuation);
+        // ConcurrentState deliberately attempts activation before tryFire chooses its winner.
+        ScopeDiagnostics.recordActivateFailed(
+            window, continuation, isSpeculativeActivation(new Throwable().getStackTrace()));
         return;
       }
       AgentSpan span = AgentSpan.fromContext(continuation.context());
@@ -111,6 +112,21 @@ public final class ScopeContinuationProbe {
       }
     } catch (Throwable ignored) {
     }
+  }
+
+  static boolean isSpeculativeActivation(StackTraceElement[] stack) {
+    for (int i = 0; i + 1 < stack.length; i++) {
+      StackTraceElement frame = stack[i];
+      if (frame.getClassName().equals("datadog.trace.core.scopemanager.ScopeContinuation")
+          && frame.getMethodName().equals("resume")) {
+        StackTraceElement caller = stack[i + 1];
+        return caller
+                .getClassName()
+                .equals("datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState")
+            && caller.getMethodName().equals("activateAndContinueContinuation");
+      }
+    }
+    return false;
   }
 
   public static ResolveAttempt onResolveEnter(Object self, String method, int countBefore) {

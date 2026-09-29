@@ -150,6 +150,24 @@ class ScopeDiagnosticsReportTest {
   }
 
   @Test
+  void speculativeRejectionDoesNotHideOtherFailures() {
+    ContinuationRecord r = record(0, DDTraceId.from(141));
+    r.addFailedActivation(event(ScopeEvent.Type.ACTIVATE_REJECTED, "pool-2", 3000));
+    assertEquals(1, report(list(r), map()).leakCount());
+    r.setTerminalOrExtra(event(ScopeEvent.Type.RESOLVE_RELEASE, "pool-1", 2000));
+    ScopeDiagnosticsReport healthy = report(list(r), map());
+    assertFalse(healthy.hasProblems());
+    assertTrue(healthy.renderTimeline().contains("act-reject (speculative)"));
+
+    r.addFailedActivation(event(ScopeEvent.Type.ACTIVATE_FAILED, "pool-3", 4000));
+    r.setTerminalOrExtra(event(ScopeEvent.Type.RESOLVE_RELEASE, "pool-1", 5000));
+    ScopeDiagnosticsReport report = report(list(r), map());
+    assertEquals(1, report.activateAfterResolveCount());
+    assertEquals(1, report.doubleCount());
+    assertTrue(report.hasProblems());
+  }
+
+  @Test
   void timelineRendersResolvedContinuationEvenWithoutProblems() {
     ContinuationRecord r = record(0, DDTraceId.from(30));
     r.addResume(event(ScopeEvent.Type.ACTIVATE, "pool-1", 2000));

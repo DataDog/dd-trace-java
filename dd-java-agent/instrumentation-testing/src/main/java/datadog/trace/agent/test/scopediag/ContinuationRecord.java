@@ -141,8 +141,13 @@ public final class ContinuationRecord {
       failures.add(Failure.DOUBLE_FINISH);
     }
     // Cleanup entry timestamps do not order resolution against concurrent successful resumes.
-    if (terminal != null && !failedActivations.isEmpty()) {
-      failures.add(Failure.ACTIVATE_AFTER_RESOLVE);
+    if (terminal != null) {
+      for (ScopeEvent activation : failedActivations) {
+        if (activation.type == ScopeEvent.Type.ACTIVATE_FAILED) {
+          failures.add(Failure.ACTIVATE_AFTER_RESOLVE);
+          break;
+        }
+      }
     }
     if (rootWrittenNanos != null
         && (laterThan(terminal, rootWrittenNanos) || laterThan(resumes, rootWrittenNanos))) {

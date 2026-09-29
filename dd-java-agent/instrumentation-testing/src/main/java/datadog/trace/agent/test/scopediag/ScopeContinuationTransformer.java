@@ -24,7 +24,9 @@ import net.bytebuddy.asm.Advice;
  *       records capture before the caller can resume or release it.
  *   <li>{@code ScopeContinuation.resume()} returns a scope, or {@code NoopScope.INSTANCE} when
  *       activation fails. Entry supplies the activation timestamp because same-span reuse can
- *       resolve the continuation before this method returns.
+ *       resolve the continuation before this method returns. A rejected resume called directly by
+ *       {@code ConcurrentState.activateAndContinueContinuation()} is speculative and report-only;
+ *       recognition uses the unfiltered stack, independently of configured call-site depth.
  *   <li>{@code ScopeContinuation.release()} and {@code cancelFromContinuedScopeClose()} expose
  *       resolution through their {@code count} field. The probe compares entry and exit counts with
  *       {@code CANCELLED}; a scope close's nested release belongs to that close, not a second

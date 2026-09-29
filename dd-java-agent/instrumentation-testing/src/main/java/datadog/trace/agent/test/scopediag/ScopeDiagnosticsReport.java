@@ -256,7 +256,10 @@ public final class ScopeDiagnosticsReport {
         appendEvent(sb, "resume  ", a);
       }
       for (ScopeEvent f : r.failedActivations()) {
-        appendEvent(sb, "act-fail", f);
+        appendEvent(
+            sb,
+            f.type == ScopeEvent.Type.ACTIVATE_REJECTED ? "act-reject (speculative)" : "act-fail",
+            f);
       }
       ScopeEvent terminal = r.terminal();
       if (terminal != null) {

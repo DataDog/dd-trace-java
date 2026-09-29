@@ -5,8 +5,10 @@ public final class ScopeEvent {
   public enum Type {
     CAPTURE,
     ACTIVATE,
-    /** An {@code activate()} that returned the noop scope after the continuation was resolved. */
+    /** A {@code resume()} that returned the noop scope after the continuation was resolved. */
     ACTIVATE_FAILED,
+    /** A speculative ConcurrentState activation lost to cleanup and returned a noop scope. */
+    ACTIVATE_REJECTED,
     RESOLVE_FINISH,
     RESOLVE_RELEASE,
     SCOPE_OPEN,

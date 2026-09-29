@@ -3,6 +3,7 @@ package datadog.trace.agent.test.scopediag;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.context.ContextScope;
 import datadog.trace.api.DDTraceId;
@@ -13,6 +14,28 @@ import org.junit.jupiter.api.Test;
 
 /** Verifies the tracer internals used by {@link ScopeContinuationProbe}. */
 class ScopeContinuationProbeTest {
+
+  @Test
+  void onlyImmediateConcurrentStateCallerIsSpeculative() {
+    StackTraceElement resume =
+        new StackTraceElement(
+            "datadog.trace.core.scopemanager.ScopeContinuation", "resume", null, -1);
+    StackTraceElement activation =
+        new StackTraceElement(
+            "datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState",
+            "activateAndContinueContinuation",
+            null,
+            -1);
+    StackTraceElement callback = new StackTraceElement("app.Callback", "run", null, -1);
+    assertTrue(
+        ScopeContinuationProbe.isSpeculativeActivation(
+            new StackTraceElement[] {resume, activation}));
+    assertFalse(
+        ScopeContinuationProbe.isSpeculativeActivation(
+            new StackTraceElement[] {resume, callback, activation}));
+    assertFalse(ScopeContinuationProbe.isSpeculativeActivation(new StackTraceElement[] {resume}));
+    assertFalse(ScopeContinuationProbe.isSpeculativeActivation(new StackTraceElement[0]));
+  }
 
   @Test
   void cancelledSentinelMatchesProduction() throws Exception {
