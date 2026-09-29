@@ -63,8 +63,7 @@ class FlakySpockExtension extends AbstractGlobalExtension {
       return false
     }
     final condition = flaky.condition()
-    final conditionMethod = flaky.conditionMethod()
-    if (!isFlakySpec(node, condition, conditionMethod)) {
+    if (!isFlakySpec(node, condition)) {
       return false
     }
     final suites = flaky.suites()
@@ -104,14 +103,7 @@ class FlakySpockExtension extends AbstractGlobalExtension {
     return "true" == System.getProperty(RUN_FLAKY_TESTS_KEY)
   }
 
-  private static boolean isFlakySpec(final NodeInfo node, final Class<?> condition, final String conditionMethod) {
-    if (conditionMethod) {
-      if (condition !== Flaky.True) {
-        throw new IllegalArgumentException("@Flaky cannot set both condition and conditionMethod")
-      }
-      final classLoader = getSpec(node)?.reflection?.classLoader ?: Thread.currentThread().contextClassLoader
-      return FlakyConditionMethod.evaluate(conditionMethod, classLoader)
-    }
+  private static boolean isFlakySpec(final NodeInfo node, final Class<?> condition) {
     if (condition == null || condition === Flaky.True) {
       return true
     }
