@@ -34,7 +34,8 @@ import net.bytebuddy.asm.Advice;
  *       context alone must not create one. {@code ContinuableScope.onProperClose()} marks completed
  *       cleanup.
  *   <li>{@code ContinuableScope.close()} is inspected before it changes the stack. A scope that is
- *       not on top is recorded as an out-of-order or wrong-thread close attempt.
+ *       closed from another thread is an ownership failure; a same-thread close below the stack top
+ *       is an out-of-order failure.
  *   <li>{@code ContinuableScopeManager.scheduleRootIterationScopeCleanup(ScopeStack,
  *       ContinuableScope)} transfers cleanup responsibility to the iteration cleaner. Its normal
  *       exit marks the scope as having deferred cleanup.

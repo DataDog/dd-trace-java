@@ -8,10 +8,12 @@ public enum Failure {
   LATE_FINISH,
   /** Continuation resolved more than once. */
   DOUBLE_FINISH,
-  /** Continuation activated after it had already been resolved. */
+  /** Activation rejected after resolution; the returned scope is a no-op (advisory). */
   ACTIVATE_AFTER_RESOLVE,
-  /** Scope closed while not on top of its thread's stack (closed on the wrong thread / order). */
+  /** Scope close attempted from a thread other than its owner. */
   CLOSE_WRONG_THREAD,
+  /** Owner thread attempted to close a scope below the stack top. */
+  CLOSE_OUT_OF_ORDER,
   /** Scope opened but never closed within the window. */
   NEVER_CLOSED
 }

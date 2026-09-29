@@ -114,18 +114,17 @@ class AgentTestRunnerTest extends InstrumentationSpecification {
 
   def "waiting for noop span returns immediately"() {
     when:
-    ContextScope scope
     runUnderTrace("parent") {
-      scope = TEST_TRACER.activateManualSpan(noopSpan())
-
-      blockUntilChildSpansFinished(1)
+      ContextScope scope = TEST_TRACER.activateManualSpan(noopSpan())
+      try {
+        blockUntilChildSpansFinished(1)
+      } finally {
+        scope.close()
+      }
     }
 
     then:
     noExceptionThrown()
-
-    cleanup:
-    scope?.close()
   }
 
   def "logging works"() {

@@ -32,7 +32,8 @@ class ScopeDiagnosticsAdmissionTest {
     ScopeDiagnosticsReport report = ScopeDiagnostics.report();
     assertEquals(0, report.leakCount());
     assertEquals(1, report.activateAfterResolveCount());
-    assertTrue(report.hasProblems());
+    assertTrue(report.hasFindings());
+    assertFalse(report.hasProblems());
   }
 
   @Test
@@ -41,6 +42,28 @@ class ScopeDiagnosticsAdmissionTest {
     ScopeDiagnostics.recordActivateFailed(
         ScopeDiagnostics.recordingWindow(), Context.root().capture());
     assertTrue(ScopeDiagnostics.report().records().isEmpty());
+  }
+
+  @Test
+  void ownerThreadRenameDoesNotBecomeWrongThreadClose() {
+    ScopeDiagnostics.startRecording();
+    Object window = ScopeDiagnostics.recordingWindow();
+    Object scope = new Object();
+    ScopeDiagnostics.recordScopeOpen(window, scope, DDTraceId.from(1), 2, "op", (byte) 0, null);
+    Thread owner = Thread.currentThread();
+    String originalName = owner.getName();
+    try {
+      owner.setName("renamed-owner");
+      ScopeDiagnostics.recordScopeClosing(window, scope, true);
+      ScopeDiagnostics.recordScopeClose(window, scope);
+    } finally {
+      owner.setName(originalName);
+    }
+    ScopeDiagnosticsReport report = ScopeDiagnostics.report();
+    assertEquals(0, report.closeWrongThreadCount());
+    assertEquals(1, report.closeOutOfOrderCount());
+    assertFalse(report.scopeRecords().get(0).threadHandoff());
+    assertTrue(report.hasProblems(), "the same-thread out-of-order close still fails");
   }
 
   @Test
@@ -64,7 +87,7 @@ class ScopeDiagnosticsAdmissionTest {
     ScopeDiagnostics.recordScopeOpen(
         previousWindow, scope, trace, 2, "old", (byte) 0, continuation);
     ScopeDiagnostics.recordScopeClose(previousWindow, scope);
-    ScopeDiagnostics.recordScopeCloseWrongThread(previousWindow, scope);
+    ScopeDiagnostics.recordScopeClosing(previousWindow, scope, true);
     ScopeDiagnostics.recordDeferredScopeCleanup(previousWindow, scope);
 
     assertTrue(ScopeDiagnostics.report().records().isEmpty());
