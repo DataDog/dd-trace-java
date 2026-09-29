@@ -12,8 +12,29 @@ import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketOpen;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
+import org.tabletest.junit.TypeConverter;
 
 public class JettyEndpoints {
+  @TypeConverter
+  public static EndpointEvents endpoint(String name) {
+    switch (name) {
+      case "full":
+        return new FullListener();
+      case "partial":
+        return new PartialListener();
+      case "pojoFull":
+        return new PojoFullEndpoint();
+      case "pojoPartial":
+        return new PojoPartialEndpoint();
+      case "boxedFull":
+        return new BoxedFullEndpoint();
+      case "boxedPartial":
+        return new BoxedPartialEndpoint();
+      default:
+        throw new IllegalArgumentException("Unknown endpoint: " + name);
+    }
+  }
+
   public static class EndpointEvents {
     Session session;
     final List<String> messages = new ArrayList<>();
