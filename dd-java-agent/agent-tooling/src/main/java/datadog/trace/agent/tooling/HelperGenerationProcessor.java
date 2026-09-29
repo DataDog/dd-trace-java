@@ -38,7 +38,7 @@ public final class HelperGenerationProcessor {
       if (info.isScanned()
           && info.isReachableFromAdvice()
           && !adviceRoots.contains(info.getClassName())
-          && isHelperClass(info.getClassName(), info.isFromModuleOutput())
+          && isHelperClass(info.getClassName(), info.isFromModuleOutput(), module)
           && !isBuildTimeOnly(info)) {
         helpers.add(info.getClassName());
       }
