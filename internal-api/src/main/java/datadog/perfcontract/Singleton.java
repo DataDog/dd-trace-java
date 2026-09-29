@@ -1,4 +1,4 @@
-package datadog.trace.api.function;
+package datadog.perfcontract;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -21,8 +21,8 @@ import java.lang.annotation.Target;
  * <p>This is a documentation-and-tooling marker; it changes no behavior.
  *
  * <p><b>v1 posture: trusted declaration, not independently verified.</b> This is the same stance
- * the other perf-contract annotations take toward {@code static final} itself -- declared, not
- * proven. Verifying it for real (a single construction site, or an instance reachable only via one
+ * the other perf-contract markers take toward {@code static final} itself -- declared, not proven.
+ * Verifying it for real (a single construction site, or an instance reachable only via one
  * static/DI-registered path) is a call-site/construction-graph problem, out of scope for v1.
  * Annotating a class that is, in fact, constructed more than once defeats every guarantee
  * downstream checks (starting with {@link StaticLifetime}) build on top of this annotation -- apply
@@ -39,6 +39,7 @@ import java.lang.annotation.Target;
  * annotation. See {@link StaticLifetime}'s own Checker contract section for the full rule.
  */
 @Documented
+@PerfContract
 @Retention(RetentionPolicy.CLASS)
 @Target(ElementType.TYPE)
 public @interface Singleton {}

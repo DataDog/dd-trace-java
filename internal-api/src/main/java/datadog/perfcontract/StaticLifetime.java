@@ -1,4 +1,4 @@
-package datadog.trace.api.function;
+package datadog.perfcontract;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -25,7 +25,7 @@ import java.lang.annotation.Target;
  * object, instead of once as a {@code static} field -- so the cache was allocated and thrown away
  * on every request and never actually amortized anything. It compiled, ran, and passed tests while
  * quietly defeating the entire point of caching -- the same silent-failure shape as the other
- * perf-contract annotations in this package.
+ * perf-contract markers.
  *
  * <p>This is a documentation-and-tooling marker; it changes no behavior. It exists to telegraph the
  * constraint to readers and to give a future checker something to verify. The discipline it names
@@ -78,6 +78,7 @@ import java.lang.annotation.Target;
  * </ul>
  */
 @Documented
+@PerfContract
 @Retention(RetentionPolicy.CLASS)
 @Target(ElementType.FIELD)
 public @interface StaticLifetime {}
