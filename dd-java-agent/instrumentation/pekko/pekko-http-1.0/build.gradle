@@ -47,8 +47,10 @@ configurations {
 sourceSets {
   latestDepTest.groovy.srcDir sourceSets.baseTest.groovy
   latestDepTest.scala.srcDir sourceSets.baseTest.scala
+  latestDepTest.java.srcDir sourceSets.baseTest.java
   latestPekko10Test.groovy.srcDir sourceSets.baseTest.groovy
   latestPekko10Test.scala.srcDir sourceSets.baseTest.scala
+  latestPekko10Test.java.srcDir sourceSets.baseTest.java
 }
 
 dependencies {
