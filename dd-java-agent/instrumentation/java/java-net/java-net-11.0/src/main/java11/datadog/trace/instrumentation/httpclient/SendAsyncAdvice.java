@@ -2,13 +2,14 @@ package datadog.trace.instrumentation.httpclient;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.INSTRUMENTATION_NAME;
 import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.OPERATION_NAME;
 
 import datadog.appsec.api.blocking.BlockingException;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -18,7 +19,7 @@ import net.bytebuddy.asm.Advice;
 
 public class SendAsyncAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope methodEnter(
+  public static ContextScope methodEnter(
       @Advice.Argument(value = 0) final HttpRequest httpRequest,
       @Advice.Argument(value = 1, readOnly = false) HttpResponse.BodyHandler<?> bodyHandler) {
     try {
@@ -35,7 +36,7 @@ public class SendAsyncAdvice {
       }
       DECORATE.allowContextInjection();
       final AgentSpan span = startSpan(INSTRUMENTATION_NAME, OPERATION_NAME);
-      final AgentScope scope = activateSpan(span);
+      final ContextScope scope = activateSpan(span);
       if (bodyHandler != null) {
         // Pass span directly — BodyHandlerWrapper captures the continuation lazily in apply(),
         // only once response headers arrive. This avoids leaking a continuation when the
@@ -58,7 +59,7 @@ public class SendAsyncAdvice {
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void methodExit(
-      @Advice.Enter final AgentScope scope,
+      @Advice.Enter final ContextScope scope,
       @Advice.Argument(value = 0) final HttpRequest httpRequest,
       @Advice.Return(readOnly = false) CompletableFuture<HttpResponse<?>> future,
       @Advice.Thrown final Throwable throwable) {
@@ -69,7 +70,7 @@ public class SendAsyncAdvice {
     CallDepthThreadLocalMap.reset(HttpClient.class);
     DECORATE.blockContextInjection();
 
-    AgentSpan span = scope.span();
+    AgentSpan span = spanFromScope(scope);
     if (throwable != null) {
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);

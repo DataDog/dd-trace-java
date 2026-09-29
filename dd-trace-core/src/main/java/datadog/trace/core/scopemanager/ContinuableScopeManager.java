@@ -19,7 +19,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.Stateful;
 import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.api.scopemanager.ScopeListener;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -100,15 +99,15 @@ public final class ContinuableScopeManager {
         !(profilingContextIntegration instanceof ProfilingContextIntegration.NoOp);
   }
 
-  public AgentScope activateSpan(final AgentSpan span) {
+  public ContextScope activateSpan(final AgentSpan span) {
     return activate(span, INSTRUMENTATION, true, DEFAULT_ASYNC_PROPAGATING);
   }
 
-  public AgentScope activateManualSpan(final AgentSpan span) {
+  public ContextScope activateManualSpan(final AgentSpan span) {
     return activate(span, MANUAL, false, /* ignored */ false);
   }
 
-  private AgentScope activate(
+  private ContextScope activate(
       final AgentSpan span,
       final byte source,
       final boolean overrideAsyncPropagation,
@@ -149,7 +148,7 @@ public final class ContinuableScopeManager {
     return scope;
   }
 
-  private AgentScope activate(final Context context) {
+  private ContextScope activate(final Context context) {
     ScopeStack scopeStack = scopeStack();
 
     final ContinuableScope top = scopeStack.top;
@@ -250,7 +249,7 @@ public final class ContinuableScopeManager {
     }
   }
 
-  public AgentScope activateNext(final AgentSpan span) {
+  public ContextScope activateNext(final AgentSpan span) {
     ScopeStack scopeStack = scopeStack();
 
     final int currentDepth = scopeStack.depth();
@@ -279,7 +278,7 @@ public final class ContinuableScopeManager {
     return scope;
   }
 
-  public AgentScope active() {
+  public ContextScope active() {
     return scopeStack().active();
   }
 

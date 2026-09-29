@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DBM_TRACE_INJECTED;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_COMMENT;
@@ -16,15 +17,16 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.propagation.W3CTraceParent;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
+import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionContext;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -55,7 +57,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("java.sql.Connection", DBInfo.class.getName());
+    return singletonMap("java.sql.Connection", JDBCConnectionContext.class.getName());
   }
 
   @Override
@@ -74,7 +76,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
 
   public static class StatementAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(
+    public static ContextScope onEnter(
         @Advice.Argument(value = 0, readOnly = false) String sql,
         @Advice.AllArguments() Object[] args,
         @Advice.This final Statement statement) {
@@ -85,18 +87,23 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
       }
       try {
         final Connection connection = statement.getConnection();
-        final DBInfo dbInfo =
-            JDBCDecorator.parseDBInfo(
-                connection, InstrumentationContext.get(Connection.class, DBInfo.class));
+        final JDBCConnectionContext connectionContext =
+            JDBCDecorator.parseConnectionContext(
+                connection,
+                InstrumentationContext.get(Connection.class, JDBCConnectionContext.class));
+        final DBInfo dbInfo = connectionContext.getDbInfo();
         boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
         final AgentSpan span;
         final boolean isSqlServer = DECORATE.isSqlServer(dbInfo);
         final boolean isOracle = DECORATE.isOracle(dbInfo);
 
+        final String oracleServiceHash =
+            DECORATE.setServiceHashAction(connection, connectionContext);
+
         if (INJECT_COMMENT && injectTraceContext) {
           if (isSqlServer) {
             // The span ID is pre-determined so that we can reference it when setting the context
-            final long spanID = DECORATE.setContextInfo(connection, dbInfo);
+            final long spanID = DECORATE.setContextInfo(connection, connectionContext);
             // we then force that pre-determined span ID for the span covering the actual query
             span =
                 AgentTracer.get()
@@ -114,9 +121,9 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
         }
 
         DECORATE.afterStart(span);
-        DECORATE.onConnection(span, dbInfo);
+        DECORATE.onConnection(span, connectionContext);
         final String copy = sql;
-        if (span != null && INJECT_COMMENT) {
+        if (span != null && DECORATE.shouldInjectSqlComment(dbInfo)) {
           String traceParent = null;
 
           if (injectTraceContext) {
@@ -172,7 +179,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
                   appendComment);
         }
         DECORATE.onStatement(span, copy);
-        DECORATE.withBaseHash(span);
+        DECORATE.withBaseHash(span, dbInfo, oracleServiceHash);
         return activateSpan(span);
       } catch (SQLException e) {
         // if we can't get the connection for any reason
@@ -186,15 +193,16 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
       CallDepthThreadLocalMap.decrementCallDepth(Statement.class);
       if (scope == null) {
         return;
       }
-      DECORATE.onError(scope.span(), throwable);
-      DECORATE.beforeFinish(scope.span());
+      AgentSpan span = spanFromScope(scope);
+      DECORATE.onError(span, throwable);
+      DECORATE.beforeFinish(span);
       scope.close();
-      scope.span().finish();
+      span.finish();
     }
   }
 }

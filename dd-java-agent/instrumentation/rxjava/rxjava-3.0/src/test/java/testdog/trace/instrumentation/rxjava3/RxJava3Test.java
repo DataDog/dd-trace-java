@@ -15,11 +15,11 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.assertions.SpanMatcher;
 import datadog.trace.agent.test.assertions.TagsMatcher;
 import datadog.trace.api.Trace;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import io.reactivex.rxjava3.core.BackpressureStrategy;
@@ -83,7 +83,7 @@ class RxJava3Test extends AbstractInstrumentationTest {
       traceParentId = activeSpan().getSpanId();
       AgentSpan span = startSpan("test", "publisher-parent");
       publisherParentId = span.getSpanId();
-      AgentScope scope = activateSpan(span);
+      ContextScope scope = activateSpan(span);
 
       Object publisher = publisherSupplier.get();
       try {
@@ -105,7 +105,7 @@ class RxJava3Test extends AbstractInstrumentationTest {
       traceParentId = activeSpan().getSpanId();
       AgentSpan span = startSpan("test", "publisher-parent");
       publisherParentId = span.getSpanId();
-      AgentScope scope = activateSpan(span);
+      ContextScope scope = activateSpan(span);
 
       // Normalize every reactive type to a Flowable so a single Subscriber can cancel the
       // subscription right away, exercising the cancellation path of each instrumentation.
@@ -500,7 +500,7 @@ class RxJava3Test extends AbstractInstrumentationTest {
 
           AgentSpan intermediate = startSpan("test", "intermediate");
           Worker.intermediateId = intermediate.getSpanId();
-          AgentScope scope = activateSpan(intermediate);
+          ContextScope scope = activateSpan(intermediate);
           try {
             if (publisher instanceof Maybe) {
               return ((Maybe<Integer>) publisher).map(Worker::addTwo);

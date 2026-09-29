@@ -10,7 +10,6 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.Functions;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.cache.QualifiedClassNameCache;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -147,12 +146,6 @@ public abstract class BaseDecorator {
   }
 
   protected void doBeforeFinish(final Context context) {}
-
-  public final void onError(@Nullable final AgentScope scope, @Nullable final Throwable throwable) {
-    if (scope != null) {
-      onError(scope.span(), throwable);
-    }
-  }
 
   public final void onError(@Nullable final AgentSpan span, @Nullable final Throwable throwable) {
     onError(span, throwable, ErrorPriorities.DEFAULT);

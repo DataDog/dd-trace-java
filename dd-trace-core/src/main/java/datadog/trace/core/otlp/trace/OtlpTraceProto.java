@@ -1,5 +1,6 @@
 package datadog.trace.core.otlp.trace;
 
+import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_PARTIAL_VERSION;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_TOP_LEVEL;
@@ -47,6 +48,7 @@ import datadog.trace.core.MetadataConsumer;
 import datadog.trace.core.PendingTrace;
 import datadog.trace.core.otlp.common.OtlpProtoBuffer;
 import datadog.trace.core.propagation.PropagationTags;
+import datadog.trace.core.propagation.PropagationTags.SamplingState;
 
 /** Provides optimized writers for OpenTelemetry's "trace.proto" wire protocol. */
 public final class OtlpTraceProto {
@@ -83,6 +85,7 @@ public final class OtlpTraceProto {
       int nestedSpanLinkBytes,
       OtlpProtoBuffer protobuf) {
     PropagationTags propagationTags = span.spanContext().getPropagationTags();
+    SamplingState samplingState = propagationTags.samplingState();
 
     writeTag(buf, 1, LEN_WIRE_TYPE);
     writeTraceId(buf, span.getTraceId());
@@ -90,7 +93,7 @@ public final class OtlpTraceProto {
     writeTag(buf, 2, LEN_WIRE_TYPE);
     writeSpanId(buf, span.getSpanId());
 
-    String tracestate = propagationTags.getW3CTracestate();
+    String tracestate = propagationTags.getW3CTracestate(samplingState);
     if (tracestate != null) {
       writeTag(buf, 3, LEN_WIRE_TYPE);
       writeString(buf, tracestate);
@@ -102,7 +105,7 @@ public final class OtlpTraceProto {
     }
 
     int traceFlags = NO_TRACE_FLAGS;
-    if (span.samplingPriority() > 0) {
+    if (samplingState.getSamplingPriority() > 0) {
       traceFlags |= SAMPLED_TRACE_FLAG;
     }
     if (span.spanContext().isRemote()) {
@@ -284,8 +287,8 @@ public final class OtlpTraceProto {
 
       writeSpanTag(buf, THREAD_ID, metadata.getThreadId());
       writeSpanTag(buf, THREAD_NAME, metadata.getThreadName());
-      if (metadata.getHttpStatusCode() != null) {
-        writeSpanTag(buf, HTTP_STATUS, metadata.getHttpStatusCode());
+      if (metadata.getHttpStatusCode() != UNSET_STATUS) {
+        writeSpanTag(buf, HTTP_STATUS, metadata.getHttpStatusCodeString());
       }
       if (metadata.getOrigin() != null) {
         writeSpanTag(buf, ORIGIN_KEY, metadata.getOrigin());

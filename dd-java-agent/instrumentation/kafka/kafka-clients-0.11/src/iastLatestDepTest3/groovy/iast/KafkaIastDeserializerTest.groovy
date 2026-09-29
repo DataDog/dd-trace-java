@@ -18,6 +18,9 @@ import static org.hamcrest.core.IsEqual.equalTo
 
 class KafkaIastDeserializerTest extends IastRequestTestRunner {
 
+  private static final String PAYLOAD_STRING = "Hello World!"
+  private static final int PAYLOAD_LENGTH = PAYLOAD_STRING.bytes.length
+
   private static final int BUFF_OFFSET = 10
 
   void 'test string deserializer: #test'() {
@@ -27,7 +30,7 @@ class KafkaIastDeserializerTest extends IastRequestTestRunner {
     InstrumentationBridge.registerIastModule(propagationModule)
 
     and:
-    final payload = "Hello World!".bytes
+    final payload = PAYLOAD_STRING.bytes
     final deserializer = new StringDeserializer()
 
     when:
@@ -39,8 +42,8 @@ class KafkaIastDeserializerTest extends IastRequestTestRunner {
     then:
     final to = finReqTaintedObjects
     to.hasTaintedObject {
-      value('Hello World!')
-      range(0, 12, source(origin))
+      value(PAYLOAD_STRING)
+      range(0, PAYLOAD_LENGTH, source(origin))
     }
 
     where:
@@ -54,7 +57,7 @@ class KafkaIastDeserializerTest extends IastRequestTestRunner {
     InstrumentationBridge.registerIastModule(propagationModule)
 
     and:
-    final payload = "Hello World!".bytes
+    final payload = PAYLOAD_STRING.bytes
     final deserializer = new ByteArrayDeserializer()
 
     when:
@@ -81,7 +84,7 @@ class KafkaIastDeserializerTest extends IastRequestTestRunner {
     InstrumentationBridge.registerIastModule(propagationModule)
 
     and:
-    final payload = "Hello World!".bytes
+    final payload = PAYLOAD_STRING.bytes
     final deserializer = new ByteBufferDeserializer()
 
     when:
@@ -94,7 +97,7 @@ class KafkaIastDeserializerTest extends IastRequestTestRunner {
     final to = finReqTaintedObjects
     to.hasTaintedObject {
       value(instanceOf(ByteBuffer))
-      range(0, Integer.MAX_VALUE, source(origin))
+      range(test.method.start, test.method.length, source(origin))
     }
 
     where:
@@ -145,19 +148,19 @@ class KafkaIastDeserializerTest extends IastRequestTestRunner {
   }
 
   enum Method {
-    DEFAULT{
+    DEFAULT(0, Integer.MAX_VALUE){
       @Override
       <T> T deserialize(Deserializer<T> deserializer, String topic, byte[] payload) {
         return deserializer.deserialize(topic, payload)
       }
     },
-    WITH_HEADERS{
+    WITH_HEADERS(0, Integer.MAX_VALUE){
       @Override
       <T> T deserialize(Deserializer<T> deserializer, String topic, byte[] payload) {
         return deserializer.deserialize(topic, new RecordHeaders(), payload)
       }
     },
-    WITH_BYTE_BUFFER{
+    WITH_BYTE_BUFFER(0, PAYLOAD_LENGTH){
       @SuppressWarnings('GroovyAssignabilityCheck')
       @Override
       <T> T deserialize(Deserializer<T> deserializer, String topic, byte[] payload) {
@@ -167,7 +170,7 @@ class KafkaIastDeserializerTest extends IastRequestTestRunner {
         return deserializer.deserialize(topic, new RecordHeaders(), buffer)
       }
     },
-    WITH_BYTE_BUFFER_OFFSET{
+    WITH_BYTE_BUFFER_OFFSET(BUFF_OFFSET, PAYLOAD_LENGTH){
       @SuppressWarnings('GroovyAssignabilityCheck')
       @Override
       <T> T deserialize(Deserializer<T> deserializer, String topic, byte[] payload) {
@@ -175,6 +178,17 @@ class KafkaIastDeserializerTest extends IastRequestTestRunner {
         System.arraycopy(payload, 0, buffer, BUFF_OFFSET, payload.length)
         return deserializer.deserialize(topic, new RecordHeaders(), ByteBuffer.wrap(buffer, BUFF_OFFSET, payload.length))
       }
+    }
+
+    // start/length of the taint range expected on the ByteBuffer result of deserialization;
+    // a pass-through deserializer keeps the precise range tainted beforehand, otherwise a
+    // brand-new ByteBuffer is wrapped around the result and gets a fresh, full-object range
+    final int start
+    final int length
+
+    Method(int start, int length) {
+      this.start = start
+      this.length = length
     }
 
     abstract <T> T deserialize(Deserializer<T> deserializer, String topic, byte[] payload)

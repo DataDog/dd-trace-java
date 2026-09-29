@@ -36,6 +36,7 @@ public final class AkkaHttp2ServerInstrumentation extends InstrumenterModule.Tra
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".DatadogWrapperHelper",
+      packageName + ".DatadogWrapperHelper$SwappedContextScope",
       packageName + ".DatadogAsyncHandlerWrapper",
       packageName + ".DatadogAsyncHandlerWrapper$1",
       packageName + ".DatadogAsyncHandlerWrapper$2",

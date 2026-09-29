@@ -8,9 +8,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
-import static datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator.DD_HANDLER_SPAN_CONTINUE_SUFFIX;
-import static datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator.DD_HANDLER_SPAN_PREFIX_KEY;
 import static datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator.DECORATE;
+import static datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator.handlerSpanKeys;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -21,6 +20,7 @@ import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import javax.servlet.http.HttpServletRequest;
 import net.bytebuddy.asm.Advice;
@@ -70,8 +70,7 @@ public final class HandlerAdapterInstrumentation extends InstrumenterModule.Trac
     public static ContextScope nameResourceAndStartSpan(
         @Advice.Argument(0) final HttpServletRequest request,
         @Advice.Argument(2) final Object handler,
-        @Advice.Local("handlerSpanKey") String handlerSpanKey) {
-      handlerSpanKey = "";
+        @Advice.Local("handlerSpanKeys") Pair<String, String> handlerSpanKeys) {
 
       // Name the parent span based on the matching pattern
       Object contextObj = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
@@ -89,16 +88,16 @@ public final class HandlerAdapterInstrumentation extends InstrumenterModule.Trac
 
       // Now create a span for handler/controller execution.
 
-      final String handlerKey;
+      final Class<?> handlerClass;
       if (handler instanceof HandlerMethod) {
-        handlerKey = ((HandlerMethod) handler).getBean().getClass().getName();
+        handlerClass = ((HandlerMethod) handler).getBean().getClass();
       } else {
-        handlerKey = handler.getClass().getName();
+        handlerClass = handler.getClass();
       }
-      handlerSpanKey = DD_HANDLER_SPAN_PREFIX_KEY + handlerKey;
+      handlerSpanKeys = handlerSpanKeys(handlerClass);
 
       // If the context already exists, return it
-      final Object existingContext = request.getAttribute(handlerSpanKey);
+      final Object existingContext = request.getAttribute(handlerSpanKeys.getLeft());
       if (existingContext instanceof Context) {
         return ((Context) existingContext).attach();
       }
@@ -108,7 +107,7 @@ public final class HandlerAdapterInstrumentation extends InstrumenterModule.Trac
       DECORATE.afterStart(span);
       DECORATE.onHandle(span, handler);
 
-      request.setAttribute(handlerSpanKey, span);
+      request.setAttribute(handlerSpanKeys.getLeft(), span);
       return span.attachWithContext();
     }
 
@@ -117,13 +116,11 @@ public final class HandlerAdapterInstrumentation extends InstrumenterModule.Trac
         @Advice.Argument(0) final HttpServletRequest request,
         @Advice.Enter final ContextScope scope,
         @Advice.Thrown final Throwable throwable,
-        @Advice.Local("handlerSpanKey") String handlerSpanKey) {
+        @Advice.Local("handlerSpanKeys") Pair<String, String> handlerSpanKeys) {
       if (scope == null) {
         return;
       }
-      boolean finish =
-          !Boolean.TRUE.equals(
-              request.getAttribute(handlerSpanKey + DD_HANDLER_SPAN_CONTINUE_SUFFIX));
+      boolean finish = !Boolean.TRUE.equals(request.getAttribute(handlerSpanKeys.getRight()));
       final AgentSpan span = spanFromContext(scope.context());
       scope.close();
       if (throwable != null) {

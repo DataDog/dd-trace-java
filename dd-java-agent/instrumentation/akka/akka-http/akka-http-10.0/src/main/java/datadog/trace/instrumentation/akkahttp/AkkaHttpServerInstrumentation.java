@@ -65,6 +65,7 @@ public final class AkkaHttpServerInstrumentation extends InstrumenterModule.Trac
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".DatadogWrapperHelper",
+      packageName + ".DatadogWrapperHelper$SwappedContextScope",
       packageName + ".DatadogServerRequestResponseFlowWrapper",
       packageName + ".DatadogServerRequestResponseFlowWrapper$1",
       packageName + ".DatadogServerRequestResponseFlowWrapper$1$1",

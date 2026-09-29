@@ -8,9 +8,9 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.ArrayList;
 import java.util.List;
@@ -60,7 +60,7 @@ public final class RedissonInstrumentation extends InstrumenterModule.Tracing
   public static class RedissonCommandAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(
+    public static ContextScope onEnter(
         @Advice.Argument(0) final CommandData<?, ?> command, @Advice.This RedisConnection thiz) {
       if (command.getPromise() == null) {
         return null;
@@ -75,7 +75,7 @@ public final class RedissonInstrumentation extends InstrumenterModule.Tracing
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void after(@Advice.Enter final AgentScope scope) {
+    public static void after(@Advice.Enter final ContextScope scope) {
       if (scope != null) {
         scope.close();
       }
@@ -85,7 +85,7 @@ public final class RedissonInstrumentation extends InstrumenterModule.Tracing
   public static class RedissonCommandsAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(
+    public static ContextScope onEnter(
         @Advice.Argument(0) final CommandsData command, @Advice.This final RedisConnection thiz) {
       if (command.getPromise() == null) {
         return null;
@@ -106,7 +106,7 @@ public final class RedissonInstrumentation extends InstrumenterModule.Tracing
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void after(@Advice.Enter final AgentScope scope) {
+    public static void after(@Advice.Enter final ContextScope scope) {
       if (scope != null) {
         scope.close();
       }

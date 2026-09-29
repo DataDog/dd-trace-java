@@ -55,6 +55,7 @@ public class HttpClientInstrumentation extends InstrumenterModule.Tracing
     return new String[] {
       packageName + ".BodyHandlerWrapper",
       packageName + ".BodyHandlerWrapper$BodySubscriberWrapper",
+      packageName + ".BodyHandlerWrapper$SubscriptionWrapper",
       packageName + ".CompletableFutureWrapper",
       packageName + ".JavaNetClientDecorator",
       packageName + ".ResponseConsumer"

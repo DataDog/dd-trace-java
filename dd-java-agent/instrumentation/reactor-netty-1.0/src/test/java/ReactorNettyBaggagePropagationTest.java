@@ -5,7 +5,6 @@ import com.sun.net.httpserver.HttpServer;
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Baggage;
@@ -82,7 +81,7 @@ class ReactorNettyBaggagePropagationTest extends AbstractInstrumentationTest {
     Baggage baggage = Baggage.create(Collections.singletonMap("user.id", "abc123"));
 
     AgentSpan span = AgentTracer.startSpan("test", "parent");
-    try (AgentScope spanScope = AgentTracer.activateSpan(span)) {
+    try (ContextScope spanScope = AgentTracer.activateSpan(span)) {
       // Active context now carries both the span and the baggage — the exact shape the connect-span
       // path must carry across the subscription -> I/O thread hand-off.
       try (ContextScope baggageScope = Context.current().with(baggage).attach()) {

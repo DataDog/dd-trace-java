@@ -4,11 +4,13 @@ import static datadog.trace.api.aiguard.AIGuard.Action.ALLOW;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class AIGuardTest {
@@ -76,6 +78,94 @@ class AIGuardTest {
 
     assertEquals(ALLOW, evaluation.getAction());
     assertEquals("AI Guard is not enabled", evaluation.getReason());
+    // nothing is redacted, so the very same list is handed back
+    assertSame(messages, evaluation.getMessages());
+  }
+
+  @Test
+  void testNoopImplementationWithoutMessages() {
+    // Evaluation normalises a null message list, so the no-op evaluator need not guard for it.
+    AIGuard.Evaluation evaluation = AIGuard.evaluate(null);
+
+    assertEquals(ALLOW, evaluation.getAction());
+    assertNotNull(evaluation.getMessages());
+    assertTrue(evaluation.getMessages().isEmpty());
+  }
+
+  @Test
+  @SuppressWarnings("deprecation")
+  void testEvaluationCarriesMessages() {
+    List<AIGuard.Message> messages =
+        Collections.singletonList(AIGuard.Message.message("user", "My SSN is <REDACTED>"));
+
+    AIGuard.Evaluation evaluation =
+        new AIGuard.Evaluation(
+            ALLOW, "No rule match.", Collections.<String>emptyList(), null, null, messages);
+
+    assertSame(messages, evaluation.getMessages());
+  }
+
+  @Test
+  @SuppressWarnings("deprecation")
+  void testEvaluationWithoutMessagesReturnsEmptyList() {
+    AIGuard.Evaluation evaluation =
+        new AIGuard.Evaluation(
+            ALLOW, "No rule match.", Collections.<String>emptyList(), null, null);
+
+    assertNotNull(evaluation.getMessages());
+    assertTrue(evaluation.getMessages().isEmpty());
+  }
+
+  @Test
+  @SuppressWarnings("deprecation")
+  void testEvaluationWithNullMessagesReturnsEmptyList() {
+    AIGuard.Evaluation evaluation =
+        new AIGuard.Evaluation(
+            ALLOW, "No rule match.", Collections.<String>emptyList(), null, null, null);
+
+    assertNotNull(evaluation.getMessages());
+    assertTrue(evaluation.getMessages().isEmpty());
+  }
+
+  @Test
+  void testEvaluationCarriesRedactionReplacements() {
+    List<AIGuard.Message> messages =
+        Collections.singletonList(AIGuard.Message.message("user", "My SSN is <REDACTED>"));
+    List<Map<String, String>> replacements =
+        Collections.singletonList(Collections.singletonMap("path", "messages[0].content"));
+
+    AIGuard.Evaluation evaluation =
+        new AIGuard.Evaluation(
+            ALLOW,
+            "No rule match.",
+            Collections.<String>emptyList(),
+            null,
+            null,
+            messages,
+            replacements);
+
+    assertSame(replacements, evaluation.getRedactionReplacements());
+  }
+
+  @Test
+  @SuppressWarnings("deprecation")
+  void testEvaluationWithoutReplacementsReturnsEmptyList() {
+    AIGuard.Evaluation evaluation =
+        new AIGuard.Evaluation(
+            ALLOW, "No rule match.", Collections.<String>emptyList(), null, null, null);
+
+    assertNotNull(evaluation.getRedactionReplacements());
+    assertTrue(evaluation.getRedactionReplacements().isEmpty());
+  }
+
+  @Test
+  void testEvaluationWithNullReplacementsReturnsEmptyList() {
+    AIGuard.Evaluation evaluation =
+        new AIGuard.Evaluation(
+            ALLOW, "No rule match.", Collections.<String>emptyList(), null, null, null, null);
+
+    assertNotNull(evaluation.getRedactionReplacements());
+    assertTrue(evaluation.getRedactionReplacements().isEmpty());
   }
 
   @Test

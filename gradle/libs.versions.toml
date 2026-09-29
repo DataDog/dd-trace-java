@@ -2,12 +2,12 @@
 # NOTE: Ranges for some versions are needed to allow instrumentation tests to specify the desired version.
 
 # Build
-develocity = "4.4.1"
-forbiddenapis = "3.10"
+develocity = "4.6.0"
+forbiddenapis = "3.11"
 gradle-tooling-api = "8.14.5"
 jsr305 = "3.0.2"
 shadow = "9.4.2"
-spotbugs_annotations = "4.10.3"
+spotbugs_annotations = "4.10.4"
 
 # Source code formatters
 google-java-format = "1.36.1"
@@ -18,7 +18,7 @@ spotless = "8.10.1"
 tabletest-formatter = "1.1.2"
 
 # DataDog libs and forks
-ddprof = "1.50.0"
+ddprof = "1.51.0"
 dogstatsd = "4.4.5"
 datadog-okhttp = "3.12.15" # Datadog fork
 datadog-okio = "1.17.6" # Datadog fork

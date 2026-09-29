@@ -101,6 +101,8 @@ public class MsgPackWriter implements WritableFormatter {
         }
       }
       buffer.reset();
+      // the buffer is now empty, so drop any mapper state from the rejected message
+      mapper.reset();
       return false;
     }
   }

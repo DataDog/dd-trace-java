@@ -3,6 +3,7 @@ package datadog.trace.civisibility.writer.ddintake;
 import static datadog.communication.http.OkHttpUtils.gzippedMsgpackRequestBodyOf;
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 import static datadog.json.JsonMapper.toJson;
+import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.civisibility.CIConstants.MAX_META_STRING_VALUE_LENGTH;
 import static datadog.trace.util.Strings.truncate;
 
@@ -333,7 +334,7 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       int metaSize =
           metadata.getBaggage().size()
               + tags.size()
-              + (null == metadata.getHttpStatusCode() ? 0 : 1);
+              + (UNSET_STATUS == metadata.getHttpStatusCode() ? 0 : 1);
       int metricsSize = 0;
       for (Map.Entry<String, Object> tag : tags.entrySet()) {
         if (tag.getValue() instanceof Number) {
@@ -359,9 +360,10 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
         writable.writeString(entry.getKey(), null);
         writable.writeString(truncate(entry.getValue(), MAX_META_STRING_VALUE_LENGTH), null);
       }
-      if (null != metadata.getHttpStatusCode()) {
+      if (UNSET_STATUS != metadata.getHttpStatusCode()) {
         writable.writeUTF8(HTTP_STATUS);
-        writable.writeUTF8(truncate(metadata.getHttpStatusCode(), MAX_META_STRING_VALUE_LENGTH));
+        writable.writeUTF8(
+            truncate(metadata.getHttpStatusCodeString(), MAX_META_STRING_VALUE_LENGTH));
       }
       for (Map.Entry<String, Object> entry : tags.entrySet()) {
         Object value = entry.getValue();

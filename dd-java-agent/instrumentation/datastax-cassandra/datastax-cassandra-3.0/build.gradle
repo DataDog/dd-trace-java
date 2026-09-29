@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.testcontainers'
 }
 
 muzzle {
@@ -50,6 +51,8 @@ testJvmConstraints {
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
+  testContainerImage(image('cassandra:3', 'test.cassandra.image'))
+
   constraints {
     testImplementation("com.google.guava:guava") {
       version { strictly "19.0" }

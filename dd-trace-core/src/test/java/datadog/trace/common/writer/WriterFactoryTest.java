@@ -5,21 +5,28 @@ import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.trace.agent.test.server.http.JavaTestHttpServer;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.api.intake.TrackType;
+import datadog.trace.common.sampling.RateByServiceTraceSampler;
 import datadog.trace.common.sampling.Sampler;
+import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.Prioritization;
+import datadog.trace.common.writer.ddagent.TraceMapperV0_4;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.lang.reflect.Field;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -34,6 +41,7 @@ import okhttp3.Protocol;
 import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
+import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class WriterFactoryTest extends DDJavaSpecification {
@@ -247,6 +255,97 @@ class WriterFactoryTest extends DDJavaSpecification {
     assertEquals(expectedGzip, readField(sender, "gzip"));
 
     writer.close();
+  }
+
+  @Test
+  void registersAgentSamplerAsResponseListener() throws Exception {
+    try (JavaTestHttpServer agent = tracesAgent()) {
+      RateByServiceTraceSampler agentRateSampler = mock(RateByServiceTraceSampler.class);
+      Sampler sampler = mock(Sampler.class);
+      when(sampler.agentSampler()).thenReturn(agentRateSampler);
+
+      try (Writer writer = createDDAgentWriter(agent, sampler)) {
+        DDAgentApi api = onlyApi(writer);
+        api.sendSerializedTraces(emptyV04Payload());
+
+        verify(agentRateSampler).onResponse(anyString(), any());
+      }
+    }
+  }
+
+  @Test
+  void registersCustomSamplerImplementingRemoteResponseListener() throws Exception {
+    try (JavaTestHttpServer agent = tracesAgent()) {
+      CustomListenerSampler sampler = mock(CustomListenerSampler.class);
+      when(sampler.agentSampler()).thenReturn(null);
+
+      try (Writer writer = createDDAgentWriter(agent, sampler)) {
+        DDAgentApi api = onlyApi(writer);
+        api.sendSerializedTraces(emptyV04Payload());
+
+        verify(sampler).onResponse(anyString(), any());
+      }
+    }
+  }
+
+  private interface CustomListenerSampler extends Sampler, RemoteResponseListener {}
+
+  @Test
+  void skipsResponseListenerRegistrationWhenNoAgentSampler() throws Exception {
+    try (JavaTestHttpServer agent = tracesAgent()) {
+      Sampler sampler = mock(Sampler.class);
+      when(sampler.agentSampler()).thenReturn(null);
+
+      try (Writer writer = createDDAgentWriter(agent, sampler)) {
+        DDAgentApi api = onlyApi(writer);
+        RemoteApi.Response response = api.sendSerializedTraces(emptyV04Payload());
+
+        verify(sampler).agentSampler();
+        // No listener was registered, so a response with a body is handled without error.
+        assertTrue(response.success());
+      }
+    }
+  }
+
+  private static JavaTestHttpServer tracesAgent() {
+    return JavaTestHttpServer.httpServer(
+        s ->
+            s.handlers(
+                h ->
+                    h.put(
+                        "v0.4/traces",
+                        api -> api.getResponse().status(200).send("{\"hello\":{}}"))));
+  }
+
+  private static Writer createDDAgentWriter(JavaTestHttpServer agent, Sampler sampler)
+      throws Exception {
+    Config config = mock(Config.class);
+    //noinspection unchecked
+    doReturn(Prioritization.FAST_LANE)
+        .when(config)
+        .getEnumValue(
+            eq(PRIORITIZATION_TYPE),
+            (Class<Prioritization>) any(Class.class),
+            any(Prioritization.class));
+
+    DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
+    when(discovery.getTraceEndpoint()).thenReturn("v0.4/traces");
+
+    SharedCommunicationObjects sharedComm = new SharedCommunicationObjects();
+    sharedComm.agentUrl = HttpUrl.get(agent.getAddress().toString());
+    sharedComm.setFeaturesDiscovery(discovery);
+    sharedComm.createRemaining(config);
+
+    return WriterFactory.createWriter(
+        config, sharedComm, sampler, null, HealthMetrics.NO_OP, "DDAgentWriter");
+  }
+
+  private static DDAgentApi onlyApi(Writer writer) {
+    return (DDAgentApi) ((RemoteWriter) writer).getApis().iterator().next();
+  }
+
+  private static Payload emptyV04Payload() {
+    return new TraceMapperV0_4().newPayload().withBody(0, ByteBuffer.allocate(0));
   }
 
   private static Response buildHttpResponse(

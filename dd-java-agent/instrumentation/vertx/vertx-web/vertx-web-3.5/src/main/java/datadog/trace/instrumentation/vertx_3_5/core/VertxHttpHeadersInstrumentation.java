@@ -28,7 +28,7 @@ import java.util.Set;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public class VertxHttpHeadersInstrumentation extends InstrumenterModule.Iast
+public class VertxHttpHeadersInstrumentation extends InstrumenterModule.TaintableIast
     implements Instrumenter.ForSingleType,
         Instrumenter.HasTypeAdvice,
         Instrumenter.HasMethodAdvice {

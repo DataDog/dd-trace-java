@@ -6,15 +6,16 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.servlet.http.HttpServletResponseDecorator.DECORATE;
 import static datadog.trace.instrumentation.servlet.http.HttpServletResponseDecorator.JAVA_WEB_SERVLET_RESPONSE;
 import static datadog.trace.instrumentation.servlet.http.HttpServletResponseDecorator.SERVLET_RESPONSE;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import javax.servlet.http.HttpServletResponse;
 import net.bytebuddy.asm.Advice;
@@ -56,7 +57,7 @@ public final class HttpServletResponseInstrumentation extends InstrumenterModule
   public static class SendAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope start(
+    public static ContextScope start(
         @Advice.Origin("#m") final String method, @Advice.This final HttpServletResponse resp) {
       if (activeSpan() == null) {
         // Don't want to generate a new top-level span
@@ -78,7 +79,7 @@ public final class HttpServletResponseInstrumentation extends InstrumenterModule
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
       }
@@ -88,7 +89,7 @@ public final class HttpServletResponseInstrumentation extends InstrumenterModule
       DECORATE.onError(scope, throwable);
       DECORATE.beforeFinish(scope);
       scope.close();
-      scope.span().finish();
+      spanFromScope(scope).finish();
     }
   }
 }
