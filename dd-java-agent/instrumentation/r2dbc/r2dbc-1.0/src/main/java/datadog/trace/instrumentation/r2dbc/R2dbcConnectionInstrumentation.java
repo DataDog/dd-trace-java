@@ -11,7 +11,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.InstrumentationContext;
 import io.r2dbc.spi.Connection;
+import io.r2dbc.spi.ConnectionFactoryOptions;
+import java.util.Collections;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -28,9 +33,10 @@ import net.bytebuddy.matcher.ElementMatcher;
  * injection off the bundled proxy internals (which must be helper-injected untransformed for the
  * proxy to work) and avoids the inject-vs-transform conflict.
  *
- * <p>Connection metadata (service, db type, host, db name) is resolved from {@link
- * R2dbcTracingSupport#CONNECTION_OPTIONS}, populated when the connection is created via the proxy
- * metadata listener installed by {@link R2dbcInstrumentation}.
+ * <p>Connection metadata (service, db type, host, db name) is resolved from the {@code
+ * Connection}-to-{@code ConnectionFactoryOptions} {@link datadog.trace.bootstrap.ContextStore},
+ * populated when the connection is created via the proxy metadata listener installed by {@link
+ * R2dbcInstrumentation}.
  */
 @AutoService(InstrumenterModule.class)
 public class R2dbcConnectionInstrumentation extends InstrumenterModule.Tracing
@@ -66,6 +72,11 @@ public class R2dbcConnectionInstrumentation extends InstrumenterModule.Tracing
     };
   }
 
+  public Map<String, String> contextStore() {
+    return Collections.singletonMap(
+        "io.r2dbc.spi.Connection", "io.r2dbc.spi.ConnectionFactoryOptions");
+  }
+
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
@@ -83,7 +94,9 @@ public class R2dbcConnectionInstrumentation extends InstrumenterModule.Tracing
     public static void onEnter(
         @Advice.This final Connection connection,
         @Advice.Argument(value = 0, readOnly = false) String sql) {
-      sql = R2dbcSqlCommentInjector.injectForConnection(sql, connection);
+      ContextStore<Connection, ConnectionFactoryOptions> connectionOptionsStore =
+          InstrumentationContext.get(Connection.class, ConnectionFactoryOptions.class);
+      sql = R2dbcSqlCommentInjector.injectForConnection(sql, connection, connectionOptionsStore);
     }
   }
 }

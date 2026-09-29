@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.r2dbc;
 
+import datadog.trace.bootstrap.ContextStore;
 import io.r2dbc.proxy.ProxyConnectionFactory;
 import io.r2dbc.proxy.core.ConnectionInfo;
 import io.r2dbc.proxy.listener.ProxyExecutionListener;
@@ -9,16 +10,18 @@ import io.r2dbc.spi.ConnectionFactoryOptions;
 
 /**
  * Wraps a {@link ConnectionFactory} with r2dbc-proxy to install a tracing listener, and registers
- * each real driver {@link Connection} with its {@link ConnectionFactoryOptions} in {@link
- * R2dbcConnectionMetadataStore} so that DBM SQL comment injection can access connection metadata
- * (host, database, driver type).
+ * each real driver {@link Connection} with its {@link ConnectionFactoryOptions} in the given {@link
+ * ContextStore} so that DBM SQL comment injection can access connection metadata (host, database,
+ * driver type).
  */
 public final class R2dbcTracingSupport {
 
   private R2dbcTracingSupport() {}
 
   public static ConnectionFactory wrapConnectionFactory(
-      ConnectionFactory factory, ConnectionFactoryOptions options) {
+      ConnectionFactory factory,
+      ConnectionFactoryOptions options,
+      ContextStore<Connection, ConnectionFactoryOptions> connectionOptionsStore) {
     // r2dbc-proxy is bundled as a real dependency (see build.gradle), so its own
     // ConnectionFactoryProvider is discoverable by ConnectionFactories.find() like any
     // other driver. If an application itself requests DRIVER="proxy" (r2dbc-proxy's own
@@ -35,7 +38,8 @@ public final class R2dbcTracingSupport {
     }
 
     TraceProxyExecutionListener queryListener = new TraceProxyExecutionListener(options);
-    ConnectionMetadataListener metadataListener = new ConnectionMetadataListener(options);
+    ConnectionMetadataListener metadataListener =
+        new ConnectionMetadataListener(options, connectionOptionsStore);
 
     return ProxyConnectionFactory.builder(factory)
         .listener(queryListener)
@@ -51,9 +55,13 @@ public final class R2dbcTracingSupport {
    */
   static final class ConnectionMetadataListener implements ProxyExecutionListener {
     private final ConnectionFactoryOptions options;
+    private final ContextStore<Connection, ConnectionFactoryOptions> connectionOptionsStore;
 
-    ConnectionMetadataListener(ConnectionFactoryOptions options) {
+    ConnectionMetadataListener(
+        ConnectionFactoryOptions options,
+        ContextStore<Connection, ConnectionFactoryOptions> connectionOptionsStore) {
       this.options = options;
+      this.connectionOptionsStore = connectionOptionsStore;
     }
 
     @Override
@@ -68,7 +76,9 @@ public final class R2dbcTracingSupport {
         // connection (getOriginalConnection), which is the instance the driver's createStatement
         // advice sees via @Advice.This.
         Connection realConnection = connInfo.getOriginalConnection();
-        R2dbcConnectionMetadataStore.register(realConnection, options);
+        if (realConnection != null) {
+          connectionOptionsStore.put(realConnection, options);
+        }
       }
     }
   }

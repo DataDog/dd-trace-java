@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.r2dbc;
 import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.DECORATE;
 
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter;
 import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.ConnectionFactoryOptions;
@@ -29,15 +30,18 @@ public final class R2dbcSqlCommentInjector {
   private R2dbcSqlCommentInjector() {}
 
   /**
-   * Resolves connection metadata for {@code connection} (via {@link R2dbcConnectionMetadataStore})
-   * and injects a DBM SQL comment into {@code sql} if DBM propagation is enabled. Called from
-   * {@link R2dbcConnectionInstrumentation}'s advice on the real driver's {@code
+   * Resolves connection metadata for {@code connection} (via {@code connectionOptionsStore}) and
+   * injects a DBM SQL comment into {@code sql} if DBM propagation is enabled. Called from {@link
+   * R2dbcConnectionInstrumentation}'s advice on the real driver's {@code
    * Connection#createStatement(String)}.
    *
    * @return the SQL with injected comment, or the original SQL if DBM is disabled or metadata is
    *     unavailable
    */
-  public static String injectForConnection(String sql, Connection connection) {
+  public static String injectForConnection(
+      String sql,
+      Connection connection,
+      ContextStore<Connection, ConnectionFactoryOptions> connectionOptionsStore) {
     String dbmMode = Config.get().getDbmPropagationMode();
     boolean injectComment =
         Config.DBM_PROPAGATION_MODE_FULL.equals(dbmMode)
@@ -47,7 +51,7 @@ public final class R2dbcSqlCommentInjector {
       return sql;
     }
 
-    ConnectionFactoryOptions options = R2dbcConnectionMetadataStore.get(connection);
+    ConnectionFactoryOptions options = connectionOptionsStore.get(connection);
     if (options == null) {
       return sql;
     }

@@ -10,8 +10,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.InstrumentationContext;
+import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryOptions;
+import java.util.Collections;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -150,6 +155,11 @@ public class R2dbcInstrumentation extends InstrumenterModule.Tracing
     };
   }
 
+  public Map<String, String> contextStore() {
+    return Collections.singletonMap(
+        "io.r2dbc.spi.Connection", "io.r2dbc.spi.ConnectionFactoryOptions");
+  }
+
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
@@ -168,7 +178,10 @@ public class R2dbcInstrumentation extends InstrumenterModule.Tracing
         @Advice.Return(readOnly = false) ConnectionFactory factory,
         @Advice.Argument(0) ConnectionFactoryOptions options) {
       if (factory != null) {
-        factory = R2dbcTracingSupport.wrapConnectionFactory(factory, options);
+        ContextStore<Connection, ConnectionFactoryOptions> connectionOptionsStore =
+            InstrumentationContext.get(Connection.class, ConnectionFactoryOptions.class);
+        factory =
+            R2dbcTracingSupport.wrapConnectionFactory(factory, options, connectionOptionsStore);
       }
     }
   }
