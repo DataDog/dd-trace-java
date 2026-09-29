@@ -7,6 +7,7 @@ import jakarta.ws.rs.Path
 import jakarta.ws.rs.container.AsyncResponse
 import jakarta.ws.rs.container.Suspended
 
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -120,9 +121,17 @@ class JakartaRsAsyncResponseInstrumentationTest extends InstrumentationSpecifica
   def "resume() called from a genuinely different thread is unaffected"() {
     setup:
     def response = new FakeAsyncResponse()
+    def resource = new TrueAsyncResumeResource()
 
     when:
-    new TrueAsyncResumeResource().suspendThenResumeFromAnotherThread(response)
+    resource.suspendThenResumeFromAnotherThread(response)
+    // Only release the background resume() once this call -- and therefore the resource
+    // method's own exit advice, which runs synchronously inside it -- has returned. Without
+    // this, the background thread could call resume() before the exit advice runs, which
+    // would still finish the span exactly once (ContextStore#remove is the atomic claim), but
+    // it would race the exit advice nondeterministically instead of testing the case this test
+    // is meant to cover: resume() from a thread that starts after the resource method exits.
+    resource.methodReturned.countDown()
 
     then:
     assertTraces(1) {
@@ -186,13 +195,12 @@ class JakartaRsAsyncResponseInstrumentationTest extends InstrumentationSpecifica
   static class TrueAsyncResumeResource {
     private static final ExecutorService EXECUTOR = Executors.newFixedThreadPool(2)
 
+    final CountDownLatch methodReturned = new CountDownLatch(1)
+
     @GET
     void suspendThenResumeFromAnotherThread(@Suspended final AsyncResponse response) {
       EXECUTOR.submit({
-        def deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
-        while (!response.isSuspended() && System.nanoTime() < deadline) {
-          Thread.sleep(1)
-        }
+        methodReturned.await(5, TimeUnit.SECONDS)
         doWorkOnBackgroundThread()
         response.resume("OK")
       })
