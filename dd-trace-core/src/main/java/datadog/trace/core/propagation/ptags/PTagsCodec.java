@@ -136,11 +136,20 @@ abstract class PTagsCodec {
     }
     size = codec.appendSuffix(sb, ptags, size);
     if (codec.isTooLarge(sb, size)) {
+      codec.logHeaderDropped(size);
       return null;
     } else {
       return codec.isEmpty(sb, size) ? null : sb.toString();
     }
   }
+
+  /**
+   * Called when the assembled header overflows the limit and is dropped in full, taking every
+   * {@code _dd.p.*} tag with it. Silent by default; a codec that can name its limit overrides this
+   * to say so, because the only other trace of the drop is a {@code _dd.propagation_error} tag on a
+   * span the operator has to already be looking at.
+   */
+  protected void logHeaderDropped(int size) {}
 
   static void fillTagMap(PTags propagationTags, Map<String, String> tagMap) {
     LLMObsTagValues llmObsTags = propagationTags.getExtractedLLMObsTagValues();

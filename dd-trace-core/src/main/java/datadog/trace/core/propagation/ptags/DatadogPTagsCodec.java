@@ -1,5 +1,7 @@
 package datadog.trace.core.propagation.ptags;
 
+import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH;
+
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.core.propagation.PropagationTags;
@@ -261,6 +263,21 @@ final class DatadogPTagsCodec extends PTagsCodec {
   @Override
   protected boolean isTooLarge(StringBuilder sb, int size) {
     return size > xDatadogTagsLimit;
+  }
+
+  /**
+   * Attribution has already been degraded by {@link #degradeLLMObsToFit} by the time this runs, so
+   * an overflow here is one the codec could not absorb: the header is dropped whole and the
+   * downstream service receives no {@code _dd.p.*} tag at all — not the LLM Observability context,
+   * and not APM's own sampling state either.
+   */
+  @Override
+  protected void logHeaderDropped(int size) {
+    log.warn(
+        "Dropping x-datadog-tags entirely: {} characters exceeds the {} limit, so no _dd.p.* tag is propagated on this hop. A long ml_app, session_id or agent name is the usual cause; raise {} to carry them.",
+        size,
+        xDatadogTagsLimit,
+        TRACE_X_DATADOG_TAGS_MAX_LENGTH);
   }
 
   @Override
