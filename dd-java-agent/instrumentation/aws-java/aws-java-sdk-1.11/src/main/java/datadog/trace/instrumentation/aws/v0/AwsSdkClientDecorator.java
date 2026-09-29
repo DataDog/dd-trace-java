@@ -183,8 +183,12 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     if (null != tableName) {
       // A TableName given as an ARN carries the owning account; a bare name is resolved by
       // DynamoDB in the requestor's own account. SDK v1 does not expose the signing credentials
-      // to request handlers, so only the ARN form yields an account here.
-      AwsArn arn = AwsArn.parse(tableName);
+      // to request handlers, so only the ARN form yields an account here. Other services with a
+      // TableName field keep the plain table name tags.
+      AwsArn arn =
+          awsSimplifiedServiceName != null && awsSimplifiedServiceName.startsWith("dynamodb")
+              ? AwsArn.parse(tableName)
+              : null;
       if (arn != null) {
         String account = arn.account();
         if (account != null) {
@@ -201,13 +205,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       span.setTag(InstrumentationTags.TABLE_NAME, tableName);
       bestPrecursor = InstrumentationTags.AWS_TABLE_NAME;
       bestPeerService = tableName;
-    }
-    String expectedBucketOwner = access.getExpectedBucketOwner(originalRequest);
-    if (AwsAccountIdentity.isAccountId(expectedBucketOwner)) {
-      // S3 enforces ExpectedBucketOwner (403 on mismatch), so it names the owner whenever the
-      // request succeeds. The span is tagged before the response is known, so the value is shape
-      // checked to keep a malformed owner (which S3 rejects) off the span.
-      span.setTag(InstrumentationTags.AWS_ACCOUNT, expectedBucketOwner);
     }
 
     // Set peer.service based on Config for serverless functions
@@ -269,6 +266,19 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
             break;
         }
       }
+    }
+  }
+
+  /** Tags the expected bucket owner only after S3 has accepted the request. */
+  public void onSuccessfulRequest(final AgentSpan span, final Request<?> request) {
+    if (!"s3".equalsIgnoreCase(simplifyServiceName(request.getServiceName()))) {
+      return;
+    }
+    final AmazonWebServiceRequest originalRequest = request.getOriginalRequest();
+    final String expectedBucketOwner =
+        GetterAccess.of(originalRequest).getExpectedBucketOwner(originalRequest);
+    if (AwsAccountIdentity.isAccountId(expectedBucketOwner)) {
+      span.setTag(InstrumentationTags.AWS_ACCOUNT, expectedBucketOwner);
     }
   }
 

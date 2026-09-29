@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.aws.v2;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.sun.net.httpserver.HttpServer;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
@@ -19,6 +20,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 /**
  * Lives in this source set because its S3 model (2.18.40) has {@code ExpectedBucketOwner}; the base
@@ -35,7 +37,8 @@ class S3BucketOwnerForkedTest extends AbstractInstrumentationTest {
     server.createContext(
         "/",
         exchange -> {
-          exchange.sendResponseHeaders(200, -1);
+          int status = exchange.getRequestURI().getPath().endsWith("/rejected") ? 403 : 200;
+          exchange.sendResponseHeaders(status, -1);
           exchange.close();
         });
     server.start();
@@ -89,6 +92,25 @@ class S3BucketOwnerForkedTest extends AbstractInstrumentationTest {
             .build());
 
     assertFalse(firstSpan().getTags().containsKey("aws_account"));
+  }
+
+  @Test
+  void rejectedExpectedBucketOwnerIsNotTagged() throws Exception {
+    S3Exception error =
+        assertThrows(
+            S3Exception.class,
+            () ->
+                client.getObject(
+                    GetObjectRequest.builder()
+                        .bucket("somebucket")
+                        .key("rejected")
+                        .expectedBucketOwner("999999999999")
+                        .build()));
+
+    assertEquals(403, error.statusCode());
+    DDSpan span = firstSpan();
+    assertEquals("somebucket", span.getTag("aws.bucket.name"));
+    assertFalse(span.getTags().containsKey("aws_account"));
   }
 
   private static DDSpan firstSpan() throws Exception {

@@ -37,6 +37,7 @@ addTestSuiteForDir('latestDsmTest', 'dsmTest')
 addTestSuiteExtendingForDir('latestDsmForkedTest', 'latestDsmTest', 'dsmTest')
 
 dependencies {
+  testImplementation libs.bundles.mockito
   compileOnly group: 'com.amazonaws', name: 'aws-java-sdk-core', version: '1.11.0'
   implementation project(':dd-java-agent:instrumentation:aws-java:aws-java-common')
 

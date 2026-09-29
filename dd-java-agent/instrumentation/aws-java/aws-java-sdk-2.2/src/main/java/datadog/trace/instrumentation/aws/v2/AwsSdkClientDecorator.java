@@ -144,13 +144,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     // S3
     request.getValueForField("Bucket", String.class).ifPresent(name -> setBucketName(span, name));
     if ("s3".equalsIgnoreCase(awsServiceName)) {
-      // S3 enforces ExpectedBucketOwner (403 on mismatch), so it names the owner whenever the
-      // request succeeds. The span is tagged before the response is known, so the value is shape
-      // checked to keep a malformed owner (which S3 rejects) off the span.
-      request
-          .getValueForField("ExpectedBucketOwner", String.class)
-          .filter(AwsAccountIdentity::isAccountId)
-          .ifPresent(owner -> setBucketOwner(span, owner));
       // gate "Key" extraction to S3 — DynamoDB's Key is Map<String, AttributeValue>, would CCE
       request.getValueForField("Key", String.class).ifPresent(key -> setObjectKey(span, key));
       if (traceConfig().isDataStreamsEnabled()) {
@@ -392,10 +385,15 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     return null;
   }
 
-  private static void setBucketOwner(AgentSpan span, String owner) {
-    // aws_account only: the Agent's credit card obfuscator redacts 12-digit values under keys it
-    // does not know, and aws_account is on its allow list.
-    span.setTag(InstrumentationTags.AWS_ACCOUNT, owner);
+  /** Tags the expected bucket owner only after S3 has accepted the request. */
+  public void onSdkRequestSuccess(
+      final AgentSpan span, final SdkRequest request, final ExecutionAttributes attributes) {
+    if ("s3".equalsIgnoreCase(attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME))) {
+      request
+          .getValueForField("ExpectedBucketOwner", String.class)
+          .filter(AwsAccountIdentity::isAccountId)
+          .ifPresent(owner -> span.setTag(InstrumentationTags.AWS_ACCOUNT, owner));
+    }
   }
 
   private static void setBucketName(AgentSpan span, String name) {

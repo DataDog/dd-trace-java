@@ -103,7 +103,14 @@ class AwsAccountIdentityTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"AKIAIOSFODNN7EXAMPLE", "AKIAAAAAAAAAAAAAAAAA", "ASIAAAAAAAAAAAAAAAAA"})
+  @ValueSource(
+      strings = {
+        "AKIAIOSFODNN7EXAMPLE",
+        "AKIAAAAAAAAAAAAAAAAA",
+        "ASIAAAAAAAAAAAAAAAAA",
+        // P is the last base32 digit whose format-marker bit is unset.
+        "AKIAPZZZZZZZZZZZZZZZ"
+      })
   void rejectsLegacyAccessKeyIds(String value) {
     assertNull(AwsAccountIdentity.accountFromAccessKeyId(value));
   }

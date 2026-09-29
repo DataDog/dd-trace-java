@@ -34,6 +34,7 @@ configurations.named('latestPayloadTaggingTestContainerImage') {
 def fixedSdkVersion = '2.20.33' // 2.20.34 is missing and breaks IDEA import
 
 dependencies {
+  testImplementation libs.bundles.mockito
   compileOnly group: 'software.amazon.awssdk', name: 'aws-core', version: '2.2.0'
   payloadTaggingTestContainerImage(image('localstack/localstack:4.2.0', 'test.localstack.image'))
   implementation project(':dd-java-agent:instrumentation:aws-java:aws-java-common')
