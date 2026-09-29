@@ -24,6 +24,7 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
+import datadog.trace.core.propagation.PropagationTags.SamplingState;
 import java.util.Map;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
@@ -66,20 +67,27 @@ class W3CHttpCodec {
     @Override
     public <C> void inject(
         final DDSpanContext context, final C carrier, final CarrierSetter<C> setter) {
-      injectTraceParent(context, carrier, setter);
-      injectTraceState(context, carrier, setter);
+      PropagationTags propagationTags = context.getPropagationTags();
+      SamplingState samplingState = propagationTags.samplingState();
+      injectTraceParent(context, samplingState, carrier, setter);
+      injectTraceState(context, propagationTags, samplingState, carrier, setter);
       injectBaggage(context, carrier, setter);
     }
 
-    private <C> void injectTraceParent(DDSpanContext context, C carrier, CarrierSetter<C> setter) {
+    private <C> void injectTraceParent(
+        DDSpanContext context, SamplingState samplingState, C carrier, CarrierSetter<C> setter) {
       String traceparent =
           W3CTraceParent.from(
-              context.getTraceId(), context.getSpanId(), context.getSamplingPriority() > 0);
+              context.getTraceId(), context.getSpanId(), samplingState.getSamplingPriority() > 0);
       setter.set(carrier, TRACE_PARENT_KEY, traceparent);
     }
 
-    private <C> void injectTraceState(DDSpanContext context, C carrier, CarrierSetter<C> setter) {
-      PropagationTags propagationTags = context.getPropagationTags();
+    private <C> void injectTraceState(
+        DDSpanContext context,
+        PropagationTags propagationTags,
+        SamplingState samplingState,
+        C carrier,
+        CarrierSetter<C> setter) {
       // Supply the injecting span's id for the W3C `p:` as a parameter rather than mutating it into
       // the (possibly trace-level, shared) tags — keeps transient per-injection identity out of
       // shared state, so concurrent sibling injects can't race on it.
@@ -87,7 +95,8 @@ class W3CHttpCodec {
           propagationTags.headerValue(
               W3C,
               DDSpanId.toHexStringPadded(context.getSpanId()),
-              LLMObsInternal.propagationValuesFor(context));
+              LLMObsInternal.propagationValuesFor(context),
+              samplingState);
       if (tracestate != null && !tracestate.isEmpty()) {
         setter.set(carrier, TRACE_STATE_KEY, tracestate);
       }

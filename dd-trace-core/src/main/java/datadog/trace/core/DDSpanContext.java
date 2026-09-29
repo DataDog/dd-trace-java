@@ -47,7 +47,6 @@ import java.util.Objects;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -164,11 +163,6 @@ public class DDSpanContext
   private volatile boolean measured;
 
   private volatile boolean topLevel;
-
-  private static final AtomicIntegerFieldUpdater<DDSpanContext> SAMPLING_PRIORITY_UPDATER =
-      AtomicIntegerFieldUpdater.newUpdater(DDSpanContext.class, "samplingPriority");
-
-  private volatile int samplingPriority = PrioritySampling.UNSET;
 
   /** The origin of the trace. (eg. Synthetics, CI App) */
   private volatile CharSequence origin;
@@ -671,10 +665,6 @@ public class DDSpanContext
   }
 
   private void forceKeepThisSpan(byte samplingMechanism) {
-    // if the user really wants to keep this trace chunk, we will let them,
-    // even if the old sampling priority and mechanism have already propagated
-    SAMPLING_PRIORITY_UPDATER.set(this, PrioritySampling.USER_KEEP);
-    // record force keep decision for future distributed trace propagation
     propagationTags.forceKeep(samplingMechanism);
   }
 
@@ -714,24 +704,41 @@ public class DDSpanContext
     if (!validateSamplingPriority(newPriority, newMechanism)) {
       return false;
     }
-    if (SamplingMechanism.canAvoidSamplingPriorityLock(newPriority, newMechanism)) {
-      SAMPLING_PRIORITY_UPDATER.set(this, newPriority);
-      propagationTags.updateTraceSamplingPriority(newPriority, newMechanism);
-      return true;
-    }
-    if (!SAMPLING_PRIORITY_UPDATER.compareAndSet(this, PrioritySampling.UNSET, newPriority)) {
+    boolean updated =
+        propagationTags.tryUpdateTraceSamplingPriority(
+            newPriority,
+            newMechanism,
+            SamplingMechanism.canAvoidSamplingPriorityLock(newPriority, newMechanism));
+    if (!updated) {
       if (log.isDebugEnabled()) {
         log.debug(
             "samplingPriority locked at priority: {}. Refusing to set to priority: {} mechanism: {}",
-            samplingPriority,
+            propagationTags.getSamplingPriority(),
             newPriority,
             newMechanism);
       }
       return false;
     }
-    // set trace level sampling priority tag propagationTags
-    propagationTags.updateTraceSamplingPriority(newPriority, newMechanism);
     return true;
+  }
+
+  public boolean setSamplingPriority(
+      final int newPriority,
+      final int newMechanism,
+      final double sampleRate,
+      final long traceIdLowOrderBits,
+      final boolean rateLimiterRejected) {
+    DDSpanContext spanContext = getRootSpanContextOrThis();
+    if (!spanContext.validateSamplingPriority(newPriority, newMechanism)) {
+      return false;
+    }
+    return spanContext.propagationTags.tryUpdateProbabilitySamplingDecision(
+        newPriority,
+        newMechanism,
+        sampleRate,
+        rateLimiterRejected,
+        traceIdLowOrderBits,
+        SamplingMechanism.canAvoidSamplingPriorityLock(newPriority, newMechanism));
   }
 
   private boolean validateSamplingPriority(final int newPriority, final int newMechanism) {
@@ -762,7 +769,7 @@ public class DDSpanContext
 
   @Override
   public int getSamplingPriority() {
-    return getRootSpanContextOrThis().samplingPriority;
+    return getRootSpanContextOrThis().propagationTags.getSamplingPriority();
   }
 
   public void setSpanSamplingPriority(double rate, int limit) {
@@ -794,7 +801,7 @@ public class DDSpanContext
       return rootSpan.spanContext().lockSamplingPriority();
     }
 
-    return SAMPLING_PRIORITY_UPDATER.get(this) != PrioritySampling.UNSET;
+    return propagationTags.getSamplingPriority() != PrioritySampling.UNSET;
   }
 
   public CharSequence getOrigin() {
@@ -1262,8 +1269,11 @@ public class DDSpanContext
       tags.put(DDTags.THREAD_ID, threadId);
       // maintain previously observable type of the thread name :|
       tags.put(DDTags.THREAD_NAME, threadName.toString());
-      if (samplingPriority != PrioritySampling.UNSET) {
-        tags.put(SAMPLE_RATE_KEY, samplingPriority);
+      int currentSamplingPriority = getSamplingPriority();
+      // add _sample_rate tag only on the root/local span owning the decision
+      if (getRootSpanContextIfDifferent() == null
+          && currentSamplingPriority != PrioritySampling.UNSET) {
+        tags.put(SAMPLE_RATE_KEY, currentSamplingPriority);
       }
       if (httpStatusCode != 0) {
         tags.put(Tags.HTTP_STATUS, (int) httpStatusCode);
@@ -1412,7 +1422,7 @@ public class DDSpanContext
               threadName,
               unsafeTags,
               baggageItemsWithPropagationTags,
-              samplingPriority != PrioritySampling.UNSET ? samplingPriority : getSamplingPriority(),
+              getSamplingPriority(),
               measured,
               topLevel,
               httpStatusCode,

@@ -35,7 +35,8 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
         DATADOG,
         null,
         new LLMObsPropagationValues(
-            null, mlApp, sessionId, pagentSpanId, pagentName, parentId, null, null));
+            null, mlApp, sessionId, pagentSpanId, pagentName, parentId, null, null),
+        propagationTags.samplingState());
   }
 
   @TableTest({
@@ -223,7 +224,9 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
         factory().fromHeaderValue(DATADOG, "_dd.p.llmobs_ml_app=upstream-app");
 
     assertEquals(
-        "_dd.p.llmobs_ml_app=upstream-app", propagationTags.headerValue(DATADOG, null, null));
+        "_dd.p.llmobs_ml_app=upstream-app",
+        propagationTags.headerValue(
+            DATADOG, null, (LLMObsPropagationValues) null, propagationTags.samplingState()));
   }
 
   /** What was extracted is what reaches the local span's tags; a staged injection never does. */
@@ -272,7 +275,8 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
             DATADOG,
             null,
             new LLMObsPropagationValues(
-                null, null, null, null, null, null, sampleRate, samplingDecision)));
+                null, null, null, null, null, null, sampleRate, samplingDecision),
+            propagationTags.samplingState()));
   }
 
   @Test

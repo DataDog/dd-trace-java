@@ -78,10 +78,13 @@ class DatadogHttpCodec {
       }
 
       // inject x-datadog-tags
+      PropagationTags propagationTags = context.getPropagationTags();
       String datadogTags =
-          context
-              .getPropagationTags()
-              .headerValue(HeaderType.DATADOG, null, LLMObsInternal.propagationValuesFor(context));
+          propagationTags.headerValue(
+              HeaderType.DATADOG,
+              null,
+              LLMObsInternal.propagationValuesFor(context),
+              propagationTags.samplingState());
       if (datadogTags != null) {
         setter.set(carrier, DATADOG_TAGS_KEY, datadogTags);
       }

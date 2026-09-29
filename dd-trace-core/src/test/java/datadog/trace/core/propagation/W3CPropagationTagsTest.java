@@ -425,7 +425,8 @@ class W3CPropagationTagsTest extends DDCoreJavaSpecification {
         propagationTags.headerValue(
             W3C,
             null,
-            new LLMObsPropagationValues(null, null, null, null, null, null, "0.25", "0"));
+            new LLMObsPropagationValues(null, null, null, null, null, null, "0.25", "0"),
+            propagationTags.samplingState());
     PropagationTags reparsed = factory().fromHeaderValue(W3C, header);
 
     LLMObsPropagationValues reparsedValues = reparsed.getExtractedLLMObsValues();
@@ -451,7 +452,8 @@ class W3CPropagationTagsTest extends DDCoreJavaSpecification {
                 repeat("a", 64),
                 "1122334455667788990",
                 "0.25",
-                "1"));
+                "1"),
+            propagationTags.samplingState());
 
     assertTrue(header.length() <= 256, header);
     // Whatever had to go, the keys that place the span in its LLMObs trace stay.
