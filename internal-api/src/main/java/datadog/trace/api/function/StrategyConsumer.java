@@ -1,5 +1,6 @@
 package datadog.trace.api.function;
 
+import datadog.perfcontract.PerfContract;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -17,6 +18,7 @@ import java.lang.annotation.Target;
  * at these call sites are {@code static final} constants or non-capturing lambdas.
  */
 @Documented
+@PerfContract
 @Retention(RetentionPolicy.SOURCE)
 @Target(ElementType.METHOD)
 public @interface StrategyConsumer {}
