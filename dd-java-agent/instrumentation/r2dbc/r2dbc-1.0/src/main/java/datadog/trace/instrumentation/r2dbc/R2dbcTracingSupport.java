@@ -1,18 +1,19 @@
 package datadog.trace.instrumentation.r2dbc;
 
 import datadog.trace.bootstrap.ContextStore;
-import io.r2dbc.proxy.ProxyConnectionFactory;
-import io.r2dbc.proxy.core.ConnectionInfo;
-import io.r2dbc.proxy.listener.ProxyExecutionListener;
+import datadog.trace.instrumentation.r2dbc.shaded.proxy.ProxyConnectionFactory;
+import datadog.trace.instrumentation.r2dbc.shaded.proxy.core.ConnectionInfo;
+import datadog.trace.instrumentation.r2dbc.shaded.proxy.core.MethodExecutionInfo;
+import datadog.trace.instrumentation.r2dbc.shaded.proxy.listener.ProxyExecutionListener;
 import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryOptions;
 
 /**
- * Wraps a {@link ConnectionFactory} with r2dbc-proxy to install a tracing listener, and registers
- * each real driver {@link Connection} with its {@link ConnectionFactoryOptions} in the given {@link
- * ContextStore} so that DBM SQL comment injection can access connection metadata (host, database,
- * driver type).
+ * Wraps a {@link ConnectionFactory} with a shaded, bundled copy of r2dbc-proxy to install a tracing
+ * listener, and registers each real driver {@link Connection} with its {@link
+ * ConnectionFactoryOptions} in the given {@link ContextStore} so that DBM SQL comment injection can
+ * access connection metadata (host, database, driver type).
  */
 public final class R2dbcTracingSupport {
 
@@ -22,11 +23,10 @@ public final class R2dbcTracingSupport {
       ConnectionFactory factory,
       ConnectionFactoryOptions options,
       ContextStore<Connection, ConnectionFactoryOptions> connectionOptionsStore) {
-    // r2dbc-proxy is bundled as a real dependency (see build.gradle), so its own
-    // ConnectionFactoryProvider is discoverable by ConnectionFactories.find() like any
-    // other driver. If an application itself requests DRIVER="proxy" (r2dbc-proxy's own
-    // URL scheme), find() already returns an r2dbc-proxy-wrapped factory — wrapping it
-    // again here would double the query listener callbacks (duplicate spans).
+    // If the application itself depends on (unshaded) r2dbc-proxy and requests DRIVER="proxy"
+    // (r2dbc-proxy's own URL scheme), find() already returns an r2dbc-proxy-wrapped factory —
+    // wrapping it again here (with our shaded copy) would double the query listener callbacks
+    // (duplicate spans).
     if ("proxy".equals(options.getValue(ConnectionFactoryOptions.DRIVER))) {
       return factory;
     }
@@ -65,7 +65,7 @@ public final class R2dbcTracingSupport {
     }
 
     @Override
-    public void afterMethod(io.r2dbc.proxy.core.MethodExecutionInfo execInfo) {
+    public void afterMethod(MethodExecutionInfo execInfo) {
       String methodName = execInfo.getMethod().getName();
       ConnectionInfo connInfo = execInfo.getConnectionInfo();
       if (connInfo == null) {

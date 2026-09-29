@@ -7,9 +7,9 @@ import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.R2DBC_QUERY;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
-import io.r2dbc.proxy.core.QueryExecutionInfo;
-import io.r2dbc.proxy.core.QueryInfo;
-import io.r2dbc.proxy.listener.ProxyExecutionListener;
+import datadog.trace.instrumentation.r2dbc.shaded.proxy.core.QueryExecutionInfo;
+import datadog.trace.instrumentation.r2dbc.shaded.proxy.core.QueryInfo;
+import datadog.trace.instrumentation.r2dbc.shaded.proxy.listener.ProxyExecutionListener;
 import io.r2dbc.spi.ConnectionFactoryOptions;
 import java.util.List;
 

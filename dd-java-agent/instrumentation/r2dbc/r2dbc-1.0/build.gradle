@@ -1,3 +1,6 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import datadog.gradle.plugin.muzzle.tasks.MuzzleTask
+
 plugins {
   id 'dd-trace-java.module.instrumentation'
 }
@@ -7,12 +10,10 @@ muzzle {
     group = "io.r2dbc"
     module = "r2dbc-spi"
     versions = "[1.0.0.RELEASE,)"
-    // r2dbc-proxy is bundled (implementation) and referenced directly by the injected
-    // listener/wrap-helper classes (R2dbcTracingSupport, TraceProxyExecutionListener).
-    // Muzzle only puts the pinned primary dependency (r2dbc-spi) on the test
-    // classpath by default, so the interception library must be added explicitly
-    // or muzzle reports its classes as "missing".
-    extraDependency 'io.r2dbc:r2dbc-proxy:1.1.0.RELEASE'
+    // The bundled r2dbc-proxy's callback machinery is written directly against Reactor's
+    // Flux/Mono (see the classLoaderMatcher() in R2dbcInstrumentation), so muzzle needs it on
+    // the test application classpath too, even though r2dbc-spi itself doesn't depend on it.
+    extraDependency "io.projectreactor:reactor-core:3.5.0"
   }
 }
 
@@ -26,34 +27,58 @@ tasks.named("latestDepTest", Test) {
   }
 }
 
+configurations {
+  r2dbcProxyToShade
+}
+
+def relocatedR2dbcProxyJar = tasks.register('relocatedR2dbcProxyJar', ShadowJar) {
+  relocate 'io.r2dbc.proxy', 'datadog.trace.instrumentation.r2dbc.shaded.proxy'
+
+  archiveClassifier.set('relocated-r2dbc-proxy')
+
+  configurations.add(project.configurations.named('r2dbcProxyToShade'))
+
+  include '**/*.class'
+
+  exclude '**/package-info.class'
+  exclude 'io/r2dbc/proxy/observation/**'
+  exclude 'io/r2dbc/proxy/test/**'
+
+  includeEmptyDirs = false
+}
+def relocatedR2dbcProxyJarFile = relocatedR2dbcProxyJar.flatMap { it.archiveFile }
+
 dependencies {
   compileOnly group: 'io.r2dbc', name: 'r2dbc-spi', version: '1.0.0.RELEASE'
-  // r2dbc-proxy must be bundled into the agent (implementation, NOT compileOnly):
-  // R2dbcTracingSupport/TraceProxyExecutionListener reference its types directly, and
-  // ordinary R2DBC apps do not depend on r2dbc-proxy themselves. compileOnly would leave
-  // those classes absent from the shaded agent jar, and the runtime muzzle safety check
-  // then blocks the whole module to avoid a NoClassDefFoundError once the target app's
-  // classloader is checked. r2dbc-spi stays compileOnly — target apps DO provide that one.
-  // Non-transitive: r2dbc-spi, reactor-core and reactive-streams come from the target app
-  // (the injected helpers link against the app's copies), so bundling them would only
-  // bloat the agent jar.
-  implementation(group: 'io.r2dbc', name: 'r2dbc-proxy', version: '1.1.0.RELEASE') {
+
+  // Wire the relocated r2dbc-proxy classes into this project without publishing
+  // the relocated jar as runtime output:
+  //
+  // - keep the relocated jar visible to main compilation through `compileOnly`
+  // - keep the relocated jar visible to tests through `testImplementation`
+  // - include the relocated classes into this project's jar (jar task config)
+  compileOnly files(relocatedR2dbcProxyJarFile)
+  testImplementation files(relocatedR2dbcProxyJarFile)
+
+  // embed proxy that's compatible with all R2DBC versions we support
+  r2dbcProxyToShade group: 'io.r2dbc', name: 'r2dbc-proxy', version: '1.1.6.RELEASE', {
     transitive = false
   }
-  compileOnly group: 'io.projectreactor', name: 'reactor-core', version: '3.5.0'
 
-  testImplementation group: 'io.r2dbc', name: 'r2dbc-spi', version: '1.0.0.RELEASE'
-  testImplementation group: 'io.r2dbc', name: 'r2dbc-proxy', version: '1.1.0.RELEASE'
-  // H2 R2DBC driver for in-memory database testing
   testImplementation group: 'io.r2dbc', name: 'r2dbc-h2', version: '1.0.0.RELEASE'
-  // r2dbc:pool: URLs resolve their delegate via a nested ConnectionFactories.find
   testImplementation group: 'io.r2dbc', name: 'r2dbc-pool', version: '1.0.0.RELEASE'
-  // Reactor for blocking on reactive types in tests
-  testImplementation group: 'io.projectreactor', name: 'reactor-core', version: '3.5.0'
 
-  latestDepTestImplementation group: 'io.r2dbc', name: 'r2dbc-spi', version: '1.+'
-  latestDepTestImplementation group: 'io.r2dbc', name: 'r2dbc-proxy', version: '1.+'
   latestDepTestImplementation group: 'io.r2dbc', name: 'r2dbc-h2', version: '1.+'
   latestDepTestImplementation group: 'io.r2dbc', name: 'r2dbc-pool', version: '1.+'
-  latestDepTestImplementation group: 'io.projectreactor', name: 'reactor-core', version: '3.+'
+}
+
+tasks.named("jar", Jar) {
+  from zipTree(relocatedR2dbcProxyJarFile)
+}
+
+// Make the relocated jar visible to muzzle through `extraAgentClasspath`.
+// Muzzle uses the runtime classpath of a project, and this jar is produced
+// outside of it.
+tasks.withType(MuzzleTask).configureEach {
+  extraAgentClasspath.from(relocatedR2dbcProxyJarFile)
 }

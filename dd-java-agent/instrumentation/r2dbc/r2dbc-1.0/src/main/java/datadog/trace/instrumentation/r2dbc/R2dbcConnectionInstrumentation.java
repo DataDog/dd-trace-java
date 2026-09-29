@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.r2dbc;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -29,9 +28,8 @@ import net.bytebuddy.matcher.ElementMatcher;
  *
  * <p>Hooking the SPI interface (via {@code ForTypeHierarchy} + {@code implementsInterface}) matches
  * every conforming driver's concrete connection with a single module, and — crucially — targets the
- * REAL driver connection rather than r2dbc-proxy's bundled callback handlers. That keeps DBM
- * injection off the bundled proxy internals (which must be helper-injected untransformed for the
- * proxy to work) and avoids the inject-vs-transform conflict.
+ * REAL driver connection rather than r2dbc-proxy's callback handlers. That keeps DBM injection off
+ * the proxy internals and avoids the inject-vs-transform conflict.
  *
  * <p>Connection metadata (service, db type, host, db name) is resolved from the {@code
  * Connection}-to-{@code ConnectionFactoryOptions} {@link datadog.trace.bootstrap.ContextStore},
@@ -57,21 +55,6 @@ public class R2dbcConnectionInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    // Only relevant when the r2dbc-proxy machinery this module relies on is present (bundled and
-    // requiring Reactor at runtime); see R2dbcInstrumentation#classLoaderMatcher.
-    return hasClassNamed("reactor.core.publisher.Flux");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".R2dbcConnectionMetadataStore",
-      packageName + ".R2dbcDecorator",
-      packageName + ".R2dbcSqlCommentInjector",
-    };
-  }
-
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
         "io.r2dbc.spi.Connection", "io.r2dbc.spi.ConnectionFactoryOptions");
