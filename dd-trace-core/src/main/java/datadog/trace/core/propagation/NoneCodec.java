@@ -30,6 +30,9 @@ public class NoneCodec {
       if (LOG_EXTRACT_HEADER_NAMES) {
         log.debug("Header: {}", key);
       }
+      if (!handleTags(key, value)) {
+        handleMappedBaggage(key, value);
+      }
       char first = Character.toLowerCase(key.charAt(0));
       switch (first) {
         case 'x':
@@ -50,13 +53,7 @@ public class NoneCodec {
         default:
       }
 
-      if (handledIpHeaders(key, value)) {
-        return true;
-      }
-      if (handleTags(key, value)) {
-        return true;
-      }
-      handleMappedBaggage(key, value);
+      handledIpHeaders(key, value);
       return true;
     }
   }

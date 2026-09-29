@@ -151,6 +151,8 @@ class XRayHttpCodec {
         log.debug("Header: {}", key);
       }
       try {
+        handleTags(key, value);
+        handleMappedBaggage(key, value);
         char first = Character.toLowerCase(key.charAt(0));
         switch (first) {
           case 'x':
@@ -174,18 +176,7 @@ class XRayHttpCodec {
           default:
         }
 
-        if (handledIpHeaders(key, value)) {
-          return true;
-        } else {
-          handleTags(key, value);
-        }
-
-        if (!baggageMapping.isEmpty()) {
-          String mappedKey = baggageMapping.get(toLowerCase(key));
-          if (null != mappedKey) {
-            addBaggageItem(mappedKey, value);
-          }
-        }
+        handledIpHeaders(key, value);
         return true;
       } catch (RuntimeException e) {
         invalidateContext();

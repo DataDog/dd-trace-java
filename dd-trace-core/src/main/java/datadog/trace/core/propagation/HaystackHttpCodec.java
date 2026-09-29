@@ -157,6 +157,9 @@ class HaystackHttpCodec {
       if (LOG_EXTRACT_HEADER_NAMES) {
         log.debug("Header: {}", key);
       }
+      if (!handleTags(key, value)) {
+        handleMappedBaggage(key, value);
+      }
       char first = Character.toLowerCase(key.charAt(0));
       String lowerCaseKey = null;
       int classification = IGNORE;
@@ -230,13 +233,7 @@ class HaystackHttpCodec {
           return false;
         }
       } else {
-        if (handledIpHeaders(key, value)) {
-          return true;
-        }
-        if (handleTags(key, value)) {
-          return true;
-        }
-        handleMappedBaggage(key, value);
+        handledIpHeaders(key, value);
       }
       return true;
     }

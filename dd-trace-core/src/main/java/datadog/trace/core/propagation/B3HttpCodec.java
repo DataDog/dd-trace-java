@@ -222,6 +222,7 @@ class B3HttpCodec {
         log.debug("Header: {}", key);
       }
       try {
+        handleTags(key, value);
         char first = Character.toLowerCase(key.charAt(0));
         switch (first) {
           case 'x':
@@ -250,10 +251,7 @@ class B3HttpCodec {
             break;
           default:
         }
-        if (handledIpHeaders(key, value)) {
-          return true;
-        }
-        handleTags(key, value);
+        handledIpHeaders(key, value);
       } catch (RuntimeException e) {
         invalidateContext();
         log.debug("Exception when extracting context", e);
@@ -282,6 +280,7 @@ class B3HttpCodec {
         if (LOG_EXTRACT_HEADER_NAMES) {
           log.debug("Header: {}", key);
         }
+        handleTags(key, value);
         if (B3_KEY.equalsIgnoreCase(key)) {
           return extractB3(firstHeaderValue(value));
         } else {
@@ -304,10 +303,7 @@ class B3HttpCodec {
               break;
           }
         }
-        if (handledIpHeaders(key, value)) {
-          return true;
-        }
-        handleTags(key, value);
+        handledIpHeaders(key, value);
       } catch (RuntimeException e) {
         invalidateContext();
         log.debug("Exception when extracting context", e);
