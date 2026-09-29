@@ -62,9 +62,10 @@ import org.eclipse.jetty.websocket.core.WebSocketComponents;
 import org.eclipse.jetty.websocket.server.internal.ServerFrameHandlerFactory;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
-import org.tabletest.junit.TypeConverter;
+import org.tabletest.junit.TypeConverterSources;
 
-public class JettyWebsocketTest extends AbstractInstrumentationTest {
+@TypeConverterSources(JettyEndpoints.class)
+public class JettyWebSocketTest extends AbstractInstrumentationTest {
   private static final String URL = "ws://inmemory/test/param";
 
   @TableTest({
@@ -480,26 +481,6 @@ public class JettyWebsocketTest extends AbstractInstrumentationTest {
 
     assertEquals(4, writer.size());
     assertNull(activeSpan());
-  }
-
-  @TypeConverter
-  public static JettyEndpoints.EndpointEvents endpoint(String name) {
-    switch (name) {
-      case "full":
-        return new JettyEndpoints.FullListener();
-      case "partial":
-        return new JettyEndpoints.PartialListener();
-      case "pojoFull":
-        return new JettyEndpoints.PojoFullEndpoint();
-      case "pojoPartial":
-        return new JettyEndpoints.PojoPartialEndpoint();
-      case "boxedFull":
-        return new JettyEndpoints.BoxedFullEndpoint();
-      case "boxedPartial":
-        return new JettyEndpoints.BoxedPartialEndpoint();
-      default:
-        throw new IllegalArgumentException("Unknown endpoint: " + name);
-    }
   }
 
   private static byte opcode(String msgType) {

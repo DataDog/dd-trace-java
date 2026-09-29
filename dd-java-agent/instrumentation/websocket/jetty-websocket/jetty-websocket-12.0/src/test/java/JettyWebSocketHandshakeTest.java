@@ -26,18 +26,19 @@ import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.eclipse.jetty.websocket.server.WebSocketUpgradeHandler;
 import org.tabletest.junit.TableTest;
+import org.tabletest.junit.TypeConverterSources;
 
+@TypeConverterSources(JettyEndpoints.class)
 class JettyWebSocketHandshakeTest extends AbstractInstrumentationTest {
   @TableTest({
-    "scenario        | endpointName | messageType",
-    "listener text   | full         | text       ",
-    "listener binary | full         | binary     ",
-    "boxed text      | boxedFull    | text       ",
-    "boxed binary    | boxedFull    | binary     "
+    "scenario        | endpoint  | messageType",
+    "listener text   | full      | text       ",
+    "listener binary | full      | binary     ",
+    "boxed text      | boxedFull | text       ",
+    "boxed binary    | boxedFull | binary     "
   })
-  void receivedMessageLinksToServerHandshake(String endpointName, String messageType)
-      throws Exception {
-    JettyEndpoints.EndpointEvents endpoint = JettyWebsocketTest.endpoint(endpointName);
+  void receivedMessageLinksToServerHandshake(
+      JettyEndpoints.EndpointEvents endpoint, String messageType) throws Exception {
     Server server = new Server(0);
     WebSocketClient client = new WebSocketClient();
     try {
@@ -55,7 +56,7 @@ class JettyWebSocketHandshakeTest extends AbstractInstrumentationTest {
               "ws://localhost:"
                   + ((ServerConnector) server.getConnectors()[0]).getLocalPort()
                   + "/receive");
-      Session session = client.connect(new Endpoint(), uri).get(5, SECONDS);
+      Session session = client.connect(new ClientEndpoint(), uri).get(5, SECONDS);
       writer.waitForTraces(2);
       DDSpan handshake = handshake("server");
       assertEquals(101, handshake.getTag("http.status_code"));
@@ -109,5 +110,5 @@ class JettyWebSocketHandshakeTest extends AbstractInstrumentationTest {
         .orElseThrow(() -> new AssertionError("Missing " + kind + " handshake span"));
   }
 
-  public static class Endpoint implements Session.Listener.AutoDemanding {}
+  public static class ClientEndpoint implements Session.Listener.AutoDemanding {}
 }
