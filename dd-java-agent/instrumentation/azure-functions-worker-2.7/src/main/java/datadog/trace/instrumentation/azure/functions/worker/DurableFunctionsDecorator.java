@@ -39,8 +39,10 @@ public final class DurableFunctionsDecorator extends BaseDecorator {
   }
 
   public void onInvoke(AgentSpan span, String functionName, String trigger) {
-    span.setResourceName(trigger + " " + functionName);
-    span.setTag("aas.function.name", functionName);
+    span.setResourceName(functionName == null ? trigger : trigger + " " + functionName);
+    if (functionName != null) {
+      span.setTag("aas.function.name", functionName);
+    }
     span.setTag("aas.function.trigger", trigger);
   }
 }

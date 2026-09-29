@@ -33,7 +33,6 @@ public final class AzureFunctionsWorkerInstrumentation extends InstrumenterModul
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".AsciiStringInputStream",
       packageName + ".DurableFunctionsDecorator",
       packageName + ".DurableFunctionsUtils",
       packageName + ".TraceContextExtractAdapter"
@@ -65,16 +64,18 @@ public final class AzureFunctionsWorkerInstrumentation extends InstrumenterModul
     public static ContextScope onEnter(
         @Advice.Argument(0) MiddlewareContext context,
         @Advice.Local("trigger") String trigger,
+        @Advice.Local("orchestrationSpan") AgentSpan orchestrationSpan,
         @Advice.Local("startTimeMicros") long startTimeMicros) {
       trigger = DurableFunctionsUtils.getTrigger(context);
       if (trigger == null) {
         return null;
       }
       if ("DurableOrchestration".equals(trigger)) {
-        startTimeMicros = MILLISECONDS.toMicros(System.currentTimeMillis());
-        if (!DurableFunctionsUtils.shouldTraceOrchestration(context)) {
-          return null;
+        orchestrationSpan = DurableFunctionsUtils.onOrchestrationInvoke(context);
+        if (orchestrationSpan == null) {
+          startTimeMicros = MILLISECONDS.toMicros(System.currentTimeMillis());
         }
+        return null;
       }
 
       return DurableFunctionsUtils.startSpanScope(context, trigger);
@@ -85,8 +86,16 @@ public final class AzureFunctionsWorkerInstrumentation extends InstrumenterModul
         @Advice.Argument(0) MiddlewareContext context,
         @Advice.Enter ContextScope scope,
         @Advice.Local("trigger") String trigger,
+        @Advice.Local("orchestrationSpan") AgentSpan orchestrationSpan,
         @Advice.Local("startTimeMicros") long startTimeMicros,
         @Advice.Thrown Throwable throwable) {
+      if (orchestrationSpan != null) {
+        if (throwable != null && !DurableFunctionsUtils.isReplayControlFlow(throwable)) {
+          DECORATE.onError(orchestrationSpan, throwable);
+        }
+        return;
+      }
+
       ContextScope activeScope = scope;
       if (activeScope == null
           && throwable != null

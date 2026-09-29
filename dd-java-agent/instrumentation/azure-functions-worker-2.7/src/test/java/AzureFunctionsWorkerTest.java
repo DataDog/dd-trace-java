@@ -12,16 +12,25 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.microsoft.azure.functions.TraceContext;
 import com.microsoft.azure.functions.internal.spi.middleware.MiddlewareChain;
 import com.microsoft.azure.functions.internal.spi.middleware.MiddlewareContext;
 import com.microsoft.azure.functions.worker.chain.FunctionExecutionMiddleware;
+import com.microsoft.durabletask.azurefunctions.internal.middleware.OrchestrationMiddleware;
+import com.microsoft.durabletask.implementation.protobuf.OrchestratorService.ExecutionStartedEvent;
+import com.microsoft.durabletask.implementation.protobuf.OrchestratorService.HistoryEvent;
+import com.microsoft.durabletask.implementation.protobuf.OrchestratorService.OrchestrationInstance;
+import com.microsoft.durabletask.implementation.protobuf.OrchestratorService.OrchestratorRequest;
+import com.microsoft.durabletask.implementation.protobuf.OrchestratorService.SubOrchestrationInstanceFailedEvent;
+import com.microsoft.durabletask.implementation.protobuf.OrchestratorService.TaskCompletedEvent;
+import com.microsoft.durabletask.implementation.protobuf.OrchestratorService.TaskFailedEvent;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.assertions.SpanMatcher;
 import datadog.trace.api.DDSpanTypes;
@@ -29,16 +38,16 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpan;
 import datadog.trace.instrumentation.azure.functions.worker.DurableFunctionsUtils;
+import datadog.trace.instrumentation.azure.functions.worker.DurableOrchestrationUtils;
+import java.lang.reflect.Constructor;
 import java.util.Base64;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 import org.tabletest.junit.TableTest;
 
 abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
@@ -54,7 +63,15 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
   void createsSpanForDurableTrigger(String annotation, String trigger) throws Exception {
     MiddlewareContext context = contextFor(annotation, "MyFunction");
 
-    new FunctionExecutionMiddleware().invoke(context, mock(MiddlewareChain.class));
+    if ("DurableOrchestration".equals(trigger)) {
+      invokeOrchestration(
+          context,
+          Collections.emptyList(),
+          Collections.singletonList(executionStarted()),
+          mock(MiddlewareChain.class));
+    } else {
+      new FunctionExecutionMiddleware().invoke(context, mock(MiddlewareChain.class));
+    }
 
     assertTraces(trace(durableSpan("MyFunction", trigger)));
   }
@@ -71,113 +88,105 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
   @Test
   void doesNotCreateSpanForSuccessfulOrchestrationReplay() throws Exception {
     MiddlewareContext context = contextFor("DurableOrchestrationTrigger", "Orchestrator");
-    // OrchestratorRequest { pastEvents: {}, newEvents: HistoryEvent { taskCompleted: {} } }
-    when(context.getParameterValue("input"))
-        .thenReturn(
-            Base64.getEncoder().encodeToString(new byte[] {0x1a, 0x00, 0x22, 0x02, 0x3a, 0x00}));
 
-    new FunctionExecutionMiddleware().invoke(context, mock(MiddlewareChain.class));
-
-    assertTraces();
-  }
-
-  @Test
-  void doesNotTreatFailureFieldWithWrongProtobufWireTypeAsFailure() throws Exception {
-    MiddlewareContext context = contextFor("DurableOrchestrationTrigger", "Orchestrator");
-    // OrchestratorRequest { pastEvents: {}, newEvents: HistoryEvent { field 8: varint 0 } }
-    when(context.getParameterValue("input"))
-        .thenReturn(
-            Base64.getEncoder().encodeToString(new byte[] {0x1a, 0x00, 0x22, 0x02, 0x40, 0x00}));
-
-    new FunctionExecutionMiddleware().invoke(context, mock(MiddlewareChain.class));
+    invokeOrchestration(
+        context,
+        Collections.singletonList(executionStarted()),
+        Collections.singletonList(taskCompleted()),
+        mock(MiddlewareChain.class));
 
     assertTraces();
   }
 
   @Test
-  void suppressesReplayWithLargeHistory() throws Exception {
-    MiddlewareContext context = contextFor("DurableOrchestrationTrigger", "Orchestrator");
-    byte[] request = new byte[4103];
-    // Field 3 (pastEvents), length-delimited with a two-byte varint length of 4096.
-    request[0] = 0x1a;
-    request[1] = (byte) 0x80;
-    request[2] = 0x20;
-    // Field 4 (newEvents), containing HistoryEvent field 7 (taskCompleted) with an empty payload.
-    request[4099] = 0x22;
-    request[4100] = 0x02;
-    request[4101] = 0x3a;
-    request[4102] = 0x00;
-    when(context.getParameterValue("input"))
-        .thenReturn(Base64.getEncoder().encodeToString(request));
+  @SuppressWarnings("unchecked")
+  void doesNotTraversePastEventsForReplayDecision() {
+    List<HistoryEvent> pastEvents = mock(List.class);
+    when(pastEvents.isEmpty()).thenReturn(false);
 
-    new FunctionExecutionMiddleware().invoke(context, mock(MiddlewareChain.class));
+    assertFalse(
+        DurableOrchestrationUtils.shouldTrace(
+            pastEvents, Collections.singletonList(taskCompleted())));
 
-    assertTraces();
+    verify(pastEvents).isEmpty();
+    verifyNoMoreInteractions(pastEvents);
+  }
+
+  @Test
+  void failsOpenForUnexpectedParsedEvent() {
+    assertTrue(
+        DurableOrchestrationUtils.shouldTrace(
+            Collections.singletonList(executionStarted()),
+            Collections.singletonList(new Object())));
   }
 
   @Test
   void createsSpanForInitialOrchestrationExecution() throws Exception {
     MiddlewareContext context = contextFor("DurableOrchestrationTrigger", "Orchestrator");
-    // OrchestratorRequest { newEvents: HistoryEvent { executionStarted: {} } }
-    when(context.getParameterValue("input"))
-        .thenReturn(Base64.getEncoder().encodeToString(new byte[] {0x22, 0x02, 0x1a, 0x00}));
 
-    new FunctionExecutionMiddleware().invoke(context, mock(MiddlewareChain.class));
+    invokeOrchestration(
+        context,
+        Collections.emptyList(),
+        Collections.singletonList(executionStarted()),
+        mock(MiddlewareChain.class));
 
     assertTraces(trace(durableSpan("Orchestrator", "DurableOrchestration")));
   }
 
   @TableTest({
-    "scenario                 | failureTag",
-    "failed activity          | 66        ",
-    "failed sub-orchestration | 90        "
+    "scenario                 | subOrchestration",
+    "failed activity          | false           ",
+    "failed sub-orchestration | true            "
   })
-  void createsSpanForOrchestrationReplayWithFailure(int failureTag) throws Exception {
+  void createsSpanForOrchestrationReplayWithFailure(boolean subOrchestration) throws Exception {
     MiddlewareContext context = contextFor("DurableOrchestrationTrigger", "Orchestrator");
-    // OrchestratorRequest { pastEvents: {}, newEvents: HistoryEvent { failure: {} } }
-    when(context.getParameterValue("input"))
-        .thenReturn(
-            Base64.getEncoder()
-                .encodeToString(new byte[] {0x1a, 0x00, 0x22, 0x02, (byte) failureTag, 0x00}));
 
-    new FunctionExecutionMiddleware().invoke(context, mock(MiddlewareChain.class));
+    invokeOrchestration(
+        context,
+        Collections.singletonList(executionStarted()),
+        Collections.singletonList(failureEvent(subOrchestration)),
+        mock(MiddlewareChain.class));
 
     assertTraces(trace(durableSpan("Orchestrator", "DurableOrchestration")));
   }
 
   @Test
-  void createsSpanWhenFailurePrecedesAnotherHistoryField() throws Exception {
+  void marksRetainedOrchestrationFailureAsError() throws Exception {
     MiddlewareContext context = contextFor("DurableOrchestrationTrigger", "Orchestrator");
-    // OrchestratorRequest {
-    //   pastEvents: {},
-    //   newEvents: HistoryEvent { taskFailed: {}, field 20: 5 }
-    // }
-    when(context.getParameterValue("input"))
-        .thenReturn(
-            Base64.getEncoder()
-                .encodeToString(
-                    new byte[] {0x1a, 0x00, 0x22, 0x05, 0x42, 0x00, (byte) 0xa0, 0x01, 0x05}));
+    MiddlewareChain chain = mock(MiddlewareChain.class);
+    doAnswer(
+            invocation -> {
+              throw new IllegalStateException("activity failure");
+            })
+        .when(chain)
+        .doNext(context);
 
-    new FunctionExecutionMiddleware().invoke(context, mock(MiddlewareChain.class));
+    invokeOrchestration(
+        context,
+        Collections.singletonList(executionStarted()),
+        Collections.singletonList(failureEvent(false)),
+        chain);
 
-    assertTraces(trace(durableSpan("Orchestrator", "DurableOrchestration")));
+    assertTraces(
+        trace(
+            span()
+                .root()
+                .operationName(Pattern.compile(Pattern.quote(operation())))
+                .resourceName("DurableOrchestration Orchestrator")
+                .type(DDSpanTypes.SERVERLESS)
+                .error(true)
+                .tags(
+                    defaultTags(),
+                    error(IllegalStateException.class, "activity failure"),
+                    tag(Tags.COMPONENT, matches(Pattern.quote("azure-functions"))),
+                    tag(Tags.SPAN_KIND, is(Tags.SPAN_KIND_SERVER)),
+                    tag("aas.function.name", is("Orchestrator")),
+                    tag("aas.function.trigger", is("DurableOrchestration")))));
   }
 
   @Test
   void createsErrorSpanWhenSuppressedOrchestrationReplayFails() throws Exception {
     MiddlewareContext context = contextFor("DurableOrchestrationTrigger", "Orchestrator");
-    // OrchestratorRequest { pastEvents: {}, newEvents: HistoryEvent { taskCompleted: {} } }
-    String payload =
-        Base64.getEncoder().encodeToString(new byte[] {0x1a, 0x00, 0x22, 0x02, 0x3a, 0x00});
-    AtomicLong payloadReadStartMillis = new AtomicLong();
-    doAnswer(
-            invocation -> {
-              payloadReadStartMillis.set(System.currentTimeMillis());
-              Thread.sleep(25);
-              return payload;
-            })
-        .when(context)
-        .getParameterValue("input");
     MiddlewareChain chain = mock(MiddlewareChain.class);
     AtomicLong invocationStartMillis = new AtomicLong();
     doAnswer(
@@ -189,15 +198,16 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
         .when(chain)
         .doNext(context);
 
-    assertThrows(
-        IllegalStateException.class,
-        () -> new FunctionExecutionMiddleware().invoke(context, chain));
+    invokeOrchestration(
+        context,
+        Collections.singletonList(executionStarted()),
+        Collections.singletonList(taskCompleted()),
+        chain);
 
     writer.waitForTraces(1);
     DDSpan errorSpan = writer.firstTrace().get(0);
-    assertTrue(errorSpan.getStartTime() <= MILLISECONDS.toNanos(payloadReadStartMillis.get()));
     assertTrue(errorSpan.getStartTime() <= MILLISECONDS.toNanos(invocationStartMillis.get()));
-    assertTrue(errorSpan.getDurationNano() >= MILLISECONDS.toNanos(45));
+    assertTrue(errorSpan.getDurationNano() >= MILLISECONDS.toNanos(20));
 
     assertTraces(
         trace(
@@ -243,36 +253,6 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
 
     assertFalse(DurableFunctionsUtils.isReplayControlFlow(cycle[0]));
     assertEquals(2, causeReads.get());
-  }
-
-  @ParameterizedTest(name = "{0}")
-  @TableTest({
-    "scenario           | description        | payload     ",
-    "non-base64 input   | non-base64 input   | 'not base64'",
-    "truncated protobuf | truncated protobuf | GgIA        "
-  })
-  @MethodSource("failsOpenForUnreadableOrchestrationPayloadArguments")
-  void failsOpenForUnreadableOrchestrationPayload(String description, Object payload)
-      throws Exception {
-    MiddlewareContext context = contextFor("DurableOrchestrationTrigger", "Orchestrator");
-    when(context.getParameterValue("input")).thenReturn(payload);
-
-    new FunctionExecutionMiddleware().invoke(context, mock(MiddlewareChain.class));
-
-    assertTraces(trace(durableSpan("Orchestrator", "DurableOrchestration")));
-  }
-
-  static Stream<Arguments> failsOpenForUnreadableOrchestrationPayloadArguments() {
-    return Stream.of(arguments("non-string input", new Object()));
-  }
-
-  @Test
-  void doesNotSwallowErrorsWhileInspectingOrchestrationPayload() {
-    MiddlewareContext context = contextFor("DurableOrchestrationTrigger", "Orchestrator");
-    when(context.getParameterValue("input")).thenThrow(new AssertionError("failure"));
-
-    assertThrows(
-        AssertionError.class, () -> DurableFunctionsUtils.shouldTraceOrchestration(context));
   }
 
   @Test
@@ -428,7 +408,8 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
         .when(chain)
         .doNext(context);
 
-    new FunctionExecutionMiddleware().invoke(context, chain);
+    invokeOrchestration(
+        context, Collections.emptyList(), Collections.singletonList(executionStarted()), chain);
 
     writer.waitForTraces(1);
     DDSpan span = writer.firstTrace().get(0);
@@ -438,14 +419,20 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
   }
 
   @TableTest({
-    "scenario                            | controlFlowType                                                    ",
+    "scenario                            | controlFlowTypeName                                                ",
     "legacy OrchestratorBlockedException | com.microsoft.durabletask.OrchestratorBlockedException             ",
     "OrchestratorBlockedException        | com.microsoft.durabletask.interruption.OrchestratorBlockedException",
     "ContinueAsNewInterruption           | com.microsoft.durabletask.interruption.ContinueAsNewInterruption   "
   })
-  void doesNotMarkReplayControlFlowAsError(Class<? extends Throwable> controlFlowType)
-      throws Exception {
-    Throwable controlFlow = controlFlowType.getDeclaredConstructor().newInstance();
+  @SuppressWarnings("unchecked")
+  void doesNotMarkReplayControlFlowAsError(String controlFlowTypeName) throws Exception {
+    Class<? extends Throwable> controlFlowType;
+    try {
+      controlFlowType = (Class<? extends Throwable>) Class.forName(controlFlowTypeName);
+    } catch (ClassNotFoundException ignored) {
+      return;
+    }
+    Throwable controlFlow = instantiateThrowable(controlFlowType);
     MiddlewareContext context = contextFor("DurableOrchestrationTrigger", "Orchestrator");
     MiddlewareChain chain = mock(MiddlewareChain.class);
     doAnswer(
@@ -455,8 +442,8 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
         .when(chain)
         .doNext(context);
 
-    assertThrows(
-        RuntimeException.class, () -> new FunctionExecutionMiddleware().invoke(context, chain));
+    invokeOrchestration(
+        context, Collections.emptyList(), Collections.singletonList(executionStarted()), chain);
 
     assertTraces(trace(durableSpan("Orchestrator", "DurableOrchestration")));
   }
@@ -506,6 +493,84 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
             tag(Tags.SPAN_KIND, is(Tags.SPAN_KIND_SERVER)),
             tag("aas.function.name", is(functionName)),
             tag("aas.function.trigger", is(trigger)));
+  }
+
+  private static void invokeOrchestration(
+      MiddlewareContext context,
+      List<HistoryEvent> pastEvents,
+      List<HistoryEvent> newEvents,
+      MiddlewareChain functionChain)
+      throws Exception {
+    OrchestratorRequest request =
+        OrchestratorRequest.newBuilder()
+            .setInstanceId("test-instance")
+            .addAllPastEvents(pastEvents)
+            .addAllNewEvents(newEvents)
+            .build();
+    when(context.getParameterValue("input"))
+        .thenReturn(Base64.getEncoder().encodeToString(request.toByteArray()));
+
+    MiddlewareChain orchestrationChain = mock(MiddlewareChain.class);
+    doAnswer(
+            invocation -> {
+              new FunctionExecutionMiddleware().invoke(context, functionChain);
+              return null;
+            })
+        .when(orchestrationChain)
+        .doNext(context);
+
+    new OrchestrationMiddleware().invoke(context, orchestrationChain);
+  }
+
+  private static HistoryEvent executionStarted() {
+    return HistoryEvent.newBuilder()
+        .setExecutionStarted(
+            ExecutionStartedEvent.newBuilder()
+                .setName("Orchestrator")
+                .setOrchestrationInstance(
+                    OrchestrationInstance.newBuilder().setInstanceId("test-instance")))
+        .build();
+  }
+
+  private static HistoryEvent taskCompleted() {
+    return HistoryEvent.newBuilder()
+        .setTaskCompleted(TaskCompletedEvent.getDefaultInstance())
+        .build();
+  }
+
+  private static HistoryEvent failureEvent(boolean subOrchestration) {
+    HistoryEvent.Builder event = HistoryEvent.newBuilder();
+    if (subOrchestration) {
+      event.setSubOrchestrationInstanceFailed(
+          SubOrchestrationInstanceFailedEvent.getDefaultInstance());
+    } else {
+      event.setTaskFailed(TaskFailedEvent.getDefaultInstance());
+    }
+    return event.build();
+  }
+
+  private static Throwable instantiateThrowable(Class<? extends Throwable> type) throws Exception {
+    Constructor<?> constructor = type.getDeclaredConstructors()[0];
+    for (Constructor<?> candidate : type.getDeclaredConstructors()) {
+      if (candidate.getParameterCount() < constructor.getParameterCount()) {
+        constructor = candidate;
+      }
+    }
+    constructor.setAccessible(true);
+    Object[] arguments = new Object[constructor.getParameterCount()];
+    Class<?>[] parameterTypes = constructor.getParameterTypes();
+    for (int index = 0; index < parameterTypes.length; index++) {
+      if (parameterTypes[index] == String.class) {
+        arguments[index] = "test";
+      } else if (parameterTypes[index] == boolean.class) {
+        arguments[index] = false;
+      } else if (parameterTypes[index] == char.class) {
+        arguments[index] = '\0';
+      } else if (parameterTypes[index].isPrimitive()) {
+        arguments[index] = 0;
+      }
+    }
+    return (Throwable) constructor.newInstance(arguments);
   }
 
   private static MiddlewareContext contextFor(String annotation, String functionName) {
