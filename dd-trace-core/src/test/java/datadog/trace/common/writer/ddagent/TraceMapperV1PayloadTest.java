@@ -1,9 +1,11 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.trace.api.DDTags.PROCESS_TAGS;
+import static datadog.trace.api.DDTags.SDK_OTLP_EXPORT;
 import static datadog.trace.api.DDTags.SPAN_EVENTS;
 import static datadog.trace.api.DDTags.THREAD_ID;
 import static datadog.trace.api.DDTags.THREAD_NAME;
+import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.COMPONENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.ENV;
@@ -12,6 +14,8 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.VERSION;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.MULTI_WRITER_TYPE;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
 import static datadog.trace.common.writer.TraceGenerator.generateRandomTraces;
 import static datadog.trace.common.writer.ddagent.PayloadVerifiers.assertEqualsWithNullAsEmpty;
 import static datadog.trace.common.writer.ddagent.V1PayloadReader.newStringTable;
@@ -19,6 +23,7 @@ import static datadog.trace.common.writer.ddagent.V1PayloadReader.readAttributes
 import static datadog.trace.common.writer.ddagent.V1PayloadReader.readBinary;
 import static datadog.trace.common.writer.ddagent.V1PayloadReader.readFirstChunk;
 import static datadog.trace.common.writer.ddagent.V1PayloadReader.readFirstSpan;
+import static datadog.trace.common.writer.ddagent.V1PayloadReader.readPayloadAttributes;
 import static datadog.trace.common.writer.ddagent.V1PayloadReader.readStreamingString;
 import static datadog.trace.common.writer.ddagent.V1PayloadReader.skipChunkField;
 import static datadog.trace.common.writer.ddagent.V1PayloadReader.skipPayloadField;
@@ -58,6 +63,7 @@ import datadog.trace.common.writer.ddagent.V1PayloadReader.SpanField;
 import datadog.trace.common.writer.ddagent.V1PayloadReader.V1SpanEvent;
 import datadog.trace.common.writer.ddagent.V1PayloadReader.V1SpanLink;
 import datadog.trace.core.MetadataConsumer;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -149,7 +155,6 @@ class TraceMapperV1PayloadTest {
       if (!packer.format(trace, traceMapper)) {
         verifier.skipLargeTrace();
         tracesFitInBuffer = false;
-        traceMapper.reset();
       }
     }
     packer.flush();
@@ -235,14 +240,31 @@ class TraceMapperV1PayloadTest {
       assertEquals(EXPECTED_PAYLOAD_FIELD_IDS, payloadFieldsSeen);
       assertEquals(1, chunkCount);
       assertNotNull(payloadAttributes);
+      // The export-mode marker is payload-scoped and always written; process tags are conditional.
+      assertEquals("false", payloadAttributes.get(SDK_OTLP_EXPORT));
       CharSequence processTags = ProcessTags.getTagsForSerialization();
       if (processTags == null) {
-        assertEquals(0, payloadAttributes.size());
-      } else {
         assertEquals(1, payloadAttributes.size());
+      } else {
+        assertEquals(2, payloadAttributes.size());
         assertEquals(processTags.toString(), payloadAttributes.get(PROCESS_TAGS));
       }
     }
+  }
+
+  /**
+   * v1 has a payload-level attribute map, so the export-mode marker lives there rather than on the
+   * first span the way v0.4/v0.5 must place it. The {@code "false"} default is covered by {@link
+   * #payloadContainsExpectedHeaderAndChunkFields()}, which also pins the attribute-map size.
+   */
+  @Test
+  @WithConfig(
+      key = WRITER_TYPE,
+      value = MULTI_WRITER_TYPE + ":" + OTLP_WRITER_TYPE + ",DDAgentWriter")
+  void otlpExportMarkerIsTrueWhenAlsoExportingOverOtlp() throws IOException {
+    Map<String, Object> attributes = readPayloadAttributes(serializeV1Payload(span(emptyMap())));
+
+    assertEquals("true", attributes.get(SDK_OTLP_EXPORT));
   }
 
   // expectedSamplingMechanism 0 is SamplingMechanism.DEFAULT.

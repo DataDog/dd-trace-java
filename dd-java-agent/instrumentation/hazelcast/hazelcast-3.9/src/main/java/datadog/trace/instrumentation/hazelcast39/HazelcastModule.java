@@ -29,15 +29,6 @@ public final class HazelcastModule extends InstrumenterModule.Tracing {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ClientInvocationDecorator",
-      packageName + ".SpanFinishingExecutionCallback",
-      packageName + ".HazelcastConstants"
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     final Map<String, String> stores = new HashMap<>();
     stores.put("com.hazelcast.client.impl.protocol.ClientMessage", String.class.getName());

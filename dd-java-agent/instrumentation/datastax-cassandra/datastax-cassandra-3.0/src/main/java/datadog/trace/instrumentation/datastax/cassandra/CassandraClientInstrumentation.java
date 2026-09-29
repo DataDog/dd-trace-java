@@ -31,16 +31,6 @@ public class CassandraClientInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".CassandraClientDecorator",
-      packageName + ".TracingSession",
-      packageName + ".TracingSession$SessionTransfomer",
-      packageName + ".TracingSession$1",
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap("com.datastax.driver.core.Cluster", String.class.getName());
   }

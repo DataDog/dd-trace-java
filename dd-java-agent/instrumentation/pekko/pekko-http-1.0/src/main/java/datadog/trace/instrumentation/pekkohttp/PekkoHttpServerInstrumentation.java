@@ -62,23 +62,6 @@ public final class PekkoHttpServerInstrumentation extends InstrumenterModule.Tra
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".DatadogWrapperHelper",
-      packageName + ".DatadogWrapperHelper$SwappedContextScope",
-      packageName + ".DatadogServerRequestResponseFlowWrapper",
-      packageName + ".DatadogServerRequestResponseFlowWrapper$1",
-      packageName + ".DatadogServerRequestResponseFlowWrapper$1$1",
-      packageName + ".DatadogServerRequestResponseFlowWrapper$1$2",
-      packageName + ".DatadogServerRequestResponseFlowWrapper$1$3",
-      packageName + ".DatadogServerRequestResponseFlowWrapper$1$4",
-      packageName + ".PekkoHttpServerHeaders",
-      packageName + ".PekkoHttpServerDecorator",
-      packageName + ".UriAdapter",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("bindAndHandle")

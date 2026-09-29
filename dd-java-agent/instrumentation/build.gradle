@@ -22,7 +22,7 @@ subprojects { Project subProj ->
     subProj.pluginManager.withPlugin("dd-trace-java.build-time-instrumentation") {
       subProj.extensions.configure(BuildTimeInstrumentationExtension) {
         it.plugins.addAll(
-          'datadog.trace.agent.tooling.muzzle.MuzzleGradlePlugin',
+          'datadog.trace.agent.tooling.advice.AdviceScanningGradlePlugin',
           'datadog.trace.agent.tooling.bytebuddy.NewTaskForGradlePlugin',
           'datadog.trace.agent.tooling.bytebuddy.reqctx.RewriteRequestContextAdvicePlugin',
           )
