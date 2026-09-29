@@ -69,8 +69,7 @@ public class LettuceReactiveClientInstrumentation extends InstrumenterModule.Tra
       packageName + ".rx.RedisSubscriptionDispatchAdvice",
       packageName + ".rx.RedisSubscriptionState",
       packageName + ".LettuceInstrumentationUtil",
-      packageName + ".LettuceClientDecorator",
-      packageName + ".ConnectionContextBiConsumer"
+      packageName + ".LettuceClientDecorator"
     };
   }
 
