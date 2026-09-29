@@ -23,6 +23,7 @@ import static org.mockito.Mockito.when;
 
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
+import datadog.communication.otlp.OtlpPayload;
 import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TracePropagationStyle;
@@ -35,7 +36,6 @@ import datadog.trace.common.writer.LoggingWriter;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
-import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.PropagationTags;
 import java.io.IOException;
