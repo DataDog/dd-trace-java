@@ -30,13 +30,6 @@ public class PreparedQueryInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".QueryResultHandlerWrapper", packageName + ".VertxSqlClientDecorator",
-    };
-  }
-
-  @Override
   public String hierarchyMarkerType() {
     return "io.vertx.sqlclient.PreparedQuery";
   }

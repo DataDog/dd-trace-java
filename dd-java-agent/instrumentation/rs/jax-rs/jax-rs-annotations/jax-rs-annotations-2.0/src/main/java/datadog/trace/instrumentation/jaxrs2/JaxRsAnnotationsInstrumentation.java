@@ -84,13 +84,6 @@ public final class JaxRsAnnotationsInstrumentation extends InstrumenterModule.Tr
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JaxRsAnnotationsDecorator",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(hasSuperMethod(isAnnotatedWith(namedOneOf(getJaxRsAnnotations())))),

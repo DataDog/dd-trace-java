@@ -31,13 +31,6 @@ public abstract class AbstractConnectionInstrumentation extends InstrumenterModu
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JDBCDecorator",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         nameStartsWith("prepare")
