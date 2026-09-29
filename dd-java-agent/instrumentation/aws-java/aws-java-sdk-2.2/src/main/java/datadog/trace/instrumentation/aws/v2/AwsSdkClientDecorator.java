@@ -14,6 +14,7 @@ import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
@@ -28,7 +29,12 @@ import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
+import datadog.trace.instrumentation.aws.AwsAccountIdentity;
+import datadog.trace.instrumentation.aws.AwsArn;
 import datadog.trace.payloadtags.PayloadTagsData;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.net.URI;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -41,6 +47,8 @@ import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.ParametersAreNonnullByDefault;
+import software.amazon.awssdk.auth.credentials.AwsCredentials;
+import software.amazon.awssdk.auth.signer.AwsSignerExecutionAttribute;
 import software.amazon.awssdk.awscore.AwsResponse;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.core.SdkField;
@@ -96,6 +104,14 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       InstanceStore.of(ExecutionAttribute.class)
           .getOrCreate("KinesisStreamArn", () -> new ExecutionAttribute<>("KinesisStreamArn"));
 
+  // ExpectedBucketOwner is carried from the request to the response so the account is only tagged
+  // once S3 has accepted it (a mismatch is rejected with 403).
+  public static final ExecutionAttribute<String> EXPECTED_BUCKET_OWNER_ATTRIBUTE =
+      InstanceStore.of(ExecutionAttribute.class)
+          .getOrCreate(
+              "DatadogExpectedBucketOwner",
+              () -> new ExecutionAttribute<>("DatadogExpectedBucketOwner"));
+
   // not static because this object would be ClassLoader specific if multiple SDK instances were
   // loaded by different loaders
   private SdkField<Instant> kinesisApproximateArrivalTimestampField = null;
@@ -135,6 +151,12 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     // S3
     request.getValueForField("Bucket", String.class).ifPresent(name -> setBucketName(span, name));
     if ("s3".equalsIgnoreCase(awsServiceName)) {
+      // S3 enforces ExpectedBucketOwner (403 on mismatch), so it names the owner only once the
+      // request has succeeded. Remember it here and tag it from the successful response.
+      request
+          .getValueForField("ExpectedBucketOwner", String.class)
+          .filter(AwsAccountIdentity::isAccountId)
+          .ifPresent(owner -> attributes.putAttribute(EXPECTED_BUCKET_OWNER_ATTRIBUTE, owner));
       // gate "Key" extraction to S3 — DynamoDB's Key is Map<String, AttributeValue>, would CCE
       request.getValueForField("Key", String.class).ifPresent(key -> setObjectKey(span, key));
       if (traceConfig().isDataStreamsEnabled()) {
@@ -185,8 +207,18 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
           }
         });
 
-    // DynamoDB
-    request.getValueForField("TableName", String.class).ifPresent(name -> setTableName(span, name));
+    // DynamoDB. Other services (Timestream, Keyspaces, Athena, ...) also have TableName members;
+    // only DynamoDB resolves a bare name in the caller's account, so only it gets the ownership
+    // enrichment. Everything else keeps the plain table name tags.
+    if ("dynamodb".equalsIgnoreCase(awsServiceName)) {
+      request
+          .getValueForField("TableName", String.class)
+          .ifPresent(name -> onDynamoDbTable(span, name, attributes));
+    } else {
+      request
+          .getValueForField("TableName", String.class)
+          .ifPresent(name -> setTableName(span, name));
+    }
 
     // DSM
     if (traceConfig().isDataStreamsEnabled()) {
@@ -274,6 +306,88 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     }
   }
 
+  /**
+   * Tags the owning account of the table. A TableName given as an ARN carries it (and is tagged as
+   * aws.table.arn). A bare name is, by DynamoDB's documented contract, resolved in the requestor's
+   * own account, so the account owning the signing credentials is the table owner. The existing
+   * aws.table.name, tablename and peer.service tags keep the TableName value as given, ARN or not,
+   * so nothing changes for spans that already carry an ARN there.
+   */
+  private static void onDynamoDbTable(
+      final AgentSpan span, final String tableName, final ExecutionAttributes attributes) {
+    setTableName(span, tableName);
+    AwsArn arn = AwsArn.parse(tableName);
+    String account;
+    if (arn != null) {
+      account = arn.account();
+      span.setTag(InstrumentationTags.AWS_TABLE_ARN, arn.raw());
+    } else {
+      account = callerAccount(attributes);
+    }
+    if (account != null) {
+      span.setTag(InstrumentationTags.AWS_ACCOUNT, account);
+    }
+  }
+
+  /**
+   * Account owning the credentials that sign this request, when the SDK exposes it
+   * (AwsCredentialsIdentity.accountId(), SDK 2.26+, populated by the STS, SSO, profile, process and
+   * container providers). Absent on older SDKs and for providers that do not resolve it.
+   */
+  private static String callerAccount(final ExecutionAttributes attributes) {
+    AwsCredentials credentials =
+        attributes.getAttribute(AwsSignerExecutionAttribute.AWS_CREDENTIALS);
+    return credentials == null ? null : credentialsAccountId(credentials);
+  }
+
+  // Optional<String> accountId() was introduced on AwsCredentialsIdentity after 2.2.0, an interface
+  // that does not exist at the 2.2.0 floor, so it is looked up by name per credentials class. The
+  // handle is kept on the class itself (ClassValue) rather than in a static map: a credentials
+  // class from an application class loader must not be pinned by instrumentation state. A missing
+  // method is recorded as this sentinel.
+  private static final MethodHandle NO_ACCOUNT_ID_GETTER =
+      MethodHandles.constant(Optional.class, Optional.empty());
+  private static final ClassValue<MethodHandle> ACCOUNT_ID_GETTERS =
+      GenericClassValue.of(AwsSdkClientDecorator::accountIdGetter);
+
+  private static MethodHandle accountIdGetter(final Class<?> type) {
+    try {
+      return MethodHandles.publicLookup()
+          .findVirtual(type, "accountId", MethodType.methodType(Optional.class));
+    } catch (NoSuchMethodException | IllegalAccessException e) {
+      return NO_ACCOUNT_ID_GETTER;
+    }
+  }
+
+  static String credentialsAccountId(final AwsCredentials credentials) {
+    MethodHandle getter = ACCOUNT_ID_GETTERS.get(credentials.getClass());
+    if (getter == NO_ACCOUNT_ID_GETTER) {
+      return null;
+    }
+    try {
+      Object value = getter.invoke(credentials);
+      if (value instanceof Optional) {
+        Object account = ((Optional<?>) value).orElse(null);
+        if (account instanceof String && AwsAccountIdentity.isAccountId((String) account)) {
+          return (String) account;
+        }
+      }
+    } catch (VirtualMachineError | ThreadDeath fatal) {
+      // OutOfMemoryError, StackOverflowError, ...: never hide these from the application.
+      throw fatal;
+    } catch (Throwable ignored) {
+      // Anything else (a provider failing to resolve, a linkage problem in the lookup) means the
+      // account is not available for this request; it must not fail the application's call.
+    }
+    return null;
+  }
+
+  private static void setBucketOwner(AgentSpan span, String owner) {
+    // aws_account only: the Agent's credit card obfuscator redacts 12-digit values under keys it
+    // does not know, and aws_account is on its allow list.
+    span.setTag(InstrumentationTags.AWS_ACCOUNT, owner);
+  }
+
   private static void setBucketName(AgentSpan span, String name) {
     span.setTag(InstrumentationTags.AWS_BUCKET_NAME, name);
     span.setTag(InstrumentationTags.BUCKET_NAME, name);
@@ -317,6 +431,13 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     final AgentSpan span = fromContext(context);
     Config config = Config.get();
     String serviceName = attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME);
+
+    // Only a successful response proves the asserted ExpectedBucketOwner is the bucket owner.
+    String expectedBucketOwner = attributes.getAttribute(EXPECTED_BUCKET_OWNER_ATTRIBUTE);
+    if (expectedBucketOwner != null && httpResponse != null && httpResponse.isSuccessful()) {
+      setBucketOwner(span, expectedBucketOwner);
+    }
+
     if (config.isCloudResponsePayloadTaggingEnabled()
         && config.isCloudPayloadTaggingEnabledFor(serviceName)) {
       awsPojoToTags(span, ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_RESPONSE_TAG, response);
