@@ -119,9 +119,10 @@ public class JfrToOtlpConverterCLI {
 
     JfrToOtlpConverter converter = new JfrToOtlpConverter();
     converter.setIncludeOriginalPayload(includePayload);
+    // the recording's own time range is only known after parsing, so the profile window is
+    // derived from the observed event timestamps instead of a synthetic caller-supplied window
+    converter.setDeriveTimeBoundsFromEvents(true);
 
-    // the recording's own time range is unknown before parsing, so convert the full window —
-    // a narrow [now-60s, now] fallback would silently drop every sample from an older recording
     Instant end = Instant.now();
     Instant start = Instant.EPOCH;
 

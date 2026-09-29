@@ -6,6 +6,7 @@ import com.datadog.profiling.otel.proto.ProtobufEncoder;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -17,7 +18,8 @@ import java.util.concurrent.ThreadLocalRandom;
  * JFR recording embedded as the {@code original_payload} blob. This is orders of magnitude faster
  * than full JFR→OTLP conversion since it skips JFR parsing, event processing, and dictionary
  * building entirely. The JFR bytes are streamed from the file so peak memory stays flat regardless
- * of recording size.
+ * of recording size; the returned buffer wraps the encoder's internal storage without a full-size
+ * copy.
  */
 final class LightweightOtlpEncoder {
 
@@ -28,7 +30,7 @@ final class LightweightOtlpEncoder {
 
   private LightweightOtlpEncoder() {}
 
-  static byte[] encode(
+  static ByteBuffer encode(
       Path jfrFile, Instant start, Instant end, Map<String, String> resourceAttributes)
       throws IOException {
     ProtobufEncoder encoder = new ProtobufEncoder(64 * 1024);
@@ -73,7 +75,9 @@ final class LightweightOtlpEncoder {
       throw e.getCause();
     }
 
-    return encoder.toByteArray();
+    // no full-size copy: the payload wraps the encoder's internal buffer, which is never
+    // written to again once this method returns
+    return encoder.toByteBuffer();
   }
 
   private static void encodeProfileUnchecked(

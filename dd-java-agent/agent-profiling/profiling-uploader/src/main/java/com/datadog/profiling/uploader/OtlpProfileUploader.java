@@ -40,9 +40,13 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.time.Instant;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.SynchronousQueue;
@@ -59,6 +63,23 @@ public final class OtlpProfileUploader implements RecordingDataListener {
   // cap on the raw JFR recording embedded as original_payload in FULL mode — beyond this the
   // converted profile is sent without the payload instead of materializing an unbounded blob
   private static final long MAX_ORIGINAL_PAYLOAD_BYTES = 64L * 1024 * 1024;
+
+  // canonical resource attribute keys emitted from fixed configuration; a configured profiling
+  // or global tag with one of these (lower-cased) keys is dropped so it cannot shadow the
+  // canonical value — mirrors the tracer's OTLP traces export filtering
+  private static final Set<String> CANONICAL_RESOURCE_KEYS =
+      new HashSet<>(
+          java.util.Arrays.asList(
+              "service",
+              "env",
+              "version",
+              "service.name",
+              "deployment.environment.name",
+              "service.version",
+              "host.name",
+              "telemetry.sdk.name",
+              "telemetry.sdk.version",
+              "telemetry.sdk.language"));
 
   private final OtlpSender sender;
   private final ExecutorService executor;
@@ -135,16 +156,22 @@ public final class OtlpProfileUploader implements RecordingDataListener {
       // send is offloaded to the executor. This keeps at most one full JFR parse in flight at
       // a time (bounding heap amplification) at the cost of blocking the profiling pipeline.
       long conversionStartNanos = System.nanoTime();
-      byte[] otlpBytes = convertToOtlp(data);
+      OtlpPayload payload = convertToOtlp(data);
       long conversionNanos = System.nanoTime() - conversionStartNanos;
       OtlpTelemetry.getInstance().onProfilesConversion(conversionNanos);
+      if (payload == null) {
+        // skipped by the LIGHT-mode size cap — nothing to export
+        data.release();
+        if (onCompletion != null) {
+          onCompletion.run();
+        }
+        return;
+      }
       log.debug(
           "JFR to OTLP conversion took {} ms (mode={}, bytes={})",
           TimeUnit.NANOSECONDS.toMillis(conversionNanos),
           mode,
-          otlpBytes.length);
-      OtlpPayload payload =
-          new OtlpPayload(ByteBuffer.wrap(otlpBytes), OtlpPayload.PROTOBUF_CONTENT_TYPE);
+          payload.getContentLength());
 
       if (sync) {
         sendAndRelease(payload, data, onCompletion);
@@ -153,6 +180,9 @@ public final class OtlpProfileUploader implements RecordingDataListener {
           executor.execute(() -> sendAndRelease(payload, data, onCompletion));
         } catch (RejectedExecutionException e) {
           log.warn("OTLP profile upload rejected: too many concurrent requests");
+          // the send never started, but the export attempt happened — count it so failures
+          // cannot exceed attempts under backpressure
+          OtlpTelemetry.getInstance().onProfilesExportAttempt();
           OtlpTelemetry.getInstance().onProfilesExportComplete(false);
           data.release();
           if (onCompletion != null) {
@@ -213,10 +243,26 @@ public final class OtlpProfileUploader implements RecordingDataListener {
     attributes.put("telemetry.sdk.name", "datadog");
     attributes.put("telemetry.sdk.version", TRACER_VERSION);
     attributes.put("telemetry.sdk.language", "java");
+
+    // merge the user-configured tags (getMergedProfilingTags: global + profiling + runtime +
+    // host tags, the same set the classic uploader sends); keys already emitted as canonical
+    // attributes above are skipped
+    config
+        .getMergedProfilingTags()
+        .forEach(
+            (key, value) -> {
+              if (value == null
+                  || value.isEmpty()
+                  || attributes.containsKey(key)
+                  || CANONICAL_RESOURCE_KEYS.contains(key.toLowerCase(Locale.ROOT))) {
+                return;
+              }
+              attributes.put(key, value);
+            });
     return Collections.unmodifiableMap(attributes);
   }
 
-  private byte[] convertToOtlp(RecordingData data) throws IOException {
+  private OtlpPayload convertToOtlp(RecordingData data) throws IOException {
     if (mode == ProfilingConfig.OtlpMode.LIGHT) {
       return convertLightweight(data);
     }
@@ -229,7 +275,9 @@ public final class OtlpProfileUploader implements RecordingDataListener {
     if (jfrFile != null) {
       applyPayloadCap(converter, jfrFile, includePayload);
       converter.addFile(jfrFile, data.getStart(), data.getEnd());
-      return converter.convert(JfrToOtlpConverter.Kind.PROTO);
+      return new OtlpPayload(
+          ByteBuffer.wrap(converter.convert(JfrToOtlpConverter.Kind.PROTO)),
+          OtlpPayload.PROTOBUF_CONTENT_TYPE);
     }
 
     Path tempDir = TempLocationManager.getInstance().getTempDir();
@@ -242,7 +290,9 @@ public final class OtlpProfileUploader implements RecordingDataListener {
       }
       applyPayloadCap(converter, temp, includePayload);
       converter.addFile(temp, data.getStart(), data.getEnd());
-      return converter.convert(JfrToOtlpConverter.Kind.PROTO);
+      return new OtlpPayload(
+          ByteBuffer.wrap(converter.convert(JfrToOtlpConverter.Kind.PROTO)),
+          OtlpPayload.PROTOBUF_CONTENT_TYPE);
     } finally {
       Files.deleteIfExists(temp);
     }
@@ -271,11 +321,10 @@ public final class OtlpProfileUploader implements RecordingDataListener {
     converter.setIncludeOriginalPayload(true);
   }
 
-  private byte[] convertLightweight(RecordingData data) throws IOException {
+  private OtlpPayload convertLightweight(RecordingData data) throws IOException {
     Path jfrFile = data.getPath();
     if (jfrFile != null) {
-      return LightweightOtlpEncoder.encode(
-          jfrFile, data.getStart(), data.getEnd(), resourceAttributes);
+      return encodeLightweight(jfrFile, data.getStart(), data.getEnd());
     }
 
     // Fallback: save stream to temp file, then encode; copy, encode, and cleanup share one
@@ -286,11 +335,27 @@ public final class OtlpProfileUploader implements RecordingDataListener {
       try (InputStream stream = data.getStream()) {
         Files.copy(stream, temp, StandardCopyOption.REPLACE_EXISTING);
       }
-      return LightweightOtlpEncoder.encode(
-          temp, data.getStart(), data.getEnd(), resourceAttributes);
+      return encodeLightweight(temp, data.getStart(), data.getEnd());
     } finally {
       Files.deleteIfExists(temp);
     }
+  }
+
+  // LIGHT mode exports the raw recording as the profile content, so the recording size bounds
+  // the payload — recordings above the cap are skipped instead of buffering an unbounded blob
+  private OtlpPayload encodeLightweight(Path jfrFile, Instant start, Instant end)
+      throws IOException {
+    long jfrSize = Files.size(jfrFile);
+    if (jfrSize > MAX_ORIGINAL_PAYLOAD_BYTES) {
+      log.warn(
+          "JFR recording of {} bytes exceeds the {} byte LIGHT-mode export cap; "
+              + "skipping OTLP profile export",
+          jfrSize,
+          MAX_ORIGINAL_PAYLOAD_BYTES);
+      return null;
+    }
+    ByteBuffer encoded = LightweightOtlpEncoder.encode(jfrFile, start, end, resourceAttributes);
+    return new OtlpPayload(encoded, OtlpPayload.PROTOBUF_CONTENT_TYPE);
   }
 
   public void shutdown() {

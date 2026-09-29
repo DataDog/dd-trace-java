@@ -89,7 +89,7 @@ class OtlpCollectorValidationTest {
     // Send to OTel Collector via HTTP
     String collectorUrl =
         String.format(
-            "http://%s:%d/v1/profiles",
+            "http://%s:%d/v1development/profiles",
             otelCollector.getHost(), otelCollector.getMappedPort(OTLP_HTTP_PORT));
 
     Response response = sendWithRetry(collectorUrl, otlpData, 3);
@@ -132,7 +132,7 @@ class OtlpCollectorValidationTest {
     // Send to profiles endpoint
     String collectorUrl =
         String.format(
-            "http://%s:%d/v1/profiles",
+            "http://%s:%d/v1development/profiles",
             otelCollector.getHost(), otelCollector.getMappedPort(OTLP_HTTP_PORT));
 
     Response response = sendWithRetry(collectorUrl, otlpData, 3);

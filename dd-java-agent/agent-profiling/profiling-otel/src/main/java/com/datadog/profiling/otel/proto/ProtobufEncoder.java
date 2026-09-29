@@ -3,6 +3,7 @@ package com.datadog.profiling.otel.proto;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 /** Low-level protobuf wire-format encoder with no external dependencies. */
@@ -342,6 +343,15 @@ public final class ProtobufEncoder {
 
   public byte[] toByteArray() {
     return Arrays.copyOf(buf, size);
+  }
+
+  /**
+   * Read-only heap view over the internal buffer without the {@link #toByteArray()} copy. The view
+   * is only valid while the encoder is not reset or written to afterwards; the caller must treat
+   * the content as immutable.
+   */
+  public ByteBuffer toByteBuffer() {
+    return ByteBuffer.wrap(buf, 0, size);
   }
 
   public void writeTo(OutputStream out) throws IOException {
