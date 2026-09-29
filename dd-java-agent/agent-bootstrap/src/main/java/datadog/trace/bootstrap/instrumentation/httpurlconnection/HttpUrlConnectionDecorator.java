@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.httpurlconnection;
 
 import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 
+import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.HttpURLConnection;
@@ -36,7 +37,7 @@ public class HttpUrlConnectionDecorator
 
   @Override
   protected URI url(final HttpURLConnection connection) throws URISyntaxException {
-    return connection.getURL().toURI();
+    return URIUtils.toURI(connection.getURL());
   }
 
   @Override
