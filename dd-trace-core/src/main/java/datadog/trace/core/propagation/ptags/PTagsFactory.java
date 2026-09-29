@@ -165,9 +165,12 @@ public class PTagsFactory implements PropagationTags.Factory {
           PrioritySampling.UNSET,
           null,
           null,
-          orgPropagationMarkerTagValue);
+          orgPropagationMarkerTagValue,
+          null,
+          null);
     }
 
+    // Takes tracestate/otelTraceState up-front to build SamplingState in one allocation.
     PTags(
         PTagsFactory factory,
         List<TagElement> tagPairs,
@@ -177,13 +180,17 @@ public class PTagsFactory implements PropagationTags.Factory {
         int samplingPriority,
         CharSequence origin,
         CharSequence lastParentId,
-        TagValue orgPropagationMarkerTagValue) {
+        TagValue orgPropagationMarkerTagValue,
+        String tracestate,
+        OtelTraceState otelTraceState) {
       assert tagPairs == null || tagPairs.size() % 2 == 0;
       this.factory = factory;
       this.tagPairs = tagPairs;
       this.canChangeDecisionMaker = decisionMakerTagValue == null;
       this.traceSource = traceSource;
-      this.samplingState = initialSamplingState(samplingPriority, decisionMakerTagValue);
+      this.tracestate = tracestate;
+      this.samplingState =
+          initialSamplingState(samplingPriority, tracestate, otelTraceState, decisionMakerTagValue);
       this.origin = origin;
       this.lastParentId = lastParentId;
       this.orgPropagationMarkerTagValue = orgPropagationMarkerTagValue;
@@ -206,6 +213,8 @@ public class PTagsFactory implements PropagationTags.Factory {
               null,
               ProductTraceSource.UNSET,
               PrioritySampling.UNSET,
+              null,
+              null,
               null,
               null,
               null);
@@ -362,11 +371,18 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     private static SamplingState initialSamplingState(
-        int samplingPriority, TagValue decisionMakerTagValue) {
-      if (samplingPriority == PrioritySampling.UNSET && decisionMakerTagValue == null) {
+        int samplingPriority,
+        String tracestate,
+        OtelTraceState otelTraceState,
+        TagValue decisionMakerTagValue) {
+      if (samplingPriority == PrioritySampling.UNSET
+          && tracestate == null
+          && otelTraceState == null
+          && decisionMakerTagValue == null) {
         return EMPTY_SAMPLING_STATE;
       }
-      return new SamplingState(samplingPriority, null, null, decisionMakerTagValue, null);
+      return new SamplingState(
+          samplingPriority, tracestate, otelTraceState, decisionMakerTagValue, null);
     }
 
     private static OtelTraceState reconcileOtelTraceState(

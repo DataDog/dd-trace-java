@@ -1047,13 +1047,13 @@ public class W3CPTagsCodec extends PTagsCodec {
           samplingPriority,
           origin,
           lastParentId,
-          orgPropagationMarkerTagValue);
-      this.tracestate = original;
+          orgPropagationMarkerTagValue,
+          original,
+          otelTraceState);
       this.firstMemberStart = firstMemberStart;
       this.ddMemberStart = ddMemberStart;
       this.ddMemberValueEnd = ddMemberValueEnd;
       this.maxUnknownSize = maxUnknownSize;
-      setOtelTraceState(otelTraceState);
     }
 
     @Override
