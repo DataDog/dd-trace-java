@@ -165,6 +165,7 @@ public class AgentInstaller {
             .with(AgentStrategies.transformerDecorator())
             .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
             .with(AgentStrategies.rediscoveryStrategy())
+            .with(new RedefinitionLoggingListener())
             .with(AgentStrategies.locationStrategy())
             .with(AgentStrategies.poolStrategy())
             .with(AgentBuilder.DescriptionStrategy.Default.POOL_ONLY)
@@ -410,6 +411,12 @@ public class AgentInstaller {
         final List<Class<?>> types) {
       if (DEBUG) {
         log.debug("Exception while retransforming {} classes: {}", batch.size(), batch, throwable);
+      } else {
+        // a failed batch leaves every class in it uninstrumented, so don't keep this silent
+        log.warn(
+            "Exception while retransforming {} classes, instrumentation may be incomplete: {}",
+            batch.size(),
+            throwable.toString());
       }
       return Collections.emptyList();
     }
