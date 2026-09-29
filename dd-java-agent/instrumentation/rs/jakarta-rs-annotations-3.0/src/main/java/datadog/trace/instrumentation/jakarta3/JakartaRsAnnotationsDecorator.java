@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.ClassHierarchyIterable;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -12,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import jakarta.ws.rs.HttpMethod;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.container.AsyncResponse;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.Map;
@@ -51,6 +53,23 @@ public class JakartaRsAnnotationsDecorator extends BaseDecorator {
   @Override
   protected CharSequence component() {
     return JAKARTA_RS_CONTROLLER;
+  }
+
+  /**
+   * Finishes {@code span} unless some other, concurrent caller (a racing {@code resume()}/{@code
+   * cancel()} on another thread, or the resource method's own exit advice) already claimed it
+   * first. {@link ContextStore#remove} is the atomic hand-off: it removes and returns the mapping
+   * in one step, so exactly one caller ever sees a non-null result, no matter how the calls
+   * interleave across threads.
+   */
+  public void finishUnlessAlreadyClaimed(
+      final ContextStore<AsyncResponse, AgentSpan> contextStore,
+      final AsyncResponse asyncResponse) {
+    final AgentSpan claimed = contextStore.remove(asyncResponse);
+    if (claimed != null) {
+      beforeFinish(claimed);
+      claimed.finish();
+    }
   }
 
   public void onJakartaRsSpan(

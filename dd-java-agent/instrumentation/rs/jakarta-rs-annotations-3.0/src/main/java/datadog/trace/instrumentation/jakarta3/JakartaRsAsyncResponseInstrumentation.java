@@ -68,7 +68,17 @@ public final class JakartaRsAsyncResponseInstrumentation extends InstrumenterMod
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.This final AsyncResponse asyncResponse, @Advice.Thrown Throwable throwable) {
+        @Advice.This final AsyncResponse asyncResponse,
+        @Advice.Thrown Throwable throwable,
+        @Advice.Return final boolean succeeded) {
+      if (throwable == null && !succeeded) {
+        // AsyncResponse#resume() returns false when the response was already resolved (a
+        // second resume()/cancel() call on the same response); nothing changed, so there is
+        // nothing to tag or finish. If the call threw instead of returning, treat it the same
+        // as before: @Advice.Return defaults to false on the exception path, so that alone
+        // does not mean "already resolved".
+        return;
+      }
 
       final ContextStore<AsyncResponse, AgentSpan> contextStore =
           InstrumentationContext.get(AsyncResponse.class, AgentSpan.class);
@@ -77,18 +87,15 @@ public final class JakartaRsAsyncResponseInstrumentation extends InstrumenterMod
       if (span != null) {
         DECORATE.onError(span, throwable);
         if (isInnermost(span)) {
-          // resume()/cancel() was called synchronously, nested inside the still-running
-          // resource method that owns this span (ResourceMethodSpanTracker.isInnermost(span)
-          // says its invocation is still the innermost open one on this thread). Let that
-          // method's own exit advice close the scope and finish the span (it will see
-          // asyncResponse.isSuspended() == false) instead of finishing it here, which would
-          // both double-finish the span and finish it prematurely while the resource method
-          // may still be doing work under it.
+          // resume() was called synchronously, nested inside the still-running resource
+          // method that owns this span (ResourceMethodSpanTracker.isInnermost(span) says its
+          // invocation is still the innermost open one on this thread). Let that method's own
+          // exit advice close the scope and finish the span instead of finishing it here,
+          // which would both double-finish the span and finish it prematurely while the
+          // resource method may still be doing work under it.
           return;
         }
-        contextStore.put(asyncResponse, null);
-        DECORATE.beforeFinish(span);
-        span.finish();
+        DECORATE.finishUnlessAlreadyClaimed(contextStore, asyncResponse);
       }
     }
   }
@@ -98,7 +105,13 @@ public final class JakartaRsAsyncResponseInstrumentation extends InstrumenterMod
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
         @Advice.This final AsyncResponse asyncResponse,
-        @Advice.Argument(0) final Throwable throwable) {
+        @Advice.Argument(0) final Throwable throwable,
+        @Advice.Thrown final Throwable methodThrew,
+        @Advice.Return final boolean succeeded) {
+      if (methodThrew == null && !succeeded) {
+        // see comment in AsyncResponseAdvice#stopSpan
+        return;
+      }
 
       final ContextStore<AsyncResponse, AgentSpan> contextStore =
           InstrumentationContext.get(AsyncResponse.class, AgentSpan.class);
@@ -110,9 +123,7 @@ public final class JakartaRsAsyncResponseInstrumentation extends InstrumenterMod
           // see comment in AsyncResponseAdvice#stopSpan
           return;
         }
-        contextStore.put(asyncResponse, null);
-        DECORATE.beforeFinish(span);
-        span.finish();
+        DECORATE.finishUnlessAlreadyClaimed(contextStore, asyncResponse);
       }
     }
   }
@@ -121,7 +132,13 @@ public final class JakartaRsAsyncResponseInstrumentation extends InstrumenterMod
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.This final AsyncResponse asyncResponse, @Advice.Thrown Throwable throwable) {
+        @Advice.This final AsyncResponse asyncResponse,
+        @Advice.Thrown Throwable throwable,
+        @Advice.Return final boolean succeeded) {
+      if (throwable == null && !succeeded) {
+        // see comment in AsyncResponseAdvice#stopSpan
+        return;
+      }
 
       final ContextStore<AsyncResponse, AgentSpan> contextStore =
           InstrumentationContext.get(AsyncResponse.class, AgentSpan.class);
@@ -137,9 +154,7 @@ public final class JakartaRsAsyncResponseInstrumentation extends InstrumenterMod
           // see comment in AsyncResponseAdvice#stopSpan
           return;
         }
-        contextStore.put(asyncResponse, null);
-        DECORATE.beforeFinish(span);
-        span.finish();
+        DECORATE.finishUnlessAlreadyClaimed(contextStore, asyncResponse);
       }
     }
   }

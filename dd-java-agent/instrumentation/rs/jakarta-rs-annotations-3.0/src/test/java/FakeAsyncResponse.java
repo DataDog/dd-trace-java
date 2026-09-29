@@ -5,42 +5,40 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Minimal {@link AsyncResponse} implementation for testing the
  * JakartaRsAsyncResponseInstrumentation advice directly (no real JAX-RS container/server involved)
  * -- only {@code resume}/{@code cancel}/{@code isSuspended} carry real semantics; everything else
  * is a no-op.
+ *
+ * <p>{@code suspended} is an {@link AtomicBoolean}, not a plain field: real {@code AsyncResponse}
+ * implementations guarantee that only one of a racing {@code resume()}/{@code cancel()} pair ever
+ * succeeds. A plain boolean's read-then-write is not atomic, so two concurrent callers could both
+ * observe "still suspended" and both report success, which would make tests exercising concurrent
+ * terminal calls exercise a scenario the real advice never actually sees.
  */
 public class FakeAsyncResponse implements AsyncResponse {
 
-  private volatile boolean suspended = true;
+  private final AtomicBoolean suspended = new AtomicBoolean(true);
   private volatile boolean cancelled = false;
 
   @Override
   public boolean resume(final Object response) {
-    if (!suspended) {
-      return false;
-    }
-    suspended = false;
-    return true;
+    return suspended.compareAndSet(true, false);
   }
 
   @Override
   public boolean resume(final Throwable response) {
-    if (!suspended) {
-      return false;
-    }
-    suspended = false;
-    return true;
+    return suspended.compareAndSet(true, false);
   }
 
   @Override
   public boolean cancel() {
-    if (!suspended) {
+    if (!suspended.compareAndSet(true, false)) {
       return false;
     }
-    suspended = false;
     cancelled = true;
     return true;
   }
@@ -57,7 +55,7 @@ public class FakeAsyncResponse implements AsyncResponse {
 
   @Override
   public boolean isSuspended() {
-    return suspended;
+    return suspended.get();
   }
 
   @Override
@@ -67,7 +65,7 @@ public class FakeAsyncResponse implements AsyncResponse {
 
   @Override
   public boolean isDone() {
-    return !suspended;
+    return !suspended.get();
   }
 
   @Override
