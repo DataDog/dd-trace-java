@@ -1,14 +1,12 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.shouldCapture;
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.ContinuationClaim.CLAIMED;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ContinuationClaim.TERMINATED;
 
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,12 +22,7 @@ public final class ConcurrentState {
 
   public static ContextStore.Factory<ConcurrentState> FACTORY = ConcurrentState::new;
 
-  private volatile ContextContinuation continuation = null;
-
-  private static final AtomicReferenceFieldUpdater<ConcurrentState, ContextContinuation>
-      CONTINUATION =
-          AtomicReferenceFieldUpdater.newUpdater(
-              ConcurrentState.class, ContextContinuation.class, "continuation");
+  private ContextContinuation continuation;
 
   private ConcurrentState() {}
 
@@ -89,24 +82,16 @@ public final class ConcurrentState {
     state.cancelAndClearContinuation();
   }
 
-  boolean captureAndSetContinuation(final Context context) {
-    if (CONTINUATION.compareAndSet(this, null, CLAIMED)) {
-      final ContextContinuation continuation = context.capture().hold();
-      if (CONTINUATION.compareAndSet(this, CLAIMED, continuation)) {
-        return true;
-      }
-      continuation.release();
+  synchronized boolean captureAndSetContinuation(final Context context) {
+    if (continuation == null) {
+      continuation = context.capture().hold();
+      return true;
     }
     return false;
   }
 
-  private ContextScope activateAndContinueContinuation() {
-    return activateAndContinueContinuation(CONTINUATION.get(this));
-  }
-
-  synchronized ContextScope activateAndContinueContinuation(
-      final ContextContinuation continuation) {
-    if (isLive(continuation) && CONTINUATION.get(this) == continuation) {
+  synchronized ContextScope activateAndContinueContinuation() {
+    if (isLive(continuation)) {
       return continuation.resume();
     }
     return null;
@@ -117,16 +102,17 @@ public final class ConcurrentState {
   }
 
   void cancelAndClearContinuation() {
-    final ContextContinuation continuation;
+    final ContextContinuation captured;
     synchronized (this) {
-      continuation = CONTINUATION.getAndSet(this, TERMINATED);
+      captured = continuation;
+      continuation = TERMINATED;
     }
-    if (isLive(continuation)) {
-      continuation.release();
+    if (isLive(captured)) {
+      captured.release();
     }
   }
 
   private static boolean isLive(final ContextContinuation continuation) {
-    return continuation != null && continuation != CLAIMED && continuation != TERMINATED;
+    return continuation != null && continuation != TERMINATED;
   }
 }

@@ -72,12 +72,12 @@ class ConcurrentStateTest {
   }
 
   @Test
-  void terminalResolutionRejectsStaleActivation() {
+  void terminalResolutionRejectsActivation() {
     assertTrue(state.captureAndSetContinuation(context));
 
     state.cancelAndClearContinuation();
 
-    assertNull(state.activateAndContinueContinuation(continuation));
+    assertNull(state.activateAndContinueContinuation());
     verify(continuation, times(1)).release();
     verify(continuation, never()).resume();
   }
@@ -100,7 +100,7 @@ class ConcurrentStateTest {
 
     ConcurrentState.closeScope(contextStore, key, null, new RuntimeException());
 
-    assertNull(state.activateAndContinueContinuation(continuation));
+    assertNull(state.activateAndContinueContinuation());
     verify(continuation, times(1)).release();
   }
 
@@ -127,7 +127,7 @@ class ConcurrentStateTest {
         .release();
 
     Future<ContextScope> activation =
-        executor.submit(() -> state.activateAndContinueContinuation(continuation));
+        executor.submit(() -> state.activateAndContinueContinuation());
     assertTrue(resumeEntered.await(10, SECONDS));
     Thread terminal = new Thread(state::cancelAndClearContinuation);
     terminal.start();
@@ -145,7 +145,7 @@ class ConcurrentStateTest {
   }
 
   @Test
-  void terminalResolutionDuringCaptureDoesNotReopenState() throws Exception {
+  void terminalResolutionWaitsForCapture() throws Exception {
     CountDownLatch captureEntered = new CountDownLatch(1);
     CountDownLatch allowCapture = new CountDownLatch(1);
     when(context.capture())
@@ -159,11 +159,15 @@ class ConcurrentStateTest {
     Future<Boolean> capture = executor.submit(() -> state.captureAndSetContinuation(context));
     assertTrue(captureEntered.await(10, SECONDS));
 
-    state.cancelAndClearContinuation();
+    Thread terminal = new Thread(state::cancelAndClearContinuation);
+    terminal.start();
+    awaitBlocked(terminal);
     allowCapture.countDown();
 
-    assertFalse(capture.get(10, SECONDS));
-    assertNull(state.activateAndContinueContinuation(continuation));
+    assertTrue(capture.get(10, SECONDS));
+    terminal.join(SECONDS.toMillis(10));
+    assertFalse(terminal.isAlive());
+    assertNull(state.activateAndContinueContinuation());
     verify(continuation, times(1)).release();
     verify(continuation, never()).resume();
   }
