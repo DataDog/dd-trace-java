@@ -850,12 +850,46 @@ methods.
   is used to pass context between threads.
 - Continuations must be either resumed or released.
 - If a Continuation is resumed it returns a `ContextScope` which must eventually be closed.
-- Only after all scopes are closed and any non-resumed continuations are released may the Trace finally close.
+- Resolve every continuation and close its resumed scopes. A held continuation also needs its
+  hold released. Normal reference-count completion requires all spans and continuations to resolve;
+  publication can happen earlier through buffering or partial flush.
 
 Notice
 in [`HttpClientRequestTracingHandler`](https://github.com/DataDog/dd-trace-java/blob/3fe1b2d6010e50f61518fa25af3bdeb03ae7712b/dd-java-agent/instrumentation/netty-4.1/src/main/java/datadog/trace/instrumentation/netty41/client/HttpClientRequestTracingHandler.java#L56)
 how the Continuation is used to obtain the `parentScope` which is
 finally [closed](https://github.com/DataDog/dd-trace-java/blob/3fe1b2d6010e50f61518fa25af3bdeb03ae7712b/dd-java-agent/instrumentation/netty-4.1/src/main/java/datadog/trace/instrumentation/netty41/client/HttpClientRequestTracingHandler.java#L111).
+
+### Continuation effects
+
+An unresolved continuation keeps `PendingTrace`'s reference count positive and prevents its normal
+completion write. It does not by itself prove that a production trace is lost. The default delaying
+buffer can write finished spans despite pending references: it checks for 500 ms since the last
+trace reference or 5 seconds since the oldest finished span. These are worker eligibility thresholds,
+not hard latency bounds or guarantees about UI visibility. Partial flush, explicit flush and buffer
+pressure can publish earlier; long-running and streaming trace collectors have other paths.
+
+Strict writes replace the delaying buffer with a discarding buffer, exposing unresolved ownership
+in tests. Partial flush is still possible, so seeing spans arrive does not establish that all
+continuations were released. See [PendingTrace](../dd-trace-core/src/main/java/datadog/trace/core/PendingTrace.java),
+[PendingTraceBuffer](../dd-trace-core/src/main/java/datadog/trace/core/PendingTraceBuffer.java) and
+[CoreTracer](../dd-trace-core/src/main/java/datadog/trace/core/CoreTracer.java) for the publication paths.
+
+A reachable task or callback can retain its captured context even after finished spans are written.
+This does not establish that the entire trace stays in memory or that retention grows without bound.
+Wrong parentage requires unrelated work to activate that context, or a scope to remain active on the
+thread; an abandoned continuation alone does not contaminate another thread.
+
+### Static initialization
+
+Class initialization (`<clinit>`) runs on the thread triggering first use, which may carry request
+context. If it creates singleton workers, timers or permanent sentinels, generic async instrumentation
+can capture that request for infrastructure that outlives it. Netty's `GlobalEventExecutor`, including
+its Couchbase-shaded variant, is one example: its permanent sentinel does not run or cancel normally.
+
+Reproduce first use under an active span in a fresh JVM; prewarming during test setup can hide the
+capture. Where the task has no request-context consumer, suppress propagation only at the verified
+creation boundary, including the exact type initializer when appropriate. Do not suppress propagation
+for all static initializers or for legitimate request work.
 
 ## Naming
 
@@ -914,6 +948,56 @@ If reflection must be used the reflection usage should be added to
 `dd-java-agent/agent-bootstrap/src/main/resources/META-INF/native-image/com.datadoghq/dd-java-agent/reflect-config.json`.
 
 See [GraalVM configuration docs](https://www.graalvm.org/jdk17/reference-manual/native-image/dynamic-features/Reflection/#manual-configuration).
+
+## Structural Changes (Adding Fields, Methods, or Interfaces)
+
+Some instrumentations use `Instrumenter.HasTypeAdvice` to change the *structure* of the type itself — for example adding a marker
+interface or a field via a custom `AsmVisitorWrapper`. Unlike method advice this will fail if the target type is already loaded,
+causing the instrumentation to silently stop working. The JVM does not allow transformations to change the structure once a type
+is loaded, only the method bodies can be changed. Conversely, if we structurally changed a type before it was loaded then we must
+remember to reapply that same change if the type is ever retransformed.
+
+This is hard to get right, so we provide a feature to correctly handle both situations.
+
+Instrumentations whose `typeAdvice()` adds fields, methods, or interfaces should implement `Instrumenter.WithStructuralChange`:
+
+```java
+public interface WithStructuralChange extends HasTypeAdvice {
+  /** The marker interface added by the structural change, used to detect already-loaded types. */
+  Class<?> structuralChangeMarker();
+}
+```
+
+`structuralChangeMarker()` returns the marker interface the type advice adds directly to the type. For example IAST's
+[`TaintableIast`](../dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/InstrumenterModule.java)
+adds `Taintable` to every type it instruments, so it returns `Taintable.class` as the structural marker.
+
+### How it works
+
+1. When building matchers for a `WithStructuralChange` instrumentation, `CombiningTransformerBuilder` adds a
+   `MatchRecorder.PreserveLoadedStructure` narrowing matcher.
+2. On a *fresh* class load there is no `classBeingRedefined`, so the matcher has no effect and the structural change
+   is applied as usual.
+3. On a *retransform*, the matcher only allows the structural change to re-apply if the loaded class already
+   directly declares the marker interface — i.e. the change was already applied on first load, so it must be
+   re-applied. Otherwise the match is dropped, skipping the change instead of failing `retransformClasses()`.
+   Since the type might already have the marker, the `AsmVisitorWrapper` must guard against adding it twice
+   (see the `arrayContains`/`appendToArray` check in `TaintableVisitor`).
+4. If the instrumentation also implements `HasMethodAdvice`, the structural change is split into its own
+   transformation (see `buildTypeAdvice()` in `CombiningTransformerBuilder`) so the narrowing can't disable the
+   *method* advice when the structural change is skipped.
+
+### When to use it
+
+Implement `WithStructuralChange` whenever `typeAdvice()` adds a field, method, or interface to the instrumented type.
+Pick (or add) a marker interface that's only ever added by that structural change, since it's used to detect that the
+change already happened.
+
+**Examples in the codebase:**
+- [`InstrumenterModule.TaintableIast`](../dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/InstrumenterModule.java)
+  — instrumentation that adds `Taintable` to IAST-instrumented types.
+- [`TaintableVisitor`](../dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/bytebuddy/iast/TaintableVisitor.java)
+  — the `AsmVisitorWrapper` that actually adds the marker interface during type advice.
 
 ## JPMS Module Opening
 

@@ -1,14 +1,20 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
+import static datadog.trace.api.sampling.SamplingMechanism.AGENT_RATE;
 import static datadog.trace.api.sampling.SamplingMechanism.MANUAL;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.DATADOG;
+import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static datadog.trace.core.propagation.W3CHttpCodec.OT_BAGGAGE_PREFIX;
 import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_PARENT_KEY;
 import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_STATE_KEY;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.context.ContextScope;
 import datadog.trace.api.DDSpanId;
@@ -19,6 +25,9 @@ import datadog.trace.test.junit.utils.converter.PrioritySamplingConverter;
 import datadog.trace.test.junit.utils.converter.TraceIdConverter;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
@@ -121,6 +130,62 @@ class W3CHttpInjectorTest extends AbstractHttpInjectorTest {
     expected.put(OT_BAGGAGE_PREFIX + "k1", "v1");
     expected.put(OT_BAGGAGE_PREFIX + "k2", "v2");
     assertEquals(expected, carrier);
+  }
+
+  @Test
+  void injectUsesSingleSamplingStateAcrossHeaders() throws InterruptedException {
+    PropagationTags tags = PropagationTags.factory().fromHeaderValue(W3C, "ot=rv:ef284ace7a91e1");
+    assertTrue(
+        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 1.0, false, 1L, true));
+    DDSpanContext context =
+        mockSpanContext(
+            DDTraceId.from("1"), DDSpanId.from("2"), SAMPLER_KEEP, null, new HashMap<>(), tags);
+    Map<String, String> carrier = new HashMap<>();
+    CountDownLatch traceparentWritten = new CountDownLatch(1);
+    CountDownLatch samplingUpdated = new CountDownLatch(1);
+    AtomicReference<Throwable> failure = new AtomicReference<>();
+    Thread updater =
+        new Thread(
+            () -> {
+              try {
+                assertTrue(traceparentWritten.await(5, TimeUnit.SECONDS));
+                assertTrue(
+                    tags.tryUpdateProbabilitySamplingDecision(
+                        SAMPLER_DROP, AGENT_RATE, 0.0, false, 1L, true));
+              } catch (Throwable throwable) {
+                failure.set(throwable);
+              } finally {
+                samplingUpdated.countDown();
+              }
+            });
+    updater.start();
+
+    injector.inject(
+        context,
+        carrier,
+        (headers, key, value) -> {
+          headers.put(key, value);
+          if (TRACE_PARENT_KEY.equals(key)) {
+            traceparentWritten.countDown();
+            try {
+              assertTrue(samplingUpdated.await(5, TimeUnit.SECONDS));
+            } catch (InterruptedException interrupted) {
+              Thread.currentThread().interrupt();
+              throw new AssertionError(interrupted);
+            }
+          }
+        });
+    updater.join(TimeUnit.SECONDS.toMillis(5));
+
+    assertFalse(updater.isAlive());
+    if (failure.get() != null) {
+      throw new AssertionError(failure.get());
+    }
+    assertTrue(carrier.get(TRACE_PARENT_KEY).endsWith("-01"));
+    assertEquals(
+        "dd=s:1;p:0000000000000002;t.dm:-1;t.ksr:1,ot=rv:ef284ace7a91e1",
+        carrier.get(TRACE_STATE_KEY));
+    assertEquals("dd=s:0;t.ksr:0,ot=rv:ef284ace7a91e1", tags.headerValue(W3C));
   }
 
   @Test

@@ -1,5 +1,6 @@
 package datadog.trace.api.function;
 
+import datadog.perfcontract.PerfContract;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Inherited;
@@ -45,6 +46,7 @@ import java.lang.annotation.Target;
  */
 @Documented
 @Inherited
+@PerfContract
 @Retention(RetentionPolicy.SOURCE)
 @Target({ElementType.TYPE, ElementType.PARAMETER})
 public @interface Strategy {}
