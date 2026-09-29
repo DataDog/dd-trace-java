@@ -59,6 +59,7 @@ public final class AsyncContextInstrumentation extends InstrumenterModule.Tracin
       packageName + ".HttpServletExtractAdapter",
       packageName + ".HttpServletExtractAdapter$Request",
       packageName + ".HttpServletExtractAdapter$Response",
+      packageName + ".HttpServletExtractAdapter$Response$HeaderAccessors",
       packageName + ".Servlet3Decorator",
       packageName + ".ServletRequestURIAdapter",
     };
