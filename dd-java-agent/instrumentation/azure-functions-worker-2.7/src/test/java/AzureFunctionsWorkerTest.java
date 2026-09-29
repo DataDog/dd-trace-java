@@ -276,11 +276,39 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
   }
 
   @Test
-  void continuesAzureTraceWhenHostClearsW3cSampledFlag() throws Exception {
+  void honorsW3cDropDecisionWithoutTracestate() throws Exception {
     MiddlewareContext context = contextFor("DurableActivityTrigger", "Activity");
     TraceContext traceContext = mock(TraceContext.class);
     when(traceContext.getTraceparent())
         .thenReturn("00-0000000000000000000000000000002a-000000000000002b-00");
+    when(traceContext.getTracestate()).thenReturn(null);
+    when(context.getTraceContext()).thenReturn(traceContext);
+    AtomicInteger priority = new AtomicInteger(Integer.MIN_VALUE);
+    MiddlewareChain chain = mock(MiddlewareChain.class);
+    doAnswer(
+            invocation -> {
+              priority.set(AgentTracer.activeSpan().spanContext().getSamplingPriority());
+              return null;
+            })
+        .when(chain)
+        .doNext(context);
+
+    new FunctionExecutionMiddleware().invoke(context, chain);
+
+    writer.waitForTraces(1);
+    DDSpan span = writer.firstTrace().get(0);
+    assertEquals("42", span.getTraceId().toString());
+    assertEquals(43L, span.getParentId());
+    assertEquals(SAMPLER_DROP, priority.get());
+    assertEquals(SAMPLER_DROP, span.samplingPriority());
+  }
+
+  @Test
+  void honorsW3cKeepDecisionWithoutTracestate() throws Exception {
+    MiddlewareContext context = contextFor("DurableActivityTrigger", "Activity");
+    TraceContext traceContext = mock(TraceContext.class);
+    when(traceContext.getTraceparent())
+        .thenReturn("00-0000000000000000000000000000002a-000000000000002b-01");
     when(traceContext.getTracestate()).thenReturn(null);
     when(context.getTraceContext()).thenReturn(traceContext);
     AtomicInteger priority = new AtomicInteger(Integer.MIN_VALUE);
@@ -332,7 +360,58 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
   }
 
   @Test
-  void honorsDatadogKeepDecisionWhenAzureClearsW3cSampledFlag() throws Exception {
+  void honorsOtelDropDecisionWhenAzureClearsW3cSampledFlag() throws Exception {
+    MiddlewareContext context = contextFor("DurableActivityTrigger", "Activity");
+    TraceContext traceContext = mock(TraceContext.class);
+    when(traceContext.getTraceparent())
+        .thenReturn("00-0000000000000000000000000000002a-000000000000002b-00");
+    when(traceContext.getTracestate()).thenReturn("ot=rv:00000000000000;th:8,vendor=value");
+    when(context.getTraceContext()).thenReturn(traceContext);
+    AtomicInteger priority = new AtomicInteger(Integer.MIN_VALUE);
+    MiddlewareChain chain = mock(MiddlewareChain.class);
+    doAnswer(
+            invocation -> {
+              priority.set(AgentTracer.activeSpan().spanContext().getSamplingPriority());
+              return null;
+            })
+        .when(chain)
+        .doNext(context);
+
+    new FunctionExecutionMiddleware().invoke(context, chain);
+
+    assertEquals(SAMPLER_DROP, priority.get());
+    writer.waitForTraces(1);
+    DDSpan span = writer.firstTrace().get(0);
+    assertEquals("42", span.getTraceId().toString());
+    assertEquals(43L, span.getParentId());
+    assertEquals(SAMPLER_DROP, span.samplingPriority());
+  }
+
+  @Test
+  void doesNotForceKeepForMalformedDatadogSamplingPriority() throws Exception {
+    MiddlewareContext context = contextFor("DurableActivityTrigger", "Activity");
+    TraceContext traceContext = mock(TraceContext.class);
+    when(traceContext.getTraceparent())
+        .thenReturn("00-0000000000000000000000000000002a-000000000000002b-00");
+    when(traceContext.getTracestate()).thenReturn("dd=s:not-a-number");
+    when(context.getTraceContext()).thenReturn(traceContext);
+    AtomicInteger priority = new AtomicInteger(Integer.MIN_VALUE);
+    MiddlewareChain chain = mock(MiddlewareChain.class);
+    doAnswer(
+            invocation -> {
+              priority.set(AgentTracer.activeSpan().spanContext().getSamplingPriority());
+              return null;
+            })
+        .when(chain)
+        .doNext(context);
+
+    new FunctionExecutionMiddleware().invoke(context, chain);
+
+    assertEquals(SAMPLER_DROP, priority.get());
+  }
+
+  @Test
+  void honorsW3cDropWhenDatadogTracestateConflicts() throws Exception {
     MiddlewareContext context = contextFor("DurableOrchestrationTrigger", "Orchestrator");
     TraceContext traceContext = mock(TraceContext.class);
     when(traceContext.getTraceparent())
@@ -355,7 +434,7 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
     DDSpan span = writer.firstTrace().get(0);
     assertEquals("42", span.getTraceId().toString());
     assertEquals(43L, span.getParentId());
-    assertTrue(priority.get() > 0);
+    assertEquals(SAMPLER_DROP, priority.get());
   }
 
   @TableTest({
