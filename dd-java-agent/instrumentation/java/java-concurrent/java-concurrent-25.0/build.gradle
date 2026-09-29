@@ -10,7 +10,7 @@ testJvmConstraints {
 }
 
 tasks.named('compileTestJava', JavaCompile) {
-  configureCompiler(it, 25)
+  configureCompiler(it, 25, JavaVersion.VERSION_25)
 }
 
 muzzle {
