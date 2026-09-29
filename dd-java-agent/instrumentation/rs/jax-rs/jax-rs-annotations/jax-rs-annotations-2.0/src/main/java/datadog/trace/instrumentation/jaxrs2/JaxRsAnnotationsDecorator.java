@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.jaxrs2;
 
+import static datadog.trace.bootstrap.ResourceMethodSpanTracker.isOpen;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.trace.api.GenericClassValue;
@@ -69,6 +70,25 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
       beforeFinish(claimed);
       claimed.finish();
     }
+  }
+
+  /**
+   * Called from the {@code resume()}/{@code cancel()} advice once it has already tagged {@code
+   * span} as needed: defers to the resource method's own exit advice if that method's invocation is
+   * still open ({@link datadog.trace.bootstrap.ResourceMethodSpanTracker#isOpen}), otherwise
+   * finishes {@code span} via {@link #finishUnlessAlreadyClaimed}. Shared by all three advice
+   * classes ({@code resume()} with a result, {@code resume()} with a {@link Throwable}, and {@code
+   * cancel()}) since they differ only in how {@code span} gets tagged before reaching this common
+   * tail.
+   */
+  public void finishUnlessOpenOrAlreadyClaimed(
+      final ContextStore<AsyncResponse, AgentSpan> contextStore,
+      final AsyncResponse asyncResponse,
+      final AgentSpan span) {
+    if (isOpen(span)) {
+      return;
+    }
+    finishUnlessAlreadyClaimed(contextStore, asyncResponse);
   }
 
   public void onJaxRsSpan(

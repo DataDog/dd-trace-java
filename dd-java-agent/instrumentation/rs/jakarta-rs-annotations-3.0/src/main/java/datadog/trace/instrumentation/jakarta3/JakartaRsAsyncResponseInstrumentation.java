@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.jakarta3;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.ResourceMethodSpanTracker.isOpen;
 import static datadog.trace.instrumentation.jakarta3.JakartaRsAnnotationsDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
@@ -96,17 +95,12 @@ public final class JakartaRsAsyncResponseInstrumentation extends InstrumenterMod
       final AgentSpan span = contextStore.get(asyncResponse);
       if (span != null) {
         DECORATE.onError(span, throwable);
-        if (isOpen(span)) {
-          // resume() was called synchronously, nested inside the still-running resource
-          // method that owns this span (ResourceMethodSpanTracker.isOpen(span) says its
-          // invocation hasn't returned yet, however deeply other instrumented calls have
-          // nested in the meantime). Let that method's own exit advice close the scope and
-          // finish the span instead of finishing it here, which would both double-finish the
-          // span and finish it prematurely while the resource method may still be doing work
-          // under it.
-          return;
-        }
-        DECORATE.finishUnlessAlreadyClaimed(contextStore, asyncResponse);
+        // If this resource method's invocation is still open -- however deeply other
+        // instrumented calls have nested in the meantime -- let its own exit advice close the
+        // scope and finish the span instead of finishing it here, which would both
+        // double-finish the span and finish it prematurely while the resource method may
+        // still be doing work under it.
+        DECORATE.finishUnlessOpenOrAlreadyClaimed(contextStore, asyncResponse, span);
       }
     }
   }
@@ -130,11 +124,8 @@ public final class JakartaRsAsyncResponseInstrumentation extends InstrumenterMod
       final AgentSpan span = contextStore.get(asyncResponse);
       if (span != null) {
         DECORATE.onError(span, throwable);
-        if (isOpen(span)) {
-          // see comment in AsyncResponseAdvice#stopSpan
-          return;
-        }
-        DECORATE.finishUnlessAlreadyClaimed(contextStore, asyncResponse);
+        // see comment in AsyncResponseAdvice#stopSpan
+        DECORATE.finishUnlessOpenOrAlreadyClaimed(contextStore, asyncResponse, span);
       }
     }
   }
@@ -161,11 +152,8 @@ public final class JakartaRsAsyncResponseInstrumentation extends InstrumenterMod
         } else {
           span.setTag("canceled", true);
         }
-        if (isOpen(span)) {
-          // see comment in AsyncResponseAdvice#stopSpan
-          return;
-        }
-        DECORATE.finishUnlessAlreadyClaimed(contextStore, asyncResponse);
+        // see comment in AsyncResponseAdvice#stopSpan
+        DECORATE.finishUnlessOpenOrAlreadyClaimed(contextStore, asyncResponse, span);
       }
     }
   }
