@@ -178,9 +178,11 @@ public final class JakartaRsAnnotationsInstrumentation extends InstrumenterModul
         final boolean claimedFinish =
             InstrumentationContext.get(AsyncResponse.class, AgentSpan.class).remove(asyncResponse)
                 != null;
-        scope.close();
         if (claimedFinish) {
           DECORATE.beforeFinish(span);
+        }
+        scope.close();
+        if (claimedFinish) {
           span.finish();
         }
       } else {

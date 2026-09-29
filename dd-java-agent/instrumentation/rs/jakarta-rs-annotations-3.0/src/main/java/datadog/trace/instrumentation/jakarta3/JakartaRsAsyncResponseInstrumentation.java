@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.ResourceMethodSpanTracker.isInnermost;
 import static datadog.trace.instrumentation.jakarta3.JakartaRsAnnotationsDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -60,7 +61,7 @@ public final class JakartaRsAsyncResponseInstrumentation extends InstrumenterMod
         named("resume").and(takesArgument(0, Throwable.class)).and(isPublic()),
         JakartaRsAsyncResponseInstrumentation.class.getName() + "$AsyncResponseThrowableAdvice");
     transformer.applyAdvice(
-        named("cancel"),
+        named("cancel").and(returns(boolean.class)),
         JakartaRsAsyncResponseInstrumentation.class.getName() + "$AsyncResponseCancelAdvice");
   }
 
