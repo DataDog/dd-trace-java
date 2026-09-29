@@ -1,5 +1,7 @@
 .dsm-kafka-benchmarks:
   stage: benchmarks
+  # Make these jobs mandatory again once https://github.com/DataDog/benchmarking-platform/pull/318 is merged.
+  allow_failure: true
   rules:
     - if: '$POPULATE_CACHE'
       when: never
