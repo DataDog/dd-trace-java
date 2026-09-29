@@ -7,6 +7,7 @@ import datadog.context.ContextScope;
 final class ContinuationClaim implements ContextContinuation {
 
   public static final ContinuationClaim CLAIMED = new ContinuationClaim();
+  public static final ContinuationClaim TERMINATED = new ContinuationClaim();
 
   @Override
   public ContextContinuation hold() {

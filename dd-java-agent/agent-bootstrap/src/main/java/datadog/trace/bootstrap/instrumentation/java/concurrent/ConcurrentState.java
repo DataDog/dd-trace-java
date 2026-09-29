@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.shouldCapture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ContinuationClaim.CLAIMED;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ContinuationClaim.TERMINATED;
 
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
@@ -88,36 +89,44 @@ public final class ConcurrentState {
     state.cancelAndClearContinuation();
   }
 
-  private boolean captureAndSetContinuation(final Context context) {
+  boolean captureAndSetContinuation(final Context context) {
     if (CONTINUATION.compareAndSet(this, null, CLAIMED)) {
-      // lazy write is guaranteed to be seen by getAndSet
-      CONTINUATION.lazySet(this, context.capture().hold());
-      return true;
+      final ContextContinuation continuation = context.capture().hold();
+      if (CONTINUATION.compareAndSet(this, CLAIMED, continuation)) {
+        return true;
+      }
+      continuation.release();
     }
     return false;
   }
 
   private ContextScope activateAndContinueContinuation() {
-    final ContextContinuation continuation = CONTINUATION.get(this);
-    if (continuation != null && continuation != CLAIMED) {
+    return activateAndContinueContinuation(CONTINUATION.get(this));
+  }
+
+  synchronized ContextScope activateAndContinueContinuation(
+      final ContextContinuation continuation) {
+    if (isLive(continuation) && CONTINUATION.get(this) == continuation) {
       return continuation.resume();
     }
     return null;
   }
 
   private void cancelContinuation() {
-    final ContextContinuation continuation = CONTINUATION.get(this);
-    if (continuation != null && continuation != CLAIMED) {
+    cancelAndClearContinuation();
+  }
+
+  void cancelAndClearContinuation() {
+    final ContextContinuation continuation;
+    synchronized (this) {
+      continuation = CONTINUATION.getAndSet(this, TERMINATED);
+    }
+    if (isLive(continuation)) {
       continuation.release();
     }
   }
 
-  private void cancelAndClearContinuation() {
-    final ContextContinuation continuation = CONTINUATION.get(this);
-    if (continuation != null && continuation != CLAIMED) {
-      // We should never be able to reuse this state
-      CONTINUATION.compareAndSet(this, continuation, CLAIMED);
-      continuation.release();
-    }
+  private static boolean isLive(final ContextContinuation continuation) {
+    return continuation != null && continuation != CLAIMED && continuation != TERMINATED;
   }
 }
