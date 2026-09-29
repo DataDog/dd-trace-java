@@ -11,9 +11,9 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Randomized invariant testing for {@link StripInjectedContext}, mirroring the repo's existing
- * fuzz-style test pattern (see {@code TagMapFuzzTest}). Generates many random EventBridge-shaped
- * payloads instead of enumerating fixed cases by hand, and asserts core invariants hold for every
- * one of them.
+ * fuzz-style test pattern (see {@code TagMapFuzzTest}). Generates many random payloads in
+ * EventBridge, SQS, and SNS shapes instead of enumerating fixed cases by hand, and asserts
+ * core invariants hold for every one of them.
  */
 public final class StripInjectedContextFuzzTest {
 
@@ -48,6 +48,18 @@ public final class StripInjectedContextFuzzTest {
   }
 
   private static byte[] randomPayload(ThreadLocalRandom random) {
+    switch (random.nextInt(3)) {
+      case 0:
+        return randomEventBridgePayload(random);
+      case 1:
+        return randomTopLevelCarrierPayload(random);
+      default:
+        return randomStringEncodedFieldPayload(random);
+    }
+  }
+
+  // EventBridge-shaped: {"detail-type": ..., "detail": {...}} or {"detail": "..."}
+  private static byte[] randomEventBridgePayload(ThreadLocalRandom random) {
     StringBuilder sb = new StringBuilder();
     sb.append("{\"detail-type\":\"order.created\",\"detail\":");
     boolean asString = random.nextBoolean();
@@ -59,6 +71,45 @@ public final class StripInjectedContextFuzzTest {
     } else {
       sb.append(detailJson);
     }
+    sb.append('}');
+    return sb.toString().getBytes(StandardCharsets.UTF_8);
+  }
+
+  // SQS/generic-shaped: _datadog appears directly as a top-level key.
+  // Randomly places _datadog as the sole field, the first field, a middle field,
+  // or the last field so that all four comma-placement cases in carrierRemovalRange
+  // are exercised across the fuzz iterations.
+  private static byte[] randomTopLevelCarrierPayload(ThreadLocalRandom random) {
+    boolean includeDatadog = random.nextBoolean();
+    // Allow 0 regular fields so the sole-field case ({"_datadog":{...}}) is also generated.
+    int fieldCount = random.nextInt(0, 4);
+    // Choose a random insertion position for the _datadog key among the regular fields.
+    // Position 0 = first, fieldCount = last, values in between = middle.
+    int datadogPos = includeDatadog ? random.nextInt(0, fieldCount + 1) : fieldCount + 1;
+
+    StringBuilder sb = new StringBuilder("{");
+    boolean needsComma = false;
+    int regularIdx = 0;
+
+    for (int slot = 0; slot <= fieldCount; slot++) {
+      if (slot == datadogPos) {
+        // Insert _datadog at the chosen position.
+        if (needsComma) sb.append(',');
+        sb.append("\"_datadog\":{\"x-datadog-trace-id\":\"")
+            .append(random.nextLong())
+            .append("\"}");
+        needsComma = true;
+      }
+      if (regularIdx < fieldCount) {
+        // Insert one regular field at this slot.
+        if (needsComma) sb.append(',');
+        sb.append("\"field").append(regularIdx).append("\":");
+        appendRandomValue(sb, random);
+        needsComma = true;
+        regularIdx++;
+      }
+    }
+
     sb.append('}');
     return sb.toString().getBytes(StandardCharsets.UTF_8);
   }
@@ -81,6 +132,16 @@ public final class StripInjectedContextFuzzTest {
     }
     sb.append('}');
     return sb.toString();
+  }
+
+  // SNS-shaped: a top-level string field contains a string-encoded JSON object with _datadog.
+  private static byte[] randomStringEncodedFieldPayload(ThreadLocalRandom random) {
+    boolean includeDatadog = random.nextBoolean();
+    String innerJson = randomDetailObject(random, includeDatadog);
+    String escaped = innerJson.replace("\"", "\\\"");
+    String payload =
+        "{\"Type\":\"Notification\",\"Message\":\"" + escaped + "\",\"Subject\":\"test\"}";
+    return payload.getBytes(StandardCharsets.UTF_8);
   }
 
   private static void appendRandomValue(StringBuilder sb, ThreadLocalRandom random) {

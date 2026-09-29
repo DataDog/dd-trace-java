@@ -650,8 +650,8 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
         "{"
             + "\"detail-type\": \"order.created\","
             + "\"detail\": {"
-            + "  \"orderId\": 42,"
-            + "  \"_datadog\": {\"x-datadog-trace-id\": \"123\"}"
+            + "  \"orderId\":42,"
+            + "  \"_datadog\":{\"x-datadog-trace-id\": \"123\"}"
             + "}"
             + "}";
 
