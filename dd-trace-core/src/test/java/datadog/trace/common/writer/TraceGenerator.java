@@ -3,6 +3,7 @@ package datadog.trace.common.writer;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static java.util.Collections.emptyList;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
@@ -242,6 +243,7 @@ public class TraceGenerator {
               origin,
               0,
               ProcessTags.getTagsForSerialization(),
+              UTF8BytesString.create(String.valueOf(Config.get().isOtlpTracesExportEnabled())),
               spanLinks);
     }
 

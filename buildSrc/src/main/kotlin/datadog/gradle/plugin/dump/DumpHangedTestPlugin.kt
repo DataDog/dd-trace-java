@@ -10,6 +10,7 @@ import org.gradle.api.provider.Provider
 import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
 import org.gradle.api.tasks.testing.Test
+import org.gradle.jvm.toolchain.JvmVendorSpec
 import org.gradle.kotlin.dsl.extra
 import org.gradle.kotlin.dsl.withType
 import java.io.File
@@ -35,7 +36,7 @@ class DumpHangedTestPlugin : Plugin<Project> {
   /** Plugin properties */
   abstract class DumpHangedTestProperties @Inject constructor(objects: ObjectFactory) {
     // Time offset (in seconds) before a test reaches its timeout at which dumps should be started.
-    // Defaults to 60 seconds.
+    // Defaults to 180 seconds.
     val dumpOffset: Property<Long> = objects.property(Long::class.java)
   }
 
@@ -67,14 +68,27 @@ class DumpHangedTestPlugin : Plugin<Project> {
     project.allprojects {
       pluginManager.withPlugin("java") {
         tasks.withType<Test>().configureEach {
-          doFirst { schedule(this, scheduler, props) }
+          doFirst {
+            // Single source of truth for "is this an IBM JVM", shared with `collectThreadDump`.
+            val ibmJvm = isIbmJvmVendor(javaLauncher.get().metadata.vendor)
+            if (ibmJvm) {
+              // Where IBM/OpenJ9 writes the javacore on SIGQUIT; read at JVM startup, inherited by children.
+              environment("IBM_JAVACOREDIR", dumpDirectory(this).absolutePath)
+            }
+            schedule(this, ibmJvm, scheduler, props)
+          }
           doLast { cleanup(this) }
         }
       }
     }
   }
 
-  private fun schedule(t: Task, scheduler: Provider<DumpSchedulerService>, props: DumpHangedTestProperties) {
+  private fun schedule(
+    t: Task,
+    ibmJvm: Boolean,
+    scheduler: Provider<DumpSchedulerService>,
+    props: DumpHangedTestProperties
+  ) {
     val taskName = t.path
 
     if (t.extra.has(DUMP_FUTURE_KEY)) {
@@ -82,7 +96,7 @@ class DumpHangedTestPlugin : Plugin<Project> {
       return
     }
 
-    val dumpOffset = props.dumpOffset.getOrElse(60)
+    val dumpOffset = props.dumpOffset.getOrElse(180)
     val delay = t.timeout.map { it.minusSeconds(dumpOffset) }.orNull
 
     if (delay == null || delay.seconds < 0) {
@@ -93,55 +107,42 @@ class DumpHangedTestPlugin : Plugin<Project> {
     val future = scheduler.get().schedule({
       t.logger.quiet("Taking dumps after ${delay.seconds} seconds delay for $taskName")
 
-      takeDump(t)
+      takeDump(t, ibmJvm)
     }, delay)
 
     t.extra.set(DUMP_FUTURE_KEY, future)
   }
 
-  private fun takeDump(t: Task) {
+  private fun takeDump(t: Task, ibmJvm: Boolean) {
     try {
-      // Use Gradle's build dir and adjust for CI artifacts collection if needed.
-      val dumpsDir: File = t.project.layout.buildDirectory
-        .dir("dumps")
-        .map { dir ->
-          if (t.project.providers.environmentVariable("CI").isPresent) {
-            // Move reports into the folder collected by the collect_reports.sh script.
-            File(
-              dir.asFile.absolutePath.replace(
-                "dd-trace-java/dd-java-agent",
-                "dd-trace-java/workspace/dd-java-agent"
-              )
-            )
-          } else {
-            dir.asFile
-          }
-        }
-        .get()
+      val dumpsDir = dumpDirectory(t)
 
       if (!dumpsDir.isDirectory && !dumpsDir.mkdirs()) {
         throw IOException("Could not create dump directory $dumpsDir")
       }
 
-      var executorCount = 0
+      val processes = mutableListOf<ProcessHandle>()
       ProcessHandle.current().children().use { children ->
         children.filter { it.info().commandLine().getOrElse { "" }.contains("Gradle Test Executor") }
           .forEach { process ->
-            executorCount++
-            collectDump(t, dumpsDir, process)
+            processes.add(process)
 
             process.children().use { descendants ->
-              descendants.forEach { child -> collectDump(t, dumpsDir, child) }
+              descendants.forEach { child -> processes.add(child) }
             }
           }
       }
-      if (executorCount == 0) {
+      if (processes.isEmpty()) {
         t.logger.warn("No Gradle test executors found for ${t.path}; attempting all-JVM thread dumps")
       }
+
+      // Preserve all thread stacks before a slow heap dump can consume the remaining time.
+      processes.forEach { process -> collectThreadDump(t, ibmJvm, dumpsDir, process) }
 
       // Just in case collect all thread dumps by using special PID `0`.
       val allThreadsFile = file(dumpsDir, "all-thread-dumps")
       runCmd(t.logger, t.path, Redirect.to(allThreadsFile), "jcmd", "0", "Thread.print", "-l")
+      processes.forEach { process -> collectHeapDump(t, ibmJvm, dumpsDir, process) }
       t.logger.quiet("Finished dump collection for ${t.path}; output directory: $dumpsDir")
     } catch (e: InterruptedException) {
       Thread.currentThread().interrupt()
@@ -153,6 +154,23 @@ class DumpHangedTestPlugin : Plugin<Project> {
 
   private fun file(baseDir: File, name: String, ext: String = "log") =
     File(baseDir, "$name-${System.currentTimeMillis()}.$ext")
+
+  private fun dumpDirectory(t: Task): File = t.project.layout.buildDirectory
+    .dir("dumps")
+    .map { dir ->
+      if (t.project.providers.environmentVariable("CI").isPresent) {
+        // Move reports into the folder collected by the collect_reports.sh script.
+        File(
+          dir.asFile.absolutePath.replace(
+            "dd-trace-java/dd-java-agent",
+            "dd-trace-java/workspace/dd-java-agent"
+          )
+        )
+      } else {
+        dir.asFile
+      }
+    }
+    .get()
 
   private fun cleanup(t: Task) {
     val future = t.extra
@@ -196,25 +214,34 @@ class DumpHangedTestPlugin : Plugin<Project> {
     }
   }
 
-  private fun collectDump(
+  private fun collectThreadDump(
     t: Task,
+    ibmJvm: Boolean,
     baseDir: File,
     process: ProcessHandle
   ) {
     val pid = process.pid().toString()
 
-    if (process.info().command().getOrElse { "" }.contains("/ibm8")) {
-      // On IBM JDK thread dump can be collected by signaling process with `kill -3`.
-      // It will be writen into `/tmp/javacore.YYYYMMDD.HHMMSS.PID.SEQ.txt
+    if (ibmJvm) {
+      // On IBM JDK `kill -3` writes a javacore into the IBM_JAVACOREDIR set when the task started.
       runCmd(t.logger, t.path, Redirect.INHERIT, "kill", "-3", pid)
     } else {
-      // Collect heap dump by pid.
-      val heapDumpPath = file(baseDir, "$pid-heap-dump", "hprof").absolutePath
-      runCmd(t.logger, t.path, Redirect.INHERIT, "jcmd", pid, "GC.heap_dump", heapDumpPath)
-
       // Collect thread dump by pid.
       val threadDumpFile = file(baseDir, "$pid-thread-dump", "log")
       runCmd(t.logger, t.path, Redirect.to(threadDumpFile), "jcmd", pid, "Thread.print", "-l")
     }
   }
+
+  private fun collectHeapDump(t: Task, ibmJvm: Boolean, baseDir: File, process: ProcessHandle) {
+    if (ibmJvm) {
+      // `jcmd GC.heap_dump` is a HotSpot-only diagnostic command.
+      return
+    }
+    val pid = process.pid().toString()
+    val heapDumpPath = file(baseDir, "$pid-heap-dump", "hprof").absolutePath
+    runCmd(t.logger, t.path, Redirect.INHERIT, "jcmd", pid, "GC.heap_dump", heapDumpPath)
+  }
 }
+
+/** Whether [vendor] is an IBM JVM (Semeru included), as a toolchain vendor or raw `java.vendor`. */
+internal fun isIbmJvmVendor(vendor: String): Boolean = JvmVendorSpec.IBM.matches(vendor)
