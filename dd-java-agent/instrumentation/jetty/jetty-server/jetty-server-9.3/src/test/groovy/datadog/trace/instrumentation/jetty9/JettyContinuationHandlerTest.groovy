@@ -17,6 +17,7 @@ import javax.servlet.ServletException
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 import java.lang.reflect.Field
+import java.lang.reflect.Modifier
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -29,6 +30,9 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOU
 import static datadog.trace.instrumentation.servlet3.TestServlet3.SERVLET_TIMEOUT
 
 abstract class JettyContinuationHandlerTest extends Jetty9Test {
+
+  private static final long CONTINUATION_TIMEOUT = TimeUnit.SECONDS.toMillis(30)
+  private static final long TIMEOUT_TASK_WAIT = TimeUnit.SECONDS.toNanos(10)
 
   @Override
   AbstractHandler handler() {
@@ -45,6 +49,9 @@ abstract class JettyContinuationHandlerTest extends Jetty9Test {
 
     static {
       TIMEOUT_TASK.accessible = true
+      if (!Modifier.isVolatile(TIMEOUT_TASK.modifiers)) {
+        throw new IllegalStateException('Jetty timeout task must be volatile')
+      }
     }
 
     @Override
@@ -58,11 +65,11 @@ abstract class JettyContinuationHandlerTest extends Jetty9Test {
       // this happens in the /exception endpoint
       if (!request.getAttribute('javax.servlet.error.status_code')) {
         if (continuation.initial) {
-          continuation.setTimeout(SERVLET_TIMEOUT)
+          continuation.setTimeout(CONTINUATION_TIMEOUT)
           continuation.suspend()
           executorService.execute {
-            // Jetty schedules the timeout after this handler returns. Wait until it is published
-            // so resume can cancel it instead of overtaking its creation.
+            // Jetty schedules the timeout after this handler returns. Its volatile task field is
+            // the publication signal that makes it safe for resume to cancel the scheduled task.
             awaitTimeoutTask(request)
             continuation.resume()
           }
@@ -76,7 +83,7 @@ abstract class JettyContinuationHandlerTest extends Jetty9Test {
     private static void awaitTimeoutTask(HttpServletRequest request) {
       AsyncContextState asyncContext = request.asyncContext as AsyncContextState
       AsyncContextEvent event = asyncContext.httpChannelState.asyncContextEvent
-      long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+      long deadline = System.nanoTime() + TIMEOUT_TASK_WAIT
       while (TIMEOUT_TASK.get(event) == null) {
         if (System.nanoTime() >= deadline) {
           throw new IllegalStateException('Jetty did not schedule the continuation timeout')
