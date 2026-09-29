@@ -97,6 +97,14 @@
         "aliases": []
       }
     ],
+    "DD_AI_GUARD_REDACTION_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "DD_AI_GUARD_TIMEOUT": [
       {
         "version": "A",
@@ -640,6 +648,22 @@
         "version": "A",
         "type": "int",
         "default": "5",
+        "aliases": []
+      }
+    ],
+    "DD_CIVISIBILITY_DYNAMIC_ATR_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_CIVISIBILITY_DYNAMIC_ATR_BUCKETS": [
+      {
+        "version": "A",
+        "type": "array",
+        "default": null,
         "aliases": []
       }
     ],
@@ -1409,6 +1433,14 @@
         "version": "A",
         "type": "boolean",
         "default": "true",
+        "aliases": []
+      }
+    ],
+    "DD_INTERNAL_DYNAMIC_INSTRUMENTATION_SYNCHRONOUS_SOURCE_FILE_TRACKING_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
         "aliases": []
       }
     ],
@@ -5116,6 +5148,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_BEANSHELL_ENABLED", "DD_INTEGRATION_BEANSHELL_ENABLED"]
       }
     ],
+    "DD_TRACE_BUILDER_TAGS_PRECEDENCE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_CAFFEINE_ENABLED": [
       {
         "version": "A",
@@ -6366,9 +6406,9 @@
     ],
     "DD_TRACE_GUIDEWIRE_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
-        "default": "false",
+        "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_GUIDEWIRE_ENABLED", "DD_INTEGRATION_GUIDEWIRE_ENABLED"]
       }
     ],

@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.restlet.ResourceDecorator.DECORATE;
 import static datadog.trace.instrumentation.restlet.ResourceDecorator.RESTLET_CONTROLLER;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -12,9 +13,9 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.restlet.engine.resource.AnnotationInfo;
@@ -58,7 +59,7 @@ public final class ResourceInstrumentation extends InstrumenterModule.Tracing
 
   public static class ResourceHandleAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope beginRequest(
+    public static ContextScope beginRequest(
         @Advice.This final ServerResource serverResource,
         @Advice.Argument(0) final AnnotationInfo annotationInfo) {
       final AgentSpan parent = activeSpan();
@@ -73,8 +74,8 @@ public final class ResourceInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void finishRequest(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable error) {
-      AgentSpan span = scope.span();
+        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable error) {
+      AgentSpan span = spanFromScope(scope);
 
       if (null != error) {
         DECORATE.onError(span, error);

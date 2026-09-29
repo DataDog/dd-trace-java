@@ -14,9 +14,9 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.netty40.client.NettyHttpClientDecorator;
 import datadog.trace.instrumentation.netty40.server.NettyHttpServerDecorator;
@@ -69,7 +69,7 @@ public class NettyChannelHandlerContextInstrumentation extends InstrumenterModul
 
   public static class FireAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope scopeSpan(@Advice.This final ChannelHandlerContext ctx) {
+    public static ContextScope scopeSpan(@Advice.This final ChannelHandlerContext ctx) {
       final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
       final AgentSpan channelSpan = spanFromContext(storedContext);
       if (channelSpan == null || channelSpan == activeSpan()) {
@@ -80,7 +80,7 @@ public class NettyChannelHandlerContextInstrumentation extends InstrumenterModul
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void close(@Advice.Enter final AgentScope scope) {
+    public static void close(@Advice.Enter final ContextScope scope) {
       if (scope != null) {
         scope.close();
       }

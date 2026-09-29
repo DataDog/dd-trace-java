@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.quartz.QuartzDecorator.DECORATE;
 import static datadog.trace.instrumentation.quartz.QuartzDecorator.SCHEDULED_CALL;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -11,9 +12,9 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -55,7 +56,7 @@ public final class QuartzSchedulingInstrumentation extends InstrumenterModule.Tr
 
   public static class QuartzSchedulingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope enter(@Advice.Argument(0) JobExecutionContext context) {
+    public static ContextScope enter(@Advice.Argument(0) JobExecutionContext context) {
       // create a new trace for every job
       final AgentSpan span = startSpan("quartz", SCHEDULED_CALL, null);
       DECORATE.afterStart(span);
@@ -65,8 +66,8 @@ public final class QuartzSchedulingInstrumentation extends InstrumenterModule.Tr
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
-      final AgentSpan span = scope.span();
+        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+      final AgentSpan span = spanFromScope(scope);
       if (throwable != null) {
         DECORATE.onError(span, throwable);
       }

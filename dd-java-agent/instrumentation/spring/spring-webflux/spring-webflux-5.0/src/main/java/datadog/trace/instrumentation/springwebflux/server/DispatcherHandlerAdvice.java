@@ -3,11 +3,12 @@ package datadog.trace.instrumentation.springwebflux.server;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.springwebflux.server.SpringWebfluxHttpServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.springwebflux.server.SpringWebfluxHttpServerDecorator.DISPATCHER_HANDLE_HANDLER;
 
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.reactivestreams.HandoffContext;
 import java.util.function.Consumer;
@@ -23,7 +24,7 @@ import reactor.core.publisher.Mono;
 public class DispatcherHandlerAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope methodEnter(@Advice.Argument(0) final ServerWebExchange exchange) {
+  public static ContextScope methodEnter(@Advice.Argument(0) final ServerWebExchange exchange) {
     // Unfortunately Netty EventLoop is not instrumented well enough to attribute all work to the
     // right things so we have to store span in request itself. We also store parent (netty's)
     // span
@@ -43,12 +44,12 @@ public class DispatcherHandlerAdvice {
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void methodExit(
-      @Advice.Enter final AgentScope scope,
+      @Advice.Enter final ContextScope scope,
       @Advice.Thrown final Throwable throwable,
       @Advice.Argument(0) final ServerWebExchange exchange,
       @Advice.Return(readOnly = false) Mono<Void> mono) {
     if (throwable == null && mono != null) {
-      final AgentSpan span = scope.span();
+      final AgentSpan span = spanFromScope(scope);
       final Consumer finisher = new AdviceUtils.MonoSpanFinisher(span);
       mono = mono.doOnError(finisher).doFinally(finisher);
       InstrumentationContext.get(Publisher.class, HandoffContext.class)
