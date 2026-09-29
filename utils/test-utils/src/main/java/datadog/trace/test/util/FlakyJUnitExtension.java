@@ -3,9 +3,7 @@ package datadog.trace.test.util;
 import static org.junit.platform.commons.support.AnnotationSupport.findAnnotation;
 
 import java.lang.reflect.AnnotatedElement;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
-import java.util.function.Predicate;
 import org.junit.jupiter.api.extension.ConditionEvaluationResult;
 import org.junit.jupiter.api.extension.ExecutionCondition;
 import org.junit.jupiter.api.extension.ExtensionConfigurationException;
@@ -30,6 +28,12 @@ public final class FlakyJUnitExtension implements ExecutionCondition {
   }
 
   static Flaky findFlaky(Class<?> testClass, Method method) {
+    if (method != null) {
+      Flaky flaky = matchingAnnotation(method, testClass);
+      if (flaky != null) {
+        return flaky;
+      }
+    }
     for (Class<?> enclosing = testClass;
         enclosing != null;
         enclosing = enclosing.getEnclosingClass()) {
@@ -40,7 +44,7 @@ public final class FlakyJUnitExtension implements ExecutionCondition {
         }
       }
     }
-    return method == null ? null : matchingAnnotation(method, testClass);
+    return null;
   }
 
   private static Flaky matchingAnnotation(AnnotatedElement element, Class<?> testClass) {
@@ -60,24 +64,23 @@ public final class FlakyJUnitExtension implements ExecutionCondition {
         return null;
       }
     }
-    if (flaky.condition() == Flaky.True.class) {
+    if (flaky.conditionMethod().isEmpty()) {
+      if (flaky.condition() != Flaky.True.class) {
+        throw new ExtensionConfigurationException(
+            "JUnit @Flaky conditions must use conditionMethod");
+      }
       return flaky;
     }
+    if (flaky.condition() != Flaky.True.class) {
+      throw new ExtensionConfigurationException(
+          "@Flaky cannot set both condition and conditionMethod");
+    }
     try {
-      Constructor<? extends Predicate<String>> constructor =
-          flaky.condition().getDeclaredConstructor();
-      constructor.setAccessible(true);
-      return constructor.newInstance().test(testClass.getSimpleName()) ? flaky : null;
-    } catch (NoSuchMethodException e) {
-      throw new ExtensionConfigurationException(
-          "@Flaky condition "
-              + flaky.condition().getName()
-              + " must have a no-argument constructor",
-          e);
-    } catch (ReflectiveOperationException | RuntimeException e) {
-      throw new ExtensionConfigurationException(
-          "Could not evaluate @Flaky condition " + flaky.condition().getName() + " on " + element,
-          e);
+      return FlakyConditionMethod.evaluate(flaky.conditionMethod(), testClass.getClassLoader())
+          ? flaky
+          : null;
+    } catch (RuntimeException e) {
+      throw new ExtensionConfigurationException(e.getMessage(), e);
     }
   }
 

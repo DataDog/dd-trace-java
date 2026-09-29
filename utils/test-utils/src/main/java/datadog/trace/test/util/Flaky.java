@@ -28,9 +28,14 @@ public @interface Flaky {
   String[] suites() default {};
 
   /**
-   * Predicate class with a no-argument constructor that determines whether the test is flaky (e.g.
-   * check the JVM vendor). JUnit passes the concrete test class's simple name. Spock also supports
-   * Groovy closures.
+   * Reference in {@code fully.qualified.Class#method} format to a static, no-argument boolean
+   * method that determines whether the test is flaky in JUnit.
+   */
+  String conditionMethod() default "";
+
+  /**
+   * Predicate that determines whether the test is flaky in Spock. Groovy closures are also
+   * supported.
    */
   Class<? extends Predicate<String>> condition() default True.class;
 

@@ -6,7 +6,6 @@ import static java.util.regex.Pattern.compile;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import datadog.environment.JavaVirtualMachine;
 import datadog.trace.test.util.Flaky;
 import java.io.File;
 import java.util.ArrayList;
@@ -18,7 +17,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 @Flaky(
     value = "Race condition with IBM. Check APMAPI-1194",
-    condition = CustomSystemLoaderSmokeTest.IbmJvm.class)
+    conditionMethod = "datadog.environment.JavaVirtualMachine#isIbm")
 class CustomSystemLoaderSmokeTest {
   @RegisterExtension
   static final SmokeCliApp app =
@@ -52,12 +51,5 @@ class CustomSystemLoaderSmokeTest {
             .asPredicate();
     assertEquals(3, logLines.stream().filter(loadedResource).count());
     assertEquals(3, logLines.stream().filter(transformedResource).count());
-  }
-
-  static class IbmJvm implements Predicate<String> {
-    @Override
-    public boolean test(String suite) {
-      return JavaVirtualMachine.isIbm();
-    }
   }
 }

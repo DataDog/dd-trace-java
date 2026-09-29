@@ -4,16 +4,14 @@ import static datadog.smoketest.backend.AgentBackend.testAgent;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import datadog.environment.JavaVirtualMachine;
 import datadog.smoketest.backend.AgentBackend;
 import datadog.trace.test.util.Flaky;
 import java.io.File;
-import java.util.function.Predicate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-@Flaky(condition = SampleTraceSmokeTest.IbmJvm.class)
+@Flaky(conditionMethod = "datadog.environment.JavaVirtualMachine#isIbm")
 class SampleTraceSmokeTest {
   private static final AgentBackend BACKEND = testAgent();
 
@@ -40,12 +38,5 @@ class SampleTraceSmokeTest {
     app.traces().waitForTraceCount(10);
     app.assertCompletesWithValue(30, SECONDS, 0);
     assertEquals(10, app.traces().getTraces().size());
-  }
-
-  static class IbmJvm implements Predicate<String> {
-    @Override
-    public boolean test(String suite) {
-      return JavaVirtualMachine.isIbm();
-    }
   }
 }
