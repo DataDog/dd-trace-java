@@ -51,8 +51,8 @@ public class OracleJdkRecordingData extends RecordingData {
   }
 
   @Override
-  public void release() {
-    // noop
+  protected void doRelease() {
+    // heap-backed; nothing to free
   }
 
   @Override
