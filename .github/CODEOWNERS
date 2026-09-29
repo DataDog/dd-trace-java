@@ -175,6 +175,7 @@
 
 # @DataDog/apm-lang-platform-java
 /.agents/skills/fix-continuation-leakage/ @DataDog/apm-lang-platform-java
+/.claude/skills/fix-continuation-leakage/ @DataDog/apm-lang-platform-java
 /dd-java-agent/instrumentation-testing/src/*/java/datadog/trace/agent/test/scopediag/ @DataDog/apm-lang-platform-java
 /.editorconfig                          @DataDog/apm-lang-platform-java
 /.githooks/                             @DataDog/apm-lang-platform-java
