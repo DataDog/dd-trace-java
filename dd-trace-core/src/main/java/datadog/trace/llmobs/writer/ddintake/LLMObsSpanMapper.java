@@ -218,13 +218,17 @@ public class LLMObsSpanMapper implements RemoteMapper {
       // context from another service reports the caller's id so the LLMObs trace stays whole
       // across a boundary that starts a fresh APM trace. DDLLMObsSpan stamps it on every span it
       // creates, seeded from the APM trace id at the root, so the two agree for a trace that
-      // never leaves this process. The fallback covers a span that reached the mapper without
-      // the tag, which then behaves exactly as it did before the tag existed.
+      // never leaves this process. The fallback covers a span that reached the mapper without the
+      // tag, and renders the APM trace id the way LLMObsTraceId.format does — hex above 2^64,
+      // unsigned decimal below it, matching dd-trace-py and dd-trace-js. Inlined rather than
+      // shared because that class lives in agent-llmobs, which dd-trace-core does not depend on.
       Object rawLLMObsTraceId = span.getTag(TRACE_ID_TAG_INTERNAL_FULL);
       String llmObsTraceId =
           rawLLMObsTraceId instanceof String && !((String) rawLLMObsTraceId).isEmpty()
               ? (String) rawLLMObsTraceId
-              : span.getTraceId().toHexString();
+              : span.getTraceId().toHighOrderLong() != 0
+                  ? span.getTraceId().toHexString()
+                  : span.getTraceId().toString();
 
       writable.startMap(hasSessionId ? 12 : 11);
       // 1

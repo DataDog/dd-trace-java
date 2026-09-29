@@ -255,11 +255,12 @@ public class DDLLMObsSpan implements LLMObsSpan {
       }
     }
 
-    // Root of an LLMObs trace: seed the LLMObs trace id from the APM one. DDTraceId.toHexString()
-    // is already zero-padded to 32 characters, so a trace that never crosses a process boundary
-    // reports exactly the trace_id it reported before this tag existed.
+    // Root of an LLMObs trace: seed the LLMObs trace id from the APM one, in the shape the other
+    // tracers store it in — hex above 2^64, decimal below. The shape has to match what fromWire
+    // resolves the same id to, or a Java root and its own downstream Java continuation would
+    // report different trace_ids for one trace.
     if (resolvedTraceId == null || resolvedTraceId.isEmpty()) {
-      resolvedTraceId = span.getTraceId().toHexString();
+      resolvedTraceId = LLMObsTraceId.format(span.getTraceId());
     }
     this.llmObsTraceId = resolvedTraceId;
     span.setTag(LLMOBS_TAG_PREFIX + TRACE_ID_TAG_INTERNAL, resolvedTraceId);
