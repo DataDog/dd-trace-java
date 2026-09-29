@@ -10,6 +10,7 @@ import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.SocketException;
 import java.net.StandardProtocolFamily;
+import java.net.StandardSocketOptions;
 import java.net.UnixDomainSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.CancelledKeyException;
@@ -33,7 +34,7 @@ final class TunnelingJdkSocket extends Socket {
   private final SocketChannel unixSocketChannel;
 
   private volatile InetSocketAddress inetSocketAddress;
-  @VisibleForTesting volatile Selector selector;
+  @VisibleForTesting Selector selector;
 
   private volatile int timeout;
   private volatile boolean shutIn;
@@ -136,7 +137,7 @@ final class TunnelingJdkSocket extends Socket {
     }
     sendBufferSize = size;
     try {
-      unixSocketChannel.setOption(java.net.StandardSocketOptions.SO_SNDBUF, size);
+      unixSocketChannel.setOption(StandardSocketOptions.SO_SNDBUF, size);
     } catch (IOException e) {
       SocketException se = new SocketException("Failed to set send buffer size socket option");
       se.initCause(e);
@@ -165,7 +166,7 @@ final class TunnelingJdkSocket extends Socket {
     }
     receiveBufferSize = size;
     try {
-      unixSocketChannel.setOption(java.net.StandardSocketOptions.SO_RCVBUF, size);
+      unixSocketChannel.setOption(StandardSocketOptions.SO_RCVBUF, size);
     } catch (IOException e) {
       SocketException se = new SocketException("Failed to set receive buffer size socket option");
       se.initCause(e);
@@ -197,7 +198,7 @@ final class TunnelingJdkSocket extends Socket {
   @Override
   public InputStream getInputStream() throws IOException {
     // Configuring the channel can wait for a blocked write. Let close() interrupt that write.
-    if (!isClosed() && isConnected() && !isInputShutdown() && selector == null) {
+    if (!isClosed() && isConnected() && !isInputShutdown() && unixSocketChannel.isBlocking()) {
       unixSocketChannel.configureBlocking(false);
     }
     // Serialize validation and selector publication with close() so close cannot miss a selector
@@ -213,15 +214,14 @@ final class TunnelingJdkSocket extends Socket {
         throw new SocketException("Socket input is shutdown");
       }
 
-      Selector currentSelector = selector;
-      if (currentSelector == null) {
-        currentSelector = Selector.open();
+      if (selector == null) {
+        Selector newSelector = Selector.open();
         try {
-          unixSocketChannel.register(currentSelector, SelectionKey.OP_READ);
-          selector = currentSelector;
+          unixSocketChannel.register(newSelector, SelectionKey.OP_READ);
+          selector = newSelector;
         } catch (IOException | RuntimeException e) {
           try {
-            currentSelector.close();
+            newSelector.close();
           } catch (IOException closeException) {
             e.addSuppressed(closeException);
           }
@@ -229,6 +229,7 @@ final class TunnelingJdkSocket extends Socket {
         }
       }
 
+      final Selector readSelector = selector;
       return new InputStream() {
         private final ByteBuffer buffer = ByteBuffer.allocate(getStreamBufferSize());
 
@@ -245,21 +246,16 @@ final class TunnelingJdkSocket extends Socket {
           }
           buffer.clear();
 
-          Selector currentSelector = selector;
-          if (currentSelector == null) {
-            throw new SocketException("Socket is closed");
-          }
-
           try {
-            int readyChannels = currentSelector.select(timeout);
+            int readyChannels = readSelector.select(timeout);
             if (readyChannels == 0) {
-              if (isClosed() || !currentSelector.isOpen()) {
+              if (isClosed() || !readSelector.isOpen()) {
                 throw new SocketException("Socket is closed");
               }
               return 0;
             }
 
-            Set<SelectionKey> selectedKeys = currentSelector.selectedKeys();
+            Set<SelectionKey> selectedKeys = readSelector.selectedKeys();
             // Multiple input streams share this selector, so serialize iteration and removal from
             // its non-thread-safe selected-key set.
             synchronized (selectedKeys) {

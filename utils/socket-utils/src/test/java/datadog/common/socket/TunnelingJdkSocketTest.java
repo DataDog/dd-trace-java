@@ -241,6 +241,7 @@ public class TunnelingJdkSocketTest {
     TunnelingJdkSocket clientSocket = createClient();
 
     for (int i = 0; i < 100; i++) {
+      @SuppressWarnings("unused")
       InputStream inputStream = clientSocket.getInputStream();
       long currentCount = getFileDescriptorCount();
       assertTrue(currentCount <= initialCount + 7);
@@ -269,9 +270,14 @@ public class TunnelingJdkSocketTest {
   public void testSelectorClosedBetweenSelectAndSelectedKeysIsReportedAsSocketException()
       throws Exception {
     try (TunnelingJdkSocket clientSocket = createClient()) {
-      InputStream inputStream = clientSocket.getInputStream();
-      clientSocket.selector.close();
       clientSocket.selector = new ClosedAfterSelectSelector();
+      assertTrue(
+          clientSocket.getChannel().isBlocking(),
+          "The channel should be blocking before getInputStream()");
+      InputStream inputStream = clientSocket.getInputStream();
+      assertFalse(
+          clientSocket.getChannel().isBlocking(),
+          "getInputStream() should switch the channel to nonblocking mode");
 
       SocketException exception = assertThrows(SocketException.class, inputStream::read);
 
@@ -282,9 +288,8 @@ public class TunnelingJdkSocketTest {
   @Test
   public void testCancelledKeyIsReportedAsSocketException() throws Exception {
     try (TunnelingJdkSocket clientSocket = createClient()) {
+      clientSocket.selector = new CancelledKeyAfterSelectionSelector();
       InputStream inputStream = clientSocket.getInputStream();
-      clientSocket.selector.close();
-      clientSocket.selector = new CancelledKeySelector();
 
       SocketException exception = assertThrows(SocketException.class, inputStream::read);
 
@@ -297,10 +302,9 @@ public class TunnelingJdkSocketTest {
     TunnelingJdkSocket clientSocket = createClient();
     Thread reader = null;
     try {
+      BlockingCloseSelector blockingCloseSelector = new BlockingCloseSelector();
+      clientSocket.selector = blockingCloseSelector;
       InputStream inputStream = clientSocket.getInputStream();
-      clientSocket.selector.close();
-      BlockingCloseSelector selector = new BlockingCloseSelector();
-      clientSocket.selector = selector;
       AtomicReference<Throwable> readFailure = new AtomicReference<>();
 
       reader =
@@ -317,7 +321,7 @@ public class TunnelingJdkSocketTest {
       reader.start();
 
       assertTrue(
-          selector.awaitSelectStarted(5, TimeUnit.SECONDS),
+          blockingCloseSelector.awaitSelectStarted(5, TimeUnit.SECONDS),
           "The reader did not block in Selector.select");
       clientSocket.close();
       reader.join(TimeUnit.SECONDS.toMillis(5));
@@ -325,10 +329,10 @@ public class TunnelingJdkSocketTest {
       assertFalse(reader.isAlive(), "The blocked read did not terminate after close");
       Throwable failure = readFailure.get();
       assertNotNull(failure, "The blocked read should fail when the socket is closed");
-      assertTrue(
-          failure instanceof IOException,
+      assertInstanceOf(
+          IOException.class,
+          failure,
           () -> "Expected an IOException, but got " + failure.getClass().getName());
-      assertFalse(failure instanceof ClosedSelectorException);
     } finally {
       clientSocket.close();
       if (reader != null && reader.isAlive()) {
@@ -613,18 +617,18 @@ public class TunnelingJdkSocketTest {
   }
 
   /**
-   * Models a key being cancelled before selected-key processing:
+   * Models a key being canceled after selection, before selected-key processing:
    *
    * <ol>
    *   <li>Reports one ready channel from {@code select()}.
-   *   <li>Returns an invalid selected key.
+   *   <li>Cancels the selected key before returning it.
    *   <li>Throws {@link CancelledKeyException} when the read checks whether the key is readable.
    *   <li>Lets the test verify that the exception is reported as a {@link SocketException}.
    * </ol>
    */
-  private static final class CancelledKeySelector extends SelectorAdapter {
-    private final Set<SelectionKey> selectedKeys =
-        new HashSet<>(Collections.singleton(new CancelledSelectionKey(this)));
+  private static final class CancelledKeyAfterSelectionSelector extends SelectorAdapter {
+    private final CancelledSelectionKey key = new CancelledSelectionKey(this);
+    private final Set<SelectionKey> selectedKeys = new HashSet<>(Collections.singleton(key));
 
     @Override
     public Set<SelectionKey> keys() {
@@ -633,6 +637,7 @@ public class TunnelingJdkSocketTest {
 
     @Override
     public Set<SelectionKey> selectedKeys() {
+      key.cancel();
       return selectedKeys;
     }
 
@@ -643,6 +648,7 @@ public class TunnelingJdkSocketTest {
 
     private static final class CancelledSelectionKey extends SelectionKey {
       private final Selector selector;
+      private boolean valid = true;
 
       private CancelledSelectionKey(Selector selector) {
         this.selector = selector;
@@ -660,11 +666,13 @@ public class TunnelingJdkSocketTest {
 
       @Override
       public boolean isValid() {
-        return false;
+        return valid;
       }
 
       @Override
-      public void cancel() {}
+      public void cancel() {
+        valid = false;
+      }
 
       @Override
       public int interestOps() {
@@ -678,7 +686,10 @@ public class TunnelingJdkSocketTest {
 
       @Override
       public int readyOps() {
-        throw new CancelledKeyException();
+        if (!valid) {
+          throw new CancelledKeyException();
+        }
+        return OP_READ;
       }
     }
   }
