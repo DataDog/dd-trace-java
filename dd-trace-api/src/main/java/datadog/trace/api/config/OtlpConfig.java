@@ -42,6 +42,13 @@ public final class OtlpConfig {
   public static final String OTLP_TRACES_COMPRESSION = "otlp.traces.compression";
   public static final String OTLP_TRACES_TIMEOUT = "otlp.traces.timeout";
 
+  // OTLP Profiles — provisional, proto is still v1development
+  public static final String OTLP_PROFILES_ENDPOINT = "otlp.profiles.endpoint";
+  public static final String OTLP_PROFILES_HEADERS = "otlp.profiles.headers";
+  public static final String OTLP_PROFILES_PROTOCOL = "otlp.profiles.protocol";
+  public static final String OTLP_PROFILES_COMPRESSION = "otlp.profiles.compression";
+  public static final String OTLP_PROFILES_TIMEOUT = "otlp.profiles.timeout";
+
   public enum Protocol {
     GRPC,
     HTTP_PROTOBUF,
