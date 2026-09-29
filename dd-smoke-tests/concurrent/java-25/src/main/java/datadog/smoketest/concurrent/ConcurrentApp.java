@@ -20,6 +20,7 @@ public class ConcurrentApp {
       case "MultipleTasks" -> new MultipleTasks();
       case "SimpleCallableTask" -> new SimpleCallableTask();
       case "SimpleRunnableTask" -> new SimpleRunnableTask();
+      case "ScheduledForkJoinTask" -> new ScheduledForkJoinTask();
       default -> throw new IllegalArgumentException("Invalid test case name " + name);
     };
   }
