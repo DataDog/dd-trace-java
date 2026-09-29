@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH;
+import static datadog.trace.core.propagation.ptags.W3CPTagsCodec.isUnchangedInheritedOtelMember;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductTraceSource;
@@ -21,6 +22,67 @@ import java.util.Map;
  * </pre>
  */
 public abstract class PropagationTags {
+
+  public static final class SamplingState {
+    private static final byte OTEL_POSITION_UNKNOWN = 0;
+    private static final byte OTEL_POSITION_PRESERVED = 1;
+    private static final byte OTEL_POSITION_REPLACED = 2;
+
+    private final int samplingPriority;
+    private final String tracestate;
+    private final CharSequence otelTraceState;
+    private final CharSequence decisionMaker;
+    private final CharSequence knuthSamplingRate;
+    private volatile byte otelPosition;
+
+    public SamplingState(
+        int samplingPriority,
+        String tracestate,
+        CharSequence otelTraceState,
+        CharSequence decisionMaker,
+        CharSequence knuthSamplingRate) {
+      this.samplingPriority = samplingPriority;
+      this.tracestate = tracestate;
+      this.otelTraceState = otelTraceState;
+      this.decisionMaker = decisionMaker;
+      this.knuthSamplingRate = knuthSamplingRate;
+    }
+
+    public int getSamplingPriority() {
+      return samplingPriority;
+    }
+
+    public String getTracestate() {
+      return tracestate;
+    }
+
+    public CharSequence getOtelTraceState() {
+      return otelTraceState;
+    }
+
+    public CharSequence getDecisionMaker() {
+      return decisionMaker;
+    }
+
+    public CharSequence getKnuthSamplingRate() {
+      return knuthSamplingRate;
+    }
+
+    public boolean preservesInheritedOtelPosition() {
+      if (tracestate == null || otelTraceState == null) {
+        return false;
+      }
+      byte position = otelPosition;
+      if (position == OTEL_POSITION_UNKNOWN) {
+        position =
+            isUnchangedInheritedOtelMember(tracestate, otelTraceState)
+                ? OTEL_POSITION_PRESERVED
+                : OTEL_POSITION_REPLACED;
+        otelPosition = position;
+      }
+      return position == OTEL_POSITION_PRESERVED;
+    }
+  }
 
   public static PropagationTags.Factory factory(Config config) {
     return factory(config.getxDatadogTagsMaxLength());
@@ -65,9 +127,22 @@ public abstract class PropagationTags {
    */
   public abstract void updateTraceSamplingPriority(int samplingPriority, int samplingMechanism);
 
+  public abstract boolean tryUpdateTraceSamplingPriority(
+      int samplingPriority, int samplingMechanism, boolean allowOverride);
+
+  public abstract boolean tryUpdateProbabilitySamplingDecision(
+      int samplingPriority,
+      int samplingMechanism,
+      double sampleRate,
+      boolean rateLimiterRejected,
+      long traceIdLowOrderBits,
+      boolean allowOverride);
+
   public abstract void forceKeep(int samplingMechanism);
 
   public abstract int getSamplingPriority();
+
+  public abstract SamplingState samplingState();
 
   public abstract void updateTraceOrigin(CharSequence origin);
 
@@ -86,6 +161,8 @@ public abstract class PropagationTags {
    * @return The original W3C tracestate header value.
    */
   public abstract String getW3CTracestate();
+
+  public abstract String getW3CTracestate(SamplingState samplingState);
 
   /**
    * Stores the original <a href="https://www.w3.org/TR/trace-context/#tracestate-header">W3C
@@ -115,6 +192,9 @@ public abstract class PropagationTags {
    * state. A {@code null} override falls back to {@link #headerValue(HeaderType)}.
    */
   public abstract String headerValue(HeaderType headerType, CharSequence lastParentIdOverride);
+
+  public abstract String headerValue(
+      HeaderType headerType, CharSequence lastParentIdOverride, SamplingState samplingState);
 
   /**
    * Fills a provided tagMap with valid propagated _dd.p.* tags and possibly a new sampling decision
@@ -149,16 +229,6 @@ public abstract class PropagationTags {
   public abstract void updateDebugPropagation(String value);
 
   public abstract String getDebugPropagation();
-
-  /**
-   * Updates the Knuth sampling rate (_dd.p.ksr) propagated tag. This records the sampling rate that
-   * was applied when making an agent-based or rule-based sampling decision. The rate is formatted
-   * with up to 6 significant digits and no trailing zeros, matching the Go/Python reference
-   * implementations (%.6g format).
-   *
-   * @param rate the sampling rate value
-   */
-  public abstract void updateKnuthSamplingRate(double rate);
 
   /**
    * Returns the Org Propagation Marker (OPM) currently held in these tags, encoded as {@code
