@@ -80,6 +80,84 @@ class JfrToOtlpConverterSmokeTest {
   }
 
   @Test
+  void convertRecordingWithJdkExecutionSample() throws IOException {
+    Path jfrFile = tempDir.resolve("jdk-cpu.jfr");
+
+    try (Recording recording = Recordings.newRecording(jfrFile)) {
+      // Standard OpenJDK sampling event — the only CPU sample source in recordings produced
+      // without ddprof
+      Type executionSampleType = recording.registerEventType("jdk.ExecutionSample", type -> {});
+
+      writeEvent(recording, executionSampleType, valueBuilder -> {});
+    }
+
+    Instant start = Instant.now().minusSeconds(10);
+    Instant end = Instant.now();
+
+    // JSON output is inspected because the samples carried by the profile are only visible
+    // there without a protobuf decoder — a jdk.ExecutionSample event must surface as a cpu
+    // sample, not be silently dropped
+    String json =
+        new String(
+            converter.addFile(jfrFile, start, end).convert(JfrToOtlpConverter.Kind.JSON),
+            StandardCharsets.UTF_8);
+
+    assertTrue(
+        json.contains("\"values\""), "jdk.ExecutionSample must produce a sample, got: " + json);
+  }
+
+  @Test
+  void convertRecordingWithJdkNativeMethodSample() throws IOException {
+    Path jfrFile = tempDir.resolve("jdk-native.jfr");
+
+    try (Recording recording = Recordings.newRecording(jfrFile)) {
+      Type nativeMethodSampleType =
+          recording.registerEventType("jdk.NativeMethodSample", type -> {});
+
+      writeEvent(recording, nativeMethodSampleType, valueBuilder -> {});
+    }
+
+    Instant start = Instant.now().minusSeconds(10);
+    Instant end = Instant.now();
+
+    String json =
+        new String(
+            converter.addFile(jfrFile, start, end).convert(JfrToOtlpConverter.Kind.JSON),
+            StandardCharsets.UTF_8);
+
+    assertTrue(
+        json.contains("\"values\""), "jdk.NativeMethodSample must produce a sample, got: " + json);
+  }
+
+  @Test
+  void derivedTimeBoundsOverrideSyntheticWindow() throws IOException {
+    Path jfrFile = tempDir.resolve("bounds.jfr");
+
+    try (Recording recording = Recordings.newRecording(jfrFile)) {
+      Type executionSampleType = recording.registerEventType("jdk.ExecutionSample", type -> {});
+
+      writeEvent(recording, executionSampleType, valueBuilder -> {});
+    }
+
+    // the CLI passes a wide synthetic window; with derived bounds the profile window must
+    // come from the observed event timestamps instead — visible as a non-epoch start bound
+    converter.setDeriveTimeBoundsFromEvents(true);
+    String json =
+        new String(
+            converter
+                .addFile(jfrFile, Instant.EPOCH, Instant.now())
+                .convert(JfrToOtlpConverter.Kind.JSON),
+            StandardCharsets.UTF_8);
+
+    java.util.regex.Matcher matcher =
+        java.util.regex.Pattern.compile("\"time_unix_nano\":(\\d+)").matcher(json);
+    assertTrue(matcher.find(), "profile window must be present, got: " + json);
+    assertTrue(
+        Long.parseLong(matcher.group(1)) > 0,
+        "derived start bound must not stay at the synthetic epoch value, got: " + json);
+  }
+
+  @Test
   void convertRecordingWithMethodSample() throws IOException {
     Path jfrFile = tempDir.resolve("wall.jfr");
 

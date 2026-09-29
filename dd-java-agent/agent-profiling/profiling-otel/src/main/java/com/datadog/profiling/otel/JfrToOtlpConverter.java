@@ -3,6 +3,8 @@ package com.datadog.profiling.otel;
 import com.datadog.profiling.otel.jfr.ExecutionSample;
 import com.datadog.profiling.otel.jfr.JavaMonitorEnter;
 import com.datadog.profiling.otel.jfr.JavaMonitorWait;
+import com.datadog.profiling.otel.jfr.JdkExecutionSample;
+import com.datadog.profiling.otel.jfr.JdkNativeMethodSample;
 import com.datadog.profiling.otel.jfr.JfrClass;
 import com.datadog.profiling.otel.jfr.JfrMethod;
 import com.datadog.profiling.otel.jfr.JfrStackFrame;
@@ -140,8 +142,18 @@ public final class JfrToOtlpConverter {
   private long endTimeNanos;
   private boolean timeRangeInitialized;
 
+  // when set, the profile window is derived from the observed event timestamps instead of the
+  // caller-supplied recording window (CLI conversions pass a wide synthetic window)
+  private boolean deriveTimeBoundsFromEvents = false;
+  private long minEventTimestampNanos = Long.MAX_VALUE;
+  private long maxEventTimestampNanos = Long.MIN_VALUE;
+
   // Original payload support
   private boolean includeOriginalPayload = false;
+  // per-conversion flag: the original payload is embedded only once per ProfilesData, in the
+  // first non-empty profile — re-embedding the same recording in every sample kind would
+  // multiply the payload size by the number of emitted profiles
+  private boolean originalPayloadWritten = false;
 
   // Resource attributes written into the Resource message of ResourceProfiles
   private Map<String, String> resourceAttributes = Collections.emptyMap();
@@ -172,10 +184,15 @@ public final class JfrToOtlpConverter {
   }
 
   // empty by default - no resource message is emitted
-  // setIncludeOriginalPayload and setResourceAttributes are sticky — they survive reset() and
-  // apply to all subsequent conversions
+  // setIncludeOriginalPayload, setDeriveTimeBoundsFromEvents and setResourceAttributes are
+  // sticky — they survive reset() and apply to all subsequent conversions
   public JfrToOtlpConverter setResourceAttributes(Map<String, String> attributes) {
     this.resourceAttributes = attributes != null ? attributes : Collections.emptyMap();
+    return this;
+  }
+
+  public JfrToOtlpConverter setDeriveTimeBoundsFromEvents(boolean derive) {
+    this.deriveTimeBoundsFromEvents = derive;
     return this;
   }
 
@@ -192,11 +209,26 @@ public final class JfrToOtlpConverter {
     retainedRecordings.add(recordingData);
     Path file = recordingData.getPath();
     if (file != null) {
-      return addFile(file, recordingData.getStart(), recordingData.getEnd());
+      try {
+        return addFile(file, recordingData.getStart(), recordingData.getEnd());
+      } catch (RuntimeException | Error e) {
+        rollbackRecording(recordingData);
+        throw e;
+      }
     }
     try (InputStream stream = recordingData.getStream()) {
       return addStream(stream, recordingData.getStart(), recordingData.getEnd());
+    } catch (IOException | RuntimeException | Error e) {
+      rollbackRecording(recordingData);
+      throw e;
     }
+  }
+
+  // a failed registration must not leave the recording retained forever — drop the retained
+  // reference so the caller's own release can retire the backing resource
+  private void rollbackRecording(RecordingData recordingData) {
+    retainedRecordings.remove(recordingData);
+    recordingData.release();
   }
 
   public JfrToOtlpConverter addFile(Path jfrFile, Instant start, Instant end) {
@@ -210,7 +242,18 @@ public final class JfrToOtlpConverter {
       throws IOException {
     Path tempFile = Files.createTempFile("jfr-convert-", ".jfr");
     tempFile.toFile().deleteOnExit();
-    Files.copy(jfrStream, tempFile, StandardCopyOption.REPLACE_EXISTING);
+    try {
+      Files.copy(jfrStream, tempFile, StandardCopyOption.REPLACE_EXISTING);
+    } catch (IOException | RuntimeException e) {
+      // the copy failed before the entry was registered — reclaim the temp file here;
+      // deleteOnExit only covers abandonment after successful registration
+      try {
+        Files.deleteIfExists(tempFile);
+      } catch (IOException ignored) {
+        // best effort; deleteOnExit still reclaims the file at JVM exit
+      }
+      throw e;
+    }
     return addPathEntry(new PathEntry(tempFile, true), start, end);
   }
 
@@ -226,6 +269,13 @@ public final class JfrToOtlpConverter {
     try {
       for (PathEntry pathEntry : pathEntries) {
         parseJfrEvents(pathEntry.path);
+      }
+
+      // override the caller-supplied window with the actual event range — the profile bounds
+      // are metadata only (samples are never filtered by them)
+      if (deriveTimeBoundsFromEvents && minEventTimestampNanos <= maxEventTimestampNanos) {
+        startTimeNanos = minEventTimestampNanos;
+        endTimeNanos = maxEventTimestampNanos;
       }
 
       switch (kind) {
@@ -280,6 +330,9 @@ public final class JfrToOtlpConverter {
     lastChunk = null;
     chunkOrdinal = 0;
     parsingContext = new ParsingContextImpl();
+    minEventTimestampNanos = Long.MAX_VALUE;
+    maxEventTimestampNanos = Long.MIN_VALUE;
+    originalPayloadWritten = false;
     cpuSamples.clear();
     wallSamples.clear();
     allocSamples.clear();
@@ -340,6 +393,8 @@ public final class JfrToOtlpConverter {
   private void parseJfrEvents(Path jfrFile) throws IOException {
     try (TypedJafarParser parser = TypedJafarParser.open(jfrFile, parsingContext)) {
       parser.handle(ExecutionSample.class, this::handleExecutionSample);
+      parser.handle(JdkExecutionSample.class, this::handleJdkExecutionSample);
+      parser.handle(JdkNativeMethodSample.class, this::handleJdkNativeMethodSample);
       parser.handle(MethodSample.class, this::handleMethodSample);
       parser.handle(ObjectSample.class, this::handleObjectSample);
       parser.handle(JavaMonitorEnter.class, this::handleMonitorEnter);
@@ -361,6 +416,31 @@ public final class JfrToOtlpConverter {
 
     if (cpuAttrIndices == null) cpuAttrIndices = new int[] {getSampleTypeAttributeIndex("cpu")};
     cpuSamples.add(new SampleData(stackIndex, linkIndex, 1, timestamp, cpuAttrIndices));
+  }
+
+  // Standard OpenJDK sampling events carry no span correlation fields, so the link index stays 0
+  private void handleJdkExecutionSample(JdkExecutionSample event, Control ctl) {
+    if (event == null) {
+      return;
+    }
+    int stackIndex = convertStackTrace(event::stackTrace, event.stackTraceId(), ctl);
+    long timestamp = convertTimestamp(event.startTime(), ctl);
+
+    if (cpuAttrIndices == null) cpuAttrIndices = new int[] {getSampleTypeAttributeIndex("cpu")};
+    cpuSamples.add(new SampleData(stackIndex, 0, 1, timestamp, cpuAttrIndices));
+  }
+
+  // native-state samples count as CPU samples: they are the primary sample source in recordings
+  // produced by the OpenJDK profiler without ddprof
+  private void handleJdkNativeMethodSample(JdkNativeMethodSample event, Control ctl) {
+    if (event == null) {
+      return;
+    }
+    int stackIndex = convertStackTrace(event::stackTrace, event.stackTraceId(), ctl);
+    long timestamp = convertTimestamp(event.startTime(), ctl);
+
+    if (cpuAttrIndices == null) cpuAttrIndices = new int[] {getSampleTypeAttributeIndex("cpu")};
+    cpuSamples.add(new SampleData(stackIndex, 0, 1, timestamp, cpuAttrIndices));
   }
 
   private void handleMethodSample(MethodSample event, Control ctl) {
@@ -608,12 +688,22 @@ public final class JfrToOtlpConverter {
       return 0;
     }
     Instant instant = ctl.chunkInfo().asInstant(startTimeTicks);
-    return instant.getEpochSecond() * 1_000_000_000L + instant.getNano();
+    long nanos = instant.getEpochSecond() * 1_000_000_000L + instant.getNano();
+    if (deriveTimeBoundsFromEvents) {
+      if (nanos < minEventTimestampNanos) {
+        minEventTimestampNanos = nanos;
+      }
+      if (nanos > maxEventTimestampNanos) {
+        maxEventTimestampNanos = nanos;
+      }
+    }
+    return nanos;
   }
 
   private byte[] encodeProfilesData() throws IOException {
     ProtobufEncoder encoder = protoEncoder;
     encoder.reset();
+    originalPayloadWritten = false;
 
     // ProfilesData message
     // Field 1: resource_profiles (repeated)
@@ -749,7 +839,10 @@ public final class JfrToOtlpConverter {
     encoder.writeBytesField(OtlpProtoFields.Profile.PROFILE_ID, profileId);
 
     // Fields 9 & 10: original_payload_format and original_payload (if enabled)
-    if (includeOriginalPayload && !pathEntries.isEmpty()) {
+    // embedded only once per ProfilesData — the recording is shared by every emitted profile,
+    // and repeating it per sample kind would multiply the payload by the profile count
+    if (includeOriginalPayload && !pathEntries.isEmpty() && !originalPayloadWritten) {
+      originalPayloadWritten = true;
       encoder.writeStringField(OtlpProtoFields.Profile.ORIGINAL_PAYLOAD_FORMAT, "jfr");
 
       long totalSize = 0;

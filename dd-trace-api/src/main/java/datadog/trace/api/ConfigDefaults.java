@@ -136,10 +136,11 @@ public final class ConfigDefaults {
   public static final String DEFAULT_OTLP_HTTP_PORT = "4318";
   public static final String DEFAULT_OTLP_GRPC_PORT = "4317";
 
-  // Provisional — the OTLP profiles proto is still in v1development; update when stabilized
-  public static final String DEFAULT_OTLP_HTTP_PROFILES_ENDPOINT = "v1/profiles";
+  // Provisional — the OTLP profiles proto is still in v1development; update when stabilized.
+  // Current collectors expose /v1development/profiles and the v1development ProfilesService.
+  public static final String DEFAULT_OTLP_HTTP_PROFILES_ENDPOINT = "v1development/profiles";
   public static final String DEFAULT_OTLP_GRPC_PROFILES_ENDPOINT =
-      "opentelemetry.proto.collector.profiles.v1.ProfilesService/Export";
+      "opentelemetry.proto.collector.profiles.v1development.ProfilesService/Export";
   public static final int DEFAULT_OTLP_PROFILES_TIMEOUT = 30_000; // ms
 
   static final int DEFAULT_DOGSTATSD_START_DELAY = 15; // seconds

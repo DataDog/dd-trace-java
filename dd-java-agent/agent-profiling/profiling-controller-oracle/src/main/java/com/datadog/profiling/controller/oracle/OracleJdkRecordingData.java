@@ -23,9 +23,13 @@ import java.time.Instant;
 import java.util.Date;
 import javax.annotation.Nonnull;
 import javax.management.ObjectName;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Implementation for profiling recordings. */
 public class OracleJdkRecordingData extends RecordingData {
+  private static final Logger log = LoggerFactory.getLogger(OracleJdkRecordingData.class);
+
   private final ObjectName recordingId;
   private final String name;
 
@@ -52,7 +56,14 @@ public class OracleJdkRecordingData extends RecordingData {
 
   @Override
   protected void doRelease() {
-    // heap-backed; nothing to free
+    // the recording is shared by every listener's stream — the OTLP listener may close its
+    // stream while the classic uploader still needs to open its own, so the recording itself
+    // can only be closed when the last reference is released
+    try {
+      helper.closeRecording(recordingId);
+    } catch (Exception e) {
+      log.warn("Failed to close Oracle JDK recording {}", recordingId, e);
+    }
   }
 
   @Override
@@ -116,7 +127,8 @@ public class OracleJdkRecordingData extends RecordingData {
         if (streamId != -1) {
           helper.closeStream(streamId);
         }
-        helper.closeRecording(recordingId);
+        // the recording itself is closed in doRelease() — closing it here would prevent any
+        // other listener from opening its own stream on the same recording
       } catch (Exception e) {
         throw new IOException(e);
       }
