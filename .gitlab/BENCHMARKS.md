@@ -17,7 +17,7 @@ GitLab CI configuration for the benchmarks that run on the
           [benchmarking-platform](https://github.com/DataDog/benchmarking-platform).
 - `java-benchmark-configs.yml`: `needs` and `rules` overrides for the spring-petclinic,
   insecure-bank, startup and dacapo parallel jobs included from
-  [apm-sdks-benchmarks](https://gitlab.ddbuild.io/DataDog/apm-reliability/apm-sdks-benchmarks).
+  [apm-sdks-benchmarks](https://github.com/DataDog/apm-sdks-benchmarks).
     - Change the jobs themselves there.
 
 ## Marking a benchmark as flaky
