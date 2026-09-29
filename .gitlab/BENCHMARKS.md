@@ -27,7 +27,8 @@ Add it to `FLAKY_BENCHMARKS_REGEX` in the suite's file:
 - dsm-kafka: `.dsm-kafka-benchmarks` in `benchmarks.yml`.
 - debugger: `debugger-benchmarks` in `benchmarks.yml`.
 
-The benchmark still runs and reports, but doesn't fail the gate.
+The benchmark still runs and reports, but doesn't fail performance quality gates, such as the
+SLO-based `*-check-slo-breaches` jobs of the apm-sdks-benchmarks suites.
 
 - The regex matches anywhere in the scenario name.
     - `KafkaConsumerBenchmark` quarantines every `KafkaConsumerBenchmark` method across
