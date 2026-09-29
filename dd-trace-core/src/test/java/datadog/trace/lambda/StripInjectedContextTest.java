@@ -81,12 +81,15 @@ class StripInjectedContextTest extends DDJavaSpecification {
   }
 
   @Test
-  void returnsOriginalWhenDetailFieldIsMissing() {
+  void removesTopLevelDatadogKey() {
+    // _datadog appearing directly as a top-level key is removed regardless of event shape.
     byte[] input = bytes("{\"detail-type\":\"order.created\",\"_datadog\":{\"trace\":\"1\"}}");
 
     byte[] result = StripInjectedContext.stripInternal(input);
+    String json = toUtf8(result);
 
-    assertArrayEquals(input, result);
+    assertTrue(!json.contains("_datadog"), "_datadog at the top level must be stripped");
+    assertTrue(json.contains("detail-type"), "unrelated top-level fields must survive");
   }
 
   @Test
@@ -106,8 +109,8 @@ class StripInjectedContextTest extends DDJavaSpecification {
 
   @Test
   void returnsOriginalWhenDetailIsNeitherObjectNorString() {
-    // e.g. detail is a number/array/null — nothing sane to strip from
-    byte[] input = bytes("{\"detail\":42,\"_datadog\":{\"trace\":\"1\"}}");
+    // e.g. detail is a number — nothing to strip from, so the fast path returns unchanged.
+    byte[] input = bytes("{\"detail\":42}");
 
     byte[] result = StripInjectedContext.stripInternal(input);
 
@@ -173,6 +176,168 @@ class StripInjectedContextTest extends DDJavaSpecification {
     String json = toUtf8(result);
 
     assertTrue(!json.contains("_datadog"));
+  }
+
+  // ============================================================================
+  // Non-EventBridge payloads: direct top-level _datadog key (SQS, Kinesis, etc.)
+  // ============================================================================
+
+  @Test
+  void removesTopLevelDatadogKeyFromSqsStylePayload() {
+    // SQS-style: _datadog appears as a direct top-level property alongside business data.
+    byte[] input =
+        bytes("{\"orderId\":\"abc-123\",\"amount\":99,"
+            + "\"_datadog\":{\"x-datadog-trace-id\":\"456\",\"x-datadog-parent-id\":\"789\"}}");
+
+    byte[] result = StripInjectedContext.stripInternal(input);
+    String json = toUtf8(result);
+
+    assertTrue(!json.contains("_datadog"), "_datadog carrier must be removed");
+    assertTrue(json.contains("\"orderId\":\"abc-123\""), "orderId must survive untouched");
+    assertTrue(json.contains("\"amount\":99"), "amount must survive untouched");
+  }
+
+  @Test
+  void returnsOriginalWhenTopLevelDatadogKeyIsAbsent() {
+    // No _datadog anywhere: fast path should return the original byte array unchanged.
+    byte[] input = bytes("{\"orderId\":\"abc-123\",\"amount\":99}");
+
+    byte[] result = StripInjectedContext.stripInternal(input);
+
+    assertArrayEquals(input, result);
+  }
+
+  // ============================================================================
+  // Non-EventBridge payloads: string-encoded JSON fields (SNS, etc.)
+  // ============================================================================
+
+  @Test
+  void removesDatadogKeyFromStringEncodedNonDetailField() {
+    // SNS-style: the "Message" field is a string-encoded JSON object containing _datadog.
+    byte[] input =
+        bytes(
+            "{\"Type\":\"Notification\","
+                + "\"Message\":\"{\\\"hello\\\":\\\"world\\\","
+                + "\\\"_datadog\\\":{\\\"x-datadog-trace-id\\\":\\\"123\\\"}}\","
+                + "\"Subject\":\"test-event\"}");
+
+    byte[] result = StripInjectedContext.stripInternal(input);
+    String json = toUtf8(result);
+
+    assertTrue(!json.contains("_datadog"), "_datadog must be stripped from string-encoded Message");
+    assertTrue(json.contains("hello"), "business data inside Message must survive");
+    assertTrue(json.contains("Subject"), "other top-level fields must survive");
+  }
+
+  @Test
+  void returnsOriginalWhenStringEncodedFieldContainsNoDatadogKey() {
+    // A string-encoded JSON field that doesn't carry _datadog must be left completely unchanged.
+    byte[] input =
+        bytes("{\"Type\":\"Notification\",\"Message\":\"{\\\"hello\\\":\\\"world\\\"}\"}");
+
+    byte[] result = StripInjectedContext.stripInternal(input);
+
+    assertArrayEquals(input, result);
+  }
+
+  @Test
+  void handlesMultipleTopLevelFieldsWithDatadogCarrier() {
+    // Both a direct top-level _datadog key and a string-encoded field containing _datadog
+    // are present at the same time; both must be stripped.
+    byte[] input =
+        bytes(
+            "{\"_datadog\":{\"trace\":\"1\"},"
+                + "\"Message\":\"{\\\"key\\\":\\\"val\\\","
+                + "\\\"_datadog\\\":{\\\"trace\\\":\\\"2\\\"}}\"}");
+
+    byte[] result = StripInjectedContext.stripInternal(input);
+    String json = toUtf8(result);
+
+    assertTrue(!json.contains("_datadog"), "all _datadog carriers must be stripped");
+    assertTrue(json.contains("key"), "business data inside Message must survive");
+  }
+
+  // ============================================================================
+  // Byte-level splice edge cases: comma placement around the removed carrier
+  // ============================================================================
+
+  @Test
+  void removesDatadogWhenItIsTheSoleField() {
+    // carrierRemovalRange: no preceding comma, no following comma -> remove key+value only.
+    // Result must be a valid empty object, not a dangling comma.
+    byte[] input = bytes("{\"_datadog\":{\"trace\":\"1\"}}");
+
+    byte[] result = StripInjectedContext.stripInternal(input);
+    String json = toUtf8(result);
+
+    assertTrue(!json.contains("_datadog"), "_datadog must be removed");
+    assertTrue(json.equals("{}"), "result must be a valid empty object, got: " + json);
+  }
+
+  @Test
+  void removesDatadogWhenItIsTheFirstField() {
+    // carrierRemovalRange: no preceding comma but a following comma exists -> remove trailing comma.
+    // If the trailing comma is left in, the result is invalid JSON: {"other":"val"} vs {,"other":"val"}.
+    byte[] input = bytes("{\"_datadog\":{\"trace\":\"1\"},\"other\":\"val\"}");
+
+    byte[] result = StripInjectedContext.stripInternal(input);
+    String json = toUtf8(result);
+
+    assertTrue(!json.contains("_datadog"), "_datadog must be removed");
+    assertTrue(json.contains("\"other\":\"val\""), "following field must survive");
+    assertTrue(!json.startsWith("{,"), "result must not start with a dangling comma");
+  }
+
+  @Test
+  void removesDatadogWhenItIsTheMiddleField() {
+    // carrierRemovalRange: both a preceding comma and a following comma exist.
+    // The preceding comma is consumed (preferred), so the remaining fields stay adjacent.
+    byte[] input =
+        bytes("{\"first\":\"a\",\"_datadog\":{\"trace\":\"1\"},\"last\":\"b\"}");
+
+    byte[] result = StripInjectedContext.stripInternal(input);
+    String json = toUtf8(result);
+
+    assertTrue(!json.contains("_datadog"), "_datadog must be removed");
+    assertTrue(json.contains("\"first\":\"a\""), "first field must survive");
+    assertTrue(json.contains("\"last\":\"b\""), "last field must survive");
+    assertTrue(!json.contains(",,"), "result must not contain a double comma");
+  }
+
+  @Test
+  void doesNotRemoveDatadogKeyWhenValueIsNotAnObject() {
+    // The byte-level splice only removes "_datadog":{...} (object value form).
+    // A string, null, or number value is not a carrier and must be left untouched.
+    byte[] input = bytes("{\"_datadog\":\"not-a-carrier\",\"other\":1}");
+
+    byte[] result = StripInjectedContext.stripInternal(input);
+
+    assertArrayEquals(input, result);
+  }
+
+  @Test
+  void doesNotMatchDatadogTextEmbeddedInsideAStringValue() {
+    // A string value that happens to contain the text "_datadog:" must not trigger removal.
+    // isObjectProperty() guards against this by checking the preceding byte is '{' or ','.
+    byte[] input = bytes("{\"note\":\"the _datadog: key is for tracing\",\"other\":1}");
+
+    byte[] result = StripInjectedContext.stripInternal(input);
+
+    assertArrayEquals(input, result);
+  }
+
+  @Test
+  void handlesWhitespacePaddedJson() {
+    // skipWhitespaceForward and skipWhitespaceBackward must tolerate spaces, tabs, and newlines
+    // around the key, colon, and value so that pretty-printed payloads are handled correctly.
+    byte[] input =
+        bytes("{ \"_datadog\": { \"trace\" : \"1\" } , \"other\" : 1 }");
+
+    byte[] result = StripInjectedContext.stripInternal(input);
+    String json = toUtf8(result);
+
+    assertTrue(!json.contains("_datadog"), "_datadog must be removed from whitespace-padded JSON");
+    assertTrue(json.contains("\"other\""), "unrelated field must survive");
   }
 
   // ============================================================================
