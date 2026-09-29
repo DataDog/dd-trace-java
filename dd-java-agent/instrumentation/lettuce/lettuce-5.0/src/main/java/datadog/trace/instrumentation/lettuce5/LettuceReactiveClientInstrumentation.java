@@ -66,7 +66,6 @@ public class LettuceReactiveClientInstrumentation extends InstrumenterModule.Tra
     return new String[] {
       packageName + ".rx.RedisSubscriptionSubscribeAdvice",
       packageName + ".rx.RedisSubscriptionSubscribeAdvice$State",
-      packageName + ".rx.RedisSubscriptionDispatchAdvice",
       packageName + ".rx.RedisSubscriptionState",
       packageName + ".LettuceInstrumentationUtil",
       packageName + ".LettuceClientDecorator"
