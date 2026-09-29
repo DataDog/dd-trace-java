@@ -285,13 +285,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
       resolvedParentAgentName = spanName;
     }
 
-    // Roll a decision only at the true root of an LLMObs trace — one with no parent of either
-    // kind. A span that continues a trace whose caller sent no verdict leaves both tags unset
-    // rather than rolling its own: the caller may be an older tracer that predates LLMObs
-    // sampling, and a local roll would report a verdict it never made, against this service's
-    // rate rather than the one that produced the trace. That is also what dd-trace-py does; only
-    // its true-root branch resolves a decision. The intake defaults an unstamped span to retained
-    // at rate 1, so leaving the tags off keeps the span rather than dropping it.
+    // Roll a decision only at the true root of an LLMObs trace
     if (!inheritedInProcess && propagated == null) {
       sampleRate = sampler.formattedRate();
       samplingDecision =

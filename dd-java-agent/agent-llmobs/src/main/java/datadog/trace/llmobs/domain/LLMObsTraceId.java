@@ -13,20 +13,9 @@ import org.slf4j.LoggerFactory;
  * <p>The two differ. On the wire an LLMObs trace id is an unsigned decimal integer, because
  * released dd-trace-py versions parse the tag with {@code int(x)} and would reject {@code a-f}.
  * In-process, and in the span payload the intake receives, it is a 32-character lowercase
- * hexadecimal string — <em>except</em> below 2^64, where it is unsigned decimal instead.
- *
- * <p>That exception is not Java's idea, and on its own it would be the wrong one: it means the
- * stored form has two shapes. It exists because the stored value is what the backend groups a trace
- * by, compared verbatim, so every tracer has to choose the same shape for the same id or a
- * cross-language trace arrives as two. dd-trace-py picks the shape with {@code format_trace_id},
- * which is an APM helper implementing APM's own dual convention — 64-bit ids decimal, 128-bit ids
- * hex — and dd-trace-js reimplements the same rule ({@code normalizeLlmObsTraceId} in {@code
- * packages/dd-trace/src/llmobs/util.js}). Two tracers already agree on it, so Java matches rather
- * than being the third answer.
- *
- * <p>In practice the sub-2^64 case is only reachable when an LLMObs trace id is seeded from an APM
- * one and 128-bit APM trace ids are disabled: every tracer's own root generator produces a value
- * above 2^64. dd-trace-go avoids the exception entirely by never seeding from the APM id.
+ * hexadecimal string — <em>except</em> below 2^64, where it is unsigned decimal instead. That
+ * exception matches dd-trace-py and dd-trace-js, which both store the smaller ids as decimal; the
+ * backend groups a trace by comparing the stored value verbatim, so all three have to agree.
  *
  * <p>The methods here mirror {@code format_trace_id}, {@code _trace_id_to_wire} and {@code
  * _normalize_wire_trace_id_to_hex} in dd-trace-py's {@code llmobs/_utils.py}, including their
