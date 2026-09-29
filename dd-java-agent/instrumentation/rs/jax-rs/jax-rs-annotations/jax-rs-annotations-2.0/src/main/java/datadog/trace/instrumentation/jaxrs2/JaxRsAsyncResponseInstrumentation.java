@@ -2,11 +2,12 @@ package datadog.trace.instrumentation.jaxrs2;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.ResourceMethodSpanTracker.isInnermost;
+import static datadog.trace.bootstrap.ResourceMethodSpanTracker.isOpen;
 import static datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -55,10 +56,18 @@ public final class JaxRsAsyncResponseInstrumentation extends InstrumenterModule.
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("resume").and(takesArgument(0, Object.class)).and(isPublic()),
+        named("resume")
+            .and(takesArguments(1))
+            .and(takesArgument(0, Object.class))
+            .and(returns(boolean.class))
+            .and(isPublic()),
         JaxRsAsyncResponseInstrumentation.class.getName() + "$AsyncResponseAdvice");
     transformer.applyAdvice(
-        named("resume").and(takesArgument(0, Throwable.class)).and(isPublic()),
+        named("resume")
+            .and(takesArguments(1))
+            .and(takesArgument(0, Throwable.class))
+            .and(returns(boolean.class))
+            .and(isPublic()),
         JaxRsAsyncResponseInstrumentation.class.getName() + "$AsyncResponseThrowableAdvice");
     transformer.applyAdvice(
         named("cancel").and(returns(boolean.class)),
@@ -87,13 +96,14 @@ public final class JaxRsAsyncResponseInstrumentation extends InstrumenterModule.
       final AgentSpan span = contextStore.get(asyncResponse);
       if (span != null) {
         DECORATE.onError(span, throwable);
-        if (isInnermost(span)) {
+        if (isOpen(span)) {
           // resume() was called synchronously, nested inside the still-running resource
-          // method that owns this span (ResourceMethodSpanTracker.isInnermost(span) says its
-          // invocation is still the innermost open one on this thread). Let that method's own
-          // exit advice close the scope and finish the span instead of finishing it here,
-          // which would both double-finish the span and finish it prematurely while the
-          // resource method may still be doing work under it.
+          // method that owns this span (ResourceMethodSpanTracker.isOpen(span) says its
+          // invocation hasn't returned yet, however deeply other instrumented calls have
+          // nested in the meantime). Let that method's own exit advice close the scope and
+          // finish the span instead of finishing it here, which would both double-finish the
+          // span and finish it prematurely while the resource method may still be doing work
+          // under it.
           return;
         }
         DECORATE.finishUnlessAlreadyClaimed(contextStore, asyncResponse);
@@ -120,7 +130,7 @@ public final class JaxRsAsyncResponseInstrumentation extends InstrumenterModule.
       final AgentSpan span = contextStore.get(asyncResponse);
       if (span != null) {
         DECORATE.onError(span, throwable);
-        if (isInnermost(span)) {
+        if (isOpen(span)) {
           // see comment in AsyncResponseAdvice#stopSpan
           return;
         }
@@ -155,7 +165,7 @@ public final class JaxRsAsyncResponseInstrumentation extends InstrumenterModule.
         } else {
           span.setTag("canceled", true);
         }
-        if (isInnermost(span)) {
+        if (isOpen(span)) {
           // see comment in AsyncResponseAdvice#stopSpan
           return;
         }
