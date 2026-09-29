@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.aws.v1.lambda;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
+import static net.bytebuddy.matcher.ElementMatchers.isSubTypeOf;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -13,6 +14,7 @@ import static net.bytebuddy.asm.Advice.Origin;
 import static net.bytebuddy.asm.Advice.This;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
@@ -31,6 +33,7 @@ import datadog.trace.config.inversion.ConfigHelper;
 import java.io.InputStream;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
@@ -70,6 +73,10 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
     transformer.applyAdvice(
         isMethod()
             .and(named("handleRequest"))
+            .and(takesArguments(3))
+            // Constrain arg0 to InputStream so an unrelated 3-arg "handleRequest" overload
+            // with a non-InputStream first parameter isn't matched by mistake.
+            .and(takesArgument(0, isSubTypeOf(InputStream.class)))
             .and(takesArgument(2, named("com.amazonaws.services.lambda.runtime.Context"))),
         getClass().getName() + "$ExtensionCommunicationAdvice");
   }
@@ -78,24 +85,31 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
     @OnMethodEnter
     static ContextScope enter(
         @This final Object that,
-        @Advice.Argument(value = 0, readOnly = false) InputStream in,
+        // Bound as Object (not InputStream) so Byte Buddy can always bind this argument for
+        // writing back, even if the matcher's arg0 constraint is ever loosened or bypassed.
+        @Advice.Argument(value = 0, readOnly = false, typing = Assigner.Typing.DYNAMIC) Object in,
         @Advice.Argument(1) final Object out,
         @Advice.Argument(2) final Context awsContext,
         @Origin("#m") final String methodName) {
-
       if (CallDepthThreadLocalMap.incrementCallDepth(RequestHandler.class) > 0) {
         return null;
       }
+      if (!(in instanceof InputStream)) {
+        // Defensive guard: should never happen given the matcher's arg0 constraint.
+        return null;
+      }
+      InputStream inputStream = (InputStream) in;
       String lambdaRequestId = awsContext.getAwsRequestId();
-      AgentSpanContext lambdaContext = AgentTracer.get().notifyLambdaStart(in, lambdaRequestId);
-
+      AgentSpanContext lambdaContext =
+          AgentTracer.get().notifyLambdaStart(inputStream, lambdaRequestId);
       // Skip the strip pass entirely (extra read/parse/re-serialize) unless explicitly enabled.
       if (Config.get().isLambdaStripInjectedContextEnabled()) {
-        InputStream stripped = AgentTracer.get().stripLambdaInjectedContext(in);
+        InputStream stripped = AgentTracer.get().stripLambdaInjectedContext(inputStream);
         if (stripped != null) {
-          in = stripped;
+          inputStream = stripped;
         }
       }
+      in = inputStream;
 
       final AgentSpan span;
       if (null == lambdaContext) {

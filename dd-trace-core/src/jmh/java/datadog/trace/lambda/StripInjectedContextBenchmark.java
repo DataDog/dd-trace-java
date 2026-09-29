@@ -29,16 +29,45 @@ public class StripInjectedContextBenchmark {
   @Param({"true", "false"})
   boolean containsDatadogCarrier;
 
+  // Event shapes: "eventbridge", "sqs", "sns"
+  @Param({"eventbridge", "sqs", "sns"})
+  String payloadShape;
+
   byte[] payload;
 
   @Setup(Level.Trial)
   public void setUp() {
-    String detail =
-        containsDatadogCarrier
-            ? "{\"orderId\":42,\"customer\":\"acme\",\"_datadog\":{\"x-datadog-trace-id\":\"123\",\"x-datadog-parent-id\":\"456\"}}"
+    String carrier =
+        "{\"x-datadog-trace-id\":\"123\",\"x-datadog-parent-id\":\"456\"}";
+
+    switch (payloadShape) {
+      case "sqs": {
+        // SQS-style: _datadog appears as a direct top-level key.
+        String body = containsDatadogCarrier
+            ? "{\"orderId\":42,\"customer\":\"acme\",\"_datadog\":" + carrier + "}"
             : "{\"orderId\":42,\"customer\":\"acme\"}";
-    String envelope = "{\"detail-type\":\"order.created\",\"detail\":" + detail + "}";
-    payload = envelope.getBytes(StandardCharsets.UTF_8);
+        payload = body.getBytes(StandardCharsets.UTF_8);
+        break;
+      }
+      case "sns": {
+        // SNS-style: _datadog is embedded inside a string-encoded "Message" field.
+        String inner = containsDatadogCarrier
+            ? "{\\\"orderId\\\":42,\\\"_datadog\\\":" + carrier.replace("\"", "\\\"") + "}"
+            : "{\\\"orderId\\\":42}";
+        String envelope = "{\"Type\":\"Notification\",\"Message\":\"" + inner + "\"}";
+        payload = envelope.getBytes(StandardCharsets.UTF_8);
+        break;
+      }
+      default: {
+        // EventBridge-style: _datadog is inside the "detail" object.
+        String detail = containsDatadogCarrier
+            ? "{\"orderId\":42,\"customer\":\"acme\",\"_datadog\":" + carrier + "}"
+            : "{\"orderId\":42,\"customer\":\"acme\"}";
+        String envelope = "{\"detail-type\":\"order.created\",\"detail\":" + detail + "}";
+        payload = envelope.getBytes(StandardCharsets.UTF_8);
+        break;
+      }
+    }
   }
 
   @Benchmark
