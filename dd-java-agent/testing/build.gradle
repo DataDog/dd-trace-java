@@ -5,10 +5,6 @@ plugins {
   id 'dd-trace-java.module.testing-support'
 }
 
-tasks.withType(JavaCompile).configureEach {
-  configureCompiler(it, 8, JavaVersion.VERSION_1_8, "Need access to sun.misc package")
-}
-
 minimumBranchCoverage = 0.5
 minimumInstructionCoverage = 0.5
 excludedClassesCoverage += [
