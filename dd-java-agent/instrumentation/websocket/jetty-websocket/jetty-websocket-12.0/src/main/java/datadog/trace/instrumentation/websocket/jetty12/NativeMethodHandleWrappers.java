@@ -75,21 +75,21 @@ public class NativeMethodHandleWrappers {
       return delegate;
     }
     boolean partial = type.parameterCount() > 1 && type.parameterType(1) == boolean.class;
+    delegate = delegate.asType(type.changeReturnType(void.class));
     MethodHandle normalized = partial ? delegate : dropArguments(delegate, 1, boolean.class);
     ReceiveContexts contexts = contextStore.get(session);
     if (contexts == null) {
-      contexts = contextStore.getOrPut(session, new ReceiveContexts());
+      contexts = contextStore.getOrPut(session, new ReceiveContexts(span, session));
     }
-    HandlerContext.Receiver context = context(span, session);
-    contexts.add(context, payload == String.class);
     MethodHandle wrapper =
         payload == String.class
-            ? insertArguments(TEXT, 0, normalized, context, partial)
+            ? contexts.wrapText(normalized, partial)
             : insertArguments(BINARY, 0, normalized, contexts, partial);
     return partial ? wrapper : insertArguments(wrapper, 1, true);
   }
 
   public static MethodHandle wrapClose(MethodHandle delegate, AgentSpan span, CoreSession session) {
+    delegate = delegate.asType(delegate.type().changeReturnType(void.class));
     // Annotated endpoints have a Session argument; listeners do not. Jetty binds it during onOpen.
     if (delegate.type().parameterType(0) != Session.class) {
       delegate = dropArguments(delegate, 0, Session.class);
@@ -100,9 +100,7 @@ public class NativeMethodHandleWrappers {
   private static ContextScope startMessage(
       HandlerContext.Receiver context, Object data, boolean partial) {
     try {
-      synchronized (context) {
-        return activateSpan(DECORATE.startInboundFrameSpan(context, data, partial));
-      }
+      return activateSpan(DECORATE.startInboundFrameSpan(context, data, partial));
     } catch (Throwable t) {
       ExceptionLogger.LOGGER.debug("Unable to start native Jetty WebSocket span", t);
       return null;
@@ -117,7 +115,11 @@ public class NativeMethodHandleWrappers {
       boolean last)
       throws Throwable {
     boolean finish = last;
-    try (ContextScope ignored = startMessage(context, payload, partial)) {
+    ContextScope scope;
+    synchronized (context) {
+      scope = startMessage(context, payload, partial);
+    }
+    try (ContextScope ignored = scope) {
       try {
         delegate.invokeExact(payload, last);
       } catch (Throwable t) {
@@ -147,7 +149,15 @@ public class NativeMethodHandleWrappers {
     ReceiveCallback wrapped;
     ContextScope scope;
     synchronized (contexts) {
-      BinaryMessage message = contexts.startBinaryMessage(last);
+      BinaryMessage message = contexts.currentBinary;
+      if (message == null) {
+        message = new BinaryMessage(contexts.handshakeSpan, contexts.sessionId);
+        contexts.pendingBinary.add(message);
+      }
+      message.pendingCallbacks++;
+      message.complete = last;
+      // Jetty can deliver the next message before this message's callbacks complete.
+      contexts.currentBinary = last ? null : message;
       scope = startMessage(message, payload, partial);
       wrapped = new ReceiveCallback(callback, contexts, message);
     }
@@ -164,47 +174,38 @@ public class NativeMethodHandleWrappers {
   }
 
   public static class ReceiveContexts {
+    private final AgentSpan handshakeSpan;
+    private final String sessionId;
     private HandlerContext.Receiver text;
-    private HandlerContext.Receiver binary;
     private BinaryMessage currentBinary;
     private final Set<BinaryMessage> pendingBinary = new HashSet<>();
 
-    public void add(HandlerContext.Receiver context, boolean isText) {
-      if (isText) {
-        text = context;
-      } else {
-        binary = context;
+    public ReceiveContexts(AgentSpan span, CoreSession session) {
+      if (Config.get().isWebsocketMessagesInheritSampling()) {
+        span.forceSamplingDecision();
       }
+      handshakeSpan = span.getLocalRootSpan();
+      sessionId = Integer.toHexString(System.identityHashCode(session));
     }
 
-    public synchronized BinaryMessage startBinaryMessage(boolean last) {
-      BinaryMessage message = currentBinary;
-      if (message == null) {
-        message = new BinaryMessage(binary);
-        pendingBinary.add(message);
+    private synchronized MethodHandle wrapText(MethodHandle delegate, boolean partial) {
+      if (text == null) {
+        text = new HandlerContext.Receiver(handshakeSpan, sessionId);
       }
-      message.pendingCallbacks++;
-      message.complete = last;
-      // Jetty can deliver the next message before this message's callbacks complete.
-      currentBinary = last ? null : message;
-      return message;
+      return insertArguments(TEXT, 0, delegate, text, partial);
     }
 
     public synchronized void finish() {
-      finish(text);
+      if (text != null) {
+        synchronized (text) {
+          DECORATE.onFrameEnd(text);
+        }
+      }
       for (BinaryMessage message : pendingBinary) {
-        finish(message);
+        DECORATE.onFrameEnd(message);
       }
       pendingBinary.clear();
       currentBinary = null;
-    }
-
-    private static void finish(HandlerContext.Receiver context) {
-      if (context != null) {
-        synchronized (context) {
-          DECORATE.onFrameEnd(context);
-        }
-      }
     }
   }
 
@@ -212,8 +213,8 @@ public class NativeMethodHandleWrappers {
     private int pendingCallbacks;
     private boolean complete;
 
-    public BinaryMessage(HandlerContext.Receiver context) {
-      super(context.getHandshakeSpan(), context.getSessionId());
+    public BinaryMessage(AgentSpan handshakeSpan, String sessionId) {
+      super(handshakeSpan, sessionId);
     }
   }
 
