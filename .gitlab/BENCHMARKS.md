@@ -24,18 +24,16 @@ GitLab CI configuration for the benchmarks that run on the
 
 Add it to `FLAKY_BENCHMARKS_REGEX` in the suite's file:
 
-- dsm-kafka: `.dsm-kafka-benchmarks` in `benchmarks.yml`.
 - debugger: `debugger-benchmarks` in `benchmarks.yml`.
 
 The benchmark still runs and reports, but doesn't fail the gate.
 
 - The regex matches anywhere in the scenario name.
-    - `KafkaConsumerBenchmark` quarantines every `KafkaConsumerBenchmark` method across
-      configurations.
-    - Anchor with `^...$` to target one scenario.
+    - Anchor with `^...$` to target one scenario, or it also quarantines every scenario that
+      contains the name.
 
 ```yaml
-FLAKY_BENCHMARKS_REGEX: "^only-tracing-dsm-disabled-benchmarks/KafkaConsumerBenchmark\\.benchConsume$"
+FLAKY_BENCHMARKS_REGEX: "^<scenario name>$"
 ```
 
 Open a ticket to fix or remove it. See
