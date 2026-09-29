@@ -18,10 +18,6 @@ tracerJava {
 
 addTestSuiteForDir('latestDepTest', 'test')
 
-tasks.named("compileMain_java17Java", JavaCompile) {
-  configureCompiler(it, JavaVersion.VERSION_17)
-}
-
 configurations.matching { it.name.startsWith('test') || it.name.startsWith('latestDepTest') }.configureEach {
   it.resolutionStrategy {
     force group: 'org.slf4j', name: 'slf4j-api', version: libs.versions.slf4j.get()
