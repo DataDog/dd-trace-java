@@ -144,6 +144,66 @@ public class JettyEndpoints {
   }
 
   @WebSocket
+  public static class BoxedFullEndpoint extends EndpointEvents {
+    @OnWebSocketOpen
+    public Void onOpen(Session session) {
+      this.session = session;
+      return null;
+    }
+
+    @OnWebSocketMessage
+    public Void onText(Session session, String payload) {
+      assertSame(this.session, session);
+      recordMessage(payload);
+      return null;
+    }
+
+    @OnWebSocketMessage
+    public Void onBinary(ByteBuffer payload, Callback callback) {
+      recordMessage(UTF_8.decode(payload).toString());
+      completeBinary(callback);
+      return null;
+    }
+
+    @OnWebSocketClose
+    public Void onClose(int statusCode, String reason) {
+      recordClose(statusCode, reason);
+      return null;
+    }
+  }
+
+  @WebSocket
+  public static class BoxedPartialEndpoint extends EndpointEvents {
+    @OnWebSocketOpen
+    public void onOpen(Session session) {
+      this.session = session;
+    }
+
+    @OnWebSocketMessage
+    public Void onText(String payload, boolean last) {
+      finalFragments.add(last);
+      recordMessage(payload);
+      return null;
+    }
+
+    @OnWebSocketMessage
+    public Void onBinary(Session session, ByteBuffer payload, boolean last, Callback callback) {
+      assertSame(this.session, session);
+      finalFragments.add(last);
+      recordMessage(UTF_8.decode(payload).toString());
+      completeBinary(callback);
+      return null;
+    }
+
+    @OnWebSocketClose
+    public Void onClose(Session session, int statusCode, String reason) {
+      assertSame(this.session, session);
+      recordClose(statusCode, reason);
+      return null;
+    }
+  }
+
+  @WebSocket
   public static class NoCloseEndpoint extends EndpointEvents {
     @OnWebSocketMessage
     public void onText(String payload, boolean last) {

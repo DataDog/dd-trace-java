@@ -68,15 +68,19 @@ public class JettyWebsocketTest extends AbstractInstrumentationTest {
   private static final String URL = "ws://inmemory/test/param";
 
   @TableTest({
-    "scenario            | endpoint    | msgType",
-    "full text           | full        | text   ",
-    "full binary         | full        | binary ",
-    "partial text        | partial     | text   ",
-    "partial binary      | partial     | binary ",
-    "POJO full text      | pojoFull    | text   ",
-    "POJO full binary    | pojoFull    | binary ",
-    "POJO partial text   | pojoPartial | text   ",
-    "POJO partial binary | pojoPartial | binary "
+    "scenario             | endpoint     | msgType",
+    "full text            | full         | text   ",
+    "full binary          | full         | binary ",
+    "partial text         | partial      | text   ",
+    "partial binary       | partial      | binary ",
+    "POJO full text       | pojoFull     | text   ",
+    "POJO full binary     | pojoFull     | binary ",
+    "POJO partial text    | pojoPartial  | text   ",
+    "POJO partial binary  | pojoPartial  | binary ",
+    "boxed full text      | boxedFull    | text   ",
+    "boxed full binary    | boxedFull    | binary ",
+    "boxed partial text   | boxedPartial | text   ",
+    "boxed partial binary | boxedPartial | binary "
   })
   void nativeJettyAdvices(JettyEndpoints.EndpointEvents endpoint, String msgType) throws Exception {
     JettyWebSocketFrameHandler frameHandler = createFrameHandler(endpoint);
@@ -104,11 +108,13 @@ public class JettyWebsocketTest extends AbstractInstrumentationTest {
   }
 
   @TableTest({
-    "scenario            | endpoint    | msgType",
-    "partial text        | partial     | text   ",
-    "partial binary      | partial     | binary ",
-    "POJO partial text   | pojoPartial | text   ",
-    "POJO partial binary | pojoPartial | binary "
+    "scenario             | endpoint     | msgType",
+    "partial text         | partial      | text   ",
+    "partial binary       | partial      | binary ",
+    "POJO partial text    | pojoPartial  | text   ",
+    "POJO partial binary  | pojoPartial  | binary ",
+    "boxed partial text   | boxedPartial | text   ",
+    "boxed partial binary | boxedPartial | binary "
   })
   void fragmentedMessagesShareSpan(JettyEndpoints.EndpointEvents endpoint, String msgType)
       throws Exception {
@@ -487,6 +493,10 @@ public class JettyWebsocketTest extends AbstractInstrumentationTest {
         return new JettyEndpoints.PojoFullEndpoint();
       case "pojoPartial":
         return new JettyEndpoints.PojoPartialEndpoint();
+      case "boxedFull":
+        return new JettyEndpoints.BoxedFullEndpoint();
+      case "boxedPartial":
+        return new JettyEndpoints.BoxedPartialEndpoint();
       default:
         throw new IllegalArgumentException("Unknown endpoint: " + name);
     }
