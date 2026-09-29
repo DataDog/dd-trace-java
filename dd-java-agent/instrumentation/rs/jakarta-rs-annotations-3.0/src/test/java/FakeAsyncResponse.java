@@ -14,8 +14,8 @@ import java.util.concurrent.TimeUnit;
  */
 public class FakeAsyncResponse implements AsyncResponse {
 
-  private boolean suspended = true;
-  private boolean cancelled = false;
+  private volatile boolean suspended = true;
+  private volatile boolean cancelled = false;
 
   @Override
   public boolean resume(final Object response) {
