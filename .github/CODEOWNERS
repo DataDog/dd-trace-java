@@ -176,7 +176,6 @@
 # @DataDog/apm-lang-platform-java
 /.agents/skills/fix-continuation-leakage/ @DataDog/apm-lang-platform-java
 /.claude/skills/fix-continuation-leakage/ @DataDog/apm-lang-platform-java
-/dd-java-agent/instrumentation-testing/src/*/java/datadog/trace/agent/test/scopediag/ @DataDog/apm-lang-platform-java
 /.editorconfig                          @DataDog/apm-lang-platform-java
 /.githooks/                             @DataDog/apm-lang-platform-java
 /.github/                               @DataDog/apm-lang-platform-java
@@ -194,6 +193,7 @@
 /dd-java-agent/agent-installer/                      @DataDog/apm-lang-platform-java
 /dd-java-agent/agent-tooling/                        @DataDog/apm-lang-platform-java
 /dd-java-agent/instrumentation-annotation-processor/ @DataDog/apm-lang-platform-java
+/dd-java-agent/instrumentation-testing/src/*/java/datadog/trace/agent/test/scopediag/ @DataDog/apm-lang-platform-java
 /dd-java-agent/src/                                  @DataDog/apm-lang-platform-java
 /dd-smoke-tests/concurrent/             @DataDog/apm-lang-platform-java
 /dd-smoke-tests/field-injection/        @DataDog/apm-lang-platform-java
