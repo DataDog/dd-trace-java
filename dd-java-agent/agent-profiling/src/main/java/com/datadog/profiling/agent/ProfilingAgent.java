@@ -3,6 +3,8 @@ package com.datadog.profiling.agent;
 import static datadog.environment.JavaVirtualMachine.isJavaVersion;
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.environment.JavaVirtualMachine.isOracleJDK8;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_SCRUB_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_SCRUB_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_SCRUB_FAIL_OPEN;
@@ -19,6 +21,7 @@ import com.datadog.profiling.controller.ProfilerFlareReporter;
 import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.controller.jfr.JFRAccess;
+import com.datadog.profiling.uploader.OtlpProfileUploader;
 import com.datadog.profiling.uploader.ProfileUploader;
 import com.datadog.profiling.utils.Timestamper;
 import datadog.trace.api.Config;
@@ -55,6 +58,7 @@ public class ProfilingAgent {
 
   private static volatile ProfilingSystem profiler;
   private static volatile ProfileUploader uploader;
+  private static volatile OtlpProfileUploader otlpUploader;
 
   private static class DataDumper implements RecordingDataListener {
     private final Path path;
@@ -144,9 +148,14 @@ public class ProfilingAgent {
         final Controller controller = CompositeController.build(configProvider, context);
 
         String dumpPath = configProvider.getString(ProfilingConfig.PROFILING_DEBUG_DUMP_PATH);
+        // local: only the listener chain below consumes the dumper
         DataDumper dumper = dumpPath != null ? new DataDumper(Paths.get(dumpPath)) : null;
 
         uploader = new ProfileUploader(config, configProvider);
+
+        if (configProvider.getBoolean(PROFILING_OTLP_ENABLED, PROFILING_OTLP_ENABLED_DEFAULT)) {
+          otlpUploader = new OtlpProfileUploader(config, configProvider);
+        }
 
         RecordingDataListener listener = uploader::upload;
         if (dumper != null) {
@@ -157,7 +166,30 @@ public class ProfilingAgent {
                 upload.onNewData(type, data, sync);
               };
         }
-        // Scrubber wraps the combined dumper+uploader so debug dumps also contain scrubbed data
+        if (otlpUploader != null) {
+          OtlpProfileUploader otlp = otlpUploader;
+          RecordingDataListener downstream = listener;
+          listener =
+              (type, data, sync) -> {
+                // downstream owns the base reference and must always run, otherwise the
+                // recording leaks; the extra OTLP reference is released only when retain() failed
+                boolean retained = false;
+                try {
+                  data.retain(); // OTLP uploader gets an extra reference
+                  retained = true;
+                  otlp.upload(type, data, sync, null);
+                } catch (Exception e) {
+                  log.warn(SEND_TELEMETRY, "OTLP upload failed, JFR upload will continue", e);
+                  if (retained) {
+                    data.release(); // undo retain; downstream releases the base reference
+                  }
+                } finally {
+                  downstream.onNewData(type, data, sync);
+                }
+              };
+        }
+        // the scrubber must wrap the OTLP listener so OTLP receives the scrubbed copy, not the
+        // raw recording; it also wraps the combined dumper+uploader so debug dumps stay scrubbed
         // Oracle JDK 8 JFR format has quirks that make scrubbing unreliable — skip it to avoid
         // corrupting customer data
         if (configProvider.getBoolean(PROFILING_SCRUB_ENABLED, PROFILING_SCRUB_ENABLED_DEFAULT)
@@ -197,7 +229,7 @@ public class ProfilingAgent {
           This means that if/when we implement functionality to manually shutdown profiler we would
           need to not forget to add code that removes this shutdown hook from JVM.
            */
-          Runtime.getRuntime().addShutdownHook(new ShutdownHook(profiler, uploader));
+          Runtime.getRuntime().addShutdownHook(new ShutdownHook(profiler, uploader, otlpUploader));
         } catch (final IllegalStateException ex) {
           // The JVM is already shutting down.
         }
@@ -226,17 +258,20 @@ public class ProfilingAgent {
   }
 
   public static void shutdown() {
-    shutdown(profiler, uploader, false);
+    shutdown(profiler, uploader, otlpUploader, false);
   }
 
   public static void shutdown(boolean snapshot) {
-    shutdown(profiler, uploader, snapshot);
+    shutdown(profiler, uploader, otlpUploader, snapshot);
   }
 
   private static final AtomicBoolean shutDownFlag = new AtomicBoolean();
 
   private static void shutdown(
-      ProfilingSystem profiler, ProfileUploader uploader, boolean snapshot) {
+      ProfilingSystem profiler,
+      ProfileUploader uploader,
+      OtlpProfileUploader otlpUploader,
+      boolean snapshot) {
     if (shutDownFlag.compareAndSet(false, true)) {
       if (profiler != null) {
         profiler.shutdown(snapshot);
@@ -245,6 +280,10 @@ public class ProfilingAgent {
       if (uploader != null) {
         uploader.shutdown();
       }
+
+      if (otlpUploader != null) {
+        otlpUploader.shutdown();
+      }
     }
   }
 
@@ -252,16 +291,21 @@ public class ProfilingAgent {
 
     private final WeakReference<ProfilingSystem> profilerRef;
     private final WeakReference<ProfileUploader> uploaderRef;
+    private final WeakReference<OtlpProfileUploader> otlpUploaderRef;
 
-    private ShutdownHook(final ProfilingSystem profiler, final ProfileUploader uploader) {
+    private ShutdownHook(
+        final ProfilingSystem profiler,
+        final ProfileUploader uploader,
+        final OtlpProfileUploader otlpUploader) {
       super(AGENT_THREAD_GROUP, "dd-profiler-shutdown-hook");
       profilerRef = new WeakReference<>(profiler);
       uploaderRef = new WeakReference<>(uploader);
+      otlpUploaderRef = new WeakReference<>(otlpUploader);
     }
 
     @Override
     public void run() {
-      shutdown(profilerRef.get(), uploaderRef.get(), false);
+      shutdown(profilerRef.get(), uploaderRef.get(), otlpUploaderRef.get(), false);
     }
   }
 }
