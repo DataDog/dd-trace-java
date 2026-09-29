@@ -1,10 +1,16 @@
 package datadog.trace.instrumentation.scala213.concurrent;
 
+import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_NON_STATIC;
 import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStoreId;
+import static java.util.Collections.singletonMap;
 
+import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.bootstrap.instrumentation.scala.ScalaPromiseContinuationHelper;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
@@ -19,10 +25,39 @@ import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.pool.TypePool;
 
-public final class DefaultPromiseCallbackInstrumentation
+@AutoService(InstrumenterModule.class)
+public final class DefaultPromiseCallbackInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice {
 
   private static final String TRANSFORMATION = "scala.concurrent.impl.Promise$Transformation";
+
+  public DefaultPromiseCallbackInstrumentation() {
+    super("scala_concurrent");
+  }
+
+  @Override
+  public String muzzleDirective() {
+    return "scala-promise-unregister";
+  }
+
+  @Override
+  public Map<String, String> contextStore() {
+    return singletonMap(TRANSFORMATION, State.class.getName());
+  }
+
+  @Override
+  public Reference[] additionalMuzzleReferences() {
+    return new Reference[] {
+      new Reference.Builder("scala.concurrent.impl.Promise$DefaultPromise")
+          .withMethod(
+              new String[0],
+              EXPECTS_NON_STATIC,
+              "unregisterCallback",
+              "V",
+              "Lscala/concurrent/impl/Promise$Transformation;")
+          .build()
+    };
+  }
 
   @Override
   public String instrumentedType() {
@@ -36,10 +71,11 @@ public final class DefaultPromiseCallbackInstrumentation
             getContextStoreId(TRANSFORMATION, State.class.getName())));
   }
 
-  static final class UnregisterCallbackVisitorWrapper extends AsmVisitorWrapper.AbstractBase {
+  public static final class UnregisterCallbackVisitorWrapper
+      extends AsmVisitorWrapper.AbstractBase {
     private final int contextStoreId;
 
-    UnregisterCallbackVisitorWrapper(int contextStoreId) {
+    public UnregisterCallbackVisitorWrapper(int contextStoreId) {
       this.contextStoreId = contextStoreId;
     }
 
