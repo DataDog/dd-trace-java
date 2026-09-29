@@ -44,7 +44,13 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest implements Tes
 
     check()
 
-    response.statusCode().value()
+    consumeResponse(response)
+  }
+
+  protected static int consumeResponse(ClientResponse response) {
+    int status = response.statusCode().value()
+    response.bodyToMono(Void).block()
+    return status
   }
 
   @Override
