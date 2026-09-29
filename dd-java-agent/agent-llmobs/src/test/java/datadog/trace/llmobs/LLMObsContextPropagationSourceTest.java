@@ -394,6 +394,36 @@ class LLMObsContextPropagationSourceTest {
     }
   }
 
+  /**
+   * An upstream that carries LLMObs context but no sampling verdict — an older tracer, or one with
+   * LLMObs sampling disabled. The continuation does not roll one of its own: that would report a
+   * decision the trace's root never made, against this service's rate rather than the one that
+   * produced the trace. It records neither tag instead, which does not lose the span — the intake
+   * defaults an unstamped span to retained at rate 1.
+   */
+  @Test
+  void continuationDoesNotRerollWhenTheUpstreamSentNoVerdict() {
+    Map<String, String> inbound = producerCarrier("checkout", null);
+    // Strip just the verdict, leaving the rest of the LLMObs context intact. Both delimiter
+    // positions are handled because the pair's place in the tag string is not guaranteed.
+    inbound.put(
+        "x-datadog-tags",
+        inbound
+            .get("x-datadog-tags")
+            .replaceAll("(^|,)_dd\\.p\\.llmobs_s[rd]=[^,]*", "")
+            .replaceAll("^,", ""));
+
+    try (ContextScope consumeScope = startLocalChildScope(extractSpan(inbound))) {
+      DDLLMObsSpan consumer = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "handler", null, null);
+      try {
+        assertNull(LLMObsContext.currentSamplingDecision());
+        assertNull(LLMObsContext.currentSampleRate());
+      } finally {
+        consumer.finish();
+      }
+    }
+  }
+
   @Test
   void peerSpanDoesNotInheritAFinishedSpansInjectedContext() {
     try (ContextScope apmScope = startRootApmScope()) {
