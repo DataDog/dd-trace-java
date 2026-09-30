@@ -2,6 +2,7 @@ plugins {
   id 'dd-trace-java.module.product-subsystem'
   id 'dd-trace-java.jmh-conventions'
   id 'dd-trace-java.version-file'
+  id 'dd-trace-java.testcontainers'
 }
 
 description = 'dd-trace-core'
@@ -74,6 +75,9 @@ tasks.named('forkedTest', Test) {
 }
 
 dependencies {
+  testContainerImage(image('registry.ddbuild.io/images/mirror/dd-apm-test-agent/ddapm-test-agent:v1.64.1', 'test.ddapm.agent.image'))
+  traceAgentTestContainerImage(image('datadog/agent:7.40.1', 'test.datadog.agent.image'))
+
   api project(':dd-trace-api')
   api project(':communication')
   api project(':internal-api')
