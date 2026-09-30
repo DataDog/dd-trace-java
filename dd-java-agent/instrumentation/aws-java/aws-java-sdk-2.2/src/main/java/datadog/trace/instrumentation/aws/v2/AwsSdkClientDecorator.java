@@ -14,6 +14,7 @@ import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
@@ -348,12 +349,12 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     return account;
   }
 
-  // Optional<String> accountId() was introduced on AwsCredentialsIdentity after 2.2.0, so it is
-  // looked up reflectively per credentials class. A missing method is cached as this sentinel.
+  // accountId() is absent at the 2.2.0 floor, so look it up per credentials class. ClassValue
+  // lets application classes unload even though each cached MethodHandle references its class.
   private static final MethodHandle NO_ACCOUNT_ID_GETTER =
       MethodHandles.constant(Optional.class, Optional.empty());
-  private static final DDCache<Class<?>, MethodHandle> ACCOUNT_ID_GETTERS =
-      DDCaches.newFixedSizeCache(8);
+  private static final ClassValue<MethodHandle> ACCOUNT_ID_GETTERS =
+      GenericClassValue.of(AwsSdkClientDecorator::accountIdGetter);
 
   private static MethodHandle accountIdGetter(final Class<?> type) {
     try {
@@ -364,10 +365,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     }
   }
 
-  private static String credentialsAccountId(final AwsCredentials credentials) {
-    MethodHandle getter =
-        ACCOUNT_ID_GETTERS.computeIfAbsent(
-            credentials.getClass(), AwsSdkClientDecorator::accountIdGetter);
+  static String credentialsAccountId(final AwsCredentials credentials) {
+    MethodHandle getter = ACCOUNT_ID_GETTERS.get(credentials.getClass());
     if (getter == NO_ACCOUNT_ID_GETTER) {
       return null;
     }
