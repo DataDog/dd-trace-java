@@ -222,7 +222,6 @@ class B3HttpCodec {
         log.debug("Header: {}", key);
       }
       try {
-        handleTags(key, value);
         char first = Character.toLowerCase(key.charAt(0));
         switch (first) {
           case 'x':
@@ -235,23 +234,20 @@ class B3HttpCodec {
             } else if (SAMPLING_PRIORITY_KEY.equalsIgnoreCase(key)) {
               samplingPriority = convertSamplingPriority(firstHeaderValue(value));
               return true;
-            } else if (handledXForwarding(key, value)) {
-              return true;
+            } else {
+              handledXForwarding(key, value);
             }
             break;
           case 'f':
-            if (handledForwarding(key, value)) {
-              return true;
-            }
+            handledForwarding(key, value);
             break;
           case 'u':
-            if (handledUserAgent(key, value)) {
-              return true;
-            }
+            handledUserAgent(key, value);
             break;
           default:
         }
         handledIpHeaders(key, value);
+        handleTags(key, value);
       } catch (RuntimeException e) {
         invalidateContext();
         log.debug("Exception when extracting context", e);
@@ -280,30 +276,25 @@ class B3HttpCodec {
         if (LOG_EXTRACT_HEADER_NAMES) {
           log.debug("Header: {}", key);
         }
-        handleTags(key, value);
         if (B3_KEY.equalsIgnoreCase(key)) {
           return extractB3(firstHeaderValue(value));
         } else {
           char first = Character.toLowerCase(key.charAt(0));
           switch (first) {
             case 'x':
-              if (handledXForwarding(key, value)) {
-                return true;
-              }
+              handledXForwarding(key, value);
               break;
             case 'f':
-              if (handledForwarding(key, value)) {
-                return true;
-              }
+              handledForwarding(key, value);
               break;
             case 'u':
-              if (handledUserAgent(key, value)) {
-                return true;
-              }
+              handledUserAgent(key, value);
               break;
+            default:
           }
         }
         handledIpHeaders(key, value);
+        handleTags(key, value);
       } catch (RuntimeException e) {
         invalidateContext();
         log.debug("Exception when extracting context", e);

@@ -153,17 +153,12 @@ class W3CHttpCodec {
       if (LOG_EXTRACT_HEADER_NAMES) {
         log.debug("Header: {}", key);
       }
-      if (!handleTags(key, value)) {
-        handleMappedBaggage(key, value);
-      }
       String lowerCaseKey = null;
       int classification = IGNORE;
       char first = Character.toLowerCase(key.charAt(0));
       switch (first) {
         case 'f':
-          if (handledForwarding(key, value)) {
-            return true;
-          }
+          handledForwarding(key, value);
           break;
         case 'o':
           lowerCaseKey = toLowerCase(key);
@@ -181,14 +176,10 @@ class W3CHttpCodec {
           }
           break;
         case 'u':
-          if (handledUserAgent(key, value)) {
-            return true;
-          }
+          handledUserAgent(key, value);
           break;
         case 'x':
-          if (handledXForwarding(key, value)) {
-            return true;
-          }
+          handledXForwarding(key, value);
           break;
         default:
       }
@@ -217,6 +208,10 @@ class W3CHttpCodec {
         }
       } else {
         handledIpHeaders(key, value);
+        if (handleTags(key, value)) {
+          return true;
+        }
+        handleMappedBaggage(key, value);
       }
       return true;
     }

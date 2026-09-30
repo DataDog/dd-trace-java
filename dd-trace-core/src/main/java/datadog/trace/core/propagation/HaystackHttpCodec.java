@@ -157,9 +157,6 @@ class HaystackHttpCodec {
       if (LOG_EXTRACT_HEADER_NAMES) {
         log.debug("Header: {}", key);
       }
-      if (!handleTags(key, value)) {
-        handleMappedBaggage(key, value);
-      }
       char first = Character.toLowerCase(key.charAt(0));
       String lowerCaseKey = null;
       int classification = IGNORE;
@@ -180,14 +177,10 @@ class HaystackHttpCodec {
           }
           break;
         case 'x':
-          if (handledXForwarding(key, value)) {
-            return true;
-          }
+          handledXForwarding(key, value);
           break;
         case 'f':
-          if (handledForwarding(key, value)) {
-            return true;
-          }
+          handledForwarding(key, value);
           break;
         case 'b':
           lowerCaseKey = toLowerCase(key);
@@ -196,9 +189,7 @@ class HaystackHttpCodec {
           }
           break;
         case 'u':
-          if (handledUserAgent(key, value)) {
-            return true;
-          }
+          handledUserAgent(key, value);
           break;
         default:
       }
@@ -234,6 +225,10 @@ class HaystackHttpCodec {
         }
       } else {
         handledIpHeaders(key, value);
+        if (handleTags(key, value)) {
+          return true;
+        }
+        handleMappedBaggage(key, value);
       }
       return true;
     }
