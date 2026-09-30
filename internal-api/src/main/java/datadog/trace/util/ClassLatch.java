@@ -1,5 +1,7 @@
 package datadog.trace.util;
 
+import datadog.trace.api.function.Strategy;
+import datadog.trace.api.function.StrategyConsumer;
 import datadog.trace.api.function.ThrowingFunction;
 import javax.annotation.Nullable;
 
@@ -126,10 +128,14 @@ public abstract class ClassLatch<T, R, E extends Exception> {
    * }
    * }</pre>
    *
+   * Pass a method reference or a non-capturing lambda, and keep this method small so it inlines:
+   * that is what lets the JIT see the exact function at each call site (see {@link Strategy}).
    * Compose {@link #latchIfNamed} and {@link #latch} directly for anything more involved.
    */
   @Nullable
-  protected final R handleAbstractMethod(T target, ThrowingFunction<T, R, E> call) throws E {
+  @StrategyConsumer
+  protected final R handleAbstractMethod(T target, @Strategy ThrowingFunction<T, R, E> call)
+      throws E {
     try {
       return call.apply(target);
     } catch (AbstractMethodError e) {
