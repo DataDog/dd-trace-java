@@ -151,8 +151,9 @@ class XRayHttpCodec {
         log.debug("Header: {}", key);
       }
       try {
-        handleTags(key, value);
-        handleMappedBaggage(key, value);
+        if (!handleTags(key, value)) {
+          handleMappedBaggage(key, value);
+        }
         char first = Character.toLowerCase(key.charAt(0));
         switch (first) {
           case 'x':
