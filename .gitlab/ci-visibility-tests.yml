@@ -7,10 +7,6 @@ ci-visibility-tests-check:
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts
   rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - if: '$CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH !~ /^(master|release\/)/'
-      when: on_success
     - when: never
   before_script:
     - dd-octo-sts version
@@ -32,10 +28,6 @@ ci-visibility-tests-trigger:
   stage: ci-visibility-tests
   needs: [ci-visibility-tests-check]
   rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - if: '$CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH !~ /^(master|release\/)/'
-      when: on_success
     - when: never
   trigger:
     include:
