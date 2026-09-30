@@ -11,6 +11,7 @@ import com.microsoft.azure.functions.internal.spi.middleware.MiddlewareContext;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.bootstrap.instrumentation.api.DurableOrchestrationState;
 import java.util.IdentityHashMap;
 
 public final class DurableFunctionsUtils {

@@ -13,6 +13,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.DurableOrchestrationState;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
 
@@ -35,9 +36,7 @@ public final class DurableOrchestrationExecutorInstrumentation extends Instrumen
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".DurableFunctionsDecorator",
-      packageName + ".DurableOrchestrationState",
-      packageName + ".DurableOrchestrationUtils"
+      packageName + ".DurableFunctionsDecorator", packageName + ".DurableOrchestrationUtils"
     };
   }
 

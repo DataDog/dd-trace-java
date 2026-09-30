@@ -10,6 +10,7 @@ import static datadog.trace.test.junit.utils.assertions.Matchers.matches;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -41,11 +42,14 @@ import datadog.trace.agent.test.assertions.SpanMatcher;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.DurableOrchestrationState;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpan;
 import datadog.trace.instrumentation.azure.functions.worker.DurableFunctionsUtils;
-import datadog.trace.instrumentation.azure.functions.worker.DurableOrchestrationState;
 import datadog.trace.instrumentation.azure.functions.worker.DurableOrchestrationUtils;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Base64;
@@ -211,6 +215,60 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
     assertEquals("Orchestrator", orchestrationSpan.getTag("aas.function.name"));
     assertEquals(
         "DurableOrchestration Orchestrator", orchestrationSpan.getResourceName().toString());
+  }
+
+  @Test
+  void findsOrchestrationSpanAcrossWorkerClassLoader() throws Exception {
+    MiddlewareContext context = contextFor("DurableOrchestrationTrigger", "Orchestrator");
+    AgentSpan expectedSpan = mock(AgentSpan.class);
+
+    ClassLoader workerLoader =
+        new ClassLoader(AzureFunctionsWorkerTest.class.getClassLoader()) {
+          @Override
+          protected synchronized Class<?> loadClass(String name, boolean resolve)
+              throws ClassNotFoundException {
+            if (!name.equals(DurableFunctionsUtils.class.getName())) {
+              return super.loadClass(name, resolve);
+            }
+            Class<?> loaded = findLoadedClass(name);
+            if (loaded == null) {
+              String resource = name.replace('.', '/') + ".class";
+              try (InputStream input = getParent().getResourceAsStream(resource)) {
+                if (input == null) {
+                  throw new ClassNotFoundException(name);
+                }
+                ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+                byte[] buffer = new byte[4096];
+                int count;
+                while ((count = input.read(buffer)) != -1) {
+                  bytes.write(buffer, 0, count);
+                }
+                byte[] classBytes = bytes.toByteArray();
+                loaded = defineClass(name, classBytes, 0, classBytes.length);
+              } catch (IOException e) {
+                throw new ClassNotFoundException(name, e);
+              }
+            }
+            if (resolve) {
+              resolveClass(loaded);
+            }
+            return loaded;
+          }
+        };
+
+    try (ContextScope scope = DurableOrchestrationState.activate(null)) {
+      DurableOrchestrationState.current().setSpan(expectedSpan);
+      Class<?> workerUtils =
+          Class.forName(DurableFunctionsUtils.class.getName(), true, workerLoader);
+      assertNotSame(DurableFunctionsUtils.class, workerUtils);
+
+      Object actualSpan =
+          workerUtils
+              .getMethod("onOrchestrationInvoke", MiddlewareContext.class)
+              .invoke(null, context);
+      assertSame(expectedSpan, actualSpan);
+    }
+    assertTraces();
   }
 
   @TableTest({

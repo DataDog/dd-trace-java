@@ -37,7 +37,6 @@ public final class DurableOrchestrationMiddlewareInstrumentation extends Instrum
     return new String[] {
       packageName + ".DurableFunctionsDecorator",
       packageName + ".DurableFunctionsUtils",
-      packageName + ".DurableOrchestrationState",
       packageName + ".TraceContextExtractAdapter"
     };
   }

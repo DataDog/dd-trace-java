@@ -1,11 +1,10 @@
-package datadog.trace.instrumentation.azure.functions.worker;
+package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.context.Context;
 import datadog.context.ContextKey;
 import datadog.context.ContextScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
-/** Carries the Azure orchestration invocation and its span through the synchronous worker call. */
+/** Shares an Azure Durable orchestration invocation and its span across worker classloaders. */
 public final class DurableOrchestrationState {
   private static final ContextKey<DurableOrchestrationState> KEY =
       ContextKey.named("azure-durable-orchestration");
