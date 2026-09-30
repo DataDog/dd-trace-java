@@ -34,7 +34,7 @@ class TagRegistryGeneratorPluginTest : GradleFixture() {
       span_types:
         web:
           tags:
-            - { dd-name: http.method, type: string, required: required, otel-name: $otelName }
+            - { dd-name: http.method, type: string, required: required, otel-name: $otelName, span-kind-neutral: true }
       """)
   }
 

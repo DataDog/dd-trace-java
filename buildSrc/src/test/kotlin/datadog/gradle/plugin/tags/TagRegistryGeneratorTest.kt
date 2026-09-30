@@ -32,7 +32,7 @@ class TagRegistryGeneratorTest {
       span_types:
         web:
           tags:
-            - { dd-name: http.method, type: string, required: required, otel-name: http.request.method }
+            - { dd-name: http.method, type: string, required: required, otel-name: http.request.method, span-kind-neutral: true }
             - { dd-name: http.route,  type: string, required: conditional }
       """)
 
@@ -58,7 +58,7 @@ class TagRegistryGeneratorTest {
       span_types:
         web:
           tags:
-            - { dd-name: http.method, type: string, required: required, otel-name: http.request.method }
+            - { dd-name: http.method, type: string, required: required, otel-name: http.request.method, span-kind-neutral: true }
       """
     generate(content)
     val first = outDir.walkTopDown().filter { it.isFile }.associate { it.relativeTo(outDir).path to it.readText() }
@@ -209,6 +209,73 @@ class TagRegistryGeneratorTest {
   }
 
   @Test
+  fun `rename on a concrete span type requires span-kind-neutral`() {
+    assertThatThrownBy {
+        generate(
+          """
+          span_types:
+            http.server:
+              tags:
+                - { dd-name: http.hostname, type: string, otel-name: server.address }
+          """)
+      }
+      .isInstanceOf(IllegalArgumentException::class.java)
+      .hasMessageContaining("on concrete span type 'http.server'")
+      .hasMessageContaining("span-kind-neutral")
+  }
+
+  @Test
+  fun `rename on a concrete span type passes when marked span-kind-neutral`() {
+    generate(
+      """
+      span_types:
+        db.client:
+          tags:
+            - { dd-name: db.type, type: string, otel-name: db.system, span-kind-neutral: true }
+      """)
+
+    assertThat(knownTags.readText())
+      .contains("public static final String DB_TYPE_OTEL_NAME = \"db.system\";")
+  }
+
+  @Test
+  fun `rename in a shared scope needs no span-kind-neutral`() {
+    generate(
+      """
+      span_types:
+        http:
+          abstract: true
+          tags:
+            - { dd-name: http.method, type: string, otel-name: http.request.method }
+        http.server:
+          extends: http
+      mixins:
+        peer:
+          tags:
+            - { dd-name: peer.port, type: int, otel-name: server.port }
+      """)
+
+    assertThat(knownTags.readText())
+      .contains("HTTP_METHOD_OTEL_NAME")
+      .contains("PEER_PORT_OTEL_NAME")
+  }
+
+  @Test
+  fun `span-kind-neutral without an otel-name fails`() {
+    assertThatThrownBy {
+        generate(
+          """
+          span_types:
+            web:
+              tags:
+                - { dd-name: http.route, type: string, span-kind-neutral: true }
+          """)
+      }
+      .isInstanceOf(IllegalArgumentException::class.java)
+      .hasMessageContaining("span-kind-neutral without an otel-name")
+  }
+
+  @Test
   fun `otel-name that is another tag's dd-name fails`() {
     assertThatThrownBy {
         generate(
@@ -216,7 +283,7 @@ class TagRegistryGeneratorTest {
           span_types:
             web:
               tags:
-                - { dd-name: a, type: string, otel-name: b }
+                - { dd-name: a, type: string, otel-name: b, span-kind-neutral: true }
                 - { dd-name: b, type: string }
           """)
       }
@@ -232,8 +299,8 @@ class TagRegistryGeneratorTest {
           span_types:
             web:
               tags:
-                - { dd-name: a, type: string, otel-name: c }
-                - { dd-name: b, type: string, otel-name: c }
+                - { dd-name: a, type: string, otel-name: c, span-kind-neutral: true }
+                - { dd-name: b, type: string, otel-name: c, span-kind-neutral: true }
           """)
       }
       .isInstanceOf(IllegalArgumentException::class.java)
