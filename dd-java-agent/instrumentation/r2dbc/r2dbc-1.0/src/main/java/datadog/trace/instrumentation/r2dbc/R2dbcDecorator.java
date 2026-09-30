@@ -9,6 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
 import io.r2dbc.spi.ConnectionFactoryOptions;
+import io.r2dbc.spi.Option;
 import java.util.Collections;
 import java.util.Set;
 
@@ -52,31 +53,32 @@ public class R2dbcDecorator extends DatabaseClientDecorator<ConnectionFactoryOpt
     return "r2dbc";
   }
 
-  @Override
-  protected String dbUser(ConnectionFactoryOptions options) {
+  /**
+   * Reads a string option; {@code null} if unset. No {@code hasOption} check is needed: {@code
+   * getValue} returns {@code null} for an absent option, unlike {@code getRequiredValue}, which
+   * throws.
+   */
+  static String stringOption(ConnectionFactoryOptions options, Option<?> option) {
     if (options == null) {
       return null;
     }
-    Object user = options.getValue(ConnectionFactoryOptions.USER);
-    return user != null ? user.toString() : null;
+    Object value = options.getValue(option);
+    return value != null ? value.toString() : null;
+  }
+
+  @Override
+  protected String dbUser(ConnectionFactoryOptions options) {
+    return stringOption(options, ConnectionFactoryOptions.USER);
   }
 
   @Override
   protected String dbInstance(ConnectionFactoryOptions options) {
-    if (options == null) {
-      return null;
-    }
-    Object database = options.getValue(ConnectionFactoryOptions.DATABASE);
-    return database != null ? database.toString() : null;
+    return stringOption(options, ConnectionFactoryOptions.DATABASE);
   }
 
   @Override
   protected CharSequence dbHostname(ConnectionFactoryOptions options) {
-    if (options == null) {
-      return null;
-    }
-    Object host = options.getValue(ConnectionFactoryOptions.HOST);
-    return host != null ? host.toString() : null;
+    return stringOption(options, ConnectionFactoryOptions.HOST);
   }
 
   // Driver names that wrap another driver rather than being a database (e.g.
@@ -86,18 +88,13 @@ public class R2dbcDecorator extends DatabaseClientDecorator<ConnectionFactoryOpt
   private static final Set<String> WRAPPER_DRIVERS = Collections.singleton("pool");
 
   public static boolean isWrapperDriver(ConnectionFactoryOptions options) {
-    Object driver = options.getValue(ConnectionFactoryOptions.DRIVER);
-    return driver != null && WRAPPER_DRIVERS.contains(driver.toString());
+    String driver = stringOption(options, ConnectionFactoryOptions.DRIVER);
+    return driver != null && WRAPPER_DRIVERS.contains(driver);
   }
 
   public String extractDbType(ConnectionFactoryOptions options) {
-    if (options != null && options.hasOption(ConnectionFactoryOptions.DRIVER)) {
-      Object driver = options.getValue(ConnectionFactoryOptions.DRIVER);
-      if (driver != null) {
-        return driver.toString();
-      }
-    }
-    return "r2dbc";
+    String driver = stringOption(options, ConnectionFactoryOptions.DRIVER);
+    return driver != null ? driver : "r2dbc";
   }
 
   /** Exposes the protected {@link #processDatabaseType} for use by the listener. */

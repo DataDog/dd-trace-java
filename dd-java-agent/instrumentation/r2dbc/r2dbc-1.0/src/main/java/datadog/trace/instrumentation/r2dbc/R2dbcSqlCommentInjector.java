@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.DECORATE;
 import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.INJECT_COMMENT;
+import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.stringOption;
 
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter;
@@ -62,16 +63,8 @@ public final class R2dbcSqlCommentInjector {
     if (dbService != null) {
       dbService = traceConfig(activeSpan()).getServiceMapping().getOrDefault(dbService, dbService);
     }
-    String hostname = null;
-    if (options.hasOption(ConnectionFactoryOptions.HOST)) {
-      Object host = options.getValue(ConnectionFactoryOptions.HOST);
-      hostname = host != null ? host.toString() : null;
-    }
-    String dbName = null;
-    if (options.hasOption(ConnectionFactoryOptions.DATABASE)) {
-      Object db = options.getValue(ConnectionFactoryOptions.DATABASE);
-      dbName = db != null ? db.toString() : null;
-    }
+    String hostname = stringOption(options, ConnectionFactoryOptions.HOST);
+    String dbName = stringOption(options, ConnectionFactoryOptions.DATABASE);
 
     return inject(sql, dbService, dbType, hostname, dbName);
   }
