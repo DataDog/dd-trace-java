@@ -40,7 +40,7 @@ public final class JsonParser216Helper {
   private JsonParser216Helper() {}
 
   private static final Latch<UTF8StreamJsonParser, ByteQuadsCanonicalizer, RuntimeException>
-      SYMBOLS =
+      SYMBOLS_LATCH =
           new Latch<UTF8StreamJsonParser, ByteQuadsCanonicalizer, RuntimeException>() {
             @Override
             protected ByteQuadsCanonicalizer get(UTF8StreamJsonParser jsonParser) {
@@ -49,7 +49,7 @@ public final class JsonParser216Helper {
           };
 
   public static boolean fetchInterner(UTF8StreamJsonParser jsonParser) {
-    ByteQuadsCanonicalizer symbols = SYMBOLS.tryGetOrNull(jsonParser);
+    ByteQuadsCanonicalizer symbols = SYMBOLS_LATCH.tryGetOrNull(jsonParser);
     // no symbol table to ask: assume interned (see the class comment)
     return symbols == null || ByteQuadsCanonicalizer216Helper.fetchInterner(symbols);
   }
