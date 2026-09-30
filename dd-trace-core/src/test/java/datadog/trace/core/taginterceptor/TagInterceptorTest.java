@@ -745,6 +745,52 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     }
   }
 
+  @TableTest({
+    "scenario                  | statementTag    | beforeStart",
+    "datadog spelling, builder | 'db.statement'  | true       ",
+    "datadog spelling, setTag  | 'db.statement'  | false      ",
+    "otel spelling, builder    | 'db.query.text' | true       ",
+    "otel spelling, setTag     | 'db.query.text' | false      "
+  })
+  void dbStatementIsConsumedIntoResourceRegardlessOfSpellingOrTiming(
+      String statementTag, boolean beforeStart) {
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    AgentSpan span =
+        beforeStart
+            ? tracer.buildSpan("datadog", "fakeOperation").withTag(statementTag, "select 1").start()
+            : tracer.buildSpan("datadog", "fakeOperation").start();
+    try {
+      if (!beforeStart) {
+        span.setTag(statementTag, "select 1");
+      }
+      assertEquals("select 1", span.getResourceName().toString());
+      assertNull(span.getTag(Tags.DB_STATEMENT));
+      assertNull(span.getTag("db.query.text"));
+    } finally {
+      span.finish();
+    }
+  }
+
+  @TableTest({
+    "scenario         | urlTag         ",
+    "datadog spelling | 'Tags.HTTP_URL'",
+    "otel spelling    | 'url.full'     "
+  })
+  void urlAsResourceNameRuleAppliesRegardlessOfUrlSpelling(
+      @ConvertWith(TagsConverter.class) String urlTag) {
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    AgentSpan span = tracer.buildSpan("datadog", "fakeOperation").start();
+    try {
+      span.setTag(HTTP_METHOD, "Post");
+      span.setTag(urlTag, "/with-method");
+      assertEquals("POST /with-method", span.getResourceName().toString());
+    } finally {
+      span.finish();
+    }
+  }
+
   @Test
   void whenUserSetsPeerServiceTheSourceShouldBePeerService() {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
