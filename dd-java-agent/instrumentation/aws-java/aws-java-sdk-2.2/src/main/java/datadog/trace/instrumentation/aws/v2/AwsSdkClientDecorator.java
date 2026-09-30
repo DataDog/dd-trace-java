@@ -323,22 +323,14 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   }
 
   /**
-   * Account owning the credentials that sign this request. Read from the credentials object when
-   * the SDK exposes it (AwsCredentialsIdentity.accountId(), SDK 2.26+, populated by the STS, SSO,
-   * profile, process and container providers). Older SDKs can opt in to decoding it from the access
-   * key ID.
+   * Account owning the credentials that sign this request, when the SDK exposes it
+   * (AwsCredentialsIdentity.accountId(), SDK 2.26+, populated by the STS, SSO, profile, process and
+   * container providers). Absent on older SDKs and for providers that do not resolve it.
    */
   private static String callerAccount(final ExecutionAttributes attributes) {
     AwsCredentials credentials =
         attributes.getAttribute(AwsSignerExecutionAttribute.AWS_CREDENTIALS);
-    if (credentials == null) {
-      return null;
-    }
-    String account = credentialsAccountId(credentials);
-    if (account == null && Config.get().isAwsAccountFromAccessKeyEnabled()) {
-      account = AwsAccountIdentity.accountFromAccessKeyId(credentials.accessKeyId());
-    }
-    return account;
+    return credentials == null ? null : credentialsAccountId(credentials);
   }
 
   // accountId() is absent at the 2.2.0 floor, so look it up per credentials class. ClassValue
