@@ -53,5 +53,8 @@ dependencyResolutionManagement {
 
 rootProject.name = "build-logic"
 
-include(":conventions")
-include(":smoke-test")
+include(
+  ":conventions",
+  ":smoke-test",
+  ":tag-registry",
+)

@@ -1,4 +1,4 @@
-package datadog.gradle.plugin.tags
+package datadog.buildlogic.tagRegistry
 
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -6,13 +6,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import java.io.File
 import java.util.Locale
 
-/**
- * Turns the language-agnostic {@code tag-conventions.yaml} into the generated tag registry: {@code KnownTags.java} (under {@code java/<pkg>}) plus verification report dumps
- * (resolved-tags / tag-assignment) at the destination root.
- *
- * Pure function of its inputs (deterministic ordering throughout), so the same inputs always produce
- * byte-identical output -- which is what the {@code verifyKnownTags} freshness gate relies on.
- */
+/** Emits the Java tag registry and reports in a deterministic order. */
 object TagRegistryGenerator {
   /** Parses the conventions YAML and writes the full generated tree under [outDir]. */
   fun generate(domainYaml: File, outDir: File) {
@@ -27,9 +21,7 @@ object TagRegistryGenerator {
     val conv = TagConventions.parse(domain)
     val reg = TagRegistry.build(conv)
 
-    // Clear the owned destination tree, so a report/source file retired by a later generator
-    // revision doesn't linger: otherwise verifyKnownTags flags it as stale while telling developers
-    // to rerun generateKnownTags, which (without this) can't actually remove it.
+    // Remove obsolete generated files when the output changes.
     outDir.deleteRecursively()
     outDir.mkdirs()
     // KnownTags.java goes under java/<pkg> (added as a srcDir); the .txt reports sit at the root.
@@ -70,15 +62,17 @@ object TagRegistryGenerator {
     a.appendLine("# Tag id assignment.  tags=${reg.tags.size}")
     a.appendLine()
     a.appendLine("# TAGS     serial lvl id                 required     name")
-    for (t in reg.tags) {
+    for ((name, _, required, serial, traceLevel, id) in reg.tags) {
       a.appendLine(
         "  %6d   %s  %-18s %-12s %s".format(
           Locale.ROOT,
-          t.serial,
-          if (t.traceLevel) "T" else "-",
-          "0x%016X".format(Locale.ROOT, t.id),
-          t.required,
-          t.name))
+          serial,
+          if (traceLevel) "T" else "-",
+          "0x%016X".format(Locale.ROOT, id),
+          required,
+          name
+        )
+      )
     }
     a.appendLine()
     a.appendLine("# OPENTELEMETRY NAMES. keyOf(otelName) resolves to the canonical tag's id; nameOf still")

@@ -1,4 +1,4 @@
-package datadog.gradle.plugin.tags
+package datadog.buildlogic.tagRegistry
 
 /**
  * Assigns tag ids from a parsed [TagConventions]. The id encoding mirrors KnownTagCodec: [63-48
@@ -30,7 +30,6 @@ class TagRegistry private constructor(val tags: List<Tag>) {
   companion object {
     const val FIRST_SERIAL = 1
     const val LEVEL_TRACE = 1L shl 2 // low-32 carve bit 2; mirrors KnownTagCodec.LEVEL_TRACE
-    const val TRACE_LAYER = "<trace>"
 
     /**
      * Mirrors KnownTagCodec.makeTagId(serial) + traceLevel() -- must stay in sync. LEVEL_TRACE at
@@ -57,7 +56,8 @@ class TagRegistry private constructor(val tags: List<Tag>) {
             serial,
             traceLevel,
             id = encode(serial, traceLevel),
-            otelName = t.otelName)
+            otelName = t.otelName
+          )
         }
 
       validateOtelNames(tags)

@@ -1,10 +1,8 @@
-package datadog.gradle.plugin.tags
+package datadog.buildlogic.tagRegistry
 
-import javax.inject.Inject
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
-import org.gradle.api.model.ObjectFactory
 import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.OutputDirectory
@@ -13,18 +11,16 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 
 /**
- * Generates the committed tag registry (KnownTags.java + assignment reports) from the language-agnostic
- * {@code tag-conventions.yaml}. The actual emit lives in [TagRegistryGenerator];
- * this task just wires the inputs/outputs so Gradle can cache and up-to-date-check it.
+ * Generates KnownTags.java and assignment reports from tag-conventions.yaml.
+ * Declares the inputs and outputs for Gradle's up-to-date checks and build cache.
  */
 @CacheableTask
-abstract class GenerateKnownTagsTask @Inject constructor(objects: ObjectFactory) : DefaultTask() {
+abstract class GenerateKnownTagsTask : DefaultTask() {
   @get:InputFile
   @get:PathSensitive(PathSensitivity.NONE)
-  val domainYaml: RegularFileProperty = objects.fileProperty()
+  abstract val domainYaml: RegularFileProperty
 
-
-  @get:OutputDirectory val destinationDirectory: DirectoryProperty = objects.directoryProperty()
+  @get:OutputDirectory abstract val destinationDirectory: DirectoryProperty
 
   @TaskAction
   fun generate() {
