@@ -7,15 +7,11 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.ConnectionFactoryOptions;
-import java.util.Collections;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -36,13 +32,8 @@ import net.bytebuddy.matcher.ElementMatcher;
  * populated when the connection is created via the proxy metadata listener installed by {@link
  * R2dbcInstrumentation}.
  */
-@AutoService(InstrumenterModule.class)
-public class R2dbcConnectionInstrumentation extends InstrumenterModule.Tracing
+public class R2dbcConnectionInstrumentation
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
-  public R2dbcConnectionInstrumentation() {
-    super("r2dbc");
-  }
 
   @Override
   public String hierarchyMarkerType() {
@@ -52,12 +43,6 @@ public class R2dbcConnectionInstrumentation extends InstrumenterModule.Tracing
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "io.r2dbc.spi.Connection", "io.r2dbc.spi.ConnectionFactoryOptions");
   }
 
   @Override
