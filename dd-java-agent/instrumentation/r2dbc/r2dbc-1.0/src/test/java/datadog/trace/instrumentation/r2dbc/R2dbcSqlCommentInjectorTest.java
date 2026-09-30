@@ -9,9 +9,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Unit tests for {@link R2dbcSqlCommentInjector#inject}. These assert the ACTUAL injected DBM
- * comment (not just the {@code _dd.dbm_trace_injected} span tag), so a broken injector is caught
- * here — the span-tag assertions in {@code R2dbcDbmForkedTest} are set from the DBM-mode gate and
- * would stay green even if injection silently produced no comment.
+ * static metadata comment, so a broken injector is caught independently of span assertions.
  */
 class R2dbcSqlCommentInjectorTest extends AbstractInstrumentationTest {
 

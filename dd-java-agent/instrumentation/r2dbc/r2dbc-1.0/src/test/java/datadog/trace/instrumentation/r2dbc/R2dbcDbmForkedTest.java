@@ -10,7 +10,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.r2dbc.R2dbcInstrumentationTest.eqs;
 import static datadog.trace.test.junit.utils.assertions.Matchers.any;
-import static datadog.trace.test.junit.utils.assertions.Matchers.is;
 
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
@@ -33,8 +32,8 @@ import reactor.core.publisher.Mono;
 
 /**
  * Tests for R2DBC Database Monitoring (DBM) feature. Verifies that connection metadata tags
- * (db.instance, db.user, peer.hostname) are correctly populated on spans, and that the
- * _dd.dbm_trace_injected tag is set when DBM propagation mode is "full".
+ * (db.instance, db.user, peer.hostname) are correctly populated on spans. R2DBC comments contain
+ * static metadata only, so spans must not claim that trace context was injected.
  */
 @WithConfig(key = "dbm.propagation.mode", value = "full")
 @WithConfig(key = "service", value = "test_service", addPrefix = false)
@@ -107,40 +106,6 @@ class R2dbcDbmForkedTest extends AbstractInstrumentationTest {
                     tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
                     tag(Tags.DB_TYPE, eqs("h2")),
                     tag(Tags.DB_INSTANCE, eqs("testdb")),
-                    tag("_dd.dbm_trace_injected", is(true)),
-                    tag("_dd.svc_src", any()),
-                    defaultTags())));
-  }
-
-  @Test
-  void dbmSetsTraceInjectedTagInFullMode() {
-    AgentSpan parent = startSpan("test", "parent");
-    try (ContextScope scope = activateSpan(parent)) {
-      Flux.from(connection.createStatement("SELECT * FROM test_table").execute())
-          .flatMap(result -> result.map((row, metadata) -> row.get(0)))
-          .collectList()
-          .block();
-    } finally {
-      parent.finish();
-    }
-
-    // In full mode, the span should have the _dd.dbm_trace_injected tag set to true
-    assertTraces(
-        trace(
-            SORT_BY_START_TIME,
-            span().root().operationName("parent"),
-            span()
-                .childOfPrevious()
-                .operationName(H2_QUERY)
-                .resourceName(Pattern.compile(Pattern.quote("SELECT * FROM test_table")))
-                .type(DDSpanTypes.SQL)
-                .measured()
-                .tags(
-                    tag(Tags.COMPONENT, eqs("r2dbc")),
-                    tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
-                    tag(Tags.DB_TYPE, eqs("h2")),
-                    tag(Tags.DB_INSTANCE, eqs("testdb")),
-                    tag("_dd.dbm_trace_injected", is(true)),
                     tag("_dd.svc_src", any()),
                     defaultTags())));
   }
@@ -174,7 +139,6 @@ class R2dbcDbmForkedTest extends AbstractInstrumentationTest {
                     tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
                     tag(Tags.DB_TYPE, eqs("h2")),
                     tag(Tags.DB_INSTANCE, eqs("testdb")),
-                    tag("_dd.dbm_trace_injected", is(true)),
                     tag("_dd.svc_src", any()),
                     defaultTags())));
   }
@@ -212,7 +176,6 @@ class R2dbcDbmForkedTest extends AbstractInstrumentationTest {
                     tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
                     tag(Tags.DB_TYPE, eqs("h2")),
                     tag(Tags.DB_INSTANCE, eqs("testdb")),
-                    tag("_dd.dbm_trace_injected", is(true)),
                     tag("_dd.svc_src", any()),
                     tag(DDTags.ERROR_MSG, any()),
                     error(Exception.class),
@@ -255,7 +218,6 @@ class R2dbcDbmForkedTest extends AbstractInstrumentationTest {
                     tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
                     tag(Tags.DB_TYPE, eqs("h2")),
                     tag(Tags.DB_INSTANCE, eqs("testdb")),
-                    tag("_dd.dbm_trace_injected", is(true)),
                     tag("_dd.svc_src", any()),
                     defaultTags()),
             span()
@@ -269,7 +231,6 @@ class R2dbcDbmForkedTest extends AbstractInstrumentationTest {
                     tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
                     tag(Tags.DB_TYPE, eqs("h2")),
                     tag(Tags.DB_INSTANCE, eqs("testdb")),
-                    tag("_dd.dbm_trace_injected", is(true)),
                     tag("_dd.svc_src", any()),
                     defaultTags())));
   }

@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.DECORATE;
 import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.R2DBC_QUERY;
 
-import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import datadog.trace.instrumentation.r2dbc.shaded.proxy.core.QueryExecutionInfo;
@@ -17,30 +16,15 @@ import java.util.List;
  * R2DBC proxy listener that creates database spans around query executions. The r2dbc-proxy
  * framework owns the reactive lifecycle (complete/error/cancel), so this listener does not need to
  * handle cancellation — the {@code afterQuery} callback fires in all cases.
- *
- * <p>When Database Monitoring (DBM) is enabled via {@code dd.dbm.propagation.mode}, this listener
- * sets the {@code _dd.dbm_trace_injected} tag. The SQL comment itself is injected on the real
- * driver's {@code Connection#createStatement} (see {@link R2dbcConnectionInstrumentation}); that
- * runs downstream of the proxy, so the query text this listener observes does not carry the comment
- * — the tag is therefore driven by the same DBM-mode gate the injector uses, not by inspecting the
- * observed SQL.
  */
 public final class TraceProxyExecutionListener implements ProxyExecutionListener {
 
   private static final String SPAN_KEY = "datadog.span";
-  private static final String DBM_TRACE_INJECTED = "_dd.dbm_trace_injected";
 
   private final ConnectionFactoryOptions options;
 
   public TraceProxyExecutionListener(ConnectionFactoryOptions options) {
     this.options = options;
-  }
-
-  private static boolean dbmInjectionEnabled() {
-    String dbmMode = Config.get().getDbmPropagationMode();
-    return Config.DBM_PROPAGATION_MODE_FULL.equals(dbmMode)
-        || Config.DBM_PROPAGATION_MODE_STATIC.equals(dbmMode)
-        || Config.DBM_PROPAGATION_MODE_DYNAMIC_SERVICE.equals(dbmMode);
   }
 
   @Override
@@ -51,14 +35,6 @@ public final class TraceProxyExecutionListener implements ProxyExecutionListener
     String dbType = DECORATE.extractDbType(options);
     DECORATE.applyDatabaseType(span, dbType);
     DECORATE.onConnection(span, options);
-
-    // Mirror the injector's gate: R2dbcConnectionInstrumentation injects the DBM comment on the
-    // real driver's createStatement whenever DBM propagation is enabled, so the tag reflects that
-    // same condition. (The proxy observes the pre-injection SQL, so we cannot detect the comment
-    // here — this is the same approach JDBC uses, driving the tag off DBM state.)
-    if (dbmInjectionEnabled()) {
-      span.setTag(DBM_TRACE_INJECTED, true);
-    }
 
     String queryString = extractQuery(execInfo);
     if (queryString != null) {
