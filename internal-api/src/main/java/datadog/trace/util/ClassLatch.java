@@ -5,7 +5,8 @@ import javax.annotation.Nullable;
 /**
  * A per-class latch for an operation that, once it has failed for a class, will fail the same way
  * for every instance of that class: an interface method the class does not implement, for example.
- * For a failure that is the same for everyone, use {@link Latch}.
+ * A failure that is the same for everyone, whatever the class, needs only a single flag and no
+ * per-class state.
  *
  * <p>Intended as a {@code static final} anonymous subclass, one per call site and per operation: a
  * class lacking one method says nothing about another, so latches must not be shared. As a constant
