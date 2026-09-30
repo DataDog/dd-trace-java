@@ -25,6 +25,9 @@ public final class FlakyJUnitExtension implements ExecutionCondition {
     if (flaky == null) {
       return ConditionEvaluationResult.enabled("Test is not flaky");
     }
+    if (!context.getTestMethod().isPresent() && flaky.suites().length > 0) {
+      return ConditionEvaluationResult.enabled("Container may contain tests outside flaky suites");
+    }
     return ConditionEvaluationResult.disabled(
         flaky.value().isEmpty() ? "Flaky test" : "Flaky test: " + flaky.value());
   }
