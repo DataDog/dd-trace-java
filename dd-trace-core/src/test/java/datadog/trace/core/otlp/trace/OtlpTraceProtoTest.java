@@ -1072,12 +1072,8 @@ class OtlpTraceProtoTest {
           "attributes must include 'service.name' when service is overridden [" + caseName + "]");
     }
 
-    // extra user tags must appear as attributes, under their OpenTelemetry name when the registry
-    // declares a rename (e.g. http.method -> http.request.method) AND OTel semantics are enabled,
-    // and under their Datadog name otherwise (pass-through, the default, and always while the
-    // rename is opt-out). Asserted EXACTLY, on the one name we expect: accepting either would let
-    // a rename silently stop firing -- which is precisely how the http.status_code rename hid,
-    // since that tag is intercepted into span metadata rather than left in the tag map.
+    // Assert the selected namespace spelling and reject the other. HTTP status is checked
+    // separately because interception moves it out of the TagMap before serialization.
     for (String key : spec.extraTags.keySet()) {
       if ("http.status_code".equals(key)) {
         // Not a tag-map entry by the time it is serialized: the set path intercepts it into

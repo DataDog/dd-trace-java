@@ -1,22 +1,12 @@
 package datadog.trace.api;
 
 /**
- * Registry for generated tag ID ↔ name resolution. This class and the generated {@code KnownTags}
- * are two halves of one thing: the codec owns the bit layout and the naming policy, {@code
- * KnownTags} owns the name&harr;id tables. {@code Installed} names {@code KnownTags.RESOLVER}
- * directly, so resolving a tag name is what initializes the registry — there is no registration
- * call to make and no ordering to get wrong.
+ * Resolves generated tag IDs and names. {@link KnownTags} owns the lookup tables; this class owns
+ * the ID layout and namespace naming policy.
  *
- * <p>Holding the resolver in a {@code static final} of that holder is what makes {@link
- * #nameOf}/{@link #keyOf} effectively zero-overhead: the JIT constant-folds the field to the
- * resolver instance, and a constant receiver has an exact klass, so the call devirtualizes and
- * inlines with no CHA dependency to invalidate.
- *
- * <p>A tag id is IDENTITY, not storage: it names one tag across every namespace the tag is known
- * by. {@link #keyOf} is many→one (a Datadog name or an OpenTelemetry name both resolve to the one
- * id) and the per-namespace readers — {@link #datadogNameOf}, {@link #openTelemetryNameOf} — take
- * it back out. How (or whether) a tag is stored is a separate concern that no part of this class
- * decides.
+ * <p>Datadog and OpenTelemetry names can resolve to the same ID. {@link #canonicalTagName(String)}
+ * provides the Datadog key used by {@link TagMap}; the namespace readers choose output names. The
+ * ID does not determine whether a tag is intercepted or where it is stored.
  */
 public final class KnownTagCodec {
   /*
@@ -83,22 +73,9 @@ public final class KnownTagCodec {
   }
 
   /**
-   * Holder that hands the codec its generated half. {@code KnownTags} is emitted into this very
-   * package on the main compile path, so the link is an ordinary compile-time reference: the first
-   * read of {@code RESOLVER} initializes this holder, which initializes {@code KnownTags}. Nothing
-   * needs to be poked first, and no reader can observe a registry that is not there yet.
-   *
-   * <p>The nesting is load-bearing. {@code KnownTags} calls back into {@code KnownTagCodec}, so
-   * were {@code RESOLVER} a field of the codec itself, the codec's own initializer would re-enter
-   * on the same thread and silently read defaults. Holding it one class down means {@code
-   * KnownTagCodec}'s initializer is complete before {@code KnownTags}' ever starts.
-   *
-   * <p>The point of the {@code static final} is the read side. The JIT treats it as a true constant
-   * — it folds the load away entirely, and a constant receiver carries an exact klass, so the
-   * resolver's switch devirtualizes and inlines outright. So {@link #keyOf} / {@link #nameOf} carry
-   * no lock, no volatile read, no null check and no virtual call. HotSpot also elides the
-   * class-init barrier once the class is initialized, so the one-shot cost is paid once, ever, and
-   * never on a tag path.
+   * Loads the generated resolver on the first name lookup. Reading {@code RESOLVER} initializes
+   * {@link KnownTags}, so callers cannot observe an unregistered or partially initialized registry.
+   * The {@code static final} receiver can also help the JIT inline resolver calls.
    */
   private static final class Installed {
     static final Resolver RESOLVER = KnownTags.RESOLVER;

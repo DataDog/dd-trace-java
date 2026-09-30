@@ -58,12 +58,8 @@ public final class OtlpTraceProto {
   private static final UTF8BytesString SPAN_TYPE = UTF8BytesString.create("span.type");
 
   /*
-   * Keys for tags the tracer intercepts into first-class Metadata fields rather than leaving in the
-   * TagMap. Those never reach the per-entry projection in writeSpanTag, so their OpenTelemetry name
-   * is resolved here instead -- once each, since the set is fixed. The names come from the registry,
-   * so a rename declared in tag-conventions.yaml reaches OTLP with no second mapping table to keep
-   * in sync.
-   *
+   * Span fields and intercepted Metadata fields bypass TagMap entry projection. Resolve their
+   * keys through the registry here so OpenTelemetry names stay consistent with entry tags.
    */
   private static final UTF8BytesString SERVICE_NAME_KEY = otelKey(KnownTags.SERVICE_ID);
 

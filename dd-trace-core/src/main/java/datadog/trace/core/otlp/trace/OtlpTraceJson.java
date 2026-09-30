@@ -46,10 +46,8 @@ public final class OtlpTraceJson {
   private static final UTF8BytesString SPAN_TYPE = UTF8BytesString.create("span.type");
 
   /*
-   * Same contract as the protobuf encoder: a tag the tracer intercepts into a first-class Metadata
-   * field never reaches the per-entry projection below, so its OpenTelemetry name is resolved off
-   * the registry here instead. Both encoders must agree -- a rename that reached only one of them
-   * would make the emitted attribute name depend on the transport protocol.
+   * Span fields and intercepted Metadata fields bypass TagMap entry projection. Resolve their
+   * keys through the registry here so JSON and protobuf use the same OpenTelemetry names.
    */
   private static final UTF8BytesString SERVICE_NAME_KEY = otelKey(KnownTags.SERVICE_ID);
 

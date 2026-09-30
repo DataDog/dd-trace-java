@@ -53,9 +53,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   // reads no statics, so this is safe to build directly during TagMap's <clinit>.
   public static final TagMap EMPTY = new TagMap(new Object[1], 0);
 
-  // Sentinel for a not-yet-resolved lazy tag id. Cannot be 0L: 0L is a valid keyOf result (the tag
-  // is not a known tag, or the codec is inactive). Used by EntryReadingHelper, which is a single
-  // reused flyweight -- memoizing there costs no per-entry footprint, unlike in Entry.
+  // Sentinel for an ID not yet resolved by the reused EntryReadingHelper. Zero denotes an unknown
+  // tag, so it cannot represent "not computed".
   static final long TAG_ID_NOT_COMPUTED = Long.MIN_VALUE;
 
   /** Creates a new mutable TagMap that contains the contents of <code>map</code> */
@@ -178,10 +177,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     String tag();
 
-    /**
-     * The known-tag id for this entry's tag, or {@code 0L} when the tag is not a known tag (or the
-     * {@link KnownTagCodec} is inactive). Resolved via {@link KnownTagCodec#keyOf(String)}.
-     */
+    /** Returns the known ID for {@link #tag()}, or {@code 0L} for an unknown tag. */
     long tagId();
 
     /**
@@ -371,15 +367,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
     private Entry(String tag, byte type, long prim, Object obj) {
       /*
-       * Canonicalize to the Datadog name of whichever known tag this is, so that setting the same
-       * known tag under its OpenTelemetry rename and under its Datadog name store to the same
-       * Entry instead of two independent ones -- see KnownTagCodec#canonicalTagName. This is the
-       * single choke point for entry construction (every newXxxEntry factory funnels here), so it
-       * covers every write path without duplicating the lookup per factory.
-       *
-       * This does pay a KnownTagCodec.keyOf/nameOf lookup on the app thread for every tag of every
-       * span, which tagId() below was deliberately written to avoid -- accepted as an interim cost:
-       * setTag already does not inline well, and the lookup is a cheap static perfect-hash probe.
+       * Canonicalize known names at the single Entry construction point, so Datadog and
+       * OpenTelemetry spellings use the same TagMap key. This adds a StringIndex lookup to every
+       * new entry, including on the application thread.
        */
       super(KnownTagCodec.canonicalTagName(tag));
       this.lazyTagHash = 0; // lazily computed
@@ -403,13 +393,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     @Override
     public long tagId() {
       /*
-       * Deliberately NOT memoized in a field, unlike hash(). The constructor above already pays a
-       * keyOf lookup on the app thread to canonicalize the tag name, but re-deriving the id here
-       * from that already-canonical name is still cheaper than widening every Entry to cache it:
-       * TagMap$Entry is the tracer's largest allocation source, and a long field costs 8 bytes on
-       * all of them (there are only 3 bytes of padding to absorb it) plus a putfield per
-       * construction, for a value only serialization -- on the background thread, once per entry --
-       * ever reads.
+       * Resolve on demand. Only OTLP serialization currently needs the ID, so caching it here
+       * would add a field to every Entry to save a lookup on exported tags.
        */
       return KnownTagCodec.keyOf(this.tag);
     }

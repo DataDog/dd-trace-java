@@ -16,11 +16,8 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * Parity test for the keyOf substrate: the generated {@link KnownTags} registry + the {@link
- * KnownTagCodec.Resolver} it registers. Verifies name &harr; id resolution and the serial/level
- * partitioning of an id. {@code keyOf} is many&rarr;one (a Datadog or an OpenTelemetry name both
- * land on the one id) and the per-namespace accessors take it back out. A tag id is identity only,
- * so nothing here depends on how a tag is stored -- or on how it is set.
+ * Checks the generated registry's name resolution and tag ID encoding. Datadog and OpenTelemetry
+ * names resolve to the same ID, while output names remain namespace-specific.
  */
 class KnownTagsTest {
 
