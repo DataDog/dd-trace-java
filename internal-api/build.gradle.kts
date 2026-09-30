@@ -270,15 +270,23 @@ extra["excludedClassesBranchCoverage"] = listOf(
 extra["excludedClassesInstructionCoverage"] = listOf("datadog.trace.util.stacktrace.StackWalkerFactory")
 
 // Tag registry: generated KnownTags is committed under src/generated (audited via git); the srcDir
-// puts it on the main compile path and `verifyKnownTags` (wired into `check`) fails CI if it drifts
-// from tag-conventions.yaml. Generation is run on demand (`./gradlew :internal-api:generateKnownTags`),
-// not on every build, so the committed source stays the source of truth for the compiler.
+// puts it on the main compile path and `verifyKnownTags` (run before `compileJava` and by `check`)
+// fails the build if it drifts from tag-conventions.yaml. Generation is run on demand
+// (`./gradlew :internal-api:generateKnownTags`), so the committed source stays the source of truth.
 tagRegistry {
   domainYaml.set(rootProject.layout.projectDirectory.file("tag-conventions.yaml"))
   destinationDirectory.set(layout.projectDirectory.dir("src/generated"))
 }
 
 sourceSets["main"].java.srcDir("src/generated/java")
+
+spotless {
+  java {
+    // Restates the shared excludes (targetExclude replaces rather than appends) plus the committed
+    // generated tag registry, which verifyKnownTags checks instead of the formatter.
+    targetExclude("src/test/resources/**", "src/generated/**", layout.buildDirectory)
+  }
+}
 
 dependencies {
   // references TraceScope and Continuation from public api
