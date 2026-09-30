@@ -42,7 +42,10 @@ public final class TraceProxyExecutionListener implements ProxyExecutionListener
       // Route through DBQueryInfo/SQLNormalizer (same as JDBC/Vert.x) instead of using the raw
       // query string as the resource name — this strips literals/numbers for grouping and avoids
       // leaking parameter values into the resource name.
-      DBQueryInfo queryInfo = DBQueryInfo.ofStatement(queryString);
+
+      // R2DBC commonly re-executes bind-parameterized SQL templates; use the bounded
+      // prepared-statement cache to avoid normalizing the same query text per execution.
+      DBQueryInfo queryInfo = DBQueryInfo.ofPreparedStatement(queryString);
       span.setResourceName(queryInfo.getSql());
     }
 
