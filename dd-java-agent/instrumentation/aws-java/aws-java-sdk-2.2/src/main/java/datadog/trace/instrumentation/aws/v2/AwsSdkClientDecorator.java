@@ -350,11 +350,11 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   }
 
   static String credentialsAccountId(final AwsCredentials credentials) {
-    MethodHandle getter = ACCOUNT_ID_GETTERS.get(credentials.getClass());
-    if (getter == NO_ACCOUNT_ID_GETTER) {
-      return null;
-    }
     try {
+      MethodHandle getter = ACCOUNT_ID_GETTERS.get(credentials.getClass());
+      if (getter == NO_ACCOUNT_ID_GETTER) {
+        return null;
+      }
       Object value = getter.invoke(credentials);
       if (value instanceof Optional) {
         Object account = ((Optional<?>) value).orElse(null);
@@ -362,8 +362,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
           return (String) account;
         }
       }
+    } catch (VirtualMachineError | ThreadDeath fatal) {
+      throw fatal;
     } catch (Throwable ignored) {
-      // treat as absent
+      // Lookup or provider failures, including LinkageError, mean the account is unavailable.
     }
     return null;
   }

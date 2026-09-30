@@ -2,6 +2,8 @@ package datadog.trace.instrumentation.aws.v2;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import java.util.Optional;
@@ -42,6 +44,54 @@ public class AwsSdkClientDecoratorCredentialsTest extends AbstractInstrumentatio
     assertNull(AwsSdkClientDecorator.credentialsAccountId(new FailingCredentials()));
   }
 
+  @Test
+  void doesNotSwallowFatalErrors() {
+    OutOfMemoryError error =
+        assertThrows(
+            OutOfMemoryError.class,
+            () -> AwsSdkClientDecorator.credentialsAccountId(new ExhaustedCredentials()));
+    assertSame(ExhaustedCredentials.ERROR, error);
+  }
+
+  @Test
+  void doesNotSwallowThreadDeath() {
+    ThreadDeath error = new ThreadDeath();
+    assertSame(
+        error,
+        assertThrows(
+            ThreadDeath.class,
+            () -> AwsSdkClientDecorator.credentialsAccountId(new ErrorCredentials(error))));
+  }
+
+  @Test
+  void treatsLinkageErrorsAsAbsent() {
+    assertNull(
+        AwsSdkClientDecorator.credentialsAccountId(
+            new ErrorCredentials(new NoClassDefFoundError("missing provider dependency"))));
+  }
+
+  public static final class ErrorCredentials implements AwsCredentials {
+    private final Error error;
+
+    ErrorCredentials(Error error) {
+      this.error = error;
+    }
+
+    public Optional<String> accountId() {
+      throw error;
+    }
+
+    @Override
+    public String accessKeyId() {
+      return "key";
+    }
+
+    @Override
+    public String secretAccessKey() {
+      return "secret";
+    }
+  }
+
   public static final class AccountCredentials implements AwsCredentials {
     private final String account;
 
@@ -67,6 +117,24 @@ public class AwsSdkClientDecoratorCredentialsTest extends AbstractInstrumentatio
   public static final class FailingCredentials implements AwsCredentials {
     public Optional<String> accountId() {
       throw new IllegalStateException("provider could not resolve the account");
+    }
+
+    @Override
+    public String accessKeyId() {
+      return "key";
+    }
+
+    @Override
+    public String secretAccessKey() {
+      return "secret";
+    }
+  }
+
+  public static final class ExhaustedCredentials implements AwsCredentials {
+    static final OutOfMemoryError ERROR = new OutOfMemoryError("simulated");
+
+    public Optional<String> accountId() {
+      throw ERROR;
     }
 
     @Override
