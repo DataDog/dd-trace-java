@@ -122,8 +122,7 @@ public final class KnownTags {
 
   public static final String HTTP_QUERY_STRING_NAME = "http.query.string";
   public static final long HTTP_QUERY_STRING_ID = 0x001C000000000000L;
-  public static final String HTTP_QUERY_STRING_OTEL_NAME = "url.query";
-  // makeTagId(serial=28) -> url.query  <recommended>
+  // makeTagId(serial=28)  <recommended>
 
   public static final String HTTP_RESEND_COUNT_NAME = "http.resend_count";
   public static final long HTTP_RESEND_COUNT_ID = 0x001D000000000000L;
@@ -334,7 +333,6 @@ public final class KnownTags {
     "server.address",
     "service.name",
     "url.full",
-    "url.query",
     "user_agent.original",
   };
   private static final long[] KEYOF_VALUES = {
@@ -397,7 +395,6 @@ public final class KnownTags {
     HTTP_HOSTNAME_ID,
     SERVICE_ID,
     HTTP_URL_ID,
-    HTTP_QUERY_STRING_ID,
     HTTP_USERAGENT_ID,
   };
   private static final int[] KEYOF_HASHES;
@@ -546,8 +543,6 @@ public final class KnownTags {
               return HTTP_HOSTNAME_OTEL_NAME;
             case HTTP_METHOD_SERIAL_NUM:
               return HTTP_METHOD_OTEL_NAME;
-            case HTTP_QUERY_STRING_SERIAL_NUM:
-              return HTTP_QUERY_STRING_OTEL_NAME;
             case HTTP_STATUS_CODE_SERIAL_NUM:
               return HTTP_STATUS_CODE_OTEL_NAME;
             case HTTP_URL_SERIAL_NUM:

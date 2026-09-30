@@ -87,7 +87,7 @@ span_types:
       - { dd-name: http.route,        type: string, required: conditional }  # passes through: dd-name already is the OTel name
       - { dd-name: http.hostname,     type: string, required: required,    otel-name: server.address }
       - { dd-name: http.useragent,    type: string, required: recommended, otel-name: user_agent.original }
-      - { dd-name: http.query.string, type: string, required: recommended, otel-name: url.query }
+      - { dd-name: http.query.string, type: string, required: recommended }  # not a rename: url.query is also carried inside url.full, while http.url excludes the query (QueryObfuscator re-appends it)
       - { dd-name: servlet.path,      type: string, required: optional }
       - { dd-name: servlet.context,   type: string, required: optional }
 
