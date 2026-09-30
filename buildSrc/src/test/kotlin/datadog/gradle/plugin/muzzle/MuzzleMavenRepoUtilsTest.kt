@@ -1,6 +1,8 @@
 package datadog.gradle.plugin.muzzle
 
 import datadog.gradle.plugin.MavenRepoFixture
+import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.eclipse.aether.RepositorySystem
 import org.eclipse.aether.RepositorySystemSession
 import org.eclipse.aether.artifact.DefaultArtifact
@@ -9,7 +11,6 @@ import org.eclipse.aether.resolution.VersionRangeRequest
 import org.eclipse.aether.resolution.VersionRangeResolutionException
 import org.eclipse.aether.resolution.VersionRangeResult
 import org.eclipse.aether.util.version.GenericVersionScheme
-import org.gradle.api.GradleException
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable
@@ -20,8 +21,6 @@ import org.junit.jupiter.params.provider.CsvSource
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicInteger
-import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatThrownBy
 
 private const val MAVEN_CENTRAL_URL = "https://repo1.maven.org/maven2/"
 
@@ -287,11 +286,12 @@ class MuzzleMavenRepoUtilsTest {
   @ParameterizedTest(name = "[{index}] highest({0}, {1}) == {2}")
   @CsvSource(
     value =
-      [
-        "1.0.0, 2.0.0, 2.0.0",
-        "2.0.0, 1.0.0, 2.0.0",
-        "3.5.1, 3.5.1, 3.5.1", // equal — either is acceptable
-      ])
+    [
+      "1.0.0, 2.0.0, 2.0.0",
+      "2.0.0, 1.0.0, 2.0.0",
+      "3.5.1, 3.5.1, 3.5.1", // equal — either is acceptable
+    ]
+  )
   fun `highest returns the greater version`(a: String, b: String, expected: String) {
     val result = MuzzleMavenRepoUtils.highest(version(a), version(b))
     assertThat(result).isEqualTo(version(expected))
@@ -300,18 +300,19 @@ class MuzzleMavenRepoUtilsTest {
   @ParameterizedTest(name = "[{index}] lowest({0}, {1}) == {2}")
   @CsvSource(
     value =
-      [
-        "1.0.0, 2.0.0, 1.0.0",
-        "2.0.0, 1.0.0, 1.0.0",
-        "3.5.1, 3.5.1, 3.5.1", // equal — either is acceptable
-      ])
+    [
+      "1.0.0, 2.0.0, 1.0.0",
+      "2.0.0, 1.0.0, 1.0.0",
+      "3.5.1, 3.5.1, 3.5.1", // equal — either is acceptable
+    ]
+  )
   fun `lowest returns the lesser version`(a: String, b: String, expected: String) {
     val result = MuzzleMavenRepoUtils.lowest(version(a), version(b))
     assertThat(result).isEqualTo(version(expected))
   }
 
   @Test
-  fun `muzzleDirectiveToArtifacts throws GradleException when all versions are filtered out`() {
+  fun `muzzleDirectiveToArtifacts returns an empty selection when all versions are filtered out`() {
     val directive =
       MuzzleDirective().apply {
         group = "com.example"
@@ -321,9 +322,7 @@ class MuzzleMavenRepoUtilsTest {
     // All versions are pre-release; none survive filterAndLimitVersions
     val rangeResult = createVersionRangeResult("1.0.0-SNAPSHOT", "2.0.0-RC1")
 
-    assertThatThrownBy {
-      MuzzleMavenRepoUtils.muzzleDirectiveToArtifacts(directive, rangeResult)
-    }.isInstanceOf(GradleException::class.java)
+    assertThat(MuzzleMavenRepoUtils.muzzleDirectiveToArtifacts(directive, rangeResult)).isEmpty()
   }
 
   @Test
@@ -393,21 +392,19 @@ class MuzzleMavenRepoUtilsTest {
     failuresBeforeSuccess: Int,
     result: VersionRangeResult,
     attempts: AtomicInteger
-  ): RepositorySystem =
-    object : RepositorySystem by system {
-      override fun resolveVersionRange(
-        session: RepositorySystemSession,
-        request: VersionRangeRequest
-      ): VersionRangeResult {
-        val attempt = attempts.incrementAndGet()
-        if (attempt <= failuresBeforeSuccess) {
-          throw VersionRangeResolutionException(
-            VersionRangeResult(request),
-            "transient version range failure $attempt"
-          )
-        }
-        return result
+  ): RepositorySystem = object : RepositorySystem by system {
+    override fun resolveVersionRange(
+      session: RepositorySystemSession,
+      request: VersionRangeRequest
+    ): VersionRangeResult {
+      val attempt = attempts.incrementAndGet()
+      if (attempt <= failuresBeforeSuccess) {
+        throw VersionRangeResolutionException(
+          VersionRangeResult(request),
+          "transient version range failure $attempt"
+        )
       }
+      return result
     }
-
+  }
 }

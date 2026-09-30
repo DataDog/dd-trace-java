@@ -113,6 +113,31 @@ To run muzzle on your instrumentation, run:
 ./gradlew :dd-java-agent:instrumentation:rediscala-1.8:muzzle
 ```
 
+Muzzle defers library versions whose POM `Last-Modified` timestamp is less than 48 hours old.
+The cooldown applies locally and in CI to pass, fail, and inverse checks, before version sampling.
+Muzzle checks major/minor version boundaries and searches inward when a boundary is too new,
+instead of checking timestamps for every intervening patch release. With `runMuzzle -Pslot=x/y`,
+only modules in the selected CI slot are planned; explicitly requested module checks still run.
+Versions with missing or unverifiable timestamps remain eligible with a warning. If a declared library
+directive has no eligible versions, the build fails; an empty inverse selection adds no checks.
+
+Set `-PmuzzleMinDependencyAgeHours=<hours>` to change the cooldown, or
+`MIN_DEPENDENCY_AGE_HOURS` when the Gradle property is unset. Values must be non-negative integers;
+the default is 48. To investigate a fresh release, use:
+
+```shell
+./gradlew :dd-java-agent:instrumentation:rediscala-1.8:muzzle -PmuzzleMinDependencyAgeHours=0
+```
+
+Zero bypasses timestamp lookups. Each build uses one cutoff and shares timestamp lookups across
+modules. Muzzle disables configuration caching so versions are reconsidered on subsequent builds.
+If the configured HTTP(S) Central proxy and any extra repositories cannot provide a usable timestamp,
+Muzzle falls back to a timestamp-only HEAD request to Maven Central. Version discovery and dependency
+downloads keep using their configured repositories; local and custom repositories do not trigger this
+fallback. If no source can verify age, Muzzle warns and checks the dependency anyway.
+Repository proxies should preserve upstream `Last-Modified` timestamps. The cooldown does not apply
+to extra or transitive dependencies, core-JDK checks, or supported-version report generation.
+
 > [!WARNING]
 > Muzzle does _not_ run tests.
 > It checks that the types and methods used by the instrumentation are present in particular versions of libraries.

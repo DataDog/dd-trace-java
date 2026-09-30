@@ -3,6 +3,7 @@ package datadog.gradle.plugin
 import java.io.File
 import java.nio.file.Path
 import java.security.MessageDigest
+import java.time.Instant
 import java.util.jar.JarOutputStream
 
 /**
@@ -30,12 +31,14 @@ class MavenRepoFixture(projectDir: File) {
    * @param group Maven group ID
    * @param module Maven artifact ID
    * @param versions List of versions to publish (will be merged with existing versions)
+   * @param publishedAt Publication time for the POMs; defaults to established releases
    * @param jarContentBuilder Optional lambda to add entries to the JAR
    */
   fun publishVersions(
     group: String,
     module: String,
     versions: List<String>,
+    publishedAt: Instant = Instant.parse("2000-01-01T00:00:00Z"),
     jarContentBuilder: ((JarOutputStream) -> Unit)? = null
   ) {
     require(versions.isNotEmpty()) { "versions must not be empty" }
@@ -45,6 +48,7 @@ class MavenRepoFixture(projectDir: File) {
     // Create all version artifacts
     versions.forEach { version ->
       createMavenVersion(moduleDir, group, module, version, jarContentBuilder)
+      check(File(moduleDir, "$version/$module-$version.pom").setLastModified(publishedAt.toEpochMilli()))
     }
 
     // Read existing versions from metadata and merge with new versions

@@ -5,6 +5,7 @@ import org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
+import java.time.Instant
 import kotlin.io.path.readText
 
 class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
@@ -567,6 +568,7 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
       </project>
       """.trimIndent()
     )
+    check(pomFile.setLastModified(Instant.parse("2000-01-01T00:00:00Z").toEpochMilli()))
 
     writeProject(
       """

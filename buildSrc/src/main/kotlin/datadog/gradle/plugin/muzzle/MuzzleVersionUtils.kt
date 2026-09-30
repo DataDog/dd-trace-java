@@ -14,15 +14,17 @@ internal object MuzzleVersionUtils {
    * @param result The resolved version range result.
    * @param skipVersions Set of versions to skip.
    * @param includeSnapshots Whether to include snapshot versions.
+   * @param isEligible Publication-age eligibility checked before sampling.
    * @return A limited set of filtered versions for testing.
    */
   fun filterAndLimitVersions(
     result: VersionRangeResult,
     skipVersions: Set<String>,
-    includeSnapshots: Boolean
+    includeSnapshots: Boolean,
+    isEligible: (Version) -> Boolean = { true }
   ): Set<Version> {
     val filtered = filterVersion(result.versions.toSet(), skipVersions, includeSnapshots)
-    return limitLargeRanges(result, filtered, skipVersions)
+    return limitLargeRanges(filtered, isEligible)
   }
 
   /**
@@ -39,28 +41,31 @@ internal object MuzzleVersionUtils {
     includeSnapshots: Boolean
   ): Set<Version> {
     return list.filter { version ->
+      if (skipVersions.contains(version.toString())) return@filter false
       val v = version.toString().lowercase(Locale.ROOT)
       if (includeSnapshots) {
         !skipVersions.contains(v)
       } else {
-        !(v.endsWith("-snapshot") ||
-          v.contains("rc") ||
-          v.contains(".cr") ||
-          v.contains("alpha") ||
-          v.contains("beta") ||
-          v.contains("-b") ||
-          v.contains(".m") ||
-          v.contains("-m") ||
-          v.contains("-dev") ||
-          v.contains("-ea") ||
-          v.contains("-atlassian-") ||
-          v.contains("public_draft") ||
-          v.contains("-cr") ||
-          v.contains("-preview") ||
-          v.contains("redhat") || // redhat releases often cause ArtifactNotFoundException
-          skipVersions.contains(v) ||
-          END_NMN_PATTERN.matches(v) ||
-          GIT_SHA_PATTERN.matches(v))
+        !(
+          v.endsWith("-snapshot") ||
+            v.contains("rc") ||
+            v.contains(".cr") ||
+            v.contains("alpha") ||
+            v.contains("beta") ||
+            v.contains("-b") ||
+            v.contains(".m") ||
+            v.contains("-m") ||
+            v.contains("-dev") ||
+            v.contains("-ea") ||
+            v.contains("-atlassian-") ||
+            v.contains("public_draft") ||
+            v.contains("-cr") ||
+            v.contains("-preview") ||
+            v.contains("redhat") || // redhat releases often cause ArtifactNotFoundException
+            skipVersions.contains(v) ||
+            END_NMN_PATTERN.matches(v) ||
+            GIT_SHA_PATTERN.matches(v)
+          )
       }
     }.toSet()
   }
@@ -73,27 +78,22 @@ internal object MuzzleVersionUtils {
   /**
    * Select a random set of versions to test, limiting the range for efficiency.
    *
-   * @param result The resolved version range result.
    * @param versions The set of versions to consider.
-   * @param skipVersions Set of versions to skip.
    * @return A limited set of versions for testing.
    */
   private fun limitLargeRanges(
-    result: VersionRangeResult,
     versions: Set<Version>,
-    skipVersions: Set<String>
+    isEligible: (Version) -> Boolean
   ): Set<Version> {
-    if (versions.size <= 1) return versions
     val beforeSize = versions.size
-    val filteredVersions = versions.toMutableList().apply {
-      removeAll { skipVersions.contains(it.toString()) }
-    }
-    val versionSet = VersionSet(filteredVersions)
+    val versionSet = VersionSet(versions, isEligible)
+    val lowestVersion = versionSet.lowestEligibleVersion ?: return emptySet()
+    val highestVersion = versionSet.highestEligibleVersion
     val shuffled = versionSet.lowAndHighForMajorMinor.shuffled().toMutableList()
     var afterSize = shuffled.size
     while (RANGE_COUNT_LIMIT <= afterSize) {
       val version = shuffled.removeAt(0)
-      if (version == result.lowestVersion || version == result.highestVersion) {
+      if (version == lowestVersion || version == highestVersion) {
         shuffled.add(version)
       } else {
         afterSize -= 1

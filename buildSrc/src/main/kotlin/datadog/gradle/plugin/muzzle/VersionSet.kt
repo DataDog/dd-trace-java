@@ -1,34 +1,45 @@
 package datadog.gradle.plugin.muzzle
 
 import org.eclipse.aether.version.Version
-import java.util.SortedSet
 
-class VersionSet(versions: Collection<Version>) {
-  private val sortedVersions: SortedSet<ParsedVersion> = sortedSetOf()
+class VersionSet(
+  versions: Collection<Version>,
+  private val isEligible: (Version) -> Boolean = { true }
+) {
+  private val orderedVersions = versions.sorted()
+  private val sortedVersions = versions.map { ParsedVersion(it) }.sorted()
+  private val eligibility = mutableMapOf<Version, Boolean>()
 
-  init {
-      versions.forEach { sortedVersions.add(ParsedVersion(it)) }
-  }
+  val lowestEligibleVersion: Version?
+    get() = orderedVersions.firstOrNull(::eligible)
 
+  val highestEligibleVersion: Version?
+    get() = orderedVersions.asReversed().firstOrNull(::eligible)
+
+  /** Find eligible boundaries without checking the intervening patch releases. */
   val lowAndHighForMajorMinor: List<Version>
     get() {
-      var previous: ParsedVersion? = null
-      var currentMajorMinor = -1
       val resultSet = sortedSetOf<ParsedVersion>()
-      for (parsed in sortedVersions) {
-        val majorMinor = parsed.majorMinor
-        if (majorMinor != currentMajorMinor) {
-          previous?.let { resultSet.add(it) }
-          previous = null
-          resultSet.add(parsed)
-          currentMajorMinor = majorMinor
-        } else {
-          previous = parsed
+      for (group in sortedVersions.groupBy { it.majorMinor }.values) {
+        val lowIndex = group.indexOfFirst { eligible(it.version) }
+        if (lowIndex < 0) continue
+        resultSet.add(group[lowIndex])
+
+        var high: ParsedVersion? = null
+        for (index in group.lastIndex downTo lowIndex + 1) {
+          val candidate = group[index]
+          if (high != null && candidate.compareTo(high) != 0) break
+          if (eligible(candidate.version)) {
+            // Preserve the first eligible spelling of equivalent parsed versions.
+            high = candidate
+          }
         }
+        high?.let { resultSet.add(it) }
       }
-      previous?.let { resultSet.add(it) }
       return resultSet.map { it.version }
     }
+
+  private fun eligible(version: Version): Boolean = eligibility.getOrPut(version) { isEligible(version) }
 
   internal class ParsedVersion(val version: Version) : Comparable<ParsedVersion> {
     companion object {

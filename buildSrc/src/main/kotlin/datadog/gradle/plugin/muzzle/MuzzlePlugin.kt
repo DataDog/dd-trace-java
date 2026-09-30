@@ -1,11 +1,12 @@
 package datadog.gradle.plugin.muzzle
 
+import datadog.gradle.plugin.ci.isInSelectedSlot
+import datadog.gradle.plugin.muzzle.planner.MuzzleTaskPlanner
 import datadog.gradle.plugin.muzzle.tasks.MuzzleEndTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleGenerateReportTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleGetReferencesTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleMergeReportsTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleTask
-import datadog.gradle.plugin.muzzle.planner.MuzzleTaskPlanner
 import org.eclipse.aether.artifact.Artifact
 import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.Plugin
@@ -69,6 +70,7 @@ class MuzzlePlugin : Plugin<Project> {
     // compileMuzzle compiles all projects required to run muzzle validation.
     // Not adding group and description to keep this task from showing in `gradle tasks`.
     val compileMuzzle = project.tasks.register("compileMuzzle") {
+      notCompatibleWithConfigurationCache("Muzzle version selection must be refreshed each build")
       inputs.files(project.providers.provider { project.allMainSourceSet })
       dependsOn(bootstrapProject.tasks.named("compileJava"))
       dependsOn(bootstrapProject.tasks.named("compileMain_java11Java"))
@@ -103,7 +105,8 @@ class MuzzlePlugin : Plugin<Project> {
       val taskNameOnly = taskName.substringAfterLast(":")
       val isRelevantForProject = taskProjectPath.isEmpty() || taskProjectPath == project.path
 
-      isRelevantForProject && taskNameOnly.endsWith("muzzle", ignoreCase = true)
+      isRelevantForProject && taskNameOnly.endsWith("muzzle", ignoreCase = true) &&
+        (!taskNameOnly.equals("runMuzzle", ignoreCase = true) || project.isInSelectedSlot.get())
     }
     if (!hasRelevantTask) {
       // Adding muzzle dependencies has a large config overhead. Stop unless muzzle is explicitly run.
@@ -116,7 +119,18 @@ class MuzzlePlugin : Plugin<Project> {
 
     val system = MuzzleMavenRepoUtils.newRepositorySystem()
     val session = MuzzleMavenRepoUtils.newRepositorySystemSession(system)
-    val taskPlanner = MuzzleTaskPlanner.from(system, session)
+    val dependencyAgeService = project.gradle.sharedServices.registerIfAbsent(
+      "muzzleDependencyAge",
+      MuzzleDependencyAgeService::class.java
+    ) {
+      parameters.minimumAgeHours.set(
+        MuzzleDependencyAge.minimumAgeHours(
+          project.rootProject.providers.gradleProperty("muzzleMinDependencyAgeHours").orNull,
+          project.providers.environmentVariable("MIN_DEPENDENCY_AGE_HOURS").orNull
+        )
+      )
+    }
+    val taskPlanner = MuzzleTaskPlanner.from(system, session, dependencyAgeService.get().age)
     project.afterEvaluate {
       // use runAfter to set up task finalizers in version order
       var runAfter: TaskProvider<MuzzleTask> = muzzleTask
@@ -174,19 +188,20 @@ class MuzzlePlugin : Plugin<Project> {
       val muzzleTaskName = buildString {
         append("muzzle-Assert")
         when {
-            muzzleDirective.isCoreJdk -> {
-              append(muzzleDirective)
-            }
-            else -> {
-              append(if (muzzleDirective.assertPass) "Pass" else "Fail")
-              append("-")
-              append(versionArtifact?.groupId)
-              append("-")
-              append(versionArtifact?.artifactId)
-              append("-")
-              append(versionArtifact?.version)
-              append(if (muzzleDirective.name != null) "-${muzzleDirective.nameSlug}" else "")
-            }
+          muzzleDirective.isCoreJdk -> {
+            append(muzzleDirective)
+          }
+
+          else -> {
+            append(if (muzzleDirective.assertPass) "Pass" else "Fail")
+            append("-")
+            append(versionArtifact?.groupId)
+            append("-")
+            append(versionArtifact?.artifactId)
+            append("-")
+            append(versionArtifact?.version)
+            append(if (muzzleDirective.name != null) "-${muzzleDirective.nameSlug}" else "")
+          }
         }
       }
       instrumentationProject.configurations.register(muzzleTaskName) {
