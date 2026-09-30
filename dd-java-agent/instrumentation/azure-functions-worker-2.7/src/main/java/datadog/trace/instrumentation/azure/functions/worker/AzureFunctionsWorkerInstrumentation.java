@@ -96,23 +96,25 @@ public final class AzureFunctionsWorkerInstrumentation extends InstrumenterModul
         return;
       }
 
-      ContextScope activeScope = scope;
-      if (activeScope == null
-          && throwable != null
-          && !DurableFunctionsUtils.isReplayControlFlow(throwable)) {
-        if ("DurableOrchestration".equals(trigger)) {
-          activeScope = DurableFunctionsUtils.startSpanScope(context, trigger, startTimeMicros);
-        }
-      }
-      if (activeScope != null) {
-        final AgentSpan span = spanFromScope(activeScope);
-        if (!DurableFunctionsUtils.isReplayControlFlow(throwable)) {
+      if (scope == null) {
+        if (throwable != null
+            && "DurableOrchestration".equals(trigger)
+            && !DurableFunctionsUtils.isReplayControlFlow(throwable)) {
+          final AgentSpan span =
+              DurableFunctionsUtils.startInvocationSpan(context, trigger, startTimeMicros);
           DECORATE.onError(span, throwable);
+          DECORATE.beforeFinish(span);
+          span.finish();
         }
-        DECORATE.beforeFinish(span);
-        activeScope.close();
-        span.finish();
+        return;
       }
+      final AgentSpan span = spanFromScope(scope);
+      if (!DurableFunctionsUtils.isReplayControlFlow(throwable)) {
+        DECORATE.onError(span, throwable);
+      }
+      DECORATE.beforeFinish(span);
+      scope.close();
+      span.finish();
     }
   }
 }

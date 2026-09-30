@@ -34,10 +34,10 @@ public final class DurableFunctionsUtils {
   }
 
   public static ContextScope startSpanScope(MiddlewareContext context, String trigger) {
-    return startSpanScope(context, trigger, 0);
+    return activateSpan(startInvocationSpan(context, trigger, 0));
   }
 
-  public static ContextScope startSpanScope(
+  public static AgentSpan startInvocationSpan(
       MiddlewareContext context, String trigger, long startTimeMicros) {
     final TraceContext traceContext = context.getTraceContext();
     final AgentSpanContext.Extracted parent =
@@ -51,7 +51,7 @@ public final class DurableFunctionsUtils {
             : startSpan("azure-functions", AZURE_FUNCTIONS_REQUEST, parent);
     DECORATE.afterStart(span);
     DECORATE.onInvoke(span, context.getFunctionName(), trigger);
-    return activateSpan(span);
+    return span;
   }
 
   public static ContextScope activateTraceContext(MiddlewareContext context) {
