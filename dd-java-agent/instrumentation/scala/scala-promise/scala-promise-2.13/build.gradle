@@ -43,6 +43,8 @@ tasks.named("latestDepTest", Test) {
 }
 
 sourceSets {
+  latestDepTest.java.srcDir 'src/scala21317Test/java'
+
   test.groovy.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.groovy
   test.groovy.srcDir sourceSets.latestDepForkedTest.groovy
   latestDepTest.groovy.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.groovy

@@ -20,6 +20,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.jar.asm.ClassVisitor;
 import net.bytebuddy.jar.asm.ClassWriter;
+import net.bytebuddy.jar.asm.Handle;
+import net.bytebuddy.jar.asm.Label;
 import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.Type;
@@ -103,6 +105,7 @@ public final class DefaultPromiseCallbackInstrumentation extends InstrumenterMod
         "(Lscala/concurrent/impl/Promise$Transformation;)V";
 
     private final int contextStoreId;
+    private boolean foundUnregisterCallback;
 
     UnregisterCallbackClassVisitor(ClassVisitor classVisitor, int contextStoreId) {
       super(Opcodes.ASM9, classVisitor);
@@ -115,9 +118,21 @@ public final class DefaultPromiseCallbackInstrumentation extends InstrumenterMod
       MethodVisitor methodVisitor =
           super.visitMethod(access, name, descriptor, signature, exceptions);
       if ("unregisterCallback".equals(name) && UNREGISTER_DESCRIPTOR.equals(descriptor)) {
+        if ((access & Opcodes.ACC_STATIC) != 0) {
+          throw new IllegalStateException("Expected an instance unregisterCallback method");
+        }
+        foundUnregisterCallback = true;
         return new UnregisterCallbackMethodVisitor(methodVisitor, contextStoreId);
       }
       return methodVisitor;
+    }
+
+    @Override
+    public void visitEnd() {
+      if (!foundUnregisterCallback) {
+        throw new IllegalStateException("Missing expected unregisterCallback method");
+      }
+      super.visitEnd();
     }
   }
 
@@ -138,6 +153,7 @@ public final class DefaultPromiseCallbackInstrumentation extends InstrumenterMod
 
     private final int contextStoreId;
     private int rewrittenCallSites;
+    private boolean loadedCallback;
 
     UnregisterCallbackMethodVisitor(MethodVisitor methodVisitor, int contextStoreId) {
       super(Opcodes.ASM9, methodVisitor);
@@ -147,8 +163,8 @@ public final class DefaultPromiseCallbackInstrumentation extends InstrumenterMod
     @Override
     public void visitMethodInsn(
         int opcode, String owner, String name, String descriptor, boolean isInterface) {
-      if (rewrittenCallSites < 2
-          && opcode == Opcodes.INVOKEVIRTUAL
+      loadedCallback = false;
+      if (opcode == Opcodes.INVOKEVIRTUAL
           && DEFAULT_PROMISE.equals(owner)
           && "compareAndSet".equals(name)
           && COMPARE_AND_SET_DESCRIPTOR.equals(descriptor)) {
@@ -157,6 +173,105 @@ public final class DefaultPromiseCallbackInstrumentation extends InstrumenterMod
       } else {
         super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
       }
+    }
+
+    @Override
+    public void visitVarInsn(int opcode, int var) {
+      boolean writesCallback =
+          (var == 1 && opcode >= Opcodes.ISTORE && opcode <= Opcodes.ASTORE)
+              || (var == 0 && (opcode == Opcodes.LSTORE || opcode == Opcodes.DSTORE));
+      if (writesCallback && !(opcode == Opcodes.ASTORE && var == 1 && loadedCallback)) {
+        throw new IllegalStateException("unregisterCallback overwrites its callback argument");
+      }
+      loadedCallback = opcode == Opcodes.ALOAD && var == 1;
+      super.visitVarInsn(opcode, var);
+    }
+
+    @Override
+    public void visitLabel(Label label) {
+      // Only allow adjacent ALOAD 1 / ASTORE 1, with no entry point into the store.
+      loadedCallback = false;
+      super.visitLabel(label);
+    }
+
+    @Override
+    public void visitInsn(int opcode) {
+      loadedCallback = false;
+      super.visitInsn(opcode);
+    }
+
+    @Override
+    public void visitIntInsn(int opcode, int operand) {
+      loadedCallback = false;
+      super.visitIntInsn(opcode, operand);
+    }
+
+    @Override
+    public void visitTypeInsn(int opcode, String type) {
+      loadedCallback = false;
+      super.visitTypeInsn(opcode, type);
+    }
+
+    @Override
+    public void visitFieldInsn(int opcode, String owner, String name, String descriptor) {
+      loadedCallback = false;
+      super.visitFieldInsn(opcode, owner, name, descriptor);
+    }
+
+    @Override
+    public void visitInvokeDynamicInsn(
+        String name, String descriptor, Handle bootstrapMethod, Object... bootstrapArguments) {
+      loadedCallback = false;
+      super.visitInvokeDynamicInsn(name, descriptor, bootstrapMethod, bootstrapArguments);
+    }
+
+    @Override
+    public void visitJumpInsn(int opcode, Label label) {
+      loadedCallback = false;
+      super.visitJumpInsn(opcode, label);
+    }
+
+    @Override
+    public void visitLdcInsn(Object value) {
+      loadedCallback = false;
+      super.visitLdcInsn(value);
+    }
+
+    @Override
+    public void visitIincInsn(int var, int increment) {
+      if (var == 1) {
+        throw new IllegalStateException("unregisterCallback overwrites its callback argument");
+      }
+      loadedCallback = false;
+      super.visitIincInsn(var, increment);
+    }
+
+    @Override
+    public void visitTableSwitchInsn(int min, int max, Label defaultLabel, Label... labels) {
+      loadedCallback = false;
+      super.visitTableSwitchInsn(min, max, defaultLabel, labels);
+    }
+
+    @Override
+    public void visitLookupSwitchInsn(Label defaultLabel, int[] keys, Label[] labels) {
+      loadedCallback = false;
+      super.visitLookupSwitchInsn(defaultLabel, keys, labels);
+    }
+
+    @Override
+    public void visitMultiANewArrayInsn(String descriptor, int dimensions) {
+      loadedCallback = false;
+      super.visitMultiANewArrayInsn(descriptor, dimensions);
+    }
+
+    @Override
+    public void visitEnd() {
+      if (rewrittenCallSites != 2) {
+        // Reject the combined class transformation instead of installing a partial rewrite.
+        throw new IllegalStateException(
+            "Expected 2 unregisterCallback compareAndSet sites, found " + rewrittenCallSites);
+      }
+      super.visitEnd();
     }
 
     private void replaceCompareAndSet() {

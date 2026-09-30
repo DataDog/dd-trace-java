@@ -29,4 +29,7 @@ final class FirstCompletedOfUtils(executionContext: ExecutionContext) {
 
   def firstCompleted[T](first: Promise[T], second: Promise[T]): Future[T] =
     Future.firstCompletedOf(List(first.future, second.future))
+
+  def onComplete[T](promise: Promise[T], callback: Runnable): Unit =
+    promise.future.onComplete(_ => callback.run())
 }
