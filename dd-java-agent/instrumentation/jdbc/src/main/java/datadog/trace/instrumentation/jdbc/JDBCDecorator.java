@@ -29,7 +29,7 @@ import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionContext;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser;
-import datadog.trace.util.AbstractMethodGuard;
+import datadog.trace.util.ClassLatch;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.sql.ClientInfoStatus;
@@ -48,7 +48,15 @@ import org.slf4j.LoggerFactory;
 public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
   private static final Logger log = LoggerFactory.getLogger(JDBCDecorator.class);
-  private static final AbstractMethodGuard CLIENT_INFO_GUARD = new AbstractMethodGuard();
+
+  /** Old drivers and pool proxies may not implement getClientInfo at all. */
+  private static final ClassLatch<Connection, Properties, SQLException> CLIENT_INFO =
+      new ClassLatch<Connection, Properties, SQLException>() {
+        @Override
+        protected Properties get(Connection connection) throws SQLException {
+          return handleAbstractMethod(connection, Connection::getClientInfo);
+        }
+      };
 
   public static final JDBCDecorator DECORATE = new JDBCDecorator();
   public static final CharSequence JAVA_JDBC = UTF8BytesString.create("java-jdbc");
@@ -249,8 +257,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       if (metaData != null && (url = metaData.getURL()) != null) {
         Properties clientInfo = null;
         try {
-          // old drivers and pool proxies may not implement getClientInfo at all
-          clientInfo = CLIENT_INFO_GUARD.invokeOrNull(connection, Connection::getClientInfo);
+          clientInfo = CLIENT_INFO.getOrDefault(connection);
         } catch (final SQLException ex) {
           // getClientInfo is not allowed, we can still extract info from the url alone
           log.debug(LogCollector.EXCLUDE_TELEMETRY, "Could not get client info from DB", ex);
