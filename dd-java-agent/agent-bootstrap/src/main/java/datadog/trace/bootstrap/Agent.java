@@ -1552,9 +1552,11 @@ public class Agent {
         new DeferredProfilingContextIntegration(
             "ddprof",
             () -> {
-              ProfilingContextIntegration integration = newDdprofContextIntegration(classLoader);
+              // Process context registration must not depend on the trace-context integration
+              // below: it already catches its own failures, and must still run (for CWS/eBPF)
+              // even when constructing DatadogProfilingIntegration throws.
               registerProcessContext(classLoader);
-              return integration;
+              return newDdprofContextIntegration(classLoader);
             });
     deferred.scheduleInitialization();
     return deferred;
