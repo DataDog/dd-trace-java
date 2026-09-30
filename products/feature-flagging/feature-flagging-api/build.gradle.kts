@@ -3,7 +3,6 @@ import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension
 
 plugins {
   `java-library`
-  idea
   id("dd-trace-java.module.distributable.api")
   id("me.champeau.jmh")
 }
@@ -23,12 +22,6 @@ base {
 publishing {
   publications.withType<MavenPublication>().configureEach {
     artifactId = openFeatureArtifactId
-  }
-}
-
-idea {
-  module {
-    jdkName = "11"
   }
 }
 

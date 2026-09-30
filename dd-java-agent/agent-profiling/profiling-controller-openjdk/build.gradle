@@ -1,6 +1,5 @@
 plugins {
   id 'dd-trace-java.module.internal-library'
-  id 'idea'
 }
 
 tracerJava {
@@ -37,7 +36,6 @@ dependencies {
  Setup here is as following:
  * We compile with Java25 compiler to get JFR definitions.
  * We specify source/target as Java8 to get code that is loadable on Java8 - JFR defs are Java8 compatible.
- * We force IDEA to treat this as Java11 project with 'idea' plugin below.
  */
 [JavaCompile, GroovyCompile].each {
   tasks.withType(it).configureEach {
@@ -47,11 +45,5 @@ dependencies {
     // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
     // Disable '-path' because we do not have some of the paths seem to be missing.
     options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'/*, '-Werror'*/])
-  }
-}
-
-idea {
-  module {
-    jdkName = '11'
   }
 }
