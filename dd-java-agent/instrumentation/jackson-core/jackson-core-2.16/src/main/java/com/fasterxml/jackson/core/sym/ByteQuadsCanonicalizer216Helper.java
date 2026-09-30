@@ -19,7 +19,7 @@ public final class ByteQuadsCanonicalizer216Helper {
   private static final Latch<ByteQuadsCanonicalizer, Boolean, RuntimeException> INTERNER_LATCH =
       new Latch<ByteQuadsCanonicalizer, Boolean, RuntimeException>() {
         @Override
-        protected Boolean get(ByteQuadsCanonicalizer symbols) {
+        protected Boolean handle(ByteQuadsCanonicalizer symbols) {
           return handleNoSuchField(symbols, s -> s._interner != null);
         }
       };

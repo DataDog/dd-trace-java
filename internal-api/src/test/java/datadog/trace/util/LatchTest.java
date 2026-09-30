@@ -20,7 +20,7 @@ class LatchTest {
     boolean fieldPresent;
 
     @Override
-    protected Boolean get(String target) {
+    protected Boolean handle(String target) {
       calls.incrementAndGet();
       try {
         if (!fieldPresent) {
@@ -83,7 +83,7 @@ class LatchTest {
     Latch<String, String, RuntimeException> latch =
         new Latch<String, String, RuntimeException>() {
           @Override
-          protected String get(String target) {
+          protected String handle(String target) {
             latch();
             return null;
           }
@@ -98,7 +98,7 @@ class LatchTest {
     int calls;
 
     @Override
-    protected String get(String target) {
+    protected String handle(String target) {
       calls++;
       latch();
       return "called";
@@ -129,7 +129,7 @@ class LatchTest {
     Latch<String, String, SQLException> latch =
         new Latch<String, String, SQLException>() {
           @Override
-          protected String get(String target) throws SQLException {
+          protected String handle(String target) throws SQLException {
             throw new SQLException("boom");
           }
         };
@@ -138,13 +138,13 @@ class LatchTest {
     assertFalse(latch.isLatched());
   }
 
-  /** What a call site writes: {@code get} delegating to {@code handleNoSuchField}. */
+  /** What a call site writes: {@code handle} delegating to {@code handleNoSuchField}. */
   private static final class Handling extends Latch<String, String, RuntimeException> {
     final AtomicInteger calls = new AtomicInteger();
     Function<String, String> read;
 
     @Override
-    protected String get(String target) {
+    protected String handle(String target) {
       return handleNoSuchField(
           target,
           t -> {
