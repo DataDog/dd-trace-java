@@ -1,9 +1,17 @@
 package datadog.smoketest.appsec
 
+import datadog.environment.JavaVirtualMachine
+import spock.lang.Requires
 import spock.util.concurrent.PollingConditions
 
 /** Verifies OTel thread/process context integration is driven by AppSec activation, independently
  * of profiling ({@code defaultAppSecProperties} always sets {@code -Ddd.profiling.enabled=false}). */
+// AbstractSmokeTest#isDdprofSafe forces -Ddd.profiling.ddprof.enabled=false on J9 (known jmethodID
+// crashes), so the OTel context registration this test asserts on is unreachable by construction
+// on that JVM, not flaky. The J9 case is covered separately by ConfigOtelContextExposureTest.
+@Requires({
+  !JavaVirtualMachine.isJ9()
+})
 class OtelContextExposureSmokeTest extends AbstractAppSecServerSmokeTest {
 
   private static final String PROCESS_CONTEXT_LOG_LINE = 'Registering process context for OTel profiler'
