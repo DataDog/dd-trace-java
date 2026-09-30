@@ -31,15 +31,6 @@ public final class SfnClientInstrumentation extends InstrumenterModule.Tracing
         SfnClientInstrumentation.class.getName() + "$AwsSfnBuilderAdvice");
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".SfnInterceptor",
-      packageName + ".InputAttributeInjector",
-      packageName + ".TextMapInjectAdapter"
-    };
-  }
-
   public static class AwsSfnBuilderAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void addHandler(@Advice.Return final List<ExecutionInterceptor> interceptors) {

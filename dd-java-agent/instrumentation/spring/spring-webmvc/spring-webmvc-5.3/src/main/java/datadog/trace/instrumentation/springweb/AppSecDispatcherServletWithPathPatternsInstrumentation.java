@@ -36,11 +36,6 @@ public class AppSecDispatcherServletWithPathPatternsInstrumentation
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".RequestMappingInfoWithPathPatternsIterator"};
-  }
-
-  @Override
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     return hasClassNamed(
         "org.springframework.web.servlet.mvc.condition.PathPatternsRequestCondition");

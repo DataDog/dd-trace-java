@@ -37,12 +37,6 @@ abstract class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
     }
   }
 
-  @Override
-  boolean useStrictTraceWrites() {
-    // TODO fix this by making sure that spans get closed properly
-    return false
-  }
-
   @Shared
   ConfigurableApplicationContext applicationContext
   @Shared

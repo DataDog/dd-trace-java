@@ -19,11 +19,6 @@ import java.util.concurrent.CompletableFuture
 @Timeout(10)
 class VertxRxCircuitBreakerWebClientForkedTest extends HttpClientTest implements TestingNettyHttpNamingConventions.ClientV0 {
 
-  @Override
-  boolean useStrictTraceWrites() {
-    return false
-  }
-
   @AutoCleanup
   @Shared
   Vertx vertx = Vertx.vertx(new VertxOptions())

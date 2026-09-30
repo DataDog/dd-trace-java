@@ -17,13 +17,10 @@ public final class AwsSdkModule extends InstrumenterModule.Tracing {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator",
-      "datadog.trace.instrumentation.aws.v2.TracingExecutionInterceptor",
-      "datadog.trace.instrumentation.aws.AwsAccountIdentity",
-      "datadog.trace.instrumentation.aws.AwsArn"
-    };
+  public boolean isHelperClass(String className) {
+    // These helpers are compiled in aws-java-common, outside this module's output.
+    return className.equals("datadog.trace.instrumentation.aws.AwsAccountIdentity")
+        || className.equals("datadog.trace.instrumentation.aws.AwsArn");
   }
 
   @Override

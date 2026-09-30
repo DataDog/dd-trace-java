@@ -3,7 +3,7 @@
 
 # Build
 develocity = "4.6.0"
-forbiddenapis = "3.10"
+forbiddenapis = "3.11"
 gradle-tooling-api = "8.14.5"
 jsr305 = "3.0.2"
 shadow = "9.4.2"
@@ -14,11 +14,11 @@ google-java-format = "1.36.1"
 greclipse = "4.27" # Pinned. See: https://github.com/diffplug/spotless/issues/3013
 ktlint = "1.8.0"
 scalafmt = "3.11.5"
-spotless = "8.10.1"
+spotless = "8.10.3"
 tabletest-formatter = "1.1.2"
 
 # DataDog libs and forks
-ddprof = "1.50.0"
+ddprof = "1.51.0"
 dogstatsd = "4.4.5"
 datadog-okhttp = "3.12.15" # Datadog fork
 datadog-okio = "1.17.6" # Datadog fork

@@ -2,21 +2,22 @@ pluginManagement {
   repositories {
     mavenLocal()
 
-    if (settings.extra.has("gradlePluginProxy")) {
+    providers.gradleProperty("gradlePluginProxy").orNull?.let { proxy ->
       maven {
-        url = uri(settings.extra["gradlePluginProxy"] as String)
+        url = uri(proxy)
         isAllowInsecureProtocol = true
       }
     }
-    if (settings.extra.has("mavenRepositoryProxy")) {
+    val mavenRepositoryProxy = providers.gradleProperty("mavenRepositoryProxy").orNull
+    mavenRepositoryProxy?.let { proxy ->
       maven {
-        url = uri(settings.extra["mavenRepositoryProxy"] as String)
+        url = uri(proxy)
         isAllowInsecureProtocol = true
       }
     }
     gradlePluginPortal()
     // TODO: temporary fix for Maven Central rate limiting
-    if (!settings.extra.has("mavenRepositoryProxy")) {
+    if (mavenRepositoryProxy == null) {
       mavenCentral()
     }
     // Hosts gradle-tooling-api, a transitive dep of the build-logic:smoke-test plugin used
