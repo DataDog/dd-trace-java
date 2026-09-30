@@ -26,14 +26,14 @@ import org.junit.jupiter.api.io.TempDir;
 
 class HandleNoSuchOrAbstractMethodTest {
 
-  /** What a call site writes: {@code get} delegating to {@code handleNoSuchOrAbstractMethod}. */
+  /** What a call site writes: {@code handle} delegating to {@code handleNoSuchOrAbstractMethod}. */
   private abstract static class Handling<T, R, E extends Exception> extends ClassLatch<T, R, E> {
     final AtomicInteger calls = new AtomicInteger();
 
     protected abstract R invoke(T target) throws E;
 
     @Override
-    protected final R get(T target) throws E {
+    protected final R handle(T target) throws E {
       return handleNoSuchOrAbstractMethod(
           target,
           t -> {

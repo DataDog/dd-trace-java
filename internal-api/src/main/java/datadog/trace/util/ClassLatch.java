@@ -13,10 +13,10 @@ import javax.annotation.Nullable;
  *
  * <p>Intended as a {@code static final} anonymous subclass, one per call site and per operation: a
  * class lacking one method says nothing about another, so latches must not be shared. As a constant
- * of a known exact type, the receiver lets the JIT inline {@link #get} and {@link #keyOf}.
- * Subclasses decide what counts as a failure in their own {@code try/catch} inside {@link #get}, so
- * checked exceptions and a tight {@code try} scope come for free, and latch through the protected
- * helpers. Only the declaring subclass can change the state.
+ * of a known exact type, the receiver lets the JIT inline {@link #handle} and {@link #keyOf}.
+ * Subclasses decide what counts as a failure in their own {@code try/catch} inside {@link #handle},
+ * so checked exceptions and a tight {@code try} scope come for free, and latch through the
+ * protected helpers. Only the declaring subclass can change the state.
  *
  * <p>{@link #keyOf} chooses the class the latch is keyed on, and is used by every operation, so the
  * check and the latch cannot disagree. The default is the target's own class. Never key on a
@@ -31,7 +31,7 @@ import javax.annotation.Nullable;
  *
  * @param <T> the type of the value the operation is applied to
  * @param <R> the type of the result
- * @param <E> the checked exception {@link #get} may throw
+ * @param <E> the checked exception {@link #handle} may throw
  */
 public abstract class ClassLatch<T, R, E extends Exception> {
   private static final String RECEIVER_PREFIX = "Receiver class ";
@@ -55,7 +55,7 @@ public abstract class ClassLatch<T, R, E extends Exception> {
 
   /** Performs the operation. Latch through the protected helpers when it failed for the class. */
   @Nullable
-  protected abstract R get(T target) throws E;
+  protected abstract R handle(T target) throws E;
 
   /** The class the latch is keyed on. The target's own class unless overridden. */
   protected Class<?> keyOf(T target) {
@@ -69,7 +69,7 @@ public abstract class ClassLatch<T, R, E extends Exception> {
    */
   @Nullable
   public final R tryGetOrNull(@Nullable T target) throws E {
-    return target == null || isLatched(target) ? null : get(target);
+    return target == null || isLatched(target) ? null : handle(target);
   }
 
   /**
@@ -123,7 +123,7 @@ public abstract class ClassLatch<T, R, E extends Exception> {
    * Anything else, checked exceptions included, propagates unchanged.
    *
    * <pre>{@code
-   * protected Properties get(Connection c) throws SQLException {
+   * protected Properties handle(Connection c) throws SQLException {
    *   return handleAbstractMethod(c, Connection::getClientInfo);
    * }
    * }</pre>
@@ -167,7 +167,7 @@ public abstract class ClassLatch<T, R, E extends Exception> {
    * to the class that has it.
    *
    * <pre>{@code
-   * protected Properties get(Connection c) throws SQLException {
+   * protected Properties handle(Connection c) throws SQLException {
    *   return handleNoSuchMethod(c, Connection::getClientInfo);
    * }
    * }</pre>
@@ -193,7 +193,7 @@ public abstract class ClassLatch<T, R, E extends Exception> {
    * key. The two are easy to confuse, so prefer this one unless you know which a call site can see.
    *
    * <pre>{@code
-   * protected Properties get(Connection c) throws SQLException {
+   * protected Properties handle(Connection c) throws SQLException {
    *   return handleNoSuchOrAbstractMethod(c, Connection::getClientInfo);
    * }
    * }</pre>

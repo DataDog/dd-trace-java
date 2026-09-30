@@ -25,7 +25,7 @@ class ClassLatchTest {
     final AtomicInteger calls = new AtomicInteger();
 
     @Override
-    protected String get(Object target) {
+    protected String handle(Object target) {
       calls.incrementAndGet();
       try {
         throw new IllegalStateException();
@@ -72,7 +72,7 @@ class ClassLatchTest {
     ClassLatch<Object, Boolean, RuntimeException> latch =
         new ClassLatch<Object, Boolean, RuntimeException>() {
           @Override
-          protected Boolean get(Object target) {
+          protected Boolean handle(Object target) {
             return false;
           }
         };
@@ -96,7 +96,7 @@ class ClassLatchTest {
     ClassLatch<Object, String, RuntimeException> latch =
         new ClassLatch<Object, String, RuntimeException>() {
           @Override
-          protected String get(Object target) {
+          protected String handle(Object target) {
             latch(target);
             return null;
           }
@@ -119,7 +119,7 @@ class ClassLatchTest {
     ClassLatch<Wrapper, String, RuntimeException> latch =
         new ClassLatch<Wrapper, String, RuntimeException>() {
           @Override
-          protected String get(Wrapper target) {
+          protected String handle(Wrapper target) {
             latch(target);
             return "called";
           }
@@ -140,7 +140,7 @@ class ClassLatchTest {
   /** A subclass may expose {@code unlatch}, for a policy that retries. */
   private static final class Resumable extends ClassLatch<Object, String, RuntimeException> {
     @Override
-    protected String get(Object target) {
+    protected String handle(Object target) {
       latch(target);
       return "called";
     }
@@ -171,7 +171,7 @@ class ClassLatchTest {
     ClassLatch<Object, String, RuntimeException> latch =
         new ClassLatch<Object, String, RuntimeException>() {
           @Override
-          protected String get(Object target) {
+          protected String handle(Object target) {
             result[0] = latchIfNamed(target, receiverError(target.getClass()));
             return "named";
           }
@@ -183,7 +183,7 @@ class ClassLatchTest {
     ClassLatch<Object, String, RuntimeException> other =
         new ClassLatch<Object, String, RuntimeException>() {
           @Override
-          protected String get(Object target) {
+          protected String handle(Object target) {
             result[0] = latchIfNamed(target, receiverError(Integer.class));
             return "other";
           }
@@ -229,7 +229,7 @@ class ClassLatchTest {
     ClassLatch<Object, String, SQLException> latch =
         new ClassLatch<Object, String, SQLException>() {
           @Override
-          protected String get(Object target) throws SQLException {
+          protected String handle(Object target) throws SQLException {
             throw new SQLException("boom");
           }
         };

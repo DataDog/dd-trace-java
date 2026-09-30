@@ -118,7 +118,7 @@ public class ClassLatchBenchmark {
   private static final ClassLatch<Object, Object, RuntimeException> MISSING =
       new ClassLatch<Object, Object, RuntimeException>() {
         @Override
-        protected Object get(Object target) {
+        protected Object handle(Object target) {
           return handleAbstractMethod(target, ClassLatchBenchmark::invokeHandle);
         }
       };
@@ -126,7 +126,7 @@ public class ClassLatchBenchmark {
   private static final ClassLatch<Object, Object, RuntimeException> WRAPPER =
       new ClassLatch<Object, Object, RuntimeException>() {
         @Override
-        protected Object get(Object target) {
+        protected Object handle(Object target) {
           return handleAbstractMethod(target, ClassLatchBenchmark::invokeHandle);
         }
       };
@@ -134,7 +134,7 @@ public class ClassLatchBenchmark {
   private static final ClassLatch<Object, Object, RuntimeException> PRESENT =
       new ClassLatch<Object, Object, RuntimeException>() {
         @Override
-        protected Object get(Object target) {
+        protected Object handle(Object target) {
           return handleAbstractMethod(target, ClassLatchBenchmark::invokeHandle);
         }
       };
@@ -144,7 +144,7 @@ public class ClassLatchBenchmark {
     protected abstract Object invoke(Object target);
 
     @Override
-    protected final Object get(Object target) {
+    protected final Object handle(Object target) {
       try {
         return invoke(target);
       } catch (AbstractMethodError e) {

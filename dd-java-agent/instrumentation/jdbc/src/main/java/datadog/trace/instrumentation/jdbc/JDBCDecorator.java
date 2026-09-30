@@ -53,7 +53,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   private static final ClassLatch<Connection, Properties, SQLException> CLIENT_INFO_LATCH =
       new ClassLatch<Connection, Properties, SQLException>() {
         @Override
-        protected Properties get(Connection connection) throws SQLException {
+        protected Properties handle(Connection connection) throws SQLException {
           return handleAbstractMethod(connection, Connection::getClientInfo);
         }
       };

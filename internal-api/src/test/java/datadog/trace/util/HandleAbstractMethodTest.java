@@ -27,12 +27,12 @@ import org.junit.jupiter.api.io.TempDir;
 
 class HandleAbstractMethodTest {
 
-  /** What a call site writes: {@code get} delegating to {@code handleAbstractMethod}. */
+  /** What a call site writes: {@code handle} delegating to {@code handleAbstractMethod}. */
   private abstract static class Handling<T, R, E extends Exception> extends ClassLatch<T, R, E> {
     protected abstract R invoke(T target) throws E;
 
     @Override
-    protected final R get(T target) throws E {
+    protected final R handle(T target) throws E {
       return handleAbstractMethod(target, this::invoke);
     }
   }

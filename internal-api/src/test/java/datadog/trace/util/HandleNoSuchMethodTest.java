@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 
 class HandleNoSuchMethodTest {
 
-  /** What a call site writes: {@code get} delegating to {@code handleNoSuchMethod}. */
+  /** What a call site writes: {@code handle} delegating to {@code handleNoSuchMethod}. */
   private static final class Throwing extends ClassLatch<Object, String, Exception> {
     final AtomicInteger calls = new AtomicInteger();
     final Throwable failure;
@@ -22,7 +22,7 @@ class HandleNoSuchMethodTest {
     }
 
     @Override
-    protected String get(Object target) throws Exception {
+    protected String handle(Object target) throws Exception {
       return handleNoSuchMethod(
           target,
           t -> {
@@ -40,7 +40,7 @@ class HandleNoSuchMethodTest {
     ClassLatch<Object, String, RuntimeException> latch =
         new ClassLatch<Object, String, RuntimeException>() {
           @Override
-          protected String get(Object target) {
+          protected String handle(Object target) {
             return handleNoSuchMethod(target, t -> "ok");
           }
         };
