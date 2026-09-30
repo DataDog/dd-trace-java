@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -27,39 +26,6 @@ class AwsAccountIdentityTest {
       strings = {"12345", "1234567890123", "12345678901a", " 23456789012", "arn:aws:s3:::b"})
   void rejectsNonAccountIds(String value) {
     assertFalse(AwsAccountIdentity.isAccountId(value));
-  }
-
-  @ParameterizedTest(name = "{0} is in partition {1}")
-  @CsvSource(
-      nullValues = "NULL",
-      value = {
-        "us-east-1, aws",
-        "eu-central-1, aws",
-        "cn-north-1, aws-cn",
-        "us-gov-west-1, aws-us-gov",
-        "us-iso-east-1, aws-iso",
-        "us-isob-east-1, aws-iso-b",
-        "eu-isoe-west-1, aws-iso-e",
-        "us-isof-south-1, aws-iso-f",
-        "eusc-de-east-1, aws-eusc",
-        "NULL, aws",
-      })
-  void mapsRegionToPartition(String region, String partition) {
-    assertEquals(partition, AwsAccountIdentity.partitionForRegion(region));
-  }
-
-  @Test
-  void buildsDynamoDbTableArn() {
-    assertEquals(
-        "arn:aws:dynamodb:us-west-2:123456789012:table/orders",
-        AwsAccountIdentity.dynamoDbTableArn("us-west-2", "123456789012", "orders"));
-    assertEquals(
-        "arn:aws-cn:dynamodb:cn-north-1:123456789012:table/orders",
-        AwsAccountIdentity.dynamoDbTableArn("cn-north-1", "123456789012", "orders"));
-    assertNull(AwsAccountIdentity.dynamoDbTableArn(null, "123456789012", "orders"));
-    assertNull(AwsAccountIdentity.dynamoDbTableArn("us-west-2", null, "orders"));
-    assertNull(AwsAccountIdentity.dynamoDbTableArn("us-west-2", "1234", "orders"));
-    assertNull(AwsAccountIdentity.dynamoDbTableArn("us-west-2", "123456789012", ""));
   }
 
   @Test

@@ -49,7 +49,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.ParametersAreNonnullByDefault;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.signer.AwsSignerExecutionAttribute;
-import software.amazon.awssdk.awscore.AwsExecutionAttribute;
 import software.amazon.awssdk.awscore.AwsResponse;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.core.SdkField;
@@ -61,7 +60,6 @@ import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.SdkExecutionAttribute;
 import software.amazon.awssdk.http.SdkHttpRequest;
 import software.amazon.awssdk.http.SdkHttpResponse;
-import software.amazon.awssdk.regions.Region;
 
 public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, SdkHttpResponse>
     implements CarrierSetter<SdkHttpRequest.Builder> {
@@ -314,7 +312,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       }
     } else {
       account = callerAccount(attributes);
-      tableArn = AwsAccountIdentity.dynamoDbTableArn(regionOf(attributes), account, name);
     }
     setTableName(span, name);
     if (account != null) {
@@ -323,11 +320,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     if (tableArn != null) {
       span.setTag(InstrumentationTags.AWS_TABLE_ARN, tableArn);
     }
-  }
-
-  private static String regionOf(final ExecutionAttributes attributes) {
-    Region region = attributes.getAttribute(AwsExecutionAttribute.AWS_REGION);
-    return region == null ? null : region.id();
   }
 
   /**

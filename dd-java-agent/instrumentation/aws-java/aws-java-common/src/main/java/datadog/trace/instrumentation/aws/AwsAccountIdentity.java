@@ -38,51 +38,6 @@ public final class AwsAccountIdentity {
     return true;
   }
 
-  /** Maps a Region code to its partition. Unknown prefixes map to the commercial partition. */
-  public static String partitionForRegion(final String region) {
-    if (region == null) {
-      return "aws";
-    }
-    if (region.startsWith("cn-")) {
-      return "aws-cn";
-    }
-    if (region.startsWith("us-gov-")) {
-      return "aws-us-gov";
-    }
-    if (region.startsWith("us-isob-")) {
-      return "aws-iso-b";
-    }
-    if (region.startsWith("us-isof-")) {
-      return "aws-iso-f";
-    }
-    if (region.startsWith("us-iso-")) {
-      return "aws-iso";
-    }
-    if (region.startsWith("eu-isoe-")) {
-      return "aws-iso-e";
-    }
-    if (region.startsWith("eusc-")) {
-      return "aws-eusc";
-    }
-    return "aws";
-  }
-
-  /** Builds a DynamoDB table ARN, or returns {@code null} when the Region or account is unknown. */
-  public static String dynamoDbTableArn(
-      final String region, final String account, final String tableName) {
-    if (region == null || !isAccountId(account) || tableName == null || tableName.isEmpty()) {
-      return null;
-    }
-    return "arn:"
-        + partitionForRegion(region)
-        + ":dynamodb:"
-        + region
-        + ':'
-        + account
-        + ":table/"
-        + tableName;
-  }
-
   /**
    * Decodes the owning account from an AWS access key ID.
    *

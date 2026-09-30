@@ -49,11 +49,10 @@ public class AwsSdkClientDecoratorTest {
     verify(span).setTag("tablename", "orders");
     if (enrich) {
       verify(span).setTag("aws_account", "123456789012");
-      verify(span).setTag("aws.table.arn", "arn:aws:dynamodb:us-east-1:123456789012:table/orders");
     } else {
       verify(span, never()).setTag(eq("aws_account"), anyString());
-      verify(span, never()).setTag(eq("aws.table.arn"), anyString());
     }
+    verify(span, never()).setTag(eq("aws.table.arn"), anyString());
   }
 
   /** Exposes the newer credentials API while compiling against the SDK 2.2.0 baseline. */
