@@ -25,7 +25,7 @@ public class CompositeEngineListener implements EngineExecutionListener {
   @Override
   public void reportingEntryPublished(TestDescriptor testDescriptor, ReportEntry entry) {
     // tracing listener is not interested in this event
-    delegate.dynamicTestRegistered(testDescriptor);
+    delegate.reportingEntryPublished(testDescriptor, entry);
   }
 
   @Override
