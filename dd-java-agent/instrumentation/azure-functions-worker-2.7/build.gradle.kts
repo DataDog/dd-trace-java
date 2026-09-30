@@ -5,6 +5,10 @@ plugins {
 }
 
 muzzle {
+  // FunctionExecutionMiddleware lives in the unpublished Azure Functions Java worker.
+  // The SPI pass validates its public middleware contract, but cannot check the worker's
+  // internal class name or invoke signature. The test stub exercises the advice behavior;
+  // worker compatibility also requires validation against a running Function App.
   pass {
     group = "com.microsoft.azure.functions"
     module = "azure-functions-java-spi"
@@ -36,6 +40,7 @@ fun addTestSuiteForDir(name: String, directory: String) {
 }
 
 addTestSuiteForDir("latestDepTest", "test")
+(project.extra["addForkedTestTask"] as Closure<*>).call("latestDepTest")
 
 dependencies {
   compileOnly("com.google.protobuf:protobuf-java:3.19.2")
