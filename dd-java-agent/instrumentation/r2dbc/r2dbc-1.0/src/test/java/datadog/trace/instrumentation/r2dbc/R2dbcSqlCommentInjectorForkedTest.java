@@ -1,23 +1,25 @@
 package datadog.trace.instrumentation.r2dbc;
 
-import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.BaseHash;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import org.junit.jupiter.api.Test;
 
 /**
  * Unit tests for {@link R2dbcSqlCommentInjector#inject}. These assert the ACTUAL injected DBM
  * static metadata comment, so a broken injector is caught independently of span assertions.
+ *
+ * <p>One class per propagation mode: {@link R2dbcDecorator} reads the mode once when its statics
+ * initialize, and {@code forkedTest} forks per test class ({@code forkEvery = 1}).
  */
-class R2dbcSqlCommentInjectorTest extends AbstractInstrumentationTest {
+@WithConfig(key = "dbm.propagation.mode", value = "full")
+class R2dbcSqlCommentInjectorForkedTest extends AbstractInstrumentationTest {
 
   @Test
   void injectsStaticMetadataCommentWhenDbmFull() {
-    injectSysConfig("dbm.propagation.mode", "full");
-
     String injected =
         R2dbcSqlCommentInjector.inject(
             "SELECT * FROM items", "orders", "postgresql", "db.internal", "shop");
@@ -33,25 +35,30 @@ class R2dbcSqlCommentInjectorTest extends AbstractInstrumentationTest {
   }
 
   @Test
-  void doesNotInjectWhenDbmDisabled() {
-    injectSysConfig("dbm.propagation.mode", "disabled");
-
-    String sql = "SELECT * FROM items";
-    assertEquals(sql, R2dbcSqlCommentInjector.inject(sql, "orders", "postgresql", "h", "shop"));
-  }
-
-  @Test
   void doesNotDoubleInjectAnExistingDdComment() {
-    injectSysConfig("dbm.propagation.mode", "full");
-
     String once = R2dbcSqlCommentInjector.inject("SELECT 1", "orders", "postgresql", "h", "shop");
     String twice = R2dbcSqlCommentInjector.inject(once, "orders", "postgresql", "h", "shop");
     assertEquals(once, twice, "comment should not be injected twice");
   }
+}
+
+/** Verifies {@link R2dbcSqlCommentInjector#inject} is a no-op when DBM propagation is disabled. */
+@WithConfig(key = "dbm.propagation.mode", value = "disabled")
+class R2dbcSqlCommentInjectorDisabledForkedTest extends AbstractInstrumentationTest {
+
+  @Test
+  void doesNotInjectWhenDbmDisabled() {
+    String sql = "SELECT * FROM items";
+    assertEquals(sql, R2dbcSqlCommentInjector.inject(sql, "orders", "postgresql", "h", "shop"));
+  }
+}
+
+/** Verifies {@link R2dbcSqlCommentInjector#inject} embeds the base hash in dynamic_service mode. */
+@WithConfig(key = "dbm.propagation.mode", value = "dynamic_service")
+class R2dbcSqlCommentInjectorDynamicServiceForkedTest extends AbstractInstrumentationTest {
 
   @Test
   void dynamicServiceInjectsBaseHashInComment() {
-    injectSysConfig("dbm.propagation.mode", "dynamic_service");
     BaseHash.updateBaseHash(123456789L);
 
     String injected = R2dbcSqlCommentInjector.inject("SELECT 1", "orders", "h2", "h", "shop");

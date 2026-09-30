@@ -11,19 +11,22 @@ muzzle {
     module = "r2dbc-spi"
     versions = "[1.0.0.RELEASE,)"
     // The bundled r2dbc-proxy's callback machinery is written directly against Reactor's
-    // Flux/Mono (see the classLoaderMatcher() in R2dbcInstrumentation), so muzzle needs it on
+    // Flux/Mono (see the classLoaderMatcher() in R2dbcModule), so muzzle needs it on
     // the test application classpath too, even though r2dbc-spi itself doesn't depend on it.
     extraDependency "io.projectreactor:reactor-core:3.5.0"
   }
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
+addForkedTestTask('latestDepTest')
 
-tasks.named("latestDepTest", Test) {
-  // The latest io.r2dbc:r2dbc-h2 pulls in an H2 build compiled for Java 11
-  // (class file version 55), so latestDepTest cannot run on the JVM 8 CI slot.
-  testJvmConstraints {
-    minJavaVersion = JavaVersion.VERSION_11
+// The latest io.r2dbc:r2dbc-h2 pulls in an H2 build compiled for Java 11
+// (class file version 55), so latestDepTest cannot run on the JVM 8 CI slot.
+['latestDepTest', 'latestDepTestForkedTest'].each { taskName ->
+  tasks.named(taskName, Test) {
+    testJvmConstraints {
+      minJavaVersion = JavaVersion.VERSION_11
+    }
   }
 }
 

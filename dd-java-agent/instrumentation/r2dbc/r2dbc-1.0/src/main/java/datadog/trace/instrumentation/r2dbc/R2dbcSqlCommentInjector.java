@@ -3,8 +3,8 @@ package datadog.trace.instrumentation.r2dbc;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.DECORATE;
+import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.INJECT_COMMENT;
 
-import datadog.trace.api.Config;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter;
 import io.r2dbc.spi.Connection;
@@ -44,12 +44,7 @@ public final class R2dbcSqlCommentInjector {
       String sql,
       Connection connection,
       ContextStore<Connection, ConnectionFactoryOptions> connectionOptionsStore) {
-    String dbmMode = Config.get().getDbmPropagationMode();
-    boolean injectComment =
-        Config.DBM_PROPAGATION_MODE_FULL.equals(dbmMode)
-            || Config.DBM_PROPAGATION_MODE_STATIC.equals(dbmMode)
-            || Config.DBM_PROPAGATION_MODE_DYNAMIC_SERVICE.equals(dbmMode);
-    if (!injectComment) {
+    if (!INJECT_COMMENT) {
       return sql;
     }
 
@@ -97,13 +92,7 @@ public final class R2dbcSqlCommentInjector {
       return sql;
     }
 
-    String dbmMode = Config.get().getDbmPropagationMode();
-    boolean injectComment =
-        Config.DBM_PROPAGATION_MODE_FULL.equals(dbmMode)
-            || Config.DBM_PROPAGATION_MODE_STATIC.equals(dbmMode)
-            || Config.DBM_PROPAGATION_MODE_DYNAMIC_SERVICE.equals(dbmMode);
-
-    if (!injectComment) {
+    if (!INJECT_COMMENT) {
       return sql;
     }
 

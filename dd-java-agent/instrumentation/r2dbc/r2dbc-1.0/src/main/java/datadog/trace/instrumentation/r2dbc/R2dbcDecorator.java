@@ -22,6 +22,11 @@ public class R2dbcDecorator extends DatabaseClientDecorator<ConnectionFactoryOpt
   private static final String DEFAULT_SERVICE_NAME =
       SpanNaming.instance().namingSchema().database().service("r2dbc");
 
+  public static final boolean INJECT_COMMENT = Config.get().isDbmCommentInjectionEnabled();
+  private static final boolean DBM_INJECT_SQL_BASE_HASH = Config.get().isDbmInjectSqlBaseHash();
+  private static final boolean PROPAGATE_PROCESS_TAGS =
+      Config.get().isExperimentalPropagateProcessTagsEnabled();
+
   @Override
   protected String[] instrumentationNames() {
     return new String[] {"r2dbc"};
@@ -112,10 +117,7 @@ public class R2dbcDecorator extends DatabaseClientDecorator<ConnectionFactoryOpt
 
   /** Adds the base hash used in the DBM comment to the span for backend correlation. */
   public void withBaseHash(AgentSpan span) {
-    Config config = Config.get();
-    if (config.isDbmCommentInjectionEnabled()
-        && config.isDbmInjectSqlBaseHash()
-        && config.isExperimentalPropagateProcessTagsEnabled()) {
+    if (INJECT_COMMENT && DBM_INJECT_SQL_BASE_HASH && PROPAGATE_PROCESS_TAGS) {
       String baseHash = BaseHash.getBaseHashStr();
       if (baseHash != null) {
         span.setTag(Tags.BASE_HASH, baseHash);

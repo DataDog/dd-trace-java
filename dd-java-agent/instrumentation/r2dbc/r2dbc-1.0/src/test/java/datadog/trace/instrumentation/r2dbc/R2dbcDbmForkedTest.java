@@ -10,7 +10,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.r2dbc.R2dbcInstrumentationTest.eqs;
 import static datadog.trace.test.junit.utils.assertions.Matchers.any;
-import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.context.ContextScope;
@@ -34,19 +33,16 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
- * Tests for R2DBC Database Monitoring (DBM) feature. Verifies that connection metadata tags
- * (db.instance, db.user, peer.hostname) are correctly populated on spans. R2DBC comments contain
- * static metadata only, so spans must not claim that trace context was injected.
+ * Shared in-memory H2 setup for the DBM tests below. Subclasses differ only in the {@link
+ * WithConfig} values they declare: {@link R2dbcDecorator} reads the DBM config once when its
+ * statics initialize, and {@code forkedTest} forks per test class ({@code forkEvery = 1}).
  */
-@WithConfig(key = "dbm.propagation.mode", value = "full")
-@WithConfig(key = "service", value = "test_service", addPrefix = false)
-@WithConfig(key = "service.mapping", value = "h2:remapped_h2")
-class R2dbcDbmForkedTest extends AbstractInstrumentationTest {
+abstract class AbstractR2dbcDbmForkedTest extends AbstractInstrumentationTest {
 
-  private static final Pattern H2_QUERY = Pattern.compile("h2\\.query");
+  static final Pattern H2_QUERY = Pattern.compile("h2\\.query");
 
-  private ConnectionFactory connectionFactory;
-  private Connection connection;
+  ConnectionFactory connectionFactory;
+  Connection connection;
 
   @BeforeEach
   public void setUp() {
@@ -82,6 +78,17 @@ class R2dbcDbmForkedTest extends AbstractInstrumentationTest {
       Mono.from(connection.close()).block();
     }
   }
+}
+
+/**
+ * Tests for R2DBC Database Monitoring (DBM) feature. Verifies that connection metadata tags
+ * (db.instance, db.user, peer.hostname) are correctly populated on spans. R2DBC comments contain
+ * static metadata only, so spans must not claim that trace context was injected.
+ */
+@WithConfig(key = "dbm.propagation.mode", value = "full")
+@WithConfig(key = "service", value = "test_service", addPrefix = false)
+@WithConfig(key = "service.mapping", value = "h2:remapped_h2")
+class R2dbcDbmForkedTest extends AbstractR2dbcDbmForkedTest {
 
   @Test
   void dbmPopulatesConnectionMetadataTagsOnSelectQuery() {
@@ -240,8 +247,26 @@ class R2dbcDbmForkedTest extends AbstractInstrumentationTest {
   }
 
   @Test
+  void dbmCommentUsesMappedDatabaseService() {
+    ConnectionFactoryOptions options =
+        ConnectionFactoryOptions.builder()
+            .option(ConnectionFactoryOptions.DRIVER, "h2")
+            .option(ConnectionFactoryOptions.DATABASE, "testdb")
+            .build();
+    String injectedSql = R2dbcSqlCommentInjector.inject("SELECT 1", options);
+
+    assertTrue(injectedSql.contains("dddbs='remapped_h2'"), injectedSql);
+  }
+}
+
+/** Verifies the DBM base hash is tagged on R2DBC query spans. */
+@WithConfig(key = "dbm.propagation.mode", value = "full")
+@WithConfig(key = "dbm.inject.sql.basehash", value = "true")
+@WithConfig(key = "service", value = "test_service", addPrefix = false)
+class R2dbcDbmBaseHashForkedTest extends AbstractR2dbcDbmForkedTest {
+
+  @Test
   void dbmSetsBaseHashOnQuerySpan() {
-    injectSysConfig("dbm.inject.sql.basehash", "true");
     BaseHash.updateBaseHash(123456789L);
 
     AgentSpan parent = startSpan("test", "parent");
@@ -272,17 +297,5 @@ class R2dbcDbmForkedTest extends AbstractInstrumentationTest {
                     tag(Tags.BASE_HASH, eqs("123456789")),
                     tag("_dd.svc_src", any()),
                     defaultTags())));
-  }
-
-  @Test
-  void dbmCommentUsesMappedDatabaseService() {
-    ConnectionFactoryOptions options =
-        ConnectionFactoryOptions.builder()
-            .option(ConnectionFactoryOptions.DRIVER, "h2")
-            .option(ConnectionFactoryOptions.DATABASE, "testdb")
-            .build();
-    String injectedSql = R2dbcSqlCommentInjector.inject("SELECT 1", options);
-
-    assertTrue(injectedSql.contains("dddbs='remapped_h2'"), injectedSql);
   }
 }
