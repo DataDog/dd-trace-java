@@ -1,6 +1,8 @@
 package com.fasterxml.jackson.core.json;
 
+import com.fasterxml.jackson.core.sym.ByteQuadsCanonicalizer;
 import com.fasterxml.jackson.core.sym.ByteQuadsCanonicalizer216Helper;
+import datadog.trace.util.Latch;
 
 /**
  * Reads whether a {@link UTF8StreamJsonParser} interns its field names.
@@ -22,24 +24,32 @@ import com.fasterxml.jackson.core.sym.ByteQuadsCanonicalizer216Helper;
  *       name.
  * </ul>
  *
- * <p>The first failure per class loader is rethrown so the instrumentation exception handler still
- * reports it once. After that the failure is remembered and calls return {@code true} without
- * throwing, so a broken classpath does not cost an exception per parsed field name.
+ * <p>Each field read has its own {@link Latch}, here for {@code _symbols} and in {@link
+ * ByteQuadsCanonicalizer216Helper} for {@code _interner}, so a classpath missing only one of them
+ * keeps using the other. The first failure of each is rethrown so the instrumentation exception
+ * handler still reports it once. After that the failure is remembered and calls return {@code true}
+ * without throwing, so a broken classpath does not cost an exception per parsed field name.
  */
 public final class JsonParser216Helper {
-  private static volatile boolean fieldsUnavailable;
-
   private JsonParser216Helper() {}
 
+  private static final Latch<UTF8StreamJsonParser, ByteQuadsCanonicalizer, RuntimeException>
+      SYMBOLS =
+          new Latch<UTF8StreamJsonParser, ByteQuadsCanonicalizer, RuntimeException>() {
+            @Override
+            protected ByteQuadsCanonicalizer get(UTF8StreamJsonParser jsonParser) {
+              try {
+                return jsonParser._symbols;
+              } catch (NoSuchFieldError e) {
+                latch();
+                throw e;
+              }
+            }
+          };
+
   public static boolean fetchInterner(UTF8StreamJsonParser jsonParser) {
-    if (fieldsUnavailable) {
-      return true;
-    }
-    try {
-      return ByteQuadsCanonicalizer216Helper.fetchInterner(jsonParser._symbols);
-    } catch (NoSuchFieldError e) {
-      fieldsUnavailable = true;
-      throw e;
-    }
+    ByteQuadsCanonicalizer symbols = SYMBOLS.getOrDefault(jsonParser);
+    // no symbol table to ask: assume interned (see the class comment)
+    return symbols == null || ByteQuadsCanonicalizer216Helper.fetchInterner(symbols);
   }
 }

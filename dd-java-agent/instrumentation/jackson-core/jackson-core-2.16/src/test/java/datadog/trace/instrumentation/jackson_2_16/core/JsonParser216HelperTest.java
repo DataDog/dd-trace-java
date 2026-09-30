@@ -25,6 +25,7 @@ class JsonParser216HelperTest {
   private static final String JACKSON_CORE_PREFIX = "com.fasterxml.jackson.core.";
   private static final String CANONICALIZER =
       "com.fasterxml.jackson.core.sym.ByteQuadsCanonicalizer";
+  private static final String UTF8_PARSER = "com.fasterxml.jackson.core.json.UTF8StreamJsonParser";
 
   @Test
   void reportsInternedFieldNames() throws Exception {
@@ -47,8 +48,19 @@ class JsonParser216HelperTest {
    * first failure is rethrown so it is reported once; later calls assume interned names.
    */
   @Test
-  void rethrowsFirstMissingFieldThenAssumesInterned() throws Exception {
-    ClassLoader loader = new MissingInternerClassLoader();
+  void rethrowsFirstMissingInternerThenAssumesInterned() throws Exception {
+    assertRethrowsOnceThenAssumesInterned(CANONICALIZER, "_interner");
+  }
+
+  /** The same for the parser's {@code _symbols} field, which has its own latch. */
+  @Test
+  void rethrowsFirstMissingSymbolsThenAssumesInterned() throws Exception {
+    assertRethrowsOnceThenAssumesInterned(UTF8_PARSER, "_symbols");
+  }
+
+  private void assertRethrowsOnceThenAssumesInterned(String className, String missingField)
+      throws Exception {
+    ClassLoader loader = new MissingFieldClassLoader(className, missingField);
     Object factory = loader.loadClass(JsonFactory.class.getName()).getConstructor().newInstance();
     Object parser =
         factory.getClass().getMethod("createParser", byte[].class).invoke(factory, (Object) json());
@@ -70,13 +82,18 @@ class JsonParser216HelperTest {
   }
 
   /**
-   * Loads jackson-core child-first, renaming {@code ByteQuadsCanonicalizer._interner} in the
-   * bytecode. The class stays self-consistent, but a lookup of the original field name fails with
-   * {@link NoSuchFieldError}, like a mixed or repackaged Jackson on the classpath.
+   * Loads jackson-core child-first, renaming one field of one class in the bytecode. The class
+   * stays self-consistent, but a lookup of the original field name fails with {@link
+   * NoSuchFieldError}, like a mixed or repackaged Jackson on the classpath.
    */
-  private static final class MissingInternerClassLoader extends ClassLoader {
-    MissingInternerClassLoader() {
+  private static final class MissingFieldClassLoader extends ClassLoader {
+    private final String className;
+    private final String field;
+
+    MissingFieldClassLoader(String className, String field) {
       super(JsonParser216HelperTest.class.getClassLoader());
+      this.className = className;
+      this.field = field;
     }
 
     @Override
@@ -102,8 +119,8 @@ class JsonParser216HelperTest {
           throw new ClassNotFoundException(name);
         }
         byte[] bytes = readAll(in);
-        if (name.equals(CANONICALIZER)) {
-          bytes = renameInterner(bytes);
+        if (name.equals(className)) {
+          bytes = renameField(bytes);
         }
         return defineClass(name, bytes, 0, bytes.length);
       } catch (IOException e) {
@@ -111,10 +128,10 @@ class JsonParser216HelperTest {
       }
     }
 
-    private static byte[] renameInterner(byte[] bytes) {
+    private byte[] renameField(byte[] bytes) {
       ClassWriter writer = new ClassWriter(0);
       SimpleRemapper remapper =
-          new SimpleRemapper(CANONICALIZER.replace('.', '/') + "._interner", "_interner_renamed");
+          new SimpleRemapper(className.replace('.', '/') + "." + field, field + "_renamed");
       new ClassReader(bytes).accept(new ClassRemapper(writer, remapper), 0);
       return writer.toByteArray();
     }

@@ -1,9 +1,39 @@
 package com.fasterxml.jackson.core.sym;
 
+import datadog.trace.util.Latch;
+
+/**
+ * Reads whether a {@link ByteQuadsCanonicalizer} interns its field names, from the package-private
+ * {@code _interner} field.
+ *
+ * <p>A classpath that mixes Jackson builds can lack the field, which surfaces as a {@link
+ * NoSuchFieldError}. That is the same for every canonicalizer, so a single {@link Latch} covers the
+ * read: the first failure is rethrown, so the instrumentation exception handler still reports it
+ * once, and afterwards the answer is {@code true} ("interned") without throwing. See {@code
+ * JsonParser216Helper} for why "interned" is the default.
+ */
 public final class ByteQuadsCanonicalizer216Helper {
   private ByteQuadsCanonicalizer216Helper() {}
 
+  private static final Latch<ByteQuadsCanonicalizer, Boolean, RuntimeException> INTERNER =
+      new Latch<ByteQuadsCanonicalizer, Boolean, RuntimeException>() {
+        @Override
+        protected Boolean get(ByteQuadsCanonicalizer symbols) {
+          try {
+            return symbols._interner != null;
+          } catch (NoSuchFieldError e) {
+            latch();
+            throw e;
+          }
+        }
+
+        @Override
+        protected Boolean defaultValue(ByteQuadsCanonicalizer symbols) {
+          return Boolean.TRUE;
+        }
+      };
+
   public static boolean fetchInterner(ByteQuadsCanonicalizer symbols) {
-    return symbols._interner != null;
+    return INTERNER.getOrDefault(symbols);
   }
 }
