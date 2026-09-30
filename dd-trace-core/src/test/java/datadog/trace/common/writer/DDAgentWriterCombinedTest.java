@@ -413,26 +413,11 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
     List<DDSpan> minimalTrace = createMinimalTrace();
 
     // DQH -- need to set-up a dummy agent for the final send callback to work
-    final boolean[] first = {true};
-    // DQH - DDApi sniffs for end point existence, so respond with 200 the
-    // first time
     try (JavaTestHttpServer agent =
         JavaTestHttpServer.httpServer(
             server ->
                 server.handlers(
-                    h ->
-                        h.put(
-                            agentVersion,
-                            api -> {
-                              // DQH - DDApi sniffs for end point existence, so respond with 200 the
-                              // first time
-                              if (first[0]) {
-                                api.getResponse().status(200).send();
-                                first[0] = false;
-                              } else {
-                                api.getResponse().status(500).send();
-                              }
-                            })))) {
+                    h -> h.put(agentVersion, api -> api.getResponse().status(500).send())))) {
       HttpUrl agentUrl = HttpUrl.get(agent.getAddress());
       okhttp3.OkHttpClient client = OkHttpUtils.buildHttpClient(agentUrl, 1000);
       DDAgentFeaturesDiscovery discovery =
