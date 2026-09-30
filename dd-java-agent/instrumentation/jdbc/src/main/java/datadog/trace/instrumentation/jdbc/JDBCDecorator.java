@@ -48,11 +48,11 @@ import org.slf4j.LoggerFactory;
 public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
   private static final Logger log = LoggerFactory.getLogger(JDBCDecorator.class);
+  private static final AbstractMethodGuard CLIENT_INFO_GUARD = new AbstractMethodGuard();
 
   public static final JDBCDecorator DECORATE = new JDBCDecorator();
   public static final CharSequence JAVA_JDBC = UTF8BytesString.create("java-jdbc");
   public static final CharSequence DATABASE_QUERY = UTF8BytesString.create("database.query");
-  private static final AbstractMethodGuard CLIENT_INFO_GUARD = new AbstractMethodGuard();
 
   private static final UTF8BytesString DB_QUERY = UTF8BytesString.create("DB Query");
   private static final UTF8BytesString JDBC_STATEMENT =

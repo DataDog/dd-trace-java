@@ -65,7 +65,7 @@ public final class AbstractMethodGuard {
       return null;
     }
     final Class<?> type = target.getClass();
-    if (anyLatched && latched.get(type)[0]) {
+    if (isLatched(type)) {
       return null;
     }
     try {
@@ -81,8 +81,8 @@ public final class AbstractMethodGuard {
     }
   }
 
-  /** Returns whether {@code type} is known to lack the method. */
-  public boolean isLatched(Class<?> type) {
+  /** Returns whether {@code type} is known to lack the method. Visible for tests and benchmarks. */
+  boolean isLatched(Class<?> type) {
     return anyLatched && latched.get(type)[0];
   }
 
