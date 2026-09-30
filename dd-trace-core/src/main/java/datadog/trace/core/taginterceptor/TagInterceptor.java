@@ -4,8 +4,10 @@ import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.DDTags.MEASURED;
 import static datadog.trace.api.DDTags.ORIGIN_KEY;
 import static datadog.trace.api.DDTags.SPAN_TYPE;
+import static datadog.trace.api.KnownTags.DB_STATEMENT_OTEL_NAME;
 import static datadog.trace.api.KnownTags.HTTP_METHOD_OTEL_NAME;
 import static datadog.trace.api.KnownTags.HTTP_STATUS_CODE_OTEL_NAME;
+import static datadog.trace.api.KnownTags.HTTP_URL_OTEL_NAME;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_CONTEXT;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.SPLIT_BY_SERVLET_CONTEXT;
@@ -105,6 +107,7 @@ public class TagInterceptor {
     switch (tag) {
       case DDTags.RESOURCE_NAME:
       case Tags.DB_STATEMENT:
+      case DB_STATEMENT_OTEL_NAME:
       case DDTags.SERVICE_NAME:
       case "service":
       case Tags.PEER_SERVICE:
@@ -124,6 +127,7 @@ public class TagInterceptor {
       case HTTP_METHOD:
       case HTTP_METHOD_OTEL_NAME:
       case HTTP_URL:
+      case HTTP_URL_OTEL_NAME:
       case ORIGIN_KEY:
       case MEASURED:
       case Tags.SPAN_KIND:
@@ -139,6 +143,7 @@ public class TagInterceptor {
       case DDTags.RESOURCE_NAME:
         return interceptResourceName(span, value);
       case Tags.DB_STATEMENT:
+      case DB_STATEMENT_OTEL_NAME:
         return interceptDbStatement(span, value);
       case DDTags.SERVICE_NAME:
       case "service":
@@ -194,6 +199,7 @@ public class TagInterceptor {
       case HTTP_METHOD:
       case HTTP_METHOD_OTEL_NAME:
       case HTTP_URL:
+      case HTTP_URL_OTEL_NAME:
         return interceptUrlResourceAsNameRule(span, tag, value);
       case ORIGIN_KEY:
         return interceptOrigin(span, value);
@@ -216,7 +222,7 @@ public class TagInterceptor {
         if (url != null) {
           setResourceFromUrl(span, value.toString(), url);
         }
-      } else if (HTTP_URL.equals(tag)) {
+      } else if (HTTP_URL.equals(tag) || HTTP_URL_OTEL_NAME.equals(tag)) {
         // the method may have been set under either spelling -- see HTTP_METHOD_OTEL_NAME.
         Object method = span.unsafeGetTag(HTTP_METHOD);
         if (method == null) {
