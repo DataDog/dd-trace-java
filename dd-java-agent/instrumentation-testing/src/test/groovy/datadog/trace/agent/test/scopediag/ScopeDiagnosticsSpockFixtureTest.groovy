@@ -26,6 +26,12 @@ class ScopeDiagnosticsSpockFixtureTest extends InstrumentationSpecification {
     true
   }
 
+  @TrackScopeContinuations(enabled = false, reason = "synthetic fixture testing method-level opt-out")
+  def "runs with diagnostics disabled for this feature"() {
+    expect:
+    ScopeDiagnostics.recordingWindow() == null
+  }
+
   def "restarts recording after aborted suite setup"() {
     given:
     scopeDiagnosticsSuiteSetupPending = true

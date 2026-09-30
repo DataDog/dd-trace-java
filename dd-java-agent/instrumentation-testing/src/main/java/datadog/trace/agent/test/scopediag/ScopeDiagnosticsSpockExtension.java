@@ -2,6 +2,7 @@ package datadog.trace.agent.test.scopediag;
 
 import org.spockframework.runtime.extension.IAnnotationDrivenExtension;
 import org.spockframework.runtime.extension.IMethodInterceptor;
+import org.spockframework.runtime.model.FeatureInfo;
 import org.spockframework.runtime.model.MethodInfo;
 import org.spockframework.runtime.model.SpecInfo;
 
@@ -35,5 +36,10 @@ public final class ScopeDiagnosticsSpockExtension
         setupSpec.addInterceptor(SETUP_SPEC_INTERCEPTOR);
       }
     }
+  }
+
+  @Override
+  public void visitFeatureAnnotation(TrackScopeContinuations annotation, FeatureInfo feature) {
+    // Override Spock's default rejection of feature annotations so discovery succeeds.
   }
 }
