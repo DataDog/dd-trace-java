@@ -1,5 +1,8 @@
 package datadog.gradle.plugin.tags
 
+import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import java.io.File
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -16,6 +19,11 @@ class TagRegistryGeneratorTest {
     File(dir, "tag-conventions.yaml").apply { writeText(content.trimIndent() + "\n") }
 
   private fun generate(content: String) = TagRegistryGenerator.generate(yaml(content), outDir)
+
+  private fun parse(content: String): TagConventions =
+    TagConventions.parse(
+      ObjectMapper(YAMLFactory())
+        .readValue(content.trimIndent(), object : TypeReference<Map<String, Any?>>() {}))
 
   @Test
   fun `emits name, id and OpenTelemetry name constants`() {
@@ -106,7 +114,7 @@ class TagRegistryGeneratorTest {
   }
 
   @Test
-  fun `conflicting otel-name across span types fails`() {
+  fun `declaring a tag twice fails even when the declarations agree`() {
     assertThatThrownBy {
         generate(
           """
@@ -116,11 +124,88 @@ class TagRegistryGeneratorTest {
                 - { dd-name: http.url, type: string, otel-name: url.full }
             server:
               tags:
-                - { dd-name: http.url, type: string, otel-name: url.path }
+                - { dd-name: http.url, type: string, otel-name: url.full }
           """)
       }
       .isInstanceOf(IllegalArgumentException::class.java)
-      .hasMessageContaining("conflicting otel-name")
+      .hasMessageContaining("declared in both 'client' and 'server'")
+  }
+
+  @Test
+  fun `ref overrides only the requirement level on the referencing type`() {
+    val conv =
+      parse(
+        """
+        span_types:
+          base:
+            abstract: true
+            tags:
+              - { dd-name: http.url, type: string, required: required, otel-name: url.full }
+          server:
+            extends: base
+          client:
+            extends: base
+            tags:
+              - { ref: http.url, required: conditional }
+        """)
+
+    val onClient = conv.resolve("client").single { it.name == "http.url" }
+    val onServer = conv.resolve("server").single { it.name == "http.url" }
+    assertThat(onClient.required).isEqualTo("conditional")
+    assertThat(onClient.otelName).isEqualTo("url.full")
+    assertThat(onServer.required).isEqualTo("required")
+    assertThat(conv.allDeclaredTags().map { it.name }).containsExactly("http.url")
+  }
+
+  @Test
+  fun `ref adds a tag declared by an unrelated span type`() {
+    val conv =
+      parse(
+        """
+        span_types:
+          server:
+            tags:
+              - { dd-name: http.url, type: string, required: required }
+          client:
+            tags:
+              - { ref: http.url }
+        """)
+
+    assertThat(conv.resolve("client").map { it.name to it.required })
+      .containsExactly("http.url" to "required")
+  }
+
+  @Test
+  fun `ref that sets anything but required fails`() {
+    assertThatThrownBy {
+        generate(
+          """
+          span_types:
+            server:
+              tags:
+                - { dd-name: http.url, type: string }
+            client:
+              tags:
+                - { ref: http.url, otel-name: url.full }
+          """)
+      }
+      .isInstanceOf(IllegalArgumentException::class.java)
+      .hasMessageContaining("may override only `required`")
+  }
+
+  @Test
+  fun `ref to an undeclared tag fails`() {
+    assertThatThrownBy {
+        generate(
+          """
+          span_types:
+            client:
+              tags:
+                - { ref: http.url }
+          """)
+      }
+      .isInstanceOf(IllegalArgumentException::class.java)
+      .hasMessageContaining("refs undeclared tag 'http.url'")
   }
 
   @Test
