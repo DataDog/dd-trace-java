@@ -34,11 +34,6 @@ public class CucumberInstrumentation extends InstrumenterModule.CiVisibility
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".CucumberStepDecorator"};
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("execute").and(takesArguments(Object[].class)),
