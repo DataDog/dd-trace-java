@@ -257,7 +257,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       if (metaData != null && (url = metaData.getURL()) != null) {
         Properties clientInfo = null;
         try {
-          clientInfo = CLIENT_INFO.getOrDefault(connection);
+          clientInfo = CLIENT_INFO.tryGetOrNull(connection);
         } catch (final SQLException ex) {
           // getClientInfo is not allowed, we can still extract info from the url alone
           log.debug(LogCollector.EXCLUDE_TELEMETRY, "Could not get client info from DB", ex);

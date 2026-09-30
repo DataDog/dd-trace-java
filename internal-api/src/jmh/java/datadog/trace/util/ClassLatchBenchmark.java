@@ -149,9 +149,9 @@ public class ClassLatchBenchmark {
         return invoke(target);
       } catch (AbstractMethodError e) {
         latchIfNamed(target, e);
-        return defaultValue(target);
+        return null;
       } catch (UnsupportedOperationException e) {
-        return defaultValue(target);
+        return null;
       }
     }
   }
@@ -231,15 +231,15 @@ public class ClassLatchBenchmark {
             .asType(MethodType.methodType(Object.class, Object.class));
 
     // reach the steady state: the latch has already met the deficient class
-    MISSING.getOrDefault(impl);
+    MISSING.tryGetOrNull(impl);
     if (!MISSING.isLatched(impl)) {
       throw new IllegalStateException("expected the latch to latch " + impl.getClass());
     }
-    WRAPPER.getOrDefault(wrapper);
+    WRAPPER.tryGetOrNull(wrapper);
     if (WRAPPER.isLatched(wrapper) || WRAPPER.isLatched(impl)) {
       throw new IllegalStateException("a wrapper must never be latched");
     }
-    SUBCLASS_MISSING.getOrDefault(impl);
+    SUBCLASS_MISSING.tryGetOrNull(impl);
     if (!SUBCLASS_MISSING.isLatched(impl)) {
       throw new IllegalStateException(
           "expected the subclass-style latch to latch " + impl.getClass());
@@ -300,11 +300,11 @@ public class ClassLatchBenchmark {
   }
 
   private Object latchedMissing(int remaining) {
-    return remaining > 0 ? latchedMissing(remaining - 1) : MISSING.getOrDefault(impl);
+    return remaining > 0 ? latchedMissing(remaining - 1) : MISSING.tryGetOrNull(impl);
   }
 
   private Object latchedWrapperMissing(int remaining) {
-    return remaining > 0 ? latchedWrapperMissing(remaining - 1) : WRAPPER.getOrDefault(wrapper);
+    return remaining > 0 ? latchedWrapperMissing(remaining - 1) : WRAPPER.tryGetOrNull(wrapper);
   }
 
   private Object unguardedPresent(int remaining) {
@@ -312,15 +312,15 @@ public class ClassLatchBenchmark {
   }
 
   private Object latchedPresent(int remaining) {
-    return remaining > 0 ? latchedPresent(remaining - 1) : PRESENT.getOrDefault(full);
+    return remaining > 0 ? latchedPresent(remaining - 1) : PRESENT.tryGetOrNull(full);
   }
 
   private Object subclassMissing(int remaining) {
-    return remaining > 0 ? subclassMissing(remaining - 1) : SUBCLASS_MISSING.getOrDefault(impl);
+    return remaining > 0 ? subclassMissing(remaining - 1) : SUBCLASS_MISSING.tryGetOrNull(impl);
   }
 
   private Object subclassPresent(int remaining) {
-    return remaining > 0 ? subclassPresent(remaining - 1) : SUBCLASS_PRESENT.getOrDefault(full);
+    return remaining > 0 ? subclassPresent(remaining - 1) : SUBCLASS_PRESENT.tryGetOrNull(full);
   }
 
   private static void compile(

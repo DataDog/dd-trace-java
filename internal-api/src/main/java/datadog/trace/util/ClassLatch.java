@@ -10,10 +10,10 @@ import javax.annotation.Nullable;
  *
  * <p>Intended as a {@code static final} anonymous subclass, one per call site and per operation: a
  * class lacking one method says nothing about another, so latches must not be shared. As a constant
- * of a known exact type, the receiver lets the JIT inline {@link #get}, {@link #defaultValue} and
- * {@link #keyOf}. Subclasses decide what counts as a failure in their own {@code try/catch} inside
- * {@link #get}, so checked exceptions and a tight {@code try} scope come for free, and latch
- * through the protected helpers. Only the declaring subclass can change the state.
+ * of a known exact type, the receiver lets the JIT inline {@link #get} and {@link #keyOf}.
+ * Subclasses decide what counts as a failure in their own {@code try/catch} inside {@link #get}, so
+ * checked exceptions and a tight {@code try} scope come for free, and latch through the protected
+ * helpers. Only the declaring subclass can change the state.
  *
  * <p>{@link #keyOf} chooses the class the latch is keyed on, and is used by every operation, so the
  * check and the latch cannot disagree. The default is the target's own class. Never key on a
@@ -63,12 +63,6 @@ public abstract class ClassLatch<T, R, E extends Exception> {
   @Nullable
   protected abstract R get(T target) throws E;
 
-  /** The result for a {@code null} or latched target. {@code null} unless overridden. */
-  @Nullable
-  protected R defaultValue(@Nullable T target) {
-    return null;
-  }
-
   /** The class the latch is keyed on. The target's own class unless overridden. */
   protected Class<?> keyOf(T target) {
     return target.getClass();
@@ -76,11 +70,22 @@ public abstract class ClassLatch<T, R, E extends Exception> {
 
   /**
    * Performs the operation unless the target is {@code null} or latched, in which case returns
-   * {@link #defaultValue}.
+   * {@code null}. A {@code null} result means nothing is available: the operation was skipped, or
+   * it produced no value.
    */
   @Nullable
-  public final R getOrDefault(@Nullable T target) throws E {
-    return target == null || isLatched(target) ? defaultValue(target) : get(target);
+  public final R tryGetOrNull(@Nullable T target) throws E {
+    return target == null || isLatched(target) ? null : get(target);
+  }
+
+  /**
+   * Like {@link #tryGetOrNull}, but returns {@code fallback} when there is nothing available. The
+   * fallback is also used when the operation itself produced {@code null}, so a call and a skipped
+   * call always agree.
+   */
+  public final R tryGetOrDefault(@Nullable T target, R fallback) throws E {
+    final R result = tryGetOrNull(target);
+    return result != null ? result : fallback;
   }
 
   /** Returns whether the operation is being skipped for the target. */
@@ -117,10 +122,10 @@ public abstract class ClassLatch<T, R, E extends Exception> {
   }
 
   /**
-   * For a call to a method that some implementations may lack: returns {@link #defaultValue} if the
-   * call raises {@link AbstractMethodError} or {@link UnsupportedOperationException}, latching the
-   * key first in the former case if, and only if, the error names it (see {@link #latchIfNamed}).
-   * An unsupported operation names no class, so it is never latched, and is caught on every call.
+   * For a call to a method that some implementations may lack: returns {@code null} if the call
+   * raises {@link AbstractMethodError} or {@link UnsupportedOperationException}, latching the key
+   * first in the former case if, and only if, the error names it (see {@link #latchIfNamed}). An
+   * unsupported operation names no class, so it is never latched, and is caught on every call.
    * Anything else, checked exceptions included, propagates unchanged.
    *
    * <pre>{@code
@@ -137,10 +142,10 @@ public abstract class ClassLatch<T, R, E extends Exception> {
       return call.apply(target);
     } catch (AbstractMethodError e) {
       latchIfNamed(target, e);
-      return defaultValue(target);
+      return null;
     } catch (UnsupportedOperationException e) {
       // no class to attribute it to, and it may come from a delegate: never latched
-      return defaultValue(target);
+      return null;
     }
   }
 

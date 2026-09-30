@@ -77,7 +77,7 @@ class HandleAbstractMethodTest {
           }
         };
 
-    assertEquals("ok", latch.getOrDefault("x"));
+    assertEquals("ok", latch.tryGetOrNull("x"));
     assertFalse(latch.isLatched("x"));
   }
 
@@ -85,9 +85,9 @@ class HandleAbstractMethodTest {
   void latchesTheReceiverClassAndStopsCalling() throws Exception {
     Throwing latch = new Throwing(new AbstractMethodError());
 
-    assertNull(latch.getOrDefault("x"));
-    assertNull(latch.getOrDefault("y"));
-    assertNull(latch.getOrDefault("z"));
+    assertNull(latch.tryGetOrNull("x"));
+    assertNull(latch.tryGetOrNull("y"));
+    assertNull(latch.tryGetOrNull("z"));
 
     assertEquals(1, latch.calls.get());
     assertTrue(latch.isLatched("x"));
@@ -96,10 +96,10 @@ class HandleAbstractMethodTest {
   @Test
   void otherClassesAreUnaffectedByALatch() throws Exception {
     Throwing latch = new Throwing(new AbstractMethodError());
-    latch.getOrDefault("x");
+    latch.tryGetOrNull("x");
 
     assertFalse(latch.isLatched(Integer.valueOf(1)));
-    assertNull(latch.getOrDefault(Integer.valueOf(1)));
+    assertNull(latch.tryGetOrNull(Integer.valueOf(1)));
     assertEquals(2, latch.calls.get());
   }
 
@@ -116,8 +116,8 @@ class HandleAbstractMethodTest {
           }
         };
 
-    assertNull(latch.getOrDefault("x"));
-    assertNull(latch.getOrDefault("x"));
+    assertNull(latch.tryGetOrNull("x"));
+    assertNull(latch.tryGetOrNull("x"));
 
     assertEquals(2, calls.get());
     assertFalse(latch.isLatched("x"));
@@ -139,7 +139,7 @@ class HandleAbstractMethodTest {
             }
           };
 
-      assertNull(latch.getOrDefault("x"));
+      assertNull(latch.tryGetOrNull("x"));
       assertFalse(latch.isLatched("x"));
     }
     assertEquals(2, calls.get());
@@ -149,8 +149,8 @@ class HandleAbstractMethodTest {
   void unsupportedOperationYieldsTheDefaultOnEveryCallAndIsNeverLatched() throws Exception {
     Throwing latch = new Throwing(new UnsupportedOperationException());
 
-    assertNull(latch.getOrDefault("x"));
-    assertNull(latch.getOrDefault("x"));
+    assertNull(latch.tryGetOrNull("x"));
+    assertNull(latch.tryGetOrNull("x"));
 
     assertEquals(2, latch.calls.get());
     assertFalse(latch.isLatched("x"));
@@ -161,7 +161,7 @@ class HandleAbstractMethodTest {
     SQLException failure = new SQLException("boom");
     Throwing latch = new Throwing(failure);
 
-    SQLException thrown = assertThrows(SQLException.class, () -> latch.getOrDefault("x"));
+    SQLException thrown = assertThrows(SQLException.class, () -> latch.tryGetOrNull("x"));
 
     assertSame(failure, thrown);
     assertFalse(latch.isLatched("x"));
@@ -171,7 +171,7 @@ class HandleAbstractMethodTest {
   void otherUncheckedExceptionsPropagateAndDoNotLatch() {
     Throwing latch = new Throwing(new IllegalStateException());
 
-    assertThrows(IllegalStateException.class, () -> latch.getOrDefault("x"));
+    assertThrows(IllegalStateException.class, () -> latch.tryGetOrNull("x"));
     assertFalse(latch.isLatched("x"));
   }
 
@@ -228,8 +228,8 @@ class HandleAbstractMethodTest {
             }
           };
 
-      assertNull(latch.getOrDefault(impl));
-      assertNull(latch.getOrDefault(impl));
+      assertNull(latch.tryGetOrNull(impl));
+      assertNull(latch.tryGetOrNull(impl));
 
       assertEquals(1, calls.get(), "second call should be skipped");
       assertTrue(latch.isLatched(impl));
