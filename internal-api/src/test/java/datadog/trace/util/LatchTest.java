@@ -3,11 +3,13 @@ package datadog.trace.util;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.sql.SQLException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 
 class LatchTest {
@@ -134,5 +136,62 @@ class LatchTest {
 
     assertThrows(SQLException.class, () -> latch.tryGetOrNull("x"));
     assertFalse(latch.isLatched());
+  }
+
+  /** What a call site writes: {@code get} delegating to {@code handleNoSuchField}. */
+  private static final class Handling extends Latch<String, String, RuntimeException> {
+    final AtomicInteger calls = new AtomicInteger();
+    Function<String, String> read;
+
+    @Override
+    protected String get(String target) {
+      return handleNoSuchField(
+          target,
+          t -> {
+            calls.incrementAndGet();
+            return read.apply(t);
+          });
+    }
+  }
+
+  @Test
+  void handleNoSuchFieldReturnsTheResultWithoutLatching() {
+    Handling latch = new Handling();
+    latch.read = t -> "value";
+
+    assertEquals("value", latch.tryGetOrNull("x"));
+    assertFalse(latch.isLatched());
+  }
+
+  @Test
+  void handleNoSuchFieldLatchesAndRethrowsTheFirstFailure() {
+    Handling latch = new Handling();
+    NoSuchFieldError failure = new NoSuchFieldError("_interner");
+    latch.read =
+        t -> {
+          throw failure;
+        };
+
+    NoSuchFieldError thrown = assertThrows(NoSuchFieldError.class, () -> latch.tryGetOrNull("x"));
+
+    assertSame(failure, thrown);
+    assertTrue(latch.isLatched());
+    assertNull(latch.tryGetOrNull("x"));
+    assertEquals(1, latch.calls.get(), "later calls should be skipped");
+  }
+
+  @Test
+  void handleNoSuchFieldDoesNotLatchOnOtherFailures() {
+    Handling latch = new Handling();
+    latch.read =
+        t -> {
+          throw new IllegalStateException("boom");
+        };
+
+    assertThrows(IllegalStateException.class, () -> latch.tryGetOrNull("x"));
+    assertThrows(IllegalStateException.class, () -> latch.tryGetOrNull("x"));
+
+    assertFalse(latch.isLatched());
+    assertEquals(2, latch.calls.get());
   }
 }

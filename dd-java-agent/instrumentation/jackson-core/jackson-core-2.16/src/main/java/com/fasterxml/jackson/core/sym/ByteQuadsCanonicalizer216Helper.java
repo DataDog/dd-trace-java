@@ -20,12 +20,7 @@ public final class ByteQuadsCanonicalizer216Helper {
       new Latch<ByteQuadsCanonicalizer, Boolean, RuntimeException>() {
         @Override
         protected Boolean get(ByteQuadsCanonicalizer symbols) {
-          try {
-            return symbols._interner != null;
-          } catch (NoSuchFieldError e) {
-            latch();
-            throw e;
-          }
+          return handleNoSuchField(symbols, s -> s._interner != null);
         }
       };
 

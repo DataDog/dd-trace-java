@@ -44,12 +44,7 @@ public final class JsonParser216Helper {
           new Latch<UTF8StreamJsonParser, ByteQuadsCanonicalizer, RuntimeException>() {
             @Override
             protected ByteQuadsCanonicalizer get(UTF8StreamJsonParser jsonParser) {
-              try {
-                return jsonParser._symbols;
-              } catch (NoSuchFieldError e) {
-                latch();
-                throw e;
-              }
+              return handleNoSuchField(jsonParser, parser -> parser._symbols);
             }
           };
 

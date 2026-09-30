@@ -1,5 +1,6 @@
 package datadog.trace.util;
 
+import java.util.function.Function;
 import javax.annotation.Nullable;
 
 /**
@@ -45,6 +46,31 @@ public abstract class Latch<T, R, E extends Exception> {
   public final R tryGetOrDefault(T target, R fallback) throws E {
     final R result = tryGetOrNull(target);
     return result != null ? result : fallback;
+  }
+
+  /**
+   * For a read of a field that some classes on the classpath may lack: latches if the call raises
+   * {@link NoSuchFieldError}, then rethrows it so the first failure is still reported. A missing
+   * field is the same for every receiver, so one latch covers the site. Anything else propagates
+   * without latching.
+   *
+   * <pre>{@code
+   * protected Boolean get(ByteQuadsCanonicalizer symbols) {
+   *   return handleNoSuchField(symbols, s -> s._interner != null);
+   * }
+   * }</pre>
+   *
+   * A field read throws nothing checked, so the read is a plain {@link Function}. Unlike {@code
+   * ClassLatch#handleAbstractMethod}, which swallows the failure, this rethrows it.
+   */
+  @Nullable
+  protected final R handleNoSuchField(T target, Function<T, R> read) {
+    try {
+      return read.apply(target);
+    } catch (NoSuchFieldError e) {
+      latch();
+      throw e;
+    }
   }
 
   /** Returns whether the operation is being skipped. */
