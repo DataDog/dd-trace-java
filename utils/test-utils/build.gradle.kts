@@ -43,4 +43,6 @@ dependencies {
 
   compileOnly(libs.bundles.groovy)
   compileOnly(libs.bundles.spock)
+
+  testImplementation(libs.junit.platform.launcher)
 }

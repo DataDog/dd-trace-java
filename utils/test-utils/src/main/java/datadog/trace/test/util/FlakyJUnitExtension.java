@@ -1,6 +1,7 @@
 package datadog.trace.test.util;
 
 import static org.junit.platform.commons.support.AnnotationSupport.findAnnotation;
+import static org.junit.platform.commons.support.ReflectionSupport.findMethod;
 
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.InvocationTargetException;
@@ -100,7 +101,9 @@ public final class FlakyJUnitExtension implements ExecutionCondition {
     String methodName = reference.substring(separator + 1);
     try {
       Class<?> conditionClass = classLoader.loadClass(className);
-      Method method = conditionClass.getDeclaredMethod(methodName);
+      Method method =
+          findMethod(conditionClass, methodName)
+              .orElseThrow(() -> new NoSuchMethodException(reference));
       if (!Modifier.isStatic(method.getModifiers())) {
         throw new IllegalArgumentException(
             "@Flaky condition method " + reference + " must be static");
