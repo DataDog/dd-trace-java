@@ -110,115 +110,125 @@ public final class KnownTags {
   public static final long ERROR_TYPE_ID = 0x0019000000000000L;
   // makeTagId(serial=25)  <recommended>
 
+  public static final String HTTP_CLIENT_IP_NAME = "http.client_ip";
+  public static final long HTTP_CLIENT_IP_ID = 0x001A000000000000L;
+  public static final String HTTP_CLIENT_IP_OTEL_NAME = "client.address";
+  // makeTagId(serial=26) -> client.address  <recommended>
+
   public static final String HTTP_HOSTNAME_NAME = "http.hostname";
-  public static final long HTTP_HOSTNAME_ID = 0x001A000000000000L;
+  public static final long HTTP_HOSTNAME_ID = 0x001B000000000000L;
   public static final String HTTP_HOSTNAME_OTEL_NAME = "server.address";
-  // makeTagId(serial=26) -> server.address  <required>
+  // makeTagId(serial=27) -> server.address  <required>
 
   public static final String HTTP_METHOD_NAME = "http.method";
-  public static final long HTTP_METHOD_ID = 0x001B000000000000L;
+  public static final long HTTP_METHOD_ID = 0x001C000000000000L;
   public static final String HTTP_METHOD_OTEL_NAME = "http.request.method";
-  // makeTagId(serial=27) -> http.request.method  <required>
+  // makeTagId(serial=28) -> http.request.method  <required>
 
   public static final String HTTP_QUERY_STRING_NAME = "http.query.string";
-  public static final long HTTP_QUERY_STRING_ID = 0x001C000000000000L;
-  // makeTagId(serial=28)  <recommended>
-
-  public static final String HTTP_RESEND_COUNT_NAME = "http.resend_count";
-  public static final long HTTP_RESEND_COUNT_ID = 0x001D000000000000L;
+  public static final long HTTP_QUERY_STRING_ID = 0x001D000000000000L;
   // makeTagId(serial=29)  <recommended>
 
+  public static final String HTTP_RESEND_COUNT_NAME = "http.resend_count";
+  public static final long HTTP_RESEND_COUNT_ID = 0x001E000000000000L;
+  // makeTagId(serial=30)  <recommended>
+
   public static final String HTTP_ROUTE_NAME = "http.route";
-  public static final long HTTP_ROUTE_ID = 0x001E000000000000L;
-  // makeTagId(serial=30)  <conditional>
+  public static final long HTTP_ROUTE_ID = 0x001F000000000000L;
+  // makeTagId(serial=31)  <conditional>
 
   public static final String HTTP_STATUS_CODE_NAME = "http.status_code";
-  public static final long HTTP_STATUS_CODE_ID = 0x001F000000000000L;
+  public static final long HTTP_STATUS_CODE_ID = 0x0020000000000000L;
   public static final String HTTP_STATUS_CODE_OTEL_NAME = "http.response.status_code";
-  // makeTagId(serial=31) -> http.response.status_code  <conditional>
+  // makeTagId(serial=32) -> http.response.status_code  <conditional>
 
   public static final String HTTP_URL_NAME = "http.url";
-  public static final long HTTP_URL_ID = 0x0020000000000000L;
+  public static final long HTTP_URL_ID = 0x0021000000000000L;
   public static final String HTTP_URL_OTEL_NAME = "url.full";
-  // makeTagId(serial=32) -> url.full  <required>
+  // makeTagId(serial=33) -> url.full  <required>
 
   public static final String HTTP_USERAGENT_NAME = "http.useragent";
-  public static final long HTTP_USERAGENT_ID = 0x0021000000000000L;
+  public static final long HTTP_USERAGENT_ID = 0x0022000000000000L;
   public static final String HTTP_USERAGENT_OTEL_NAME = "user_agent.original";
-  // makeTagId(serial=33) -> user_agent.original  <recommended>
+  // makeTagId(serial=34) -> user_agent.original  <recommended>
 
   public static final String LANGUAGE_NAME = "language";
-  public static final long LANGUAGE_ID = 0x0022000000000004L;
-  // makeTagId(serial=34) + trace-level  <required>
+  public static final long LANGUAGE_ID = 0x0023000000000004L;
+  // makeTagId(serial=35) + trace-level  <required>
+
+  public static final String NETWORK_CLIENT_IP_NAME = "network.client.ip";
+  public static final long NETWORK_CLIENT_IP_ID = 0x0024000000000000L;
+  public static final String NETWORK_CLIENT_IP_OTEL_NAME = "network.peer.address";
+  // makeTagId(serial=36) -> network.peer.address  <recommended>
 
   public static final String NETWORK_PROTOCOL_VERSION_NAME = "network.protocol.version";
-  public static final long NETWORK_PROTOCOL_VERSION_ID = 0x0023000000000000L;
-  // makeTagId(serial=35)  <recommended>
+  public static final long NETWORK_PROTOCOL_VERSION_ID = 0x0025000000000000L;
+  // makeTagId(serial=37)  <recommended>
 
   public static final String PEER_HOSTNAME_NAME = "peer.hostname";
-  public static final long PEER_HOSTNAME_ID = 0x0024000000000000L;
-  // makeTagId(serial=36)  <recommended>
+  public static final long PEER_HOSTNAME_ID = 0x0026000000000000L;
+  // makeTagId(serial=38)  <recommended>
 
   public static final String PEER_IPV4_NAME = "peer.ipv4";
-  public static final long PEER_IPV4_ID = 0x0025000000000000L;
-  // makeTagId(serial=37)  <optional>
-
-  public static final String PEER_IPV6_NAME = "peer.ipv6";
-  public static final long PEER_IPV6_ID = 0x0026000000000000L;
-  // makeTagId(serial=38)  <optional>
-
-  public static final String PEER_PORT_NAME = "peer.port";
-  public static final long PEER_PORT_ID = 0x0027000000000000L;
+  public static final long PEER_IPV4_ID = 0x0027000000000000L;
   // makeTagId(serial=39)  <optional>
 
+  public static final String PEER_IPV6_NAME = "peer.ipv6";
+  public static final long PEER_IPV6_ID = 0x0028000000000000L;
+  // makeTagId(serial=40)  <optional>
+
+  public static final String PEER_PORT_NAME = "peer.port";
+  public static final long PEER_PORT_ID = 0x0029000000000000L;
+  // makeTagId(serial=41)  <optional>
+
   public static final String PEER_SERVICE_NAME = "peer.service";
-  public static final long PEER_SERVICE_ID = 0x0028000000000000L;
-  // makeTagId(serial=40)  <recommended>
+  public static final long PEER_SERVICE_ID = 0x002A000000000000L;
+  // makeTagId(serial=42)  <recommended>
 
   public static final String RUNTIME_ID_NAME = "runtime-id";
-  public static final long RUNTIME_ID = 0x0029000000000004L;
-  // makeTagId(serial=41) + trace-level  <required>
+  public static final long RUNTIME_ID = 0x002B000000000004L;
+  // makeTagId(serial=43) + trace-level  <required>
 
   public static final String SERVICE_NAME = "service";
-  public static final long SERVICE_ID = 0x002A000000000000L;
+  public static final long SERVICE_ID = 0x002C000000000000L;
   public static final String SERVICE_OTEL_NAME = "service.name";
-  // makeTagId(serial=42) -> service.name  <required>
+  // makeTagId(serial=44) -> service.name  <required>
 
   public static final String SERVLET_CONTEXT_NAME = "servlet.context";
-  public static final long SERVLET_CONTEXT_ID = 0x002B000000000000L;
-  // makeTagId(serial=43)  <optional>
+  public static final long SERVLET_CONTEXT_ID = 0x002D000000000000L;
+  // makeTagId(serial=45)  <optional>
 
   public static final String SERVLET_PATH_NAME = "servlet.path";
-  public static final long SERVLET_PATH_ID = 0x002C000000000000L;
-  // makeTagId(serial=44)  <optional>
+  public static final long SERVLET_PATH_ID = 0x002E000000000000L;
+  // makeTagId(serial=46)  <optional>
 
   public static final String SPAN_KIND_NAME = "span.kind";
-  public static final long SPAN_KIND_ID = 0x002D000000000000L;
-  // makeTagId(serial=45)  <required>
+  public static final long SPAN_KIND_ID = 0x002F000000000000L;
+  // makeTagId(serial=47)  <required>
 
   public static final String TEST_FRAMEWORK_NAME = "test.framework";
-  public static final long TEST_FRAMEWORK_ID = 0x002E000000000000L;
-  // makeTagId(serial=46)  <recommended>
-
-  public static final String TEST_NAME = "test.name";
-  public static final long TEST_NAME_ID = 0x002F000000000000L;
-  // makeTagId(serial=47)  <recommended>
-
-  public static final String TEST_STATUS_NAME = "test.status";
-  public static final long TEST_STATUS_ID = 0x0030000000000000L;
+  public static final long TEST_FRAMEWORK_ID = 0x0030000000000000L;
   // makeTagId(serial=48)  <recommended>
 
-  public static final String TEST_SUITE_NAME = "test.suite";
-  public static final long TEST_SUITE_ID = 0x0031000000000000L;
+  public static final String TEST_NAME = "test.name";
+  public static final long TEST_NAME_ID = 0x0031000000000000L;
   // makeTagId(serial=49)  <recommended>
 
+  public static final String TEST_STATUS_NAME = "test.status";
+  public static final long TEST_STATUS_ID = 0x0032000000000000L;
+  // makeTagId(serial=50)  <recommended>
+
+  public static final String TEST_SUITE_NAME = "test.suite";
+  public static final long TEST_SUITE_ID = 0x0033000000000000L;
+  // makeTagId(serial=51)  <recommended>
+
   public static final String VERSION_NAME = "version";
-  public static final long VERSION_ID = 0x0032000000000004L;
-  // makeTagId(serial=50) + trace-level  <recommended>
+  public static final long VERSION_ID = 0x0034000000000004L;
+  // makeTagId(serial=52) + trace-level  <recommended>
 
   public static final String VIEW_NAME = "view.name";
-  public static final long VIEW_NAME_ID = 0x0033000000000000L;
-  // makeTagId(serial=51)  <recommended>
+  public static final long VIEW_NAME_ID = 0x0035000000000000L;
+  // makeTagId(serial=53)  <recommended>
 
   // ---- serial numbers ----
   static final int DD_APPSEC_ENABLED_SERIAL_NUM = 1;
@@ -246,32 +256,34 @@ public final class KnownTags {
   static final int ERROR_MESSAGE_SERIAL_NUM = 23;
   static final int ERROR_STACK_SERIAL_NUM = 24;
   static final int ERROR_TYPE_SERIAL_NUM = 25;
-  static final int HTTP_HOSTNAME_SERIAL_NUM = 26;
-  static final int HTTP_METHOD_SERIAL_NUM = 27;
-  static final int HTTP_QUERY_STRING_SERIAL_NUM = 28;
-  static final int HTTP_RESEND_COUNT_SERIAL_NUM = 29;
-  static final int HTTP_ROUTE_SERIAL_NUM = 30;
-  static final int HTTP_STATUS_CODE_SERIAL_NUM = 31;
-  static final int HTTP_URL_SERIAL_NUM = 32;
-  static final int HTTP_USERAGENT_SERIAL_NUM = 33;
-  static final int LANGUAGE_SERIAL_NUM = 34;
-  static final int NETWORK_PROTOCOL_VERSION_SERIAL_NUM = 35;
-  static final int PEER_HOSTNAME_SERIAL_NUM = 36;
-  static final int PEER_IPV4_SERIAL_NUM = 37;
-  static final int PEER_IPV6_SERIAL_NUM = 38;
-  static final int PEER_PORT_SERIAL_NUM = 39;
-  static final int PEER_SERVICE_SERIAL_NUM = 40;
-  static final int RUNTIME_ID_SERIAL_NUM = 41;
-  static final int SERVICE_SERIAL_NUM = 42;
-  static final int SERVLET_CONTEXT_SERIAL_NUM = 43;
-  static final int SERVLET_PATH_SERIAL_NUM = 44;
-  static final int SPAN_KIND_SERIAL_NUM = 45;
-  static final int TEST_FRAMEWORK_SERIAL_NUM = 46;
-  static final int TEST_NAME_SERIAL_NUM = 47;
-  static final int TEST_STATUS_SERIAL_NUM = 48;
-  static final int TEST_SUITE_SERIAL_NUM = 49;
-  static final int VERSION_SERIAL_NUM = 50;
-  static final int VIEW_NAME_SERIAL_NUM = 51;
+  static final int HTTP_CLIENT_IP_SERIAL_NUM = 26;
+  static final int HTTP_HOSTNAME_SERIAL_NUM = 27;
+  static final int HTTP_METHOD_SERIAL_NUM = 28;
+  static final int HTTP_QUERY_STRING_SERIAL_NUM = 29;
+  static final int HTTP_RESEND_COUNT_SERIAL_NUM = 30;
+  static final int HTTP_ROUTE_SERIAL_NUM = 31;
+  static final int HTTP_STATUS_CODE_SERIAL_NUM = 32;
+  static final int HTTP_URL_SERIAL_NUM = 33;
+  static final int HTTP_USERAGENT_SERIAL_NUM = 34;
+  static final int LANGUAGE_SERIAL_NUM = 35;
+  static final int NETWORK_CLIENT_IP_SERIAL_NUM = 36;
+  static final int NETWORK_PROTOCOL_VERSION_SERIAL_NUM = 37;
+  static final int PEER_HOSTNAME_SERIAL_NUM = 38;
+  static final int PEER_IPV4_SERIAL_NUM = 39;
+  static final int PEER_IPV6_SERIAL_NUM = 40;
+  static final int PEER_PORT_SERIAL_NUM = 41;
+  static final int PEER_SERVICE_SERIAL_NUM = 42;
+  static final int RUNTIME_ID_SERIAL_NUM = 43;
+  static final int SERVICE_SERIAL_NUM = 44;
+  static final int SERVLET_CONTEXT_SERIAL_NUM = 45;
+  static final int SERVLET_PATH_SERIAL_NUM = 46;
+  static final int SPAN_KIND_SERIAL_NUM = 47;
+  static final int TEST_FRAMEWORK_SERIAL_NUM = 48;
+  static final int TEST_NAME_SERIAL_NUM = 49;
+  static final int TEST_STATUS_SERIAL_NUM = 50;
+  static final int TEST_SUITE_SERIAL_NUM = 51;
+  static final int VERSION_SERIAL_NUM = 52;
+  static final int VIEW_NAME_SERIAL_NUM = 53;
 
   private static final String[] KEYOF_NAMES = {
     DD_APPSEC_ENABLED_NAME,
@@ -299,6 +311,7 @@ public final class KnownTags {
     ERROR_MESSAGE_NAME,
     ERROR_STACK_NAME,
     ERROR_TYPE_NAME,
+    HTTP_CLIENT_IP_NAME,
     HTTP_HOSTNAME_NAME,
     HTTP_METHOD_NAME,
     HTTP_QUERY_STRING_NAME,
@@ -308,6 +321,7 @@ public final class KnownTags {
     HTTP_URL_NAME,
     HTTP_USERAGENT_NAME,
     LANGUAGE_NAME,
+    NETWORK_CLIENT_IP_NAME,
     NETWORK_PROTOCOL_VERSION_NAME,
     PEER_HOSTNAME_NAME,
     PEER_IPV4_NAME,
@@ -325,11 +339,13 @@ public final class KnownTags {
     TEST_SUITE_NAME,
     VERSION_NAME,
     VIEW_NAME,
+    "client.address",
     "db.operation.name",
     "db.query.text",
     "db.system",
     "http.request.method",
     "http.response.status_code",
+    "network.peer.address",
     "server.address",
     "service.name",
     "url.full",
@@ -361,6 +377,7 @@ public final class KnownTags {
     ERROR_MESSAGE_ID,
     ERROR_STACK_ID,
     ERROR_TYPE_ID,
+    HTTP_CLIENT_IP_ID,
     HTTP_HOSTNAME_ID,
     HTTP_METHOD_ID,
     HTTP_QUERY_STRING_ID,
@@ -370,6 +387,7 @@ public final class KnownTags {
     HTTP_URL_ID,
     HTTP_USERAGENT_ID,
     LANGUAGE_ID,
+    NETWORK_CLIENT_IP_ID,
     NETWORK_PROTOCOL_VERSION_ID,
     PEER_HOSTNAME_ID,
     PEER_IPV4_ID,
@@ -387,11 +405,13 @@ public final class KnownTags {
     TEST_SUITE_ID,
     VERSION_ID,
     VIEW_NAME_ID,
+    HTTP_CLIENT_IP_ID,
     DB_OPERATION_ID,
     DB_STATEMENT_ID,
     DB_TYPE_ID,
     HTTP_METHOD_ID,
     HTTP_STATUS_CODE_ID,
+    NETWORK_CLIENT_IP_ID,
     HTTP_HOSTNAME_ID,
     SERVICE_ID,
     HTTP_URL_ID,
@@ -473,6 +493,8 @@ public final class KnownTags {
               return ERROR_STACK_NAME;
             case ERROR_TYPE_SERIAL_NUM:
               return ERROR_TYPE_NAME;
+            case HTTP_CLIENT_IP_SERIAL_NUM:
+              return HTTP_CLIENT_IP_NAME;
             case HTTP_HOSTNAME_SERIAL_NUM:
               return HTTP_HOSTNAME_NAME;
             case HTTP_METHOD_SERIAL_NUM:
@@ -491,6 +513,8 @@ public final class KnownTags {
               return HTTP_USERAGENT_NAME;
             case LANGUAGE_SERIAL_NUM:
               return LANGUAGE_NAME;
+            case NETWORK_CLIENT_IP_SERIAL_NUM:
+              return NETWORK_CLIENT_IP_NAME;
             case NETWORK_PROTOCOL_VERSION_SERIAL_NUM:
               return NETWORK_PROTOCOL_VERSION_NAME;
             case PEER_HOSTNAME_SERIAL_NUM:
@@ -539,6 +563,8 @@ public final class KnownTags {
               return DB_STATEMENT_OTEL_NAME;
             case DB_TYPE_SERIAL_NUM:
               return DB_TYPE_OTEL_NAME;
+            case HTTP_CLIENT_IP_SERIAL_NUM:
+              return HTTP_CLIENT_IP_OTEL_NAME;
             case HTTP_HOSTNAME_SERIAL_NUM:
               return HTTP_HOSTNAME_OTEL_NAME;
             case HTTP_METHOD_SERIAL_NUM:
@@ -549,6 +575,8 @@ public final class KnownTags {
               return HTTP_URL_OTEL_NAME;
             case HTTP_USERAGENT_SERIAL_NUM:
               return HTTP_USERAGENT_OTEL_NAME;
+            case NETWORK_CLIENT_IP_SERIAL_NUM:
+              return NETWORK_CLIENT_IP_OTEL_NAME;
             case SERVICE_SERIAL_NUM:
               return SERVICE_OTEL_NAME;
             default:

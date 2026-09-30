@@ -90,6 +90,8 @@ span_types:
       - { dd-name: http.query.string, type: string, required: recommended }  # not a rename: url.query is also carried inside url.full, while http.url excludes the query (QueryObfuscator re-appends it)
       - { dd-name: servlet.path,      type: string, required: optional }
       - { dd-name: servlet.context,   type: string, required: optional }
+      - { dd-name: http.client_ip,    type: string, required: recommended, otel-name: client.address }
+      - { dd-name: network.client.ip, type: string, required: recommended, otel-name: network.peer.address }
 
   http.client:
     extends: http

@@ -64,6 +64,8 @@ class KnownTagsTest {
         Arguments.of("url.full", KnownTags.HTTP_URL_ID, "http.url"),
         Arguments.of("server.address", KnownTags.HTTP_HOSTNAME_ID, "http.hostname"),
         Arguments.of("user_agent.original", KnownTags.HTTP_USERAGENT_ID, "http.useragent"),
+        Arguments.of("client.address", KnownTags.HTTP_CLIENT_IP_ID, "http.client_ip"),
+        Arguments.of("network.peer.address", KnownTags.NETWORK_CLIENT_IP_ID, "network.client.ip"),
         Arguments.of("db.system", KnownTags.DB_TYPE_ID, "db.type"),
         Arguments.of("db.operation.name", KnownTags.DB_OPERATION_ID, "db.operation"),
         Arguments.of("db.query.text", KnownTags.DB_STATEMENT_ID, "db.statement"),

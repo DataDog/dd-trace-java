@@ -52,7 +52,7 @@ http.client  (21 tags):
   - peer.ipv6
   - peer.port
 
-http.server  (19 tags):
+http.server  (21 tags):
   - _dd.parent_id
   - service
   - component
@@ -72,6 +72,8 @@ http.server  (19 tags):
   - http.query.string
   - servlet.path
   - servlet.context
+  - http.client_ip
+  - network.client.ip
 
 view.render  (10 tags):
   - _dd.parent_id
