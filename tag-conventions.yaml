@@ -28,8 +28,11 @@
 #                        value is reserved — no tag uses it today (the RFC renames or retains, never
 #                        suppresses), and real suppression is a follow-on; it currently behaves as
 #                        pass-through.
-# A tag is one identity across span types/mixins, so it may carry only one otel-name — declaring it
-# two different ways fails the build (a span-kind-dependent mapping is a derivation, not a rename).
+# A tag is one identity across span types/mixins, so it is DECLARED exactly once — a second declaration
+# fails the build. Put a tag shared by several span types on their common parent or a mixin; any other
+# span type that carries it uses `{ ref: <dd-name>, required: <level> }`, which may override only
+# `required` (type and otel-name come from the one declaration). A span-kind-dependent mapping is a
+# derivation, not a rename.
 # The id coordinate (group-decl / field-decl) is NOT authored here — the generator assigns it: each
 # declaration source (the trace-level tier, each span type, each mixin) is a group, and within a
 # group `field-decl` numbers the dense (required/conditional/recommended) tags; the rest are
@@ -79,11 +82,11 @@ span_types:
       - { dd-name: http.method,              type: string, required: required,    otel-name: http.request.method }
       - { dd-name: http.status_code,         type: int,    required: conditional, otel-name: http.response.status_code }
       - { dd-name: network.protocol.version, type: string, required: recommended }  # passes through: dd-name already is the OTel name
+      - { dd-name: http.url,                 type: string, required: required,    otel-name: url.full }  # shared by http.server and http.client => one otel-name. url.full is the client-correct rename; server's spec mapping (url.path + url.scheme + url.query) is a one-to-many split reserved for the derivation layer (needs span.kind). TODO(otel): server split.
 
   http.server:
     extends: http
     tags:
-      - { dd-name: http.url,          type: string, required: required,    otel-name: url.full }  # single http.url identity (shared w/ http.client) => one otel-name. url.full is the client-correct rename; server's spec mapping (url.path + url.scheme + url.query) is a one-to-many split reserved for the derivation layer (needs span.kind). TODO(otel): server split.
       - { dd-name: http.route,        type: string, required: conditional }  # passes through: dd-name already is the OTel name
       - { dd-name: http.hostname,     type: string, required: required,    otel-name: server.address }
       - { dd-name: http.useragent,    type: string, required: recommended, otel-name: user_agent.original }
@@ -97,7 +100,6 @@ span_types:
     extends: http
     include: [ peer ]
     tags:
-      - { dd-name: http.url,          type: string, required: required,    otel-name: url.full }
       - { dd-name: http.resend_count, type: int,    required: recommended }
 
   db.client:

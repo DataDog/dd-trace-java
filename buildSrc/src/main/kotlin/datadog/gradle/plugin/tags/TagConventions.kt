@@ -28,12 +28,19 @@ private constructor(
     val otelName: String? = null,
   )
 
+  /**
+   * A `{ ref: <dd-name>, required: <level> }` entry: uses a tag declared elsewhere, optionally at a
+   * different requirement level. Identity (type, otel-name) comes only from the one declaration.
+   */
+  data class Ref(val name: String, val required: String?)
+
   data class SpanType(
     val name: String,
     val abstract: Boolean,
     val extends: String?,
     val include: List<String>,
     val tags: List<Tag>,
+    val refs: List<Ref> = emptyList(),
   )
 
   data class Mixin(
@@ -41,7 +48,18 @@ private constructor(
     val appliesAll: Boolean,
     val appliesTo: Set<String>,
     val tags: List<Tag>,
+    val refs: List<Ref> = emptyList(),
   )
+
+  private val declarations: Map<String, Tag> by lazy {
+    allDeclaredTags().associateBy { it.name }
+  }
+
+  /** The tag a [Ref] names, at the ref's requirement level when it overrides one. */
+  private fun materialize(ref: Ref): Tag {
+    val decl = declarations.getValue(ref.name)
+    return if (ref.required == null) decl else decl.copy(required = ref.required)
+  }
 
   /** Concrete (instantiable) span types — the ones a layout is computed for. */
   fun concreteTypes(): List<String> =
@@ -50,11 +68,23 @@ private constructor(
   /**
    * resolved(type) = own tags + tags up the `extends` chain (incl. base) + tags of every mixin the
    * type or an ancestor `include`s + tags of every mixin whose `applies` matches. De-duped by tag
-   * name (first occurrence wins). Base-first order, so it is stable across runs.
+   * name (first occurrence wins). Base-first order, so it is stable across runs. A [Ref] adds its
+   * tag if absent and otherwise overrides only the requirement level, keeping the tag's position;
+   * refs are applied after a type's own tags and includes, so the most derived type wins.
    */
   fun resolve(typeName: String): List<Tag> {
     val result = LinkedHashMap<String, Tag>()
     fun add(t: Tag) = result.putIfAbsent(t.name, t)
+    fun applyRef(r: Ref) {
+      val current = result[r.name]
+      // Re-putting an existing key keeps its LinkedHashMap position.
+      result[r.name] =
+        when {
+          current == null -> materialize(r)
+          r.required == null -> current
+          else -> current.copy(required = r.required)
+        }
+    }
 
     val chain = ArrayList<SpanType>()
     var cur: SpanType? = spanTypes[typeName]
@@ -64,11 +94,20 @@ private constructor(
     }
     for (st in chain.asReversed()) {
       st.tags.forEach { add(it) }
-      for (mixinName in st.include) mixins[mixinName]?.tags?.forEach { add(it) }
+      for (mixinName in st.include) {
+        mixins[mixinName]?.let { mx ->
+          mx.tags.forEach { add(it) }
+          mx.refs.forEach { applyRef(it) }
+        }
+      }
+      st.refs.forEach { applyRef(it) }
     }
     val chainNames = chain.map { it.name }.toSet()
     for (mx in mixins.values) {
-      if (mx.appliesAll || mx.appliesTo.any { it in chainNames }) mx.tags.forEach { add(it) }
+      if (mx.appliesAll || mx.appliesTo.any { it in chainNames }) {
+        mx.tags.forEach { add(it) }
+        mx.refs.forEach { if (it.name !in result) add(materialize(it)) }
+      }
     }
     return result.values.toList()
   }
@@ -82,9 +121,9 @@ private constructor(
   /**
    * The declaration groups, in a stable order: the trace-level tier first, then every span type
    * (abstract included — `base`/`http` declare real tags) sorted by name, then every mixin sorted by
-   * name. Each maps to one `group-decl`. A tag is *declared* once (in its own container's `tags:`);
-   * the same tag reached via extends/include/applies is not re-declared, so first-declaration (in
-   * this order) is its home group. Groups with no declared tags are omitted.
+   * name. Each maps to one `group-decl`. A tag is *declared* exactly once (enforced by [parse]);
+   * reaching it via extends/include/applies or a `ref` does not re-declare it, so its declaring
+   * container is its home group. Groups with no declared tags are omitted.
    */
   fun declarationGroups(): List<Group> {
     val groups = ArrayList<Group>()
@@ -145,6 +184,7 @@ private constructor(
     for (st in chain.asReversed()) {
       st.tags.forEach { out.add(st.name to it) }
       for (mixinName in st.include) mixins[mixinName]?.tags?.forEach { out.add("incl:$mixinName" to it) }
+      st.refs.forEach { out.add("ref:${st.name}" to materialize(it)) }
     }
     val chainNames = chain.map { it.name }.toSet()
     for (mx in mixins.values) {
@@ -171,6 +211,7 @@ private constructor(
             extends = m["extends"] as? String,
             include = (m["include"] as? List<String>) ?: emptyList(),
             tags = tagList(m["tags"]),
+            refs = refList(m["tags"]),
           )
         }
 
@@ -184,51 +225,71 @@ private constructor(
             appliesAll = applies == "all",
             appliesTo = if (applies is List<*>) applies.map { it.toString() }.toSet() else emptySet(),
             tags = tagList(m["tags"]),
+            refs = refList(m["tags"]),
           )
         }
 
       // Trace-level tags pass through under their Datadog name for now; their OTel mapping (resource
       // attributes) is a follow-on. TODO(otel follow-on).
-      val traceLevel = tagList((root["trace_level"] as? Map<String, Any?>)?.get("tags"))
-      validateOtelNameConsistency(spanTypes, mixins, traceLevel)
+      val traceLevelRaw = (root["trace_level"] as? Map<String, Any?>)?.get("tags")
+      require(refList(traceLevelRaw).isEmpty()) { "trace_level tags must be declarations, not refs" }
+      val traceLevel = tagList(traceLevelRaw)
+      validateSingleDeclaration(spanTypes, mixins, traceLevel)
       return TagConventions(spanTypes, mixins, traceLevel)
     }
 
     /**
-     * A tag is de-duped by name across span types / mixins (see [resolve] / [allDeclaredTags]), so its
-     * whole identity — including the OpenTelemetry name — must be declared consistently everywhere it
-     * appears. `http.url` on `http.server` and `http.client`, for instance, is ONE tag: it can carry
-     * exactly one otel-name. Without this check, two conflicting declarations would silently collapse
-     * to whichever the dedup happened to keep. Fail the build loudly instead. (A span-kind-dependent
-     * mapping is a derivation, not a rename, and belongs to the derivation layer — not two otel-names
-     * on one identity.)
+     * A tag is ONE identity across span types / mixins, so it is declared exactly once, with its
+     * type and otel-name; every other span type that carries it uses a `ref`, which may override
+     * only the requirement level. `http.url`, for instance, is declared on the shared `http` parent
+     * rather than on both `http.server` and `http.client`. Rejecting a second declaration outright
+     * (rather than only a conflicting one) keeps identity in one place. Refs must name a declared tag.
      */
-    private fun validateOtelNameConsistency(
+    private fun validateSingleDeclaration(
       spanTypes: Map<String, SpanType>,
       mixins: Map<String, Mixin>,
       traceLevel: List<Tag>,
     ) {
-      val declared = HashMap<String, String?>() // name -> otelName from its first declaration
-      val declaredKeys = HashSet<String>()
-      val check = { t: Tag ->
-        if (declaredKeys.add(t.name)) {
-          declared[t.name] = t.otelName
-        } else {
-          require(declared[t.name] == t.otelName) {
-            "tag '${t.name}' declares conflicting otel-name: '${declared[t.name] ?: "none"}' vs " +
-                "'${t.otelName ?: "none"}'. A tag is one identity across span types/mixins and may " +
-                "carry only one otel-name; a span-kind-dependent mapping belongs to the derivation layer."
-          }
+      val home = HashMap<String, String>() // name -> declaring container
+      val declare = { container: String, t: Tag ->
+        val prev = home.putIfAbsent(t.name, container)
+        require(prev == null) {
+          "tag '${t.name}' is declared in both '$prev' and '$container'. Declare it once and use " +
+              "`{ ref: ${t.name}, required: <level> }` elsewhere; a ref may override only `required`."
         }
       }
-      spanTypes.values.forEach { it.tags.forEach(check) }
-      mixins.values.forEach { it.tags.forEach(check) }
-      traceLevel.forEach(check)
+      traceLevel.forEach { declare(TRACE_LAYER, it) }
+      spanTypes.values.forEach { st -> st.tags.forEach { declare(st.name, it) } }
+      mixins.values.forEach { mx -> mx.tags.forEach { declare("mixin ${mx.name}", it) } }
+
+      val refs =
+        spanTypes.values.flatMap { st -> st.refs.map { st.name to it } } +
+          mixins.values.flatMap { mx -> mx.refs.map { "mixin ${mx.name}" to it } }
+      for ((container, r) in refs) {
+        require(r.name in home) { "'$container' refs undeclared tag '${r.name}'" }
+      }
     }
+
+    private val REF_KEYS = setOf("ref", "required")
+
+    @Suppress("UNCHECKED_CAST")
+    private fun refList(tags: Any?): List<Ref> =
+      (tags as? List<Map<String, Any?>>)
+        ?.filter { it.containsKey("ref") }
+        ?.map { m ->
+          val extra = m.keys - REF_KEYS
+          require(extra.isEmpty()) {
+            "ref '${m["ref"]}' may override only `required`, but also sets $extra; identity " +
+                "(type, otel-name) comes from the tag's single declaration"
+          }
+          val name = m["ref"]
+          require(name is String && name.isNotBlank()) { "ref has no valid tag name: $m" }
+          Ref(name, m["required"] as? String)
+        } ?: emptyList()
 
     @Suppress("UNCHECKED_CAST")
     private fun tagList(tags: Any?): List<Tag> =
-      (tags as? List<Map<String, Any?>>)?.map { m ->
+      (tags as? List<Map<String, Any?>>)?.filterNot { it.containsKey("ref") }?.map { m ->
         Tag(
           name = parseDdName(m),
           type = (m["type"] as? String) ?: "string",
