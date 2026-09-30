@@ -32,7 +32,8 @@ class DDTracerAPITest extends DDJavaSpecification {
       assertSame(sampler, getField(tracer, "initialSampler"));
       assertSame(writer, getField(tracer, "writer"));
 
-      Object localRootSpanTags = getField(tracer, "localRootSpanTags");
+      Object localRootSpanTagsHolder = getField(tracer, "localRootSpanTags");
+      Object localRootSpanTags = getField(localRootSpanTagsHolder, "tags");
       assertNotNull(localRootSpanTags.toString());
       // Verify runtime-id and language tags are populated
       assertTrue(
