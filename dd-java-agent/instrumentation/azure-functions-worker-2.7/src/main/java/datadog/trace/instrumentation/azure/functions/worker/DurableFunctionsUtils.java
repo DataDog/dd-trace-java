@@ -54,24 +54,25 @@ public final class DurableFunctionsUtils {
     return span;
   }
 
-  public static ContextScope activateTraceContext(MiddlewareContext context) {
+  public static ContextScope activateOrchestrationContext(MiddlewareContext context) {
     if (context.getParameterName(ORCHESTRATION_ANNOTATION) == null) {
       return null;
     }
     final TraceContext traceContext = context.getTraceContext();
     if (traceContext == null) {
-      return null;
+      return DurableOrchestrationState.activate(null);
     }
 
     final AgentSpanContext.Extracted extracted =
         extractContextAndGetSpanContext(traceContext, TraceContextExtractAdapter.GETTER);
     final AgentSpan remoteSpan = AgentSpan.fromSpanContext(extracted);
-    return remoteSpan.isValid() ? activateSpan(remoteSpan) : null;
+    return DurableOrchestrationState.activate(remoteSpan);
   }
 
   public static AgentSpan onOrchestrationInvoke(MiddlewareContext context) {
-    final AgentSpan span = AgentSpan.current();
-    if (span != null && "DurableOrchestration".equals(span.getTag("aas.function.trigger"))) {
+    final DurableOrchestrationState state = DurableOrchestrationState.current();
+    final AgentSpan span = state == null ? null : state.span();
+    if (span != null) {
       DECORATE.onInvoke(span, context.getFunctionName(), "DurableOrchestration");
       return span;
     }

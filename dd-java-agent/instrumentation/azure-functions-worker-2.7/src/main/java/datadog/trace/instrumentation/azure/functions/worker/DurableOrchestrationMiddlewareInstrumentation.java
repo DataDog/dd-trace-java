@@ -37,6 +37,7 @@ public final class DurableOrchestrationMiddlewareInstrumentation extends Instrum
     return new String[] {
       packageName + ".DurableFunctionsDecorator",
       packageName + ".DurableFunctionsUtils",
+      packageName + ".DurableOrchestrationState",
       packageName + ".TraceContextExtractAdapter"
     };
   }
@@ -69,10 +70,10 @@ public final class DurableOrchestrationMiddlewareInstrumentation extends Instrum
   public static class InvokeAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope onEnter(@Advice.Argument(0) MiddlewareContext context) {
-      return DurableFunctionsUtils.activateTraceContext(context);
+      return DurableFunctionsUtils.activateOrchestrationContext(context);
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit(@Advice.Enter ContextScope scope) {
       if (scope != null) {
         scope.close();

@@ -10,8 +10,11 @@ import static datadog.trace.test.junit.utils.assertions.Matchers.matches;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -23,6 +26,7 @@ import com.microsoft.azure.functions.TraceContext;
 import com.microsoft.azure.functions.internal.spi.middleware.MiddlewareChain;
 import com.microsoft.azure.functions.internal.spi.middleware.MiddlewareContext;
 import com.microsoft.azure.functions.worker.chain.FunctionExecutionMiddleware;
+import com.microsoft.durabletask.OrchestrationRunner;
 import com.microsoft.durabletask.azurefunctions.internal.middleware.OrchestrationMiddleware;
 import com.microsoft.durabletask.implementation.protobuf.OrchestratorService.ExecutionStartedEvent;
 import com.microsoft.durabletask.implementation.protobuf.OrchestratorService.HistoryEvent;
@@ -31,15 +35,19 @@ import com.microsoft.durabletask.implementation.protobuf.OrchestratorService.Orc
 import com.microsoft.durabletask.implementation.protobuf.OrchestratorService.SubOrchestrationInstanceFailedEvent;
 import com.microsoft.durabletask.implementation.protobuf.OrchestratorService.TaskCompletedEvent;
 import com.microsoft.durabletask.implementation.protobuf.OrchestratorService.TaskFailedEvent;
+import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.assertions.SpanMatcher;
 import datadog.trace.api.DDSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpan;
 import datadog.trace.instrumentation.azure.functions.worker.DurableFunctionsUtils;
+import datadog.trace.instrumentation.azure.functions.worker.DurableOrchestrationState;
 import datadog.trace.instrumentation.azure.functions.worker.DurableOrchestrationUtils;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
@@ -133,6 +141,78 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
     assertTraces(trace(durableSpan("Orchestrator", "DurableOrchestration")));
   }
 
+  @Test
+  void doesNotCreateAzureSpanForStandaloneOrchestration() {
+    OrchestratorRequest request =
+        OrchestratorRequest.newBuilder()
+            .setInstanceId("standalone-instance")
+            .addNewEvents(executionStarted())
+            .build();
+
+    OrchestrationRunner.loadAndRun(request.toByteArray(), context -> null);
+
+    assertTraces();
+  }
+
+  @Test
+  void closesOrchestrationContextWhenMiddlewareThrows() {
+    MiddlewareContext context = contextFor("DurableOrchestrationTrigger", "Orchestrator");
+    when(context.getParameterValue("input")).thenReturn("invalid base64!");
+    TraceContext traceContext = mock(TraceContext.class);
+    when(traceContext.getTraceparent())
+        .thenReturn("00-0000000000000000000000000000002a-000000000000002b-01");
+    when(context.getTraceContext()).thenReturn(traceContext);
+    AgentSpan previousSpan = AgentTracer.activeSpan();
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new OrchestrationMiddleware().invoke(context, mock(MiddlewareChain.class)));
+
+    assertSame(previousSpan, AgentTracer.activeSpan());
+    assertNull(DurableOrchestrationState.current());
+    assertTraces();
+  }
+
+  @Test
+  void findsOrchestrationSpanWhenAnotherSpanIsActive() throws Exception {
+    MiddlewareContext context = contextFor("DurableOrchestrationTrigger", "Orchestrator");
+    OrchestratorRequest request =
+        OrchestratorRequest.newBuilder()
+            .setInstanceId("test-instance")
+            .addNewEvents(executionStarted())
+            .build();
+    when(context.getParameterValue("input"))
+        .thenReturn(Base64.getEncoder().encodeToString(request.toByteArray()));
+
+    MiddlewareChain orchestrationChain = mock(MiddlewareChain.class);
+    doAnswer(
+            invocation -> {
+              AgentSpan intervening = AgentTracer.startSpan("test", "intervening");
+              try (ContextScope scope = AgentTracer.activateSpan(intervening)) {
+                new FunctionExecutionMiddleware().invoke(context, mock(MiddlewareChain.class));
+              } finally {
+                intervening.finish();
+              }
+              return null;
+            })
+        .when(orchestrationChain)
+        .doNext(context);
+
+    new OrchestrationMiddleware().invoke(context, orchestrationChain);
+
+    writer.waitForTraces(1);
+    List<DDSpan> spans = writer.firstTrace();
+    assertEquals(2, spans.size());
+    DDSpan orchestrationSpan =
+        spans.stream()
+            .filter(span -> "DurableOrchestration".equals(span.getTag("aas.function.trigger")))
+            .findFirst()
+            .orElseThrow(AssertionError::new);
+    assertEquals("Orchestrator", orchestrationSpan.getTag("aas.function.name"));
+    assertEquals(
+        "DurableOrchestration Orchestrator", orchestrationSpan.getResourceName().toString());
+  }
+
   @TableTest({
     "scenario                 | subOrchestration",
     "failed activity          | false           ",
@@ -156,7 +236,7 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
     MiddlewareChain chain = mock(MiddlewareChain.class);
     doAnswer(
             invocation -> {
-              throw new IllegalStateException("activity failure");
+              throw new InvocationTargetException(new IllegalStateException("activity failure"));
             })
         .when(chain)
         .doNext(context);
@@ -193,7 +273,7 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
             invocation -> {
               invocationStartMillis.set(System.currentTimeMillis());
               Thread.sleep(25);
-              throw new IllegalStateException("replay failure");
+              throw new InvocationTargetException(new IllegalStateException("replay failure"));
             })
         .when(chain)
         .doNext(context);
@@ -430,6 +510,7 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
     try {
       controlFlowType = (Class<? extends Throwable>) Class.forName(controlFlowTypeName);
     } catch (ClassNotFoundException ignored) {
+      assumeTrue(false, controlFlowTypeName + " is not available in this Durable Task version");
       return;
     }
     Throwable controlFlow = instantiateThrowable(controlFlowType);
@@ -449,18 +530,18 @@ abstract class AzureFunctionsWorkerTest extends AbstractInstrumentationTest {
   }
 
   @Test
-  void marksApplicationFailuresAsErrors() throws Exception {
+  void marksWrappedApplicationFailuresAsErrors() throws Exception {
     MiddlewareContext context = contextFor("DurableActivityTrigger", "Activity");
     MiddlewareChain chain = mock(MiddlewareChain.class);
     doAnswer(
             invocation -> {
-              throw new IllegalStateException("failure");
+              throw new InvocationTargetException(new IllegalStateException("failure"));
             })
         .when(chain)
         .doNext(context);
 
     assertThrows(
-        IllegalStateException.class,
+        InvocationTargetException.class,
         () -> new FunctionExecutionMiddleware().invoke(context, chain));
 
     assertTraces(

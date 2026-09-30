@@ -35,7 +35,9 @@ public final class DurableOrchestrationExecutorInstrumentation extends Instrumen
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".DurableFunctionsDecorator", packageName + ".DurableOrchestrationUtils"
+      packageName + ".DurableFunctionsDecorator",
+      packageName + ".DurableOrchestrationState",
+      packageName + ".DurableOrchestrationUtils"
     };
   }
 
@@ -58,19 +60,30 @@ public final class DurableOrchestrationExecutorInstrumentation extends Instrumen
   public static class ExecuteAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope onEnter(
-        @Advice.Argument(0) List<?> pastEvents, @Advice.Argument(1) List<?> newEvents) {
-      return DurableOrchestrationUtils.shouldTrace(pastEvents, newEvents)
-          ? DurableOrchestrationUtils.startSpanScope()
-          : null;
+        @Advice.Argument(0) List<?> pastEvents,
+        @Advice.Argument(1) List<?> newEvents,
+        @Advice.Local("state") DurableOrchestrationState state,
+        @Advice.Local("previousSpan") AgentSpan previousSpan) {
+      state = DurableOrchestrationState.current();
+      if (state == null || !DurableOrchestrationUtils.shouldTrace(pastEvents, newEvents)) {
+        return null;
+      }
+      final ContextScope scope = DurableOrchestrationUtils.startSpanScope();
+      previousSpan = state.setSpan(spanFromScope(scope));
+      return scope;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit(
-        @Advice.Enter ContextScope scope, @Advice.Thrown Throwable throwable) {
+        @Advice.Enter ContextScope scope,
+        @Advice.Local("state") DurableOrchestrationState state,
+        @Advice.Local("previousSpan") AgentSpan previousSpan,
+        @Advice.Thrown Throwable throwable) {
       if (scope != null) {
         final AgentSpan span = spanFromScope(scope);
-        DECORATE.onError(span, throwable);
+        DECORATE.onInvocationError(span, throwable);
         DECORATE.beforeFinish(span);
+        state.setSpan(previousSpan);
         scope.close();
         span.finish();
       }

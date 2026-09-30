@@ -35,6 +35,7 @@ public final class AzureFunctionsWorkerInstrumentation extends InstrumenterModul
     return new String[] {
       packageName + ".DurableFunctionsDecorator",
       packageName + ".DurableFunctionsUtils",
+      packageName + ".DurableOrchestrationState",
       packageName + ".TraceContextExtractAdapter"
     };
   }
@@ -91,7 +92,7 @@ public final class AzureFunctionsWorkerInstrumentation extends InstrumenterModul
         @Advice.Thrown Throwable throwable) {
       if (orchestrationSpan != null) {
         if (throwable != null && !DurableFunctionsUtils.isReplayControlFlow(throwable)) {
-          DECORATE.onError(orchestrationSpan, throwable);
+          DECORATE.onInvocationError(orchestrationSpan, throwable);
         }
         return;
       }
@@ -102,7 +103,7 @@ public final class AzureFunctionsWorkerInstrumentation extends InstrumenterModul
             && !DurableFunctionsUtils.isReplayControlFlow(throwable)) {
           final AgentSpan span =
               DurableFunctionsUtils.startInvocationSpan(context, trigger, startTimeMicros);
-          DECORATE.onError(span, throwable);
+          DECORATE.onInvocationError(span, throwable);
           DECORATE.beforeFinish(span);
           span.finish();
         }
@@ -110,7 +111,7 @@ public final class AzureFunctionsWorkerInstrumentation extends InstrumenterModul
       }
       final AgentSpan span = spanFromScope(scope);
       if (!DurableFunctionsUtils.isReplayControlFlow(throwable)) {
-        DECORATE.onError(span, throwable);
+        DECORATE.onInvocationError(span, throwable);
       }
       DECORATE.beforeFinish(span);
       scope.close();

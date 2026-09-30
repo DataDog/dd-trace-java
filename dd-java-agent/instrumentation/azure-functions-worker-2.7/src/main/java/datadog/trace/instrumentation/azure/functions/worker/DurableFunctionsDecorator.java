@@ -6,6 +6,7 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
+import java.lang.reflect.InvocationTargetException;
 
 public final class DurableFunctionsDecorator extends BaseDecorator {
   public static final DurableFunctionsDecorator DECORATE = new DurableFunctionsDecorator();
@@ -44,5 +45,12 @@ public final class DurableFunctionsDecorator extends BaseDecorator {
       span.setTag("aas.function.name", functionName);
     }
     span.setTag("aas.function.trigger", trigger);
+  }
+
+  public void onInvocationError(AgentSpan span, Throwable throwable) {
+    while (throwable instanceof InvocationTargetException && throwable.getCause() != null) {
+      throwable = throwable.getCause();
+    }
+    onError(span, throwable);
   }
 }
