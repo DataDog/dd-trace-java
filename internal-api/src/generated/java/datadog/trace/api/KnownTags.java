@@ -158,8 +158,7 @@ public final class KnownTags {
 
   public static final String NETWORK_CLIENT_IP_NAME = "network.client.ip";
   public static final long NETWORK_CLIENT_IP_ID = 0x0024000000000000L;
-  public static final String NETWORK_CLIENT_IP_OTEL_NAME = "network.peer.address";
-  // makeTagId(serial=36) -> network.peer.address  <recommended>
+  // makeTagId(serial=36)  <recommended>
 
   public static final String NETWORK_PROTOCOL_VERSION_NAME = "network.protocol.version";
   public static final long NETWORK_PROTOCOL_VERSION_ID = 0x0025000000000000L;
@@ -345,7 +344,6 @@ public final class KnownTags {
     "db.system",
     "http.request.method",
     "http.response.status_code",
-    "network.peer.address",
     "server.address",
     "service.name",
     "url.full",
@@ -411,7 +409,6 @@ public final class KnownTags {
     DB_TYPE_ID,
     HTTP_METHOD_ID,
     HTTP_STATUS_CODE_ID,
-    NETWORK_CLIENT_IP_ID,
     HTTP_HOSTNAME_ID,
     SERVICE_ID,
     HTTP_URL_ID,
@@ -575,8 +572,6 @@ public final class KnownTags {
               return HTTP_URL_OTEL_NAME;
             case HTTP_USERAGENT_SERIAL_NUM:
               return HTTP_USERAGENT_OTEL_NAME;
-            case NETWORK_CLIENT_IP_SERIAL_NUM:
-              return NETWORK_CLIENT_IP_OTEL_NAME;
             case SERVICE_SERIAL_NUM:
               return SERVICE_OTEL_NAME;
             default:

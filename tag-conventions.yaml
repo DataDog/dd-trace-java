@@ -91,7 +91,7 @@ span_types:
       - { dd-name: servlet.path,      type: string, required: optional }
       - { dd-name: servlet.context,   type: string, required: optional }
       - { dd-name: http.client_ip,    type: string, required: recommended, otel-name: client.address }
-      - { dd-name: network.client.ip, type: string, required: recommended, otel-name: network.peer.address }
+      - { dd-name: network.client.ip, type: string, required: recommended }  # not a rename: OTel network.peer.address is the remote end on every span kind (the server on client spans)
 
   http.client:
     extends: http
