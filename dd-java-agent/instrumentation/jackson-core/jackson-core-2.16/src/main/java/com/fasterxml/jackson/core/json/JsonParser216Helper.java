@@ -54,7 +54,7 @@ public final class JsonParser216Helper {
           };
 
   public static boolean fetchInterner(UTF8StreamJsonParser jsonParser) {
-    ByteQuadsCanonicalizer symbols = SYMBOLS.getOrDefault(jsonParser);
+    ByteQuadsCanonicalizer symbols = SYMBOLS.tryGetOrNull(jsonParser);
     // no symbol table to ask: assume interned (see the class comment)
     return symbols == null || ByteQuadsCanonicalizer216Helper.fetchInterner(symbols);
   }

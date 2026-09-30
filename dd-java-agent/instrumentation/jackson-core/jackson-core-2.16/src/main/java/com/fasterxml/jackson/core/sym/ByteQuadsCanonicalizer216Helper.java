@@ -27,14 +27,9 @@ public final class ByteQuadsCanonicalizer216Helper {
             throw e;
           }
         }
-
-        @Override
-        protected Boolean defaultValue(ByteQuadsCanonicalizer symbols) {
-          return Boolean.TRUE;
-        }
       };
 
   public static boolean fetchInterner(ByteQuadsCanonicalizer symbols) {
-    return INTERNER.getOrDefault(symbols);
+    return INTERNER.tryGetOrDefault(symbols, Boolean.TRUE);
   }
 }

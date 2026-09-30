@@ -4,14 +4,13 @@ import javax.annotation.Nullable;
 
 /**
  * A one-way, call-site-wide latch for an operation that fails the same way for everyone once it has
- * failed, such as reading a field that is missing from the classes on the classpath. For a failure
- * that depends on the receiver's class, needs per-class state, which this does not keep.
+ * failed, such as reading a field that is missing from the classes on the classpath. A failure that
+ * depends on the receiver's class needs per-class state, which this does not keep.
  *
  * <p>Intended as a {@code static final} anonymous subclass, one per call site: the receiver is then
- * a constant of a known exact type, so the JIT can inline {@link #get} and {@link #defaultValue}.
- * Subclasses decide what counts as a failure in their own {@code try/catch} inside {@link #get}, so
- * checked exceptions and a tight {@code try} scope come for free, and call {@link #latch()}
- * themselves.
+ * a constant of a known exact type, so the JIT can inline {@link #get}. Subclasses decide what
+ * counts as a failure in their own {@code try/catch} inside {@link #get}, so checked exceptions and
+ * a tight {@code try} scope come for free, and call {@link #latch()} themselves.
  *
  * <p>This is a hint, not a lock. The flag is deliberately plain. A stale read only costs another
  * failure; a thread always sees its own write, so each thread pays for at most one failure after
@@ -29,16 +28,23 @@ public abstract class Latch<T, R, E extends Exception> {
   @Nullable
   protected abstract R get(T target) throws E;
 
-  /** The result once latched. {@code null} unless overridden. */
+  /**
+   * Performs the operation unless latched, in which case returns {@code null}. A {@code null}
+   * result means nothing is available: the operation was skipped, or it produced no value.
+   */
   @Nullable
-  protected R defaultValue(T target) {
-    return null;
+  public final R tryGetOrNull(T target) throws E {
+    return latched ? null : get(target);
   }
 
-  /** Performs the operation unless latched, in which case returns {@link #defaultValue}. */
-  @Nullable
-  public final R getOrDefault(T target) throws E {
-    return latched ? defaultValue(target) : get(target);
+  /**
+   * Like {@link #tryGetOrNull}, but returns {@code fallback} when there is nothing available. The
+   * fallback is also used when the operation itself produced {@code null}, so a call and a skipped
+   * call always agree.
+   */
+  public final R tryGetOrDefault(T target, R fallback) throws E {
+    final R result = tryGetOrNull(target);
+    return result != null ? result : fallback;
   }
 
   /** Returns whether the operation is being skipped. */
