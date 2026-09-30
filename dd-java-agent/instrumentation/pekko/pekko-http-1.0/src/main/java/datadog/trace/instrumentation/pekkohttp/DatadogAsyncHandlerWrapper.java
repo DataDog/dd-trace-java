@@ -14,6 +14,7 @@ import scala.runtime.AbstractFunction1;
 import scala.util.Failure;
 import scala.util.Success;
 import scala.util.Try;
+import scala.util.control.NonFatal$;
 
 public class DatadogAsyncHandlerWrapper
     extends AbstractFunction1<HttpRequest, Future<HttpResponse>> {
@@ -57,9 +58,12 @@ public class DatadogAsyncHandlerWrapper
                     context, ((Failure<HttpResponse>) result).exception());
               }
             } catch (final Throwable t) {
-              // Preserve transform's behavior when span decoration fails. Pekko does not support
-              // response blocking, and this wrapper has no Materializer for discarding the
-              // successful response entity that is replaced by this failure.
+              if (!NonFatal$.MODULE$.apply(t)) {
+                throw t;
+              }
+              // Preserve non-fatal decoration failures in the returned Future.
+              // Pekko does not support response blocking, and this wrapper has no Materializer
+              // for discarding a successful response entity replaced by this failure.
               completion = new Failure<>(t);
             }
             final Try<HttpResponse> frameworkResult;

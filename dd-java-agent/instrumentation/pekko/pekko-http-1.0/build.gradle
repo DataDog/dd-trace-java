@@ -61,6 +61,7 @@ dependencies {
 
   // These are the common dependencies that are inherited by the other test sets
   testImplementation(libs.testing.okhttp3)
+  testImplementation libs.bundles.mockito
   testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
   testImplementation project(':dd-java-agent:instrumentation:pekko:pekko-concurrent-1.0')
   testImplementation project(':dd-java-agent:instrumentation:scala:scala-concurrent-2.8')

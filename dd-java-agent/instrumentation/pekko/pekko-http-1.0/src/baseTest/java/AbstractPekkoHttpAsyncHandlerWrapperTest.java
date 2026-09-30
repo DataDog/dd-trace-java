@@ -1,8 +1,16 @@
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static datadog.trace.api.DDSpanTypes.HTTP_SERVER;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import datadog.context.Context;
 import datadog.context.ContextScope;
@@ -21,6 +29,9 @@ import org.apache.pekko.http.scaladsl.model.HttpResponse$;
 import org.apache.pekko.http.scaladsl.model.Uri$;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import scala.Function1;
+import scala.concurrent.ExecutionContext;
 import scala.concurrent.ExecutionContext$;
 import scala.concurrent.ExecutionContextExecutorService;
 import scala.concurrent.Future;
@@ -105,6 +116,63 @@ abstract class AbstractPekkoHttpAsyncHandlerWrapperTest extends AbstractInstrume
     }
   }
 
+  @Test
+  void propagatesFatalCallbackFailure() {
+    assertCallbackFailure(new LinkageError("callback linkage failure"), true);
+  }
+
+  @Test
+  void completesFutureWithNonFatalCallbackFailure() {
+    assertCallbackFailure(new IllegalStateException("callback failure"), false);
+  }
+
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  private void assertCallbackFailure(final Throwable failure, final boolean fatal) {
+    Future<HttpResponse> handlerFuture = mock(Future.class);
+    Context[] requestContext = new Context[1];
+    DatadogAsyncHandlerWrapper wrapper =
+        new DatadogAsyncHandlerWrapper(
+            new AbstractFunction1<HttpRequest, Future<HttpResponse>>() {
+              @Override
+              public Future<HttpResponse> apply(HttpRequest request) {
+                requestContext[0] = Context.current();
+                return handlerFuture;
+              }
+            },
+            mock(ExecutionContext.class));
+    Future<HttpResponse> response = wrapper.apply(emptyRequest());
+    try {
+      ArgumentCaptor<Function1> callback = ArgumentCaptor.forClass(Function1.class);
+      verify(handlerFuture).onComplete(callback.capture(), any());
+      // Inject an error while reading the result to exercise the callback's exception boundary.
+      Try<HttpResponse> result = mock(Try.class);
+      when(result.isSuccess()).thenReturn(true);
+      when(result.get()).thenThrow(failure);
+      if (fatal) {
+        assertSame(
+            failure, assertThrows(LinkageError.class, () -> callback.getValue().apply(result)));
+        assertFalse(response.isCompleted());
+      } else {
+        callback.getValue().apply(result);
+        assertTrue(response.isCompleted());
+        assertSame(failure, ((Failure<HttpResponse>) response.value().get()).exception());
+      }
+    } finally {
+      // The injected failure happens before finishSpan can finish the request span.
+      fromContext(requestContext[0]).finish();
+    }
+    assertTraces(trace(span().root().operationName(OPERATION_NAME).type(HTTP_SERVER).error(false)));
+  }
+
+  private static HttpRequest emptyRequest() {
+    return HttpRequest$.MODULE$.apply(
+        HttpRequest$.MODULE$.apply$default$1(),
+        Uri$.MODULE$.apply("/exception"),
+        HttpRequest$.MODULE$.apply$default$3(),
+        HttpRequest$.MODULE$.apply$default$4(),
+        HttpRequest$.MODULE$.apply$default$5());
+  }
+
   private static HttpResponse emptyResponse() {
     return HttpResponse$.MODULE$.apply(
         HttpResponse$.MODULE$.apply$default$1(),
@@ -141,14 +209,7 @@ abstract class AbstractPekkoHttpAsyncHandlerWrapperTest extends AbstractInstrume
               },
               handlerExecutor);
 
-      HttpRequest request =
-          HttpRequest$.MODULE$.apply(
-              HttpRequest$.MODULE$.apply$default$1(),
-              Uri$.MODULE$.apply("/exception"),
-              HttpRequest$.MODULE$.apply$default$3(),
-              HttpRequest$.MODULE$.apply$default$4(),
-              HttpRequest$.MODULE$.apply$default$5());
-      Future<HttpResponse> response = wrapper.apply(request);
+      Future<HttpResponse> response = wrapper.apply(emptyRequest());
 
       // Model a callback registered by Pekko after the wrapper has closed the request scope. It
       // should not inherit the request context when the handler Future completes.
