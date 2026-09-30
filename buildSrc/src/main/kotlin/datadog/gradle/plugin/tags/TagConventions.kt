@@ -26,6 +26,12 @@ private constructor(
      * to this tag's canonical id (inbound, many->one); openTelemetryNameOf recovers it (outbound).
      */
     val otelName: String? = null,
+    /**
+     * Author's assertion that [otelName] means this tag on every span kind the OpenTelemetry
+     * attribute appears on. Required for a rename declared on a concrete span type; see
+     * [validateOtelNameScope].
+     */
+    val spanKindNeutral: Boolean = false,
   )
 
   /**
@@ -235,6 +241,7 @@ private constructor(
       require(refList(traceLevelRaw).isEmpty()) { "trace_level tags must be declarations, not refs" }
       val traceLevel = tagList(traceLevelRaw)
       validateSingleDeclaration(spanTypes, mixins, traceLevel)
+      validateOtelNameScope(spanTypes, mixins, traceLevel)
       return TagConventions(spanTypes, mixins, traceLevel)
     }
 
@@ -270,6 +277,37 @@ private constructor(
       }
     }
 
+    /**
+     * TagMap canonicalizes an otel-name to its tag regardless of span kind, so a rename is only
+     * correct if the OpenTelemetry attribute means this tag on EVERY span kind it appears on --
+     * OTel's network.peer.address, for instance, is the client on a server span but the server on a
+     * client span. A rename declared in a shared scope (trace_level, an abstract span type, a mixin)
+     * already spans kinds. One declared on a concrete span type must say so explicitly with
+     * `span-kind-neutral: true`, so a span-kind-specific mapping cannot slip in as a rename.
+     */
+    private fun validateOtelNameScope(
+      spanTypes: Map<String, SpanType>,
+      mixins: Map<String, Mixin>,
+      traceLevel: List<Tag>,
+    ) {
+      val all = traceLevel + spanTypes.values.flatMap { it.tags } + mixins.values.flatMap { it.tags }
+      for (t in all) {
+        require(!t.spanKindNeutral || t.otelName != null) {
+          "tag '${t.name}' sets span-kind-neutral without an otel-name"
+        }
+      }
+      for (st in spanTypes.values.filter { !it.abstract }) {
+        for (t in st.tags) {
+          require(t.otelName == null || t.spanKindNeutral) {
+            "tag '${t.name}' renames to otel-name '${t.otelName}' on concrete span type '${st.name}'. " +
+                "Canonicalization ignores span kind, so either declare it in a shared scope (an " +
+                "abstract parent or a mixin) or, if '${t.otelName}' means '${t.name}' on every span " +
+                "kind, add `span-kind-neutral: true`."
+          }
+        }
+      }
+    }
+
     private val REF_KEYS = setOf("ref", "required")
 
     @Suppress("UNCHECKED_CAST")
@@ -295,6 +333,7 @@ private constructor(
           type = (m["type"] as? String) ?: "string",
           required = (m["required"] as? String) ?: "optional",
           otelName = parseOtelName(m),
+          spanKindNeutral = parseSpanKindNeutral(m),
         )
       } ?: emptyList()
 
@@ -307,6 +346,13 @@ private constructor(
     private fun parseDdName(m: Map<String, Any?>): String {
       val raw = m["dd-name"]
       require(raw is String && raw.isNotBlank()) { "tag declaration has no valid dd-name: $m" }
+      return raw
+    }
+
+    private fun parseSpanKindNeutral(m: Map<String, Any?>): Boolean {
+      if (!m.containsKey("span-kind-neutral")) return false
+      val raw = m["span-kind-neutral"]
+      require(raw is Boolean) { "tag '${m["dd-name"]}' has a non-boolean span-kind-neutral: '$raw'" }
       return raw
     }
 
