@@ -178,12 +178,7 @@ public class AgentInstaller {
             .ignore(globalIgnoresMatcher(skipAdditionalLibraryMatcher));
 
     if (DEBUG) {
-      agentBuilder =
-          agentBuilder
-              .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
-              .with(AgentStrategies.rediscoveryStrategy())
-              .with(new RedefinitionLoggingListener())
-              .with(new TransformLoggingListener());
+      agentBuilder = agentBuilder.with(new TransformLoggingListener());
     }
 
     for (final AgentBuilder.Listener listener : listeners) {
