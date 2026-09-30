@@ -148,7 +148,7 @@ public class FunctionsBase64Benchmark {
    * It counts calls, not time, never rejects a call, and keeps plain racy state: a stale read costs
    * one more pre-check or one more exception, never a wrong result.
    *
-   * <p>Three hooks, all cheap to state: {@link #parse}, {@link #isDefinitelyInvalid} and {@link
+   * <p>Three hooks, all cheap to state: {@link #handle}, {@link #isKnownToFail} and {@link
    * #stacklessFailure}. The last is needed only by {@link #get}; {@link #tryGetOrNull} converts the
    * failure to {@code null} and never builds an exception while engaged.
    *
@@ -164,11 +164,15 @@ public class FunctionsBase64Benchmark {
       this.failureType = failureType;
     }
 
-    /** The optimistic parse. May throw {@code X} for bad input. */
-    abstract O parse(I input);
+    /**
+     * The operation, optimistically (for a parser, the parse). May throw {@code X} for bad input.
+     */
+    abstract O handle(I input);
 
-    /** A cheap, correct pre-check: true only if the input is definitely invalid. Never throws. */
-    abstract boolean isDefinitelyInvalid(I input);
+    /**
+     * A cheap, correct pre-check: true only if {@link #handle} would definitely fail. Never throws.
+     */
+    abstract boolean isKnownToFail(I input);
 
     /** A failure to throw while engaged. Must carry no stack trace, and must not be shared. */
     abstract X stacklessFailure(I input);
@@ -180,11 +184,11 @@ public class FunctionsBase64Benchmark {
 
     /** Flow-through: the caller sees the failure, but while engaged it costs no stack trace. */
     final O get(I input) {
-      if (state > 0 && isDefinitelyInvalid(input)) {
+      if (state > 0 && isKnownToFail(input)) {
         throw stacklessFailure(input);
       }
       try {
-        O result = parse(input);
+        O result = handle(input);
         if (state > 0) {
           state--;
         }
@@ -199,11 +203,11 @@ public class FunctionsBase64Benchmark {
 
     /** Converting: {@code null} for bad input. While engaged, no exception is built at all. */
     final O tryGetOrNull(I input) {
-      if (state > 0 && isDefinitelyInvalid(input)) {
+      if (state > 0 && isKnownToFail(input)) {
         return null;
       }
       try {
-        O result = parse(input);
+        O result = handle(input);
         if (state > 0) {
           state--;
         }
@@ -225,12 +229,12 @@ public class FunctionsBase64Benchmark {
     }
 
     @Override
-    String parse(byte[] input) {
+    String handle(byte[] input) {
       return new String(Base64.getDecoder().decode(input), StandardCharsets.UTF_8);
     }
 
     @Override
-    boolean isDefinitelyInvalid(byte[] input) {
+    boolean isKnownToFail(byte[] input) {
       return !looksLikeBase64(input);
     }
 
