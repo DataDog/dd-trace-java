@@ -49,6 +49,7 @@ public final class Servlet3Instrumentation extends InstrumenterModule.Tracing
       packageName + ".HttpServletExtractAdapter",
       packageName + ".HttpServletExtractAdapter$Request",
       packageName + ".HttpServletExtractAdapter$Response",
+      packageName + ".HttpServletExtractAdapter$Response$HeaderAccessors",
       packageName + ".Servlet3Decorator",
       packageName + ".ServletRequestURIAdapter",
       packageName + ".FinishAsyncDispatchListener",
