@@ -10,6 +10,7 @@ import static datadog.trace.instrumentation.spray.SprayHttpServerDecorator.SPRAY
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.util.concurrent.atomic.AtomicInteger;
 import net.bytebuddy.asm.Advice;
 import spray.http.HttpRequest;
 import spray.routing.RequestContext;
@@ -17,7 +18,8 @@ import spray.routing.RequestContext;
 public class SprayHttpServerRunSealedRouteAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static ContextScope enter(
-      @Advice.Argument(value = 1, readOnly = false) RequestContext ctx) {
+      @Advice.Argument(value = 1, readOnly = false) RequestContext ctx,
+      @Advice.Local("completion") AtomicInteger completion) {
     final Context parentContext;
     final Context context;
     final AgentSpan span;
@@ -37,16 +39,23 @@ public class SprayHttpServerRunSealedRouteAdvice {
     ContextScope scope = context.attach();
     DECORATE.afterStart(span);
 
-    ctx = SprayHelper.wrapRequestContext(ctx, span, parentContext, context);
+    completion = new AtomicInteger();
+    ctx = SprayHelper.wrapRequestContext(ctx, span, parentContext, context, completion);
     return scope;
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void exit(
-      @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
-    if (throwable != null) {
-      DECORATE.onError(scope, throwable);
+      @Advice.Enter final ContextScope scope,
+      @Advice.Thrown final Throwable throwable,
+      @Advice.Local("completion") AtomicInteger completion) {
+    try {
+      if (throwable != null) {
+        DECORATE.onError(scope, throwable);
+      }
+    } finally {
+      scope.close();
+      SprayHelper.scopeClosed(spanFromContext(scope.context()), completion);
     }
-    scope.close();
   }
 }
