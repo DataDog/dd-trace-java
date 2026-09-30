@@ -43,12 +43,26 @@ import org.openjdk.jmh.infra.Blackhole;
  * (Java has no built-in tuple-as-key) — D2 sidesteps it by taking both key parts directly.
  *
  * <p><b>Update</b> is where Hashtable dominates: D2 is ~26x faster on JDK 8 (see the Java 17 rerun
- * below for a narrower but still decisive margin), because the HashMap path allocates per call (a
- * {@code Long}, plus a {@code Key2}) and the resulting GC pressure throttles throughput under
- * multiple threads. Like D1, this is the headline case for {@code Hashtable}: a simple
- * counter/tally with a primitive value is exactly where HashMap's autoboxing tax bites hardest.
- * <b>Add</b> is ~3x faster for D2 (Hashtable sidesteps the {@code Key2} allocation). <b>Iterate</b>
- * is essentially a wash on JDK 8, though not on Java 17 (see below). <code>
+ * below for a narrower but still decisive margin), because the HashMap path allocates per call.
+ * Measured with {@code -prof gc} on Zulu 17, {@code update_hashMap} allocates 48.000 ± 0.001 B/op,
+ * which decomposes exactly: 24 for the boxed {@code Long} and 24 for the {@code Key2} wrapper
+ * (12-byte header, two references, one {@code int}). {@code update_hashtable} allocates ≈0 B/op.
+ * Collections over the run were 890 against none.
+ *
+ * <p>That 48 also answers a common assumption: escape analysis does <i>not</i> eliminate the
+ * temporary {@code Key2}, even though every key in this benchmark is already present and the
+ * wrapper is discarded immediately. C2 assigns one escape state per allocation site rather than per
+ * path, and {@code merge} stores the key into a {@code Node} on the absent branch, so the
+ * allocation is GlobalEscape for the whole compiled method. Eliminating it would require
+ * specializing the present and absent cases separately, which HotSpot does not do. (The wrapper's
+ * hash uses {@link HashingUtils#hash(Object, Object)} rather than {@code Objects.hash}, whose
+ * varargs array would otherwise add a third 24-byte allocation per lookup and handicap the
+ * baseline.)
+ *
+ * <p>Like D1, this is the headline case for {@code Hashtable}: a simple counter/tally with a
+ * primitive value is exactly where HashMap's autoboxing tax bites hardest. <b>Add</b> is ~3x faster
+ * for D2 (Hashtable sidesteps the {@code Key2} allocation). <b>Iterate</b> is essentially a wash on
+ * JDK 8, though not on Java 17 (see below). <code>
  * MacBook M1 8 threads (Java 8)
  *
  * Benchmark                                Mode  Cnt     Score     Error   Units
@@ -62,7 +76,7 @@ import org.openjdk.jmh.infra.Blackhole;
  * HashtableD2Benchmark.iterate_hashtable  thrpt    6    16.968 ±   0.371  ops/us
  * </code>
  *
- * <p>Rerun with {@link BenchmarkUtils#polluteHashDispatch()} added to {@code D2State.setUp()} (same
+ * <p>Rerun with {@link BenchmarkUtils#warmUpHashDispatch} added to {@code D2State.setUp()} (same
  * machine/JVM/config): results were noisy and inconsistent with a clean pollution story —
  * add_hashMap actually rose (77→103), while add_hashtable fell sharply (217→118, error bars wider
  * than the mean both times); update_hashtable fell (1446→1225) and both iterate numbers fell
@@ -70,11 +84,16 @@ import org.openjdk.jmh.infra.Blackhole;
  * be a no-op here: {@link Hashtable.D2.Entry#hash} and {@link Hashtable.D2.Entry#matches} are call
  * sites private to {@code Hashtable.java}, structurally distinct from {@code
  * java.util.HashMap}/{@code HashSet}'s internal dispatch call sites — pollution cannot reach them.
- * With the JDK and machine held constant across this rerun, the drop is same-session run-to-run
- * noise (thermal/power, not controlled for) rather than a genuine pollution effect. Treat these two
- * runs as not directly comparable on absolute numbers. The <b>relative</b> conclusion (D2 dominates
- * {@code update}, wins {@code add} by avoiding the {@code Key2} allocation, ties on {@code
- * iterate}) is unchanged either way.
+ * It is equally a no-op for {@code *_hashMap}: {@code Key2} is a final class and every lookup key
+ * is built at the call site with {@code new Key2(...)}, so C2 has an exact type either way and
+ * devirtualizes {@code hashCode()}/{@code equals()} without consulting the polluted profile.
+ * Pollution therefore cannot explain a move on either side. With the JDK and machine held constant,
+ * what remains is uncontrolled run-to-run variation. The other candidate — that {@code
+ * warmUpHashDispatch}'s own heavy pre-measurement allocation shifts GC state for the trial — has
+ * since been tested and ruled out; see {@link HashtableD1Benchmark} for the 8x-to-1x comparison
+ * that moved nothing. Treat these two runs as not directly comparable on absolute numbers. The
+ * <b>relative</b> conclusion (D2 dominates {@code update}, leads {@code add} on JDK 8 by avoiding
+ * the {@code Key2} allocation, ties on {@code iterate}) is unchanged either way.
  *
  * <p>Separately rerun on Zulu 17.0.7 (native AArch64, same machine, pollution wiring unchanged).
  * JMH auto-detected the cheap "compiler" Blackhole mode on Java 17 (its log explicitly warns that
@@ -84,23 +103,44 @@ import org.openjdk.jmh.infra.Blackhole;
  * ops/us, 8 threads:
  *
  * <pre>{@code
- * add_hashMap         656.7   add_hashtable     1185.5
- * update_hashMap      196.7   update_hashtable  2292.2
- * iterate_hashMap      20.5   iterate_hashtable   69.2
+ * Benchmark            ops/us            B/op   gc.count
+ * add_hashMap         987.3 ± 322.9      56.0       1797
+ * add_hashtable      1163.6 ± 143.5      40.0       1709
+ * update_hashMap      427.9 ±  64.0      48.0        890
+ * update_hashtable   2346.8 ±  31.7       ~0          ~0
+ * iterate_hashMap      19.8 ±   0.5      40.0         76
+ * iterate_hashtable    71.7 ±   2.1       ~0          ~0
  * }</pre>
  *
- * <p>{@code update_hashtable} still wins decisively (~11.6x, down from ~26x on JDK 8 — Java 17's
- * allocator/GC absorbs {@code update_hashMap}'s per-call {@code Long}+{@code Key2} boxing far
- * better than JDK 8 did: update_hashMap got ~3.5x faster, update_hashtable only ~1.6x faster).
- * Unlike JDK 8, Hashtable now wins clearly on <i>every</i> operation: {@code add_hashtable} wins
- * ~1.8x (vs. JDK 8's ~3x — HashMap's {@code Key2} allocation also got relatively cheaper), and
- * {@code iterate_hashtable} flips from JDK 8's wash to a ~3.4x win (HashMap's {@code entrySet()}
- * iterator does more per-entry work than a modern JIT's allocation improvements erase). Net
- * takeaway, consistent with {@link HashtableD1Benchmark}: {@code Hashtable} is a strong substitute
- * for {@code HashMap} particularly for simple counter/tally use cases with a primitive value, where
- * avoiding the per-update boxing allocation pays off even on a JVM with much better allocation
- * handling than JDK 8 had — and for D2 specifically, avoiding the composite-key wrapper allocation
- * pays off across the board, not just on {@code update}.
+ * <p>These numbers postdate the switch from {@code Objects.hash} to {@link
+ * HashingUtils#hash(Object, Object)} in {@code Key2}, which removed a varargs {@code Object[]} per
+ * key construction. Earlier tables in this file predate it and had the HashMap baseline carrying
+ * that extra 24 B/op.
+ *
+ * <p>Allocation decomposes exactly. {@code add_hashMap} at 56 B/op is a {@code Key2} (24) plus a
+ * {@code HashMap.Node} (32), with no box because {@code (long) i} for {@code i < 128} hits the
+ * {@code Long.valueOf} cache. {@code update_hashMap} at 48 B/op is a boxed {@code Long} (24) plus
+ * the {@code Key2} (24) — see the escape-analysis note above. Both hashtable paths that avoid the
+ * wrapper allocate nothing on {@code update} and {@code iterate}.
+ *
+ * <p>{@code update_hashtable} wins by ~5.5x — down from ~26x on JDK 8, and also down from the
+ * ~11.6x this file previously reported. The difference is the {@code Objects.hash} fix: removing
+ * that varargs {@code Object[]} took 24 B/op off {@code update_hashMap} and roughly doubled its
+ * throughput (196.7 to 427.9). {@code iterate_hashtable} wins ~3.6x, flipping JDK 8's wash —
+ * HashMap's {@code entrySet()} iterator does more per-entry work than a modern JIT's allocation
+ * improvements erase.
+ *
+ * <p>{@code add} is a tie (1163.6 vs 987.3; the hashtable leads on the means but {@code
+ * add_hashMap}'s interval is ±322.9, so the two overlap), where this file previously claimed a
+ * ~1.8x hashtable win. That claim was an artifact of the varargs allocation in the old {@code Key2}
+ * constructor; with it gone the two are indistinguishable on the insert path, which makes sense —
+ * both allocate one entry per insert.
+ *
+ * <p>Net takeaway, consistent with {@link HashtableD1Benchmark}: {@code Hashtable} is a strong
+ * substitute for {@code HashMap} for counter/tally use cases with a primitive value, where avoiding
+ * the per-update boxing pays off even on a JVM with much better allocation handling than JDK 8 had.
+ * For D2 specifically, avoiding the composite-key wrapper pays off on {@code update} and {@code
+ * iterate} — but not on {@code add}, contrary to what this file said before the baseline was fixed.
  */
 @Fork(2)
 @Warmup(iterations = 2)
@@ -140,7 +180,7 @@ public class HashtableD2Benchmark {
     Key2(String k1, Integer k2) {
       this.k1 = k1;
       this.k2 = k2;
-      this.hash = Objects.hash(k1, k2);
+      this.hash = HashingUtils.hash(k1, k2);
     }
 
     @Override
@@ -179,13 +219,18 @@ public class HashtableD2Benchmark {
     int cursor;
     final BhD2Consumer consumer = new BhD2Consumer();
 
+    // Front-load pollution once per trial, entirely before JMH's warmup starts: JMH
+    // injects the Blackhole straight into this setup method, so no per-benchmark
+    // scratch state is needed.
+    @Setup(Level.Trial)
+    public void warmUpPollution(Blackhole bh) {
+      BenchmarkUtils.warmUpHashDispatch(bh);
+    }
+
     // Level.Iteration, not Trial: this rebuilds the table and the HashMap, so each iteration must
-    // start from a fresh, identically-sized state rather than inheriting mutated counters. The
-    // pollution call rides along -- it is idempotent and untimed, so repeating it costs nothing.
+    // start from a fresh, identically-sized state rather than inheriting mutated counters.
     @Setup(Level.Iteration)
     public void setUp() {
-      BenchmarkUtils.polluteHashDispatch();
-
       table = Hashtable.D2.createBounded(D2Counter.class, CAPACITY);
       hashMap = new HashMap<>(CAPACITY);
       k1s = SOURCE_K1;

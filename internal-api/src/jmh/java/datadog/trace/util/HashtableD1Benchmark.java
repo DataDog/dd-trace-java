@@ -39,13 +39,17 @@ import org.openjdk.jmh.infra.Blackhole;
  * </ul>
  *
  * <p><b>Update</b> is where Hashtable dominates: D1 is ~14x faster on JDK 8 (see the Java 17 rerun
- * below for a narrower but still decisive margin), because the HashMap path allocates per call (a
- * {@code Long}) and the resulting GC pressure throttles throughput under multiple threads. This is
- * the headline case for {@code Hashtable}: a simple counter/tally with a primitive value is exactly
- * where HashMap's autoboxing tax bites hardest, and {@code Hashtable.D1} sidesteps it entirely by
- * mutating a field on the retrieved entry in place. <b>Add</b> is roughly comparable (both allocate
- * one entry per insert). <b>Iterate</b> is essentially a wash on JDK 8, though not on Java 17 (see
- * below). <code>
+ * below for a narrower but still decisive margin). D1 mutates a primitive counter in the existing
+ * entry; the HashMap path boxes a {@code Long} on every {@code merge}. Measured with {@code -prof
+ * gc} on Zulu 17, {@code update_hashMap} allocates 24.000 ± 0.001 B/op — exactly one boxed {@code
+ * Long} (12-byte header plus an 8-byte value, aligned to 24) — against ≈0 B/op for {@code
+ * update_hashtable}, and 801 collections over the run against none. The GC pressure is measured
+ * rather than inferred from throughput. This is the headline case for {@code Hashtable}: a simple
+ * counter/tally with a primitive value is exactly where HashMap's autoboxing tax bites hardest, and
+ * {@code Hashtable.D1} sidesteps it entirely by mutating a field on the retrieved entry in place.
+ * <b>Add</b> is roughly comparable — both allocate one entry per insert, and the error bars exceed
+ * the means, so no precise comparison is possible there. <b>Iterate</b> is essentially a wash on
+ * JDK 8, though not on Java 17 (see below). <code>
  * MacBook M1 8 threads (Java 8)
  *
  * Benchmark                                Mode  Cnt     Score     Error   Units
@@ -59,20 +63,28 @@ import org.openjdk.jmh.infra.Blackhole;
  * HashtableD1Benchmark.iterate_hashtable  thrpt    6    22.208 ±   0.956  ops/us
  * </code>
  *
- * <p>Rerun with {@link BenchmarkUtils#polluteHashDispatch()} added to {@code D1State.setUp()} (same
+ * <p>Rerun with {@link BenchmarkUtils#warmUpHashDispatch} added to {@code D1State.setUp()} (same
  * machine/JVM/config): every number moved down somewhat (add_hashMap 188→101, update_hashtable
  * 1810→1465, iterate_hashtable 22→17 ops/us), including {@code *_hashtable}. That's expected to be
  * a no-op for {@code *_hashtable}: {@link Hashtable.D1.Entry#hash} and {@link
  * Hashtable.D1.Entry#matches} are call sites private to {@code Hashtable.java}, structurally
  * distinct from {@code java.util.HashMap}/{@code HashSet}'s internal {@code hashCode()}/{@code
- * equals()} call sites — JIT type profiles are keyed per call site, so {@code
- * polluteHashDispatch()} cannot reach them regardless of key-type overlap. Since the JDK and
- * machine were held constant across this rerun (unlike the JDK 8-vs-17 comparisons in {@link
- * datadog.trace.util.CaseInsensitiveMapBenchmark} and {@link
- * datadog.trace.api.TagMapAccessBenchmark}), the drop here is same-session run-to-run noise
- * (thermal/power, not controlled for) rather than either a pollution effect or a JDK effect. The
+ * equals()} call sites — JIT type profiles are keyed per call site, so {@code warmUpHashDispatch}
+ * cannot reach them regardless of key-type overlap. It is equally a no-op for {@code *_hashMap}:
+ * the keys come from {@code SOURCE_KEYS}, a {@code String[]}, and {@code String} is final, so C2
+ * sharpens the {@code Object}-declared key to an exact type and devirtualizes {@code
+ * hashCode()}/{@code equals()} without consulting the polluted profile. Pollution therefore cannot
+ * explain a drop on either side. The JDK and machine were held constant, so what remains is
+ * uncontrolled run-to-run variation.
+ *
+ * <p>The other candidate — that {@code warmUpHashDispatch}'s own heavy pre-measurement allocation
+ * shifts GC state for the trial — has since been <b>tested and ruled out</b>. Pollution used to run
+ * once per thread, so at {@code @Threads(8)} it did eight times the work; it now runs once per JVM.
+ * Re-measuring across that 8x reduction moved nothing: {@code update_hashMap} 686.0 to 689.6,
+ * {@code update_hashtable} 2770.7 to 2796.3, {@code iterate_hashMap} 19.83 to 19.84, all well
+ * inside their intervals. Setup allocation is therefore not what moved these numbers. The
  * <b>relative</b> conclusion (D1 dominates {@code update}, is roughly comparable on {@code add},
- * ties on {@code iterate}) is unchanged either way.
+ * ties on {@code iterate}) is unchanged throughout.
  *
  * <p>Separately rerun on Zulu 17.0.7 (native AArch64, same machine, pollution wiring unchanged; JMH
  * auto-detected the cheap "compiler" Blackhole mode here, unlike JDK 8, so absolute numbers below
@@ -80,15 +92,26 @@ import org.openjdk.jmh.infra.Blackhole;
  * full caveat). ops/us, 8 threads:
  *
  * <pre>{@code
- * add_hashMap        1502.6   add_hashtable      1377.3
- * update_hashMap      644.2   update_hashtable   2706.5
- * iterate_hashMap      19.3   iterate_hashtable    78.0
+ * Benchmark            ops/us            B/op   gc.count
+ * add_hashMap        1658.6 ± 190.5      32.0       1839
+ * add_hashtable      1358.0 ± 213.6      40.0       1710
+ * update_hashMap      689.6 ± 140.8      24.0        801
+ * update_hashtable   2796.3 ±  79.7       ~0          ~0
+ * iterate_hashMap      19.8 ±   0.3      40.0         76
+ * iterate_hashtable    81.5 ±   2.5       ~0          ~0
  * }</pre>
  *
+ * <p>Allocation is measured with {@code -prof gc} and decomposes exactly: 24 B/op for {@code
+ * update_hashMap} is one boxed {@code Long}; 32 B/op for {@code add_hashMap} is one {@code
+ * HashMap.Node}, with no box because {@code (long) i} for {@code i < 128} hits the {@code
+ * Long.valueOf} cache; 40 B/op for {@code add_hashtable} is the {@code D1Counter} entry. The
+ * hashtable's {@code update} and {@code iterate} paths allocate nothing at all, which is the point
+ * of the design.
+ *
  * <p>Within this single run (so the cross-JDK Blackhole-mode confound doesn't apply to the ratios),
- * {@code update_hashtable} still wins by ~4.2x — down from ~14x on JDK 8, because Java 17's
- * allocator/GC absorbs {@code update_hashMap}'s per-call {@code Long} boxing far better than JDK 8
- * did (update_hashMap itself got ~5x faster; update_hashtable only ~1.5x faster). {@code
+ * {@code update_hashtable} wins by ~4.0x — down from ~14x on JDK 8, because Java 17's allocator/GC
+ * absorbs {@code update_hashMap}'s per-call {@code Long} boxing far better than JDK 8 did
+ * (update_hashMap itself got ~5x faster; update_hashtable only ~1.5x faster). {@code
  * iterate_hashtable} also now clearly wins (~4.0x), flipping from JDK 8's "wash" — HashMap's {@code
  * entrySet()} iterator does more per-entry work than a modern JIT's allocation improvements erase.
  * {@code add} is the one case that flips the other way: {@code add_hashMap} edges out {@code
@@ -171,13 +194,18 @@ public class HashtableD1Benchmark {
     int cursor;
     final BhD1Consumer consumer = new BhD1Consumer();
 
+    // Front-load pollution once per trial, entirely before JMH's warmup starts: JMH
+    // injects the Blackhole straight into this setup method, so no per-benchmark
+    // scratch state is needed.
+    @Setup(Level.Trial)
+    public void warmUpPollution(Blackhole bh) {
+      BenchmarkUtils.warmUpHashDispatch(bh);
+    }
+
     // Level.Iteration, not Trial: this rebuilds the table and the HashMap, so each iteration must
-    // start from a fresh, identically-sized state rather than inheriting mutated counters. The
-    // pollution call rides along -- it is idempotent and untimed, so repeating it costs nothing.
+    // start from a fresh, identically-sized state rather than inheriting mutated counters.
     @Setup(Level.Iteration)
     public void setUp() {
-      BenchmarkUtils.polluteHashDispatch();
-
       table = Hashtable.D1.createBounded(D1Counter.class, CAPACITY);
       hashMap = new HashMap<>(CAPACITY);
       keys = SOURCE_KEYS;

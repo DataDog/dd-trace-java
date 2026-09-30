@@ -1,175 +1,241 @@
 package datadog.trace.util;
 
 import java.util.Arrays;
-import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.openjdk.jmh.annotations.CompilerControl;
+import org.openjdk.jmh.infra.Blackhole;
 
-/** Shared setup helpers for JMH benchmarks in this module. */
+/**
+ * Shared setup helpers for JMH benchmarks in this module.
+ *
+ * <p>These exist to compensate for forking. JMH runs each benchmark method in a fresh JVM, which is
+ * right for measurement -- one arm cannot contaminate another's numbers -- but it means every arm
+ * is compiled inside a process that has only ever executed that one code path, with that one arm's
+ * key types and that one arm's branch outcomes. Production is the reverse: a single JVM runs
+ * everything. So the harness hands C2 a maximally specialized view of the world, and the
+ * compilation that results can be better than anything achievable in a real application. Put
+ * another way, JMH forks to eliminate cross-benchmark profile pollution, but profile pollution
+ * <i>is</i> the production condition.
+ *
+ * <p>That surfaces three ways. This class addresses the first two partially and the third not at
+ * all:
+ *
+ * <ul>
+ *   <li><b>Receiver-type profiles</b> collapse toward a single key type, so shared JDK dispatch
+ *       sites look monomorphic. {@link #warmUpHashDispatch} drives several key classes through
+ *       them.
+ *   <li><b>Class-hierarchy analysis</b> sees only the implementations one arm happens to load, so
+ *       C2 can devirtualize calls a real application leaves polymorphic. Loading the decoy
+ *       collections widens the hierarchy.
+ *   <li><b>Branch profiles</b> go one-sided, because only one arm's outcomes ever occur. Nothing
+ *       here addresses that.
+ * </ul>
+ *
+ * <p>{@link Blackhole} is orthogonal to all of this. It stops the JIT proving a result is dead, and
+ * says nothing about whether the surrounding code was compiled realistically -- a benchmark can
+ * consume every result through a {@code Blackhole} and still measure a devirtualized fast path that
+ * cannot occur in production.
+ *
+ * <p>One-sided branch profiles also interact with escape analysis in a way that can silently
+ * flatter a benchmark. When a branch is never taken during profiling, C2 prunes it as an {@code
+ * unstable_if} uncommon trap; if that pruned branch held the only store of an object, the object
+ * becomes provably non-escaping and escape analysis scalar-replaces an allocation that production
+ * would keep. The case measured in this module is {@code map.get(key)} followed by a guarded {@code
+ * computeIfAbsent(key, ...)}: with every key pre-installed by {@code @Setup} the absent branch
+ * never runs, so a composite key costs nothing at all. A real cache records its population-phase
+ * misses in that same branch profile -- MDO counters accumulate from interpretation onward and are
+ * never reset -- so the profile is two-sided, nothing is pruned, and the key is allocated on every
+ * lookup. See {@code ThreadSafeMapD2Benchmark} for the measurement, and {@code
+ * HashtableD2Benchmark} for the contrasting shape, where {@code merge} keeps the present/absent
+ * decision inside the callee and leaves no caller-visible branch to prune.
+ *
+ * <p>The more complete approach is to exercise every benchmark arm during setup, across each of its
+ * outcomes, so that each fork's profiles reflect the whole class rather than the one arm it is
+ * about to measure. That is what restores the mix the fork removed.
+ *
+ * <p>Such a helper should drive the arms in a shuffled order rather than a fixed round-robin, since
+ * compilation can trigger part-way through a warmup and would otherwise see whichever arm dominates
+ * that point in the sequence; a regular pattern also gives the hardware branch predictor an
+ * unrealistically easy time. Seeding the shuffle keeps it irregular but reproducible. A {@code
+ * warmUpArms} along those lines is planned as a follow-on, because adopting it changes benchmark
+ * setup and requires re-measuring whatever adopts it.
+ */
 public final class BenchmarkUtils {
   private BenchmarkUtils() {}
 
-  private static final Object[] DEFAULT_DECOY_KEYS = {
-    "decoy", 1, 1L, 1.0d, Boolean.TRUE, new Object()
-  };
+  private static final Object[] DECOY_KEYS = {"decoy", 1, 1L, 1.0d, Boolean.TRUE, new Object()};
 
   /**
-   * Exercises {@link HashSet}/{@link java.util.HashMap}, the tracer's {@link
-   * CollectionUtils#tryMakeImmutableSet} immutable sets, and {@link ConcurrentHashMap} with several
-   * distinct key classes, so each structure's internal {@code hashCode()}/{@code equals()} dispatch
-   * -- a call site shared JVM-wide by every instance of that structure in the process, regardless
-   * of which specific instance or call site invokes {@code add}/{@code contains}/{@code get} -- is
-   * already megamorphic before a benchmark measures lookups against a single key type.
-   *
-   * <p>This matches production: those shared internal call sites are hit by every hash-based
-   * structure in the JVM across whatever key types the whole application uses, so they're
-   * realistically almost always megamorphic. An isolated benchmark that only ever looks up one key
-   * type (e.g. {@code String}) would otherwise leave them artificially monomorphic for the entire
-   * run, understating real dispatch cost.
-   *
-   * <p>{@code HashSet} is backed by {@code HashMap} in the JDK, so polluting it also covers plain
-   * {@code HashMap} and {@code LinkedHashMap} (which extends {@code HashMap}) -- they share the
-   * same internal dispatch call site. {@code ConcurrentHashMap} does not: it's an unrelated class
-   * with its own {@code hashCode()}/{@code equals()} call sites, so it needs its own scratch
-   * instance (also covers {@code ConcurrentHashMap#newKeySet()}, which is backed by a {@code
-   * ConcurrentHashMap}). The JDK's immutable {@code Set.copyOf}/{@code Map.copyOf} ({@code SetN}/
-   * {@code MapN}) have their own internal {@code equals()} call sites too, distinct from {@code
-   * HashSet}/{@code HashMap}'s, so they get their own scratch instances as well.
-   *
-   * <p>{@code TreeMap}/{@code TreeSet}/{@code ConcurrentSkipListMap} dispatch on {@code compareTo}
-   * instead of {@code hashCode()}/{@code equals()}, so they need a separate pass -- see {@link
-   * #polluteCompareToDispatch()}, which this method also drives, since every caller of this method
-   * wants both passes.
-   *
-   * <p>Deliberately does not touch the benchmark's own {@code contains}/{@code add}/{@code get}
-   * call sites -- those are realistically free to specialize per caller, the way a genuinely hot,
-   * narrowly-typed call site would in production.
-   *
-   * <p>Not to be confused with the CHA-defeat decoys in {@code SingleThreadedMapBenchmark}/{@code
-   * ThreadSafeMapBenchmark} ({@code KeyStrategy} implementors referenced only so they're loaded,
-   * never invoked): that technique denies class-hierarchy analysis a single-implementor bet for a
-   * narrow, dd-trace-java-owned interface, and works by class-loading alone. It doesn't apply here
-   * -- {@code Object.hashCode()}/{@code equals()} already have countless implementors loaded in any
-   * real JVM, so a single-implementor CHA bet was never available for them. What gates their
-   * dispatch is the interpreter's per-call-site type profile, which only invocation can pollute --
-   * hence this helper actually calls {@code add}/{@code contains}/{@code get}, rather than just
-   * loading classes.
+   * Number of pollution passes {@link #warmUpHashDispatch} runs before a trial starts. Driving
+   * enough calls at {@code Level.Trial} -- entirely before JMH's warmup, let alone measurement,
+   * starts -- gets HotSpot's tiered compiler through both C1 (tier 3, full profiling; default
+   * invocation threshold in the hundreds) and C2 (tier 4; default thresholds in the thousands) on
+   * the shared hash-dispatch call sites while decoy types are still part of their profile, so the
+   * resulting compiled code keeps a genuine multi-receiver-type guard for the rest of the trial --
+   * recompilation of already-C2-compiled code isn't triggered merely by one receiver type going
+   * quiet, only by hitting an actual uncommon trap or similar deopt event, so it doesn't need
+   * refreshing once compiled this way. This iteration count was picked by watching {@code
+   * -XX:+PrintCompilation}/{@code -XX:+PrintInlining} during development and confirming both tiers
+   * compile well before it's reached, with margin for ambient JVM-wide traffic on these shared JDK
+   * call sites; it isn't verified at runtime (there's no portable, non-test-only JDK API for "is
+   * this method at tier N").
    */
-  public static void polluteHashDispatch() {
-    polluteHashDispatch(DEFAULT_DECOY_KEYS);
+  private static final int WARM_UP_ITERATIONS = 50_000;
+
+  /**
+   * Guards {@link #warmUpHashDispatch} so the passes run once per JVM rather than once per caller.
+   * Receiver profiles live in the per-method MDO and are JVM-global, so a single pass is sufficient
+   * no matter how many threads or state classes ask for it. Most benchmarks here wire the call into
+   * a {@code @State(Scope.Thread)} setup, which JMH runs once per thread -- without this guard,
+   * {@code @Threads(8)} would perform eight times the pollution work, and the allocation it
+   * generates before measurement is not free.
+   */
+  private static final AtomicBoolean WARMED_UP = new AtomicBoolean();
+
+  /**
+   * Exercises shared collection methods with several key classes before benchmark warmup.
+   *
+   * <p>HotSpot records receiver types at bytecode call sites, not per collection instance. Scratch
+   * collections therefore contribute to the internal profiles used when compiling benchmark
+   * lookups. Loading extra classes alone can defeat class-hierarchy analysis (optimization based on
+   * the loaded implementations), but changing a receiver profile requires method calls.
+   *
+   * <p>{@link HashSet} uses {@link HashMap}'s lookup code, also used by {@code LinkedHashMap}.
+   * {@link ConcurrentHashMap}, including its key-set views, has separate internal call sites. The
+   * immutable set and map implementations selected by {@link CollectionUtils} are exercised
+   * separately too; on older JDKs these helpers fall back to mutable collections.
+   *
+   * <p>{@link #polluteCompareToDispatch(Blackhole)} also exercises natural-order lookups in {@link
+   * TreeSet}, {@link TreeMap}, and {@link ConcurrentSkipListMap}; {@link
+   * #polluteComparatorDispatch(Blackhole)} exercises the same three collections' separate {@link
+   * Comparator}-based call sites.
+   *
+   * <p>The benchmark's own collection call sites are not invoked here and remain free to specialize
+   * for their receiver types. A call site's recorded type profile isn't threatened by which key
+   * type happens to dominate traffic during or after warmup -- once HotSpot has recorded multiple
+   * receiver types there, it stays megamorphic regardless of later call frequency. The risk this
+   * class guards against is a statically deducible receiver type bypassing the profile entirely:
+   * loading extra classes here defeats class-hierarchy analysis (optimization based on which
+   * implementations are actually loaded), and {@link #distinctEqualCopy}'s {@code DONT_INLINE}
+   * stops the JIT from tracing a decoy key's type back to its origin through static inference.
+   */
+  public static void warmUpHashDispatch(Blackhole bh) {
+    if (!WARMED_UP.compareAndSet(false, true)) {
+      return;
+    }
+    for (int i = 0; i < WARM_UP_ITERATIONS; ++i) {
+      polluteHashDispatch(bh);
+      polluteCompareToDispatch(bh);
+      polluteComparatorDispatch(bh);
+    }
   }
 
-  public static void polluteHashDispatch(Object... decoyKeys) {
-    populateTypeProfileMutable(new HashSet<>(), decoyKeys);
-    populateTypeProfile(CollectionUtils.tryMakeImmutableSet(Arrays.asList(decoyKeys)), decoyKeys);
-    populateTypeProfileMutableMap(new ConcurrentHashMap<>(), decoyKeys);
-
+  private static void polluteHashDispatch(Blackhole bh) {
+    HashSet<Object> hashSet = new HashSet<>();
+    ConcurrentHashMap<Object, Object> concurrentHashMap = new ConcurrentHashMap<>();
     Map<Object, Object> mapCopySource = new HashMap<>();
-    for (Object key : decoyKeys) {
+    for (Object key : DECOY_KEYS) {
+      hashSet.add(distinctEqualCopy(key));
+      bh.consume(hashSet.contains(distinctEqualCopy(key)));
+
+      concurrentHashMap.put(distinctEqualCopy(key), key);
+      bh.consume(concurrentHashMap.get(distinctEqualCopy(key)));
+
       mapCopySource.put(key, key);
     }
-    populateTypeProfileMap(CollectionUtils.tryMakeImmutableMap(mapCopySource), decoyKeys);
+    bh.consume(hashSet);
+    bh.consume(concurrentHashMap);
 
-    polluteCompareToDispatch(decoyKeys);
+    Set<Object> immutableSet = CollectionUtils.tryMakeImmutableSet(Arrays.asList(DECOY_KEYS));
+    Map<Object, Object> immutableMap = CollectionUtils.tryMakeImmutableMap(mapCopySource);
+    for (Object key : DECOY_KEYS) {
+      bh.consume(immutableSet.contains(distinctEqualCopy(key)));
+      bh.consume(immutableMap.get(distinctEqualCopy(key)));
+    }
+    bh.consume(immutableSet);
+    bh.consume(immutableMap);
   }
 
   /**
-   * Counterpart to the rest of this class for the {@code compareTo}-based dispatch used by {@code
-   * TreeMap}/{@code TreeSet}/{@code ConcurrentSkipListMap}, instead of {@code hashCode()}/{@code
-   * equals()}.
+   * Exercises natural-order {@code compareTo} calls in {@link TreeSet}, {@link TreeMap}, and {@link
+   * ConcurrentSkipListMap} with the default decoy keys.
    *
-   * <p>Unlike the hash-based structures above, a single sorted collection can't hold multiple decoy
-   * key classes at once: natural ordering calls {@code key.compareTo(existing)}, which throws
-   * {@code ClassCastException} the moment two mutually-incomparable types meet (e.g. a {@code
-   * String} and an {@code Integer}). So each key type gets its own scratch instance here, one type
-   * at a time. That's still enough to make the dispatch megamorphic: HotSpot's type profile lives
-   * on the bytecode call site inside {@code TreeMap}/{@code TreeSet}/{@code
-   * ConcurrentSkipListMap}'s shared implementation, not on any one collection instance, so driving
-   * several receiver types through that site across several scratch instances pollutes it exactly
-   * as effectively as driving them through one shared instance would.
+   * <p>Each key type uses a separate collection because the decoys are not mutually comparable. The
+   * instances still execute the same internal call sites and contribute to their receiver profiles.
+   * {@link #polluteComparatorDispatch(Blackhole)} is the counterpart for the separate call sites
+   * these collections use when constructed with an explicit {@link java.util.Comparator}.
    *
-   * <p>{@code Object}'s decoy is skipped: it isn't {@link Comparable}, so it has no natural
-   * ordering to dispatch through in the first place -- the same reason it's exempt from an {@code
-   * equals()}-identity copy in {@link #distinctEqualCopy}.
+   * <p>Keys that do not implement {@link Comparable}, including the plain {@code Object} decoy, are
+   * skipped.
    */
-  public static void polluteCompareToDispatch() {
-    polluteCompareToDispatch(DEFAULT_DECOY_KEYS);
-  }
-
-  public static void polluteCompareToDispatch(Object... decoyKeys) {
-    for (Object key : decoyKeys) {
+  private static void polluteCompareToDispatch(Blackhole bh) {
+    for (Object key : DECOY_KEYS) {
       if (!(key instanceof Comparable)) {
         continue;
       }
+
       TreeSet<Object> treeSet = new TreeSet<>();
       treeSet.add(key);
-      treeSet.contains(distinctEqualCopy(key));
+      bh.consume(treeSet.contains(distinctEqualCopy(key)));
+      bh.consume(treeSet);
 
       TreeMap<Object, Object> treeMap = new TreeMap<>();
       treeMap.put(key, key);
-      treeMap.get(distinctEqualCopy(key));
+      bh.consume(treeMap.get(distinctEqualCopy(key)));
+      bh.consume(treeMap);
 
       ConcurrentSkipListMap<Object, Object> skipListMap = new ConcurrentSkipListMap<>();
       skipListMap.put(key, key);
-      skipListMap.get(distinctEqualCopy(key));
+      bh.consume(skipListMap.get(distinctEqualCopy(key)));
+      bh.consume(skipListMap);
     }
   }
 
   /**
-   * Exercises {@code contains()} with the default decoy keys.
+   * Exercises {@link Comparator}-based {@code compare} calls in {@link TreeSet}, {@link TreeMap},
+   * and {@link ConcurrentSkipListMap} with the default decoy keys.
    *
-   * <p>Use the collection implementation under test; the instance itself may be a scratch object.
-   * HotSpot stores receiver-type profiles at bytecode call sites, so every instance executing that
-   * implementation contributes to the same internal {@code hashCode()} and {@code equals()}
-   * profiles. The collection may be mutable or immutable.
+   * <p>Constructing these collections with an explicit {@code Comparator} routes lookups through
+   * internal call sites distinct from the no-arg, natural-ordering constructors {@link
+   * #polluteCompareToDispatch(Blackhole)} exercises -- pollution there does not carry over here.
+   * The comparator itself delegates to {@link Comparable#compareTo}, so this pass also keeps that
+   * method's call site (invoked from inside the comparator, not from the collection directly) warm
+   * across the same key types.
+   *
+   * <p>Keys that do not implement {@link Comparable}, including the plain {@code Object} decoy, are
+   * skipped.
    */
-  public static void populateTypeProfile(Collection<Object> populated) {
-    populateTypeProfile(populated, DEFAULT_DECOY_KEYS);
-  }
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  private static void polluteComparatorDispatch(Blackhole bh) {
+    Comparator<Object> comparator = (a, b) -> ((Comparable) a).compareTo(b);
+    for (Object key : DECOY_KEYS) {
+      if (!(key instanceof Comparable)) {
+        continue;
+      }
 
-  public static void populateTypeProfile(Collection<Object> populated, Object... decoyKeys) {
-    for (Object key : decoyKeys) {
-      populated.contains(distinctEqualCopy(key));
-    }
-  }
+      TreeSet<Object> treeSet = new TreeSet<>(comparator);
+      treeSet.add(key);
+      bh.consume(treeSet.contains(distinctEqualCopy(key)));
+      bh.consume(treeSet);
 
-  /** Exercises {@code add()} and {@code contains()} on a mutable collection. */
-  public static void populateTypeProfileMutable(Collection<Object> scratch, Object... decoyKeys) {
-    for (Object key : decoyKeys) {
-      scratch.add(key);
-      scratch.contains(distinctEqualCopy(key));
-    }
-  }
+      TreeMap<Object, Object> treeMap = new TreeMap<>(comparator);
+      treeMap.put(key, key);
+      bh.consume(treeMap.get(distinctEqualCopy(key)));
+      bh.consume(treeMap);
 
-  /**
-   * {@link Map} counterpart to {@link #populateTypeProfile(Collection)}: pass the map instance
-   * under test (or an equivalent scratch instance) to drive its {@code get()} dispatch. Safe
-   * against immutable maps too, since it only calls {@code get()}.
-   */
-  public static void populateTypeProfileMap(Map<Object, Object> populated) {
-    populateTypeProfileMap(populated, DEFAULT_DECOY_KEYS);
-  }
-
-  public static void populateTypeProfileMap(Map<Object, Object> populated, Object... decoyKeys) {
-    for (Object key : decoyKeys) {
-      populated.get(distinctEqualCopy(key));
-    }
-  }
-
-  /**
-   * Lower-level control, {@link Map} counterpart to {@link #populateTypeProfileMutable}: also
-   * drives {@code put()} dispatch, so {@code scratch} must genuinely support mutation.
-   */
-  public static void populateTypeProfileMutableMap(
-      Map<Object, Object> scratch, Object... decoyKeys) {
-    for (Object key : decoyKeys) {
-      scratch.put(key, key);
-      scratch.get(distinctEqualCopy(key));
+      ConcurrentSkipListMap<Object, Object> skipListMap = new ConcurrentSkipListMap<>(comparator);
+      skipListMap.put(key, key);
+      bh.consume(skipListMap.get(distinctEqualCopy(key)));
+      bh.consume(skipListMap);
     }
   }
 
@@ -178,12 +244,28 @@ public final class BenchmarkUtils {
    * the lookup that follows can't take {@code HashMap}/{@code ConcurrentHashMap}'s internal {@code
    * key == storedKey || key.equals(storedKey)} identity fast path and skip calling {@code equals()}
    * -- which is exactly the dispatch this class exists to pollute. {@code Object}'s own {@code
-   * equals()} is identity, so a decoy of that type has no distinct-but-equal instance to make; it's
-   * returned as-is, and the identity fast path is then indistinguishable from a genuine {@code
-   * equals()} call anyway.
+   * equals()} is identity, so a decoy of that type has no distinct-but-equal instance to make and
+   * is returned as-is. The lookup then matches on identity: same result, but {@code equals()} is
+   * never invoked, so the {@code Object} decoy contributes a {@code hashCode()} receiver sample
+   * (the hash is computed before the identity check) and no {@code equals()} one.
+   *
+   * <p>{@code DONT_INLINE} makes this call boundary an optimization black box: without it, once a
+   * caller like {@link #polluteHashDispatch} is inlined into a tight loop, the JIT can trace a
+   * decoy key's concrete type straight back through this method to the literal it originated from
+   * and devirtualize {@code hashCode()}/{@code equals()} via static type inference alone --
+   * bypassing the shared, runtime type profile this class exists to pollute, no matter how many
+   * distinct instances or types are pushed through it. Keeping this a real, non-inlined call forces
+   * every caller to go through actual dispatch -- a type-erasing wormhole, the mirror image of
+   * {@link Blackhole}'s value-erasing one.
+   *
+   * @param key the decoy key to copy
+   * @return a distinct-but-equal copy, or {@code key} itself if it has no distinct-but-equal form
    */
-  @SuppressWarnings(
-      "deprecation") // boxed-type constructors: only way to force a non-cached instance
+  @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+  @SuppressWarnings({
+    "deprecation",
+    "removal"
+  }) // boxed-type constructors: only way to force a non-cached instance
   private static Object distinctEqualCopy(Object key) {
     if (key instanceof String) {
       return new String((String) key);

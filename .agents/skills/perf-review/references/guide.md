@@ -161,14 +161,25 @@ escape analysis eliminates *local* short-lived allocations, but only when the ob
 Stored in a map, returned, captured by a lambda, or passed to a non-inlined virtual call: it
 escapes, and it's real.
 
-**Map/Set JMH benchmarks that never pollute dispatch — treat as unverified.** A benchmark that
-looks up only one key class for its whole run leaves the collection's internal
-`hashCode()`/`equals()` (or `compareTo` for sorted maps/sets) call site artificially
-monomorphic — production hits that same shared call site with whatever key types the whole
-process uses, so it's realistically almost always megamorphic. An unpolluted benchmark can
-overstate a structure's throughput and flip a comparison (PR #12298: a synchronized `HashMap`
-collapsed ~70% once pollution was added). Check that the benchmark's `@Setup` calls
-`datadog.trace.util.BenchmarkUtils.polluteHashDispatch()` before trusting its numbers.
+**Map/Set JMH benchmarks whose dispatch is actually reachable — treat as unverified.** JMH forks a
+fresh JVM per benchmark method, so each arm is compiled in a process that has only ever seen that
+one arm's key types. A collection's internal `hashCode()`/`equals()` (or `compareTo`) call site is
+shared JVM-wide in production and hit with every key type the process uses, so the benchmark's
+version of it is unrealistically clean.
+
+But this only matters when the receiver type is **not statically deducible at the benchmark's own
+call site**. If the key is a final class (`String`) or an exact type from an allocation, C2
+devirtualizes on that proof and never consults the profile — pollution is then a no-op, and
+demanding it only adds setup allocation. Having one key class per benchmark is normal and correct;
+a real `Map<String, V>` call site is monotyped too. Erasure is what makes the *internal* site
+megamorphic, not variety at the caller.
+
+PR #12298 measured both sides: `FlatHashtableIteratorBenchmark`'s strategy dispatch fell 37.9 → 18.1
+M ops/s (2.1x) when its profile was poisoned, because the strategy is an interface with four loaded
+implementors; the `String`-keyed map benchmarks in the same module were unaffected, and
+LogCompilation confirmed the dispatch was resolved statically. Check that `@Setup` calls
+`datadog.trace.util.BenchmarkUtils.warmUpHashDispatch(Blackhole)` when the dispatch is genuinely
+profile-dependent.
 
 **EA claims for scope/wrapper objects spanning I/O — treat as unverified.** A microbenchmark
 tight-loop can show zero allocation for a scope or wrapper object because C2 inlines through
