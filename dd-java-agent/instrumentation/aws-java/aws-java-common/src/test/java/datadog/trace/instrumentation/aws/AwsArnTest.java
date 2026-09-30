@@ -8,6 +8,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.tabletest.junit.TableTest;
 
 class AwsArnTest {
 
@@ -73,19 +74,18 @@ class AwsArnTest {
     assertNull(arn.account());
   }
 
-  @ParameterizedTest(name = "table name of {0} is {1}")
-  @CsvSource(
-      nullValues = "NULL",
-      value = {
-        "arn:aws:dynamodb:us-east-1:123456789012:table/orders, orders",
-        "arn:aws:dynamodb:us-east-1:123456789012:table/orders/index/by-user, orders",
-        "arn:aws:dynamodb:us-east-1:123456789012:table/orders/stream/2024-01-01T00:00:00.000, orders",
-        "arn:aws:dynamodb:us-east-1:123456789012:table/, NULL",
-        "arn:aws:dynamodb:us-east-1:123456789012:backup/orders, NULL",
-        "arn:aws:sns:us-east-1:123456789012:table/orders, orders",
-        "arn:aws:s3:::my-bucket, NULL",
-      })
-  void dynamoDbTableName(String value, String expected) {
-    assertEquals(expected, AwsArn.parse(value).dynamoDbTableName());
+  @TableTest({
+    "Scenario      | Value                                                                               | Expected",
+    "Table         | arn:aws:dynamodb:us-east-1:123456789012:table/orders                                | true    ",
+    "Index         | arn:aws:dynamodb:us-east-1:123456789012:table/orders/index/by-user                  | true    ",
+    "Stream        | arn:aws:dynamodb:us-east-1:123456789012:table/orders/stream/2024-01-01T00:00:00.000 | true    ",
+    "Missing name  | arn:aws:dynamodb:us-east-1:123456789012:table/                                      | false   ",
+    "Empty name    | arn:aws:dynamodb:us-east-1:123456789012:table//index/by-user                        | false   ",
+    "Non-table     | arn:aws:dynamodb:us-east-1:123456789012:backup/orders                               | false   ",
+    "Other service | arn:aws:sns:us-east-1:123456789012:table/orders                                     | false   ",
+    "S3 bucket     | arn:aws:s3:::my-bucket                                                              | false   "
+  })
+  void identifiesDynamoDbTables(String value, boolean expected) {
+    assertEquals(expected, AwsArn.parse(value).isDynamoDbTable());
   }
 }

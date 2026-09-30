@@ -181,24 +181,21 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     }
     String tableName = access.getTableName(originalRequest);
     if (null != tableName) {
-      // A TableName given as an ARN carries the owning account; a bare name is resolved by
-      // DynamoDB in the requestor's own account. SDK v1 does not expose the signing credentials
-      // to request handlers, so only the ARN form yields an account here. Other services with a
-      // TableName field keep the plain table name tags.
+      // A DynamoDB TableName given as an ARN carries the owning account. SDK v1 does not expose
+      // the signing credentials to request handlers, so a bare name yields no account here. The
+      // existing table name tags keep the value as given, ARN or not. Other services with a
+      // TableName member (Timestream, Keyspaces, ...) only get the plain table name tags.
       AwsArn arn =
           awsSimplifiedServiceName != null && awsSimplifiedServiceName.startsWith("dynamodb")
               ? AwsArn.parse(tableName)
               : null;
       if (arn != null) {
+        if (arn.isDynamoDbTable()) {
+          span.setTag(InstrumentationTags.AWS_TABLE_ARN, arn.raw());
+        }
         String account = arn.account();
         if (account != null) {
           span.setTag(InstrumentationTags.AWS_ACCOUNT, account);
-        }
-        String bareName = arn.dynamoDbTableName();
-        if (bareName != null) {
-          // Only a table ARN is a table ARN; any other resource keeps the raw value as the name.
-          span.setTag(InstrumentationTags.AWS_TABLE_ARN, arn.raw());
-          tableName = bareName;
         }
       }
       span.setTag(InstrumentationTags.AWS_TABLE_NAME, tableName);

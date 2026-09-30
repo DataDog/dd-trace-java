@@ -470,9 +470,10 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             "aws.operation" "GetItem"
             "aws.agent" "java-aws-sdk"
             "aws.requestId" "UNKNOWN"
-            // the bare name is what peer.service and the *name tags carry
-            "aws.table.name" "sometable"
-            "tablename" "sometable"
+            // the name tags (and so peer.service) keep the TableName as given; the ARN and
+            // account are additions, not replacements
+            "aws.table.name" tableArn
+            "tablename" tableArn
             "aws.table.arn" tableArn
             "aws_account" "123456789012"
             peerServiceFrom("aws.table.name")

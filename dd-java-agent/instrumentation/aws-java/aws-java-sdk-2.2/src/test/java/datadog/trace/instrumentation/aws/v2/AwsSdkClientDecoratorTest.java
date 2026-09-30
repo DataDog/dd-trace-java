@@ -55,6 +55,36 @@ public class AwsSdkClientDecoratorTest {
     verify(span, never()).setTag(eq("aws.table.arn"), anyString());
   }
 
+  @TableTest({
+    "Scenario   | Table Name                                            | Table Arn",
+    "Table      | arn:aws:dynamodb:us-east-1:123456789012:table/orders  | true     ",
+    "Non-table  | arn:aws:dynamodb:us-east-1:123456789012:backup/orders | false    ",
+    "Empty name | arn:aws:dynamodb:us-east-1:123456789012:table/        | false    ",
+    "SNS ARN    | arn:aws:sns:us-east-1:123456789012:table/orders       | false    ",
+    "S3 ARN     | arn:aws:s3:::my-bucket                                | false    "
+  })
+  void preservesTableNamesAndOnlyTagsTableArns(String tableName, boolean tableArn) {
+    AgentSpan span = mock(AgentSpan.class, RETURNS_SELF);
+    Context context = mock(Context.class);
+    when(context.get(any())).thenReturn(span);
+    SdkRequest request = mock(SdkRequest.class);
+    when(request.getValueForField("TableName", String.class)).thenReturn(Optional.of(tableName));
+    ExecutionAttributes attributes = new ExecutionAttributes();
+    attributes.putAttribute(SdkExecutionAttribute.SERVICE_NAME, "DynamoDb");
+    attributes.putAttribute(SdkExecutionAttribute.OPERATION_NAME, "GetItem");
+
+    AwsSdkClientDecorator.DECORATE.onSdkRequest(
+        context, request, mock(SdkHttpRequest.class), attributes);
+
+    verify(span).setTag("aws.table.name", tableName);
+    verify(span).setTag("tablename", tableName);
+    if (tableArn) {
+      verify(span).setTag("aws.table.arn", tableName);
+    } else {
+      verify(span, never()).setTag(eq("aws.table.arn"), anyString());
+    }
+  }
+
   /** Exposes the newer credentials API while compiling against the SDK 2.2.0 baseline. */
   public static class AccountCredentials implements AwsCredentials {
     public Optional<String> accountId() {

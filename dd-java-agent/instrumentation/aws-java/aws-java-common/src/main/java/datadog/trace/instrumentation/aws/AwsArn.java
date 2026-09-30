@@ -103,20 +103,12 @@ public final class AwsArn {
     return resource;
   }
 
-  /**
-   * The table name of a DynamoDB table ARN, with any sub-resource ({@code /index/<name>}, {@code
-   * /stream/<label>}, ...) removed.
-   *
-   * @return the bare table name, or {@code null} when the resource is not a table.
-   */
-  public String dynamoDbTableName() {
-    if (!resource.startsWith(TABLE_PREFIX)) {
-      return null;
-    }
-    int start = TABLE_PREFIX.length();
-    int slash = resource.indexOf('/', start);
-    String name = slash < 0 ? resource.substring(start) : resource.substring(start, slash);
-    return name.isEmpty() ? null : name;
+  /** Whether this ARN identifies a DynamoDB table or one of its sub-resources. */
+  public boolean isDynamoDbTable() {
+    return "dynamodb".equals(service)
+        && resource.startsWith(TABLE_PREFIX)
+        && resource.length() > TABLE_PREFIX.length()
+        && resource.charAt(TABLE_PREFIX.length()) != '/';
   }
 
   private static String emptyToNull(final String value) {

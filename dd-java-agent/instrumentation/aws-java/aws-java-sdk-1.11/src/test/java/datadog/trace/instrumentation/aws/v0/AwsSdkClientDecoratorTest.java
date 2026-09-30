@@ -37,14 +37,40 @@ class AwsSdkClientDecoratorTest {
 
     AwsSdkClientDecorator.DECORATE.onRequest(span, request);
 
-    String expectedName = enrich ? "orders" : tableArn;
-    verify(span).setTag("aws.table.name", expectedName);
-    verify(span).setTag("tablename", expectedName);
+    verify(span).setTag("aws.table.name", tableArn);
+    verify(span).setTag("tablename", tableArn);
     if (enrich) {
       verify(span).setTag("aws_account", "123456789012");
       verify(span).setTag("aws.table.arn", tableArn);
     } else {
       verify(span, never()).setTag(eq("aws_account"), anyString());
+      verify(span, never()).setTag(eq("aws.table.arn"), anyString());
+    }
+  }
+
+  @TableTest({
+    "Scenario   | Table Name                                            | Table Arn",
+    "Table      | arn:aws:dynamodb:us-east-1:123456789012:table/orders  | true     ",
+    "Non-table  | arn:aws:dynamodb:us-east-1:123456789012:backup/orders | false    ",
+    "Empty name | arn:aws:dynamodb:us-east-1:123456789012:table/        | false    ",
+    "SNS ARN    | arn:aws:sns:us-east-1:123456789012:table/orders       | false    ",
+    "S3 ARN     | arn:aws:s3:::my-bucket                                | false    "
+  })
+  void preservesTableNamesAndOnlyTagsTableArns(String tableName, boolean tableArn) {
+    AgentSpan span = mock(AgentSpan.class, RETURNS_SELF);
+    when(span.traceConfig()).thenReturn(mock(TraceConfig.class));
+    DefaultRequest<GetItemRequest> request =
+        new DefaultRequest<>(new GetItemRequest().withTableName(tableName), "AmazonDynamoDBv2");
+    request.setEndpoint(URI.create("http://localhost"));
+    request.setHttpMethod(HttpMethodName.POST);
+
+    AwsSdkClientDecorator.DECORATE.onRequest(span, request);
+
+    verify(span).setTag("aws.table.name", tableName);
+    verify(span).setTag("tablename", tableName);
+    if (tableArn) {
+      verify(span).setTag("aws.table.arn", tableName);
+    } else {
       verify(span, never()).setTag(eq("aws.table.arn"), anyString());
     }
   }

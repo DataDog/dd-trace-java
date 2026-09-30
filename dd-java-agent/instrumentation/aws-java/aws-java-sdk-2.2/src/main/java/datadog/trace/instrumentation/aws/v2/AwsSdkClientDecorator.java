@@ -292,33 +292,27 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   }
 
   /**
-   * Tags the table plus its owning account and ARN. A TableName given as an ARN carries both. A
-   * bare name is, by DynamoDB's documented contract, resolved in the requestor's own account, so
-   * the account owning the signing credentials is the table owner.
+   * Tags the owning account of the table. A TableName given as an ARN carries it (and is tagged as
+   * aws.table.arn). A bare name is, by DynamoDB's documented contract, resolved in the requestor's
+   * own account, so the account owning the signing credentials is the table owner. The existing
+   * aws.table.name, tablename and peer.service tags keep the TableName value as given, ARN or not,
+   * so nothing changes for spans that already carry an ARN there.
    */
   private static void onDynamoDbTable(
       final AgentSpan span, final String tableName, final ExecutionAttributes attributes) {
-    String name = tableName;
-    String account;
-    String tableArn = null;
+    setTableName(span, tableName);
     AwsArn arn = AwsArn.parse(tableName);
+    String account;
     if (arn != null) {
       account = arn.account();
-      String bareName = arn.dynamoDbTableName();
-      if (bareName != null) {
-        // Only a table ARN is a table ARN; any other resource keeps the raw value as the name.
-        name = bareName;
-        tableArn = arn.raw();
+      if (arn.isDynamoDbTable()) {
+        span.setTag(InstrumentationTags.AWS_TABLE_ARN, arn.raw());
       }
     } else {
       account = callerAccount(attributes);
     }
-    setTableName(span, name);
     if (account != null) {
       span.setTag(InstrumentationTags.AWS_ACCOUNT, account);
-    }
-    if (tableArn != null) {
-      span.setTag(InstrumentationTags.AWS_TABLE_ARN, tableArn);
     }
   }
 
