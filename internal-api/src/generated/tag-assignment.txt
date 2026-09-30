@@ -63,7 +63,6 @@
   db.system                      -> db.type
   http.request.method            -> http.method
   http.response.status_code      -> http.status_code
-  server.address                 -> http.hostname
   service.name                   -> service
   url.full                       -> http.url
   user_agent.original            -> http.useragent

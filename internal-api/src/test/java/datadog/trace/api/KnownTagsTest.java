@@ -62,7 +62,6 @@ class KnownTagsTest {
         Arguments.of(
             "http.response.status_code", KnownTags.HTTP_STATUS_CODE_ID, "http.status_code"),
         Arguments.of("url.full", KnownTags.HTTP_URL_ID, "http.url"),
-        Arguments.of("server.address", KnownTags.HTTP_HOSTNAME_ID, "http.hostname"),
         Arguments.of("user_agent.original", KnownTags.HTTP_USERAGENT_ID, "http.useragent"),
         Arguments.of("client.address", KnownTags.HTTP_CLIENT_IP_ID, "http.client_ip"),
         Arguments.of("db.system", KnownTags.DB_TYPE_ID, "db.type"),

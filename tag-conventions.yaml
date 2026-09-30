@@ -33,6 +33,11 @@
 # span type that carries it uses `{ ref: <dd-name>, required: <level> }`, which may override only
 # `required` (type and otel-name come from the one declaration). A span-kind-dependent mapping is a
 # derivation, not a rename.
+# An otel-name is canonicalized to its tag on EVERY span kind, so a rename declared on a concrete span
+# type must also set `span-kind-neutral: true`: the author's assertion that the OpenTelemetry attribute
+# means this tag wherever OTel uses it. (Renames in a shared scope -- an abstract parent or a mixin --
+# need no flag.) OTel's server.address and network.peer.address fail that test: on a client span they
+# name the remote server.
 # The id coordinate (group-decl / field-decl) is NOT authored here — the generator assigns it: each
 # declaration source (the trace-level tier, each span type, each mixin) is a group, and within a
 # group `field-decl` numbers the dense (required/conditional/recommended) tags; the rest are
@@ -88,12 +93,12 @@ span_types:
     extends: http
     tags:
       - { dd-name: http.route,        type: string, required: conditional }  # passes through: dd-name already is the OTel name
-      - { dd-name: http.hostname,     type: string, required: required,    otel-name: server.address }
-      - { dd-name: http.useragent,    type: string, required: recommended, otel-name: user_agent.original }
+      - { dd-name: http.hostname,     type: string, required: required }  # not a rename: OTel server.address is the remote server on client spans; needs the span-kind-aware derivation layer
+      - { dd-name: http.useragent,    type: string, required: recommended, otel-name: user_agent.original, span-kind-neutral: true }
       - { dd-name: http.query.string, type: string, required: recommended }  # not a rename: url.query is also carried inside url.full, while http.url excludes the query (QueryObfuscator re-appends it)
       - { dd-name: servlet.path,      type: string, required: optional }
       - { dd-name: servlet.context,   type: string, required: optional }
-      - { dd-name: http.client_ip,    type: string, required: recommended, otel-name: client.address }
+      - { dd-name: http.client_ip,    type: string, required: recommended, otel-name: client.address, span-kind-neutral: true }
       - { dd-name: network.client.ip, type: string, required: recommended }  # not a rename: OTel network.peer.address is the remote end on every span kind (the server on client spans)
 
   http.client:
@@ -106,12 +111,12 @@ span_types:
     extends: base
     include: [ peer ]
     tags:
-      - { dd-name: db.type,      type: string, required: required,    otel-name: db.system }
+      - { dd-name: db.type,      type: string, required: required,    otel-name: db.system, span-kind-neutral: true }
       - { dd-name: db.instance,  type: string, required: recommended }  # TODO(otel): db.namespace
-      - { dd-name: db.operation, type: string, required: recommended, otel-name: db.operation.name }
+      - { dd-name: db.operation, type: string, required: recommended, otel-name: db.operation.name, span-kind-neutral: true }
       - { dd-name: db.user,      type: string, required: recommended }
       - { dd-name: db.pool.name, type: string, required: optional }
-      - { dd-name: db.statement, type: string, required: recommended, otel-name: db.query.text }
+      - { dd-name: db.statement, type: string, required: recommended, otel-name: db.query.text, span-kind-neutral: true }
 
   view.render:
     extends: base

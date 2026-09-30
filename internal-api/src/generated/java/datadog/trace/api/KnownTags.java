@@ -117,8 +117,7 @@ public final class KnownTags {
 
   public static final String HTTP_HOSTNAME_NAME = "http.hostname";
   public static final long HTTP_HOSTNAME_ID = 0x001B000000000000L;
-  public static final String HTTP_HOSTNAME_OTEL_NAME = "server.address";
-  // makeTagId(serial=27) -> server.address  <required>
+  // makeTagId(serial=27)  <required>
 
   public static final String HTTP_METHOD_NAME = "http.method";
   public static final long HTTP_METHOD_ID = 0x001C000000000000L;
@@ -344,7 +343,6 @@ public final class KnownTags {
     "db.system",
     "http.request.method",
     "http.response.status_code",
-    "server.address",
     "service.name",
     "url.full",
     "user_agent.original",
@@ -409,7 +407,6 @@ public final class KnownTags {
     DB_TYPE_ID,
     HTTP_METHOD_ID,
     HTTP_STATUS_CODE_ID,
-    HTTP_HOSTNAME_ID,
     SERVICE_ID,
     HTTP_URL_ID,
     HTTP_USERAGENT_ID,
@@ -562,8 +559,6 @@ public final class KnownTags {
               return DB_TYPE_OTEL_NAME;
             case HTTP_CLIENT_IP_SERIAL_NUM:
               return HTTP_CLIENT_IP_OTEL_NAME;
-            case HTTP_HOSTNAME_SERIAL_NUM:
-              return HTTP_HOSTNAME_OTEL_NAME;
             case HTTP_METHOD_SERIAL_NUM:
               return HTTP_METHOD_OTEL_NAME;
             case HTTP_STATUS_CODE_SERIAL_NUM:
