@@ -5,6 +5,15 @@ plugins {
   alias(libs.plugins.spotless)
 }
 
+spotless {
+  java {
+    target("src/**/*.java")
+    removeUnusedImports()
+    forbidWildcardImports()
+    googleJavaFormat(libs.versions.google.java.format.get())
+  }
+}
+
 // The buildSrc still needs to target Java 8 as build time instrumentation and muzzle plugin
 // allow to schedule workers on different JDK version.
 java {
@@ -102,6 +111,7 @@ dependencies {
 
   implementation(libs.asm)
   implementation(libs.asm.tree)
+  implementation(libs.asm.commons)
 
   implementation(platform("com.fasterxml.jackson:jackson-bom:2.17.2"))
   implementation("com.fasterxml.jackson.core:jackson-databind")
@@ -128,6 +138,10 @@ testing {
       targets.configureEach {
         testTask.configure {
           enabled = providers.gradleProperty("runBuildSrcTests").isPresent or providers.systemProperty("idea.active").isPresent
+          providers.gradleProperty("observerTestArtifact").orNull?.let {
+            systemProperty("observer.test.artifact", it)
+            systemProperty("observer.test.stock", providers.gradleProperty("observerTestStock").get())
+          }
         }
       }
     }

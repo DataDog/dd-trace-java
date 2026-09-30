@@ -80,6 +80,25 @@ tasks.withType<Test>().configureEach {
   timeout.set(Duration.of(20, ChronoUnit.MINUTES))
 }
 
+// Experimental namespace-isolated observer. No observer dependencies/configuration enter ordinary tests.
+if (providers.gradleProperty("traceTracer").map { it.toBoolean() }.orElse(false).get()) {
+  require(!gradle.startParameter.isConfigurationCacheRequested) {
+    "The experimental Gradle observer does not support configuration cache"
+  }
+  require(!providers.gradleProperty("traceTracerIntakePort").isPresent &&
+    !providers.gradleProperty("traceTracerDebug").isPresent) {
+    "Use ordinary namespaced tracer configuration instead of traceTracerIntakePort/traceTracerDebug"
+  }
+  val observerJar = datadog.gradle.plugin.observer.ObserverAgentSelection.validate()
+  tasks.withType<Test>().configureEach {
+    inputs.file(observerJar).withPathSensitivity(org.gradle.api.tasks.PathSensitivity.NONE)
+    inputs.property("observerConfiguration", provider {
+      datadog.gradle.plugin.observer.ObserverAgentSelection.configurationFingerprint()
+    })
+    // The relocated stock Gradle service is the sole worker injector and module owner.
+  }
+}
+
 // Register a task "allTests" that depends on all non-latest and non-traceAgentTest Test tasks.
 // This is used when we only want to run the 'main' test sets.
 tasks.register("allTests") {

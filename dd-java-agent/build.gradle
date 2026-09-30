@@ -701,3 +701,9 @@ tasks.register('updateAgentJarIntegrationsGoldenFile', JavaExec) {
 tasks.named('check') {
   dependsOn 'verifyAgentJarContents', 'verifyAgentJarIntegrations'
 }
+
+// Developer-only artifact; never part of assemble, publication, or ordinary test execution.
+tasks.register('observerJar', datadog.gradle.plugin.observer.ObserverAgentTask) {
+  stockAgent.set(tasks.named('shadowJar', ShadowJar).flatMap { it.archiveFile })
+  observerAgent.set(layout.buildDirectory.file('observer/dd-observer-agent.jar'))
+}
