@@ -1,5 +1,6 @@
 package datadog.trace.util;
 
+import datadog.trace.api.function.ThrowingFunction;
 import javax.annotation.Nullable;
 
 /**
@@ -31,15 +32,6 @@ import javax.annotation.Nullable;
  * @param <E> the checked exception {@link #get} may throw
  */
 public abstract class ClassLatch<T, R, E extends Exception> {
-  /**
-   * A call that may fail, typically a method reference such as {@code Connection::getClientInfo}.
-   */
-  @FunctionalInterface
-  public interface Call<T, R, E extends Exception> {
-    @Nullable
-    R apply(T target) throws E;
-  }
-
   private static final String RECEIVER_PREFIX = "Receiver class ";
 
   /**
@@ -137,7 +129,7 @@ public abstract class ClassLatch<T, R, E extends Exception> {
    * Compose {@link #latchIfNamed} and {@link #latch} directly for anything more involved.
    */
   @Nullable
-  protected final R handleAbstractMethod(T target, Call<T, R, E> call) throws E {
+  protected final R handleAbstractMethod(T target, ThrowingFunction<T, R, E> call) throws E {
     try {
       return call.apply(target);
     } catch (AbstractMethodError e) {
