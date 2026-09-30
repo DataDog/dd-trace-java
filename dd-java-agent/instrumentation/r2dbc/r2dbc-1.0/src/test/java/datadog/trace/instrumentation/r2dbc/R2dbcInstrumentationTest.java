@@ -9,6 +9,8 @@ import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.test.junit.utils.assertions.Matchers.any;
+import static java.lang.reflect.Proxy.newProxyInstance;
+import static java.util.Collections.emptyList;
 
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
@@ -16,10 +18,13 @@ import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.instrumentation.r2dbc.shaded.proxy.core.QueryExecutionInfo;
+import datadog.trace.instrumentation.r2dbc.shaded.proxy.core.ValueStore;
 import datadog.trace.test.junit.utils.assertions.Matcher;
 import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.ConnectionFactories;
 import io.r2dbc.spi.ConnectionFactory;
+import io.r2dbc.spi.ConnectionFactoryOptions;
 import io.r2dbc.spi.Result;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -35,7 +40,7 @@ import reactor.core.publisher.Mono;
  */
 class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
 
-  private static final Pattern H2_QUERY = Pattern.compile("h2\\.query");
+  static final Pattern H2_QUERY = Pattern.compile("h2\\.query");
 
   /**
    * Creates a matcher that compares by {@code toString()} to handle both {@code String} and {@code
@@ -112,13 +117,14 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
             span()
                 .childOfPrevious()
                 .operationName(H2_QUERY)
-                .resourceName(Pattern.compile(Pattern.quote("SELECT * FROM test_table")))
+                .resourceName(eqs("SELECT * FROM test_table"))
                 .type(DDSpanTypes.SQL)
                 .measured()
                 .tags(
                     tag(Tags.COMPONENT, eqs("r2dbc")),
                     tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
                     tag(Tags.DB_TYPE, eqs("h2")),
+                    tag(Tags.DB_OPERATION, eqs("SELECT")),
                     tag(Tags.DB_INSTANCE, any()),
                     tag("_dd.svc_src", any()),
                     defaultTags())));
@@ -145,13 +151,14 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
             span()
                 .childOfPrevious()
                 .operationName(H2_QUERY)
-                .resourceName(Pattern.compile("INSERT INTO test_table.*"))
+                .resourceName(eqs("INSERT INTO test_table (id, name) VALUES (?, ?)"))
                 .type(DDSpanTypes.SQL)
                 .measured()
                 .tags(
                     tag(Tags.COMPONENT, eqs("r2dbc")),
                     tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
                     tag(Tags.DB_TYPE, eqs("h2")),
+                    tag(Tags.DB_OPERATION, eqs("INSERT")),
                     tag(Tags.DB_INSTANCE, any()),
                     tag("_dd.svc_src", any()),
                     defaultTags())));
@@ -183,26 +190,28 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
             span()
                 .childOfPrevious()
                 .operationName(H2_QUERY)
-                .resourceName(Pattern.compile("INSERT INTO test_table.*"))
+                .resourceName(eqs("INSERT INTO test_table (id, name) VALUES (?, ?)"))
                 .type(DDSpanTypes.SQL)
                 .measured()
                 .tags(
                     tag(Tags.COMPONENT, eqs("r2dbc")),
                     tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
                     tag(Tags.DB_TYPE, eqs("h2")),
+                    tag(Tags.DB_OPERATION, eqs("INSERT")),
                     tag(Tags.DB_INSTANCE, any()),
                     tag("_dd.svc_src", any()),
                     defaultTags()),
             span()
                 .childOfIndex(0)
                 .operationName(H2_QUERY)
-                .resourceName(Pattern.compile(Pattern.quote("SELECT * FROM test_table")))
+                .resourceName(eqs("SELECT * FROM test_table"))
                 .type(DDSpanTypes.SQL)
                 .measured()
                 .tags(
                     tag(Tags.COMPONENT, eqs("r2dbc")),
                     tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
                     tag(Tags.DB_TYPE, eqs("h2")),
+                    tag(Tags.DB_OPERATION, eqs("SELECT")),
                     tag(Tags.DB_INSTANCE, any()),
                     tag("_dd.svc_src", any()),
                     defaultTags())));
@@ -231,7 +240,7 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
             span()
                 .childOfPrevious()
                 .operationName(H2_QUERY)
-                .resourceName(Pattern.compile(Pattern.quote("SELECT * FROM nonexistent_table")))
+                .resourceName(eqs("SELECT * FROM nonexistent_table"))
                 .type(DDSpanTypes.SQL)
                 .error()
                 .measured()
@@ -239,6 +248,7 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
                     tag(Tags.COMPONENT, eqs("r2dbc")),
                     tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
                     tag(Tags.DB_TYPE, eqs("h2")),
+                    tag(Tags.DB_OPERATION, eqs("SELECT")),
                     tag(Tags.DB_INSTANCE, any()),
                     tag("_dd.svc_src", any()),
                     tag(DDTags.ERROR_MSG, any()),
@@ -285,13 +295,14 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
             span()
                 .childOfPrevious()
                 .operationName(H2_QUERY)
-                .resourceName(Pattern.compile(Pattern.quote("SELECT * FROM test_table")))
+                .resourceName(eqs("SELECT * FROM test_table"))
                 .type(DDSpanTypes.SQL)
                 .measured()
                 .tags(
                     tag(Tags.COMPONENT, eqs("r2dbc")),
                     tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
                     tag(Tags.DB_TYPE, eqs("h2")),
+                    tag(Tags.DB_OPERATION, eqs("SELECT")),
                     tag(Tags.DB_INSTANCE, any()),
                     tag("_dd.svc_src", any()),
                     defaultTags())));
@@ -315,7 +326,49 @@ class R2dbcInstrumentationTest extends AbstractInstrumentationTest {
             span()
                 .root()
                 .operationName(H2_QUERY)
-                .resourceName(Pattern.compile(Pattern.quote("SELECT * FROM test_table")))
+                .resourceName(eqs("SELECT * FROM test_table"))
+                .type(DDSpanTypes.SQL)
+                .measured()
+                .tags(
+                    tag(Tags.COMPONENT, eqs("r2dbc")),
+                    tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
+                    tag(Tags.DB_TYPE, eqs("h2")),
+                    tag(Tags.DB_OPERATION, eqs("SELECT")),
+                    tag(Tags.DB_INSTANCE, any()),
+                    tag("_dd.svc_src", any()),
+                    defaultTags())));
+  }
+
+  @Test
+  void queryWithoutSqlUsesDefaultResourceName() {
+    ValueStore valueStore = ValueStore.create();
+    QueryExecutionInfo executionInfo =
+        (QueryExecutionInfo)
+            newProxyInstance(
+                QueryExecutionInfo.class.getClassLoader(),
+                new Class<?>[] {QueryExecutionInfo.class},
+                (proxy, method, args) -> {
+                  if ("getQueries".equals(method.getName())) {
+                    return emptyList();
+                  }
+                  if ("getValueStore".equals(method.getName())) {
+                    return valueStore;
+                  }
+                  return null;
+                });
+
+    TraceProxyExecutionListener listener =
+        new TraceProxyExecutionListener(
+            ConnectionFactoryOptions.parse("r2dbc:h2:mem:///testdb;DB_CLOSE_DELAY=-1"));
+    listener.beforeQuery(executionInfo);
+    listener.afterQuery(executionInfo);
+
+    assertTraces(
+        trace(
+            span()
+                .root()
+                .operationName(H2_QUERY)
+                .resourceName(eqs("DB Query"))
                 .type(DDSpanTypes.SQL)
                 .measured()
                 .tags(

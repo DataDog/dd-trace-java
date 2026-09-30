@@ -19,6 +19,7 @@ public class R2dbcDecorator extends DatabaseClientDecorator<ConnectionFactoryOpt
 
   static final CharSequence R2DBC_QUERY =
       UTF8BytesString.create(SpanNaming.instance().namingSchema().database().operation("r2dbc"));
+  static final CharSequence DB_QUERY = UTF8BytesString.create("DB Query");
   private static final CharSequence R2DBC = UTF8BytesString.create("r2dbc");
   private static final String DEFAULT_SERVICE_NAME =
       SpanNaming.instance().namingSchema().database().service("r2dbc");

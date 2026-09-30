@@ -8,6 +8,7 @@ import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIM
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.r2dbc.R2dbcInstrumentationTest.H2_QUERY;
 import static datadog.trace.instrumentation.r2dbc.R2dbcInstrumentationTest.eqs;
 import static datadog.trace.test.junit.utils.assertions.Matchers.any;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -25,7 +26,6 @@ import io.r2dbc.spi.ConnectionFactories;
 import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryOptions;
 import io.r2dbc.spi.Result;
-import java.util.regex.Pattern;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,8 +38,6 @@ import reactor.core.publisher.Mono;
  * statics initialize, and {@code forkedTest} forks per test class ({@code forkEvery = 1}).
  */
 abstract class AbstractR2dbcDbmForkedTest extends AbstractInstrumentationTest {
-
-  static final Pattern H2_QUERY = Pattern.compile("h2\\.query");
 
   ConnectionFactory connectionFactory;
   Connection connection;
@@ -109,13 +107,14 @@ class R2dbcDbmForkedTest extends AbstractR2dbcDbmForkedTest {
             span()
                 .childOfPrevious()
                 .operationName(H2_QUERY)
-                .resourceName(Pattern.compile(Pattern.quote("SELECT * FROM test_table")))
+                .resourceName(eqs("SELECT * FROM test_table"))
                 .type(DDSpanTypes.SQL)
                 .measured()
                 .tags(
                     tag(Tags.COMPONENT, eqs("r2dbc")),
                     tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
                     tag(Tags.DB_TYPE, eqs("h2")),
+                    tag(Tags.DB_OPERATION, eqs("SELECT")),
                     tag(Tags.DB_INSTANCE, eqs("testdb")),
                     tag("_dd.svc_src", any()),
                     defaultTags())));
@@ -142,13 +141,14 @@ class R2dbcDbmForkedTest extends AbstractR2dbcDbmForkedTest {
             span()
                 .childOfPrevious()
                 .operationName(H2_QUERY)
-                .resourceName(Pattern.compile("INSERT INTO test_table.*"))
+                .resourceName(eqs("INSERT INTO test_table (id, name) VALUES (?, ?)"))
                 .type(DDSpanTypes.SQL)
                 .measured()
                 .tags(
                     tag(Tags.COMPONENT, eqs("r2dbc")),
                     tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
                     tag(Tags.DB_TYPE, eqs("h2")),
+                    tag(Tags.DB_OPERATION, eqs("INSERT")),
                     tag(Tags.DB_INSTANCE, eqs("testdb")),
                     tag("_dd.svc_src", any()),
                     defaultTags())));
@@ -178,7 +178,7 @@ class R2dbcDbmForkedTest extends AbstractR2dbcDbmForkedTest {
             span()
                 .childOfPrevious()
                 .operationName(H2_QUERY)
-                .resourceName(Pattern.compile(Pattern.quote("SELECT * FROM nonexistent_table")))
+                .resourceName(eqs("SELECT * FROM nonexistent_table"))
                 .type(DDSpanTypes.SQL)
                 .error()
                 .measured()
@@ -186,6 +186,7 @@ class R2dbcDbmForkedTest extends AbstractR2dbcDbmForkedTest {
                     tag(Tags.COMPONENT, eqs("r2dbc")),
                     tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
                     tag(Tags.DB_TYPE, eqs("h2")),
+                    tag(Tags.DB_OPERATION, eqs("SELECT")),
                     tag(Tags.DB_INSTANCE, eqs("testdb")),
                     tag("_dd.svc_src", any()),
                     tag(DDTags.ERROR_MSG, any()),
@@ -221,26 +222,28 @@ class R2dbcDbmForkedTest extends AbstractR2dbcDbmForkedTest {
             span()
                 .childOfPrevious()
                 .operationName(H2_QUERY)
-                .resourceName(Pattern.compile("INSERT INTO test_table.*"))
+                .resourceName(eqs("INSERT INTO test_table (id, name) VALUES (?, ?)"))
                 .type(DDSpanTypes.SQL)
                 .measured()
                 .tags(
                     tag(Tags.COMPONENT, eqs("r2dbc")),
                     tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
                     tag(Tags.DB_TYPE, eqs("h2")),
+                    tag(Tags.DB_OPERATION, eqs("INSERT")),
                     tag(Tags.DB_INSTANCE, eqs("testdb")),
                     tag("_dd.svc_src", any()),
                     defaultTags()),
             span()
                 .childOfIndex(0)
                 .operationName(H2_QUERY)
-                .resourceName(Pattern.compile(Pattern.quote("SELECT * FROM test_table")))
+                .resourceName(eqs("SELECT * FROM test_table"))
                 .type(DDSpanTypes.SQL)
                 .measured()
                 .tags(
                     tag(Tags.COMPONENT, eqs("r2dbc")),
                     tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
                     tag(Tags.DB_TYPE, eqs("h2")),
+                    tag(Tags.DB_OPERATION, eqs("SELECT")),
                     tag(Tags.DB_INSTANCE, eqs("testdb")),
                     tag("_dd.svc_src", any()),
                     defaultTags())));
@@ -286,13 +289,14 @@ class R2dbcDbmBaseHashForkedTest extends AbstractR2dbcDbmForkedTest {
             span()
                 .childOfPrevious()
                 .operationName(H2_QUERY)
-                .resourceName(Pattern.compile(Pattern.quote("SELECT * FROM test_table")))
+                .resourceName(eqs("SELECT * FROM test_table"))
                 .type(DDSpanTypes.SQL)
                 .measured()
                 .tags(
                     tag(Tags.COMPONENT, eqs("r2dbc")),
                     tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
                     tag(Tags.DB_TYPE, eqs("h2")),
+                    tag(Tags.DB_OPERATION, eqs("SELECT")),
                     tag(Tags.DB_INSTANCE, eqs("testdb")),
                     tag(Tags.BASE_HASH, eqs("123456789")),
                     tag("_dd.svc_src", any()),

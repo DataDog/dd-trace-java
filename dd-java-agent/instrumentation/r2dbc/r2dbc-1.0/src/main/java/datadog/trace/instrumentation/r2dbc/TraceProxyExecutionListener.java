@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.r2dbc;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
+import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.DB_QUERY;
 import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.DECORATE;
 import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.R2DBC_QUERY;
 
@@ -47,6 +49,9 @@ public final class TraceProxyExecutionListener implements ProxyExecutionListener
       // prepared-statement cache to avoid normalizing the same query text per execution.
       DBQueryInfo queryInfo = DBQueryInfo.ofPreparedStatement(queryString);
       span.setResourceName(queryInfo.getSql());
+      span.setTag(DB_OPERATION, queryInfo.getOperation());
+    } else {
+      span.setResourceName(DB_QUERY);
     }
 
     span.setMeasured(true);

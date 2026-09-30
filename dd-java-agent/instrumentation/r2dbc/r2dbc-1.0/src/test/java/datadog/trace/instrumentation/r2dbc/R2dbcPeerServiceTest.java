@@ -8,6 +8,7 @@ import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIM
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.r2dbc.R2dbcInstrumentationTest.H2_QUERY;
 import static datadog.trace.instrumentation.r2dbc.R2dbcInstrumentationTest.eqs;
 import static datadog.trace.test.junit.utils.assertions.Matchers.any;
 
@@ -22,7 +23,6 @@ import io.r2dbc.spi.ConnectionFactories;
 import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryOptions;
 import io.r2dbc.spi.Result;
-import java.util.regex.Pattern;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,8 +41,6 @@ import reactor.core.publisher.Mono;
  * not the computed output, per the peer_service feature guide.
  */
 class R2dbcPeerServiceTest extends AbstractInstrumentationTest {
-
-  private static final Pattern H2_QUERY = Pattern.compile("h2\\.query");
 
   private ConnectionFactory connectionFactory;
   private Connection connection;
@@ -105,13 +103,14 @@ class R2dbcPeerServiceTest extends AbstractInstrumentationTest {
             span()
                 .childOfPrevious()
                 .operationName(H2_QUERY)
-                .resourceName(Pattern.compile(Pattern.quote("SELECT * FROM peer_test")))
+                .resourceName(eqs("SELECT * FROM peer_test"))
                 .type(DDSpanTypes.SQL)
                 .measured()
                 .tags(
                     tag(Tags.COMPONENT, eqs("r2dbc")),
                     tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
                     tag(Tags.DB_TYPE, eqs("h2")),
+                    tag(Tags.DB_OPERATION, eqs("SELECT")),
                     tag(Tags.DB_INSTANCE, eqs("peerdb")),
                     tag(Tags.PEER_HOSTNAME, eqs("db.example.com")),
                     tag(Tags.DB_USER, eqs("testuser")),
@@ -140,15 +139,14 @@ class R2dbcPeerServiceTest extends AbstractInstrumentationTest {
             span()
                 .childOfPrevious()
                 .operationName(H2_QUERY)
-                .resourceName(
-                    Pattern.compile(
-                        Pattern.quote("INSERT INTO peer_test (id, name) VALUES (?, ?)")))
+                .resourceName(eqs("INSERT INTO peer_test (id, name) VALUES (?, ?)"))
                 .type(DDSpanTypes.SQL)
                 .measured()
                 .tags(
                     tag(Tags.COMPONENT, eqs("r2dbc")),
                     tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
                     tag(Tags.DB_TYPE, eqs("h2")),
+                    tag(Tags.DB_OPERATION, eqs("INSERT")),
                     tag(Tags.DB_INSTANCE, eqs("peerdb")),
                     tag(Tags.PEER_HOSTNAME, eqs("db.example.com")),
                     tag(Tags.DB_USER, eqs("testuser")),
@@ -184,15 +182,14 @@ class R2dbcPeerServiceTest extends AbstractInstrumentationTest {
             span()
                 .childOfPrevious()
                 .operationName(H2_QUERY)
-                .resourceName(
-                    Pattern.compile(
-                        Pattern.quote("INSERT INTO peer_test (id, name) VALUES (?, ?)")))
+                .resourceName(eqs("INSERT INTO peer_test (id, name) VALUES (?, ?)"))
                 .type(DDSpanTypes.SQL)
                 .measured()
                 .tags(
                     tag(Tags.COMPONENT, eqs("r2dbc")),
                     tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
                     tag(Tags.DB_TYPE, eqs("h2")),
+                    tag(Tags.DB_OPERATION, eqs("INSERT")),
                     tag(Tags.DB_INSTANCE, eqs("peerdb")),
                     tag(Tags.PEER_HOSTNAME, eqs("db.example.com")),
                     tag(Tags.DB_USER, eqs("testuser")),
@@ -201,13 +198,14 @@ class R2dbcPeerServiceTest extends AbstractInstrumentationTest {
             span()
                 .childOfIndex(0)
                 .operationName(H2_QUERY)
-                .resourceName(Pattern.compile(Pattern.quote("SELECT * FROM peer_test")))
+                .resourceName(eqs("SELECT * FROM peer_test"))
                 .type(DDSpanTypes.SQL)
                 .measured()
                 .tags(
                     tag(Tags.COMPONENT, eqs("r2dbc")),
                     tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
                     tag(Tags.DB_TYPE, eqs("h2")),
+                    tag(Tags.DB_OPERATION, eqs("SELECT")),
                     tag(Tags.DB_INSTANCE, eqs("peerdb")),
                     tag(Tags.PEER_HOSTNAME, eqs("db.example.com")),
                     tag(Tags.DB_USER, eqs("testuser")),
@@ -239,8 +237,7 @@ class R2dbcPeerServiceTest extends AbstractInstrumentationTest {
             span()
                 .childOfPrevious()
                 .operationName(H2_QUERY)
-                .resourceName(
-                    Pattern.compile(Pattern.quote("SELECT * FROM nonexistent_peer_table")))
+                .resourceName(eqs("SELECT * FROM nonexistent_peer_table"))
                 .type(DDSpanTypes.SQL)
                 .error()
                 .measured()
@@ -248,6 +245,7 @@ class R2dbcPeerServiceTest extends AbstractInstrumentationTest {
                     tag(Tags.COMPONENT, eqs("r2dbc")),
                     tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
                     tag(Tags.DB_TYPE, eqs("h2")),
+                    tag(Tags.DB_OPERATION, eqs("SELECT")),
                     tag(Tags.DB_INSTANCE, eqs("peerdb")),
                     tag(Tags.PEER_HOSTNAME, eqs("db.example.com")),
                     tag(Tags.DB_USER, eqs("testuser")),
