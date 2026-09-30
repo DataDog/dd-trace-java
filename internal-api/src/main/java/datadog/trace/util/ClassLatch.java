@@ -128,7 +128,12 @@ public abstract class ClassLatch<T, R, E extends Exception> {
    * }
    * }</pre>
    *
-   * Pass a method reference or a non-capturing lambda, and keep this method small so it inlines:
+   * This covers only {@link AbstractMethodError}. A method that may also be missing from the
+   * classes on the classpath altogether raises {@link NoSuchMethodError}, which this does not
+   * handle; see {@link #handleNoSuchMethod} and {@link #handleNoSuchOrAbstractMethod}, and prefer
+   * the latter when unsure which a call site can see.
+   *
+   * <p>Pass a method reference or a non-capturing lambda, and keep this method small so it inlines:
    * that is what lets the JIT see the exact function at each call site (see {@link Strategy}).
    * Compose {@link #latchIfNamed} and {@link #latch} directly for anything more involved.
    */
@@ -143,6 +148,64 @@ public abstract class ClassLatch<T, R, E extends Exception> {
       return null;
     } catch (UnsupportedOperationException e) {
       // no class to attribute it to, and it may come from a delegate: never latched
+      return null;
+    }
+  }
+
+  /**
+   * For a call to a method that is missing from the classes on the classpath altogether, for
+   * example because the caller was built against a newer library than the one present: returns
+   * {@code null} if the call raises {@link NoSuchMethodError}, latching the target's key first.
+   * Anything else propagates unchanged; see {@link #handleNoSuchOrAbstractMethod} if the method may
+   * instead be present but unimplemented by some classes ({@link AbstractMethodError}).
+   *
+   * <p>A {@link NoSuchMethodError} is a failure of resolution, which the JVM keeps for the call
+   * site, but it can equally be raised by a call made <em>inside</em> one receiver's
+   * implementation. Its message names the declared type, not the receiver, so it cannot be
+   * attributed to a class. It therefore latches the target's key, never the whole call site: a
+   * site-wide failure then costs one throw per receiver class, and an inner failure stays confined
+   * to the class that has it.
+   *
+   * <pre>{@code
+   * protected Properties get(Connection c) throws SQLException {
+   *   return handleNoSuchMethod(c, Connection::getClientInfo);
+   * }
+   * }</pre>
+   */
+  @Nullable
+  @StrategyConsumer
+  protected final R handleNoSuchMethod(T target, @Strategy ThrowingFunction<T, R, E> call)
+      throws E {
+    try {
+      return call.apply(target);
+    } catch (NoSuchMethodError e) {
+      latch(target);
+      return null;
+    }
+  }
+
+  /**
+   * For a call to a method that may be missing ({@link NoSuchMethodError}) or unimplemented by some
+   * classes ({@link AbstractMethodError}): both yield {@code null}, as does {@link
+   * UnsupportedOperationException}. This is {@link #handleAbstractMethod} and {@link
+   * #handleNoSuchMethod} together, with the same latching rules: an {@link AbstractMethodError}
+   * latches only if its message names the key, and a {@link NoSuchMethodError} latches the target's
+   * key. The two are easy to confuse, so prefer this one unless you know which a call site can see.
+   *
+   * <pre>{@code
+   * protected Properties get(Connection c) throws SQLException {
+   *   return handleNoSuchOrAbstractMethod(c, Connection::getClientInfo);
+   * }
+   * }</pre>
+   */
+  @Nullable
+  @StrategyConsumer
+  protected final R handleNoSuchOrAbstractMethod(T target, @Strategy ThrowingFunction<T, R, E> call)
+      throws E {
+    try {
+      return handleAbstractMethod(target, call);
+    } catch (NoSuchMethodError e) {
+      latch(target);
       return null;
     }
   }
