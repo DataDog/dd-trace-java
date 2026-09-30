@@ -29,6 +29,7 @@ import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionContext;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser;
+import datadog.trace.util.AbstractMethodGuard;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.sql.ClientInfoStatus;
@@ -51,6 +52,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   public static final JDBCDecorator DECORATE = new JDBCDecorator();
   public static final CharSequence JAVA_JDBC = UTF8BytesString.create("java-jdbc");
   public static final CharSequence DATABASE_QUERY = UTF8BytesString.create("database.query");
+  private static final AbstractMethodGuard CLIENT_INFO_GUARD = new AbstractMethodGuard();
+
   private static final UTF8BytesString DB_QUERY = UTF8BytesString.create("DB Query");
   private static final UTF8BytesString JDBC_STATEMENT =
       UTF8BytesString.create("java-jdbc-statement");
@@ -246,9 +249,10 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       if (metaData != null && (url = metaData.getURL()) != null) {
         Properties clientInfo = null;
         try {
-          clientInfo = connection.getClientInfo();
-        } catch (final Throwable ex) {
-          // getClientInfo is likely not allowed, we can still extract info from the url alone
+          // old drivers and pool proxies may not implement getClientInfo at all
+          clientInfo = CLIENT_INFO_GUARD.invokeOrNull(connection, Connection::getClientInfo);
+        } catch (final SQLException ex) {
+          // getClientInfo is not allowed, we can still extract info from the url alone
           log.debug(LogCollector.EXCLUDE_TELEMETRY, "Could not get client info from DB", ex);
         }
         dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, clientInfo);
