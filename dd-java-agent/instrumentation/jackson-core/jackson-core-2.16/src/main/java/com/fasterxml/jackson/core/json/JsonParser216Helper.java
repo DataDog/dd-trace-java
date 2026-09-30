@@ -27,8 +27,14 @@ import datadog.trace.util.Latch;
  * <p>Each field read has its own {@link Latch}, here for {@code _symbols} and in {@link
  * ByteQuadsCanonicalizer216Helper} for {@code _interner}, so a classpath missing only one of them
  * keeps using the other. The first failure of each is rethrown so the instrumentation exception
- * handler still reports it once. After that the failure is remembered and calls return {@code true}
- * without throwing, so a broken classpath does not cost an exception per parsed field name.
+ * handler still reports it. This is not an exactly-once guarantee: threads that race the first
+ * failure each rethrow, so a failure is reported at least once, bounded by concurrency. After that
+ * the failure is remembered and calls return {@code true} without throwing, so a broken classpath
+ * does not cost an exception per parsed field name.
+ *
+ * <p>The call that hits the failure is aborted by the advice's exception suppression before it
+ * reaches {@code setCurrentName}, so that one field name is not tracked and a value read right
+ * after it may be attributed to no name, or to the previous one. Later calls are not affected.
  */
 public final class JsonParser216Helper {
   private JsonParser216Helper() {}

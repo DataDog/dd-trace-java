@@ -58,6 +58,16 @@ class JsonParser216HelperTest {
     assertRethrowsOnceThenAssumesInterned(UTF8_PARSER, "_symbols");
   }
 
+  /**
+   * The latch state is static, so it is per class loader: a second loader with the same problem
+   * must rethrow its own first failure, not inherit the first loader's latch.
+   */
+  @Test
+  void eachClassLoaderRethrowsItsOwnFirstFailure() throws Exception {
+    assertRethrowsOnceThenAssumesInterned(CANONICALIZER, "_interner");
+    assertRethrowsOnceThenAssumesInterned(CANONICALIZER, "_interner");
+  }
+
   private void assertRethrowsOnceThenAssumesInterned(String className, String missingField)
       throws Exception {
     ClassLoader loader = new MissingFieldClassLoader(className, missingField);

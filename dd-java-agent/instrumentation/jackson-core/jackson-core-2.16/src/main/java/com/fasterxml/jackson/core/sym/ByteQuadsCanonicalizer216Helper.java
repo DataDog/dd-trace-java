@@ -9,7 +9,8 @@ import datadog.trace.util.Latch;
  * <p>A classpath that mixes Jackson builds can lack the field, which surfaces as a {@link
  * NoSuchFieldError}. That is the same for every canonicalizer, so a single {@link Latch} covers the
  * read: the first failure is rethrown, so the instrumentation exception handler still reports it
- * once, and afterwards the answer is {@code true} ("interned") without throwing. See {@code
+ * (at least once, bounded by concurrency, since threads racing the first failure each rethrow), and
+ * afterwards the answer is {@code true} ("interned") without throwing. See {@code
  * JsonParser216Helper} for why "interned" is the default.
  */
 public final class ByteQuadsCanonicalizer216Helper {
