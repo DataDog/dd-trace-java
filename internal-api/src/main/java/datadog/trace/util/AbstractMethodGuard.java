@@ -7,9 +7,9 @@ import javax.annotation.Nullable;
  * resulting {@link AbstractMethodError} once it is known that a class lacks it.
  *
  * <p>Intended as a {@code static final} field, one per call site: the instance only holds state.
- * Nothing is latched until the first failure, so on the happy path the cost is one plain field
- * read. State is deliberately not atomic: a lost update costs one more caught error, never a wrong
- * result.
+ * Until a class has been latched, the cost on the happy path is one plain flag read; the per-class
+ * lookup only happens once something has been latched. The per-class state is deliberately not
+ * atomic: a late-visible write costs one more caught error, never a wrong result.
  *
  * <p>A class is latched only when the error is attributed to exactly that class. HotSpot's message
  * names the receiver class that lacks the implementation, so a wrapper delegating to a deficient
@@ -33,10 +33,25 @@ public final class AbstractMethodGuard {
   private static final String RECEIVER_PREFIX = "Receiver class ";
 
   /**
-   * Per-class latch, created on the first failure. The value type is a JDK type so that nothing
-   * from the agent class loader is referenced from an application class.
+   * Per-class latch. Created eagerly so that it is safely published through a final field: it holds
+   * nothing for a class until {@link ClassValue#get} is called for it. The value type is a JDK type
+   * so that nothing from the agent class loader is referenced from an application class.
    */
-  private ClassValue<boolean[]> latched;
+  private final ClassValue<boolean[]> latched = new Latches();
+
+  /**
+   * Whether any class has been latched; keeps the per-class lookup off the common path. Plain on
+   * purpose: a stale read only costs one more caught error, and {@code volatile} measured
+   * noticeably slower on the working path (see {@code AbstractMethodGuardBenchmark}).
+   */
+  private boolean anyLatched;
+
+  private static final class Latches extends ClassValue<boolean[]> {
+    @Override
+    protected boolean[] computeValue(Class<?> type) {
+      return new boolean[1];
+    }
+  }
 
   /**
    * Invokes {@code call} on {@code target}, returning {@code null} if the target's class is known
@@ -50,8 +65,7 @@ public final class AbstractMethodGuard {
       return null;
     }
     final Class<?> type = target.getClass();
-    final ClassValue<boolean[]> latched = this.latched;
-    if (latched != null && latched.get(type)[0]) {
+    if (anyLatched && latched.get(type)[0]) {
       return null;
     }
     try {
@@ -69,24 +83,14 @@ public final class AbstractMethodGuard {
 
   /** Returns whether {@code type} is known to lack the method. */
   public boolean isLatched(Class<?> type) {
-    final ClassValue<boolean[]> latched = this.latched;
-    return latched != null && latched.get(type)[0];
+    return anyLatched && latched.get(type)[0];
   }
 
   private void latch(Class<?> type) {
-    ClassValue<boolean[]> latched = this.latched;
-    if (latched == null) {
-      // racy on purpose: if two threads get here, one latch may be lost and re-earned
-      latched =
-          new ClassValue<boolean[]>() {
-            @Override
-            protected boolean[] computeValue(Class<?> type) {
-              return new boolean[1];
-            }
-          };
-      this.latched = latched;
-    }
     latched.get(type)[0] = true;
+    // after the write, so a reader that sees the flag can look the class up; a reader that sees
+    // the flag but not yet the write just calls once more
+    anyLatched = true;
   }
 
   /**
