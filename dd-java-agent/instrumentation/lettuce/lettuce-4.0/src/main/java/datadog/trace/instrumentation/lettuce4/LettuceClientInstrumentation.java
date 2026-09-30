@@ -23,13 +23,6 @@ public final class LettuceClientInstrumentation extends InstrumenterModule.Traci
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".LettuceClientDecorator", packageName + ".InstrumentationPoints"
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
         "com.lambdaworks.redis.api.StatefulConnection", "com.lambdaworks.redis.RedisURI");

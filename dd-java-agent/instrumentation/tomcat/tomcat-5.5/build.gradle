@@ -79,12 +79,6 @@ configurations.configureEach {
   }
 }
 
-["compileLatestDepTestJava", "compileLatest10TestJava"].each { name ->
-  tasks.named(name, JavaCompile) {
-    configureCompiler(it, JavaVersion.VERSION_1_8)
-  }
-}
-
 tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
   configureCompiler(it, JavaVersion.VERSION_17)
 }

@@ -14,13 +14,11 @@ tracerJava {
 }
 
 testJvmConstraints {
-  minJavaVersion = JavaVersion.VERSION_11
   excludeJdk = ['SEMERU11', 'SEMERU17']
 }
 
 ["compileMain_java11Java", "compileTestJava"].each { name ->
   tasks.named(name, JavaCompile) {
-    configureCompiler(it, JavaVersion.VERSION_11)
     it.options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'])
   }
 }

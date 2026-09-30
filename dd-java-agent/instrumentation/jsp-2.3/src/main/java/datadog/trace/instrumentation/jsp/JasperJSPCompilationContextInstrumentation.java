@@ -32,13 +32,6 @@ public final class JasperJSPCompilationContextInstrumentation extends Instrument
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JSPDecorator",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("compile").and(takesArguments(0)).and(isPublic()),

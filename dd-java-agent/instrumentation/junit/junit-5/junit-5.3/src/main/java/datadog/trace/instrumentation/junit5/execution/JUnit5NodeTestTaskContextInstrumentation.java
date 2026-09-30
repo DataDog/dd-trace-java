@@ -34,13 +34,6 @@ public class JUnit5NodeTestTaskContextInstrumentation extends InstrumenterModule
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ThrowableCollectorFactoryWrapper", parentPackageName + ".JUnitPlatformUtils"
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor(),

@@ -47,13 +47,6 @@ public final class WebServiceProviderInstrumentation extends InstrumenterModule.
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".WebServiceProviderDecorator",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("invoke")).and(takesArguments(1)),
