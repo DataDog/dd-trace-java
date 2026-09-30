@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
+import datadog.trace.api.BaseHash;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -46,5 +47,15 @@ class R2dbcSqlCommentInjectorTest extends AbstractInstrumentationTest {
     String once = R2dbcSqlCommentInjector.inject("SELECT 1", "orders", "postgresql", "h", "shop");
     String twice = R2dbcSqlCommentInjector.inject(once, "orders", "postgresql", "h", "shop");
     assertEquals(once, twice, "comment should not be injected twice");
+  }
+
+  @Test
+  void dynamicServiceInjectsBaseHashInComment() {
+    injectSysConfig("dbm.propagation.mode", "dynamic_service");
+    BaseHash.updateBaseHash(123456789L);
+
+    String injected = R2dbcSqlCommentInjector.inject("SELECT 1", "orders", "h2", "h", "shop");
+
+    assertTrue(injected.contains("ddsh='123456789'"), "missing base hash: " + injected);
   }
 }

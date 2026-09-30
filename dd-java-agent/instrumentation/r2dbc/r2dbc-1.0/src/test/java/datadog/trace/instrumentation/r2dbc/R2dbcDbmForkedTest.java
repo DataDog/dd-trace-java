@@ -10,9 +10,12 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.r2dbc.R2dbcInstrumentationTest.eqs;
 import static datadog.trace.test.junit.utils.assertions.Matchers.any;
+import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
+import datadog.trace.api.BaseHash;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -37,6 +40,7 @@ import reactor.core.publisher.Mono;
  */
 @WithConfig(key = "dbm.propagation.mode", value = "full")
 @WithConfig(key = "service", value = "test_service", addPrefix = false)
+@WithConfig(key = "service.mapping", value = "h2:remapped_h2")
 class R2dbcDbmForkedTest extends AbstractInstrumentationTest {
 
   private static final Pattern H2_QUERY = Pattern.compile("h2\\.query");
@@ -233,5 +237,52 @@ class R2dbcDbmForkedTest extends AbstractInstrumentationTest {
                     tag(Tags.DB_INSTANCE, eqs("testdb")),
                     tag("_dd.svc_src", any()),
                     defaultTags())));
+  }
+
+  @Test
+  void dbmSetsBaseHashOnQuerySpan() {
+    injectSysConfig("dbm.inject.sql.basehash", "true");
+    BaseHash.updateBaseHash(123456789L);
+
+    AgentSpan parent = startSpan("test", "parent");
+    try (ContextScope scope = activateSpan(parent)) {
+      Flux.from(connection.createStatement("SELECT * FROM test_table").execute())
+          .flatMap(result -> result.map((row, metadata) -> row.get(0)))
+          .collectList()
+          .block();
+    } finally {
+      parent.finish();
+    }
+
+    assertTraces(
+        trace(
+            SORT_BY_START_TIME,
+            span().root().operationName("parent"),
+            span()
+                .childOfPrevious()
+                .operationName(H2_QUERY)
+                .resourceName(Pattern.compile(Pattern.quote("SELECT * FROM test_table")))
+                .type(DDSpanTypes.SQL)
+                .measured()
+                .tags(
+                    tag(Tags.COMPONENT, eqs("r2dbc")),
+                    tag(Tags.SPAN_KIND, eqs(Tags.SPAN_KIND_CLIENT)),
+                    tag(Tags.DB_TYPE, eqs("h2")),
+                    tag(Tags.DB_INSTANCE, eqs("testdb")),
+                    tag(Tags.BASE_HASH, eqs("123456789")),
+                    tag("_dd.svc_src", any()),
+                    defaultTags())));
+  }
+
+  @Test
+  void dbmCommentUsesMappedDatabaseService() {
+    ConnectionFactoryOptions options =
+        ConnectionFactoryOptions.builder()
+            .option(ConnectionFactoryOptions.DRIVER, "h2")
+            .option(ConnectionFactoryOptions.DATABASE, "testdb")
+            .build();
+    String injectedSql = R2dbcSqlCommentInjector.inject("SELECT 1", options);
+
+    assertTrue(injectedSql.contains("dddbs='remapped_h2'"), injectedSql);
   }
 }

@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.r2dbc;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.DECORATE;
 
 import datadog.trace.api.Config;
@@ -56,8 +58,15 @@ public final class R2dbcSqlCommentInjector {
       return sql;
     }
 
+    return inject(sql, options);
+  }
+
+  static String inject(String sql, ConnectionFactoryOptions options) {
     String dbType = DECORATE.extractDbType(options);
     String dbService = DECORATE.getDbService(options);
+    if (dbService != null) {
+      dbService = traceConfig(activeSpan()).getServiceMapping().getOrDefault(dbService, dbService);
+    }
     String hostname = null;
     if (options.hasOption(ConnectionFactoryOptions.HOST)) {
       Object host = options.getValue(ConnectionFactoryOptions.HOST);

@@ -35,6 +35,7 @@ public final class TraceProxyExecutionListener implements ProxyExecutionListener
     String dbType = DECORATE.extractDbType(options);
     DECORATE.applyDatabaseType(span, dbType);
     DECORATE.onConnection(span, options);
+    DECORATE.withBaseHash(span);
 
     String queryString = extractQuery(execInfo);
     if (queryString != null) {

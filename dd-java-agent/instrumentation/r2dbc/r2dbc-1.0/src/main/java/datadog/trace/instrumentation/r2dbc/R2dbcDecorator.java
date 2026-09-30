@@ -1,8 +1,11 @@
 package datadog.trace.instrumentation.r2dbc;
 
+import datadog.trace.api.BaseHash;
+import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
 import io.r2dbc.spi.ConnectionFactoryOptions;
@@ -105,6 +108,19 @@ public class R2dbcDecorator extends DatabaseClientDecorator<ConnectionFactoryOpt
     String dbType = extractDbType(options);
     String instanceName = dbInstance(options);
     return dbService(dbType, instanceName);
+  }
+
+  /** Adds the base hash used in the DBM comment to the span for backend correlation. */
+  public void withBaseHash(AgentSpan span) {
+    Config config = Config.get();
+    if (config.isDbmCommentInjectionEnabled()
+        && config.isDbmInjectSqlBaseHash()
+        && config.isExperimentalPropagateProcessTagsEnabled()) {
+      String baseHash = BaseHash.getBaseHashStr();
+      if (baseHash != null) {
+        span.setTag(Tags.BASE_HASH, baseHash);
+      }
+    }
   }
 
   @Override
