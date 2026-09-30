@@ -16,7 +16,7 @@ import datadog.trace.util.Latch;
 public final class ByteQuadsCanonicalizer216Helper {
   private ByteQuadsCanonicalizer216Helper() {}
 
-  private static final Latch<ByteQuadsCanonicalizer, Boolean, RuntimeException> INTERNER =
+  private static final Latch<ByteQuadsCanonicalizer, Boolean, RuntimeException> INTERNER_LATCH =
       new Latch<ByteQuadsCanonicalizer, Boolean, RuntimeException>() {
         @Override
         protected Boolean get(ByteQuadsCanonicalizer symbols) {
@@ -25,6 +25,6 @@ public final class ByteQuadsCanonicalizer216Helper {
       };
 
   public static boolean fetchInterner(ByteQuadsCanonicalizer symbols) {
-    return INTERNER.tryGetOrDefault(symbols, Boolean.TRUE);
+    return INTERNER_LATCH.tryGetOrDefault(symbols, Boolean.TRUE);
   }
 }
