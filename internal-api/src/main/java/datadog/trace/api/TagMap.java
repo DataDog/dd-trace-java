@@ -280,6 +280,44 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       return TagMap.Entry.newDoubleEntry(tag, value);
     }
 
+    /*
+     * Id-keyed counterparts of the create overloads above, for a KnownTags.*_ID: same contract (a
+     * null or empty value yields no entry), without the name lookup. An id that names no known tag
+     * is rejected.
+     */
+
+    /** Entry for a known tag id, or null when {@code value} is null or an empty CharSequence. */
+    @Nullable
+    public static final Entry create(long tagId, Object value) {
+      return isEmptyValue(value) ? null : TagMap.Entry.newAnyEntry(tagId, value);
+    }
+
+    /** Entry for a known tag id, or null when {@code value} is null or empty. */
+    @Nullable
+    public static final Entry create(long tagId, CharSequence value) {
+      return isEmptyValue(value) ? null : TagMap.Entry.newObjectEntry(tagId, value);
+    }
+
+    public static final Entry create(long tagId, boolean value) {
+      return TagMap.Entry.newBooleanEntry(tagId, value);
+    }
+
+    public static final Entry create(long tagId, int value) {
+      return TagMap.Entry.newIntEntry(tagId, value);
+    }
+
+    public static final Entry create(long tagId, long value) {
+      return TagMap.Entry.newLongEntry(tagId, value);
+    }
+
+    public static final Entry create(long tagId, float value) {
+      return TagMap.Entry.newFloatEntry(tagId, value);
+    }
+
+    public static final Entry create(long tagId, double value) {
+      return TagMap.Entry.newDoubleEntry(tagId, value);
+    }
+
     static Entry newAnyEntry(Map.Entry<? extends String, ? extends Object> entry) {
       return newAnyEntry(entry.getKey(), entry.getValue());
     }
