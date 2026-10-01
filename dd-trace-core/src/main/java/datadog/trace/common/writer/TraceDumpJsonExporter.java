@@ -3,12 +3,9 @@ package datadog.trace.common.writer;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
-import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.core.DDSpan;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
-import java.util.zip.ZipOutputStream;
 
 public class TraceDumpJsonExporter implements Writer {
 
@@ -17,11 +14,9 @@ public class TraceDumpJsonExporter implements Writer {
           .add(DDSpanJsonAdapter.buildFactory(false))
           .build()
           .adapter(Types.newParameterizedType(Collection.class, DDSpan.class));
-  private StringBuilder dumpText;
-  private ZipOutputStream zip;
+  private final StringBuilder dumpText;
 
-  public TraceDumpJsonExporter(ZipOutputStream zip) {
-    this.zip = zip;
+  public TraceDumpJsonExporter() {
     dumpText = new StringBuilder();
   }
 
@@ -32,7 +27,8 @@ public class TraceDumpJsonExporter implements Writer {
 
   @Override
   public void write(List<DDSpan> trace) {
-    // Do nothing
+    Collection<DDSpan> collectionTrace = trace;
+    write(collectionTrace);
   }
 
   @Override
@@ -42,12 +38,12 @@ public class TraceDumpJsonExporter implements Writer {
 
   @Override
   public boolean flush() {
-    try {
-      TracerFlare.addText(zip, "pending_traces.txt", dumpText.toString());
-    } catch (IOException e) {
-      // do nothing
-    }
+    // do nothing
     return true;
+  }
+
+  public String getDumpJson() {
+    return dumpText.toString();
   }
 
   @Override
