@@ -13,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
+import datadog.trace.util.ClassLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -268,16 +269,32 @@ public final class JMSDecorator extends MessagingClientDecorator {
     return joiner.apply(destinationName);
   }
 
+  /**
+   * {@code getDestination} is {@code >= 1.1}; latched per class rather than ignored outright
+   * because the {@code <=1.1} fallback below costs an extra {@code instanceOf}.
+   */
+  private static final ClassLatch<MessageProducer, Destination, JMSException>
+      GET_DESTINATION_LATCH =
+          new ClassLatch<MessageProducer, Destination, JMSException>() {
+            @Override
+            protected Destination apply(MessageProducer target) throws JMSException {
+              return handleAbstractMethod(
+                  target, "getDestination", MessageProducer::getDestination);
+            }
+          };
+
   public Destination getDestination(final MessageProducer messageProducer) throws JMSException {
-    try {
-      return messageProducer.getDestination(); // >= 1.1
-    } catch (AbstractMethodError ignored) {
-      // <=1.1 getDestination is not available so we need to pay an additional instanceOf
-      if (messageProducer instanceof QueueSender) {
-        return ((QueueSender) messageProducer).getQueue();
-      }
-      return ((TopicPublisher) messageProducer).getTopic();
+    Destination destination = GET_DESTINATION_LATCH.tryApplyOrNull(messageProducer);
+    // a producer created with an unidentified destination legitimately returns null; only a
+    // latched class means getDestination() itself is unavailable and needs the fallback below
+    if (destination != null || !GET_DESTINATION_LATCH.isLatched(messageProducer)) {
+      return destination;
     }
+    // <=1.1 getDestination is not available so we need to pay an additional instanceOf
+    if (messageProducer instanceof QueueSender) {
+      return ((QueueSender) messageProducer).getQueue();
+    }
+    return ((TopicPublisher) messageProducer).getTopic();
   }
 
   public String getDestinationName(Destination destination) {
