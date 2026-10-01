@@ -192,15 +192,6 @@ class TagConventions private constructor(
     }
   }
 
-  /**
-   * Returns the tags whose OpenTelemetry name applies in every direction, mapped to that name.
-   * Only these renames are safe to apply without knowing a span's direction.
-   */
-  fun directionFreeOtelNames(): Map<String, String> = otelMappings()
-    .groupBy { it.tag }
-    .filterValues { m -> m.size == Direction.entries.size && m.map { it.otelName }.distinct().size == 1 }
-    .mapValues { (_, m) -> m.first().otelName }
-
   companion object {
     private val SPAN_KIND_DIRECTIONS =
       mapOf(

@@ -57,9 +57,12 @@ class TagRegistry private constructor(val tags: List<Tag>) {
 
     fun build(conv: TagConventions): TagRegistry {
       val traceNames = conv.traceLevelTags().map { it.name }.toSet()
-      val directionFree = conv.directionFreeOtelNames()
       val byDirection =
         conv.otelMappings().groupBy { it.tag }.mapValues { (_, m) -> m.associate { it.direction to it.otelName } }
+      // A rename that covers every direction is safe to apply without knowing a span's direction. A
+      // tag has one declaration, so its names agree across directions.
+      val directionFree =
+        byDirection.filterValues { it.size == TagConventions.Direction.entries.size }.mapValues { (_, m) -> m.values.first() }
 
       // Stable order (by name) so serials -- and therefore ids -- are a pure function of the input.
       val tags =
@@ -99,7 +102,7 @@ class TagRegistry private constructor(val tags: List<Tag>) {
             "OpenTelemetry name '$otel' (of '${t.name}') collides with canonical tag name '$otel'"
           }
           val prev = owner.put(direction to otel, t.name)
-          require(prev == null || prev == t.name) {
+          require(prev == null) {
             "OpenTelemetry name '$otel' is claimed by both '$prev' and '${t.name}' on " +
               "${direction.yamlKey} spans"
           }
