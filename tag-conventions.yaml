@@ -154,6 +154,10 @@ mixins:
       - { dd-name: peer.ipv4, type: string }  # TODO(otel): network.peer.address, but split by address family
       - { dd-name: peer.ipv6, type: string }  # TODO(otel): network.peer.address, but split by address family
 
+  # outbound_peer / inbound_peer declare peer.port once per direction. `peer.port` is then a SHARED
+  # Datadog name for two tags, peer.port@outbound and peer.port@inbound: emitting it needs no context,
+  # but resolving the bare name needs the span's direction.
+
   # outbound_peer — the other end of an outbound connection: the server.
   outbound_peer:
     span-kind: client
