@@ -133,7 +133,7 @@ class TagRegistryGeneratorTest {
           scalar trace tag             | trace_level: {tags: [foo]}                             | tag declaration must be a mapping
           trace reference              | trace_level: {tags: [{ref: foo}]}                      | trace_level tags must be declarations
           unknown span kind            | span_types: {base: {span-kind: sideways}}              | span-kind must be one of
-          unknown frame                | mixins: {peer: {frame: absolute}}                      | frame must be 'relative'
+          unknown mixin span kind      | mixins: {peer: {span-kind: sideways}}                  | span-kind must be one of
           """
   )
   fun `invalid composition preserves previous output`(domain: String, message: String) {
@@ -306,17 +306,20 @@ class TagRegistryGeneratorTest {
       span_types:
         http.server:
           span-kind: server
-          include: [peer_endpoint]
+          include: [inbound_peer]
           tags: [{dd-name: http.hostname, otel-name: server.address}]
         http.client:
           span-kind: client
-          include: [peer_endpoint]
+          include: [outbound_peer]
       mixins:
-        peer_endpoint:
-          frame: relative
+        outbound_peer:
+          span-kind: client
           tags:
-            - {dd-name: peer.hostname, otel-name: {outbound: server.address}}
-            - {dd-name: peer.port, type: int, otel-name: {outbound: server.port, inbound: client.port}}
+            - {dd-name: peer.hostname, otel-name: server.address}
+            - {dd-name: peer.port, type: int, otel-name: server.port}
+        inbound_peer:
+          span-kind: server
+          tags: [{dd-name: peer.port, type: int, otel-name: client.port}]
       """
     )
 
@@ -326,12 +329,56 @@ class TagRegistryGeneratorTest {
       .containsExactly(entry(TagConventions.Direction.INBOUND, "server.address"))
     assertThat(tags.getValue("peer.hostname").otelByDirection)
       .containsExactly(entry(TagConventions.Direction.OUTBOUND, "server.address"))
-    assertThat(tags.getValue("peer.port").otelByDirection)
-      .containsOnly(
-        entry(TagConventions.Direction.OUTBOUND, "server.port"),
-        entry(TagConventions.Direction.INBOUND, "client.port"),
-      )
+    assertThat(tags.getValue("peer.port@outbound").otelByDirection)
+      .containsExactly(entry(TagConventions.Direction.OUTBOUND, "server.port"))
+    assertThat(tags.getValue("peer.port@inbound").otelByDirection)
+      .containsExactly(entry(TagConventions.Direction.INBOUND, "client.port"))
+    assertThat(tags.values.filter { it.name.startsWith("peer.port") }.map { it.ddName })
+      .containsOnly("peer.port")
     assertThat(tags.values.map { it.otelName }).containsOnlyNulls()
+    assertThat(conventions.resolve("http.client").map { it.name }).contains("peer.port@outbound")
+    assertThat(conventions.resolve("http.server").map { it.name }).contains("peer.port@inbound")
+  }
+
+  @Test
+  fun `a Datadog name declared per direction is not resolvable without a direction`() {
+    val yaml = directory.conventionsFile(
+      """
+      span_types:
+        http.client: {span-kind: client, include: [outbound_peer]}
+        http.server: {span-kind: server, include: [inbound_peer]}
+      mixins:
+        outbound_peer: {span-kind: client, tags: [{dd-name: peer.port, type: int}]}
+        inbound_peer: {span-kind: server, tags: [{dd-name: peer.port, type: int}]}
+      """
+    )
+    val output = File(directory, "generated")
+
+    TagRegistryGenerator.generate(yaml, output)
+
+    val source = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
+    assertThat(source)
+      .contains(
+        "public static final String PEER_PORT_INBOUND_NAME = \"peer.port\";",
+        "public static final String PEER_PORT_OUTBOUND_NAME = \"peer.port\";",
+      )
+    assertThat(source.substringAfter("KEYOF_NAMES = {").substringBefore("};")).doesNotContain("PEER_PORT")
+  }
+
+  @Test
+  fun `a ref to a Datadog name declared per direction resolves by the referencing direction`() {
+    val conventions = tagConventions(
+      """
+      span_types:
+        db.client: {span-kind: client, tags: [{ref: peer.port, required: required}]}
+      mixins:
+        outbound_peer: {span-kind: client, tags: [{dd-name: peer.port, type: int}]}
+        inbound_peer: {span-kind: server, tags: [{dd-name: peer.port, type: int}]}
+      """
+    )
+
+    assertThat(conventions.resolve("db.client").map { it.name to it.required })
+      .containsExactly("peer.port@outbound" to "required")
   }
 
   @Test
@@ -356,11 +403,12 @@ class TagRegistryGeneratorTest {
           scenario                     | domain                                                                                                                                                               | message
           same name in one direction   | span_types: {a: {span-kind: server, tags: [{dd-name: x, otel-name: o}]}, b: {span-kind: consumer, tags: [{dd-name: y, otel-name: o}]}}                                | claimed by both 'x' and 'y' on inbound spans
           neutral contradicts scoped   | span_types: {a: {span-kind: server, tags: [{dd-name: x, otel-name: o, span-kind-neutral: true}]}, b: {span-kind: client, tags: [{dd-name: y, otel-name: o}]}}         | on outbound spans
-          per-direction on span type   | span_types: {a: {span-kind: client, tags: [{dd-name: x, otel-name: {outbound: o}}]}}                                                                                  | outside a `frame: relative` mixin
-          per-direction in plain mixin | mixins: {m: {tags: [{dd-name: x, otel-name: {outbound: o}}]}}                                                                                                         | is not `frame: relative`
-          unknown direction key        | mixins: {m: {frame: relative, tags: [{dd-name: x, otel-name: {sideways: o}}]}}                                                                                        | may only use keys
-          empty per-direction name     | mixins: {m: {frame: relative, tags: [{dd-name: x, otel-name: {outbound: ''}}]}}                                                                                       | invalid outbound otel-name
-          neutral with per-direction   | mixins: {m: {frame: relative, tags: [{dd-name: x, otel-name: {outbound: o}, span-kind-neutral: true}]}}                                                               | span-kind-neutral without an otel-name
+          map-form otel-name           | span_types: {a: {span-kind: client, tags: [{dd-name: x, otel-name: {outbound: o}}]}}                                                                                  | invalid otel-name
+          mixin of other direction     | '{span_types: {c: {span-kind: client, include: [m]}}, mixins: {m: {span-kind: server}}}'                                                                                  | receives mixin 'm', which is inbound
+          mixin on undirected type     | '{span_types: {c: {include: [m]}}, mixins: {m: {span-kind: server}}}'                                                                                                     | (no span-kind) receives mixin 'm'
+          repeated in one direction    | mixins: {a: {span-kind: server, tags: [{dd-name: x}]}, b: {span-kind: consumer, tags: [{dd-name: x}]}}                                                                | declared in both
+          repeated without direction   | '{span_types: {base: {abstract: true, tags: [{dd-name: x}]}}, mixins: {m: {span-kind: server, tags: [{dd-name: x}]}}}'                                                     | declared in both
+          ref without matching side    | '{span_types: {t: {span-kind: internal, tags: [{ref: x}]}}, mixins: {a: {span-kind: server, tags: [{dd-name: x}]}, b: {span-kind: client, tags: [{dd-name: x}]}}}'        | declared per direction, but has no matching direction
           """
   )
   fun `direction rules for OpenTelemetry names are enforced`(domain: String, message: String) {
