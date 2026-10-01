@@ -87,22 +87,11 @@ object KnownTagsEmitter {
         if (t.otelName != null) {
           appendLine("  public static final String ${otelNameC(t.name)} = \"${escape(t.otelName)}\";")
         }
-        appendLine(
-          """
-            // makeTagId(serial=${t.serial})${if (t.traceLevel) " + trace-level" else ""}${
-            if (t.otelName != null) {
-              " -> ${
-                escape(
-                  t.otelName
-                )
-              }"
-            } else {
-              ""
-            }
-          }  <${escape(t.required)}>
-          
-          """.trimIndent()
-        )
+        append("// makeTagId(serial=${t.serial})")
+        if (t.traceLevel) append(" + trace-level")
+        if (t.otelName != null) append(" -> ${escape(t.otelName)}")
+        appendLine("  <${escape(t.required)}>")
+        appendLine()
       }
 
       // Serial numbers (globalSerial per tag) — package-private, consumed by the resolver switch.
