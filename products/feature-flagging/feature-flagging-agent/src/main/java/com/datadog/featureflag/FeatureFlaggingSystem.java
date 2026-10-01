@@ -19,6 +19,10 @@ public class FeatureFlaggingSystem {
 
   private FeatureFlaggingSystem() {}
 
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification =
+          "Agent-internal class; Class object does not escape to app code and lock only guards the subsystem lifecycle.")
   public static synchronized void start(final SharedCommunicationObjects sco) {
     if (BACKEND != null) {
       LOGGER.debug("Feature Flagging system already started");
