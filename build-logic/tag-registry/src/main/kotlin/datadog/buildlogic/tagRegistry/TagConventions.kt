@@ -24,14 +24,13 @@ class TagConventions private constructor(
      */
     val otelName: String? = null,
     /**
-     * Set `span-kind-neutral: true` on a rename declared on a concrete span type to confirm the
-     * OpenTelemetry name means this tag on every span kind where OpenTelemetry uses it. Name
-     * resolution ignores span kind, so the rename applies on every span, not only on this type.
+     * Set `span-kind-neutral: true` for a rename declared on a concrete span type only
+     * when the Datadog and OpenTelemetry names denote the same value on every span kind.
+     * Name resolution ignores span kind, so the rename also applies outside that type.
      *
-     * For example, `db.type` -> `db.system` on `db.client` qualifies: `db.system` only ever
-     * describes a database. `http.hostname` -> `server.address` on `http.server` does not: on
-     * client spans, `server.address` is the remote server. Renames in `trace_level`, abstract
-     * types, and mixins need no flag. Setting the flag without a rename is invalid.
+     * For example, `db.type` -> `db.system` on `db.client` qualifies: `db.system` only
+     * ever describes a database. Renames in `trace_level`, abstract types, and mixins need
+     * no flag. Setting this flag without a configured rename is invalid.
      *
      * The flag is interim: a follow-on replaces it with span-kind-aware name resolution.
      */
