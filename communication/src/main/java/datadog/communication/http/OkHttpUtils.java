@@ -166,7 +166,12 @@ public final class OkHttpUtils {
       // A workaround for OKHTTP instrumentation tests
       // where the version of OKHTTP conflicts with the one used in this module.
       // This should never happen in "real life" as OKHTTP classes
-      // used by the tracer core are relocated to a different package
+      // used by the tracer core are relocated to a different package.
+      //
+      // Evaluated for ClassLatch (APMLP-1895) and left as a plain catch: this client is built
+      // once per writer/telemetry/profiling component, not per request, and the shaded agent jar
+      // relocates okhttp3 (see dd-java-agent/build.gradle), so the failure this guards against
+      // cannot occur outside this module's own unshaded test builds.
     }
 
     builder
