@@ -90,11 +90,15 @@ object KnownTagsEmitter {
         appendLine(
           """
             // makeTagId(serial=${t.serial})${if (t.traceLevel) " + trace-level" else ""}${
-            if (t.otelName != null) " -> ${
-              escape(
-                t.otelName
-              )
-            }" else ""
+            if (t.otelName != null) {
+              " -> ${
+                escape(
+                  t.otelName
+                )
+              }"
+            } else {
+              ""
+            }
           }  <${escape(t.required)}>
           
           """.trimIndent()
