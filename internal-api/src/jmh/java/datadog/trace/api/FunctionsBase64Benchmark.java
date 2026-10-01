@@ -33,6 +33,41 @@ import org.openjdk.jmh.infra.Blackhole;
  * never builds an exception at all while engaged.
  *
  * <p>The hand-written {@link Breaker} is the specialized baseline the latch is compared against.
+ *
+ * <p>Results, one run: Zulu 17.0.7 (HotSpot), MacBook M1, single thread, 5 forks, on a laptop with
+ * normal background activity (load about 4 to 7). JDK 8 and x86 are not measured. Error margins are
+ * below 4%.
+ *
+ * <pre>
+ * ns/op                                valid input  invalid input
+ * unguarded (status quo)                      30.5          905.7
+ * always pre-check                            71.3           2.75
+ * hand-written Breaker, converting            31.2           2.73
+ * hand-written Breaker, throwing              31.4           11.6
+ * DynamicLatch.tryGetOrNull                   31.1           2.78
+ * DynamicLatch.get                            31.2           11.5
+ *
+ * Mix, ns/op, one invalid input in every N
+ *      N  unguarded  pre-check  Breaker  throwing  latch.get  tryGetOrNull
+ *      2      467.1       36.6     47.7      49.9       51.9          47.3
+ *     10      118.4       64.9     71.0      71.3       72.1          70.0
+ *    100       41.9       70.0     46.1      46.4       47.9          45.9
+ *   1000       41.6       70.3     44.7      45.7       45.1          45.6
+ *  10000       34.3       70.2     36.2      35.3       39.6          35.5
+ * </pre>
+ *
+ * The sketch matches the hand-written breaker: within 0.2 ns in the single-input arms, and within
+ * about 4 ns in the mixed ones (the largest gap is flow-through at one in 10,000, 39.6 ns against
+ * 35.3 ns). While engaged, the converting flavor costs about 2.8 ns where the status quo costs
+ * about 906 ns; the flow-through flavor costs about 11.5 ns, the price of building a stackless
+ * exception. Always pre-checking more than doubles the cost of valid input (71 ns against 30 ns),
+ * which is what the adaptive form avoids.
+ *
+ * <p>It is a tradeoff, not a free win. With one invalid input in 100 or rarer, the guard costs 1 to
+ * 4 ns over doing nothing and is about 24 to 34 ns cheaper than always pre-checking. With a high
+ * rate (one in 2 or one in 10), always pre-checking is faster than the adaptive guard (36.6 ns
+ * against about 47 to 52 ns at one in 2, and 65 ns against about 70 to 72 ns at one in 10). The
+ * cause was not investigated.
  */
 @Fork(2)
 @Warmup(iterations = 3, time = 1)
