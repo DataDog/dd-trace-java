@@ -5,19 +5,21 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatIllegalArgumentException
+import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.ValueSource
+import org.tabletest.junit.TableTest
 import java.io.File
 
 class TagRegistryGeneratorTest {
-  @TempDir lateinit var directory: File
+  @TempDir
+  lateinit var directory: File
 
   @Test
   fun `generation is deterministic and removes obsolete files`() {
-    val yaml = conventions(
+    val yaml = directory.conventionsFile(
       """
       trace_level:
         tags: [{dd-name: env}]
@@ -43,7 +45,7 @@ class TagRegistryGeneratorTest {
     val output = File(directory, "generated")
     TagRegistryGenerator.generate(yaml, output)
     val first = contents(output)
-    File(output, "obsolete.txt").writeText("obsolete")
+    output.writeFile("obsolete.txt", "obsolete")
 
     TagRegistryGenerator.generate(yaml, output)
 
@@ -61,25 +63,24 @@ class TagRegistryGeneratorTest {
       .contains("ENV_ID = 0x0001000000000004L", "TEST_NAME", "http.request.method")
   }
 
-  @ParameterizedTest
-  @CsvSource(
-    delimiter = '|',
-    value = [
-      "{type: string} | no valid dd-name",
-      "{dd-name: ''} | no valid dd-name",
-      "{dd-name: 42} | no valid dd-name",
-      "{dd-name: foo, otel-name: null} | invalid otel-name",
-      "{dd-name: foo, otel-name: ''} | invalid otel-name",
-      "{dd-name: foo, type: 42} | type must be a string",
-      "{dd-name: foo, required: 42} | required must be a string"
-    ]
+  @TableTest(
+    """
+          scenario                 | tag                               | message
+          missing Datadog name     | '{type: string}'                  | no valid dd-name
+          empty Datadog name       | "{dd-name: ''}"                   | no valid dd-name
+          nonstring Datadog name   | '{dd-name: 42}'                   | no valid dd-name
+          null OpenTelemetry name  | '{dd-name: foo, otel-name: null}' | invalid otel-name
+          empty OpenTelemetry name | "{dd-name: foo, otel-name: ''}"   | invalid otel-name
+          nonstring type           | '{dd-name: foo, type: 42}'        | type must be a string
+          nonstring required       | '{dd-name: foo, required: 42}'    | required must be a string
+          """
   )
   fun `invalid declarations preserve previous output`(tag: String, message: String) {
-    val yaml = conventions("span_types: {base: {tags: [{dd-name: valid}]}}")
+    val yaml = directory.conventionsFile("span_types: {base: {tags: [{dd-name: valid}]}}")
     val output = File(directory, "generated")
     TagRegistryGenerator.generate(yaml, output)
     val previous = contents(output)
-    yaml.writeText("span_types: {base: {tags: [$tag]}}")
+    directory.conventionsFile("span_types: {base: {tags: [$tag]}}")
 
     assertThatIllegalArgumentException().isThrownBy { TagRegistryGenerator.generate(yaml, output) }
       .withMessageContaining(message)
@@ -87,59 +88,57 @@ class TagRegistryGeneratorTest {
     assertThat(contents(output)).isEqualTo(previous)
   }
 
-  @ParameterizedTest
-  @CsvSource(
-    delimiter = '|',
-    value = [
-      "[{dd-name: foo, otel-name: bar}, {dd-name: bar}] | collides with canonical",
-      "[{dd-name: foo, otel-name: foo}] | collides with canonical",
-      "[{dd-name: foo, otel-name: alias}, {dd-name: bar, otel-name: alias}] | claimed by both",
-      "[{dd-name: foo, otel-name: first}, {dd-name: foo, otel-name: second}] | declared in both"
-    ]
+  @TableTest(
+    """
+          scenario                | tags                                                                    | message
+          alias matches canonical | '[{dd-name: foo, otel-name: bar}, {dd-name: bar}]'                      | collides with canonical
+          alias matches own name  | '[{dd-name: foo, otel-name: foo}]'                                      | collides with canonical
+          alias shared by tags    | '[{dd-name: foo, otel-name: alias}, {dd-name: bar, otel-name: alias}]'  | claimed by both
+          duplicate declaration   | '[{dd-name: foo, otel-name: first}, {dd-name: foo, otel-name: second}]' | declared in both
+          """
   )
   fun `duplicate declarations and ambiguous OpenTelemetry names are rejected`(tags: String, message: String) {
-    val yaml = conventions("span_types: {base: {abstract: true, tags: $tags}}")
+    val yaml = directory.conventionsFile("span_types: {base: {abstract: true, tags: $tags}}")
 
     assertThatIllegalArgumentException()
       .isThrownBy { TagRegistryGenerator.generate(yaml, File(directory, "generated")) }
       .withMessageContaining(message)
   }
 
-  @ParameterizedTest
-  @CsvSource(
-    delimiter = '|',
-    value = [
-      "span_types: {base: {extends: base}} | cyclic extends",
-      "span_types: {a: {extends: b}, b: {extends: a}} | cyclic extends",
-      "span_types: {base: {extends: missing}} | extends unknown span type 'missing'",
-      "span_types: {base: {include: [missing]}} | includes unknown mixin 'missing'",
-      "span_types: {base: null} | span type 'base' must be a mapping",
-      "mixins: {peer: null} | mixin 'peer' must be a mapping",
-      "mixins: {peer: {applies: test}} | applies must be 'all' or a list",
-      "mixins: {peer: {applies: 42}} | applies must be 'all' or a list",
-      "mixins: {peer: {applies: [42]}} | applies must be 'all' or a list",
-      "span_types: [] | span_types must be a mapping",
-      "mixins: [] | mixins must be a mapping",
-      "trace_level: [] | trace_level must be a mapping",
-      "span_types: {base: {include: peer}} | include must be a list of mixin names",
-      "span_types: {base: {include: [42]}} | include must be a list of mixin names",
-      "span_types: {base: {extends: [base]}} | extends must be a span type name",
-      "span_types: {base: {extends: 42}} | extends must be a span type name",
-      "span_types: {base: {abstract: 'true'}} | abstract must be a boolean",
-      "span_types: {base: {tags: {dd-name: x}}} | tags must be a list of tag declarations",
-      "span_types: {base: {tags: [foo]}} | tag declaration must be a mapping",
-      "span_types: {base: {tags: [{ref: ''}]}} | ref has no valid tag name",
-      "span_types: {base: {tags: [{ref: foo, required: 42}]}} | required must be a string",
-      "trace_level: {tags: [foo]} | tag declaration must be a mapping",
-      "trace_level: {tags: [{ref: foo}]} | trace_level tags must be declarations"
-    ]
+  @TableTest(
+    """
+          scenario                     | domain                                                 | message
+          self inheritance             | span_types: {base: {extends: base}}                    | cyclic extends
+          cyclic inheritance           | span_types: {a: {extends: b}, b: {extends: a}}         | cyclic extends
+          unknown parent               | span_types: {base: {extends: missing}}                 | extends unknown span type 'missing'
+          unknown mixin                | span_types: {base: {include: [missing]}}               | includes unknown mixin 'missing'
+          null span type               | span_types: {base: null}                               | span type 'base' must be a mapping
+          null mixin                   | mixins: {peer: null}                                   | mixin 'peer' must be a mapping
+          scalar applies               | mixins: {peer: {applies: test}}                        | applies must be 'all' or a list
+          numeric applies              | mixins: {peer: {applies: 42}}                          | applies must be 'all' or a list
+          nonstring applies            | mixins: {peer: {applies: [42]}}                        | applies must be 'all' or a list
+          nonmapping span types        | span_types: []                                         | span_types must be a mapping
+          nonmapping mixins            | mixins: []                                             | mixins must be a mapping
+          nonmapping trace level       | trace_level: []                                        | trace_level must be a mapping
+          scalar include               | span_types: {base: {include: peer}}                    | include must be a list of mixin names
+          nonstring include            | span_types: {base: {include: [42]}}                    | include must be a list of mixin names
+          list parent                  | span_types: {base: {extends: [base]}}                  | extends must be a span type name
+          numeric parent               | span_types: {base: {extends: 42}}                      | extends must be a span type name
+          string abstract              | span_types: {base: {abstract: 'true'}}                 | abstract must be a boolean
+          mapping tags                 | span_types: {base: {tags: {dd-name: x}}}               | tags must be a list of tag declarations
+          scalar tag                   | span_types: {base: {tags: [foo]}}                      | tag declaration must be a mapping
+          empty reference              | span_types: {base: {tags: [{ref: ''}]}}                | ref has no valid tag name
+          nonstring reference required | span_types: {base: {tags: [{ref: foo, required: 42}]}} | required must be a string
+          scalar trace tag             | trace_level: {tags: [foo]}                             | tag declaration must be a mapping
+          trace reference              | trace_level: {tags: [{ref: foo}]}                      | trace_level tags must be declarations
+          """
   )
   fun `invalid composition preserves previous output`(domain: String, message: String) {
-    val yaml = conventions("span_types: {base: {tags: [{dd-name: valid}]}}")
+    val yaml = directory.conventionsFile("span_types: {base: {tags: [{dd-name: valid}]}}")
     val output = File(directory, "generated")
     TagRegistryGenerator.generate(yaml, output)
     val previous = contents(output)
-    yaml.writeText(domain)
+    directory.conventionsFile(domain)
 
     assertThatIllegalArgumentException()
       .isThrownBy { TagRegistryGenerator.generate(yaml, output) }
@@ -151,7 +150,7 @@ class TagRegistryGeneratorTest {
   @ParameterizedTest
   @ValueSource(strings = ["url.full", "url.path"])
   fun `duplicate declarations across groups are rejected even when they agree`(otelName: String) {
-    val yaml = conventions(
+    val yaml = directory.conventionsFile(
       """
       span_types:
         client:
@@ -168,7 +167,7 @@ class TagRegistryGeneratorTest {
 
   @Test
   fun `ref overrides only the requirement level on the referencing type`() {
-    val conv = parse(
+    val conv = tagConventions(
       """
       span_types:
         base:
@@ -192,7 +191,7 @@ class TagRegistryGeneratorTest {
 
   @Test
   fun `ref adds a tag declared by an unrelated span type`() {
-    val conv = parse(
+    val conv = tagConventions(
       """
       span_types:
         server:
@@ -206,16 +205,15 @@ class TagRegistryGeneratorTest {
       .containsExactly("http.url" to "required")
   }
 
-  @ParameterizedTest
-  @CsvSource(
-    delimiter = '|',
-    value = [
-      "[{dd-name: http.url, type: string}, {ref: http.url, otel-name: url.full}] | may override only `required`",
-      "[{ref: http.url}] | refs undeclared tag 'http.url'"
-    ]
+  @TableTest(
+    """
+          scenario                  | tags                                                                        | message
+          reference overrides alias | '[{dd-name: http.url, type: string}, {ref: http.url, otel-name: url.full}]' | may override only `required`
+          undeclared reference      | '[{ref: http.url}]'                                                         | refs undeclared tag 'http.url'
+          """
   )
   fun `invalid refs are rejected`(tags: String, message: String) {
-    val yaml = conventions("span_types: {client: {tags: $tags}}")
+    val yaml = directory.conventionsFile("span_types: {client: {tags: $tags}}")
 
     assertThatIllegalArgumentException()
       .isThrownBy { TagRegistryGenerator.generate(yaml, File(directory, "generated")) }
@@ -224,8 +222,12 @@ class TagRegistryGeneratorTest {
 
   @Test
   fun `rename on a concrete span type requires span-kind-neutral`() {
-    val yaml = conventions(
-      "span_types: {http.server: {tags: [{dd-name: http.hostname, otel-name: server.address}]}}"
+    val yaml = directory.conventionsFile(
+      """
+      span_types:
+        http.server:
+          tags: [{dd-name: http.hostname, otel-name: server.address}]
+      """
     )
 
     assertThatIllegalArgumentException()
@@ -236,8 +238,12 @@ class TagRegistryGeneratorTest {
 
   @Test
   fun `rename on a concrete span type passes when marked span-kind-neutral`() {
-    val yaml = conventions(
-      "span_types: {db.client: {tags: [{dd-name: db.type, otel-name: db.system, span-kind-neutral: true}]}}"
+    val yaml = directory.conventionsFile(
+      """
+      span_types:
+        db.client:
+          tags: [{dd-name: db.type, otel-name: db.system, span-kind-neutral: true}]
+      """
     )
     val output = File(directory, "generated")
 
@@ -249,7 +255,7 @@ class TagRegistryGeneratorTest {
 
   @Test
   fun `rename in a shared scope needs no span-kind-neutral`() {
-    val yaml = conventions(
+    val yaml = directory.conventionsFile(
       """
       span_types:
         http:
@@ -272,8 +278,12 @@ class TagRegistryGeneratorTest {
 
   @Test
   fun `span-kind-neutral without an otel-name fails`() {
-    val yaml = conventions(
-      "span_types: {web: {tags: [{dd-name: http.route, span-kind-neutral: true}]}}"
+    val yaml = directory.conventionsFile(
+      """
+      span_types:
+        web:
+          tags: [{dd-name: http.route, span-kind-neutral: true}]
+      """
     )
 
     assertThatIllegalArgumentException()
@@ -281,12 +291,15 @@ class TagRegistryGeneratorTest {
       .withMessageContaining("span-kind-neutral without an otel-name")
   }
 
-  private fun parse(text: String): TagConventions = TagConventions.parse(
-    ObjectMapper(YAMLFactory()).readValue(text.trimIndent(), object : TypeReference<Map<String, Any?>>() {})
+  private fun tagConventions(@Language("yaml") yamlText: String) = TagConventions.parse(
+    ObjectMapper(YAMLFactory()).readValue(
+      directory.conventionsFile(yamlText),
+      object : TypeReference<Map<String, Any?>>() {}
+    )
   )
 
-  private fun conventions(text: String): File = File(directory, "conventions.yaml").apply { writeText(text.trimIndent()) }
-
   private fun contents(output: File): Map<String, String> = output.walkTopDown().filter { it.isFile }
-    .associate { it.relativeTo(output).invariantSeparatorsPath to it.readText() }
+    .associate {
+      it.relativeTo(output).invariantSeparatorsPath to it.readText()
+    }
 }

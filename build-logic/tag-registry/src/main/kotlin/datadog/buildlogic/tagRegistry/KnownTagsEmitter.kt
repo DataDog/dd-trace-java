@@ -60,9 +60,11 @@ object KnownTagsEmitter {
     val order = reg.tags.map { it.name } // stable emit order
     // canonical name -> OpenTelemetry name, for the reverse (openTelemetryNameOf) switch.
     val otelName = reg.tags.mapNotNull { t -> t.otelName?.let { t.name to it } }.toMap()
-    val b = StringBuilder()
-    b.appendLine(
-      """
+    return buildString {
+      // Public API first (name + encoded id couplets), so readers see the useful parts up top; the
+      // serial ids and keyOf/resolver machinery follow below. Derivation is in the trailing comment.
+      appendLine(
+        """
         package $pkg;
 
         import datadog.trace.util.StringIndex;
@@ -71,51 +73,75 @@ object KnownTagsEmitter {
         // DO NOT EDIT. Source: tag-conventions.yaml.
         public final class $className {
 
-      """.trimIndent()
-    )
+          // ---- tags ----
+        """.trimIndent()
+      )
 
-    // Public API first (name + encoded id couplets), so readers see the useful parts up top; the
-    // serial ids and keyOf/resolver machinery follow below. Derivation is in the trailing comment.
-    b.appendLine("  // ---- tags ----")
-    for (t in reg.tags) {
-      b.appendLine("  public static final String ${nameC(t.name)} = \"${escape(t.name)}\";")
-      b.appendLine("  public static final long ${idC(t.name)} = ${hex(t.id)};")
-      if (t.otelName != null) {
-        b.appendLine("  public static final String ${otelNameC(t.name)} = \"${escape(t.otelName)}\";")
+      for (t in reg.tags) {
+        appendLine(
+          """
+            public static final String ${nameC(t.name)} = "${escape(t.name)}";
+            public static final long ${idC(t.name)} = ${hex(t.id)};
+          """.trimIndent()
+        )
+        if (t.otelName != null) {
+          appendLine("  public static final String ${otelNameC(t.name)} = \"${escape(t.otelName)}\";")
+        }
+        appendLine(
+          """
+            // makeTagId(serial=${t.serial})${if (t.traceLevel) " + trace-level" else ""}${
+            if (t.otelName != null) " -> ${
+              escape(
+                t.otelName
+              )
+            }" else ""
+          }  <${escape(t.required)}>
+          
+          """.trimIndent()
+        )
       }
-      b.appendLine("  // makeTagId(serial=${t.serial})${if (t.traceLevel) " + trace-level" else ""}${if (t.otelName != null) " -> ${escape(t.otelName)}" else ""}  <${escape(t.required)}>")
-      b.appendLine()
-    }
 
-    // Serial numbers (globalSerial per tag) — package-private, consumed by the resolver switch.
-    b.appendLine("  // ---- serial numbers ----")
-    for (t in reg.tags) {
-      b.appendLine("  static final int ${serialC(t.name)} = ${t.serial};")
-    }
-    b.appendLine()
+      // Serial numbers (globalSerial per tag) — package-private, consumed by the resolver switch.
+      appendLine("  // ---- serial numbers ----")
+      for (t in reg.tags) {
+        appendLine("  static final int ${serialC(t.name)} = ${t.serial};")
+      }
 
-    // OpenTelemetry name -> canonical tag name. Validation ensures aliases are distinct from all
-    // canonical names. Sort by OTel name to keep output deterministic.
-    val otelByCanonical =
-      reg.tags
-        .mapNotNull { t -> t.otelName?.let { it to t.name } }
-        .sortedBy { it.first }
+      // OpenTelemetry name -> canonical tag name. Validation ensures aliases are distinct from all
+      // canonical names. Sort by OTel name to keep output deterministic.
+      val otelByCanonical =
+        reg.tags
+          .mapNotNull { t -> t.otelName?.let { it to t.name } }
+          .sortedBy { it.first }
 
-    // keyOf table (open-addressed, via StringIndex.EmbeddingSupport). Canonical names first, then
-    // OpenTelemetry names -- an OTel name resolves to its canonical tag's id (there is no distinct id
-    // for it), so keyOf(otelName) == keyOf(canonical); nameOf still returns the canonical name.
-    b.appendLine("  private static final String[] KEYOF_NAMES = {")
-    order.forEach { b.appendLine("    ${nameC(it)},") }
-    otelByCanonical.forEach { (otel, _) -> b.appendLine("    \"${escape(otel)}\",") }
-    b.appendLine("  };")
-    b.appendLine("  private static final long[] KEYOF_VALUES = {")
-    order.forEach { b.appendLine("    ${idC(it)},") }
-    otelByCanonical.forEach { (_, canonical) -> b.appendLine("    ${idC(canonical)},") }
-    b.appendLine("  };")
-    // Resolver. KnownTagCodec.Installed links to this field directly, so merely resolving a tag
-    // name initializes this class -- there is no registration step and no ordering to get wrong.
-    b.appendLine(
-      """
+      // keyOf table (open-addressed, via StringIndex.EmbeddingSupport). Canonical names first, then
+      // OpenTelemetry names -- an OTel name resolves to its canonical tag's id (there is no distinct id
+      // for it), so keyOf(otelName) == keyOf(canonical); nameOf still returns the canonical name.
+      appendLine(
+        """
+        
+          private static final String[] KEYOF_NAMES = {
+        """.trimIndent()
+      )
+      order.forEach { appendLine("    ${nameC(it)},") }
+      otelByCanonical.forEach { (otel, _) ->
+        appendLine("    \"${escape(otel)}\",")
+      }
+      appendLine(
+        """
+          };
+          private static final long[] KEYOF_VALUES = {
+        """.trimIndent()
+      )
+      order.forEach { appendLine("    ${idC(it)},") }
+      otelByCanonical.forEach { (_, canonical) ->
+        appendLine("    ${idC(canonical)},")
+      }
+      // Resolver. KnownTagCodec.Installed links to this field directly, so merely resolving a tag
+      // name initializes this class -- there is no registration step and no ordering to get wrong.
+      appendLine(
+        """
+            };
           private static final int[] KEYOF_HASHES;
           private static final String[] KEYOF_KEYS;
           private static final long[] KEYOF_IDS;
@@ -142,42 +168,58 @@ object KnownTagsEmitter {
                 @Override
                 public String nameOf(long tagId) {
                   switch (KnownTagCodec.serialNum(tagId)) {
-      """.trimIndent()
-    )
-    for (name in order) {
-      b.appendLine("            case ${serialC(name)}:")
-      b.appendLine("              return ${nameC(name)};")
+        """.trimIndent()
+      )
+      for (name in order) {
+        appendLine(
+          """
+                      case ${serialC(name)}:
+                        return ${nameC(name)};
+          """.trimIndent()
+        )
+      }
+      // openTelemetryNameOf: canonical id -> OTel-namespace name, null when the tag has none. The
+      // caller (a serializer) owns any fall-back-to-Datadog-name policy; this stays a pure lookup.
+      appendLine(
+        """
+                    default:
+                      return null;
+                  }
+                }
+        
+                @Override
+                public String openTelemetryNameOf(long tagId) {
+                  switch (KnownTagCodec.serialNum(tagId)) {
+        """.trimIndent()
+      )
+      for (name in order) {
+        if (otelName[name] == null) continue
+        appendLine(
+          """
+                      case ${serialC(name)}:
+                        return ${otelNameC(name)};
+          """.trimIndent()
+        )
+      }
+      appendLine(
+        """
+                  default:
+                    return null;
+                }
+              }
+
+              @Override
+              public long keyOf(String name) {
+                int slot = StringIndex.EmbeddingSupport.indexOf(KEYOF_HASHES, KEYOF_KEYS, name);
+                return slot < 0 ? 0L : KEYOF_IDS[slot];
+              }
+            };
+
+        private $className() {}
+      }
+        """.trimIndent()
+      )
     }
-    b.appendLine("            default:")
-    b.appendLine("              return null;")
-    b.appendLine("          }")
-    b.appendLine("        }")
-    b.appendLine()
-    // openTelemetryNameOf: canonical id -> OTel-namespace name, null when the tag has none. The
-    // caller (a serializer) owns any fall-back-to-Datadog-name policy; this stays a pure lookup.
-    b.appendLine("        @Override")
-    b.appendLine("        public String openTelemetryNameOf(long tagId) {")
-    b.appendLine("          switch (KnownTagCodec.serialNum(tagId)) {")
-    for (name in order) {
-      if (otelName[name] == null) continue
-      b.appendLine("            case ${serialC(name)}:")
-      b.appendLine("              return ${otelNameC(name)};")
-    }
-    b.appendLine("            default:")
-    b.appendLine("              return null;")
-    b.appendLine("          }")
-    b.appendLine("        }")
-    b.appendLine()
-    b.appendLine("        @Override")
-    b.appendLine("        public long keyOf(String name) {")
-    b.appendLine("          int slot = StringIndex.EmbeddingSupport.indexOf(KEYOF_HASHES, KEYOF_KEYS, name);")
-    b.appendLine("          return slot < 0 ? 0L : KEYOF_IDS[slot];")
-    b.appendLine("        }")
-    b.appendLine("      };")
-    b.appendLine()
-    b.appendLine("  private $className() {}")
-    b.appendLine("}")
-    return b.toString()
   }
 
   private fun hex(id: Long): String = "0x%016XL".format(Locale.ROOT, id)

@@ -7,8 +7,7 @@ import org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
-import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.ValueSource
+import org.tabletest.junit.TableTest
 import java.io.File
 import java.net.URLClassLoader
 import java.util.jar.JarFile
@@ -16,17 +15,22 @@ import java.util.jar.JarFile
 class TagRegistryGeneratorPluginTest {
   @TempDir lateinit var directory: File
 
-  @ParameterizedTest
-  @ValueSource(booleans = [true, false])
+  @TableTest(
+    """
+          scenario           | plugins
+          Java first         | 'java; id("dd-trace-java.tag-registry-generator")'
+          tag registry first | 'id("dd-trace-java.tag-registry-generator"); java'
+          """
+  )
   fun `Java compilation and source consumers generate the registry in either plugin order`(
-    javaFirst: Boolean
+    plugins: String
   ) {
-    val plugins = if (javaFirst) {
-      "java; id(\"dd-trace-java.tag-registry-generator\")"
-    } else {
-      "id(\"dd-trace-java.tag-registry-generator\"); java"
-    }
-    fixture("plugins { $plugins }\njava { withSourcesJar() }")
+    gradleProject(
+      """
+      plugins { $plugins }
+      java { withSourcesJar() }
+      """
+    )
     writeJavaDependencies()
 
     val result = runner("compileJava", "sourcesJar", "javadoc").build()
@@ -34,7 +38,7 @@ class TagRegistryGeneratorPluginTest {
     assertThat(result.task(":generateKnownTags")?.outcome).isEqualTo(SUCCESS)
     assertThat(result.task(":compileJava")?.outcome).isEqualTo(SUCCESS)
     assertThat(File(directory, "build/classes/java/main/datadog/trace/api/KnownTags.class")).exists()
-    assertThat(generated()).exists()
+    assertGeneratedFiles()
     assertThat(File(directory, "src/generated")).doesNotExist()
     JarFile(File(directory, "build/libs/fixture-sources.jar")).use { jar ->
       assertThat(jar.getEntry("datadog/trace/api/KnownTags.java")).isNotNull()
@@ -44,8 +48,15 @@ class TagRegistryGeneratorPluginTest {
 
   @Test
   fun `tag names containing Java special characters compile and retain their values`() {
-    fixture("plugins { java; id(\"dd-trace-java.tag-registry-generator\") }")
-    File(directory, "tag-conventions.yaml").writeText(
+    gradleProject(
+      """
+      plugins {
+        java
+        id("dd-trace-java.tag-registry-generator")
+      }
+      """
+    )
+    directory.conventionsFile(
       """
       span_types:
         base:
@@ -53,13 +64,14 @@ class TagRegistryGeneratorPluginTest {
             - dd-name: 'tag"\name'
               otel-name: "alias\"\\name\nline"
               span-kind-neutral: true
-      """.trimIndent()
+      """
     )
     writeJavaDependencies()
 
     val result = runner("compileJava").build()
 
     assertThat(result.task(":compileJava")?.outcome).isEqualTo(SUCCESS)
+    assertGeneratedFiles()
     val classes = File(directory, "build/classes/java/main").toURI().toURL()
     URLClassLoader(arrayOf(classes), null).use { loader ->
       val names = loader.loadClass("datadog.trace.api.KnownTags").fields
@@ -70,7 +82,14 @@ class TagRegistryGeneratorPluginTest {
 
   @Test
   fun `compilation reuses the configuration cache and regenerates after YAML changes`() {
-    fixture("plugins { java; id(\"dd-trace-java.tag-registry-generator\") }")
+    gradleProject(
+      """
+      plugins {
+        java
+        id("dd-trace-java.tag-registry-generator")
+      }
+      """
+    )
     writeJavaDependencies()
     assertThat(runner("compileJava").build().task(":generateKnownTags")?.outcome)
       .isEqualTo(SUCCESS)
@@ -79,13 +98,18 @@ class TagRegistryGeneratorPluginTest {
     assertThat(second.output).contains("Reusing configuration cache.")
     assertThat(second.task(":generateKnownTags")?.outcome).isEqualTo(UP_TO_DATE)
 
-    File(directory, "tag-conventions.yaml").writeText(
-      "span_types: {base: {tags: [{dd-name: updated}]}}"
+    directory.conventionsFile(
+      """
+      span_types:
+        base:
+          tags: [{dd-name: updated}]
+      """
     )
     val third = runner("compileJava").build()
     assertThat(third.output).contains("Reusing configuration cache.")
     assertThat(third.task(":generateKnownTags")?.outcome).isEqualTo(SUCCESS)
     assertThat(third.task(":compileJava")?.outcome).isEqualTo(SUCCESS)
+    assertGeneratedFiles()
     assertThat(generated().readText()).contains("UPDATED_NAME").doesNotContain("FOO_NAME")
   }
 
@@ -93,12 +117,15 @@ class TagRegistryGeneratorPluginTest {
   fun `generation can be restored from cache in a different project directory`() {
     val firstProject = File(directory, "first")
     val secondProject = File(directory, "second")
-    fixture(projectDir = firstProject)
-    fixture(projectDir = secondProject)
+    gradleProject(projectDir = firstProject)
+    gradleProject(projectDir = secondProject)
     val cache = File(directory, "cache").toURI()
-    val settings = "rootProject.name = \"fixture\"\nbuildCache { local { directory = uri(\"$cache\") } }"
-    File(firstProject, "settings.gradle.kts").writeText(settings)
-    File(secondProject, "settings.gradle.kts").writeText(settings)
+    val settings = """
+      rootProject.name = "fixture"
+      buildCache { local { directory = uri("$cache") } }
+    """
+    firstProject.writeFile("settings.gradle.kts", settings)
+    secondProject.writeFile("settings.gradle.kts", settings)
 
     assertThat(
       runner("generateKnownTags", "--build-cache", projectDir = firstProject)
@@ -107,14 +134,19 @@ class TagRegistryGeneratorPluginTest {
     val result = runner("generateKnownTags", "--build-cache", projectDir = secondProject).build()
 
     assertThat(result.task(":generateKnownTags")?.outcome).isEqualTo(FROM_CACHE)
+    assertGeneratedFiles(File(firstProject, "build/generated/tag-registry"))
+    assertGeneratedFiles(File(secondProject, "build/generated/tag-registry"))
     assertThat(generated(secondProject).readText()).isEqualTo(generated(firstProject).readText())
   }
 
   @Test
   fun `output follows a custom build directory and clean removes it`() {
-    fixture(
+    gradleProject(
       """
-      plugins { id("dd-trace-java.tag-registry-generator"); java }
+      plugins {
+        id("dd-trace-java.tag-registry-generator")
+        java
+      }
       layout.buildDirectory.set(layout.projectDirectory.dir("custom-build"))
       """
     )
@@ -124,7 +156,7 @@ class TagRegistryGeneratorPluginTest {
 
     assertThat(result.task(":generateKnownTags")?.outcome).isEqualTo(SUCCESS)
     val output = File(directory, "custom-build/generated/tag-registry")
-    assertThat(File(output, "java/datadog/trace/api/KnownTags.java")).exists()
+    assertGeneratedFiles(output)
     assertThat(File(directory, "build/generated")).doesNotExist()
     runner("clean").build()
     assertThat(output).doesNotExist()
@@ -132,9 +164,12 @@ class TagRegistryGeneratorPluginTest {
 
   @Test
   fun `input and output can be overridden without losing the producer dependency`() {
-    fixture(
+    gradleProject(
       """
-      plugins { java; id("dd-trace-java.tag-registry-generator") }
+      plugins {
+        java
+        id("dd-trace-java.tag-registry-generator")
+      }
       tagRegistry {
         tagConventionsFile.set(layout.projectDirectory.file("custom.yaml"))
         destinationDirectory.set(layout.buildDirectory.dir("custom-generated"))
@@ -147,13 +182,13 @@ class TagRegistryGeneratorPluginTest {
     val result = runner("compileJava").build()
 
     assertThat(result.task(":generateKnownTags")?.outcome).isEqualTo(SUCCESS)
-    assertThat(File(directory, "build/custom-generated/java/datadog/trace/api/KnownTags.java")).exists()
+    assertGeneratedFiles(File(directory, "build/custom-generated"))
     assertThat(File(directory, "build/classes/java/main/datadog/trace/api/KnownTags.class")).exists()
   }
 
   @Test
   fun `help does not read or generate the domain model`() {
-    fixture()
+    gradleProject()
     File(directory, "tag-conventions.yaml").delete()
 
     val result = runner("help").build()
@@ -162,18 +197,33 @@ class TagRegistryGeneratorPluginTest {
     assertThat(generated()).doesNotExist()
   }
 
-  private fun fixture(
-    build: String = "plugins { id(\"dd-trace-java.tag-registry-generator\") }",
+  private fun gradleProject(
+    build: String = """
+      plugins { id("dd-trace-java.tag-registry-generator") }
+    """,
     projectDir: File = directory
   ) {
-    projectDir.mkdirs()
-    File(projectDir, "settings.gradle.kts").writeText("rootProject.name = \"fixture\"")
-    File(projectDir, "build.gradle.kts").writeText(
-      build.trimIndent() + "\n" +
-        "tagRegistry { tagConventionsFile.convention(layout.projectDirectory.file(\"tag-conventions.yaml\")) }\n"
+    projectDir.writeFile(
+      "settings.gradle.kts",
+      """
+      rootProject.name = "fixture"
+      """
     )
-    File(projectDir, "tag-conventions.yaml").writeText(
-      "span_types: {base: {tags: [{dd-name: foo}, {dd-name: foo.name}]}}"
+    projectDir.writeFile(
+      "build.gradle.kts",
+      build,
+      """
+      tagRegistry {
+        tagConventionsFile.convention(layout.projectDirectory.file("tag-conventions.yaml"))
+      }
+      """
+    )
+    projectDir.conventionsFile(
+      """
+      span_types:
+        base:
+          tags: [{dd-name: foo}, {dd-name: foo.name}]
+      """
     )
   }
 
@@ -182,10 +232,16 @@ class TagRegistryGeneratorPluginTest {
 
   private fun generated(projectDir: File = directory): File = File(projectDir, "build/generated/tag-registry/java/datadog/trace/api/KnownTags.java")
 
+  private fun assertGeneratedFiles(output: File = File(directory, "build/generated/tag-registry")) {
+    assertThat(File(output, "java/datadog/trace/api/KnownTags.java")).isFile()
+    assertThat(File(output, "resolved-tags.txt")).isFile()
+    assertThat(File(output, "tag-assignment.txt")).isFile()
+  }
+
   // Only the API surface is needed here; internal-api tests exercise the real resolver at runtime.
   private fun writeJavaDependencies() {
-    val api = File(directory, "src/main/java/datadog/trace/api").apply { mkdirs() }
-    File(api, "KnownTagCodec.java").writeText(
+    directory.writeFile(
+      "src/main/java/datadog/trace/api/KnownTagCodec.java",
       """
       package datadog.trace.api;
       public final class KnownTagCodec {
@@ -196,10 +252,10 @@ class TagRegistryGeneratorPluginTest {
         }
         public static int serialNum(long id) { return (int) (id >>> 48); }
       }
-      """.trimIndent()
+      """
     )
-    val util = File(directory, "src/main/java/datadog/trace/util").apply { mkdirs() }
-    File(util, "StringIndex.java").writeText(
+    directory.writeFile(
+      "src/main/java/datadog/trace/util/StringIndex.java",
       """
       package datadog.trace.util;
       public final class StringIndex {
@@ -216,7 +272,7 @@ class TagRegistryGeneratorPluginTest {
           }
         }
       }
-      """.trimIndent()
+      """
     )
   }
 }

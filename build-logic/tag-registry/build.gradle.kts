@@ -38,6 +38,7 @@ testing {
       dependencies {
         implementation(platform("org.junit:junit-bom:${libs.versions.junit5.get()}"))
         implementation(libs.assertj.core)
+        implementation(libs.tabletest)
         implementation(gradleTestKit())
       }
     }
