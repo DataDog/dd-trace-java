@@ -10,6 +10,12 @@ muzzle {
   }
 }
 
+addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
+
 dependencies {
   compileOnly group: 'org.tinylog', name: 'tinylog-impl', version: '2.0.0'
+
+  testImplementation group: 'org.tinylog', name: 'tinylog-impl', version: '2.0.0'
+  latestDepTestImplementation group: 'org.tinylog', name: 'tinylog-impl', version: '+'
 }

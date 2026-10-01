@@ -12,15 +12,18 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.bootstrap.instrumentation.log.AgentlessLogSubmission;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.tinylog.core.LogEntry;
+import org.tinylog.core.TinylogLoggingProvider;
 
 @AutoService(InstrumenterModule.class)
-public class TinylogLoggingProviderInstrumentation extends InstrumenterModule.Tracing
+public class TinylogLoggingProviderInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public TinylogLoggingProviderInstrumentation() {
     super("tinylog");
@@ -45,6 +48,15 @@ public class TinylogLoggingProviderInstrumentation extends InstrumenterModule.Tr
             .and(takesArguments(2))
             .and(takesArgument(0, named("org.tinylog.core.LogEntry"))),
         TinylogLoggingProviderInstrumentation.class.getName() + "$OutputAdvice");
+    if (InstrumenterConfig.get().isAgentlessLogSubmissionEnabled()) {
+      transformer.applyAdvice(
+          isMethod()
+              .and(isPrivate())
+              .and(named("output"))
+              .and(takesArguments(2))
+              .and(takesArgument(0, named("org.tinylog.core.LogEntry"))),
+          TinylogLoggingProviderInstrumentation.class.getName() + "$SubmitLogAdvice");
+    }
   }
 
   public static class OutputAdvice {
@@ -56,6 +68,27 @@ public class TinylogLoggingProviderInstrumentation extends InstrumenterModule.Tr
         InstrumentationContext.get(LogEntry.class, AgentSpanContext.class)
             .put(event, span.spanContext());
       }
+    }
+  }
+
+  public static class SubmitLogAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(
+        @Advice.This TinylogLoggingProvider provider, @Advice.Argument(0) LogEntry event) {
+      String level = event.getLevel().name();
+      if (!AgentlessLogSubmission.isLevelEnabled(level)) {
+        return;
+      }
+      // Entries only hold the values that writers require, so read the thread and context here
+      String loggerName = event.getClassName() != null ? event.getClassName() : event.getTag();
+      AgentlessLogSubmission.submit(
+          Thread.currentThread().getName(),
+          level,
+          loggerName,
+          event.getMessage(),
+          event.getException(),
+          event.getTimestamp().toDate().getTime(),
+          provider.getContextProvider().getMapping());
     }
   }
 }
