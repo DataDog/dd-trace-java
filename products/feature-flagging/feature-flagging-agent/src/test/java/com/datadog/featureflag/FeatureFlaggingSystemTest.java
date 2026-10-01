@@ -1,6 +1,7 @@
 package com.datadog.featureflag;
 
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.EXPERIMENTAL_SPAN_ENRICHMENT_ENABLED;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -38,10 +39,11 @@ import org.junit.jupiter.api.Test;
 
 class FeatureFlaggingSystemTest {
   @AfterEach
-  void resetFlagEvaluationGateway() {
+  void resetFeatureFlaggingGateway() {
     FeatureFlaggingSystem.stop();
     FeatureFlaggingGateway.setFlagEvalWriter(null);
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(true);
+    FeatureFlaggingGateway.setSpanEnrichmentEnabled(false);
   }
 
   @Test
@@ -67,6 +69,24 @@ class FeatureFlaggingSystemTest {
     assertFalse(FeatureFlaggingSystem.isAwaitingApplicationActivation());
     assertFalse(FeatureFlaggingSystem.isExposureWriterStarted());
     assertFalse(FeatureFlaggingSystem.isConfigurationSourceStarted());
+  }
+
+  @Test
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
+  @WithConfig(key = EXPERIMENTAL_SPAN_ENRICHMENT_ENABLED, value = "true")
+  void publishesSpanEnrichmentConfigurationBeforeProviderActivation() {
+    final SharedCommunicationObjects sharedCommunicationObjects = sharedCommunicationObjects();
+    final FeatureFlaggingSystem.SystemInitializer systemInitializer =
+        mock(FeatureFlaggingSystem.SystemInitializer.class);
+
+    FeatureFlaggingSystem.start(sharedCommunicationObjects, systemInitializer);
+
+    assertTrue(FeatureFlaggingGateway.isSpanEnrichmentEnabled());
+    verifyNoInteractions(systemInitializer);
+
+    FeatureFlaggingSystem.stop();
+
+    assertFalse(FeatureFlaggingGateway.isSpanEnrichmentEnabled());
   }
 
   @Test
@@ -204,11 +224,13 @@ class FeatureFlaggingSystemTest {
   @Test
   void testFeatureFlagSystemShutdownClearsGatewayState() {
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(true);
+    FeatureFlaggingGateway.setSpanEnrichmentEnabled(true);
     FeatureFlaggingGateway.setFlagEvalWriter(mock(FlagEvaluationWriter.class));
 
     FeatureFlaggingSystem.stop();
 
     assertFalse(FeatureFlaggingGateway.isFlagEvaluationEnqueueEnabled());
+    assertFalse(FeatureFlaggingGateway.isSpanEnrichmentEnabled());
     assertNull(FeatureFlaggingGateway.getFlagEvalWriter());
   }
 
