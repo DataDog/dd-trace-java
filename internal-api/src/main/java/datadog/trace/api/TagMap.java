@@ -408,7 +408,13 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
 
     private Entry(long tagId, byte type, long prim, Object obj) {
-      this(requireKnown(tagId), null, type, prim, obj);
+      // Resolve the name once: it both validates the id and names the entry.
+      super(requireKnownName(tagId));
+      this.tagHash = tagId;
+
+      this.rawType = type;
+      this.rawPrim = prim;
+      this.rawObj = obj;
     }
 
     /** {@code tagId} is a known id, or 0 for the custom tag {@code customTag}. */
@@ -421,11 +427,12 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       this.rawObj = obj;
     }
 
-    private static long requireKnown(long tagId) {
-      if (tagId == 0 || KnownTagCodec.nameOf(tagId) == null) {
+    private static String requireKnownName(long tagId) {
+      String name = tagId == 0 ? null : KnownTagCodec.nameOf(tagId);
+      if (name == null) {
         throw new IllegalArgumentException("not a known tag id: " + Long.toHexString(tagId));
       }
-      return tagId;
+      return name;
     }
 
     /** The tag hash a name maps to: its id when known, else its {@link #customHash}. */
