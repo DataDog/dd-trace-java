@@ -10,8 +10,13 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ANNOTATI
 
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.asserts.TagsAssert
+import datadog.trace.agent.test.naming.TestingOtelHttpSemantics
+import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
+import datadog.trace.api.KnownTags
+import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIUtils
 import datadog.trace.core.DDSpan
@@ -55,6 +60,9 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
   protected void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig(TRACE_ANNOTATION_ASYNC, "true")
+    if (this instanceof TestingOtelHttpSemantics) {
+      injectSysConfig(GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED, "true")
+    }
   }
 
   def "Basic GET test #testName"() {
@@ -84,8 +92,7 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" Integer
-            "$Tags.HTTP_URL" url
-            "$Tags.HTTP_HOSTNAME" "localhost"
+            this.serverUrlTags(it, url)
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
             "$Tags.HTTP_USER_AGENT" String
@@ -135,6 +142,7 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
 
     "annotation API without parameters"  | "/foo"               | "/foo"                 | "getFooModel"   | new FooModel(0L, "DEFAULT").toString()
     "annotation API with one parameter"  | "/foo/1"             | "/foo/{id}"            | "getFooModel"   | new FooModel(1L, "pass").toString()
+    "annotation API with query"          | "/foo/1?view=full"   | "/foo/{id}"            | "getFooModel"   | new FooModel(1L, "pass").toString()
     "annotation API with two parameters" | "/foo/2/world"       | "/foo/{id}/{name}"     | "getFooModel"   | new FooModel(2L, "world").toString()
     "annotation API delayed response"    | "/foo-delayed"       | "/foo-delayed"         | "getFooDelayed" | new FooModel(3L, "delayed").toString()
   }
@@ -166,8 +174,7 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" Integer
-            "$Tags.HTTP_URL" url
-            "$Tags.HTTP_HOSTNAME" "localhost"
+            this.serverUrlTags(it, url)
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
             "$Tags.HTTP_USER_AGENT" String
@@ -300,7 +307,7 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
       }
       trace(2) {
         span {
-          resourceName "404"
+          resourceName Config.get().isTraceOtelSemanticsEnabled() ? "GET" : "404"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
           childOf(traceParent)
@@ -309,8 +316,7 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" Integer
-            "$Tags.HTTP_URL" url
-            "$Tags.HTTP_HOSTNAME" "localhost"
+            this.serverUrlTags(it, url)
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 404
             "$Tags.HTTP_USER_AGENT" String
@@ -366,8 +372,7 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" Integer
-            "$Tags.HTTP_URL" url
-            "$Tags.HTTP_HOSTNAME" "localhost"
+            this.serverUrlTags(it, url)
             "$Tags.HTTP_METHOD" "POST"
             "$Tags.HTTP_STATUS" 202
             "$Tags.HTTP_USER_AGENT" String
@@ -433,10 +438,12 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" Integer
-            "$Tags.HTTP_URL" url
-            "$Tags.HTTP_HOSTNAME" "localhost"
+            this.serverUrlTags(it, url)
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 500
+            if (Config.get().isTraceOtelSemanticsEnabled()) {
+              "$DDTags.ERROR_TYPE" "500"
+            }
             "$Tags.HTTP_USER_AGENT" String
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
             "$Tags.NETWORK_CLIENT_IP" "127.0.0.1"
@@ -524,8 +531,7 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" Integer
-            "$Tags.HTTP_URL" url
-            "$Tags.HTTP_HOSTNAME" "localhost"
+            this.serverUrlTags(it, url)
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 307
             "$Tags.HTTP_USER_AGENT" String
@@ -570,8 +576,7 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" Integer
-            "$Tags.HTTP_URL" finalUrl
-            "$Tags.HTTP_HOSTNAME" "localhost"
+            this.serverUrlTags(it, finalUrl)
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
             "$Tags.HTTP_USER_AGENT" String
@@ -630,8 +635,7 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
               "$Tags.PEER_HOST_IPV4" "127.0.0.1"
               "$Tags.PEER_PORT" Integer
-              "$Tags.HTTP_URL" url
-              "$Tags.HTTP_HOSTNAME" "localhost"
+              this.serverUrlTags(it, url)
               "$Tags.HTTP_METHOD" "GET"
               "$Tags.HTTP_STATUS" 200
               "$Tags.HTTP_USER_AGENT" String
@@ -692,7 +696,7 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
       def traceParent
       sortSpansByStart()
       trace(2) {
-        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), null, false, null, false,
+        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), null, false, false,
         ["message": "The subscription was cancelled", "event": "cancelled"])
         traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), null)
       }
@@ -707,8 +711,7 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" Integer
-            "$Tags.HTTP_URL" url
-            "$Tags.HTTP_HOSTNAME" "localhost"
+            this.serverUrlTags(it, url)
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_USER_AGENT" String
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
@@ -762,8 +765,7 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" Integer
-            "$Tags.HTTP_URL" url
-            "$Tags.HTTP_HOSTNAME" "localhost"
+            this.serverUrlTags(it, url)
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 101
             "$Tags.HTTP_USER_AGENT" String
@@ -802,6 +804,21 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
   }
 
 
+  void serverUrlTags(TagsAssert tags, String url) {
+    def uri = URI.create(url)
+    if (Config.get().isTraceOtelSemanticsEnabled()) {
+      tags.tag(KnownTags.SERVER_ADDRESS_NAME, uri.host)
+      tags.tag(KnownTags.SERVER_PORT_NAME, uri.port)
+      tags.tag(KnownTags.URL_PATH_NAME, uri.path)
+      tags.tag(KnownTags.URL_SCHEME_NAME, uri.scheme)
+      tags.tag(KnownTags.URL_QUERY_NAME, uri.rawQuery)
+    } else {
+      tags.tag(Tags.HTTP_URL, url)
+      tags.tag(Tags.HTTP_HOSTNAME, uri.host)
+      tags.tag(DDTags.HTTP_QUERY, uri.query)
+    }
+  }
+
   def clientSpan(
   TraceAssert trace,
   Object parentSpan,
@@ -811,12 +828,13 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
   URI uri,
   Integer status = 200,
   boolean error = false,
-  Throwable exception = null,
-  boolean tagQueryString = false,
+  boolean tagQueryString = Config.get().isHttpClientTagQueryString(),
   Map<String, Serializable> extraTags = null) {
     def ret
 
-    def expectedQuery = tagQueryString ? uri.query : null
+    def otelSemantics = Config.get().isTraceOtelSemanticsEnabled()
+    def statusError = otelSemantics && status != null && status >= 400
+    def expectedQuery = otelSemantics || tagQueryString ? uri.query : null
     def expectedUrl = URIUtils.buildURL(uri.scheme, uri.host, uri.port, uri.path)
     if (expectedQuery != null && !expectedQuery.empty) {
       expectedUrl = "$expectedUrl?$expectedQuery"
@@ -829,26 +847,36 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
         childOf((DDSpan) parentSpan)
       }
       operationName operation
+      if (otelSemantics) {
+        resourceName method
+      }
       spanType DDSpanTypes.HTTP_CLIENT
-      errored error
+      errored error || statusError
       measured true
       tags {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-        "$Tags.PEER_HOSTNAME" uri.host
-        "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
-        "$Tags.PEER_PORT" { it == null || it == uri.port }
+        if (!otelSemantics || component == "netty-client") {
+          // Netty also decorates the underlying socket connection.
+          "$Tags.PEER_HOSTNAME" uri.host
+          "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
+          "$Tags.PEER_PORT" { it == null || it == uri.port }
+        }
+        if (otelSemantics) {
+          "$KnownTags.SERVER_ADDRESS_NAME" uri.host
+          "$KnownTags.SERVER_PORT_NAME" uri.port
+        }
         "$Tags.HTTP_URL" expectedUrl
         "$Tags.HTTP_METHOD" method
         if (status) {
           "$Tags.HTTP_STATUS" status
         }
-        if (tagQueryString) {
+        if (!otelSemantics && tagQueryString) {
           "$DDTags.HTTP_QUERY" expectedQuery
           "$DDTags.HTTP_FRAGMENT" { it == null || it == uri.fragment } // Optional
         }
-        if (exception) {
-          errorTags(exception.class, exception.message)
+        if (statusError) {
+          "$DDTags.ERROR_TYPE" status.toString()
         }
         peerServiceFrom(Tags.PEER_HOSTNAME)
         defaultTags()
@@ -859,6 +887,9 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
     }
     return ret
   }
+}
+
+class SpringWebfluxOtelSemanticsForkedTest extends SpringWebfluxHttp11Test implements TestingOtelHttpSemantics {
 }
 
 class SpringWebfluxHttp2UpgradeTest extends SpringWebfluxHttp11Test {
