@@ -1,6 +1,7 @@
 package com.datadog.openfeature.internal.config;
 
 import com.datadog.openfeature.internal.connector.Connector;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Locale;
 import java.util.function.UnaryOperator;
 import javax.annotation.Nullable;
@@ -58,6 +59,9 @@ public final class Settings {
    * @param connector the connector to look settings up from first.
    * @return the settings.
    */
+  // Allowing VM properties and environment variable access
+  // as the SDK does not ship the agent configuration helpers
+  @SuppressForbidden
   public static Settings load(final Connector connector) {
     return new Settings(connector, System::getProperty, System::getenv);
   }
