@@ -10,16 +10,19 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.bootstrap.instrumentation.log.AgentlessLogSubmission;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.jboss.logmanager.ExtLogRecord;
+import org.jboss.logmanager.MDC;
 
 @AutoService(InstrumenterModule.class)
-public class LoggerNodeInstrumentation extends InstrumenterModule.Tracing
+public class LoggerNodeInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public LoggerNodeInstrumentation() {
     super("jboss-logmanager");
@@ -42,6 +45,13 @@ public class LoggerNodeInstrumentation extends InstrumenterModule.Tracing
             .and(named("publish"))
             .and(takesArgument(0, named("org.jboss.logmanager.ExtLogRecord"))),
         LoggerNodeInstrumentation.class.getName() + "$AttachContextAdvice");
+    if (InstrumenterConfig.get().isAgentlessLogSubmissionEnabled()) {
+      transformer.applyAdvice(
+          isMethod()
+              .and(named("publish"))
+              .and(takesArgument(0, named("org.jboss.logmanager.ExtLogRecord"))),
+          LoggerNodeInstrumentation.class.getName() + "$SubmitLogAdvice");
+    }
   }
 
   public static class AttachContextAdvice {
@@ -66,6 +76,37 @@ public class LoggerNodeInstrumentation extends InstrumenterModule.Tracing
     public static void resetDepth(@Advice.Enter boolean shouldReset) {
       if (shouldReset) {
         CallDepthThreadLocalMap.reset(ExtLogRecord.class);
+      }
+    }
+  }
+
+  public static class SubmitLogAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static boolean submit(@Advice.Argument(0) ExtLogRecord record) {
+      if (CallDepthThreadLocalMap.incrementCallDepth(AgentlessLogSubmission.class) > 0) {
+        return false;
+      }
+      try {
+        String level = AgentlessLogSubmission.julLevel(record.getLevel().intValue());
+        if (AgentlessLogSubmission.isLevelEnabled(level)) {
+          AgentlessLogSubmission.submit(
+              record.getThreadName(),
+              level,
+              record.getLoggerName(),
+              record.getFormattedMessage(),
+              record.getThrown(),
+              record.getMillis(),
+              MDC.copy());
+        }
+      } catch (Throwable ignored) {
+      }
+      return true;
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void resetDepth(@Advice.Enter boolean shouldReset) {
+      if (shouldReset) {
+        CallDepthThreadLocalMap.reset(AgentlessLogSubmission.class);
       }
     }
   }
