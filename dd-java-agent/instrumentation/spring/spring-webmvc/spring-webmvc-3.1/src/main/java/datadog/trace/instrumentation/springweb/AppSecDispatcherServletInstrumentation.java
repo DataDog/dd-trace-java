@@ -48,11 +48,6 @@ public class AppSecDispatcherServletInstrumentation extends InstrumenterModule.A
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".RequestMappingInfoIterator"};
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()

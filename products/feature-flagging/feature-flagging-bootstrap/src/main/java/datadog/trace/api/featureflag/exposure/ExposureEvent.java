@@ -8,16 +8,29 @@ public class ExposureEvent {
   public final Variant variant;
   public final Subject subject;
 
+  public final Integer serial_id;
+
   public ExposureEvent(
       final long timestamp,
       final Allocation allocation,
       final Flag flag,
       final Variant variant,
       final Subject subject) {
+    this(timestamp, allocation, flag, variant, subject, null);
+  }
+
+  public ExposureEvent(
+      final long timestamp,
+      final Allocation allocation,
+      final Flag flag,
+      final Variant variant,
+      final Subject subject,
+      final Integer serialId) {
     this.timestamp = timestamp;
     this.allocation = allocation;
     this.flag = flag;
     this.variant = variant;
     this.subject = subject;
+    this.serial_id = serialId;
   }
 }

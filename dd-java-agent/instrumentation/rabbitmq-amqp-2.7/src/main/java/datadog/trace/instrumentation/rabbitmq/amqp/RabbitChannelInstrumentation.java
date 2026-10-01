@@ -76,15 +76,6 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".RabbitDecorator",
-      packageName + ".TextMapInjectAdapter",
-      packageName + ".TracedDelegatingConsumer",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     // We want the advice applied in a specific order.
     transformer.applyAdvice(

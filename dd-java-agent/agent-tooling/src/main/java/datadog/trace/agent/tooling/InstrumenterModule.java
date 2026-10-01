@@ -13,6 +13,7 @@ import datadog.trace.agent.tooling.muzzle.ReferenceProvider;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.api.iast.Taintable;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -126,6 +127,11 @@ public abstract class InstrumenterModule implements Instrumenter {
    */
   public String[] helperClassNames() {
     return NO_HELPERS;
+  }
+
+  /** Override this to claim classes from other sources as helpers. */
+  public boolean isHelperClass(String className) {
+    return false;
   }
 
   /**
@@ -309,6 +315,18 @@ public abstract class InstrumenterModule implements Instrumenter {
 
     protected boolean isOptOutEnabled() {
       return false;
+    }
+  }
+
+  /** Parent class for IAST instrumentations that restructure classes to add {@link Taintable}. */
+  public abstract static class TaintableIast extends Iast implements WithStructuralChange {
+    public TaintableIast(String instrumentationName, String... additionalNames) {
+      super(instrumentationName, additionalNames);
+    }
+
+    @Override
+    public final Class<?> structuralChangeMarker() {
+      return Taintable.class;
     }
   }
 

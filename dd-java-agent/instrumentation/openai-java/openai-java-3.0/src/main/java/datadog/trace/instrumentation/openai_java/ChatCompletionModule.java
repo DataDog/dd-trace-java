@@ -13,22 +13,6 @@ public class ChatCompletionModule extends InstrumenterModule.Tracing {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".CommonTags",
-      packageName + ".TokenUsage",
-      packageName + ".ChatCompletionDecorator",
-      packageName + ".OpenAiDecorator",
-      packageName + ".JsonValueUtils",
-      packageName + ".HttpResponseWrapper",
-      packageName + ".HttpStreamResponseWrapper",
-      packageName + ".HttpStreamResponseStreamWrapper",
-      packageName + ".ToolCallExtractor",
-      packageName + ".ToolCallExtractor$1"
-    };
-  }
-
-  @Override
   public List<Instrumenter> typeInstrumentations() {
     return Arrays.asList(
         new ChatCompletionServiceAsyncInstrumentation(),

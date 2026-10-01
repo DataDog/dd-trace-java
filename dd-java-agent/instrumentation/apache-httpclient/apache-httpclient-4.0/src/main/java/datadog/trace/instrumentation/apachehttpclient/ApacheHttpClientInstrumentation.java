@@ -68,17 +68,6 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ApacheHttpClientDecorator",
-      packageName + ".HttpHeadersInjectAdapter",
-      packageName + ".HostAndRequestAsHttpUriRequest",
-      packageName + ".HelperMethods",
-      packageName + ".WrappingStatusSettingResponseHandler",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     // There are 8 execute(...) methods.  Depending on the version, they may or may not delegate to
     // eachother. Thus, all methods need to be instrumented.  Because of argument position and type,
