@@ -8,6 +8,7 @@ import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Functions;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.cache.QualifiedClassNameCache;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -194,23 +195,23 @@ public abstract class BaseDecorator {
     if (remoteAddress != null) {
       String ip = remoteAddress.getHostAddress();
       if (resolved && Config.get().isPeerHostNameEnabled()) {
-        span.setTag(Tags.PEER_HOSTNAME, hostName(remoteAddress, ip));
+        span.setTag(KnownTags.PEER_HOSTNAME_ID, hostName(remoteAddress, ip));
       }
       if (remoteAddress instanceof Inet4Address) {
-        span.setTag(Tags.PEER_HOST_IPV4, ip);
+        span.setTag(KnownTags.PEER_IPV4_ID, ip);
       } else if (remoteAddress instanceof Inet6Address) {
-        span.setTag(Tags.PEER_HOST_IPV6, ip);
+        span.setTag(KnownTags.PEER_IPV6_ID, ip);
       }
     }
   }
 
   public void setPeerPort(AgentSpan span, String port) {
-    span.setTag(Tags.PEER_PORT, port);
+    span.setTag(KnownTags.PEER_PORT_ID, port);
   }
 
   public void setPeerPort(AgentSpan span, int port) {
     if (port > UNSET_PORT) {
-      span.setTag(Tags.PEER_PORT, port);
+      span.setTag(KnownTags.PEER_PORT_ID, port);
     }
   }
 
