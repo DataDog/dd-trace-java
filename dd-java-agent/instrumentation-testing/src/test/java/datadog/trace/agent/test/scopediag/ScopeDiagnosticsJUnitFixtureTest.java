@@ -8,6 +8,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.config.inversion.ConfigHelper;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 class ScopeDiagnosticsJUnitFixtureTest extends AbstractInstrumentationTest {
@@ -28,6 +29,12 @@ class ScopeDiagnosticsJUnitFixtureTest extends AbstractInstrumentationTest {
 
   @Test
   void runsWithSuiteFixtureDiagnostics() {}
+
+  @Nested
+  class NestedTest {
+    @Test
+    void keepsSuiteFixtureDiagnosticsRecording() {}
+  }
 
   private static void recordResolvedContinuation(String operationName) {
     AgentSpan span = tracer.startSpan("test", operationName);
