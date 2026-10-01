@@ -90,6 +90,17 @@ class FeatureFlaggingSystemTest {
   }
 
   @Test
+  @WithConfig(key = EXPERIMENTAL_SPAN_ENRICHMENT_ENABLED, value = "true")
+  void publishesSpanEnrichmentConfigurationBeforeSystemStart() {
+    FeatureFlaggingSystem.publishSpanEnrichmentConfiguration();
+
+    assertTrue(FeatureFlaggingGateway.isSpanEnrichmentEnabled());
+    assertFalse(FeatureFlaggingSystem.isAwaitingApplicationActivation());
+    assertFalse(FeatureFlaggingSystem.isExposureWriterStarted());
+    assertFalse(FeatureFlaggingSystem.isConfigurationSourceStarted());
+  }
+
+  @Test
   @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
   void agentlessActivationInitializesSystemOnce() {
     final SharedCommunicationObjects sharedCommunicationObjects = sharedCommunicationObjects();

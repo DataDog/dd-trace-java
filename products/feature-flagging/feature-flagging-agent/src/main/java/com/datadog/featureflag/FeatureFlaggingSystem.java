@@ -42,8 +42,7 @@ public class FeatureFlaggingSystem {
     }
     LOGGER.debug("Feature Flagging system starting");
     final Config config = Config.get();
-    FeatureFlaggingGateway.setSpanEnrichmentEnabled(
-        config.isFeatureFlaggingSpanEnrichmentEnabled());
+    publishSpanEnrichmentConfiguration();
     STARTED = true;
 
     if (!config.isFeatureFlaggingProviderEnabled()) {
@@ -61,6 +60,12 @@ public class FeatureFlaggingSystem {
     }
 
     initializeOrRollBack(sco, config, systemInitializer);
+  }
+
+  /** Publishes configuration needed by application code before deferred product startup. */
+  public static void publishSpanEnrichmentConfiguration() {
+    FeatureFlaggingGateway.setSpanEnrichmentEnabled(
+        Config.get().isFeatureFlaggingSpanEnrichmentEnabled());
   }
 
   private static synchronized void activateAgentless(
