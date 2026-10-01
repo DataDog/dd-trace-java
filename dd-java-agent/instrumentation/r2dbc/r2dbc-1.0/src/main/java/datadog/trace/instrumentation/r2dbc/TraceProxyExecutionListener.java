@@ -34,7 +34,7 @@ public final class TraceProxyExecutionListener implements ProxyExecutionListener
     AgentSpan span = startSpan("r2dbc", R2DBC_QUERY);
     DECORATE.afterStart(span);
 
-    String dbType = DECORATE.extractDbType(options);
+    String dbType = DECORATE.getDbType(options);
     DECORATE.applyDatabaseType(span, dbType);
     DECORATE.onConnection(span, options);
     DECORATE.withBaseHash(span);

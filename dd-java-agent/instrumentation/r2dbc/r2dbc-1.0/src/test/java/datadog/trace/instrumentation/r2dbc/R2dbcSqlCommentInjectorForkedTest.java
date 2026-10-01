@@ -40,6 +40,44 @@ class R2dbcSqlCommentInjectorForkedTest extends AbstractInstrumentationTest {
     String twice = R2dbcSqlCommentInjector.inject(once, "orders", "postgresql", "h", "shop");
     assertEquals(once, twice, "comment should not be injected twice");
   }
+
+  @Test
+  void appendsForCallStatements() {
+    String injected =
+        R2dbcSqlCommentInjector.inject("call my_proc(1)", "orders", "postgresql", "h", "shop");
+    assertTrue(injected.startsWith("call my_proc(1) /*"), "expected appended comment: " + injected);
+    assertTrue(injected.endsWith("*/"), "unexpected tail: " + injected);
+  }
+
+  @Test
+  void appendsAfterPostgresPlanHint() {
+    String sql = "/*+ SeqScan(items) */ SELECT * FROM items";
+    String injected = R2dbcSqlCommentInjector.inject(sql, "orders", "postgresql", "h", "shop");
+    assertTrue(injected.startsWith(sql + " /*"), "hint must stay first: " + injected);
+  }
+
+  @Test
+  void prependsHintLikeCommentForNonPostgres() {
+    String sql = "/*+ INDEX(items idx) */ SELECT * FROM items";
+    String injected = R2dbcSqlCommentInjector.inject(sql, "orders", "mysql", "h", "shop");
+    assertTrue(injected.endsWith("*/ " + sql), "expected prepended comment: " + injected);
+  }
+
+  @Test
+  void alwaysAppendKeepsClosingSemicolon() {
+    String injected =
+        R2dbcSqlCommentInjector.inject("SELECT 1;", "orders", "postgresql", "h", "shop", true);
+    assertTrue(injected.startsWith("SELECT 1 /*"), "expected appended comment: " + injected);
+    assertTrue(injected.endsWith("*/;"), "semicolon should stay last: " + injected);
+  }
+
+  @Test
+  void doesNotDoubleAppend() {
+    String once =
+        R2dbcSqlCommentInjector.inject("SELECT 1;", "orders", "postgresql", "h", "shop", true);
+    String twice = R2dbcSqlCommentInjector.inject(once, "orders", "postgresql", "h", "shop", true);
+    assertEquals(once, twice, "comment should not be appended twice");
+  }
 }
 
 /** Verifies {@link R2dbcSqlCommentInjector#inject} is a no-op when DBM propagation is disabled. */

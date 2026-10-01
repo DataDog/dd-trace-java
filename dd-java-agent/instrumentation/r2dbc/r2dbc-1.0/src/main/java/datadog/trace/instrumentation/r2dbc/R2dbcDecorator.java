@@ -25,6 +25,8 @@ public class R2dbcDecorator extends DatabaseClientDecorator<ConnectionFactoryOpt
       SpanNaming.instance().namingSchema().database().service("r2dbc");
 
   public static final boolean INJECT_COMMENT = Config.get().isDbmCommentInjectionEnabled();
+  public static final boolean DBM_ALWAYS_APPEND_SQL_COMMENT =
+      Config.get().isDbmAlwaysAppendSqlComment();
   private static final boolean DBM_INJECT_SQL_BASE_HASH = Config.get().isDbmInjectSqlBaseHash();
   private static final boolean PROPAGATE_PROCESS_TAGS =
       Config.get().isExperimentalPropagateProcessTagsEnabled();
@@ -93,7 +95,7 @@ public class R2dbcDecorator extends DatabaseClientDecorator<ConnectionFactoryOpt
     return driver != null && WRAPPER_DRIVERS.contains(driver);
   }
 
-  public String extractDbType(ConnectionFactoryOptions options) {
+  public String getDbType(ConnectionFactoryOptions options) {
     String driver = stringOption(options, ConnectionFactoryOptions.DRIVER);
     return driver != null ? driver : "r2dbc";
   }
@@ -108,7 +110,7 @@ public class R2dbcDecorator extends DatabaseClientDecorator<ConnectionFactoryOpt
    * injection.
    */
   public String getDbService(ConnectionFactoryOptions options) {
-    String dbType = extractDbType(options);
+    String dbType = getDbType(options);
     String instanceName = dbInstance(options);
     return dbService(dbType, instanceName);
   }

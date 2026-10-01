@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.r2dbc;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
+import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.DBM_ALWAYS_APPEND_SQL_COMMENT;
 import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.DECORATE;
 import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.INJECT_COMMENT;
 import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.stringOption;
@@ -15,8 +16,10 @@ import io.r2dbc.spi.ConnectionFactoryOptions;
  * Injects DBM SQL comments into R2DBC queries. Reuses {@link SharedDBCommenter} to build the
  * comment content (service metadata) and wraps it in SQL comment delimiters.
  *
- * <p>This is the R2DBC equivalent of JDBC's {@code SQLCommenter}. It is intentionally simpler
- * because R2DBC does not have the same edge cases (callable statements, pg_hint_plan) as JDBC.
+ * <p>This is the R2DBC equivalent of JDBC's {@code SQLCommenter} and follows the same placement
+ * rules: the comment is prepended, unless {@code dd.dbm.always_append_sql_comment} is set, the
+ * statement is a {@code CALL}, or it carries a PostgreSQL {@code pg_hint_plan} hint ({@code /*+}),
+ * in which case it is appended. (JDBC's {@code {call ...}} escape syntax has no R2DBC equivalent.)
  *
  * <p>Injection happens on the real driver's {@code Connection#createStatement(String)} (see {@link
  * R2dbcConnectionInstrumentation}), mirroring JDBC's {@code Connection#prepareStatement} advice. It
@@ -58,7 +61,7 @@ public final class R2dbcSqlCommentInjector {
   }
 
   static String inject(String sql, ConnectionFactoryOptions options) {
-    String dbType = DECORATE.extractDbType(options);
+    String dbType = DECORATE.getDbType(options);
     String dbService = DECORATE.getDbService(options);
     if (dbService != null) {
       dbService = traceConfig(activeSpan()).getServiceMapping().getOrDefault(dbService, dbService);
@@ -81,11 +84,28 @@ public final class R2dbcSqlCommentInjector {
    */
   public static String inject(
       String sql, String dbService, String dbType, String hostname, String dbName) {
+    return inject(sql, dbService, dbType, hostname, dbName, DBM_ALWAYS_APPEND_SQL_COMMENT);
+  }
+
+  static String inject(
+      String sql,
+      String dbService,
+      String dbType,
+      String hostname,
+      String dbName,
+      boolean preferAppend) {
     if (sql == null || sql.isEmpty()) {
       return sql;
     }
 
     if (!INJECT_COMMENT) {
+      return sql;
+    }
+
+    boolean appendComment = preferAppend || mustAppend(sql, dbType);
+
+    // Skip SQL that already carries a DD comment before building a new one
+    if (hasDDComment(sql, appendComment)) {
       return sql;
     }
 
@@ -97,18 +117,75 @@ public final class R2dbcSqlCommentInjector {
       return sql;
     }
 
-    // Check for existing DD comment to avoid duplicate injection
-    if (sql.startsWith(OPEN_COMMENT) && SharedDBCommenter.containsTraceComment(sql)) {
-      return sql;
-    }
-
-    // Prepend the comment to the SQL query
     StringBuilder sb = new StringBuilder(sql.length() + commentContent.length() + 6);
-    sb.append(OPEN_COMMENT);
-    sb.append(commentContent);
-    sb.append(CLOSE_COMMENT);
-    sb.append(' ');
-    sb.append(sql);
+    if (appendComment) {
+      // Keep a statement-terminating semicolon after the comment
+      int closingSemicolon = indexOfClosingSemicolon(sql);
+      sb.append(sql, 0, closingSemicolon > -1 ? closingSemicolon : sql.length());
+      sb.append(' ').append(OPEN_COMMENT).append(commentContent).append(CLOSE_COMMENT);
+      if (closingSemicolon > -1) {
+        sb.append(';');
+      }
+    } else {
+      sb.append(OPEN_COMMENT).append(commentContent).append(CLOSE_COMMENT).append(' ').append(sql);
+    }
     return sb.toString();
+  }
+
+  /**
+   * PostgreSQL and MySQL reject anything before {@code CALL}, and {@code pg_hint_plan} only reads a
+   * hint comment at the start of the statement, so both must keep the DD comment at the end.
+   */
+  private static boolean mustAppend(String sql, String dbType) {
+    if (startsWithIgnoreCase(sql, "call")) {
+      return true;
+    }
+    return dbType != null && dbType.startsWith("postgres") && sql.contains("/*+");
+  }
+
+  private static boolean startsWithIgnoreCase(String sql, String word) {
+    int start = 0;
+    while (start < sql.length() && Character.isWhitespace(sql.charAt(start))) {
+      start++;
+    }
+    int end = start + word.length();
+    return sql.regionMatches(true, start, word, 0, word.length())
+        && (end == sql.length() || Character.isWhitespace(sql.charAt(end)));
+  }
+
+  private static boolean hasDDComment(String sql, boolean appendComment) {
+    if (appendComment) {
+      // Look at the last comment, ignoring a terminating semicolon and trailing whitespace
+      int tail = indexOfClosingSemicolon(sql);
+      int bodyEnd = tail > -1 ? tail : sql.length();
+      while (bodyEnd > 0 && Character.isWhitespace(sql.charAt(bodyEnd - 1))) {
+        bodyEnd--;
+      }
+      int end = bodyEnd - CLOSE_COMMENT.length();
+      if (end < 0 || !sql.startsWith(CLOSE_COMMENT, end)) {
+        return false;
+      }
+      int start = sql.lastIndexOf(OPEN_COMMENT, end - 1);
+      return start != -1
+          && SharedDBCommenter.containsTraceComment(sql, start + OPEN_COMMENT.length(), end);
+    }
+    if (!sql.startsWith(OPEN_COMMENT)) {
+      return false;
+    }
+    int end = sql.indexOf(CLOSE_COMMENT, OPEN_COMMENT.length());
+    return end != -1 && SharedDBCommenter.containsTraceComment(sql, OPEN_COMMENT.length(), end);
+  }
+
+  /** Index of the semicolon that terminates {@code sql} (ignoring trailing whitespace), or -1. */
+  private static int indexOfClosingSemicolon(String sql) {
+    for (int i = sql.length() - 1; i >= 0; i--) {
+      char c = sql.charAt(i);
+      if (c == ';') {
+        return i;
+      } else if (!Character.isWhitespace(c)) {
+        break;
+      }
+    }
+    return -1;
   }
 }
