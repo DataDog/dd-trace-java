@@ -2,7 +2,6 @@ package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.appsec.api.blocking.BlockingException
 import datadog.context.Context
-import datadog.trace.api.KnownTags
 import datadog.trace.api.TagMap
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
@@ -25,7 +24,16 @@ class BaseDecoratorTest extends DDSpecification {
   @Shared
   def errorPriority = null as Byte
 
-  def span = Mock(AgentSpan)
+  def span = mockSpan()
+
+  /**
+   * Mocks an {@link AgentSpan} that reports every id-keyed {@code setTag} as the name-keyed call,
+   * so expectations are written by tag name however the code under test sets the tag. See
+   * {@link NameKeyedAgentSpan}.
+   */
+  AgentSpan mockSpan() {
+    return Mock(NameKeyedAgentSpan)
+  }
   def spanContext = Mock(AgentSpanContext)
 
   def "test afterStart"() {
@@ -56,14 +64,14 @@ class BaseDecoratorTest extends DDSpecification {
 
     then:
     if (!connection.isUnresolved()) {
-      1 * span.setTag(KnownTags.PEER_HOSTNAME_ID, connection.hostName)
+      1 * span.setTag(Tags.PEER_HOSTNAME, connection.hostName)
     }
-    1 * span.setTag(KnownTags.PEER_PORT_ID, connection.port)
+    1 * span.setTag(Tags.PEER_PORT, connection.port)
     if (connection.address instanceof Inet4Address) {
-      1 * span.setTag(KnownTags.PEER_IPV4_ID, connection.address.hostAddress)
+      1 * span.setTag(Tags.PEER_HOST_IPV4, connection.address.hostAddress)
     }
     if (connection.address instanceof Inet6Address) {
-      1 * span.setTag(KnownTags.PEER_IPV6_ID, connection.address.hostAddress)
+      1 * span.setTag(Tags.PEER_HOST_IPV6, connection.address.hostAddress)
     }
     0 * _
 

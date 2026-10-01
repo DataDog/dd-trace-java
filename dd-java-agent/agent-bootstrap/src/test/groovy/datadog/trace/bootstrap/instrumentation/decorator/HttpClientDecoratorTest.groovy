@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.trace.api.DDTags
-import datadog.trace.api.KnownTags
 import datadog.trace.api.appsec.HttpClientRequest
 import datadog.trace.api.config.AppSecConfig
 import datadog.trace.api.gateway.CallbackProvider
@@ -53,7 +52,7 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     AgentTracer.forceRegister(ORIGINAL_TRACER)
   }
 
-  def span = Mock(AgentSpan)
+  def span = mockSpan()
 
   def "test onRequest"() {
     setup:
@@ -70,7 +69,7 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
       1 * span.setTag(DDTags.HTTP_QUERY, null)
       1 * span.setTag(DDTags.HTTP_FRAGMENT, null)
       1 * span.setTag(Tags.PEER_HOSTNAME, req.url.host)
-      1 * span.setTag(KnownTags.PEER_PORT_ID, req.url.port)
+      1 * span.setTag(Tags.PEER_PORT, req.url.port)
       1 * span.setResourceName({ it as String == req.method.toUpperCase() + " " + req.path }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)
       if (renameService) {
         1 * span.setServiceName(req.url.host, _)
@@ -108,7 +107,7 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
       1 * span.setTag(Tags.PEER_HOSTNAME, hostname)
     }
     if (port) {
-      1 * span.setTag(KnownTags.PEER_PORT_ID, port)
+      1 * span.setTag(Tags.PEER_PORT, port)
     }
     if (url != null) {
       1 * span.setResourceName({ it as String == expectedPath }, ResourceNamePriorities.HTTP_PATH_NORMALIZER)

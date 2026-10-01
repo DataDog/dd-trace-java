@@ -2,7 +2,6 @@ package datadog.trace.bootstrap.instrumentation.decorator
 
 
 import datadog.trace.api.DDTags
-import datadog.trace.api.KnownTags
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.gateway.CallbackProvider
@@ -37,7 +36,7 @@ import static datadog.trace.api.gateway.Events.EVENTS
 
 class HttpServerDecoratorTest extends ServerDecoratorTest {
 
-  def span = Mock(AgentSpan)
+  def span = mockSpan()
 
   static class MapCarrierVisitor
   implements AgentPropagation.ContextVisitor<Map> {
@@ -230,7 +229,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     }
     1 * this.span.setTag(Tags.HTTP_FORWARDED_PORT, "123")
     if (conn?.port) {
-      1 * this.span.setTag(KnownTags.PEER_PORT_ID, conn.port)
+      1 * this.span.setTag(Tags.PEER_PORT, conn.port)
     }
     1 * this.span.setTag(Tags.HTTP_USER_AGENT, "some-user-agent")
     _ * this.span.getRequestContext() >> null
