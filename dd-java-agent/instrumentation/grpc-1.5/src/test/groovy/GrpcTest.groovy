@@ -3,6 +3,7 @@ import static datadog.trace.agent.test.asserts.TagsAssert.codeOriginTags
 import static datadog.trace.api.config.TraceInstrumentationConfig.GRPC_SERVER_ERROR_STATUSES
 
 import com.google.common.util.concurrent.MoreExecutors
+import datadog.context.Context
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDSpanTypes
@@ -13,6 +14,7 @@ import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.Baggage
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.datastreams.StatsGroup
@@ -23,12 +25,17 @@ import io.grpc.BindableService
 import io.grpc.ManagedChannel
 import io.grpc.Metadata
 import io.grpc.Server
+import io.grpc.ServerCall
+import io.grpc.ServerCallHandler
+import io.grpc.ServerInterceptor
+import io.grpc.ServerInterceptors
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
 import io.grpc.inprocess.InProcessChannelBuilder
 import io.grpc.inprocess.InProcessServerBuilder
 import io.grpc.netty.NettyChannelBuilder
 import io.grpc.netty.NettyServerBuilder
+import io.grpc.stub.MetadataUtils
 import io.grpc.stub.StreamObserver
 import spock.lang.Shared
 
@@ -36,6 +43,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import java.util.function.BiFunction
 import java.util.function.Function
 import java.util.function.Supplier
@@ -584,6 +592,63 @@ abstract class GrpcTest extends VersionedNamingTestBase {
         }
       }
     }
+
+    cleanup:
+    channel?.shutdownNow()?.awaitTermination(10, TimeUnit.SECONDS)
+    server?.shutdownNow()?.awaitTermination()
+  }
+
+  def "test inbound baggage is current in the handler and propagated downstream"() {
+    setup:
+    def handlerBaggage = new AtomicReference<Map<String, String>>()
+    def downstreamBaggage = new AtomicReference<String>()
+    def downstreamClient = new AtomicReference<GreeterGrpc.GreeterBlockingStub>()
+    BindableService greeter = new GreeterGrpc.GreeterImplBase() {
+        @Override
+        void sayHello(
+          final Helloworld.Request req, final StreamObserver<Helloworld.Response> responseObserver) {
+          handlerBaggage.set(Baggage.fromContext(Context.current())?.asMap())
+          // outbound call made from the handler, which should carry the inbound baggage
+          def downstream = downstreamClient.get().ignoreInbound(req)
+          responseObserver.onNext(Helloworld.Response.newBuilder().setMessage(downstream.message).build())
+          responseObserver.onCompleted()
+        }
+
+        @Override
+        void ignoreInbound(
+          final Helloworld.Request req, final StreamObserver<Helloworld.Response> responseObserver) {
+          responseObserver.onNext(Helloworld.Response.newBuilder().setMessage("Hello $req.name").build())
+          responseObserver.onCompleted()
+        }
+      }
+    def captureDownstreamBaggage = new ServerInterceptor() {
+        @Override
+        <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(
+          ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
+          if (call.methodDescriptor.fullMethodName == "example.Greeter/IgnoreInbound") {
+            downstreamBaggage.set(headers.get(Metadata.Key.of("baggage", Metadata.ASCII_STRING_MARSHALLER)))
+          }
+          return next.startCall(call, headers)
+        }
+      }
+    // no directExecutor: the handler blocks on its downstream call to the same server
+    Server server = InProcessServerBuilder.forName(getClass().name)
+      .addService(ServerInterceptors.intercept(greeter, captureDownstreamBaggage)).build().start()
+    ManagedChannel channel = InProcessChannelBuilder.forName(getClass().name).build()
+    downstreamClient.set(GreeterGrpc.newBlockingStub(channel))
+    def inbound = new Metadata()
+    inbound.put(Metadata.Key.of("baggage", Metadata.ASCII_STRING_MARSHALLER), "user.id=abc123,jtbd=checkout")
+    GreeterGrpc.GreeterBlockingStub client = GreeterGrpc.newBlockingStub(channel)
+      .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(inbound))
+
+    when:
+    def response = client.sayHello(Helloworld.Request.newBuilder().setName("whatever").build())
+    TEST_WRITER.waitForTraces(2)
+
+    then:
+    response.message == "Hello whatever"
+    handlerBaggage.get() == ["user.id": "abc123", "jtbd": "checkout"]
+    downstreamBaggage.get()?.split(",") as Set == ["user.id=abc123", "jtbd=checkout"] as Set
 
     cleanup:
     channel?.shutdownNow()?.awaitTermination(10, TimeUnit.SECONDS)
