@@ -39,18 +39,6 @@ public final class MemcachedClientInstrumentation extends InstrumenterModule.Tra
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".MemcacheClientDecorator",
-      packageName + ".CompletionListener",
-      packageName + ".SyncCompletionListener",
-      packageName + ".GetCompletionListener",
-      packageName + ".OperationCompletionListener",
-      packageName + ".BulkGetCompletionListener"
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()

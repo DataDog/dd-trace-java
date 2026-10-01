@@ -17,10 +17,6 @@ dependencies {
   testRuntimeOnly(project(":dd-java-agent:instrumentation:java:java-lang:java-lang-9.0"))
 }
 
-tasks.named("compileMain_java11Java", JavaCompile) {
-  configureCompiler(it, JavaVersion.VERSION_11)
-}
-
 tasks.named("compileTestGroovy", GroovyCompile) {
   configureCompiler(it, JavaVersion.VERSION_11)
 }
@@ -30,5 +26,4 @@ idea {
     jdkName = '11'
   }
 }
-
 

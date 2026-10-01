@@ -25,7 +25,7 @@ class DefaultDebuggerConfigUpdaterTest {
     DebuggerAgent.run(Config.get(), mock(Instrumentation.class), sco);
     DefaultDebuggerConfigUpdater productConfigUpdater =
         new DefaultDebuggerConfigUpdater(Config.get());
-    productConfigUpdater.updateConfig(new DebuggerConfigUpdate());
+    productConfigUpdater.updateConfig(DebuggerConfigUpdate.EMPTY);
     productConfigUpdater.updateConfig(new DebuggerConfigUpdate(true, true, true, true));
     assertTrue(productConfigUpdater.isDynamicInstrumentationEnabled());
     if (JavaVirtualMachine.isJavaVersionAtLeast(11)) {
@@ -35,7 +35,7 @@ class DefaultDebuggerConfigUpdaterTest {
     }
     assertTrue(productConfigUpdater.isCodeOriginEnabled());
     assertTrue(productConfigUpdater.isDistributedDebuggerEnabled());
-    productConfigUpdater.updateConfig(new DebuggerConfigUpdate());
+    productConfigUpdater.updateConfig(DebuggerConfigUpdate.EMPTY);
     assertTrue(productConfigUpdater.isDynamicInstrumentationEnabled());
     if (JavaVirtualMachine.isJavaVersionAtLeast(11)) {
       assertTrue(productConfigUpdater.isExceptionReplayEnabled());

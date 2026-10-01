@@ -56,7 +56,8 @@ public final class HelperScanner extends ClassVisitor {
   }
 
   /** Whether a class can be injected as an instrumentation helper. */
-  public static boolean isHelperClass(String className, boolean fromModuleOutput) {
+  public static boolean isHelperClass(
+      String className, boolean fromModuleOutput, InstrumenterModule module) {
     if (isBootstrapClass(className)) {
       return false;
     }
@@ -68,7 +69,7 @@ public final class HelperScanner extends ClassVisitor {
         return true;
       }
     }
-    return false;
+    return module.isHelperClass(className);
   }
 
   /**

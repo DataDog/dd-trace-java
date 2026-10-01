@@ -31,11 +31,6 @@ public class ContextDataInjectorFactoryInstrumentation extends InstrumenterModul
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".SpanDecoratingContextDataInjector"};
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
