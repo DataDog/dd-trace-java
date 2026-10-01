@@ -299,6 +299,37 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       return new Entry(tag, OBJECT, 0, value);
     }
 
+    // Id-keyed factories: the tag id already names a canonical tag, so these skip the
+    // canonicalizing
+    // name lookup the String factories pay.
+    static Entry newAnyEntry(long tagId, Object value) {
+      return new Entry(tagId, ANY, 0L, value);
+    }
+
+    static Entry newObjectEntry(long tagId, Object value) {
+      return new Entry(tagId, OBJECT, 0, value);
+    }
+
+    static Entry newBooleanEntry(long tagId, boolean value) {
+      return new Entry(tagId, BOOLEAN, boolean2Prim(value), Boolean.valueOf(value));
+    }
+
+    static Entry newIntEntry(long tagId, int value) {
+      return new Entry(tagId, INT, int2Prim(value), null);
+    }
+
+    static Entry newLongEntry(long tagId, long value) {
+      return new Entry(tagId, LONG, long2Prim(value), null);
+    }
+
+    static Entry newFloatEntry(long tagId, float value) {
+      return new Entry(tagId, FLOAT, float2Prim(value), null);
+    }
+
+    static Entry newDoubleEntry(long tagId, double value) {
+      return new Entry(tagId, DOUBLE, double2Prim(value), null);
+    }
+
     static Entry newBooleanEntry(String tag, boolean value) {
       return new Entry(tag, BOOLEAN, boolean2Prim(value), Boolean.valueOf(value));
     }
@@ -377,6 +408,23 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       this.rawType = type;
       this.rawPrim = prim;
       this.rawObj = obj;
+    }
+
+    private Entry(long tagId, byte type, long prim, Object obj) {
+      super(knownName(tagId));
+      this.lazyTagHash = 0; // lazily computed
+
+      this.rawType = type;
+      this.rawPrim = prim;
+      this.rawObj = obj;
+    }
+
+    private static String knownName(long tagId) {
+      String name = KnownTagCodec.nameOf(tagId);
+      if (name == null) {
+        throw new IllegalArgumentException("not a known tag id: " + Long.toHexString(tagId));
+      }
+      return name;
     }
 
     int hash() {
@@ -1414,6 +1462,39 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   public void set(@Nonnull String tag, double value) {
     this.putEntry(Entry.newDoubleEntry(tag, value));
+  }
+
+  /*
+   * Id-keyed setters: the caller passes a KnownTags.*_ID, so the entry is built under the tag's
+   * canonical name without the name lookup the String setters pay. The id must name a known tag;
+   * custom tags have no id and use the String setters.
+   */
+  public void set(long tagId, @Nonnull Object value) {
+    this.putEntry(Entry.newAnyEntry(tagId, value));
+  }
+
+  public void set(long tagId, @Nonnull CharSequence value) {
+    this.putEntry(Entry.newObjectEntry(tagId, value));
+  }
+
+  public void set(long tagId, boolean value) {
+    this.putEntry(Entry.newBooleanEntry(tagId, value));
+  }
+
+  public void set(long tagId, int value) {
+    this.putEntry(Entry.newIntEntry(tagId, value));
+  }
+
+  public void set(long tagId, long value) {
+    this.putEntry(Entry.newLongEntry(tagId, value));
+  }
+
+  public void set(long tagId, float value) {
+    this.putEntry(Entry.newFloatEntry(tagId, value));
+  }
+
+  public void set(long tagId, double value) {
+    this.putEntry(Entry.newDoubleEntry(tagId, value));
   }
 
   /**
