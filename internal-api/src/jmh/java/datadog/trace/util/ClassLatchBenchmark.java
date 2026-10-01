@@ -85,6 +85,41 @@ import org.openjdk.jmh.annotations.Warmup;
  * about 36M and 32M. So the mean and its error are two modes averaged, and the ranking of the two
  * forms at depth 50 is not established. Both modes (roughly 85 ns and 32 ns) are far below the
  * status quo of about 6 us. The cause was not investigated.
+ *
+ * <p>Results, one run: Zulu 17.0.7 (HotSpot), MacBook M1, single thread, 5 forks, on a laptop with
+ * normal background activity (load about 4). JDK 8 and x86 are not measured. {@code latched} uses
+ * {@code handleAbstractMethod} with a method reference; {@code subclass} is a benchmark-local
+ * dedicated subclass, for comparison.
+ *
+ * <pre>
+ * Benchmark                (depth)          ops/s     ns/op    err   B/op
+ * unguardedMissing               0        227,738    4391.0   0.4%    896
+ * latchedWrapperMissing          0        232,316    4304.5   0.5%    896
+ * latchedMissing                 0    205,379,219      4.87   0.6%      0
+ * subclassMissing                0    205,736,674      4.86   0.6%      0
+ * unguardedPresent               0    224,381,889      4.46   0.4%      0
+ * latchedPresent                 0    209,902,233      4.76   0.3%      0
+ * subclassPresent                0    211,697,167      4.72   0.1%      0
+ *
+ * unguardedMissing              50        165,183    6053.9   1.2%   2256
+ * latchedWrapperMissing         50        171,300    5837.7   0.5%   2256
+ * latchedMissing                50     11,741,580      85.2   0.8%      0
+ * subclassMissing               50     11,842,809      84.4   0.3%      0
+ * unguardedPresent              50     35,092,870      28.5   3.4%      0
+ * latchedPresent                50     35,079,191      28.5   3.3%      0
+ * subclassPresent               50     36,004,724      27.8   3.0%      0
+ * </pre>
+ *
+ * A latched class costs about 4.9 ns where the status quo costs about 4.4 us (6.1 us at depth 50),
+ * and allocates nothing where the status quo allocates 896 B (2,256 B): roughly 900 times cheaper
+ * at depth 0 and 70 times at depth 50. A wrapper, which cannot be latched, performs like the status
+ * quo. The method-reference form and the dedicated subclass are indistinguishable (within 1%). The
+ * latch adds about 0.3 ns on the working path at depth 0 and nothing measurable at depth 50.
+ *
+ * <p>Unexplained: at depth 50 a latched skip (about 85 ns) is slower than a call that runs (about
+ * 28.5 ns), though at depth 0 the skip is as cheap as expected. All five forks agreed (11.7M to
+ * 11.9M ops/s per fork for the latched arm), so it is not noise. It may be a JIT effect of the
+ * benchmark's recursion rather than a property of the latch, but that was not tested.
  */
 @Fork(2)
 @Warmup(iterations = 3)
