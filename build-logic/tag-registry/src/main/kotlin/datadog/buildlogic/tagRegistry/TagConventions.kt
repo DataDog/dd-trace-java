@@ -76,7 +76,8 @@ class TagConventions private constructor(
     val include: List<String>,
     val tags: List<Tag>,
     val refs: List<Ref> = emptyList(),
-    val spanKind: String? = null,
+    /** The direction set by this type's own `span-kind`, or null; see [directionOf] for inheritance. */
+    val direction: Direction? = null,
   )
 
   /**
@@ -89,7 +90,8 @@ class TagConventions private constructor(
     val appliesTo: Set<String>,
     val tags: List<Tag>,
     val refs: List<Ref> = emptyList(),
-    val spanKind: String? = null,
+    /** The direction set by this mixin's `span-kind`, or null for a mixin of any direction. */
+    val direction: Direction? = null,
   )
 
   private val declarations: Map<String, Tag> by lazy {
@@ -138,16 +140,11 @@ class TagConventions private constructor(
       }
       st.refs.forEach { applyRef(it) }
     }
-    for (mx in appliedMixins(chain)) {
+    for (mx in appliedMixins(mixins, chain)) {
       mx.tags.forEach { add(it) }
       mx.refs.forEach { if (it.name !in result) add(materialize(it)) }
     }
     return result.values.toList()
-  }
-
-  private fun appliedMixins(chain: List<SpanType>): List<Mixin> {
-    val chainNames = chain.map { it.name }.toSet()
-    return mixins.values.filter { mx -> mx.appliesAll || mx.appliesTo.any { it in chainNames } }
   }
 
   /** Returns the tags declared in `trace_level`, which are set once per trace, not per span. */
@@ -191,8 +188,7 @@ class TagConventions private constructor(
       st.tags.forEach { add(it, direction) }
     }
     for (mx in mixins.toSortedMap().values) {
-      val direction = mx.spanKind?.let { SPAN_KIND_DIRECTIONS.getValue(it) }
-      mx.tags.forEach { add(it, direction) }
+      mx.tags.forEach { add(it, mx.direction) }
     }
   }
 
@@ -225,15 +221,22 @@ class TagConventions private constructor(
       return chain
     }
 
-    /** The type's own or nearest inherited `span-kind` direction, or null when none is declared. */
-    private fun directionOf(spanTypes: Map<String, SpanType>, st: SpanType): Direction? = chainOf(spanTypes, st.name).firstNotNullOfOrNull { it.spanKind }?.let { SPAN_KIND_DIRECTIONS.getValue(it) }
+    /** The mixins whose `applies` matches a type in [chain]. */
+    private fun appliedMixins(mixins: Map<String, Mixin>, chain: List<SpanType>): List<Mixin> {
+      val chainNames = chain.map { it.name }.toSet()
+      return mixins.values.filter { mx -> mx.appliesAll || mx.appliesTo.any { it in chainNames } }
+    }
 
-    private fun parseSpanKind(m: Map<String, Any?>, owner: String): String? {
+    /** The type's own or nearest inherited `span-kind` direction, or null when none is declared. */
+    private fun directionOf(spanTypes: Map<String, SpanType>, st: SpanType): Direction? = chainOf(spanTypes, st.name).firstNotNullOfOrNull { it.direction }
+
+    /** Reads `span-kind` as the direction it sets, or null when absent. */
+    private fun parseDirection(m: Map<String, Any?>, owner: String): Direction? {
       val spanKind = m["span-kind"]
       require(spanKind == null || spanKind in SPAN_KIND_DIRECTIONS) {
         "$owner span-kind must be one of ${SPAN_KIND_DIRECTIONS.keys}"
       }
-      return spanKind as String?
+      return (spanKind as String?)?.let { SPAN_KIND_DIRECTIONS.getValue(it) }
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -263,7 +266,7 @@ class TagConventions private constructor(
             include = (m["include"] as? List<String>) ?: emptyList(),
             tags = tagList(m["tags"]),
             refs = refList(m["tags"]),
-            spanKind = parseSpanKind(m, "span type '$name'"),
+            direction = parseDirection(m, "span type '$name'"),
           )
         }
 
@@ -282,7 +285,7 @@ class TagConventions private constructor(
             appliesTo = if (applies is List<*>) (applies as List<String>).toSet() else emptySet(),
             tags = tagList(m["tags"]),
             refs = refList(m["tags"]),
-            spanKind = parseSpanKind(m, "mixin '$name'"),
+            direction = parseDirection(m, "mixin '$name'"),
           )
         }
 
@@ -313,17 +316,17 @@ class TagConventions private constructor(
       val identities = assignIdentities(parsedSpanTypes, parsedMixins, traceLevel)
       val spanTypes =
         parsedSpanTypes.mapValues { (_, st) ->
+          val direction = directionOf(parsedSpanTypes, st)
           st.copy(
-            tags = st.tags.map { identities.rename(it, directionOf(parsedSpanTypes, st)) },
-            refs = st.refs.map { identities.resolve(it, "span type '${st.name}'", directionOf(parsedSpanTypes, st)) },
+            tags = st.tags.map { identities.rename(it, direction) },
+            refs = st.refs.map { identities.resolve(it, "span type '${st.name}'", direction) },
           )
         }
       val mixins =
         parsedMixins.mapValues { (_, mx) ->
-          val direction = mx.spanKind?.let { SPAN_KIND_DIRECTIONS.getValue(it) }
           mx.copy(
-            tags = mx.tags.map { identities.rename(it, direction) },
-            refs = mx.refs.map { identities.resolve(it, "mixin '${mx.name}'", direction) },
+            tags = mx.tags.map { identities.rename(it, mx.direction) },
+            refs = mx.refs.map { identities.resolve(it, "mixin '${mx.name}'", mx.direction) },
           )
         }
       validateOtelNameScope(spanTypes, mixins, traceLevel)
@@ -338,13 +341,10 @@ class TagConventions private constructor(
     private fun validateMixinDirections(spanTypes: Map<String, SpanType>, mixins: Map<String, Mixin>) {
       for (st in spanTypes.values.filter { !it.abstract }) {
         val chain = chainOf(spanTypes, st.name)
-        val chainNames = chain.map { it.name }.toSet()
-        val reaching =
-          chain.flatMap { it.include }.mapNotNull { mixins[it] } +
-            mixins.values.filter { mx -> mx.appliesAll || mx.appliesTo.any { it in chainNames } }
+        val reaching = chain.flatMap { it.include }.mapNotNull { mixins[it] } + appliedMixins(mixins, chain)
         val direction = directionOf(spanTypes, st)
-        for (mx in reaching.filter { it.spanKind != null }.distinct()) {
-          val mixinDirection = SPAN_KIND_DIRECTIONS.getValue(mx.spanKind!!)
+        for (mx in reaching.distinct()) {
+          val mixinDirection = mx.direction ?: continue
           require(direction == mixinDirection) {
             "span type '${st.name}' (${direction?.yamlKey ?: "no span-kind"}) receives mixin '${mx.name}', " +
               "which is ${mixinDirection.yamlKey}"
@@ -373,7 +373,7 @@ class TagConventions private constructor(
       traceLevel.forEach { declare("<trace>", null, it) }
       spanTypes.values.forEach { st -> st.tags.forEach { declare(st.name, directionOf(spanTypes, st), it) } }
       mixins.values.forEach { mx ->
-        mx.tags.forEach { declare("mixin ${mx.name}", mx.spanKind?.let { SPAN_KIND_DIRECTIONS.getValue(it) }, it) }
+        mx.tags.forEach { declare("mixin ${mx.name}", mx.direction, it) }
       }
 
       val perDirection = HashMap<String, Map<Direction, String>>()
