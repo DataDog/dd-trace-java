@@ -20,18 +20,14 @@ import org.openjdk.jmh.annotations.Warmup;
  * allocation bandwidth. Run with {@code -prof gc} for allocation per operation. Tag names are
  * string constants, as the tracer's are.
  *
- * <p>Results (MacBook, JDK 21, default flags, {@code @Fork(2)} triage), 12 tags per op, before and
- * after hashing TagMap entries by tag id:
+ * <p>Results (MacBook, JDK 21, default flags, {@code @Fork(2)} triage), 12 tags per op:
  *
  * <pre>
- * Benchmark      before ns/op  after ns/op  change   B/op before -> after
- * knownByName    130.9 +- 1.8  121.1 +- 3.8  -7.5%   688 -> 736
- * knownById      100.7 +- 5.5   94.7 +- 1.7  -5.9%   688 -> 736
- * customByName    82.2 +- 2.7   80.6 +- 2.4  -1.9%   640 -> 736  (noise)
+ * Benchmark      ns/op         B/op
+ * knownByName    121.1 +- 3.8  736
+ * knownById       94.7 +- 1.7  736
+ * customByName    80.6 +- 2.4  736
  * </pre>
- *
- * <p>The entry's 64-bit tag hash costs 8 bytes per entry (alignment). Known tags net +48 B because
- * spreading them by serial removed a bucket collision.
  */
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
