@@ -116,6 +116,14 @@ class PekkoHttpServerInstrumentationAsyncTest extends PekkoHttpServerInstrumenta
 }
 
 class PekkoHttpServerInstrumentationBindAndHandleTest extends PekkoHttpServerInstrumentationTest {
+  def "restore context before processing a response downstream"() {
+    when:
+    server.checkResponseContext()
+
+    then:
+    TEST_WRITER.waitForTraces(1)
+  }
+
   @Override
   HttpServer server() {
     return new PekkoHttpTestWebServer(PekkoHttpTestWebServer.BindAndHandle())

@@ -112,6 +112,7 @@ public class DatadogServerRequestResponseFlowWrapper
                 final Context context = contexts.poll();
                 if (context != null) {
                   DatadogWrapperHelper.finishSpan(context, response);
+                  DatadogWrapperHelper.deactivateFlowContext(context);
                 }
                 push(responseOutlet, response);
               }
@@ -134,6 +135,7 @@ public class DatadogServerRequestResponseFlowWrapper
                 if (context != null) {
                   // Mark the span as failed
                   DatadogWrapperHelper.finishSpan(context, ex);
+                  DatadogWrapperHelper.deactivateFlowContext(context);
                 }
                 // We will not receive any more responses from the user code, so clean up any
                 // remaining spans
