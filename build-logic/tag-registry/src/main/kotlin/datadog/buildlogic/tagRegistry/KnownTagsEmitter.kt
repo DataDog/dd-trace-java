@@ -39,18 +39,16 @@ object KnownTagsEmitter {
       return u
     }
 
-    // A Datadog name declared per direction is shared by a tag per direction, so on its own it names
-    // no single tag. It gets no NAME constant: callers use the unambiguous per-direction ID
-    // (PEER_PORT_OUTBOUND_ID), and nameOf returns the shared name as a literal.
-    val sharedDdNames = reg.tags.groupBy { it.ddName }.filterValues { it.size > 1 }.keys
-
     val nameOfConst = HashMap<String, String>()
     val idOfConst = HashMap<String, String>()
     val serialOfConst = HashMap<String, String>()
     val otelNameOfConst = HashMap<String, String>()
     for (t in reg.tags) {
       val base = sanitize(t.name)
-      if (t.ddName !in sharedDdNames) nameOfConst[t.name] = unique(withSuffix(base, "_NAME"))
+      // A Datadog name declared per direction is shared by a tag per direction, so on its own it
+      // names no single tag. It gets no NAME constant: callers use the unambiguous per-direction ID
+      // (PEER_PORT_OUTBOUND_ID), and nameOf returns the shared name as a literal.
+      if (t.sharedNameDirection == null) nameOfConst[t.name] = unique(withSuffix(base, "_NAME"))
       idOfConst[t.name] = unique(withSuffix(base, "_ID"))
       serialOfConst[t.name] = unique(withSuffix(base, "_SERIAL_NUM"))
       // Suffix the pre-suffix base (not nameC), same as the other three: suffixing an
@@ -68,7 +66,7 @@ object KnownTagsEmitter {
     val order = reg.tags.map { it.name } // stable emit order
     // A shared name cannot pick one of its tags without the span's direction, so it is left out of
     // keyOf and resolves to no tag until resolution knows the direction.
-    val keyOfOrder = reg.tags.filter { it.ddName !in sharedDdNames }.map { it.name }
+    val keyOfOrder = reg.tags.filter { it.sharedNameDirection == null }.map { it.name }
     // canonical name -> OpenTelemetry name, for the reverse (openTelemetryNameOf) switch.
     val otelName = reg.tags.mapNotNull { t -> t.otelName?.let { t.name to it } }.toMap()
     return buildString {

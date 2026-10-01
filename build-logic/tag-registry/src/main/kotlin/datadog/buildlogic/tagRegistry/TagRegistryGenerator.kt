@@ -116,7 +116,7 @@ object TagRegistryGenerator {
       # but resolving the name to a tag needs the span's direction, so keyOf does not resolve it yet.
       """.trimIndent()
     )
-    for ((ddName, shared) in reg.tags.groupBy { it.ddName }.filterValues { it.size > 1 }.toSortedMap()) {
+    for ((ddName, shared) in reg.tags.filter { it.sharedNameDirection != null }.groupBy { it.ddName }.toSortedMap()) {
       appendLine("  %-30s -> %s".format(Locale.ROOT, ddName, shared.joinToString(", ") { it.name }))
     }
   }
