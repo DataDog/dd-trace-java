@@ -17,6 +17,7 @@ import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.assertions.SpanMatcher;
 import datadog.trace.instrumentation.pekkohttp.DatadogAsyncHandlerWrapper;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import java.lang.reflect.Field;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -252,5 +253,30 @@ abstract class AbstractPekkoHttpAsyncHandlerWrapperTest extends AbstractInstrume
           frameworkExecutor.awaitTermination(5, TimeUnit.SECONDS),
           "Framework executor did not terminate");
     }
+  }
+}
+
+/** Runs the async-handler context-retention reproducer with default Scala Promise propagation. */
+class PekkoHttpAsyncHandlerWrapperTest extends AbstractPekkoHttpAsyncHandlerWrapperTest {
+
+  @Override
+  protected boolean expectedCompletionPriority() {
+    return false;
+  }
+}
+
+/**
+ * Runs the async-handler context-retention reproducer with completion-priority propagation, which
+ * associates the completing context with the resolved {@code Try} instead of the thread.
+ *
+ * <p>{@link WithConfig} applies before the test agent is installed, so the Scala Promise
+ * instrumentation registers the advice that creates that association.
+ */
+@WithConfig(key = "trace.integration.scala_promise_completion_priority.enabled", value = "true")
+class PekkoHttpAsyncHandlerWrapperForkedTest extends AbstractPekkoHttpAsyncHandlerWrapperTest {
+
+  @Override
+  protected boolean expectedCompletionPriority() {
+    return true;
   }
 }
