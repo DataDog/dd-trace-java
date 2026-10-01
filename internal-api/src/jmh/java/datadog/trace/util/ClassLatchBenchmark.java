@@ -153,7 +153,7 @@ public class ClassLatchBenchmark {
   private static final ClassLatch<Object, Object, RuntimeException> MISSING =
       new ClassLatch<Object, Object, RuntimeException>() {
         @Override
-        protected Object handle(Object target) {
+        protected Object apply(Object target) {
           return handleAbstractMethod(target, ClassLatchBenchmark::invokeHandle);
         }
       };
@@ -161,7 +161,7 @@ public class ClassLatchBenchmark {
   private static final ClassLatch<Object, Object, RuntimeException> WRAPPER =
       new ClassLatch<Object, Object, RuntimeException>() {
         @Override
-        protected Object handle(Object target) {
+        protected Object apply(Object target) {
           return handleAbstractMethod(target, ClassLatchBenchmark::invokeHandle);
         }
       };
@@ -169,7 +169,7 @@ public class ClassLatchBenchmark {
   private static final ClassLatch<Object, Object, RuntimeException> PRESENT =
       new ClassLatch<Object, Object, RuntimeException>() {
         @Override
-        protected Object handle(Object target) {
+        protected Object apply(Object target) {
           return handleAbstractMethod(target, ClassLatchBenchmark::invokeHandle);
         }
       };
@@ -179,7 +179,7 @@ public class ClassLatchBenchmark {
     protected abstract Object invoke(Object target);
 
     @Override
-    protected final Object handle(Object target) {
+    protected final Object apply(Object target) {
       try {
         return invoke(target);
       } catch (AbstractMethodError e) {
@@ -266,15 +266,15 @@ public class ClassLatchBenchmark {
             .asType(MethodType.methodType(Object.class, Object.class));
 
     // reach the steady state: the latch has already met the deficient class
-    MISSING.tryGetOrNull(impl);
+    MISSING.tryApplyOrNull(impl);
     if (!MISSING.isLatched(impl)) {
       throw new IllegalStateException("expected the latch to latch " + impl.getClass());
     }
-    WRAPPER.tryGetOrNull(wrapper);
+    WRAPPER.tryApplyOrNull(wrapper);
     if (WRAPPER.isLatched(wrapper) || WRAPPER.isLatched(impl)) {
       throw new IllegalStateException("a wrapper must never be latched");
     }
-    SUBCLASS_MISSING.tryGetOrNull(impl);
+    SUBCLASS_MISSING.tryApplyOrNull(impl);
     if (!SUBCLASS_MISSING.isLatched(impl)) {
       throw new IllegalStateException(
           "expected the subclass-style latch to latch " + impl.getClass());
@@ -335,11 +335,11 @@ public class ClassLatchBenchmark {
   }
 
   private Object latchedMissing(int remaining) {
-    return remaining > 0 ? latchedMissing(remaining - 1) : MISSING.tryGetOrNull(impl);
+    return remaining > 0 ? latchedMissing(remaining - 1) : MISSING.tryApplyOrNull(impl);
   }
 
   private Object latchedWrapperMissing(int remaining) {
-    return remaining > 0 ? latchedWrapperMissing(remaining - 1) : WRAPPER.tryGetOrNull(wrapper);
+    return remaining > 0 ? latchedWrapperMissing(remaining - 1) : WRAPPER.tryApplyOrNull(wrapper);
   }
 
   private Object unguardedPresent(int remaining) {
@@ -347,15 +347,15 @@ public class ClassLatchBenchmark {
   }
 
   private Object latchedPresent(int remaining) {
-    return remaining > 0 ? latchedPresent(remaining - 1) : PRESENT.tryGetOrNull(full);
+    return remaining > 0 ? latchedPresent(remaining - 1) : PRESENT.tryApplyOrNull(full);
   }
 
   private Object subclassMissing(int remaining) {
-    return remaining > 0 ? subclassMissing(remaining - 1) : SUBCLASS_MISSING.tryGetOrNull(impl);
+    return remaining > 0 ? subclassMissing(remaining - 1) : SUBCLASS_MISSING.tryApplyOrNull(impl);
   }
 
   private Object subclassPresent(int remaining) {
-    return remaining > 0 ? subclassPresent(remaining - 1) : SUBCLASS_PRESENT.tryGetOrNull(full);
+    return remaining > 0 ? subclassPresent(remaining - 1) : SUBCLASS_PRESENT.tryApplyOrNull(full);
   }
 
   private static void compile(

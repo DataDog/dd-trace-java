@@ -26,14 +26,14 @@ import org.junit.jupiter.api.io.TempDir;
 
 class HandleNoSuchOrAbstractMethodTest {
 
-  /** What a call site writes: {@code handle} delegating to {@code handleNoSuchOrAbstractMethod}. */
+  /** What a call site writes: {@code apply} delegating to {@code handleNoSuchOrAbstractMethod}. */
   private abstract static class Handling<T, R, E extends Exception> extends ClassLatch<T, R, E> {
     final AtomicInteger calls = new AtomicInteger();
 
     protected abstract R invoke(T target) throws E;
 
     @Override
-    protected final R handle(T target) throws E {
+    protected final R apply(T target) throws E {
       return handleNoSuchOrAbstractMethod(
           target,
           t -> {
@@ -63,9 +63,9 @@ class HandleNoSuchOrAbstractMethodTest {
   void noSuchMethodYieldsNullAndLatchesTheTargetsClass() throws Exception {
     Throwing latch = new Throwing(new NoSuchMethodError("I.b()Ljava/lang/String;"));
 
-    assertNull(latch.tryGetOrNull("x"));
-    assertNull(latch.tryGetOrNull("y"));
-    assertNull(latch.tryGetOrNull("z"));
+    assertNull(latch.tryApplyOrNull("x"));
+    assertNull(latch.tryApplyOrNull("y"));
+    assertNull(latch.tryApplyOrNull("z"));
 
     assertEquals(1, latch.calls.get(), "later calls should be skipped");
     assertTrue(latch.isLatched("x"));
@@ -76,10 +76,10 @@ class HandleNoSuchOrAbstractMethodTest {
     // the message names the declared type, not the receiver, so it cannot be attributed to a class;
     // latching only the target's key means another class still gets its own attempt
     Throwing latch = new Throwing(new NoSuchMethodError("I.b()Ljava/lang/String;"));
-    latch.tryGetOrNull("x");
+    latch.tryApplyOrNull("x");
 
     assertFalse(latch.isLatched(Integer.valueOf(1)));
-    assertNull(latch.tryGetOrNull(Integer.valueOf(1)));
+    assertNull(latch.tryApplyOrNull(Integer.valueOf(1)));
     assertEquals(2, latch.calls.get());
     assertTrue(latch.isLatched(Integer.valueOf(1)));
   }
@@ -92,12 +92,12 @@ class HandleNoSuchOrAbstractMethodTest {
                 "Receiver class "
                     + String.class.getName()
                     + " does not define or inherit an implementation of the resolved method"));
-    assertNull(named.tryGetOrNull("x"));
+    assertNull(named.tryApplyOrNull("x"));
     assertTrue(named.isLatched("x"));
 
     Throwing unnamed = new Throwing(new AbstractMethodError("something else entirely"));
-    assertNull(unnamed.tryGetOrNull("x"));
-    assertNull(unnamed.tryGetOrNull("x"));
+    assertNull(unnamed.tryApplyOrNull("x"));
+    assertNull(unnamed.tryApplyOrNull("x"));
     assertFalse(unnamed.isLatched("x"));
     assertEquals(2, unnamed.calls.get());
   }
@@ -106,8 +106,8 @@ class HandleNoSuchOrAbstractMethodTest {
   void unsupportedOperationIsSwallowedAndNeverLatched() throws Exception {
     Throwing latch = new Throwing(new UnsupportedOperationException());
 
-    assertNull(latch.tryGetOrNull("x"));
-    assertNull(latch.tryGetOrNull("x"));
+    assertNull(latch.tryApplyOrNull("x"));
+    assertNull(latch.tryApplyOrNull("x"));
 
     assertEquals(2, latch.calls.get());
     assertFalse(latch.isLatched("x"));
@@ -116,11 +116,11 @@ class HandleNoSuchOrAbstractMethodTest {
   @Test
   void otherFailuresPropagateWithoutLatching() {
     Throwing checked = new Throwing(new SQLException("boom"));
-    assertThrows(SQLException.class, () -> checked.tryGetOrNull("x"));
+    assertThrows(SQLException.class, () -> checked.tryApplyOrNull("x"));
     assertFalse(checked.isLatched("x"));
 
     Throwing unchecked = new Throwing(new IllegalStateException());
-    assertThrows(IllegalStateException.class, () -> unchecked.tryGetOrNull("x"));
+    assertThrows(IllegalStateException.class, () -> unchecked.tryApplyOrNull("x"));
     assertFalse(unchecked.isLatched("x"));
   }
 
@@ -173,8 +173,8 @@ class HandleNoSuchOrAbstractMethodTest {
             }
           };
 
-      assertNull(latch.tryGetOrNull(impl));
-      assertNull(latch.tryGetOrNull(impl));
+      assertNull(latch.tryApplyOrNull(impl));
+      assertNull(latch.tryApplyOrNull(impl));
 
       assertEquals(1, latch.calls.get(), "second call should be skipped");
       assertTrue(latch.isLatched(impl));

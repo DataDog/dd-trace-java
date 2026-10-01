@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 
 class HandleNoSuchMethodTest {
 
-  /** What a call site writes: {@code handle} delegating to {@code handleNoSuchMethod}. */
+  /** What a call site writes: {@code apply} delegating to {@code handleNoSuchMethod}. */
   private static final class Throwing extends ClassLatch<Object, String, Exception> {
     final AtomicInteger calls = new AtomicInteger();
     final Throwable failure;
@@ -22,7 +22,7 @@ class HandleNoSuchMethodTest {
     }
 
     @Override
-    protected String handle(Object target) throws Exception {
+    protected String apply(Object target) throws Exception {
       return handleNoSuchMethod(
           target,
           t -> {
@@ -40,12 +40,12 @@ class HandleNoSuchMethodTest {
     ClassLatch<Object, String, RuntimeException> latch =
         new ClassLatch<Object, String, RuntimeException>() {
           @Override
-          protected String handle(Object target) {
+          protected String apply(Object target) {
             return handleNoSuchMethod(target, t -> "ok");
           }
         };
 
-    assertEquals("ok", latch.tryGetOrNull("x"));
+    assertEquals("ok", latch.tryApplyOrNull("x"));
     assertFalse(latch.isLatched("x"));
   }
 
@@ -53,8 +53,8 @@ class HandleNoSuchMethodTest {
   void noSuchMethodYieldsNullAndLatchesTheTargetsClass() throws Exception {
     Throwing latch = new Throwing(new NoSuchMethodError("I.b()Ljava/lang/String;"));
 
-    assertNull(latch.tryGetOrNull("x"));
-    assertNull(latch.tryGetOrNull("y"));
+    assertNull(latch.tryApplyOrNull("x"));
+    assertNull(latch.tryApplyOrNull("y"));
 
     assertEquals(1, latch.calls.get(), "later calls should be skipped");
     assertTrue(latch.isLatched("x"));
@@ -65,18 +65,18 @@ class HandleNoSuchMethodTest {
   @Test
   void doesNotHandleAbstractMethodErrorOrUnsupportedOperation() {
     Throwing abstractMethod = new Throwing(new AbstractMethodError("Impl.b()V"));
-    assertThrows(AbstractMethodError.class, () -> abstractMethod.tryGetOrNull("x"));
+    assertThrows(AbstractMethodError.class, () -> abstractMethod.tryApplyOrNull("x"));
     assertFalse(abstractMethod.isLatched("x"));
 
     Throwing unsupported = new Throwing(new UnsupportedOperationException());
-    assertThrows(UnsupportedOperationException.class, () -> unsupported.tryGetOrNull("x"));
+    assertThrows(UnsupportedOperationException.class, () -> unsupported.tryApplyOrNull("x"));
     assertFalse(unsupported.isLatched("x"));
   }
 
   @Test
   void otherFailuresPropagateWithoutLatching() {
     Throwing checked = new Throwing(new SQLException("boom"));
-    assertThrows(SQLException.class, () -> checked.tryGetOrNull("x"));
+    assertThrows(SQLException.class, () -> checked.tryApplyOrNull("x"));
     assertFalse(checked.isLatched("x"));
   }
 }

@@ -25,7 +25,7 @@ class ClassLatchTest {
     final AtomicInteger calls = new AtomicInteger();
 
     @Override
-    protected String handle(Object target) {
+    protected String apply(Object target) {
       calls.incrementAndGet();
       try {
         throw new IllegalStateException();
@@ -40,9 +40,9 @@ class ClassLatchTest {
   void latchesTheTargetsClassAndSkipsLaterCalls() {
     Counting latch = new Counting();
 
-    assertEquals("failed", latch.tryGetOrNull("x"));
-    assertNull(latch.tryGetOrNull("y"));
-    assertNull(latch.tryGetOrNull("z"));
+    assertEquals("failed", latch.tryApplyOrNull("x"));
+    assertNull(latch.tryApplyOrNull("y"));
+    assertNull(latch.tryApplyOrNull("z"));
 
     assertEquals(1, latch.calls.get());
     assertTrue(latch.isLatched("x"));
@@ -51,10 +51,10 @@ class ClassLatchTest {
   @Test
   void otherClassesAreUnaffected() {
     Counting latch = new Counting();
-    latch.tryGetOrNull("x");
+    latch.tryApplyOrNull("x");
 
     assertFalse(latch.isLatched(Integer.valueOf(1)));
-    assertEquals("failed", latch.tryGetOrNull(Integer.valueOf(1)));
+    assertEquals("failed", latch.tryApplyOrNull(Integer.valueOf(1)));
     assertEquals(2, latch.calls.get());
   }
 
@@ -62,33 +62,33 @@ class ClassLatchTest {
   void nullTargetReturnsTheDefaultWithoutCalling() {
     Counting latch = new Counting();
 
-    assertNull(latch.tryGetOrNull(null));
+    assertNull(latch.tryApplyOrNull(null));
     assertFalse(latch.isLatched(null));
     assertEquals(0, latch.calls.get());
   }
 
   @Test
-  void tryGetOrDefaultReturnsTheResultWhenThereIsOne() {
+  void tryApplyOrDefaultReturnsTheResultWhenThereIsOne() {
     ClassLatch<Object, Boolean, RuntimeException> latch =
         new ClassLatch<Object, Boolean, RuntimeException>() {
           @Override
-          protected Boolean handle(Object target) {
+          protected Boolean apply(Object target) {
             return false;
           }
         };
 
     // a real false must not be replaced by the fallback
-    assertEquals(false, latch.tryGetOrDefault("x", Boolean.TRUE));
+    assertEquals(false, latch.tryApplyOrDefault("x", Boolean.TRUE));
   }
 
   @Test
-  void tryGetOrDefaultReturnsTheFallbackWhenSkippedOrNull() {
+  void tryApplyOrDefaultReturnsTheFallbackWhenSkippedOrNull() {
     Counting latch = new Counting();
 
     // the first call latches and yields a value; later calls are skipped
-    assertEquals("failed", latch.tryGetOrDefault("x", "fallback"));
-    assertEquals("fallback", latch.tryGetOrDefault("x", "fallback"));
-    assertEquals("fallback", latch.tryGetOrDefault(null, "fallback"));
+    assertEquals("failed", latch.tryApplyOrDefault("x", "fallback"));
+    assertEquals("fallback", latch.tryApplyOrDefault("x", "fallback"));
+    assertEquals("fallback", latch.tryApplyOrDefault(null, "fallback"));
   }
 
   @Test
@@ -96,14 +96,14 @@ class ClassLatchTest {
     ClassLatch<Object, String, RuntimeException> latch =
         new ClassLatch<Object, String, RuntimeException>() {
           @Override
-          protected String handle(Object target) {
+          protected String apply(Object target) {
             latch(target);
             return null;
           }
         };
 
-    assertEquals("fallback", latch.tryGetOrDefault("x", "fallback"));
-    assertEquals("fallback", latch.tryGetOrDefault("x", "fallback"));
+    assertEquals("fallback", latch.tryApplyOrDefault("x", "fallback"));
+    assertEquals("fallback", latch.tryApplyOrDefault("x", "fallback"));
   }
 
   @Test
@@ -119,7 +119,7 @@ class ClassLatchTest {
     ClassLatch<Wrapper, String, RuntimeException> latch =
         new ClassLatch<Wrapper, String, RuntimeException>() {
           @Override
-          protected String handle(Wrapper target) {
+          protected String apply(Wrapper target) {
             latch(target);
             return "called";
           }
@@ -130,17 +130,17 @@ class ClassLatchTest {
           }
         };
 
-    assertEquals("called", latch.tryGetOrNull(new Wrapper("x")));
+    assertEquals("called", latch.tryApplyOrNull(new Wrapper("x")));
 
     assertTrue(latch.isLatched(new Wrapper("another string")));
     assertFalse(latch.isLatched(new Wrapper(Integer.valueOf(1))));
-    assertEquals("called", latch.tryGetOrNull(new Wrapper(Integer.valueOf(1))));
+    assertEquals("called", latch.tryApplyOrNull(new Wrapper(Integer.valueOf(1))));
   }
 
   /** A subclass may expose {@code unlatch}, for a policy that retries. */
   private static final class Resumable extends ClassLatch<Object, String, RuntimeException> {
     @Override
-    protected String handle(Object target) {
+    protected String apply(Object target) {
       latch(target);
       return "called";
     }
@@ -153,8 +153,8 @@ class ClassLatchTest {
   @Test
   void unlatchResumesForThatKeyOnly() {
     Resumable latch = new Resumable();
-    latch.tryGetOrNull("x");
-    latch.tryGetOrNull(Integer.valueOf(1));
+    latch.tryApplyOrNull("x");
+    latch.tryApplyOrNull(Integer.valueOf(1));
     assertTrue(latch.isLatched("x"));
     assertTrue(latch.isLatched(Integer.valueOf(1)));
 
@@ -162,7 +162,7 @@ class ClassLatchTest {
 
     assertFalse(latch.isLatched("x"));
     assertTrue(latch.isLatched(Integer.valueOf(1)));
-    assertEquals("called", latch.tryGetOrNull("x"));
+    assertEquals("called", latch.tryApplyOrNull("x"));
   }
 
   @Test
@@ -171,24 +171,24 @@ class ClassLatchTest {
     ClassLatch<Object, String, RuntimeException> latch =
         new ClassLatch<Object, String, RuntimeException>() {
           @Override
-          protected String handle(Object target) {
+          protected String apply(Object target) {
             result[0] = latchIfNamed(target, receiverError(target.getClass()));
             return "named";
           }
         };
-    latch.tryGetOrNull("x");
+    latch.tryApplyOrNull("x");
     assertTrue(result[0]);
     assertTrue(latch.isLatched("x"));
 
     ClassLatch<Object, String, RuntimeException> other =
         new ClassLatch<Object, String, RuntimeException>() {
           @Override
-          protected String handle(Object target) {
+          protected String apply(Object target) {
             result[0] = latchIfNamed(target, receiverError(Integer.class));
             return "other";
           }
         };
-    other.tryGetOrNull("x");
+    other.tryApplyOrNull("x");
     assertFalse(result[0]);
     assertFalse(other.isLatched("x"));
   }
@@ -229,12 +229,12 @@ class ClassLatchTest {
     ClassLatch<Object, String, SQLException> latch =
         new ClassLatch<Object, String, SQLException>() {
           @Override
-          protected String handle(Object target) throws SQLException {
+          protected String apply(Object target) throws SQLException {
             throw new SQLException("boom");
           }
         };
 
-    assertThrows(SQLException.class, () -> latch.tryGetOrNull("x"));
+    assertThrows(SQLException.class, () -> latch.tryApplyOrNull("x"));
     assertFalse(latch.isLatched("x"));
   }
 }
