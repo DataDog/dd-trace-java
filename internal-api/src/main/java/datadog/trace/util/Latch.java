@@ -60,8 +60,8 @@ public abstract class Latch<T, R, E extends Exception> {
    * }
    * }</pre>
    *
-   * A field read throws nothing checked, so the read is a plain {@link Function}. Unlike {@code
-   * ClassLatch#handleAbstractMethod}, which swallows the failure, this rethrows it.
+   * A field read throws nothing checked, so the read is a plain {@link Function}. Unlike a helper
+   * that swallows the failure, this rethrows it, so the first failure is still reported.
    */
   @Nullable
   protected final R handleNoSuchField(T target, Function<T, R> read) {
