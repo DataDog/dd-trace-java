@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatIllegalArgumentException
+import org.assertj.core.api.Assertions.entry
 import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -131,6 +132,8 @@ class TagRegistryGeneratorTest {
           nonstring reference required | span_types: {base: {tags: [{ref: foo, required: 42}]}} | required must be a string
           scalar trace tag             | trace_level: {tags: [foo]}                             | tag declaration must be a mapping
           trace reference              | trace_level: {tags: [{ref: foo}]}                      | trace_level tags must be declarations
+          unknown span kind            | span_types: {base: {span-kind: sideways}}              | span-kind must be one of
+          unknown frame                | mixins: {peer: {frame: absolute}}                      | frame must be 'relative'
           """
   )
   fun `invalid composition preserves previous output`(domain: String, message: String) {
@@ -221,7 +224,7 @@ class TagRegistryGeneratorTest {
   }
 
   @Test
-  fun `rename on a concrete span type requires span-kind-neutral`() {
+  fun `rename on a concrete span type with no span-kind requires span-kind-neutral`() {
     val yaml = directory.conventionsFile(
       """
       span_types:
@@ -274,6 +277,98 @@ class TagRegistryGeneratorTest {
 
     assertThat(contents(output).getValue("java/datadog/trace/api/KnownTags.java"))
       .contains("HTTP_METHOD_OTEL_NAME", "PEER_PORT_OTEL_NAME")
+  }
+
+  @Test
+  fun `rename on a span type with a span-kind applies only in its direction`() {
+    val yaml = directory.conventionsFile(
+      """
+      span_types:
+        http.server:
+          span-kind: server
+          tags: [{dd-name: http.hostname, otel-name: server.address}]
+      """
+    )
+    val output = File(directory, "generated")
+
+    TagRegistryGenerator.generate(yaml, output)
+
+    val generated = contents(output)
+    assertThat(generated.getValue("java/datadog/trace/api/KnownTags.java")).doesNotContain("server.address")
+    assertThat(generated.getValue("tag-assignment.txt"))
+      .containsPattern("server\\.address +inbound +-> http\\.hostname")
+  }
+
+  @Test
+  fun `one OpenTelemetry name can map to a different tag in each direction`() {
+    val conventions = tagConventions(
+      """
+      span_types:
+        http.server:
+          span-kind: server
+          include: [peer_endpoint]
+          tags: [{dd-name: http.hostname, otel-name: server.address}]
+        http.client:
+          span-kind: client
+          include: [peer_endpoint]
+      mixins:
+        peer_endpoint:
+          frame: relative
+          tags:
+            - {dd-name: peer.hostname, otel-name: {outbound: server.address}}
+            - {dd-name: peer.port, type: int, otel-name: {outbound: server.port, inbound: client.port}}
+      """
+    )
+
+    val tags = TagRegistry.build(conventions).tags.associateBy { it.name }
+
+    assertThat(tags.getValue("http.hostname").otelByDirection)
+      .containsExactly(entry(TagConventions.Direction.INBOUND, "server.address"))
+    assertThat(tags.getValue("peer.hostname").otelByDirection)
+      .containsExactly(entry(TagConventions.Direction.OUTBOUND, "server.address"))
+    assertThat(tags.getValue("peer.port").otelByDirection)
+      .containsOnly(
+        entry(TagConventions.Direction.OUTBOUND, "server.port"),
+        entry(TagConventions.Direction.INBOUND, "client.port"),
+      )
+    assertThat(tags.values.map { it.otelName }).containsOnlyNulls()
+  }
+
+  @Test
+  fun `span-kind-neutral widens a typed rename to every direction`() {
+    val conventions = tagConventions(
+      """
+      span_types:
+        db.client:
+          span-kind: client
+          tags: [{dd-name: db.type, otel-name: db.system, span-kind-neutral: true}]
+      """
+    )
+
+    val dbType = TagRegistry.build(conventions).tags.single()
+
+    assertThat(dbType.otelName).isEqualTo("db.system")
+    assertThat(dbType.otelByDirection).hasSize(TagConventions.Direction.entries.size)
+  }
+
+  @TableTest(
+    """
+          scenario                     | domain                                                                                                                                                               | message
+          same name in one direction   | span_types: {a: {span-kind: server, tags: [{dd-name: x, otel-name: o}]}, b: {span-kind: consumer, tags: [{dd-name: y, otel-name: o}]}}                                | claimed by both 'x' and 'y' on inbound spans
+          neutral contradicts scoped   | span_types: {a: {span-kind: server, tags: [{dd-name: x, otel-name: o, span-kind-neutral: true}]}, b: {span-kind: client, tags: [{dd-name: y, otel-name: o}]}}         | on outbound spans
+          per-direction on span type   | span_types: {a: {span-kind: client, tags: [{dd-name: x, otel-name: {outbound: o}}]}}                                                                                  | outside a `frame: relative` mixin
+          per-direction in plain mixin | mixins: {m: {tags: [{dd-name: x, otel-name: {outbound: o}}]}}                                                                                                         | is not `frame: relative`
+          unknown direction key        | mixins: {m: {frame: relative, tags: [{dd-name: x, otel-name: {sideways: o}}]}}                                                                                        | may only use keys
+          empty per-direction name     | mixins: {m: {frame: relative, tags: [{dd-name: x, otel-name: {outbound: ''}}]}}                                                                                       | invalid outbound otel-name
+          neutral with per-direction   | mixins: {m: {frame: relative, tags: [{dd-name: x, otel-name: {outbound: o}, span-kind-neutral: true}]}}                                                               | span-kind-neutral without an otel-name
+          """
+  )
+  fun `direction rules for OpenTelemetry names are enforced`(domain: String, message: String) {
+    val yaml = directory.conventionsFile(domain)
+
+    assertThatIllegalArgumentException()
+      .isThrownBy { TagRegistryGenerator.generate(yaml, File(directory, "generated")) }
+      .withMessageContaining(message)
   }
 
   @Test
