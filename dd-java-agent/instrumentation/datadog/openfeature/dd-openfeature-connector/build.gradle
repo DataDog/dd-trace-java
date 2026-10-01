@@ -1,0 +1,38 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'idea'
+}
+
+// TODO Add a muzzle pass directive on com.datadoghq:dd-openfeature once the SDK is published.
+
+tracerJava {
+  addSourceSetFor(JavaVersion.VERSION_11)
+}
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_11
+}
+
+dependencies {
+  main_java11CompileOnly project(':dd-openfeature')
+  main_java11CompileOnly project(':products:feature-flagging:feature-flagging-bootstrap')
+  main_java11CompileOnly libs.spotbugs.annotations
+
+  testImplementation project(':dd-openfeature')
+  testImplementation project(':products:feature-flagging:feature-flagging-bootstrap')
+  testImplementation libs.bundles.mockito
+}
+
+tasks.named("compileMain_java11Java", JavaCompile) {
+  configureCompiler(it, JavaVersion.VERSION_11)
+}
+
+tasks.named("compileTestJava", JavaCompile) {
+  configureCompiler(it, JavaVersion.VERSION_11)
+}
+
+idea {
+  module {
+    jdkName = '11'
+  }
+}

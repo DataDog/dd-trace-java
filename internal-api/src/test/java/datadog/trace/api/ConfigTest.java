@@ -1,8 +1,6 @@
 package datadog.trace.api;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
@@ -169,8 +167,6 @@ import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
 import static datadog.trace.api.env.FixedCapturedEnvironment.useFixedEnv;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
 import static datadog.trace.bootstrap.config.provider.ConfigProvider.withPropertiesOverride;
 import static java.util.Arrays.asList;
@@ -3652,20 +3648,6 @@ class ConfigTest {
     assertEquals(expected, config.isTraceResourceRenamingAlwaysSimplifiedEndpoint());
   }
 
-  @Test
-  void agentlessFeatureFlagTimingUsesPositiveConfiguredValues() throws Exception {
-    Properties properties = new Properties();
-    properties.setProperty(
-        FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS, "60");
-    properties.setProperty(
-        FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS, "4");
-
-    Config config = newConfig(withPropertiesOverride(properties));
-
-    assertEquals(60, config.getFeatureFlaggingConfigurationSourcePollIntervalSeconds());
-    assertEquals(4, config.getFeatureFlaggingConfigurationSourceRequestTimeoutSeconds());
-  }
-
   @TableTest({
     "scenario          | value             | expected         ",
     "not set           |                   | agentless        ",
@@ -3723,23 +3705,6 @@ class ConfigTest {
 
     assertEquals(expectedEnabled, config.isFeatureFlaggingProviderEnabled());
     assertEquals(expectedSource, config.getFeatureFlaggingConfigurationSource());
-  }
-
-  @Test
-  void agentlessFeatureFlagTimingFallsBackForNonPositiveValues() throws Exception {
-    Properties properties = new Properties();
-    properties.setProperty(FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS, "0");
-    properties.setProperty(
-        FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS, "-1");
-
-    Config config = newConfig(withPropertiesOverride(properties));
-
-    assertEquals(
-        DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS,
-        config.getFeatureFlaggingConfigurationSourcePollIntervalSeconds());
-    assertEquals(
-        DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS,
-        config.getFeatureFlaggingConfigurationSourceRequestTimeoutSeconds());
   }
 
   /** Reads a private {@link Config} field that has no getter. */
