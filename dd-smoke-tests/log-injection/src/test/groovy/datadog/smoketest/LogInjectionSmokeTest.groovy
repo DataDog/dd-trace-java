@@ -31,6 +31,7 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
   static final int TIMEOUT_SECS = 30
 
   static final String LOG4J2_BACKEND = "Log4j2"
+  static final Set<String> DIRECT_LOG_SUBMISSION_BACKENDS = [LOG4J2_BACKEND, "Logback"] as Set
 
   @Shared
   File outputLogFile
@@ -185,7 +186,7 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
   }
 
   def supportsDirectLogSubmission() {
-    return backend() == LOG4J2_BACKEND
+    return backend() in DIRECT_LOG_SUBMISSION_BACKENDS
   }
 
   def supportsAppLogCollection() {
