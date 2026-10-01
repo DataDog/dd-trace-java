@@ -359,6 +359,9 @@ public class AgentInstaller {
     if (cfg.isLlmObsEnabled()) {
       enabledSystems.add(InstrumenterModule.TargetSystem.LLMOBS);
     }
+    if (cfg.isFeatureFlaggingEnabled()) {
+      enabledSystems.add(InstrumenterModule.TargetSystem.FEATURE_FLAGS);
+    }
     return enabledSystems;
   }
 
