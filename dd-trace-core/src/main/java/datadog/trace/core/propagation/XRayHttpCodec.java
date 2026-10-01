@@ -156,35 +156,22 @@ class XRayHttpCodec {
           case 'x':
             if (X_AMZN_TRACE_ID.equalsIgnoreCase(key)) {
               handleXRayTraceHeader(this, value);
-              return true;
-            } else if (handledXForwarding(key, value)) {
-              return true;
+            } else {
+              handledXForwarding(key, value);
             }
             break;
           case 'f':
-            if (handledForwarding(key, value)) {
-              return true;
-            }
+            handledForwarding(key, value);
             break;
           case 'u':
-            if (handledUserAgent(key, value)) {
-              return true;
-            }
+            handledUserAgent(key, value);
             break;
           default:
         }
 
-        if (handledIpHeaders(key, value)) {
-          return true;
-        } else {
-          handleTags(key, value);
-        }
-
-        if (!baggageMapping.isEmpty()) {
-          String mappedKey = baggageMapping.get(toLowerCase(key));
-          if (null != mappedKey) {
-            addBaggageItem(mappedKey, value);
-          }
+        handledIpHeaders(key, value);
+        if (!handleTags(key, value)) {
+          handleMappedBaggage(key, value);
         }
         return true;
       } catch (RuntimeException e) {

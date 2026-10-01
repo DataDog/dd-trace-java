@@ -158,9 +158,7 @@ class W3CHttpCodec {
       char first = Character.toLowerCase(key.charAt(0));
       switch (first) {
         case 'f':
-          if (handledForwarding(key, value)) {
-            return true;
-          }
+          handledForwarding(key, value);
           break;
         case 'o':
           lowerCaseKey = toLowerCase(key);
@@ -178,14 +176,10 @@ class W3CHttpCodec {
           }
           break;
         case 'u':
-          if (handledUserAgent(key, value)) {
-            return true;
-          }
+          handledUserAgent(key, value);
           break;
         case 'x':
-          if (handledXForwarding(key, value)) {
-            return true;
-          }
+          handledXForwarding(key, value);
           break;
         default:
       }
@@ -213,9 +207,7 @@ class W3CHttpCodec {
           return false;
         }
       } else {
-        if (handledIpHeaders(key, value)) {
-          return true;
-        }
+        handledIpHeaders(key, value);
         if (handleTags(key, value)) {
           return true;
         }
