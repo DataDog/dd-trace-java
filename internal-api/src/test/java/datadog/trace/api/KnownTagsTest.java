@@ -2,6 +2,7 @@ package datadog.trace.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -167,7 +168,7 @@ class KnownTagsTest {
   void aNameDeclaredPerDirectionIsOneTagPerDirection() {
     assertEquals(Tags.PEER_PORT, KnownTagCodec.nameOf(KnownTags.PEER_PORT_INBOUND_ID));
     assertEquals(Tags.PEER_PORT, KnownTagCodec.nameOf(KnownTags.PEER_PORT_OUTBOUND_ID));
-    assertFalse(KnownTags.PEER_PORT_INBOUND_ID == KnownTags.PEER_PORT_OUTBOUND_ID);
+    assertNotEquals(KnownTags.PEER_PORT_INBOUND_ID, KnownTags.PEER_PORT_OUTBOUND_ID);
     assertEquals(0L, KnownTagCodec.keyOf(Tags.PEER_PORT));
   }
 
