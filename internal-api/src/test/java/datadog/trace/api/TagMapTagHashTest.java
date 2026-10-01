@@ -3,6 +3,10 @@ package datadog.trace.api;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -44,6 +48,43 @@ class TagMapTagHashTest {
     assertNotEquals(
         TagMap.Entry.bucketHash(KnownTags.HTTP_METHOD_ID) & 0xFF,
         TagMap.Entry.bucketHash(KnownTags.HTTP_ROUTE_ID) & 0xFF);
+  }
+
+  @Test
+  void noKnownTagFoldsToTheVacantSlotHash() throws IllegalAccessException {
+    // BucketGroup treats a zero hash as a vacant slot; _dd.djm.enabled once folded to zero.
+    for (long tagId : knownTagIds()) {
+      assertNotEquals(0, TagMap.Entry.bucketHash(tagId), Long.toHexString(tagId));
+    }
+    assertNotEquals(0, TagMap.Entry.bucketHash(KnownTags.DD_DJM_ENABLED_ID));
+  }
+
+  @Test
+  void everyKnownTagSurvivesBucketCollisionsAndCopies() throws IllegalAccessException {
+    List<Long> tagIds = knownTagIds();
+    TagMap map = TagMap.create();
+    for (long tagId : tagIds) {
+      map.set(tagId, "value");
+    }
+    TagMap copy = map.copy();
+
+    assertEquals(tagIds.size(), map.size());
+    assertEquals(tagIds.size(), copy.size());
+    for (long tagId : tagIds) {
+      String name = KnownTagCodec.nameOf(tagId);
+      assertEquals("value", map.getObject(name), name);
+      assertEquals("value", copy.getObject(name), name);
+    }
+  }
+
+  private static List<Long> knownTagIds() throws IllegalAccessException {
+    List<Long> tagIds = new ArrayList<>();
+    for (Field field : KnownTags.class.getFields()) {
+      if (field.getType() == long.class && Modifier.isStatic(field.getModifiers())) {
+        tagIds.add(field.getLong(null));
+      }
+    }
+    return tagIds;
   }
 
   @Test
