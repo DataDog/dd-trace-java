@@ -28,7 +28,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.jboss.logmanager.ExtLogRecord;
 
 @AutoService(InstrumenterModule.class)
-public class ExtLogRecordInstrumentation extends InstrumenterModule.Tracing
+public class ExtLogRecordInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public ExtLogRecordInstrumentation() {
     super("jboss-logmanager");
