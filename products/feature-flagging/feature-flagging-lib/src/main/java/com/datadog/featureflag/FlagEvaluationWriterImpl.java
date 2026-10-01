@@ -1,12 +1,12 @@
 package com.datadog.featureflag;
 
-import static datadog.trace.api.featureflag.flagevaluation.FlagEvaluationMetrics.Metric.DEGRADED_CARDINALITY_CAP;
-import static datadog.trace.api.featureflag.flagevaluation.FlagEvaluationMetrics.Metric.DEGRADED_PAYLOAD_LIMIT;
-import static datadog.trace.api.featureflag.flagevaluation.FlagEvaluationMetrics.Metric.DROPPED_CLOSED;
-import static datadog.trace.api.featureflag.flagevaluation.FlagEvaluationMetrics.Metric.DROPPED_DEGRADED_CAP;
-import static datadog.trace.api.featureflag.flagevaluation.FlagEvaluationMetrics.Metric.DROPPED_PAYLOAD_LIMIT;
-import static datadog.trace.api.featureflag.flagevaluation.FlagEvaluationMetrics.Metric.DROPPED_QUEUE_OVERFLOW;
-import static datadog.trace.api.featureflag.flagevaluation.FlagEvaluationMetrics.Metric.PAYLOAD_SPLITS;
+import static datadog.trace.api.telemetry.FlagEvaluationMetricCollector.Counter.DEGRADED_CARDINALITY_CAP;
+import static datadog.trace.api.telemetry.FlagEvaluationMetricCollector.Counter.DEGRADED_PAYLOAD_LIMIT;
+import static datadog.trace.api.telemetry.FlagEvaluationMetricCollector.Counter.DROPPED_CLOSED;
+import static datadog.trace.api.telemetry.FlagEvaluationMetricCollector.Counter.DROPPED_DEGRADED_CAP;
+import static datadog.trace.api.telemetry.FlagEvaluationMetricCollector.Counter.DROPPED_PAYLOAD_LIMIT;
+import static datadog.trace.api.telemetry.FlagEvaluationMetricCollector.Counter.DROPPED_QUEUE_OVERFLOW;
+import static datadog.trace.api.telemetry.FlagEvaluationMetricCollector.Counter.PAYLOAD_SPLITS;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.FEATURE_FLAG_EVALUATION_PROCESSOR;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -19,8 +19,8 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
-import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationMetrics;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
+import datadog.trace.api.telemetry.FlagEvaluationMetricCollector;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.List;
@@ -66,7 +66,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
 
   static final int FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES = EvpProxy.PAYLOAD_SIZE_LIMIT_BYTES;
   private static final String FLAG_EVALUATION_ROUTE = "flagevaluation";
-  private static final FlagEvaluationMetrics METRICS = FlagEvaluationMetrics.getInstance();
+  private static final FlagEvaluationMetricCollector METRICS = FlagEvaluationMetricCollector.get();
 
   private final MessagePassingBlockingQueue<FlagEvalEvent> queue;
   private final FlagEvaluationSerializingHandler serializer;

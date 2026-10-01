@@ -29,8 +29,6 @@ extra["excludedClassesCoverage"] = listOf(
 )
 
 dependencies {
-  implementation(project(":products:metrics:metrics-api"))
-
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)
   testImplementation(project(":utils:test-utils"))
