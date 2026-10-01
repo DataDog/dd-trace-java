@@ -487,9 +487,14 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     /**
      * Folds a tag hash to the 32-bit bucket hash. A tag id's serial is in bits 63-48, so it is
      * folded down from there rather than from bit 32, where a bucket mask would discard it.
+     *
+     * <p>Never zero: BucketGroup treats a zero hash as a vacant slot. The fold can produce zero
+     * when a serial equals the id's flag bits (serial 4 with the trace-level bit, 4), so zero maps
+     * to the same nonzero sentinel {@link #_hash} uses.
      */
     static int bucketHash(long tagHash) {
-      return (int) (tagHash >>> 48) ^ (int) tagHash;
+      int hash = (int) (tagHash >>> 48) ^ (int) tagHash;
+      return hash == 0 ? 0xDD06 : hash;
     }
 
     int hash() {
