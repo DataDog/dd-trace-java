@@ -34,7 +34,6 @@ dependencies {
   implementation(libs.slf4j)
 
   implementation(project(":internal-api"))
-  implementation(project(":products:feature-flagging:feature-flagging-bootstrap"))
 
   compileOnly(project(":dd-java-agent:agent-tooling"))
   testImplementation(project(":dd-java-agent:agent-tooling"))
