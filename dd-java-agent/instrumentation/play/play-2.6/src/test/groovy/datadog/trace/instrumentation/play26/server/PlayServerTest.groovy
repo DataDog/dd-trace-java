@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.play26.server
 
+import datadog.trace.agent.test.naming.TestingOtelHttpSemantics
+
 class PlayServerTest extends AbstractPlayServerTest {
   // Disabling involving Appsec / Instrumentation Gateway, they are tested in play-appsec-2.x modules
 
@@ -47,4 +49,7 @@ class PlayServerTest extends AbstractPlayServerTest {
   boolean testBodyXml() {
     false
   }
+}
+
+class PlayServerOtelSemanticsForkedTest extends PlayServerTest implements TestingOtelHttpSemantics {
 }
