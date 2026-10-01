@@ -52,6 +52,44 @@ import org.openjdk.jmh.annotations.Warmup;
  * read the per-fork iterations and not only the mean.
  *
  * <p>Run with {@code ./gradlew :internal-api:jmh -Pjmh.includes=LatchBenchmark -Pjmh.profilers=gc}.
+ *
+ * <p>Results, one run: Zulu 17.0.7 (HotSpot), MacBook M1, single thread, 5 forks, on a laptop with
+ * normal background activity (load about 4). {@code unguarded} is the status quo, {@code
+ * volatileFlag} and {@code plainFlag} are hand-rolled flags, and {@code latch} is this class. JDK 8
+ * and x86 are not measured.
+ *
+ * <pre>
+ * Benchmark              (depth)          ops/s     ns/op    err   B/op
+ * unguardedMissing             0        286,635    3488.8   0.4%    768
+ * volatileFlagMissing          0    409,799,340      2.44   1.2%      0
+ * plainFlagMissing             0    458,120,051      2.18   0.6%      0
+ * latchMissing                 0    458,763,738      2.18   0.8%      0
+ * unguardedPresent             0    298,248,659      3.35   0.5%      0
+ * volatileFlagPresent          0    247,533,590      4.04   0.4%      0
+ * plainFlagPresent             0    281,751,834      3.55   0.2%      0
+ * latchPresent                 0    282,939,106      3.53   0.2%      0
+ *
+ * unguardedMissing            50        196,076    5100.1   0.5%   2128
+ * volatileFlagMissing         50     33,753,591      29.6   0.5%      0
+ * plainFlagMissing            50     36,099,245      27.7   0.4%      0
+ * latchMissing                50     35,428,255      28.2   0.3%      0
+ * unguardedPresent            50     30,037,705      33.3   0.5%      0
+ * volatileFlagPresent         50     31,199,284      32.1   3.1%      0
+ * plainFlagPresent            50     25,366,102      39.4   6.2%      0
+ * latchPresent                50     31,938,175      31.3   0.9%      0
+ * </pre>
+ *
+ * A latched skip costs about 2.2 ns where the status quo costs about 3.5 us at depth 0 (5.1 us at
+ * depth 50) and allocates 768 B (2,128 B); that is roughly 1,600 times cheaper at depth 0 and 180
+ * times at depth 50. {@code Latch} is as cheap as a hand-rolled plain flag (2.18 against 2.18 ns
+ * skipped, 3.53 against 3.55 ns on the working path), so the abstraction costs nothing measurable.
+ * A volatile flag costs more: about 0.5 ns over a plain flag on the working path at depth 0 (4.04
+ * against 3.55 ns) and about 0.3 ns when skipping (2.44 against 2.18 ns).
+ *
+ * <p>At depth 50, read only the skipped arms (28 to 30 ns, consistent across forks): the
+ * working-path arms span 31 to 39 ns and the plain flag, which is the same logic as {@code latch},
+ * came out slowest with a 6% error and one fork at 28.9M against 24.2M to 24.8M ops/s for the
+ * others. That spread is JIT and recursion noise, not a difference between the designs.
  */
 @Fork(3)
 @Warmup(iterations = 3)
