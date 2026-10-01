@@ -24,7 +24,13 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     val serial: Int,
     val traceLevel: Boolean,
     val id: Long,
+    /** The OpenTelemetry name that applies in every direction, or null; see below. */
     val otelName: String? = null,
+    /**
+     * The OpenTelemetry name per span direction. A superset of [otelName]: a rename scoped to one
+     * direction appears only here, and is not applied until name resolution knows the direction.
+     */
+    val otelByDirection: Map<TagConventions.Direction, String> = emptyMap(),
   )
 
   companion object {
@@ -43,6 +49,9 @@ class TagRegistry private constructor(val tags: List<Tag>) {
 
     fun build(conv: TagConventions): TagRegistry {
       val traceNames = conv.traceLevelTags().map { it.name }.toSet()
+      val directionFree = conv.directionFreeOtelNames()
+      val byDirection =
+        conv.otelMappings().groupBy { it.tag }.mapValues { (_, m) -> m.associate { it.direction to it.otelName } }
 
       // Stable order (by name) so serials -- and therefore ids -- are a pure function of the input.
       val tags =
@@ -56,7 +65,8 @@ class TagRegistry private constructor(val tags: List<Tag>) {
             serial,
             traceLevel,
             id = encode(serial, traceLevel),
-            otelName = t.otelName
+            otelName = directionFree[t.name],
+            otelByDirection = byDirection[t.name].orEmpty(),
           )
         }
 
@@ -65,21 +75,24 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     }
 
     /**
-     * An OpenTelemetry name must be unambiguous: it may not collide with any canonical tag name, nor
-     * be claimed by two different tags. Otherwise keyOf(otelName) would have no single right answer.
-     * Fail the build loudly rather than silently pick a winner.
+     * An OpenTelemetry name must be unambiguous in each direction: it may not collide with any
+     * canonical tag name, nor be claimed by two tags on spans of the same direction. Two tags may
+     * share a name across directions -- `server.address` is `http.hostname` on inbound spans and
+     * `peer.hostname` on outbound ones. Otherwise resolving that name would have no single answer.
      */
     private fun validateOtelNames(tags: List<Tag>) {
       val canonical = tags.map { it.name }.toSet()
-      val owner = HashMap<String, String>()
+      val owner = HashMap<Pair<TagConventions.Direction, String>, String>()
       for (t in tags) {
-        val otel = t.otelName ?: continue
-        require(otel !in canonical) {
-          "OpenTelemetry name '$otel' (of '${t.name}') collides with canonical tag name '$otel'"
-        }
-        val prev = owner.put(otel, t.name)
-        require(prev == null) {
-          "OpenTelemetry name '$otel' is claimed by both '$prev' and '${t.name}'"
+        for ((direction, otel) in t.otelByDirection) {
+          require(otel !in canonical) {
+            "OpenTelemetry name '$otel' (of '${t.name}') collides with canonical tag name '$otel'"
+          }
+          val prev = owner.put(direction to otel, t.name)
+          require(prev == null || prev == t.name) {
+            "OpenTelemetry name '$otel' is claimed by both '$prev' and '${t.name}' on " +
+              "${direction.yamlKey} spans"
+          }
         }
       }
     }

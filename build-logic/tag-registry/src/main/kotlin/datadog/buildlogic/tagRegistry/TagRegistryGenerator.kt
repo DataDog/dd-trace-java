@@ -94,5 +94,20 @@ object TagRegistryGenerator {
     for ((otel, canonical) in otelPairs) {
       appendLine("  %-30s -> %s".format(Locale.ROOT, otel, canonical))
     }
+    appendLine(
+      """
+
+      # DIRECTION-SCOPED OPENTELEMETRY NAMES. Each applies only on spans of the given direction, so
+      # it is not in the tables above; name resolution does not use it until it knows the direction.
+      """.trimIndent()
+    )
+    val scoped =
+      reg.tags
+        .flatMap { t -> t.otelByDirection.map { (direction, otel) -> Triple(otel, direction, t) } }
+        .filter { (otel, _, t) -> otel != t.otelName }
+        .sortedWith(compareBy({ it.first }, { it.second }))
+    for ((otel, direction, t) in scoped) {
+      appendLine("  %-30s %-9s -> %s".format(Locale.ROOT, otel, direction.yamlKey, t.name))
+    }
   }
 }

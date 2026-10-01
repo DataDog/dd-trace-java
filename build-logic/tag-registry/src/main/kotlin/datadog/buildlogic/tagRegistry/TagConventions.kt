@@ -24,19 +24,39 @@ class TagConventions private constructor(
      */
     val otelName: String? = null,
     /**
-     * Set `span-kind-neutral: true` on a rename declared on a concrete span type to confirm the
-     * OpenTelemetry name means this tag on every span kind where OpenTelemetry uses it. Name
-     * resolution ignores span kind, so the rename applies on every span, not only on this type.
+     * Set `span-kind-neutral: true` to apply a rename declared on a typed span type in every
+     * direction, not only in that type's. It confirms OpenTelemetry uses the name only for this tag:
+     * `db.type` -> `db.system` on `db.client` qualifies, because `db.system` only describes a
+     * database. Until name resolution knows a span's direction, only renames that apply in every
+     * direction are used, so an unmarked typed rename is recorded but not yet applied.
      *
-     * For example, `db.type` -> `db.system` on `db.client` qualifies: `db.system` only ever
-     * describes a database. `http.hostname` -> `server.address` on `http.server` does not: on
-     * client spans, `server.address` is the remote server. Renames in `trace_level`, abstract
-     * types, and mixins need no flag. Setting the flag without a rename is invalid.
+     * A rename on a concrete span type with no `span-kind` requires the flag. Renames in
+     * `trace_level`, abstract types, and mixins need none. Setting it without a plain rename is
+     * invalid.
      *
-     * The flag is interim: a follow-on replaces it with span-kind-aware name resolution.
+     * The flag is interim: it goes away once name resolution is direction-aware.
      */
     val spanKindNeutral: Boolean = false,
+    /**
+     * Direction-specific OpenTelemetry names from the map form of `otel-name`, for a tag whose meaning
+     * flips with span direction, such as `peer.port`: `{ outbound: server.port, inbound: client.port }`.
+     * Allowed only in a `frame: relative` mixin.
+     */
+    val otelByDirection: Map<Direction, String> = emptyMap(),
   )
+
+  /**
+   * Span direction, derived from `span-kind`: `server` and `consumer` are inbound, `client` and
+   * `producer` are outbound, and `internal` has no direction.
+   */
+  enum class Direction(val yamlKey: String) {
+    INBOUND("inbound"),
+    OUTBOUND("outbound"),
+    NONE("none"),
+  }
+
+  /** One OpenTelemetry name for [tag] on spans of [direction]. */
+  data class OtelMapping(val tag: String, val direction: Direction, val otelName: String)
 
   /**
    * A `{ ref: <dd-name>, required: <level> }` entry. It reuses a tag declared elsewhere, optionally
@@ -51,6 +71,7 @@ class TagConventions private constructor(
     val include: List<String>,
     val tags: List<Tag>,
     val refs: List<Ref> = emptyList(),
+    val spanKind: String? = null,
   )
 
   data class Mixin(
@@ -59,6 +80,8 @@ class TagConventions private constructor(
     val appliesTo: Set<String>,
     val tags: List<Tag>,
     val refs: List<Ref> = emptyList(),
+    /** `relative` for a mixin whose tags name the other end of the connection, such as `peer.*`. */
+    val frame: String? = null,
   )
 
   private val declarations: Map<String, Tag> by lazy {
@@ -145,7 +168,60 @@ class TagConventions private constructor(
       if (missing.isEmpty()) null else mx.name to missing
     }
 
+  /**
+   * Returns every OpenTelemetry name per direction. A plain `otel-name` in a shared scope
+   * (`trace_level`, a type without a direction, a mixin) or marked `span-kind-neutral` applies in
+   * every direction. An unmarked one on a type with a `span-kind` applies only in that type's
+   * direction. The map form applies only in the directions it names.
+   */
+  fun otelMappings(): List<OtelMapping> = buildList {
+    fun plain(t: Tag, directions: Collection<Direction>) {
+      val otel = t.otelName ?: return
+      directions.forEach { add(OtelMapping(t.name, it, otel)) }
+    }
+    traceLevel.forEach { plain(it, Direction.entries) }
+    for (st in spanTypes.toSortedMap().values) {
+      val direction = directionOf(st)
+      for (t in st.tags) {
+        plain(t, if (direction == null || t.spanKindNeutral) Direction.entries else listOf(direction))
+      }
+    }
+    for (mx in mixins.toSortedMap().values) {
+      for (t in mx.tags) {
+        plain(t, Direction.entries)
+        t.otelByDirection.forEach { (direction, otel) -> add(OtelMapping(t.name, direction, otel)) }
+      }
+    }
+  }
+
+  /**
+   * Returns the tags whose OpenTelemetry name applies in every direction, mapped to that name.
+   * Only these renames are safe to apply without knowing a span's direction.
+   */
+  fun directionFreeOtelNames(): Map<String, String> = otelMappings()
+    .groupBy { it.tag }
+    .filterValues { m -> m.size == Direction.entries.size && m.map { it.otelName }.distinct().size == 1 }
+    .mapValues { (_, m) -> m.first().otelName }
+
+  private fun directionOf(st: SpanType): Direction? {
+    var current: SpanType? = st
+    while (current != null) {
+      current.spanKind?.let { return SPAN_KIND_DIRECTIONS.getValue(it) }
+      current = current.extends?.let { spanTypes[it] }
+    }
+    return null
+  }
+
   companion object {
+    private val SPAN_KIND_DIRECTIONS =
+      mapOf(
+        "server" to Direction.INBOUND,
+        "consumer" to Direction.INBOUND,
+        "client" to Direction.OUTBOUND,
+        "producer" to Direction.OUTBOUND,
+        "internal" to Direction.NONE,
+      )
+
     @Suppress("UNCHECKED_CAST")
     fun parse(root: Map<String, Any?>): TagConventions {
       for (section in listOf("span_types", "mixins", "trace_level")) {
@@ -162,6 +238,10 @@ class TagConventions private constructor(
           require(m["extends"] == null || m["extends"] is String) {
             "span type '$name' extends must be a span type name"
           }
+          val spanKind = m["span-kind"]
+          require(spanKind == null || spanKind in SPAN_KIND_DIRECTIONS) {
+            "span type '$name' span-kind must be one of ${SPAN_KIND_DIRECTIONS.keys}"
+          }
           val include = m["include"]
           require(include == null || (include is List<*> && include.all { it is String })) {
             "span type '$name' include must be a list of mixin names"
@@ -173,6 +253,7 @@ class TagConventions private constructor(
             include = (m["include"] as? List<String>) ?: emptyList(),
             tags = tagList(m["tags"]),
             refs = refList(m["tags"]),
+            spanKind = spanKind as String?,
           )
         }
 
@@ -185,12 +266,14 @@ class TagConventions private constructor(
           require(applies == null || applies == "all" || (applies is List<*> && applies.all { it is String })) {
             "mixin '$name' applies must be 'all' or a list of span types"
           }
+          require(m["frame"] == null || m["frame"] == "relative") { "mixin '$name' frame must be 'relative'" }
           Mixin(
             name = name,
             appliesAll = applies == "all",
             appliesTo = if (applies is List<*>) (applies as List<String>).toSet() else emptySet(),
             tags = tagList(m["tags"]),
             refs = refList(m["tags"]),
+            frame = m["frame"] as String?,
           )
         }
 
@@ -252,9 +335,10 @@ class TagConventions private constructor(
     }
 
     /**
-     * Requires `span-kind-neutral: true` for renames on concrete span types because name
-     * resolution ignores span kind. Validation checks the flag and requires a configured
-     * rename, relying on the author's semantic check. Shared scopes do not require the flag.
+     * Checks where each form of `otel-name` may appear. A plain rename on a concrete span type
+     * without a `span-kind` needs `span-kind-neutral: true`, because nothing scopes it to a
+     * direction. The map form is allowed only in a `frame: relative` mixin, and
+     * `span-kind-neutral` requires a plain rename.
      */
     private fun validateOtelNameScope(
       spanTypes: Map<String, SpanType>,
@@ -267,13 +351,34 @@ class TagConventions private constructor(
           "tag '${t.name}' sets span-kind-neutral without an otel-name"
         }
       }
-      for (st in spanTypes.values.filter { !it.abstract }) {
+      for (t in traceLevel + spanTypes.values.flatMap { it.tags }) {
+        require(t.otelByDirection.isEmpty()) {
+          "tag '${t.name}' uses a per-direction otel-name outside a `frame: relative` mixin"
+        }
+      }
+      for (mx in mixins.values.filter { it.frame != "relative" }) {
+        for (t in mx.tags) {
+          require(t.otelByDirection.isEmpty()) {
+            "tag '${t.name}' uses a per-direction otel-name in mixin '${mx.name}', which is not " +
+              "`frame: relative`"
+          }
+        }
+      }
+      fun hasSpanKind(st: SpanType): Boolean {
+        var current: SpanType? = st
+        while (current != null) {
+          if (current.spanKind != null) return true
+          current = current.extends?.let { spanTypes[it] }
+        }
+        return false
+      }
+      for (st in spanTypes.values.filter { !it.abstract && !hasSpanKind(it) }) {
         for (t in st.tags) {
           require(t.otelName == null || t.spanKindNeutral) {
-            "tag '${t.name}' renames to otel-name '${t.otelName}' on concrete span type '${st.name}'. " +
-              "Canonicalization ignores span kind, so either declare it in a shared scope (an " +
-              "abstract parent or a mixin) or, if '${t.otelName}' means '${t.name}' on every span " +
-              "kind, add `span-kind-neutral: true`."
+            "tag '${t.name}' renames to otel-name '${t.otelName}' on concrete span type '${st.name}', " +
+              "which has no span-kind. Declare a span-kind to scope the rename to that direction, declare " +
+              "it in a shared scope (an abstract parent or a mixin), or, if '${t.otelName}' means " +
+              "'${t.name}' on every span kind, add `span-kind-neutral: true`."
           }
         }
       }
@@ -310,8 +415,9 @@ class TagConventions private constructor(
           name = name,
           type = (m["type"] as? String) ?: "string",
           required = (m["required"] as? String) ?: "optional",
-          otelName = parseOtelName(m),
+          otelName = if (m["otel-name"] is Map<*, *>) null else parseOtelName(m),
           spanKindNeutral = parseSpanKindNeutral(m),
+          otelByDirection = parseOtelByDirection(m),
         )
       } ?: emptyList()
     }
@@ -328,6 +434,24 @@ class TagConventions private constructor(
       val raw = m["span-kind-neutral"]
       require(raw is Boolean) { "tag '${m["dd-name"]}' has a non-boolean span-kind-neutral: '$raw'" }
       return raw
+    }
+
+    /**
+     * Reads the map form of `otel-name`, `{ outbound: <name>, inbound: <name> }`. Either key may be
+     * omitted; each value must be a nonblank string.
+     */
+    private fun parseOtelByDirection(m: Map<String, Any?>): Map<Direction, String> {
+      val raw = m["otel-name"] as? Map<*, *> ?: return emptyMap()
+      val byKey = Direction.entries.filter { it != Direction.NONE }.associateBy { it.yamlKey }
+      require(raw.isNotEmpty() && raw.keys.all { it in byKey }) {
+        "tag '${m["dd-name"]}' per-direction otel-name may only use keys ${byKey.keys}: $raw"
+      }
+      return raw.entries.associate { (key, value) ->
+        require(value is String && value.isNotBlank()) {
+          "tag '${m["dd-name"]}' has an invalid $key otel-name: '$value'"
+        }
+        byKey.getValue(key as String) to value
+      }
     }
 
     /**
