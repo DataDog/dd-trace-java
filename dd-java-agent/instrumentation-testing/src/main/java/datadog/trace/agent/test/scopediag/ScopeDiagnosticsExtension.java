@@ -119,7 +119,18 @@ public final class ScopeDiagnosticsExtension
 
   @Override
   public void afterAll(ExtensionContext context) {
-    ScopeDiagnostics.reset();
+    if (isOutermostTestClass(context)) {
+      ScopeDiagnostics.reset();
+    }
+  }
+
+  private static boolean isOutermostTestClass(ExtensionContext context) {
+    Class<?> testClass = context.getRequiredTestClass();
+    return !context
+        .getParent()
+        .flatMap(ExtensionContext::getTestClass)
+        .filter(parentClass -> parentClass != testClass)
+        .isPresent();
   }
 
   private static boolean isHarnessLifecycleMethod(
