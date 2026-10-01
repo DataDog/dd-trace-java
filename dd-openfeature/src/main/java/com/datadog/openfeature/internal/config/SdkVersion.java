@@ -14,12 +14,13 @@ public final class SdkVersion {
   private SdkVersion() {}
 
   private static String readVersion() {
-    try (InputStream stream = SdkVersion.class.getResourceAsStream("/dd-openfeature.version")) {
-      if (stream == null) {
-        return "unknown";
-      }
-      final String line =
-          new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8)).readLine();
+    final InputStream stream = SdkVersion.class.getResourceAsStream("/dd-openfeature.version");
+    if (stream == null) {
+      return "unknown";
+    }
+    try (BufferedReader reader =
+        new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
+      final String line = reader.readLine();
       // Strip the git hash suffix.
       final int hash = line == null ? -1 : line.indexOf('~');
       return line == null ? "unknown" : hash < 0 ? line.trim() : line.substring(0, hash);
