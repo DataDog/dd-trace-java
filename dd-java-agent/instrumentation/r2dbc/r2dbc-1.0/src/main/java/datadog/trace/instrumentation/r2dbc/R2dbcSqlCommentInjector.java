@@ -18,8 +18,10 @@ import io.r2dbc.spi.ConnectionFactoryOptions;
  *
  * <p>This is the R2DBC equivalent of JDBC's {@code SQLCommenter} and follows the same placement
  * rules: the comment is prepended, unless {@code dd.dbm.always_append_sql_comment} is set, the
- * statement is a {@code CALL}, or it carries a PostgreSQL {@code pg_hint_plan} hint ({@code /*+}),
- * in which case it is appended. (JDBC's {@code {call ...}} escape syntax has no R2DBC equivalent.)
+ * statement is a {@code CALL}, it carries a PostgreSQL {@code pg_hint_plan} hint ({@code /*+}), or
+ * the database is SQL Server, in which case it is appended. JDBC's {@code {call ...}} escape syntax
+ * has no R2DBC equivalent, and the Oracle {@code v$session.action} service-hash mode does not apply
+ * because R2DBC never sets the session action.
  *
  * <p>Injection happens on the real driver's {@code Connection#createStatement(String)} (see {@link
  * R2dbcConnectionInstrumentation}), mirroring JDBC's {@code Connection#prepareStatement} advice. It
@@ -134,13 +136,19 @@ public final class R2dbcSqlCommentInjector {
 
   /**
    * PostgreSQL and MySQL reject anything before {@code CALL}, and {@code pg_hint_plan} only reads a
-   * hint comment at the start of the statement, so both must keep the DD comment at the end.
+   * hint comment at the start of the statement, so both must keep the DD comment at the end. SQL
+   * Server always appends at statement creation, as JDBC does for {@code prepareStatement}.
    */
   private static boolean mustAppend(String sql, String dbType) {
     if (startsWithIgnoreCase(sql, "call")) {
       return true;
     }
-    return dbType != null && dbType.startsWith("postgres") && sql.contains("/*+");
+    if (dbType == null) {
+      return false;
+    }
+    return "sqlserver".equals(dbType)
+        || "mssql".equals(dbType)
+        || (dbType.startsWith("postgres") && sql.contains("/*+"));
   }
 
   private static boolean startsWithIgnoreCase(String sql, String word) {

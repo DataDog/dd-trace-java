@@ -64,6 +64,16 @@ class R2dbcSqlCommentInjectorForkedTest extends AbstractInstrumentationTest {
   }
 
   @Test
+  void appendsForSqlServer() {
+    for (String dbType : new String[] {"sqlserver", "mssql"}) {
+      String injected =
+          R2dbcSqlCommentInjector.inject("SELECT * FROM items", "orders", dbType, "h", "shop");
+      assertTrue(
+          injected.startsWith("SELECT * FROM items /*"), dbType + " should append: " + injected);
+    }
+  }
+
+  @Test
   void alwaysAppendKeepsClosingSemicolon() {
     String injected =
         R2dbcSqlCommentInjector.inject("SELECT 1;", "orders", "postgresql", "h", "shop", true);
