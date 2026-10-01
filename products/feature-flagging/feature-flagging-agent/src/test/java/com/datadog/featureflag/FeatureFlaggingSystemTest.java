@@ -28,6 +28,7 @@ import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import datadog.trace.api.featureflag.FeatureFlaggingGateway.RuntimeMode;
 import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
 import datadog.trace.test.junit.utils.config.WithConfig;
@@ -86,6 +87,25 @@ class FeatureFlaggingSystemTest {
 
     verify(systemInitializer).initialize(eq(sharedCommunicationObjects), any(Config.class));
     assertFalse(FeatureFlaggingSystem.isAwaitingApplicationActivation());
+    assertSame(RuntimeMode.AGENT, FeatureFlaggingGateway.activeRuntime());
+  }
+
+  @Test
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
+  void agentlessActivationDoesNotStartWhenStandaloneRuntimeOwnsTheProcess() {
+    final SharedCommunicationObjects sharedCommunicationObjects = sharedCommunicationObjects();
+    final FeatureFlaggingSystem.SystemInitializer systemInitializer =
+        mock(FeatureFlaggingSystem.SystemInitializer.class);
+    assertTrue(FeatureFlaggingGateway.claimRuntime(RuntimeMode.STANDALONE));
+    try {
+      FeatureFlaggingSystem.start(sharedCommunicationObjects, systemInitializer);
+      FeatureFlaggingGateway.activate();
+
+      verifyNoInteractions(systemInitializer);
+      assertSame(RuntimeMode.STANDALONE, FeatureFlaggingGateway.activeRuntime());
+    } finally {
+      FeatureFlaggingGateway.releaseRuntime(RuntimeMode.STANDALONE);
+    }
   }
 
   @Test
@@ -170,6 +190,7 @@ class FeatureFlaggingSystemTest {
     FeatureFlaggingSystem.stop();
     assertFalse(FeatureFlaggingGateway.isFlagEvaluationEnqueueEnabled());
     assertNull(FeatureFlaggingGateway.getFlagEvalWriter());
+    assertNull(FeatureFlaggingGateway.activeRuntime());
     // stop() is idempotent: a second call must be a safe no-op.
     FeatureFlaggingSystem.stop();
 
