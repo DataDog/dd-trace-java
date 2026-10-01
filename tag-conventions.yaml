@@ -18,7 +18,8 @@
 #   resolved_tags(type) = own + extends-chain (incl base) + included mixins + applied mixins (de-duped).
 # A span type may declare `span-kind` (server|client|producer|consumer|internal), inherited through
 # `extends`. It sets the type's DIRECTION: server/consumer spans are inbound, client/producer spans are
-# outbound, internal spans have none.
+# outbound, internal spans have none. A mixin may declare one too: a directional mixin may only reach
+# span types of its direction.
 #
 # tag fields (DOMAIN only): dd-name | type (string|int|long|boolean|double)
 #   | required (required|conditional|recommended|optional|opt_in) | otel-name.
@@ -37,15 +38,17 @@
 # `required` (type and otel-name come from the one declaration).
 # OpenTelemetry names can depend on direction: `server.address` is the local host on an inbound span
 # but the remote one on an outbound span. So an OpenTelemetry name is unique PER DIRECTION, not
-# globally, and where a rename is declared scopes it:
-#   - in a shared scope (trace_level, a type with no span-kind, a mixin) it applies in every direction;
-#   - on a type with a span-kind, it applies only in that type's direction;
-#   - in a `frame: relative` mixin (tags naming the OTHER end, like peer.*), the map form
-#     `otel-name: { outbound: <name>, inbound: <name> }` gives each direction its own name.
+# globally, and where a rename is declared scopes it: in a scope without a span-kind (trace_level, an
+# abstract type, a plain mixin) it applies in every direction; in a directional scope, only in that
+# direction.
+# A tag whose MEANING flips with direction, like peer.port (the server's port on an outbound span, the
+# client's on an inbound one), is declared once per direction, each in a directional mixin. Each
+# declaration is its own tag, `<dd-name>@<direction>`, with fixed names in both namespaces; the
+# Datadog name is shared. Any other repeated declaration is still an error.
 # Until name resolution knows a span's direction, only renames that apply in every direction are used.
-# `span-kind-neutral: true` widens a rename on a typed span type to every direction -- the author's
-# assertion that OTel only uses that name for this tag (db.system, say, only ever names a database).
-# It is interim, and goes away once resolution is direction-aware. A rename on a concrete type with no
+# `span-kind-neutral: true` widens a directional rename to every direction -- the author's assertion
+# that OTel only uses that name for this tag (db.system, say, only ever names a database). It is
+# interim, and goes away once resolution is direction-aware. A rename on a concrete type with no
 # span-kind still requires it.
 # The id coordinate (group-decl / field-decl) is NOT authored here — the generator assigns it: each
 # declaration source (the trace-level tier, each span type, each mixin) is a group, and within a
@@ -101,7 +104,7 @@ span_types:
   http.server:
     extends: http
     span-kind: server
-    include: [ peer_endpoint ]
+    include: [ peer_address, inbound_peer ]
     tags:
       - { dd-name: http.route,        type: string, required: conditional }  # passes through: dd-name already is the OTel name
       - { dd-name: http.hostname,     type: string, required: required,    otel-name: server.address }  # inbound only; on outbound spans server.address is peer.hostname
@@ -115,14 +118,14 @@ span_types:
   http.client:
     extends: http
     span-kind: client
-    include: [ peer, peer_endpoint ]
+    include: [ peer, peer_address, outbound_peer ]
     tags:
       - { dd-name: http.resend_count, type: int,    required: recommended }
 
   db.client:
     extends: base
     span-kind: client
-    include: [ peer, peer_endpoint ]
+    include: [ peer, peer_address, outbound_peer ]
     tags:
       - { dd-name: db.type,      type: string, required: required,    otel-name: db.system, span-kind-neutral: true }
       - { dd-name: db.instance,  type: string, required: recommended }  # TODO(otel): db.namespace
@@ -145,15 +148,24 @@ mixins:
       - { dd-name: _dd.peer.service.source,        type: string, required: recommended }
       - { dd-name: _dd.peer.service.remapped_from, type: string, required: recommended }
 
-  # peer_endpoint — the OTHER end of the connection: the server on a client span, the client on a
-  # server span. Included by both, so its OpenTelemetry names are given per direction.
-  peer_endpoint:
-    frame: relative
+  # peer_address — the other end's IP address, on both client and server spans.
+  peer_address:
     tags:
-      - { dd-name: peer.hostname, type: string, required: recommended, otel-name: { outbound: server.address } }
-      - { dd-name: peer.ipv4,     type: string }  # TODO(otel): network.peer.address, but split by address family
-      - { dd-name: peer.ipv6,     type: string }  # TODO(otel): network.peer.address, but split by address family
-      - { dd-name: peer.port,     type: int,    otel-name: { outbound: server.port, inbound: client.port } }
+      - { dd-name: peer.ipv4, type: string }  # TODO(otel): network.peer.address, but split by address family
+      - { dd-name: peer.ipv6, type: string }  # TODO(otel): network.peer.address, but split by address family
+
+  # outbound_peer — the other end of an outbound connection: the server.
+  outbound_peer:
+    span-kind: client
+    tags:
+      - { dd-name: peer.hostname, type: string, required: recommended, otel-name: server.address }
+      - { dd-name: peer.port,     type: int,    otel-name: server.port }
+
+  # inbound_peer — the other end of an inbound connection: the client.
+  inbound_peer:
+    span-kind: server
+    tags:
+      - { dd-name: peer.port, type: int, otel-name: client.port }
 
   # ci_visibility — per-span test tags. Its capability flag (_dd.civisibility.enabled) lives in
   # trace_level, outside this mixin (general rule: capability flags are trace-level, mixins hold the
