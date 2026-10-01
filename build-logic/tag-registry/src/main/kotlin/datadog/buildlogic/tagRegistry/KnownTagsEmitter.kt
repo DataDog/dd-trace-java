@@ -39,10 +39,10 @@ object KnownTagsEmitter {
       return u
     }
 
-    // A Datadog name declared per direction is one name shared by a tag per direction, so it gets one
-    // NAME constant (PEER_PORT_NAME); its tags keep their own ID constants (PEER_PORT_INBOUND_ID).
+    // A Datadog name declared per direction is shared by a tag per direction, so on its own it names
+    // no single tag. It gets no NAME constant: callers use the unambiguous per-direction ID
+    // (PEER_PORT_OUTBOUND_ID), and nameOf returns the shared name as a literal.
     val sharedDdNames = reg.tags.groupBy { it.ddName }.filterValues { it.size > 1 }.keys
-    val sharedNameConst = HashMap<String, String>()
 
     val nameOfConst = HashMap<String, String>()
     val idOfConst = HashMap<String, String>()
@@ -50,12 +50,7 @@ object KnownTagsEmitter {
     val otelNameOfConst = HashMap<String, String>()
     for (t in reg.tags) {
       val base = sanitize(t.name)
-      nameOfConst[t.name] =
-        if (t.ddName in sharedDdNames) {
-          sharedNameConst.getOrPut(t.ddName) { unique(withSuffix(sanitize(t.ddName), "_NAME")) }
-        } else {
-          unique(withSuffix(base, "_NAME"))
-        }
+      if (t.ddName !in sharedDdNames) nameOfConst[t.name] = unique(withSuffix(base, "_NAME"))
       idOfConst[t.name] = unique(withSuffix(base, "_ID"))
       serialOfConst[t.name] = unique(withSuffix(base, "_SERIAL_NUM"))
       // Suffix the pre-suffix base (not nameC), same as the other three: suffixing an
@@ -63,6 +58,9 @@ object KnownTagsEmitter {
       if (t.otelName != null) otelNameOfConst[t.name] = unique(withSuffix(base, "_OTEL_NAME"))
     }
     fun nameC(name: String) = nameOfConst.getValue(name)
+
+    // The expression nameOf returns: the NAME constant, or the shared name's literal.
+    fun nameExpr(t: TagRegistry.Tag) = nameOfConst[t.name] ?: "\"${escape(t.ddName)}\""
     fun idC(name: String) = idOfConst.getValue(name)
     fun serialC(name: String) = serialOfConst.getValue(name)
     fun otelNameC(name: String) = otelNameOfConst.getValue(name)
@@ -90,13 +88,15 @@ object KnownTagsEmitter {
         """.trimIndent()
       )
 
-      val emittedNames = HashSet<String>()
       for (t in reg.tags) {
-        if (emittedNames.add(nameC(t.name))) {
-          if (t.ddName in sharedDdNames) {
-            appendLine("// shared by a tag per direction; resolving it needs the span's direction")
-          }
+        val direction = t.sharedNameDirection
+        if (direction == null) {
           appendLine("  public static final String ${nameC(t.name)} = \"${escape(t.ddName)}\";")
+        } else {
+          appendLine(
+            "  /** {@code ${escape(t.ddName)}} on ${direction.yamlKey} spans. That name alone is shared by a " +
+              "tag per direction. */"
+          )
         }
         appendLine("  public static final long ${idC(t.name)} = ${hex(t.id)};")
         if (t.otelName != null) {
@@ -178,11 +178,11 @@ object KnownTagsEmitter {
                   switch (KnownTagCodec.serialNum(tagId)) {
         """.trimIndent()
       )
-      for (name in order) {
+      for (t in reg.tags) {
         appendLine(
           """
-                      case ${serialC(name)}:
-                        return ${nameC(name)};
+                      case ${serialC(t.name)}:
+                        return ${nameExpr(t)};
           """.trimIndent()
         )
       }

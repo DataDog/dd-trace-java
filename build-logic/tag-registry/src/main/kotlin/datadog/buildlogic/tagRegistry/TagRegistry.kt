@@ -34,6 +34,8 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     val otelByDirection: Map<TagConventions.Direction, String> = emptyMap(),
     /** The Datadog-namespace name, shared by the tags of a name declared per direction. */
     val ddName: String = name,
+    /** The direction of a tag whose Datadog name is shared by a tag per direction, else null. */
+    val sharedNameDirection: TagConventions.Direction? = null,
   )
 
   companion object {
@@ -71,6 +73,7 @@ class TagRegistry private constructor(val tags: List<Tag>) {
             otelName = directionFree[t.name],
             otelByDirection = byDirection[t.name].orEmpty(),
             ddName = t.ddName,
+            sharedNameDirection = t.sharedNameDirection,
           )
         }
 

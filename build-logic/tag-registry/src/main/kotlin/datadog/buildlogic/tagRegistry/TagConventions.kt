@@ -44,6 +44,8 @@ class TagConventions private constructor(
     val spanKindNeutral: Boolean = false,
     /** The Datadog-namespace name; equal to [name] unless the name is declared per direction. */
     val ddName: String = name,
+    /** The direction of a tag declared per direction, or null for every other tag. */
+    val sharedNameDirection: Direction? = null,
   )
 
   /**
@@ -392,7 +394,7 @@ class TagConventions private constructor(
     private class Identities(val names: Set<String>, val perDirection: Map<String, Map<Direction, String>>) {
       fun rename(t: Tag, direction: Direction?): Tag {
         val identity = perDirection[t.name]?.getValue(direction!!) ?: return t
-        return t.copy(name = identity, ddName = t.name)
+        return t.copy(name = identity, ddName = t.name, sharedNameDirection = direction)
       }
 
       fun resolve(r: Ref, container: String, direction: Direction?): Ref {
