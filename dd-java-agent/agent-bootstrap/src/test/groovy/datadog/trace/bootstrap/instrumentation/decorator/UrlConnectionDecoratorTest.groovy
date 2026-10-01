@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.KnownTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 
@@ -20,7 +21,7 @@ class UrlConnectionDecoratorTest extends ClientDecoratorTest {
       1 * span.setTag(Tags.PEER_HOSTNAME, hostname)
     }
     if (port) {
-      1 * span.setTag(Tags.PEER_PORT, port)
+      1 * span.setTag(KnownTags.PEER_PORT_ID, port)
     }
     0 * _
 

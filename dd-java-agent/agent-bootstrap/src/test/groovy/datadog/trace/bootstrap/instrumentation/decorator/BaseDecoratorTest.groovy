@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.appsec.api.blocking.BlockingException
 import datadog.context.Context
+import datadog.trace.api.KnownTags
 import datadog.trace.api.TagMap
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
@@ -55,14 +56,14 @@ class BaseDecoratorTest extends DDSpecification {
 
     then:
     if (!connection.isUnresolved()) {
-      1 * span.setTag(Tags.PEER_HOSTNAME, connection.hostName)
+      1 * span.setTag(KnownTags.PEER_HOSTNAME_ID, connection.hostName)
     }
-    1 * span.setTag(Tags.PEER_PORT, connection.port)
+    1 * span.setTag(KnownTags.PEER_PORT_ID, connection.port)
     if (connection.address instanceof Inet4Address) {
-      1 * span.setTag(Tags.PEER_HOST_IPV4, connection.address.hostAddress)
+      1 * span.setTag(KnownTags.PEER_IPV4_ID, connection.address.hostAddress)
     }
     if (connection.address instanceof Inet6Address) {
-      1 * span.setTag(Tags.PEER_HOST_IPV6, connection.address.hostAddress)
+      1 * span.setTag(KnownTags.PEER_IPV6_ID, connection.address.hostAddress)
     }
     0 * _
 
