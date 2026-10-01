@@ -90,6 +90,9 @@ public class SnsInterceptor extends RequestHandler2 {
       PublishBatchRequest pmbRequest = (PublishBatchRequest) request;
       // Extract the topic name from the ARN for DSM
       String topicName = pmbRequest.getTopicArn();
+      if (null == topicName) {
+        return request; // no topic to attribute the batch to, leave it untouched
+      }
       topicName = topicName.substring(topicName.lastIndexOf(':') + 1);
 
       final ByteBuffer bytebuffer = this.getMessageAttributeValueToInject(request, topicName);
