@@ -172,7 +172,7 @@ class ClassLatchTest {
         new ClassLatch<Object, String, RuntimeException>() {
           @Override
           protected String apply(Object target) {
-            result[0] = latchIfNamed(target, receiverError(target.getClass()));
+            result[0] = latchIfNamed(target, "m", receiverError(target.getClass()));
             return "named";
           }
         };
@@ -184,7 +184,7 @@ class ClassLatchTest {
         new ClassLatch<Object, String, RuntimeException>() {
           @Override
           protected String apply(Object target) {
-            result[0] = latchIfNamed(target, receiverError(Integer.class));
+            result[0] = latchIfNamed(target, "m", receiverError(Integer.class));
             return "other";
           }
         };
@@ -194,34 +194,77 @@ class ClassLatchTest {
   }
 
   @Test
+  void latchIfNamedDoesNotLatchWhenTheErrorNamesTheKeyButADifferentMethod() {
+    // the receiver's own implementation of "m" can call some other method internally; an
+    // AbstractMethodError raised by that other method still names the receiver class, but it is
+    // not evidence that "m" itself is missing
+    final boolean[] result = new boolean[1];
+    ClassLatch<Object, String, RuntimeException> latch =
+        new ClassLatch<Object, String, RuntimeException>() {
+          @Override
+          protected String apply(Object target) {
+            result[0] =
+                latchIfNamed(
+                    target,
+                    "m",
+                    new AbstractMethodError(
+                        "Receiver class "
+                            + target.getClass().getName()
+                            + " does not define or inherit an implementation of the resolved"
+                            + " method 'abstract java.lang.String other()' of interface I."));
+            return "named";
+          }
+        };
+    latch.tryApplyOrNull("x");
+    assertFalse(result[0]);
+    assertFalse(latch.isLatched("x"));
+  }
+
+  @Test
   void attributesTheHotSpotMessageFormats() {
-    assertTrue(ClassLatch.isNamedIn(receiverError(String.class), String.class));
+    assertTrue(ClassLatch.isNamedIn(receiverError(String.class), String.class, "m"));
+    // the message names the receiver class, but blames a different method than "m"
+    assertFalse(ClassLatch.isNamedIn(receiverError(String.class), String.class, "other"));
     // "java.lang.String" is a prefix of "java.lang.StringBuilder", but not the same class
-    assertFalse(ClassLatch.isNamedIn(receiverError(String.class), StringBuilder.class));
+    assertFalse(ClassLatch.isNamedIn(receiverError(String.class), StringBuilder.class, "m"));
     assertFalse(
         ClassLatch.isNamedIn(
-            new AbstractMethodError("Receiver class " + String.class.getName()), String.class));
+            new AbstractMethodError("Receiver class " + String.class.getName()),
+            String.class,
+            "m"));
 
     // JDK 8 reports "<receiver class>.<method><descriptor>"
     String name = String.class.getName();
     assertTrue(
         ClassLatch.isNamedIn(
             new AbstractMethodError(name + ".getClientInfo()Ljava/util/Properties;"),
-            String.class));
+            String.class,
+            "getClientInfo"));
+    // the message names the receiver class, but blames a different method
+    assertFalse(
+        ClassLatch.isNamedIn(
+            new AbstractMethodError(name + ".otherMethod()Ljava/util/Properties;"),
+            String.class,
+            "getClientInfo"));
     // a different class whose name merely starts with this one
     assertFalse(
         ClassLatch.isNamedIn(
             new AbstractMethodError(name + "Builder.getClientInfo()Ljava/util/Properties;"),
-            String.class));
+            String.class,
+            "getClientInfo"));
     // a class in a package named like this class
     assertFalse(
         ClassLatch.isNamedIn(
             new AbstractMethodError(name + ".Inner.getClientInfo()Ljava/util/Properties;"),
-            String.class));
-    assertFalse(ClassLatch.isNamedIn(new AbstractMethodError(name), String.class));
-    assertFalse(ClassLatch.isNamedIn(new AbstractMethodError(name + "."), String.class));
-    assertFalse(ClassLatch.isNamedIn(new AbstractMethodError(), String.class));
-    assertFalse(ClassLatch.isNamedIn(new AbstractMethodError("something else"), String.class));
+            String.class,
+            "getClientInfo"));
+    assertFalse(ClassLatch.isNamedIn(new AbstractMethodError(name), String.class, "getClientInfo"));
+    assertFalse(
+        ClassLatch.isNamedIn(new AbstractMethodError(name + "."), String.class, "getClientInfo"));
+    assertFalse(ClassLatch.isNamedIn(new AbstractMethodError(), String.class, "getClientInfo"));
+    assertFalse(
+        ClassLatch.isNamedIn(
+            new AbstractMethodError("something else"), String.class, "getClientInfo"));
   }
 
   @Test

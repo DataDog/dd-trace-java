@@ -69,7 +69,26 @@ public abstract class ClassLatch<T, R, E extends Exception> {
    */
   @Nullable
   public final R tryApplyOrNull(@Nullable T target) throws E {
-    return target == null || isLatched(target) ? null : apply(target);
+    if (target == null || isLatched(target)) {
+      return null;
+    }
+    try {
+      return apply(target);
+    } catch (NoSuchMethodError e) {
+      // a method reference passed to handleNoSuchMethod resolves where it is written, in apply's
+      // own frame, so a missing target method surfaces here, outside the helper's own try, as the
+      // invokedynamic call site's own linkage failure; HotSpot reports this directly as
+      // NoSuchMethodError on some JVM versions
+      latch(target);
+      return null;
+    } catch (BootstrapMethodError e) {
+      // on other JVM versions the same linkage failure is wrapped instead
+      if (e.getCause() instanceof NoSuchMethodError) {
+        latch(target);
+        return null;
+      }
+      throw e;
+    }
   }
 
   /**
@@ -103,12 +122,14 @@ public abstract class ClassLatch<T, R, E extends Exception> {
   }
 
   /**
-   * Latches the target's key if the error's message names that class as the receiver that lacks the
-   * method. Returns whether it latched. An error that does not name the key, for example one thrown
-   * inside a wrapper's delegate, is left alone.
+   * Latches the target's key if the error's message names that class as the receiver that lacks
+   * {@code methodName}. Returns whether it latched. An error that does not name the key, for
+   * example one thrown inside a wrapper's delegate, is left alone — and so is one that names the
+   * key but for a different method, for example one the guarded method's own implementation calls
+   * internally.
    */
-  protected final boolean latchIfNamed(T target, AbstractMethodError error) {
-    if (isNamedIn(error, keyOf(target))) {
+  protected final boolean latchIfNamed(T target, String methodName, AbstractMethodError error) {
+    if (isNamedIn(error, keyOf(target), methodName)) {
       latch(target);
       return true;
     }
@@ -124,7 +145,7 @@ public abstract class ClassLatch<T, R, E extends Exception> {
    *
    * <pre>{@code
    * protected Properties apply(Connection c) throws SQLException {
-   *   return handleAbstractMethod(c, Connection::getClientInfo);
+   *   return handleAbstractMethod(c, "getClientInfo", Connection::getClientInfo);
    * }
    * }</pre>
    *
@@ -133,18 +154,23 @@ public abstract class ClassLatch<T, R, E extends Exception> {
    * handle; see {@link #handleNoSuchMethod} and {@link #handleNoSuchOrAbstractMethod}, and prefer
    * the latter when unsure which a call site can see.
    *
+   * <p>{@code methodName} must be {@code call}'s own method, not merely some method of {@code T}:
+   * the error's message can name the key class while blaming a different method that the guarded
+   * method's implementation happens to call internally, and only a method name check tells the two
+   * apart.
+   *
    * <p>Pass a method reference or a non-capturing lambda, and keep this method small so it inlines:
    * that is what lets the JIT see the exact function at each call site (see {@link Strategy}).
    * Compose {@link #latchIfNamed} and {@link #latch} directly for anything more involved.
    */
   @Nullable
   @StrategyConsumer
-  protected final R handleAbstractMethod(T target, @Strategy ThrowingFunction<T, R, E> call)
-      throws E {
+  protected final R handleAbstractMethod(
+      T target, String methodName, @Strategy ThrowingFunction<T, R, E> call) throws E {
     try {
       return call.apply(target);
     } catch (AbstractMethodError e) {
-      latchIfNamed(target, e);
+      latchIfNamed(target, methodName, e);
       return null;
     } catch (UnsupportedOperationException e) {
       // no class to attribute it to, and it may come from a delegate: never latched
@@ -194,16 +220,16 @@ public abstract class ClassLatch<T, R, E extends Exception> {
    *
    * <pre>{@code
    * protected Properties apply(Connection c) throws SQLException {
-   *   return handleNoSuchOrAbstractMethod(c, Connection::getClientInfo);
+   *   return handleNoSuchOrAbstractMethod(c, "getClientInfo", Connection::getClientInfo);
    * }
    * }</pre>
    */
   @Nullable
   @StrategyConsumer
-  protected final R handleNoSuchOrAbstractMethod(T target, @Strategy ThrowingFunction<T, R, E> call)
-      throws E {
+  protected final R handleNoSuchOrAbstractMethod(
+      T target, String methodName, @Strategy ThrowingFunction<T, R, E> call) throws E {
     try {
-      return handleAbstractMethod(target, call);
+      return handleAbstractMethod(target, methodName, call);
     } catch (NoSuchMethodError e) {
       latch(target);
       return null;
@@ -220,9 +246,12 @@ public abstract class ClassLatch<T, R, E extends Exception> {
    * </ul>
    *
    * A concrete object's class is never the abstract method's declaring class or an interface, so an
-   * exact match can only be the receiver. An unparseable message never matches.
+   * exact match can only be the receiver. The message also names the resolved method itself: that
+   * method's implementation can call a different, unimplemented method on the very same receiver,
+   * raising an error that names the key class but blames a method other than {@code methodName}, so
+   * the method name is checked too. An unparseable message never matches.
    */
-  static boolean isNamedIn(AbstractMethodError e, Class<?> type) {
+  static boolean isNamedIn(AbstractMethodError e, Class<?> type, String methodName) {
     final String message = e.getMessage();
     if (message == null) {
       return false;
@@ -232,7 +261,8 @@ public abstract class ClassLatch<T, R, E extends Exception> {
       final int end = RECEIVER_PREFIX.length() + name.length();
       return message.startsWith(name, RECEIVER_PREFIX.length())
           && message.length() > end
-          && message.charAt(end) == ' ';
+          && message.charAt(end) == ' '
+          && message.indexOf(methodName + "(", end) > end;
     }
     if (message.startsWith(name) && message.length() > name.length() + 1) {
       // JDK 8: the method name follows the class name and runs up to the descriptor, so it
@@ -241,7 +271,9 @@ public abstract class ClassLatch<T, R, E extends Exception> {
       final int paren = message.indexOf('(', methodStart);
       return message.charAt(name.length()) == '.'
           && paren > methodStart
-          && message.indexOf('.', methodStart) < 0;
+          && message.indexOf('.', methodStart) < 0
+          && paren == methodStart + methodName.length()
+          && message.regionMatches(methodStart, methodName, 0, methodName.length());
     }
     return false;
   }

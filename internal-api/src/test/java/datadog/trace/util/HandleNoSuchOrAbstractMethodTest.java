@@ -1,6 +1,6 @@
 package datadog.trace.util;
 
-import static java.util.Collections.singletonList;
+import static datadog.trace.util.CompilingClassLoaders.compile;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -8,13 +8,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
-import java.io.File;
-import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.SQLException;
@@ -36,6 +33,7 @@ class HandleNoSuchOrAbstractMethodTest {
     protected final R apply(T target) throws E {
       return handleNoSuchOrAbstractMethod(
           target,
+          "m",
           t -> {
             calls.incrementAndGet();
             return invoke(t);
@@ -91,7 +89,8 @@ class HandleNoSuchOrAbstractMethodTest {
             new AbstractMethodError(
                 "Receiver class "
                     + String.class.getName()
-                    + " does not define or inherit an implementation of the resolved method"));
+                    + " does not define or inherit an implementation of the resolved method"
+                    + " 'abstract java.lang.String m()' of interface I."));
     assertNull(named.tryApplyOrNull("x"));
     assertTrue(named.isLatched("x"));
 
@@ -179,25 +178,5 @@ class HandleNoSuchOrAbstractMethodTest {
       assertEquals(1, latch.calls.get(), "second call should be skipped");
       assertTrue(latch.isLatched(impl));
     }
-  }
-
-  private static void compile(
-      JavaCompiler compiler, Path out, Path classpath, String name, String source)
-      throws IOException {
-    Path file = out.resolve(name + ".java");
-    Files.write(file, singletonList(source), StandardCharsets.UTF_8);
-    int result =
-        classpath == null
-            ? compiler.run(null, null, null, "-d", out.toString(), file.toString())
-            : compiler.run(
-                null,
-                null,
-                null,
-                "-cp",
-                classpath.toString() + File.pathSeparator,
-                "-d",
-                out.toString(),
-                file.toString());
-    assertEquals(0, result, "compiling " + name);
   }
 }

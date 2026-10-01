@@ -154,7 +154,7 @@ public class ClassLatchBenchmark {
       new ClassLatch<Object, Object, RuntimeException>() {
         @Override
         protected Object apply(Object target) {
-          return handleAbstractMethod(target, ClassLatchBenchmark::invokeHandle);
+          return handleAbstractMethod(target, "b", ClassLatchBenchmark::invokeHandle);
         }
       };
 
@@ -162,7 +162,7 @@ public class ClassLatchBenchmark {
       new ClassLatch<Object, Object, RuntimeException>() {
         @Override
         protected Object apply(Object target) {
-          return handleAbstractMethod(target, ClassLatchBenchmark::invokeHandle);
+          return handleAbstractMethod(target, "b", ClassLatchBenchmark::invokeHandle);
         }
       };
 
@@ -170,7 +170,7 @@ public class ClassLatchBenchmark {
       new ClassLatch<Object, Object, RuntimeException>() {
         @Override
         protected Object apply(Object target) {
-          return handleAbstractMethod(target, ClassLatchBenchmark::invokeHandle);
+          return handleAbstractMethod(target, "b", ClassLatchBenchmark::invokeHandle);
         }
       };
 
@@ -183,7 +183,7 @@ public class ClassLatchBenchmark {
       try {
         return invoke(target);
       } catch (AbstractMethodError e) {
-        latchIfNamed(target, e);
+        latchIfNamed(target, "b", e);
         return null;
       } catch (UnsupportedOperationException e) {
         return null;
