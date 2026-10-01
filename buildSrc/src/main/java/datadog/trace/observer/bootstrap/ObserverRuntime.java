@@ -40,6 +40,11 @@ public final class ObserverRuntime {
   private static final Map<String, String> CARRIER = new HashMap<>();
   private static final Map<String, String> LAUNCH = new HashMap<>();
 
+  /** Test frameworks that only run as fixtures inside the observed JUnit Platform tests. */
+  private static final String[] NESTED_ONLY_INTEGRATIONS = {
+    "junit-4", "testng", "karate", "scalatest", "weaver", "cucumber"
+  };
+
   private static volatile boolean initialized;
   private static String generatedLogFile;
   private static String configurationFingerprint;
@@ -94,8 +99,22 @@ public final class ObserverRuntime {
     configurationFingerprint = fingerprint();
     CONFIG.putAll(CARRIER);
     CONFIG.putAll(childOverrides);
+    disableNestedOnlyIntegrations();
     configureFileLogger();
     initialized = true;
+  }
+
+  /** Off unless the caller configured them: observing their fixtures would double-report. */
+  private static void disableNestedOnlyIntegrations() {
+    for (String name : NESTED_ONLY_INTEGRATIONS) {
+      String env = name.toUpperCase(Locale.ROOT).replace('-', '_');
+      if (!CONFIG.containsKey("dd.integration." + name + ".enabled")
+          && !CONFIG.containsKey("dd.trace.integration." + name + ".enabled")
+          && !ENVIRONMENT.containsKey("DD_INTEGRATION_" + env + "_ENABLED")
+          && !ENVIRONMENT.containsKey("DD_TRACE_INTEGRATION_" + env + "_ENABLED")) {
+        CONFIG.setProperty("dd.integration." + name + ".enabled", "false");
+      }
+    }
   }
 
   private ObserverRuntime() {}

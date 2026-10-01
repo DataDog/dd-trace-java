@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.HashMap;
@@ -166,6 +167,43 @@ class ObserverRuntimeTest {
             runtime
                 .getMethod("getProperty", String.class)
                 .invoke(null, "dd.civisibility.signal.server.port"));
+      }
+    } finally {
+      System.setProperties(original);
+    }
+  }
+
+  @Test
+  void nestedOnlyTestFrameworksAreOffUnlessConfigured() throws Exception {
+    Properties original = (Properties) System.getProperties().clone();
+    try {
+      System.setProperty(
+          "tracing.observer.child.v1",
+          ObserverRuntime.encode(
+              asList(
+                  singletonMap("dd.integration.karate.enabled", "true"),
+                  singletonMap("DD_TRACE_INTEGRATION_TESTNG_ENABLED", "true"),
+                  emptyMap(),
+                  emptyMap())));
+      System.setProperty("dd.integration.junit-4.enabled", "true");
+      try (URLClassLoader loader =
+          new URLClassLoader(
+              new URL[] {ObserverRuntime.class.getProtectionDomain().getCodeSource().getLocation()},
+              null)) {
+        Class<?> runtime = loader.loadClass(ObserverRuntime.class.getName());
+        Method property = runtime.getMethod("getProperty", String.class);
+        for (String name : new String[] {"junit-4", "scalatest", "weaver", "cucumber"}) {
+          assertEquals("false", property.invoke(null, "dd.integration." + name + ".enabled"));
+        }
+        assertEquals("true", property.invoke(null, "dd.integration.karate.enabled"));
+        assertNull(property.invoke(null, "dd.integration.testng.enabled"));
+        assertEquals(
+            "true",
+            runtime
+                .getMethod("getenv", String.class)
+                .invoke(null, "DD_TRACE_INTEGRATION_TESTNG_ENABLED"));
+        assertNull(property.invoke(null, "dd.integration.junit-5.enabled"));
+        assertEquals("true", System.getProperty("dd.integration.junit-4.enabled"));
       }
     } finally {
       System.setProperties(original);

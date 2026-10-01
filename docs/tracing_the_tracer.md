@@ -55,6 +55,14 @@ There is no allowlist for sites, endpoints, credentials, writers, products or OT
 Stock `Agent.configureCiVisibility` supplies the agent jar URI and CI defaults.
 Ordinary properties files cannot activate early bootstrap product gates, as in stock.
 
+The observer has one default of its own. It turns off the `junit-4`, `testng`,
+`karate`, `scalatest`, `weaver` and `cucumber` integrations. In this repository those
+frameworks only run as fixtures inside JUnit Platform tests, so observing them would
+report the fixtures as our tests. In Karate 1.0 it also broke the fixtures. To turn
+one back on, set its `integration.<name>.enabled` or `trace.integration.<name>.enabled`
+key as an observer property or environment variable. A value in a properties file
+does not override this default.
+
 The observer does not import the subject's DD/OTEL properties, environment,
 config-file selection or ambient propagation headers. JVM and CI platform facts are
 shared. LOCAL and FLEET stable-config sources stay empty so the observer never opens
@@ -123,7 +131,8 @@ The rewriter runs offline on the stock jar. It fails if any known stock seam cha
   names. Internal context and request attribute keys are still relocated so they do
   not collide with the subject tracer.
 - The JUnit 5 and Spock advice only open observer spans for the synchronous outer
-  Gradle engine launch. Nested launchers are ignored.
+  Gradle engine launch. Nested launchers are ignored. Other test frameworks are off by
+  default, see [Configuration](#configuration).
 
 The modifiable-config convention recognizes the attached observer without path or
 hash metadata.
