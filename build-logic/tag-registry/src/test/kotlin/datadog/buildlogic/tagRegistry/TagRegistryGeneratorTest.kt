@@ -356,13 +356,15 @@ class TagRegistryGeneratorTest {
 
     TagRegistryGenerator.generate(yaml, output)
 
-    val source = contents(output).getValue("java/datadog/trace/api/KnownTags.java")
+    val generated = contents(output)
+    val source = generated.getValue("java/datadog/trace/api/KnownTags.java")
     assertThat(source)
-      .contains(
-        "public static final String PEER_PORT_INBOUND_NAME = \"peer.port\";",
-        "public static final String PEER_PORT_OUTBOUND_NAME = \"peer.port\";",
-      )
+      .containsOnlyOnce("public static final String PEER_PORT_NAME = \"peer.port\";")
+      .contains("PEER_PORT_INBOUND_ID", "PEER_PORT_OUTBOUND_ID")
+      .doesNotContain("PEER_PORT_INBOUND_NAME", "PEER_PORT_OUTBOUND_NAME")
     assertThat(source.substringAfter("KEYOF_NAMES = {").substringBefore("};")).doesNotContain("PEER_PORT")
+    assertThat(generated.getValue("tag-assignment.txt"))
+      .containsPattern("peer\\.port +-> peer\\.port@inbound, peer\\.port@outbound")
   }
 
   @Test
