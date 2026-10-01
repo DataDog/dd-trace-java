@@ -15,6 +15,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
+import datadog.trace.api.llmobs.LLMObsInternal;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.propagation.PropagationTags.HeaderType;
@@ -77,7 +78,13 @@ class DatadogHttpCodec {
       }
 
       // inject x-datadog-tags
-      String datadogTags = context.getPropagationTags().headerValue(HeaderType.DATADOG);
+      PropagationTags propagationTags = context.getPropagationTags();
+      String datadogTags =
+          propagationTags.headerValue(
+              HeaderType.DATADOG,
+              null,
+              LLMObsInternal.propagationValuesFor(context),
+              propagationTags.samplingState());
       if (datadogTags != null) {
         setter.set(carrier, DATADOG_TAGS_KEY, datadogTags);
       }
