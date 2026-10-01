@@ -1,41 +1,46 @@
 package datadog.buildlogic.tagRegistry
 
 /**
- * Parsed tag-conventions domain model + the per-type tag-set resolver. Language-agnostic: it knows
- * only structure (extends / include / applies) and per-tag semantics (name / type / required /
- * source). Id assignment and emission are layered on top of the resolved sets.
+ * Parses the tag conventions and resolves each span type's tags through `extends`, `include`,
+ * and `applies`. Declarations carry names, types, requirement levels, and optional OpenTelemetry
+ * renames. ID assignment and source generation are handled separately.
  */
 class TagConventions private constructor(
   private val spanTypes: Map<String, SpanType>,
   private val mixins: Map<String, Mixin>,
   private val traceLevel: List<Tag>,
 ) {
-  /** A tag declaration (domain semantics only). */
+  /** One tag declaration: its Datadog name, type, requirement level, and optional rename. */
   data class Tag(
     val name: String,
     val type: String,
     val required: String,
     /**
-     * The tag's OpenTelemetry-namespace RENAME, or null when it has none. otel-name is optional and
-     * tri-state in the YAML: absent => the OpenTelemetry name is implicitly the dd-name (pass-through
-     * under the Datadog name; the RFC "retain" default) and this field is null; a name => a rename to
-     * that OpenTelemetry-namespace name; the literal `none` => Datadog-only (no OpenTelemetry name)
-     * and this field is null — a reserved value with no tags today (suppression is a follow-on), so
-     * it currently behaves as pass-through, indistinguishable from absent. keyOf resolves a rename
-     * to this tag's canonical id (inbound, many->one); openTelemetryNameOf recovers it (outbound).
+     * Explicit OpenTelemetry name from `otel-name`, or null when no rename is configured.
+     * When a rename is configured, both names resolve to the same tag ID.
+     *
+     * An omitted `otel-name` and the reserved literal `none` both produce null. Exporters
+     * currently use the Datadog name in either case; `none` does not suppress the tag yet.
      */
     val otelName: String? = null,
     /**
-     * Author's assertion that [otelName] means this tag on every span kind the OpenTelemetry
-     * attribute appears on. Required for a rename declared on a concrete span type; see
-     * [validateOtelNameScope].
+     * Set `span-kind-neutral: true` on a rename declared on a concrete span type to confirm the
+     * OpenTelemetry name means this tag on every span kind where OpenTelemetry uses it. Name
+     * resolution ignores span kind, so the rename applies on every span, not only on this type.
+     *
+     * For example, `db.type` -> `db.system` on `db.client` qualifies: `db.system` only ever
+     * describes a database. `http.hostname` -> `server.address` on `http.server` does not: on
+     * client spans, `server.address` is the remote server. Renames in `trace_level`, abstract
+     * types, and mixins need no flag. Setting the flag without a rename is invalid.
+     *
+     * The flag is interim: a follow-on replaces it with span-kind-aware name resolution.
      */
     val spanKindNeutral: Boolean = false,
   )
 
   /**
-   * A `{ ref: <dd-name>, required: <level> }` entry: uses a tag declared elsewhere, optionally at a
-   * different requirement level. Identity (type, otel-name) comes only from the one declaration.
+   * A `{ ref: <dd-name>, required: <level> }` entry. It reuses a tag declared elsewhere, optionally
+   * at a different requirement level; its type and otel-name always come from that declaration.
    */
   data class Ref(val name: String, val required: String?)
 
@@ -66,15 +71,16 @@ class TagConventions private constructor(
     return if (ref.required == null) decl else decl.copy(required = ref.required)
   }
 
-  /** Concrete (instantiable) span types — the ones a layout is computed for. */
+  /** Returns the names of non-abstract span types in sorted order. */
   fun concreteTypes(): List<String> = spanTypes.values.filter { !it.abstract }.map { it.name }.sorted()
 
   /**
-   * resolved(type) = own tags + tags up the `extends` chain (incl. base) + tags of every mixin the
-   * type or an ancestor `include`s + tags of every mixin whose `applies` matches. De-duped by tag
-   * name (first occurrence wins). Base-first order, so it is stable across runs. A [Ref] adds its
-   * tag if absent and otherwise overrides only the requirement level, keeping the tag's position;
-   * refs are applied after a type's own tags and includes, so the most derived type wins.
+   * Resolves tags from the root ancestor to the requested type, then adds mixins whose
+   * `applies` matches the type or an ancestor.
+   *
+   * Each type contributes its declarations, included mixins, then references. Duplicate
+   * names keep their first position; references can override requirement levels. References
+   * from `applies` mixins add only missing tags.
    */
   fun resolve(typeName: String): List<Tag> {
     val result = LinkedHashMap<String, Tag>()
@@ -116,7 +122,7 @@ class TagConventions private constructor(
     return result.values.toList()
   }
 
-  /** The explicit trace-level tier tags (their own TagMap "type" on the TraceSegment). */
+  /** Returns the tags declared in `trace_level`, which are set once per trace, not per span. */
   fun traceLevelTags(): List<Tag> = traceLevel
 
   /** Includes every declaration, even from mixins whose span types are not modeled yet. */
@@ -127,12 +133,10 @@ class TagConventions private constructor(
   }.distinctBy { it.name }
 
   /**
-   * Mixin `applies:` targets that name no span type modeled here, as (mixin, missing types). A tag
-   * id is identity and does not depend on layout, so such a mixin's tags are still registered --
-   * this is a LAYOUT gap, not lost data: the mixin contributes to no type's resolved set, so its
-   * tags occupy no per-type slot until the type is modeled. Reported rather than fatal, because
-   * declaring tags ahead of the span type that will carry them is a legitimate intermediate state;
-   * what is not acceptable is it being invisible.
+   * Returns mixins with `applies` targets missing from `span_types`, paired with the missing names.
+   *
+   * These targets are reported in `resolved-tags.txt` without failing generation. The mixin's
+   * tags are still registered, and any matching declared span types still receive them.
    */
   fun unmodeledAppliesTargets(): List<Pair<String, List<String>>> = mixins.values
     .sortedBy { it.name }
@@ -218,11 +222,9 @@ class TagConventions private constructor(
     }
 
     /**
-     * A tag is ONE identity across span types / mixins, so it is declared exactly once, with its
-     * type and otel-name; every other span type that carries it uses a `ref`, which may override
-     * only the requirement level. `http.url`, for instance, is declared on the shared `http` parent
-     * rather than on both `http.server` and `http.client`. Rejecting a second declaration outright
-     * (rather than only a conflicting one) keeps identity in one place. Refs must name a declared tag.
+     * Rejects multiple declarations of the same `dd-name`, including identical declarations.
+     * Declare shared tags once on a parent or mixin and reuse them through `ref` entries,
+     * which may override only `required`. References must name a declared tag.
      */
     private fun validateSingleDeclaration(
       spanTypes: Map<String, SpanType>,
@@ -250,12 +252,9 @@ class TagConventions private constructor(
     }
 
     /**
-     * TagMap canonicalizes an otel-name to its tag regardless of span kind, so a rename is only
-     * correct if the OpenTelemetry attribute means this tag on EVERY span kind it appears on --
-     * OTel's network.peer.address, for instance, is the client on a server span but the server on a
-     * client span. A rename declared in a shared scope (trace_level, an abstract span type, a mixin)
-     * already spans kinds. One declared on a concrete span type must say so explicitly with
-     * `span-kind-neutral: true`, so a span-kind-specific mapping cannot slip in as a rename.
+     * Requires `span-kind-neutral: true` for renames on concrete span types because name
+     * resolution ignores span kind. Validation checks the flag and requires a configured
+     * rename, relying on the author's semantic check. Shared scopes do not require the flag.
      */
     private fun validateOtelNameScope(
       spanTypes: Map<String, SpanType>,
@@ -317,12 +316,7 @@ class TagConventions private constructor(
       } ?: emptyList()
     }
 
-    /**
-     * The mandatory `dd-name` of one tag -- its canonical Datadog name, and the key everything else
-     * hangs off. A missing key or a non-string value must fail the build: `toString()` on it would
-     * yield the literal "null" (or a number's rendering), which then flows on as a real tag name and
-     * gets an id, a slot and an entry in the generated registry. A typo here is silent otherwise.
-     */
+    /** Reads the required, nonblank string `dd-name`; invalid values fail generation. */
     private fun parseDdName(m: Map<String, Any?>): String {
       val raw = m["dd-name"]
       require(raw is String && raw.isNotBlank()) { "tag declaration has no valid dd-name: $m" }
@@ -337,12 +331,8 @@ class TagConventions private constructor(
     }
 
     /**
-     * Parse the optional, tri-state `otel-name` of one tag. Absent (key not present) => implicit
-     * dd-name (pass-through) => null; the literal `none` => Datadog-only (reserved) => null; any other
-     * non-blank string => a rename => that value. A present-but-invalid value (empty/blank, or a
-     * non-string such as a number or an unquoted YAML `null`) is a typo that would otherwise slip
-     * through the `as? String` cast into a silent pass-through or an empty rename — fail the build
-     * loudly instead.
+     * Reads `otel-name`: an omitted key or `none` returns null; otherwise returns a nonblank string.
+     * Rejects explicit null, blank strings, and non-string values so typos cannot disable a rename.
      */
     private fun parseOtelName(m: Map<String, Any?>): String? {
       if (!m.containsKey("otel-name")) return null // absent => pass-through
