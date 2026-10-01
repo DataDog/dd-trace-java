@@ -74,19 +74,24 @@ class R2dbcSqlCommentInjectorForkedTest extends AbstractInstrumentationTest {
   }
 
   @Test
-  void alwaysAppendKeepsClosingSemicolon() {
-    String injected =
-        R2dbcSqlCommentInjector.inject("SELECT 1;", "orders", "postgresql", "h", "shop", true);
-    assertTrue(injected.startsWith("SELECT 1 /*"), "expected appended comment: " + injected);
-    assertTrue(injected.endsWith("*/;"), "semicolon should stay last: " + injected);
+  void doesNotDoubleAppend() {
+    String once = R2dbcSqlCommentInjector.inject("SELECT 1", "orders", "sqlserver", "h", "shop");
+    String twice = R2dbcSqlCommentInjector.inject(once, "orders", "sqlserver", "h", "shop");
+    assertEquals(once, twice, "comment should not be appended twice");
   }
+}
+
+/** Verifies {@code dd.dbm.always_append_sql_comment} is honored. */
+@WithConfig(key = "dbm.propagation.mode", value = "full")
+@WithConfig(key = "dbm.always_append_sql_comment", value = "true")
+class R2dbcSqlCommentInjectorAlwaysAppendForkedTest extends AbstractInstrumentationTest {
 
   @Test
-  void doesNotDoubleAppend() {
-    String once =
-        R2dbcSqlCommentInjector.inject("SELECT 1;", "orders", "postgresql", "h", "shop", true);
-    String twice = R2dbcSqlCommentInjector.inject(once, "orders", "postgresql", "h", "shop", true);
-    assertEquals(once, twice, "comment should not be appended twice");
+  void alwaysAppendKeepsClosingSemicolon() {
+    String injected =
+        R2dbcSqlCommentInjector.inject("SELECT 1;", "orders", "postgresql", "h", "shop");
+    assertTrue(injected.startsWith("SELECT 1 /*"), "expected appended comment: " + injected);
+    assertTrue(injected.endsWith("*/;"), "semicolon should stay last: " + injected);
   }
 }
 

@@ -8,20 +8,12 @@ import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.INJECT_COMMENT;
 import static datadog.trace.instrumentation.r2dbc.R2dbcDecorator.stringOption;
 
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter;
+import datadog.trace.bootstrap.instrumentation.dbm.SQLCommenter;
 import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.ConnectionFactoryOptions;
 
 /**
- * Injects DBM SQL comments into R2DBC queries. Reuses {@link SharedDBCommenter} to build the
- * comment content (service metadata) and wraps it in SQL comment delimiters.
- *
- * <p>This is the R2DBC equivalent of JDBC's {@code SQLCommenter} and follows the same placement
- * rules: the comment is prepended, unless {@code dd.dbm.always_append_sql_comment} is set, the
- * statement is a {@code CALL}, it carries a PostgreSQL {@code pg_hint_plan} hint ({@code /*+}), or
- * the database is SQL Server, in which case it is appended. JDBC's {@code {call ...}} escape syntax
- * has no R2DBC equivalent, and the Oracle {@code v$session.action} service-hash mode does not apply
- * because R2DBC never sets the session action.
+ * Injects DBM SQL comments into R2DBC queries using the same {@link SQLCommenter} as JDBC.
  *
  * <p>Injection happens on the real driver's {@code Connection#createStatement(String)} (see {@link
  * R2dbcConnectionInstrumentation}), mirroring JDBC's {@code Connection#prepareStatement} advice. It
@@ -31,9 +23,6 @@ import io.r2dbc.spi.ConnectionFactoryOptions;
  * dynamic trace context.
  */
 public final class R2dbcSqlCommentInjector {
-
-  private static final String OPEN_COMMENT = "/*";
-  private static final String CLOSE_COMMENT = "*/";
 
   private R2dbcSqlCommentInjector() {}
 
@@ -86,114 +75,20 @@ public final class R2dbcSqlCommentInjector {
    */
   public static String inject(
       String sql, String dbService, String dbType, String hostname, String dbName) {
-    return inject(sql, dbService, dbType, hostname, dbName, DBM_ALWAYS_APPEND_SQL_COMMENT);
-  }
-
-  static String inject(
-      String sql,
-      String dbService,
-      String dbType,
-      String hostname,
-      String dbName,
-      boolean preferAppend) {
-    if (sql == null || sql.isEmpty()) {
-      return sql;
-    }
-
     if (!INJECT_COMMENT) {
       return sql;
     }
-
-    boolean appendComment = preferAppend || mustAppend(sql, dbType);
-
-    // Skip SQL that already carries a DD comment before building a new one
-    if (hasDDComment(sql, appendComment)) {
-      return sql;
-    }
-
-    // No traceparent: see the class-level javadoc for why per-execution trace context can't
-    // be injected at this point.
-    String commentContent =
-        SharedDBCommenter.buildComment(dbService, dbType, hostname, dbName, null);
-    if (commentContent == null) {
-      return sql;
-    }
-
-    StringBuilder sb = new StringBuilder(sql.length() + commentContent.length() + 6);
-    if (appendComment) {
-      // Keep a statement-terminating semicolon after the comment
-      int closingSemicolon = indexOfClosingSemicolon(sql);
-      sb.append(sql, 0, closingSemicolon > -1 ? closingSemicolon : sql.length());
-      sb.append(' ').append(OPEN_COMMENT).append(commentContent).append(CLOSE_COMMENT);
-      if (closingSemicolon > -1) {
-        sb.append(';');
-      }
-    } else {
-      sb.append(OPEN_COMMENT).append(commentContent).append(CLOSE_COMMENT).append(' ').append(sql);
-    }
-    return sb.toString();
+    // No traceparent: see the class-level javadoc.
+    return SQLCommenter.inject(
+        sql, dbService, dbType, hostname, dbName, null, preferAppend(dbType));
   }
 
   /**
-   * PostgreSQL and MySQL reject anything before {@code CALL}, and {@code pg_hint_plan} only reads a
-   * hint comment at the start of the statement, so both must keep the DD comment at the end. SQL
-   * Server always appends at statement creation, as JDBC does for {@code prepareStatement}.
+   * Reasons to append that the caller decides (statement-shape reasons such as {@code CALL} or a
+   * {@code pg_hint_plan} hint are applied by {@link SQLCommenter}). SQL Server appends at statement
+   * creation, as JDBC does for {@code prepareStatement}.
    */
-  private static boolean mustAppend(String sql, String dbType) {
-    if (startsWithIgnoreCase(sql, "call")) {
-      return true;
-    }
-    if (dbType == null) {
-      return false;
-    }
-    return "sqlserver".equals(dbType)
-        || "mssql".equals(dbType)
-        || (dbType.startsWith("postgres") && sql.contains("/*+"));
-  }
-
-  private static boolean startsWithIgnoreCase(String sql, String word) {
-    int start = 0;
-    while (start < sql.length() && Character.isWhitespace(sql.charAt(start))) {
-      start++;
-    }
-    int end = start + word.length();
-    return sql.regionMatches(true, start, word, 0, word.length())
-        && (end == sql.length() || Character.isWhitespace(sql.charAt(end)));
-  }
-
-  private static boolean hasDDComment(String sql, boolean appendComment) {
-    if (appendComment) {
-      // Look at the last comment, ignoring a terminating semicolon and trailing whitespace
-      int tail = indexOfClosingSemicolon(sql);
-      int bodyEnd = tail > -1 ? tail : sql.length();
-      while (bodyEnd > 0 && Character.isWhitespace(sql.charAt(bodyEnd - 1))) {
-        bodyEnd--;
-      }
-      int end = bodyEnd - CLOSE_COMMENT.length();
-      if (end < 0 || !sql.startsWith(CLOSE_COMMENT, end)) {
-        return false;
-      }
-      int start = sql.lastIndexOf(OPEN_COMMENT, end - 1);
-      return start != -1
-          && SharedDBCommenter.containsTraceComment(sql, start + OPEN_COMMENT.length(), end);
-    }
-    if (!sql.startsWith(OPEN_COMMENT)) {
-      return false;
-    }
-    int end = sql.indexOf(CLOSE_COMMENT, OPEN_COMMENT.length());
-    return end != -1 && SharedDBCommenter.containsTraceComment(sql, OPEN_COMMENT.length(), end);
-  }
-
-  /** Index of the semicolon that terminates {@code sql} (ignoring trailing whitespace), or -1. */
-  private static int indexOfClosingSemicolon(String sql) {
-    for (int i = sql.length() - 1; i >= 0; i--) {
-      char c = sql.charAt(i);
-      if (c == ';') {
-        return i;
-      } else if (!Character.isWhitespace(c)) {
-        break;
-      }
-    }
-    return -1;
+  static boolean preferAppend(String dbType) {
+    return DBM_ALWAYS_APPEND_SQL_COMMENT || "sqlserver".equals(dbType) || "mssql".equals(dbType);
   }
 }
