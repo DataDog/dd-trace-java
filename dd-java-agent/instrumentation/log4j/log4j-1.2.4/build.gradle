@@ -20,6 +20,7 @@ testJvmConstraints {
   maxJavaVersion = JavaVersion.VERSION_24
 }
 addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'log4j', name: 'log4j', version: '1.2.4'
