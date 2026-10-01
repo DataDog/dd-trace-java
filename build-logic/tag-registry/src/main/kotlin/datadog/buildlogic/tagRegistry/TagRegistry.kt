@@ -18,6 +18,7 @@ package datadog.buildlogic.tagRegistry
  */
 class TagRegistry private constructor(val tags: List<Tag>) {
   data class Tag(
+    /** The tag's identity: its Datadog name, or `<dd-name>@<direction>` when declared per direction. */
     val name: String,
     val type: String,
     val required: String,
@@ -31,6 +32,8 @@ class TagRegistry private constructor(val tags: List<Tag>) {
      * direction appears only here, and is not applied until name resolution knows the direction.
      */
     val otelByDirection: Map<TagConventions.Direction, String> = emptyMap(),
+    /** The Datadog-namespace name, shared by the tags of a name declared per direction. */
+    val ddName: String = name,
   )
 
   companion object {
@@ -67,6 +70,7 @@ class TagRegistry private constructor(val tags: List<Tag>) {
             id = encode(serial, traceLevel),
             otelName = directionFree[t.name],
             otelByDirection = byDirection[t.name].orEmpty(),
+            ddName = t.ddName,
           )
         }
 
@@ -81,7 +85,7 @@ class TagRegistry private constructor(val tags: List<Tag>) {
      * `peer.hostname` on outbound ones. Otherwise resolving that name would have no single answer.
      */
     private fun validateOtelNames(tags: List<Tag>) {
-      val canonical = tags.map { it.name }.toSet()
+      val canonical = tags.map { it.ddName }.toSet()
       val owner = HashMap<Pair<TagConventions.Direction, String>, String>()
       for (t in tags) {
         for ((direction, otel) in t.otelByDirection) {

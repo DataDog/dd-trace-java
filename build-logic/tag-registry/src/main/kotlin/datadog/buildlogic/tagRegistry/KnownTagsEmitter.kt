@@ -58,6 +58,10 @@ object KnownTagsEmitter {
     fun otelNameC(name: String) = otelNameOfConst.getValue(name)
 
     val order = reg.tags.map { it.name } // stable emit order
+    // A Datadog name declared per direction names one tag per direction, so keyOf cannot pick one
+    // without the span's direction; those names resolve to no tag until resolution knows it.
+    val ambiguousDdNames = reg.tags.groupBy { it.ddName }.filterValues { it.size > 1 }.keys
+    val keyOfOrder = reg.tags.filter { it.ddName !in ambiguousDdNames }.map { it.name }
     // canonical name -> OpenTelemetry name, for the reverse (openTelemetryNameOf) switch.
     val otelName = reg.tags.mapNotNull { t -> t.otelName?.let { t.name to it } }.toMap()
     return buildString {
@@ -80,7 +84,7 @@ object KnownTagsEmitter {
       for (t in reg.tags) {
         appendLine(
           """
-            public static final String ${nameC(t.name)} = "${escape(t.name)}";
+            public static final String ${nameC(t.name)} = "${escape(t.ddName)}";
             public static final long ${idC(t.name)} = ${hex(t.id)};
           """.trimIndent()
         )
@@ -116,7 +120,7 @@ object KnownTagsEmitter {
           private static final String[] KEYOF_NAMES = {
         """.trimIndent()
       )
-      order.forEach { appendLine("    ${nameC(it)},") }
+      keyOfOrder.forEach { appendLine("    ${nameC(it)},") }
       otelByCanonical.forEach { (otel, _) ->
         appendLine("    \"${escape(otel)}\",")
       }
@@ -126,7 +130,7 @@ object KnownTagsEmitter {
           private static final long[] KEYOF_VALUES = {
         """.trimIndent()
       )
-      order.forEach { appendLine("    ${idC(it)},") }
+      keyOfOrder.forEach { appendLine("    ${idC(it)},") }
       otelByCanonical.forEach { (_, canonical) ->
         appendLine("    ${idC(canonical)},")
       }
