@@ -14,7 +14,8 @@ class TagConventions private constructor(
   data class Tag(
     /**
      * The tag's identity. It is the Datadog name, unless that name is declared once per direction,
-     * as `peer.port` is: then each declaration is its own tag, named `<dd-name>@<direction>`.
+     * as `peer.port` is: then each declaration is its own tag, named `<dd-name>@<direction>`. That
+     * derived name appears in reports; it is not YAML syntax.
      */
     val name: String,
     val type: String,
@@ -29,15 +30,14 @@ class TagConventions private constructor(
     val otelName: String? = null,
     /**
      * Set `span-kind-neutral: true` to apply a rename declared in a directional scope (a span type
-     * or mixin with a `span-kind`) in every direction, not only in that scope's. It confirms
-     * OpenTelemetry uses the name only for this tag: `db.type` -> `db.system` on `db.client`
-     * qualifies, because `db.system` only describes a database. Until name resolution knows a
-     * span's direction, only renames that apply in every direction are used, so an unmarked
-     * directional rename is recorded but not yet applied.
+     * or mixin with a `span-kind`) in every direction, not only in that scope's. Set it only when
+     * OpenTelemetry uses the name for this tag alone: `db.type` -> `db.system` on `db.client`
+     * qualifies, because `db.system` only describes a database.
      *
-     * A rename on a concrete span type with no `span-kind` requires the flag. Renames in
-     * `trace_level`, abstract types, and mixins without a `span-kind` need none. Setting it
-     * without a rename is invalid.
+     * Until name resolution knows a span's direction, only renames that apply in every direction
+     * are used, so an unmarked directional rename is recorded but not yet applied. A rename on a
+     * concrete span type with no `span-kind` requires the flag; renames in `trace_level`, abstract
+     * types, and mixins without a `span-kind` need none. Setting it without a rename is invalid.
      *
      * The flag is interim: it goes away once name resolution is direction-aware.
      */
@@ -331,8 +331,9 @@ class TagConventions private constructor(
     }
 
     /**
-     * A directional mixin may reach only span types of its direction, through `include` or
-     * `applies`, so a type never receives both sides of a tag declared per direction.
+     * A directional mixin may reach, through `include` or `applies`, only span types of the same
+     * direction; a type with no `span-kind` cannot receive one. So no type receives both sides of a
+     * tag declared per direction.
      */
     private fun validateMixinDirections(spanTypes: Map<String, SpanType>, mixins: Map<String, Mixin>) {
       for (st in spanTypes.values.filter { !it.abstract }) {
@@ -410,9 +411,9 @@ class TagConventions private constructor(
     }
 
     /**
-     * Checks where `otel-name` and `span-kind-neutral` may appear. A rename on a concrete span type
-     * without a `span-kind` needs `span-kind-neutral: true`, because nothing scopes it to a
-     * direction, and `span-kind-neutral` requires a rename.
+     * Checks where `span-kind-neutral` is required and where it is allowed. A rename on a concrete
+     * span type without a `span-kind` requires it, because nothing scopes that rename to a
+     * direction. The flag itself requires a rename to apply to.
      */
     private fun validateOtelNameScope(
       spanTypes: Map<String, SpanType>,

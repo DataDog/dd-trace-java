@@ -25,7 +25,10 @@ class TagRegistry private constructor(val tags: List<Tag>) {
     val serial: Int,
     val traceLevel: Boolean,
     val id: Long,
-    /** The OpenTelemetry name that applies in every direction, or null; see below. */
+    /**
+     * The OpenTelemetry name that applies in every direction, or null when the tag has no rename or
+     * its rename is scoped to a direction; see [otelByDirection].
+     */
     val otelName: String? = null,
     /**
      * The OpenTelemetry name per span direction. A superset of [otelName]: a rename scoped to one
@@ -83,9 +86,9 @@ class TagRegistry private constructor(val tags: List<Tag>) {
 
     /**
      * An OpenTelemetry name must be unambiguous in each direction: it may not collide with any
-     * canonical tag name, nor be claimed by two tags on spans of the same direction. Two tags may
-     * share a name across directions -- `server.address` is `http.hostname` on inbound spans and
-     * `peer.hostname` on outbound ones. Otherwise resolving that name would have no single answer.
+     * canonical tag name, nor be claimed by two tags on spans of the same direction, or resolving it
+     * would have no single answer. Two tags may share a name across directions: `server.address` is
+     * `http.hostname` on inbound spans and `peer.hostname` on outbound ones.
      */
     private fun validateOtelNames(tags: List<Tag>) {
       val canonical = tags.map { it.ddName }.toSet()
