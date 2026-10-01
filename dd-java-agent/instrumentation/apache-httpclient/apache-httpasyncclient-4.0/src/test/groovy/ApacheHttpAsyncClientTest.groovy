@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
+import datadog.trace.agent.test.naming.TestingOtelHttpSemantics
 import datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientDecorator
 import org.apache.http.HttpHost
 import org.apache.http.HttpResponse
@@ -98,6 +99,9 @@ class ApacheHttpAsyncClientV0Test extends ApacheHttpAsyncClientTest implements T
 }
 
 class ApacheHttpAsyncClientV1ForkedTest extends ApacheHttpAsyncClientTest implements TestingGenericHttpNamingConventions.ClientV1 {
+}
+
+class ApacheHttpAsyncClientOtelSemanticsForkedTest extends ApacheHttpAsyncClientTest implements TestingGenericHttpNamingConventions.ClientV0, TestingOtelHttpSemantics {
 }
 
 class ApacheHttpAsyncClientHostRequestTest extends ApacheHttpAsyncClientV0Test {
