@@ -257,6 +257,15 @@ class JettyServlet3SyncRumInjectionForkedTest extends JettyServlet3TestSync {
 class JettyServlet3SyncV1ForkedTest extends JettyServlet3TestSync implements TestingGenericHttpNamingConventions.ServerV1 {
 }
 
+class JettyServlet3SyncOtelSemanticsForkedTest extends JettyServlet3TestSync {
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("trace.otel.semantics.enabled", "true")
+  }
+}
+
 class JettyServlet3TestAsync extends JettyServlet3Test {
 
   @Override

@@ -335,6 +335,15 @@ class Netty41ServerV0Test extends Netty41ServerTest implements TestingNettyHttpN
 class Netty41ServerV1ForkedTest extends Netty41ServerTest implements TestingNettyHttpNamingConventions.ServerV1 {
 }
 
+class Netty41ServerOtelSemanticsForkedTest extends Netty41ServerTest implements TestingNettyHttpNamingConventions.ServerV0 {
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("trace.otel.semantics.enabled", "true")
+  }
+}
+
 
 class WsEndpoint {
   static volatile ChannelHandlerContext activeSession
@@ -350,5 +359,4 @@ class WsEndpoint {
     activeSession = null
   }
 }
-
 

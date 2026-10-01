@@ -11,6 +11,7 @@ import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
+import datadog.trace.api.KnownTags
 import datadog.trace.api.ProductActivation
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TracerConfig
@@ -33,6 +34,7 @@ import datadog.trace.api.telemetry.EndpointCollector
 import datadog.trace.bootstrap.blocking.BlockingActionHelper
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
+import datadog.trace.bootstrap.instrumentation.api.OtelHttpSemantics
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes
 import datadog.trace.bootstrap.instrumentation.api.SpanLink
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -199,7 +201,32 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   abstract String expectedOperationName()
 
-  String expectedResourceName(ServerEndpoint endpoint, String method, URI address) {
+  Serializable expectedResourceName(ServerEndpoint endpoint, String method, URI address) {
+    if (Config.get().isTraceOtelSemanticsEnabled()) {
+      def route = expectedServerSpanRoute(endpoint)
+      def nameMethod = OtelHttpSemantics.spanNameMethod(method)
+      if (route == null) {
+        return nameMethod
+      }
+      if (route instanceof CharSequence) {
+        return "$nameMethod $route"
+      }
+      return {
+        String resourceName ->
+        def prefix = "$nameMethod "
+        if (!resourceName.startsWith(prefix)) {
+          return false
+        }
+        def resourceRoute = resourceName.substring(prefix.length())
+        if (route instanceof Class) {
+          return route.isInstance(resourceRoute)
+        }
+        if (route instanceof Closure) {
+          return route.call(resourceRoute)
+        }
+        return false
+      }
+    }
     if (endpoint.status == 404 && (changesAll404s() || endpoint.path == "/not-found")) {
       return "404"
     } else if (endpoint.hasPathParam) {
@@ -241,7 +268,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
           it == null || it == EXCEPTION.body
         },
         "error.type"   : {
-          it == null || it == Exception.name
+          it == null || it == Exception.name ||
+          (Config.get().isTraceOtelSemanticsEnabled() && it == endpoint.status.toString())
         },
         "error.stack"  : {
           it == null || it instanceof String
@@ -877,12 +905,13 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         }
       }
     }
-    recordedBaggageTags == [
+    def expectedBaggageTags = Config.get().isInjectBaggageAsTagsEnabled() ? [
       "baggage.user.id"   : "test-user",
       "baggage.session.id": "test-session",
       "baggage.account.id": "test-account"
       // "baggage.language" should NOT be present since it's not in default config
-    ]
+    ] : [:]
+    recordedBaggageTags == expectedBaggageTags
 
     and:
     if (isDataStreamsEnabled()) {
@@ -2454,11 +2483,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     trace.span {
       operationName operation
-      if (handshake.getTag(Tags.HTTP_ROUTE) != null) {
-        resourceName "websocket ${handshake.getTag(Tags.HTTP_ROUTE) as String}"
-      } else {
-        resourceName "websocket ${URI.create(handshake.getTag(Tags.HTTP_URL) as String).path}"
-      }
+      def handshakeResource = handshake.resourceName.toString()
+      def separator = handshakeResource.indexOf(' ')
+      def websocketResource = separator < 0 ? handshakeResource : handshakeResource.substring(separator + 1)
+      resourceName "websocket $websocketResource"
       if (traceStarter && Config.get().isWebsocketMessagesSeparateTraces()) {
         parent()
       } else {
@@ -2613,15 +2641,19 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     boolean hasForwardedIP = hasForwardedIP()
     def expectedExtraServerTags = expectedExtraServerTags(endpoint)
     def expectedStatus = expectedStatus(endpoint)
+    def expectedIsErrored = expectedErrored(endpoint)
     def expectedQueryTag = expectedQueryTag(endpoint)
     def expectedUrl = expectedUrl(endpoint, address)
     def expectedIntegrationName = expectedIntegrationName()
+    def otelSemantics = Config.get().isTraceOtelSemanticsEnabled()
+    def requestUrl = endpoint.resolve(address)
+    def expectedPath = Config.get().isHttpServerRawResource() && supportsRaw() ? requestUrl.rawPath : requestUrl.path
     trace.span {
       serviceName expectedServiceName()
       operationName operation()
       resourceName expectedResourceName(endpoint, method, address)
       spanType DDSpanTypes.HTTP_SERVER
-      errored expectedErrored(endpoint)
+      errored expectedIsErrored
       if (parentID != null) {
         traceId traceID
         parentSpanId parentID
@@ -2643,14 +2675,31 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
           }
           tag(peerHostTag, expectedPeerIp)
           "$Tags.HTTP_CLIENT_IP" clientIp ?: expectedPeerIp
-          "$Tags.NETWORK_CLIENT_IP" expectedPeerIp
+          if (otelSemantics) {
+            "$KnownTags.NETWORK_PEER_ADDRESS_NAME" expectedPeerIp
+            "$Tags.NETWORK_CLIENT_IP" null
+          } else {
+            "$Tags.NETWORK_CLIENT_IP" expectedPeerIp
+          }
         } else {
           // http.client_ip is inferred from forwarded headers; network.client.ip requires peerIp.
           "$Tags.NETWORK_CLIENT_IP" null
+          if (otelSemantics) {
+            "$KnownTags.NETWORK_PEER_ADDRESS_NAME" null
+          }
           "$Tags.HTTP_CLIENT_IP" clientIp
         }
-        "$Tags.HTTP_HOSTNAME" address.host
-        "$Tags.HTTP_URL" "$expectedUrl"
+        if (otelSemantics) {
+          "$Tags.HTTP_URL" null
+          "$Tags.HTTP_HOSTNAME" null
+          "$KnownTags.SERVER_ADDRESS_NAME" address.host
+          "$KnownTags.URL_PATH_NAME" expectedPath
+          "$KnownTags.URL_SCHEME_NAME" requestUrl.scheme
+          "$KnownTags.SERVER_PORT_NAME" requestUrl.port
+        } else {
+          "$Tags.HTTP_HOSTNAME" address.host
+          "$Tags.HTTP_URL" "$expectedUrl"
+        }
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_STATUS" expectedStatus
         "$Tags.HTTP_USER_AGENT" String
@@ -2666,8 +2715,17 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         if (null != expectedExtraErrorInformation) {
           addTags(expectedExtraErrorInformation)
         }
+        if (otelSemantics && expectedIsErrored &&
+        (expectedExtraErrorInformation == null || !expectedExtraErrorInformation.containsKey(DDTags.ERROR_TYPE))) {
+          "$DDTags.ERROR_TYPE" endpoint.status.toString()
+        }
         if (endpoint.query) {
-          "$DDTags.HTTP_QUERY" expectedQueryTag
+          if (otelSemantics) {
+            "$KnownTags.URL_QUERY_NAME" expectedQueryTag
+            "$DDTags.HTTP_QUERY" null
+          } else {
+            "$DDTags.HTTP_QUERY" expectedQueryTag
+          }
         }
         if ({
           isDataStreamsEnabled()
