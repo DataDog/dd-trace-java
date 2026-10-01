@@ -42,26 +42,17 @@ dependencies {
   api("dev.openfeature:sdk:1.20.1")
 
   compileOnly(project(":products:feature-flagging:feature-flagging-bootstrap"))
-  compileOnly(project(":products:feature-flagging:feature-flagging-config"))
-  compileOnly(project(":utils:config-utils"))
   compileOnly("io.opentelemetry:opentelemetry-api:1.47.0")
 
   testImplementation(project(":products:feature-flagging:feature-flagging-bootstrap"))
-  // SpanEnrichmentGate resolves FeatureFlaggingConfig at runtime. Without it on the test
-  // classpath the gate swallows a NoClassDefFoundError and reads as off, so the enrichment
-  // branch cannot be driven.
-  testImplementation(project(":products:feature-flagging:feature-flagging-config"))
-  testImplementation(project(":utils:config-utils"))
   testImplementation("io.opentelemetry:opentelemetry-api:1.47.0")
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)
   testImplementation(libs.moshi)
 
-  // The main source set gets the bootstrap/config types as compileOnly, so the JMH source set
-  // needs them on its own compile and runtime classpath to drive the hook end to end.
+  // The main source set gets bootstrap types as compileOnly, so the JMH source set needs them on
+  // its own compile and runtime classpath to drive the hook end to end.
   jmhImplementation(project(":products:feature-flagging:feature-flagging-bootstrap"))
-  jmhImplementation(project(":products:feature-flagging:feature-flagging-config"))
-  jmhImplementation(project(":utils:config-utils"))
 }
 
 jmh {
