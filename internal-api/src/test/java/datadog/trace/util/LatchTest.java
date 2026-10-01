@@ -20,7 +20,7 @@ class LatchTest {
     boolean fieldPresent;
 
     @Override
-    protected Boolean handle(String target) {
+    protected Boolean apply(String target) {
       calls.incrementAndGet();
       try {
         if (!fieldPresent) {
@@ -39,8 +39,8 @@ class LatchTest {
     FieldLatch latch = new FieldLatch();
     latch.fieldPresent = true;
 
-    assertEquals(false, latch.tryGetOrNull("x"));
-    assertEquals(false, latch.tryGetOrNull("x"));
+    assertEquals(false, latch.tryApplyOrNull("x"));
+    assertEquals(false, latch.tryApplyOrNull("x"));
 
     assertEquals(2, latch.calls.get());
     assertFalse(latch.isLatched());
@@ -50,30 +50,30 @@ class LatchTest {
   void rethrowsTheFirstFailureThenSkipsTheOperation() {
     FieldLatch latch = new FieldLatch();
 
-    assertThrows(NoSuchFieldError.class, () -> latch.tryGetOrNull("x"));
+    assertThrows(NoSuchFieldError.class, () -> latch.tryApplyOrNull("x"));
     assertTrue(latch.isLatched());
 
-    assertNull(latch.tryGetOrNull("x"));
-    assertNull(latch.tryGetOrNull("y"));
+    assertNull(latch.tryApplyOrNull("x"));
+    assertNull(latch.tryApplyOrNull("y"));
     assertEquals(1, latch.calls.get(), "later calls should be skipped");
   }
 
   @Test
-  void tryGetOrDefaultReturnsTheResultWhenThereIsOne() {
+  void tryApplyOrDefaultReturnsTheResultWhenThereIsOne() {
     FieldLatch latch = new FieldLatch();
     latch.fieldPresent = true;
 
     // a real false must not be replaced by the fallback
-    assertEquals(false, latch.tryGetOrDefault("x", Boolean.TRUE));
+    assertEquals(false, latch.tryApplyOrDefault("x", Boolean.TRUE));
   }
 
   @Test
-  void tryGetOrDefaultReturnsTheFallbackOnceLatched() {
+  void tryApplyOrDefaultReturnsTheFallbackOnceLatched() {
     FieldLatch latch = new FieldLatch();
-    assertThrows(NoSuchFieldError.class, () -> latch.tryGetOrDefault("x", Boolean.TRUE));
+    assertThrows(NoSuchFieldError.class, () -> latch.tryApplyOrDefault("x", Boolean.TRUE));
 
-    assertEquals(true, latch.tryGetOrDefault("x", Boolean.TRUE));
-    assertEquals(true, latch.tryGetOrDefault("y", Boolean.TRUE));
+    assertEquals(true, latch.tryApplyOrDefault("x", Boolean.TRUE));
+    assertEquals(true, latch.tryApplyOrDefault("y", Boolean.TRUE));
     assertEquals(1, latch.calls.get(), "later calls should be skipped");
   }
 
@@ -83,14 +83,14 @@ class LatchTest {
     Latch<String, String, RuntimeException> latch =
         new Latch<String, String, RuntimeException>() {
           @Override
-          protected String handle(String target) {
+          protected String apply(String target) {
             latch();
             return null;
           }
         };
 
-    assertEquals("fallback", latch.tryGetOrDefault("x", "fallback"));
-    assertEquals("fallback", latch.tryGetOrDefault("x", "fallback"));
+    assertEquals("fallback", latch.tryApplyOrDefault("x", "fallback"));
+    assertEquals("fallback", latch.tryApplyOrDefault("x", "fallback"));
   }
 
   /** A subclass may expose {@code unlatch}, for a policy that retries. */
@@ -98,7 +98,7 @@ class LatchTest {
     int calls;
 
     @Override
-    protected String handle(String target) {
+    protected String apply(String target) {
       calls++;
       latch();
       return "called";
@@ -113,14 +113,14 @@ class LatchTest {
   void unlatchResumesTheOperation() {
     Resumable latch = new Resumable();
 
-    assertEquals("called", latch.tryGetOrNull("x"));
-    assertNull(latch.tryGetOrNull("x"));
+    assertEquals("called", latch.tryApplyOrNull("x"));
+    assertNull(latch.tryApplyOrNull("x"));
     assertEquals(1, latch.calls);
 
     latch.resume();
 
     assertFalse(latch.isLatched());
-    assertEquals("called", latch.tryGetOrNull("x"));
+    assertEquals("called", latch.tryApplyOrNull("x"));
     assertEquals(2, latch.calls);
   }
 
@@ -129,22 +129,22 @@ class LatchTest {
     Latch<String, String, SQLException> latch =
         new Latch<String, String, SQLException>() {
           @Override
-          protected String handle(String target) throws SQLException {
+          protected String apply(String target) throws SQLException {
             throw new SQLException("boom");
           }
         };
 
-    assertThrows(SQLException.class, () -> latch.tryGetOrNull("x"));
+    assertThrows(SQLException.class, () -> latch.tryApplyOrNull("x"));
     assertFalse(latch.isLatched());
   }
 
-  /** What a call site writes: {@code handle} delegating to {@code handleNoSuchField}. */
+  /** What a call site writes: {@code apply} delegating to {@code handleNoSuchField}. */
   private static final class Handling extends Latch<String, String, RuntimeException> {
     final AtomicInteger calls = new AtomicInteger();
     Function<String, String> read;
 
     @Override
-    protected String handle(String target) {
+    protected String apply(String target) {
       return handleNoSuchField(
           target,
           t -> {
@@ -159,7 +159,7 @@ class LatchTest {
     Handling latch = new Handling();
     latch.read = t -> "value";
 
-    assertEquals("value", latch.tryGetOrNull("x"));
+    assertEquals("value", latch.tryApplyOrNull("x"));
     assertFalse(latch.isLatched());
   }
 
@@ -172,11 +172,11 @@ class LatchTest {
           throw failure;
         };
 
-    NoSuchFieldError thrown = assertThrows(NoSuchFieldError.class, () -> latch.tryGetOrNull("x"));
+    NoSuchFieldError thrown = assertThrows(NoSuchFieldError.class, () -> latch.tryApplyOrNull("x"));
 
     assertSame(failure, thrown);
     assertTrue(latch.isLatched());
-    assertNull(latch.tryGetOrNull("x"));
+    assertNull(latch.tryApplyOrNull("x"));
     assertEquals(1, latch.calls.get(), "later calls should be skipped");
   }
 
@@ -188,8 +188,8 @@ class LatchTest {
           throw new IllegalStateException("boom");
         };
 
-    assertThrows(IllegalStateException.class, () -> latch.tryGetOrNull("x"));
-    assertThrows(IllegalStateException.class, () -> latch.tryGetOrNull("x"));
+    assertThrows(IllegalStateException.class, () -> latch.tryApplyOrNull("x"));
+    assertThrows(IllegalStateException.class, () -> latch.tryApplyOrNull("x"));
 
     assertFalse(latch.isLatched());
     assertEquals(2, latch.calls.get());

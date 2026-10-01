@@ -43,13 +43,13 @@ public final class JsonParser216Helper {
       SYMBOLS_LATCH =
           new Latch<UTF8StreamJsonParser, ByteQuadsCanonicalizer, RuntimeException>() {
             @Override
-            protected ByteQuadsCanonicalizer handle(UTF8StreamJsonParser jsonParser) {
+            protected ByteQuadsCanonicalizer apply(UTF8StreamJsonParser jsonParser) {
               return handleNoSuchField(jsonParser, parser -> parser._symbols);
             }
           };
 
   public static boolean fetchInterner(UTF8StreamJsonParser jsonParser) {
-    ByteQuadsCanonicalizer symbols = SYMBOLS_LATCH.tryGetOrNull(jsonParser);
+    ByteQuadsCanonicalizer symbols = SYMBOLS_LATCH.tryApplyOrNull(jsonParser);
     // no symbol table to ask: assume interned (see the class comment)
     return symbols == null || ByteQuadsCanonicalizer216Helper.fetchInterner(symbols);
   }

@@ -130,7 +130,7 @@ public class LatchBenchmark {
   private static final Latch<Object, Boolean, RuntimeException> LATCH_MISSING =
       new Latch<Object, Boolean, RuntimeException>() {
         @Override
-        protected Boolean handle(Object target) {
+        protected Boolean apply(Object target) {
           try {
             return read(readMissing, target);
           } catch (NoSuchFieldError e) {
@@ -143,7 +143,7 @@ public class LatchBenchmark {
   private static final Latch<Object, Boolean, RuntimeException> LATCH_PRESENT =
       new Latch<Object, Boolean, RuntimeException>() {
         @Override
-        protected Boolean handle(Object target) {
+        protected Boolean apply(Object target) {
           try {
             return read(readPresent, target);
           } catch (NoSuchFieldError e) {
@@ -196,7 +196,7 @@ public class LatchBenchmark {
       // the field really is missing
     }
     try {
-      LATCH_MISSING.tryGetOrNull(missingTarget);
+      LATCH_MISSING.tryApplyOrNull(missingTarget);
     } catch (NoSuchFieldError expected) {
       // the first failure is rethrown
     }
@@ -310,7 +310,7 @@ public class LatchBenchmark {
   private boolean latchMissing(int remaining) {
     return remaining > 0
         ? latchMissing(remaining - 1)
-        : LATCH_MISSING.tryGetOrDefault(missingTarget, Boolean.TRUE);
+        : LATCH_MISSING.tryApplyOrDefault(missingTarget, Boolean.TRUE);
   }
 
   private boolean unguardedPresent(int remaining) {
@@ -350,7 +350,7 @@ public class LatchBenchmark {
   private boolean latchPresent(int remaining) {
     return remaining > 0
         ? latchPresent(remaining - 1)
-        : LATCH_PRESENT.tryGetOrDefault(presentTarget, Boolean.TRUE);
+        : LATCH_PRESENT.tryApplyOrDefault(presentTarget, Boolean.TRUE);
   }
 
   private static void compile(
