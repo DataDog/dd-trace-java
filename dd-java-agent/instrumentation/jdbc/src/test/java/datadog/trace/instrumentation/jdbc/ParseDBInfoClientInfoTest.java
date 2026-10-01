@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.jdbc;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
 
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import java.lang.reflect.InvocationHandler;
@@ -99,17 +98,25 @@ class ParseDBInfoClientInfoTest {
   }
 
   @Test
-  void unexpectedFailuresFallBackToDefaultInsteadOfBeingSwallowed() {
+  void anyOtherFailureStillYieldsUrlBasedDbInfo() {
     AtomicInteger calls = new AtomicInteger();
-    Connection connection =
-        connection(
-            calls,
-            () -> {
-              throw new IllegalStateException("unexpected");
-            });
+    for (Throwable failure :
+        new Throwable[] {
+          new IllegalStateException("unexpected"), new Throwable("not even an Exception")
+        }) {
+      Connection connection =
+          connection(
+              calls,
+              () -> {
+                throw failure;
+              });
 
-    // not one of the expected "unsupported" shapes, so it reaches the outer handler
-    assertSame(DBInfo.DEFAULT, JDBCDecorator.parseDBInfoFromConnection(connection));
+      // getClientInfo can fail in any way; the URL alone is still enough for the DB info
+      DBInfo info = JDBCDecorator.parseDBInfoFromConnection(connection);
+
+      assertEquals("postgresql", info.getType());
+      assertEquals("orders", info.getDb());
+    }
   }
 
   @Test
