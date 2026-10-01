@@ -12,7 +12,10 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.naming.TestingNettyHttpNamingConventions
+import datadog.trace.agent.test.naming.TestingOtelHttpSemantics
 import datadog.trace.api.Config
+import datadog.trace.api.DDTags
 import okhttp3.MediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -217,6 +220,8 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
         "$Tags.HTTP_STATUS" Integer
         if (endpoint == EXCEPTION && this.testExceptionTag()) {
           errorTags(RuntimeException, EXCEPTION.body)
+        } else if (Config.get().isTraceOtelSemanticsEnabled() && endpoint == ERROR) {
+          "$DDTags.ERROR_TYPE" endpoint.status.toString()
         }
         defaultTags()
       }
@@ -229,4 +234,7 @@ class VertxHttpServerWorkerForkedTest extends VertxHttpServerForkedTest {
   HttpServer server() {
     return new VertxServer(verticle(), routerBasePath(), true)
   }
+}
+
+class VertxHttpServerOtelSemanticsForkedTest extends VertxHttpServerForkedTest implements TestingNettyHttpNamingConventions.ServerV0, TestingOtelHttpSemantics {
 }

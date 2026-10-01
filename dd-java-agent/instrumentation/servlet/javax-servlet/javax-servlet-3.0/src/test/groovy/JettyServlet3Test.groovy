@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
+import datadog.trace.agent.test.naming.TestingOtelHttpSemantics
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.ApplicationModule
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -255,6 +256,9 @@ class JettyServlet3SyncRumInjectionForkedTest extends JettyServlet3TestSync {
 }
 
 class JettyServlet3SyncV1ForkedTest extends JettyServlet3TestSync implements TestingGenericHttpNamingConventions.ServerV1 {
+}
+
+class JettyServlet3SyncOtelSemanticsForkedTest extends JettyServlet3TestSync implements TestingOtelHttpSemantics {
 }
 
 class JettyServlet3TestAsync extends JettyServlet3Test {
