@@ -54,6 +54,9 @@ public final class TracerFlarePoller {
     if (null != stopSubmitter) {
       stopSubmitter.run();
     }
+    if (null != tracerFlareService) {
+      tracerFlareService.close();
+    }
   }
 
   final class Preparer implements ProductListener {
