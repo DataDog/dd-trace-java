@@ -27,6 +27,9 @@ public class Is<T> implements Matcher<T> {
 
   @Override
   public boolean test(T t) {
+    if (this.expected instanceof CharSequence && t instanceof CharSequence) {
+      return this.expected.toString().equals(t.toString());
+    }
     return this.expected.equals(t);
   }
 }
