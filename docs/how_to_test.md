@@ -112,17 +112,17 @@ for inheritance and shared configuration examples.
 
 ## Continuation lifecycle failures
 
-Instrumentation test harnesses always enable strict trace writes; there is no harness opt-out. Do
-not replace the harness tracer or introduce another way to disable strict writes.
+Instrumentation test harnesses always enable strict trace writes; there is no harness opt-out.
+Do not replace the harness tracer or introduce another way to disable strict writes.
 
-Fix continuation leaks when possible. If a fix cannot be included immediately, quarantine the test
-with `@Flaky` and a useful reason or tracked issue so the failure remains visible. Keep continuation
-tracking enabled so the diagnostic evidence is preserved.
+Fix continuation leaks when possible.
+If a fix cannot be included immediately, quarantine the Spock test with `@Flaky` and a useful reason or tracked issue so the failure remains visible.
+`@Flaky` is not yet supported for JUnit tests.
+Keep continuation tracking enabled so the diagnostic evidence is preserved.
 
-Disable tracking with
-`@TrackScopeContinuations(enabled = false, reason = "...")` only for a proven incompatibility with
-the diagnostic itself, never for an unresolved leak. Keep the opt-out narrow and document the
-incompatibility and its removal condition. Strict trace writes remain enabled.
+Disable tracking with `@TrackScopeContinuations(enabled = false, reason = "...")` only for a proven incompatibility with the diagnostic itself, never for an unresolved leak.
+Keep the opt-out narrow and document the incompatibility and its removal condition.
+Strict trace writes remain enabled.
 
 ## Running Tests
 
