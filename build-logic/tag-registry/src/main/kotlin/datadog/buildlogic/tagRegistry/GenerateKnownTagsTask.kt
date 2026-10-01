@@ -18,14 +18,14 @@ import org.gradle.api.tasks.TaskAction
 abstract class GenerateKnownTagsTask : DefaultTask() {
   @get:InputFile
   @get:PathSensitive(PathSensitivity.NONE)
-  abstract val domainYaml: RegularFileProperty
+  abstract val tagConventionsFile: RegularFileProperty
 
   @get:OutputDirectory abstract val destinationDirectory: DirectoryProperty
 
   @TaskAction
   fun generate() {
     val outDir = destinationDirectory.get().asFile
-    TagRegistryGenerator.generate(domainYaml.get().asFile, outDir)
+    TagRegistryGenerator.generate(tagConventionsFile.get().asFile, outDir)
     logger.lifecycle("tag-registry: generated -> $outDir")
   }
 }

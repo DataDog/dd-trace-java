@@ -15,7 +15,7 @@ class TagRegistryGeneratorPlugin : Plugin<Project> {
       project.tasks.register<GenerateKnownTagsTask>("generateKnownTags") {
         group = "build"
         description = "Generates the Java tag registry and assignment reports."
-        domainYaml.convention(ext.tagConventionsFile)
+        tagConventionsFile.convention(ext.tagConventionsFile)
         destinationDirectory.convention(ext.destinationDirectory)
       }
     project.pluginManager.withPlugin("java") {

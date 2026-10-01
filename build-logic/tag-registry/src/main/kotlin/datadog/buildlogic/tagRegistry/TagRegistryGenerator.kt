@@ -9,10 +9,10 @@ import java.util.Locale
 /** Emits the Java tag registry and reports in a deterministic order. */
 object TagRegistryGenerator {
   /** Parses the conventions YAML and writes the full generated tree under [outDir]. */
-  fun generate(domainYaml: File, outDir: File) {
+  fun generate(tagConventionsFile: File, outDir: File) {
     val mapper = ObjectMapper(YAMLFactory())
     val domain: Map<String, Any?> =
-      domainYaml.inputStream().use {
+      tagConventionsFile.inputStream().use {
         mapper.readValue(it, object : TypeReference<Map<String, Any?>>() {})
       }
 
