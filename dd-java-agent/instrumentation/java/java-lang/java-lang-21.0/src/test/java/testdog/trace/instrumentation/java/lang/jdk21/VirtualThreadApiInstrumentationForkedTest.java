@@ -14,9 +14,9 @@ import org.junit.jupiter.api.Test;
  */
 @WithConfig(key = "legacy.context-manager.enabled", value = "false")
 class VirtualThreadApiInstrumentationForkedTest extends VirtualThreadApiInstrumentationTest {
-  @DisplayName("test per-mount path is selected for the new context manager")
-  @Test
-  void testPerMountPathSelected() {
-    assertTrue(VirtualThreadState.usePerMountContext());
-  }
+    @DisplayName("test per-mount path is selected for the new context manager")
+    @Test
+    void testPerMountPathSelected() {
+        assertTrue(VirtualThreadState.usePerMountContext());
+    }
 }

@@ -17,43 +17,42 @@ import org.slf4j.LoggerFactory;
 
 @AutoService(InstrumenterModule.class)
 public class OpenLineageInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
-  public OpenLineageInstrumentation() {
-    super("spark-openlineage");
-  }
-
-  @Override
-  public boolean defaultEnabled() {
-    return false;
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {"io.openlineage.spark.agent.OpenLineageSparkListener"};
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    // LiveListenerBus class is used when running in a YARN cluster
-    transformer.applyAdvice(
-        isConstructor()
-            .and(isDeclaredBy(named("io.openlineage.spark.agent.OpenLineageSparkListener")))
-            .and(takesArgument(0, named("org.apache.spark.SparkConf"))),
-        OpenLineageInstrumentation.class.getName() + "$OpenLineageSparkListenerAdvice");
-  }
-
-  public static class OpenLineageSparkListenerAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void exit(@Advice.This Object self, @Advice.FieldValue("conf") SparkConf conf)
-        throws IllegalAccessException {
-      Logger log = LoggerFactory.getLogger("OpenLineageSparkListenerAdvice");
-      if (!Config.get().isDataJobsOpenLineageEnabled()) {
-        log.debug(
-            "OpenLineage - Data Jobs integration disabled. Not manipulating OpenLineageSparkListener");
-        return;
-      }
-      InstanceStore.of(SparkConf.class).put("openLineageSparkConf", conf);
+    public OpenLineageInstrumentation() {
+        super("spark-openlineage");
     }
-  }
+
+    @Override
+    public boolean defaultEnabled() {
+        return false;
+    }
+
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {"io.openlineage.spark.agent.OpenLineageSparkListener"};
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        // LiveListenerBus class is used when running in a YARN cluster
+        transformer.applyAdvice(
+                isConstructor()
+                        .and(isDeclaredBy(named("io.openlineage.spark.agent.OpenLineageSparkListener")))
+                        .and(takesArgument(0, named("org.apache.spark.SparkConf"))),
+                OpenLineageInstrumentation.class.getName() + "$OpenLineageSparkListenerAdvice");
+    }
+
+    public static class OpenLineageSparkListenerAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void exit(@Advice.This Object self, @Advice.FieldValue("conf") SparkConf conf)
+                throws IllegalAccessException {
+            Logger log = LoggerFactory.getLogger("OpenLineageSparkListenerAdvice");
+            if (!Config.get().isDataJobsOpenLineageEnabled()) {
+                log.debug("OpenLineage - Data Jobs integration disabled. Not manipulating OpenLineageSparkListener");
+                return;
+            }
+            InstanceStore.of(SparkConf.class).put("openLineageSparkConf", conf);
+        }
+    }
 }

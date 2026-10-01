@@ -20,54 +20,53 @@ import net.bytebuddy.asm.Advice;
 @SuppressWarnings("Duplicates")
 @RequiresRequestContext(RequestContextSlot.APPSEC)
 class HttpServletGetInputStreamAdvice {
-  @Advice.OnMethodExit(suppress = Throwable.class)
-  static void after(
-      @Advice.This final HttpServletRequest req,
-      @Advice.Return(readOnly = false) ServletInputStream is,
-      @ActiveRequestContext RequestContext reqCtx) {
-    if (is == null) {
-      return;
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    static void after(
+            @Advice.This final HttpServletRequest req,
+            @Advice.Return(readOnly = false) ServletInputStream is,
+            @ActiveRequestContext RequestContext reqCtx) {
+        if (is == null) {
+            return;
+        }
+
+        Object alreadyWrapped = req.getAttribute("datadog.wrapped_request_body");
+        if (alreadyWrapped != null || is instanceof Servlet31InputStreamWrapper) {
+            return;
+        }
+
+        CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+        BiFunction<RequestContext, StoredBodySupplier, Void> requestStartCb =
+                cbp.getCallback(EVENTS.requestBodyStart());
+        BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestEndedCb =
+                cbp.getCallback(EVENTS.requestBodyDone());
+        if (requestStartCb == null || requestEndedCb == null) {
+            return;
+        }
+
+        req.setAttribute("datadog.wrapped_request_body", Boolean.TRUE);
+
+        int lengthHint = 0;
+        String lengthHeader = req.getHeader("content-length");
+        if (lengthHeader != null) {
+            try {
+                lengthHint = Integer.parseInt(lengthHeader);
+            } catch (NumberFormatException nfe) {
+                // purposefully left blank
+            }
+        }
+
+        String encoding = req.getCharacterEncoding();
+        Charset charset = null;
+        try {
+            if (encoding != null) {
+                charset = Charset.forName(encoding);
+            }
+        } catch (IllegalArgumentException iae) {
+            // purposefully left blank
+        }
+
+        StoredByteBody storedByteBody = new StoredByteBody(reqCtx, requestStartCb, requestEndedCb, charset, lengthHint);
+
+        is = new Servlet31InputStreamWrapper(is, storedByteBody);
     }
-
-    Object alreadyWrapped = req.getAttribute("datadog.wrapped_request_body");
-    if (alreadyWrapped != null || is instanceof Servlet31InputStreamWrapper) {
-      return;
-    }
-
-    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-    BiFunction<RequestContext, StoredBodySupplier, Void> requestStartCb =
-        cbp.getCallback(EVENTS.requestBodyStart());
-    BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> requestEndedCb =
-        cbp.getCallback(EVENTS.requestBodyDone());
-    if (requestStartCb == null || requestEndedCb == null) {
-      return;
-    }
-
-    req.setAttribute("datadog.wrapped_request_body", Boolean.TRUE);
-
-    int lengthHint = 0;
-    String lengthHeader = req.getHeader("content-length");
-    if (lengthHeader != null) {
-      try {
-        lengthHint = Integer.parseInt(lengthHeader);
-      } catch (NumberFormatException nfe) {
-        // purposefully left blank
-      }
-    }
-
-    String encoding = req.getCharacterEncoding();
-    Charset charset = null;
-    try {
-      if (encoding != null) {
-        charset = Charset.forName(encoding);
-      }
-    } catch (IllegalArgumentException iae) {
-      // purposefully left blank
-    }
-
-    StoredByteBody storedByteBody =
-        new StoredByteBody(reqCtx, requestStartCb, requestEndedCb, charset, lengthHint);
-
-    is = new Servlet31InputStreamWrapper(is, storedByteBody);
-  }
 }

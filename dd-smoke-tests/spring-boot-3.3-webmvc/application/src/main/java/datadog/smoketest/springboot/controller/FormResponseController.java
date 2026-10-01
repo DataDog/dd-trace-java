@@ -10,27 +10,27 @@ import org.thymeleaf.spring6.SpringTemplateEngine;
 
 @Controller
 public class FormResponseController {
-  private static final int RESPONSE_OFFSET = 6;
+    private static final int RESPONSE_OFFSET = 6;
 
-  private final SpringTemplateEngine templateEngine;
+    private final SpringTemplateEngine templateEngine;
 
-  public FormResponseController(SpringTemplateEngine templateEngine) {
-    this.templateEngine = templateEngine;
-  }
+    public FormResponseController(SpringTemplateEngine templateEngine) {
+        this.templateEngine = templateEngine;
+    }
 
-  @GetMapping("/form-response")
-  public void formResponse(HttpServletResponse response) throws IOException {
-    Context context = new Context(Locale.ROOT);
-    context.setVariable("returnUrl", "https://app.example.test/flows/complete?request=request-123");
-    context.setVariable("formAction", "https://provider.example.test/flows/continue");
-    context.setVariable("requestId", "request-123");
+    @GetMapping("/form-response")
+    public void formResponse(HttpServletResponse response) throws IOException {
+        Context context = new Context(Locale.ROOT);
+        context.setVariable("returnUrl", "https://app.example.test/flows/complete?request=request-123");
+        context.setVariable("formAction", "https://provider.example.test/flows/continue");
+        context.setVariable("requestId", "request-123");
 
-    String content = templateEngine.process("form-response", context);
-    // Exercise response writers that receive a slice of a reusable buffer.
-    char[] responseBuffer = new char[RESPONSE_OFFSET + content.length()];
-    content.getChars(0, content.length(), responseBuffer, RESPONSE_OFFSET);
+        String content = templateEngine.process("form-response", context);
+        // Exercise response writers that receive a slice of a reusable buffer.
+        char[] responseBuffer = new char[RESPONSE_OFFSET + content.length()];
+        content.getChars(0, content.length(), responseBuffer, RESPONSE_OFFSET);
 
-    response.setContentType("text/html");
-    response.getWriter().write(responseBuffer, RESPONSE_OFFSET, content.length());
-  }
+        response.setContentType("text/html");
+        response.getWriter().write(responseBuffer, RESPONSE_OFFSET, content.length());
+    }
 }

@@ -6,5 +6,5 @@ package datadog.trace.bootstrap.instrumentation.api;
  * specific logic runs when spans are auto-finished.
  */
 public interface SpanWrapper {
-  default void onSpanFinished() {}
+    default void onSpanFinished() {}
 }

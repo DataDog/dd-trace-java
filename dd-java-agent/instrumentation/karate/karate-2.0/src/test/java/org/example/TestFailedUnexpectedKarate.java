@@ -8,9 +8,10 @@ import org.junit.jupiter.api.Test;
 
 public class TestFailedUnexpectedKarate {
 
-  @Test
-  public void test() {
-    Results results = Runner.path("classpath:org/example/test_fail_unexpected.feature").parallel(1);
-    assertEquals(0, results.getFailCount(), results.getErrorMessages());
-  }
+    @Test
+    public void test() {
+        Results results = Runner.path("classpath:org/example/test_fail_unexpected.feature")
+                .parallel(1);
+        assertEquals(0, results.getFailCount(), results.getErrorMessages());
+    }
 }

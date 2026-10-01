@@ -55,29 +55,29 @@ import org.openjdk.jmh.annotations.Warmup;
 @Threads(8)
 public class SharedDBCommenterBenchmark {
 
-  // Inner comment content (the surrounding "/*" "*/" already stripped by extractCommentContent),
-  // as a realistic mix: most queries carry a non-DD comment (or none); some already have ours.
-  static final String[] COMMENT_CONTENTS = {
-    "app generated comment", // non-DD -> all 9 contains checks (9 concats)
-    "route='/api/v1/users',batch=true", // non-DD
-    "framework='hibernate',layer='orm'", // non-DD
-    "ddps='web',dddbs='orders',traceparent='00-abc-def-01'", // DD -> short-circuits on 1st check
-  };
+    // Inner comment content (the surrounding "/*" "*/" already stripped by extractCommentContent),
+    // as a realistic mix: most queries carry a non-DD comment (or none); some already have ours.
+    static final String[] COMMENT_CONTENTS = {
+        "app generated comment", // non-DD -> all 9 contains checks (9 concats)
+        "route='/api/v1/users',batch=true", // non-DD
+        "framework='hibernate',layer='orm'", // non-DD
+        "ddps='web',dddbs='orders',traceparent='00-abc-def-01'", // DD -> short-circuits on 1st check
+    };
 
-  /** Per-thread cursor so threads don't contend on a shared index under {@code @Threads(8)}. */
-  @State(Scope.Thread)
-  public static class Cursor {
-    int index = 0;
+    /** Per-thread cursor so threads don't contend on a shared index under {@code @Threads(8)}. */
+    @State(Scope.Thread)
+    public static class Cursor {
+        int index = 0;
 
-    String next() {
-      int i = index;
-      index = (i + 1) % COMMENT_CONTENTS.length;
-      return COMMENT_CONTENTS[i];
+        String next() {
+            int i = index;
+            index = (i + 1) % COMMENT_CONTENTS.length;
+            return COMMENT_CONTENTS[i];
+        }
     }
-  }
 
-  @Benchmark
-  public boolean containsTraceComment(Cursor cursor) {
-    return SharedDBCommenter.containsTraceComment(cursor.next());
-  }
+    @Benchmark
+    public boolean containsTraceComment(Cursor cursor) {
+        return SharedDBCommenter.containsTraceComment(cursor.next());
+    }
 }

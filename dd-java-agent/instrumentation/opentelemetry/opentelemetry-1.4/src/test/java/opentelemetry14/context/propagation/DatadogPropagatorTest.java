@@ -17,10 +17,10 @@ import org.junit.jupiter.params.provider.Arguments;
 
 @WithConfig(key = "trace.propagation.style", value = "datadog")
 class DatadogPropagatorTest extends AgentPropagatorTest {
-  static Stream<Arguments> values() {
-    String traceIdDecimal = Long.toString(Long.parseLong("1111111111111111", 16));
-    String parentIdDecimal = Long.toString(Long.parseLong("2222222222222222", 16));
-    // spotless:off
+    static Stream<Arguments> values() {
+        String traceIdDecimal = Long.toString(Long.parseLong("1111111111111111", 16));
+        String parentIdDecimal = Long.toString(Long.parseLong("2222222222222222", 16));
+        // spotless:off
     return Stream.of(
         arguments(
             headers(
@@ -64,26 +64,24 @@ class DatadogPropagatorTest extends AgentPropagatorTest {
             "2222222222222222",
             SAMPLER_DROP));
     // spotless:on
-  }
+    }
 
-  @Override
-  void assertInjectedHeaders(
-      Map<String, String> headers, String traceId, String spanId, byte sampling) {
-    assertEquals(
-        Long.toString(DDTraceId.fromHex(traceId).toLong()), headers.get("x-datadog-trace-id"));
-    assertEquals(spanId.replaceAll("^0+(?!$)", ""), headers.get("x-datadog-parent-id"));
-    String samplingPriority = sampling == SAMPLER_DROP ? "0" : "1";
-    List<String> tags = new ArrayList<>();
-    if (sampling == UNSET) {
-      tags.add("_dd.p.dm=-1");
+    @Override
+    void assertInjectedHeaders(Map<String, String> headers, String traceId, String spanId, byte sampling) {
+        assertEquals(Long.toString(DDTraceId.fromHex(traceId).toLong()), headers.get("x-datadog-trace-id"));
+        assertEquals(spanId.replaceAll("^0+(?!$)", ""), headers.get("x-datadog-parent-id"));
+        String samplingPriority = sampling == SAMPLER_DROP ? "0" : "1";
+        List<String> tags = new ArrayList<>();
+        if (sampling == UNSET) {
+            tags.add("_dd.p.dm=-1");
+        }
+        if (traceId.length() == 32) {
+            tags.add("_dd.p.tid=" + traceId.substring(0, 16));
+        }
+        if (sampling == UNSET) {
+            tags.add("_dd.p.ksr=1");
+        }
+        assertEquals(join(",", tags), headers.get("x-datadog-tags"));
+        assertEquals(samplingPriority, headers.get("x-datadog-sampling-priority"));
     }
-    if (traceId.length() == 32) {
-      tags.add("_dd.p.tid=" + traceId.substring(0, 16));
-    }
-    if (sampling == UNSET) {
-      tags.add("_dd.p.ksr=1");
-    }
-    assertEquals(join(",", tags), headers.get("x-datadog-tags"));
-    assertEquals(samplingPriority, headers.get("x-datadog-sampling-priority"));
-  }
 }

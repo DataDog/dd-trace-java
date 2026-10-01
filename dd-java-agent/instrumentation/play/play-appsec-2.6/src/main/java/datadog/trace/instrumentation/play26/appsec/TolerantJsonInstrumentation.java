@@ -23,49 +23,49 @@ import play.mvc.Http;
  */
 @AutoService(InstrumenterModule.class)
 public class TolerantJsonInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public TolerantJsonInstrumentation() {
-    super("play");
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "play26Plus";
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return MuzzleReferences.PLAY_26_PLUS;
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "play.mvc.BodyParser$TolerantJson";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("parse")
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("play.mvc.Http$RequestHeader")))
-            .and(takesArgument(1, named("akka.util.ByteString")))
-            .and(returns(named("com.fasterxml.jackson.databind.JsonNode"))),
-        TolerantJsonInstrumentation.class.getName() + "$ParseAdvice");
-  }
-
-  @RequiresRequestContext(RequestContextSlot.APPSEC)
-  static class ParseAdvice {
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    static void after(@Advice.Return JsonNode ret, @Advice.Thrown(readOnly = false) Throwable t) {
-      if (t != null) {
-        return;
-      }
-      try {
-        BodyParserHelpers.handleJsonNode(ret, "TolerantJson#parse");
-      } catch (BlockingException be) {
-        t = be;
-      }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public TolerantJsonInstrumentation() {
+        super("play");
     }
-  }
+
+    @Override
+    public String muzzleDirective() {
+        return "play26Plus";
+    }
+
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return MuzzleReferences.PLAY_26_PLUS;
+    }
+
+    @Override
+    public String instrumentedType() {
+        return "play.mvc.BodyParser$TolerantJson";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("parse")
+                        .and(takesArguments(2))
+                        .and(takesArgument(0, named("play.mvc.Http$RequestHeader")))
+                        .and(takesArgument(1, named("akka.util.ByteString")))
+                        .and(returns(named("com.fasterxml.jackson.databind.JsonNode"))),
+                TolerantJsonInstrumentation.class.getName() + "$ParseAdvice");
+    }
+
+    @RequiresRequestContext(RequestContextSlot.APPSEC)
+    static class ParseAdvice {
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        static void after(@Advice.Return JsonNode ret, @Advice.Thrown(readOnly = false) Throwable t) {
+            if (t != null) {
+                return;
+            }
+            try {
+                BodyParserHelpers.handleJsonNode(ret, "TolerantJson#parse");
+            } catch (BlockingException be) {
+                t = be;
+            }
+        }
+    }
 }

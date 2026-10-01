@@ -16,48 +16,46 @@ import javax.annotation.Nullable;
  */
 public final class OrgGuard {
 
-  @Nullable private final OrgGuardEnforcer enforcer;
+    @Nullable
+    private final OrgGuardEnforcer enforcer;
 
-  public static OrgGuard create(
-      Config config,
-      Supplier<String> localOpmSupplier,
-      PropagationTags.Factory propagationTagsFactory,
-      HealthMetrics healthMetrics) {
-    if (!config.isTraceOrgGuardEnabled()) {
-      return new OrgGuard(null);
-    }
-    return new OrgGuard(
-        new OrgGuardEnforcer(config, localOpmSupplier, propagationTagsFactory, healthMetrics));
-  }
-
-  private OrgGuard(@Nullable OrgGuardEnforcer enforcer) {
-    this.enforcer = enforcer;
-  }
-
-  public HttpCodec.Extractor decorateExtractor(HttpCodec.Extractor delegate) {
-    return enforcer == null ? delegate : new OrgGuardEnforcingExtractor(delegate, enforcer);
-  }
-
-  public HttpCodec.Injector decorateInjector(HttpCodec.Injector delegate) {
-    return enforcer == null
-        ? delegate
-        : new OpmStampingInjector(delegate, enforcer.localOpmSupplier());
-  }
-
-  /** Reason an extracted Datadog context was dropped by the OPG enforcer. */
-  public enum Reason {
-    MISMATCH("mismatch"),
-    STRICT_MISSING("strict_missing");
-
-    private final String tag;
-
-    Reason(String tag) {
-      this.tag = tag;
+    public static OrgGuard create(
+            Config config,
+            Supplier<String> localOpmSupplier,
+            PropagationTags.Factory propagationTagsFactory,
+            HealthMetrics healthMetrics) {
+        if (!config.isTraceOrgGuardEnabled()) {
+            return new OrgGuard(null);
+        }
+        return new OrgGuard(new OrgGuardEnforcer(config, localOpmSupplier, propagationTagsFactory, healthMetrics));
     }
 
-    /** Statsd tag value for the {@code reason} dimension on {@code org_guard.enforce} metrics. */
-    public String tag() {
-      return tag;
+    private OrgGuard(@Nullable OrgGuardEnforcer enforcer) {
+        this.enforcer = enforcer;
     }
-  }
+
+    public HttpCodec.Extractor decorateExtractor(HttpCodec.Extractor delegate) {
+        return enforcer == null ? delegate : new OrgGuardEnforcingExtractor(delegate, enforcer);
+    }
+
+    public HttpCodec.Injector decorateInjector(HttpCodec.Injector delegate) {
+        return enforcer == null ? delegate : new OpmStampingInjector(delegate, enforcer.localOpmSupplier());
+    }
+
+    /** Reason an extracted Datadog context was dropped by the OPG enforcer. */
+    public enum Reason {
+        MISMATCH("mismatch"),
+        STRICT_MISSING("strict_missing");
+
+        private final String tag;
+
+        Reason(String tag) {
+            this.tag = tag;
+        }
+
+        /** Statsd tag value for the {@code reason} dimension on {@code org_guard.enforce} metrics. */
+        public String tag() {
+            return tag;
+        }
+    }
 }

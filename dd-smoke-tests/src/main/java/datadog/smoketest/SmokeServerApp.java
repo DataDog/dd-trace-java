@@ -31,115 +31,115 @@ import okhttp3.Response;
  * }</pre>
  */
 public final class SmokeServerApp extends AbstractSmokeApp {
-  private static final String HTTP_PORT_PLACEHOLDER = "${app.httpPort}";
+    private static final String HTTP_PORT_PLACEHOLDER = "${app.httpPort}";
 
-  private final int httpPort;
-  private final OkHttpClient httpClient = new OkHttpClient();
+    private final int httpPort;
+    private final OkHttpClient httpClient = new OkHttpClient();
 
-  private SmokeServerApp(Builder builder) {
-    super(builder);
-    this.httpPort = PortUtils.randomOpenPort();
-    registerPlaceholder(HTTP_PORT_PLACEHOLDER, () -> Integer.toString(this.httpPort));
-  }
-
-  /**
-   * Starts a fluent builder for a server app.
-   *
-   * @param name The application (log/diagnostic) name.
-   * @return A new builder for a {@link SmokeServerApp}.
-   */
-  public static Builder named(String name) {
-    return new Builder(name);
-  }
-
-  /**
-   * Returns the randomly-allocated port the app should bind, substituted for {@value
-   * #HTTP_PORT_PLACEHOLDER} in launch args.
-   *
-   * @return The HTTP port the app binds.
-   */
-  public int httpPort() {
-    return this.httpPort;
-  }
-
-  /**
-   * Returns the base URL of the app's HTTP server.
-   *
-   * @return The base URL of the app's HTTP server.
-   */
-  public URI url() {
-    return URI.create("http://localhost:" + this.httpPort);
-  }
-
-  /**
-   * Issues a GET to the app (the response is drained and closed).
-   *
-   * @param path The request path (a leading {@code /} is added if missing).
-   * @return The HTTP status code of the response.
-   * @throws IllegalStateException If the request fails.
-   */
-  @VisibleForTesting
-  int get(String path) {
-    String full = url() + (path.startsWith("/") ? path : "/" + path);
-    Request request = new Request.Builder().url(full).get().build();
-    try (Response response = this.httpClient.newCall(request).execute()) {
-      return response.code();
-    } catch (IOException e) {
-      throw new IllegalStateException("GET " + full + " failed", e);
+    private SmokeServerApp(Builder builder) {
+        super(builder);
+        this.httpPort = PortUtils.randomOpenPort();
+        registerPlaceholder(HTTP_PORT_PLACEHOLDER, () -> Integer.toString(this.httpPort));
     }
-  }
 
-  @Override
-  protected void onStarted() {
-    waitForPortToOpen(this.httpPort, startupTimeoutSeconds(), SECONDS, process());
-  }
-
-  @Override
-  protected void onBeforeEach() {
-    // Ensure the server is still running
-    assertAlive("at the start of a test");
-    // Clear backend session of owned backend
-    AgentBackend backend = backend();
-    if (!backend.isShared() && backend.clearsBetweenTests()) {
-      backend.clear();
+    /**
+     * Starts a fluent builder for a server app.
+     *
+     * @param name The application (log/diagnostic) name.
+     * @return A new builder for a {@link SmokeServerApp}.
+     */
+    public static Builder named(String name) {
+        return new Builder(name);
     }
-    // Clear logs
-    clearCapturedLogs();
-  }
 
-  @Override
-  protected void onAfterEach() {
-    assertAlive("at the end of a test");
-  }
-
-  private void assertAlive(String when) {
-    Process process = process();
-    if (process == null) {
-      throw new IllegalStateException("App '" + name() + "' was never launched");
+    /**
+     * Returns the randomly-allocated port the app should bind, substituted for {@value
+     * #HTTP_PORT_PLACEHOLDER} in launch args.
+     *
+     * @return The HTTP port the app binds.
+     */
+    public int httpPort() {
+        return this.httpPort;
     }
-    if (!process.isAlive()) {
-      throw new IllegalStateException(
-          "App '" + name() + "' exited with value " + process.exitValue() + " " + when);
-    }
-  }
 
-  /**
-   * Fluent builder for a {@link SmokeServerApp}; obtain via {@link SmokeServerApp#named(String)}.
-   */
-  public static final class Builder extends AbstractSmokeApp.Builder<SmokeServerApp, Builder> {
-    private Builder(String name) {
-      super(name);
+    /**
+     * Returns the base URL of the app's HTTP server.
+     *
+     * @return The base URL of the app's HTTP server.
+     */
+    public URI url() {
+        return URI.create("http://localhost:" + this.httpPort);
+    }
+
+    /**
+     * Issues a GET to the app (the response is drained and closed).
+     *
+     * @param path The request path (a leading {@code /} is added if missing).
+     * @return The HTTP status code of the response.
+     * @throws IllegalStateException If the request fails.
+     */
+    @VisibleForTesting
+    int get(String path) {
+        String full = url() + (path.startsWith("/") ? path : "/" + path);
+        Request request = new Request.Builder().url(full).get().build();
+        try (Response response = this.httpClient.newCall(request).execute()) {
+            return response.code();
+        } catch (IOException e) {
+            throw new IllegalStateException("GET " + full + " failed", e);
+        }
     }
 
     @Override
-    protected Builder self() {
-      return this;
+    protected void onStarted() {
+        waitForPortToOpen(this.httpPort, startupTimeoutSeconds(), SECONDS, process());
     }
 
     @Override
-    public SmokeServerApp build() {
-      validate();
-      return new SmokeServerApp(this);
+    protected void onBeforeEach() {
+        // Ensure the server is still running
+        assertAlive("at the start of a test");
+        // Clear backend session of owned backend
+        AgentBackend backend = backend();
+        if (!backend.isShared() && backend.clearsBetweenTests()) {
+            backend.clear();
+        }
+        // Clear logs
+        clearCapturedLogs();
     }
-  }
+
+    @Override
+    protected void onAfterEach() {
+        assertAlive("at the end of a test");
+    }
+
+    private void assertAlive(String when) {
+        Process process = process();
+        if (process == null) {
+            throw new IllegalStateException("App '" + name() + "' was never launched");
+        }
+        if (!process.isAlive()) {
+            throw new IllegalStateException(
+                    "App '" + name() + "' exited with value " + process.exitValue() + " " + when);
+        }
+    }
+
+    /**
+     * Fluent builder for a {@link SmokeServerApp}; obtain via {@link SmokeServerApp#named(String)}.
+     */
+    public static final class Builder extends AbstractSmokeApp.Builder<SmokeServerApp, Builder> {
+        private Builder(String name) {
+            super(name);
+        }
+
+        @Override
+        protected Builder self() {
+            return this;
+        }
+
+        @Override
+        public SmokeServerApp build() {
+            validate();
+            return new SmokeServerApp(this);
+        }
+    }
 }

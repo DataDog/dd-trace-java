@@ -11,24 +11,24 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class RuleInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public RuleInstrumentation() {
-    super("drools-test");
-  }
+    public RuleInstrumentation() {
+        super("drools-test");
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), "test.ConstructorAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor(), "test.ConstructorAdvice");
+    }
 
-  @Override
-  public String hierarchyMarkerType() {
-    return null;
-  }
+    @Override
+    public String hierarchyMarkerType() {
+        return null;
+    }
 
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return NameMatchers.nameStartsWith("example.Rule");
-  }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return NameMatchers.nameStartsWith("example.Rule");
+    }
 }

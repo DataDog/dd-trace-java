@@ -31,125 +31,125 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class HandlerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public HandlerInstrumentation() {
-    super("undertow", "undertow-2.0");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "io.undertow.server.Connectors";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvices(
-        isMethod()
-            .and(named("executeRootHandler"))
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("io.undertow.server.HttpHandler")))
-            .and(takesArgument(1, named("io.undertow.server.HttpServerExchange")))
-            .and(isStatic())
-            .and(isPublic()),
-        getClass().getName() + "$ContextTrackingAdvice",
-        getClass().getName() + "$ExecuteRootHandlerAdvice");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ExchangeEndSpanListener",
-      packageName + ".HttpServerExchangeURIDataAdapter",
-      packageName + ".UndertowDecorator",
-      packageName + ".UndertowExtractAdapter",
-      packageName + ".UndertowExtractAdapter$Request",
-      packageName + ".UndertowExtractAdapter$Response",
-      packageName + ".UndertowBlockingHandler",
-      packageName + ".IgnoreSendAttribute",
-      packageName + ".UndertowBlockResponseFunction",
-    };
-  }
-
-  @AppliesOn(CONTEXT_TRACKING)
-  public static class ContextTrackingAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void extractParent(
-        @Advice.Argument(1) final HttpServerExchange exchange,
-        @Advice.Local("parentScope") ContextScope parentScope) {
-      if (exchange.getAttachment(DATADOG_UNDERTOW_CONTINUATION) != null) {
-        return; // async re-dispatch: parent context already extracted
-      }
-      final Context parentContext = DECORATE.extract(exchange);
-      exchange.putAttachment(PARENT_CONTEXT_KEY, parentContext);
-      parentScope = parentContext.attach();
+    public HandlerInstrumentation() {
+        super("undertow", "undertow-2.0");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void closeParentScope(@Advice.Local("parentScope") ContextScope parentScope) {
-      if (parentScope != null) parentScope.close();
+    @Override
+    public String instrumentedType() {
+        return "io.undertow.server.Connectors";
     }
-  }
 
-  public static class ExecuteRootHandlerAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(
-        @Advice.Argument(value = 0, readOnly = false) HttpHandler handler,
-        @Advice.Argument(1) final HttpServerExchange exchange,
-        @Advice.Local("contextScope") ContextScope scope) {
-      AgentSpan activeSpan = AgentTracer.activeSpan();
-      if (activeSpan != null) {
-        AgentSpan localRootSpan = activeSpan.getLocalRootSpan();
-        if (DECORATE.spanName().equals(localRootSpan.getSpanName())) {
-          // if we can here through the dispatch of an HttpHandler, rather than that of a
-          // plain Runnable, then Connects.executeRootHandler() will still have been called,
-          // and this advice executed.
-          // However, a scope may have already been continued through UndertowRunnableWrapper.
-          // This scope may refer to a child span of the original undertow root span, whereas
-          // here we would only be able to activate the scope for the original undertow span.
-          return;
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvices(
+                isMethod()
+                        .and(named("executeRootHandler"))
+                        .and(takesArguments(2))
+                        .and(takesArgument(0, named("io.undertow.server.HttpHandler")))
+                        .and(takesArgument(1, named("io.undertow.server.HttpServerExchange")))
+                        .and(isStatic())
+                        .and(isPublic()),
+                getClass().getName() + "$ContextTrackingAdvice",
+                getClass().getName() + "$ExecuteRootHandlerAdvice");
+    }
+
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".ExchangeEndSpanListener",
+            packageName + ".HttpServerExchangeURIDataAdapter",
+            packageName + ".UndertowDecorator",
+            packageName + ".UndertowExtractAdapter",
+            packageName + ".UndertowExtractAdapter$Request",
+            packageName + ".UndertowExtractAdapter$Response",
+            packageName + ".UndertowBlockingHandler",
+            packageName + ".IgnoreSendAttribute",
+            packageName + ".UndertowBlockResponseFunction",
+        };
+    }
+
+    @AppliesOn(CONTEXT_TRACKING)
+    public static class ContextTrackingAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void extractParent(
+                @Advice.Argument(1) final HttpServerExchange exchange,
+                @Advice.Local("parentScope") ContextScope parentScope) {
+            if (exchange.getAttachment(DATADOG_UNDERTOW_CONTINUATION) != null) {
+                return; // async re-dispatch: parent context already extracted
+            }
+            final Context parentContext = DECORATE.extract(exchange);
+            exchange.putAttachment(PARENT_CONTEXT_KEY, parentContext);
+            parentScope = parentContext.attach();
         }
-      }
 
-      ContextContinuation continuation = exchange.getAttachment(DATADOG_UNDERTOW_CONTINUATION);
-      if (continuation != null) {
-        // not yet complete, not ready to do final activation of continuation
-        scope = continuation.context().attach();
-        return;
-      }
-
-      Context parentContext = exchange.getAttachment(PARENT_CONTEXT_KEY);
-      if (parentContext == null) parentContext = rootContext();
-      final Context context = DECORATE.startSpan(exchange, parentContext);
-      scope = context.attach();
-      final AgentSpan span = spanFromContext(context);
-      DECORATE.afterStart(span);
-      DECORATE.onRequest(span, exchange, exchange, parentContext);
-
-      exchange.putAttachment(DATADOG_UNDERTOW_CONTINUATION, span.captureWithContext());
-
-      exchange.addExchangeCompleteListener(ExchangeEndSpanListener.INSTANCE);
-
-      // TODO is this required?
-      // exchange.getRequestHeaders().add(
-      //   new HttpString(CorrelationIdentifier.getTraceIdKey()), GlobalTracer.get().getTraceId());
-      // exchange.getRequestHeaders().add(
-      //   new HttpString(CorrelationIdentifier.getSpanIdKey()), GlobalTracer.get().getSpanId());
-
-      RequestBlockingAction rab = span.getRequestBlockingAction();
-      if (rab != null) {
-        exchange.putAttachment(REQUEST_BLOCKING_DATA, rab);
-        exchange.putAttachment(TRACE_SEGMENT, span.getRequestContext().getTraceSegment());
-        handler = UndertowBlockingHandler.INSTANCE;
-      }
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void closeParentScope(@Advice.Local("parentScope") ContextScope parentScope) {
+            if (parentScope != null) parentScope.close();
+        }
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void closeScope(@Advice.Local("contextScope") final ContextScope scope) {
-      if (scope == null) {
-        return;
-      }
-      scope.close();
+    public static class ExecuteRootHandlerAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter(
+                @Advice.Argument(value = 0, readOnly = false) HttpHandler handler,
+                @Advice.Argument(1) final HttpServerExchange exchange,
+                @Advice.Local("contextScope") ContextScope scope) {
+            AgentSpan activeSpan = AgentTracer.activeSpan();
+            if (activeSpan != null) {
+                AgentSpan localRootSpan = activeSpan.getLocalRootSpan();
+                if (DECORATE.spanName().equals(localRootSpan.getSpanName())) {
+                    // if we can here through the dispatch of an HttpHandler, rather than that of a
+                    // plain Runnable, then Connects.executeRootHandler() will still have been called,
+                    // and this advice executed.
+                    // However, a scope may have already been continued through UndertowRunnableWrapper.
+                    // This scope may refer to a child span of the original undertow root span, whereas
+                    // here we would only be able to activate the scope for the original undertow span.
+                    return;
+                }
+            }
+
+            ContextContinuation continuation = exchange.getAttachment(DATADOG_UNDERTOW_CONTINUATION);
+            if (continuation != null) {
+                // not yet complete, not ready to do final activation of continuation
+                scope = continuation.context().attach();
+                return;
+            }
+
+            Context parentContext = exchange.getAttachment(PARENT_CONTEXT_KEY);
+            if (parentContext == null) parentContext = rootContext();
+            final Context context = DECORATE.startSpan(exchange, parentContext);
+            scope = context.attach();
+            final AgentSpan span = spanFromContext(context);
+            DECORATE.afterStart(span);
+            DECORATE.onRequest(span, exchange, exchange, parentContext);
+
+            exchange.putAttachment(DATADOG_UNDERTOW_CONTINUATION, span.captureWithContext());
+
+            exchange.addExchangeCompleteListener(ExchangeEndSpanListener.INSTANCE);
+
+            // TODO is this required?
+            // exchange.getRequestHeaders().add(
+            //   new HttpString(CorrelationIdentifier.getTraceIdKey()), GlobalTracer.get().getTraceId());
+            // exchange.getRequestHeaders().add(
+            //   new HttpString(CorrelationIdentifier.getSpanIdKey()), GlobalTracer.get().getSpanId());
+
+            RequestBlockingAction rab = span.getRequestBlockingAction();
+            if (rab != null) {
+                exchange.putAttachment(REQUEST_BLOCKING_DATA, rab);
+                exchange.putAttachment(TRACE_SEGMENT, span.getRequestContext().getTraceSegment());
+                handler = UndertowBlockingHandler.INSTANCE;
+            }
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void closeScope(@Advice.Local("contextScope") final ContextScope scope) {
+            if (scope == null) {
+                return;
+            }
+            scope.close();
+        }
     }
-  }
 }

@@ -19,48 +19,44 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class RedisClusterClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public RedisClusterClientInstrumentation() {
-    super("lettuce", "lettuce-5");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "io.lettuce.core.cluster.RedisClusterClient";
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "io.lettuce.core.api.StatefulConnection", "io.lettuce.core.RedisURI");
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("connectToNodeAsync"))
-            .and(takesArguments(4))
-            .and(takesArgument(1, String.class))
-            .and(returns(named("io.lettuce.core.ConnectionFuture"))),
-        RedisClusterClientInstrumentation.class.getName() + "$ConnectToNodeAdvice");
-  }
-
-  public static class ConnectToNodeAdvice {
-
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static <T extends StatefulConnection> void onExit(
-        @Advice.Return(readOnly = false) ConnectionFuture<T> connectionFuture) {
-      if (connectionFuture == null) {
-        return;
-      }
-
-      connectionFuture =
-          connectionFuture.thenApply(
-              new ClusterConnectionContextFunction<T>(
-                  connectionFuture,
-                  InstrumentationContext.get(StatefulConnection.class, RedisURI.class)));
+    public RedisClusterClientInstrumentation() {
+        super("lettuce", "lettuce-5");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "io.lettuce.core.cluster.RedisClusterClient";
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap("io.lettuce.core.api.StatefulConnection", "io.lettuce.core.RedisURI");
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("connectToNodeAsync"))
+                        .and(takesArguments(4))
+                        .and(takesArgument(1, String.class))
+                        .and(returns(named("io.lettuce.core.ConnectionFuture"))),
+                RedisClusterClientInstrumentation.class.getName() + "$ConnectToNodeAdvice");
+    }
+
+    public static class ConnectToNodeAdvice {
+
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static <T extends StatefulConnection> void onExit(
+                @Advice.Return(readOnly = false) ConnectionFuture<T> connectionFuture) {
+            if (connectionFuture == null) {
+                return;
+            }
+
+            connectionFuture = connectionFuture.thenApply(new ClusterConnectionContextFunction<T>(
+                    connectionFuture, InstrumentationContext.get(StatefulConnection.class, RedisURI.class)));
+        }
+    }
 }

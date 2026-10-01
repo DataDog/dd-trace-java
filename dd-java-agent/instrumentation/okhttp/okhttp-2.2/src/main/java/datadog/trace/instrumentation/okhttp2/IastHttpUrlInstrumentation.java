@@ -18,73 +18,68 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class IastHttpUrlInstrumentation extends InstrumenterModule.TaintableIast
-    implements Instrumenter.ForSingleType,
-        Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice, Instrumenter.HasMethodAdvice {
 
-  private final String className = IastHttpUrlInstrumentation.class.getName();
+    private final String className = IastHttpUrlInstrumentation.class.getName();
 
-  public IastHttpUrlInstrumentation() {
-    super("okhttp", "okhttp-2");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "com.squareup.okhttp.HttpUrl";
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "okhttp-2.4";
-  }
-
-  @Override
-  public void typeAdvice(TypeTransformer transformer) {
-    transformer.applyAdvice(new TaintableVisitor(instrumentedType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(isStatic())
-            .and(named("parse"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, String.class)),
-        className + "$ParseAdvice");
-    transformer.applyAdvice(
-        isMethod()
-            .and(isStatic())
-            .and(named("get"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, URL.class)),
-        className + "$ParseAdvice");
-    transformer.applyAdvice(
-        isMethod().and(named("url")).and(takesArguments(0)), className + "$PropagationAdvice");
-  }
-
-  public static class ParseAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Propagation
-    public static void onParse(
-        @Advice.Argument(0) final Object argument, @Advice.Return final Object result) {
-      final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        module.taintObjectIfTainted(result, argument);
-      }
+    public IastHttpUrlInstrumentation() {
+        super("okhttp", "okhttp-2");
     }
-  }
 
-  public static class PropagationAdvice {
-
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Propagation
-    public static void onPropagation(
-        @Advice.This final Object self, @Advice.Return final Object result) {
-      final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        module.taintObjectIfTainted(result, self);
-      }
+    @Override
+    public String instrumentedType() {
+        return "com.squareup.okhttp.HttpUrl";
     }
-  }
+
+    @Override
+    public String muzzleDirective() {
+        return "okhttp-2.4";
+    }
+
+    @Override
+    public void typeAdvice(TypeTransformer transformer) {
+        transformer.applyAdvice(new TaintableVisitor(instrumentedType()));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isStatic())
+                        .and(named("parse"))
+                        .and(takesArguments(1))
+                        .and(takesArgument(0, String.class)),
+                className + "$ParseAdvice");
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isStatic())
+                        .and(named("get"))
+                        .and(takesArguments(1))
+                        .and(takesArgument(0, URL.class)),
+                className + "$ParseAdvice");
+        transformer.applyAdvice(isMethod().and(named("url")).and(takesArguments(0)), className + "$PropagationAdvice");
+    }
+
+    public static class ParseAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Propagation
+        public static void onParse(@Advice.Argument(0) final Object argument, @Advice.Return final Object result) {
+            final PropagationModule module = InstrumentationBridge.PROPAGATION;
+            if (module != null) {
+                module.taintObjectIfTainted(result, argument);
+            }
+        }
+    }
+
+    public static class PropagationAdvice {
+
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Propagation
+        public static void onPropagation(@Advice.This final Object self, @Advice.Return final Object result) {
+            final PropagationModule module = InstrumentationBridge.PROPAGATION;
+            if (module != null) {
+                module.taintObjectIfTainted(result, self);
+            }
+        }
+    }
 }

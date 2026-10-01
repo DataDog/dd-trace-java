@@ -27,80 +27,77 @@ import org.codehaus.jackson.JsonToken;
 /** TODO: keep a stack like structure pointing to the whole path */
 @AutoService(InstrumenterModule.class)
 public class Json1ParserInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  static final String JSON_PARSER = "org.codehaus.jackson.JsonParser";
+    static final String JSON_PARSER = "org.codehaus.jackson.JsonParser";
 
-  public Json1ParserInstrumentation() {
-    super("jackson", "jackson-1");
-  }
+    public Json1ParserInstrumentation() {
+        super("jackson", "jackson-1");
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    final String className = Json1ParserInstrumentation.class.getName();
-    transformer.applyAdvice(
-        named("getText").and(isPublic()).and(takesNoArguments()).and(returns(String.class)),
-        className + "$GetTextAdvice");
-    transformer.applyAdvice(
-        named("getCurrentName").and(isPublic()).and(takesNoArguments()).and(returns(String.class)),
-        className + "$GetCurrentNameAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        final String className = Json1ParserInstrumentation.class.getName();
+        transformer.applyAdvice(
+                named("getText").and(isPublic()).and(takesNoArguments()).and(returns(String.class)),
+                className + "$GetTextAdvice");
+        transformer.applyAdvice(
+                named("getCurrentName").and(isPublic()).and(takesNoArguments()).and(returns(String.class)),
+                className + "$GetCurrentNameAdvice");
+    }
 
-  @Override
-  public String hierarchyMarkerType() {
-    return JSON_PARSER;
-  }
+    @Override
+    public String hierarchyMarkerType() {
+        return JSON_PARSER;
+    }
 
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(
-            named(hierarchyMarkerType())
-                .and(namedNoneOf("org.codehaus.jackson.impl.JsonParserMinimalBase")))
-        .and(declaresMethod(namedOneOf("getText", "getCurrentName")));
-  }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return extendsClass(named(hierarchyMarkerType())
+                        .and(namedNoneOf("org.codehaus.jackson.impl.JsonParserMinimalBase")))
+                .and(declaresMethod(namedOneOf("getText", "getCurrentName")));
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap(JSON_PARSER, "datadog.trace.bootstrap.instrumentation.iast.NamedContext");
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap(JSON_PARSER, "datadog.trace.bootstrap.instrumentation.iast.NamedContext");
+    }
 
-  public static class GetTextAdvice {
+    public static class GetTextAdvice {
 
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Propagation
-    public static void onExit(@Advice.This JsonParser jsonParser, @Advice.Return String result) {
-      if (jsonParser != null && result != null) {
-        final ContextStore<JsonParser, NamedContext> store =
-            InstrumentationContext.get(JsonParser.class, NamedContext.class);
-        final NamedContext context = NamedContext.getOrCreate(store, jsonParser);
-        final JsonToken current = jsonParser.getCurrentToken();
-        if (current == JsonToken.FIELD_NAME) {
-          context.taintName(result);
-        } else if (current == JsonToken.VALUE_STRING) {
-          context.taintValue(result);
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Propagation
+        public static void onExit(@Advice.This JsonParser jsonParser, @Advice.Return String result) {
+            if (jsonParser != null && result != null) {
+                final ContextStore<JsonParser, NamedContext> store =
+                        InstrumentationContext.get(JsonParser.class, NamedContext.class);
+                final NamedContext context = NamedContext.getOrCreate(store, jsonParser);
+                final JsonToken current = jsonParser.getCurrentToken();
+                if (current == JsonToken.FIELD_NAME) {
+                    context.taintName(result);
+                } else if (current == JsonToken.VALUE_STRING) {
+                    context.taintValue(result);
+                }
+            }
         }
-      }
     }
-  }
 
-  /**
-   * Not all field names are caught by {@link JsonParser#getText()}.
-   *
-   * @see JsonParser#getCurrentName()
-   */
-  public static class GetCurrentNameAdvice {
+    /**
+     * Not all field names are caught by {@link JsonParser#getText()}.
+     *
+     * @see JsonParser#getCurrentName()
+     */
+    public static class GetCurrentNameAdvice {
 
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Propagation
-    public static void onExit(@Advice.This JsonParser jsonParser, @Advice.Return String result) {
-      if (jsonParser != null
-          && result != null
-          && jsonParser.getCurrentToken() == JsonToken.FIELD_NAME) {
-        final ContextStore<JsonParser, NamedContext> store =
-            InstrumentationContext.get(JsonParser.class, NamedContext.class);
-        final NamedContext context = NamedContext.getOrCreate(store, jsonParser);
-        context.taintName(result);
-      }
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Propagation
+        public static void onExit(@Advice.This JsonParser jsonParser, @Advice.Return String result) {
+            if (jsonParser != null && result != null && jsonParser.getCurrentToken() == JsonToken.FIELD_NAME) {
+                final ContextStore<JsonParser, NamedContext> store =
+                        InstrumentationContext.get(JsonParser.class, NamedContext.class);
+                final NamedContext context = NamedContext.getOrCreate(store, jsonParser);
+                context.taintName(result);
+            }
+        }
     }
-  }
 }

@@ -10,41 +10,41 @@ import org.junit.jupiter.api.Test;
 
 public class TransactionContainerTest extends DDCoreJavaSpecification {
 
-  private static final byte[] EXPECTED_CONTAINER_DATA =
-      new byte[] {1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 49, 2, 0, 0, 0, 0, 0, 0, 0, 2, 1, 50};
+    private static final byte[] EXPECTED_CONTAINER_DATA =
+            new byte[] {1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 49, 2, 0, 0, 0, 0, 0, 0, 0, 2, 1, 50};
 
-  @Test
-  void testWithNoResize() {
-    TransactionInfoTestBridge.resetCache();
-    TransactionContainer container = new TransactionContainer(1024);
-    container.add(new TransactionInfo("1", 1, "1"));
-    container.add(new TransactionInfo("2", 2, "2"));
-    byte[] data = container.getData();
+    @Test
+    void testWithNoResize() {
+        TransactionInfoTestBridge.resetCache();
+        TransactionContainer container = new TransactionContainer(1024);
+        container.add(new TransactionInfo("1", 1, "1"));
+        container.add(new TransactionInfo("2", 2, "2"));
+        byte[] data = container.getData();
 
-    assertEquals(22, data.length);
-    assertArrayEquals(EXPECTED_CONTAINER_DATA, data);
-  }
+        assertEquals(22, data.length);
+        assertArrayEquals(EXPECTED_CONTAINER_DATA, data);
+    }
 
-  @Test
-  void testWithResize() {
-    TransactionInfoTestBridge.resetCache();
-    TransactionContainer container = new TransactionContainer(10);
-    container.add(new TransactionInfo("1", 1, "1"));
-    container.add(new TransactionInfo("2", 2, "2"));
-    byte[] data = container.getData();
+    @Test
+    void testWithResize() {
+        TransactionInfoTestBridge.resetCache();
+        TransactionContainer container = new TransactionContainer(10);
+        container.add(new TransactionInfo("1", 1, "1"));
+        container.add(new TransactionInfo("2", 2, "2"));
+        byte[] data = container.getData();
 
-    assertEquals(22, data.length);
-    assertArrayEquals(EXPECTED_CONTAINER_DATA, data);
-  }
+        assertEquals(22, data.length);
+        assertArrayEquals(EXPECTED_CONTAINER_DATA, data);
+    }
 
-  @Test
-  void testCheckpointMap() {
-    TransactionInfoTestBridge.resetCache();
-    new TransactionInfo("1", 1, "1");
-    new TransactionInfo("2", 2, "2");
-    byte[] data = TransactionInfo.getCheckpointIdCacheBytes();
+    @Test
+    void testCheckpointMap() {
+        TransactionInfoTestBridge.resetCache();
+        new TransactionInfo("1", 1, "1");
+        new TransactionInfo("2", 2, "2");
+        byte[] data = TransactionInfo.getCheckpointIdCacheBytes();
 
-    assertEquals(6, data.length);
-    assertArrayEquals(new byte[] {1, 1, 49, 2, 1, 50}, data);
-  }
+        assertEquals(6, data.length);
+        assertArrayEquals(new byte[] {1, 1, 49, 2, 1, 50}, data);
+    }
 }

@@ -16,46 +16,45 @@ import org.junit.jupiter.api.Test;
  */
 class PropagationTagsLastParentIdTest {
 
-  private static final String SPAN_A = "00000000000000aa";
-  private static final String SPAN_B = "00000000000000bb";
+    private static final String SPAN_A = "00000000000000aa";
+    private static final String SPAN_B = "00000000000000bb";
 
-  private static PropagationTags w3c(String header) {
-    return PropagationTags.factory().fromHeaderValue(W3C, header);
-  }
+    private static PropagationTags w3c(String header) {
+        return PropagationTags.factory().fromHeaderValue(W3C, header);
+    }
 
-  @Test
-  void overrideSuppliesW3cLastParentId() {
-    PropagationTags tags = w3c("dd=s:1;o:rum");
-    assertTrue(tags.headerValue(W3C, SPAN_A).contains("p:" + SPAN_A));
-  }
+    @Test
+    void overrideSuppliesW3cLastParentId() {
+        PropagationTags tags = w3c("dd=s:1;o:rum");
+        assertTrue(tags.headerValue(W3C, SPAN_A).contains("p:" + SPAN_A));
+    }
 
-  @Test
-  void overrideDoesNotMutateSharedTags_noCrossTalk() {
-    // One tags instance, two sibling spans injecting through it (the shared-root scenario).
-    PropagationTags shared = w3c("dd=s:1;o:rum"); // no inbound p:
+    @Test
+    void overrideDoesNotMutateSharedTags_noCrossTalk() {
+        // One tags instance, two sibling spans injecting through it (the shared-root scenario).
+        PropagationTags shared = w3c("dd=s:1;o:rum"); // no inbound p:
 
-    String headerA = shared.headerValue(W3C, SPAN_A);
-    String headerB = shared.headerValue(W3C, SPAN_B);
-    String headerAagain = shared.headerValue(W3C, SPAN_A);
+        String headerA = shared.headerValue(W3C, SPAN_A);
+        String headerB = shared.headerValue(W3C, SPAN_B);
+        String headerAagain = shared.headerValue(W3C, SPAN_A);
 
-    assertTrue(headerA.contains("p:" + SPAN_A));
-    assertTrue(headerB.contains("p:" + SPAN_B));
-    // Injecting B did not change what A injects — no shared mutation.
-    assertEquals(headerA, headerAagain, "a sibling inject must not change another span's header");
-    // The override is never written into the shared tags (no-override header has no p:).
-    assertFalse(shared.headerValue(W3C).contains("p:"), "override must not mutate the stored tags");
-  }
+        assertTrue(headerA.contains("p:" + SPAN_A));
+        assertTrue(headerB.contains("p:" + SPAN_B));
+        // Injecting B did not change what A injects — no shared mutation.
+        assertEquals(headerA, headerAagain, "a sibling inject must not change another span's header");
+        // The override is never written into the shared tags (no-override header has no p:).
+        assertFalse(shared.headerValue(W3C).contains("p:"), "override must not mutate the stored tags");
+    }
 
-  @Test
-  void inboundLastParentIdPreservedAndUnmutatedByOverride() {
-    PropagationTags tags = w3c("dd=s:1;p:" + SPAN_A); // arrived carrying a last-parent-id
+    @Test
+    void inboundLastParentIdPreservedAndUnmutatedByOverride() {
+        PropagationTags tags = w3c("dd=s:1;p:" + SPAN_A); // arrived carrying a last-parent-id
 
-    // No-override path (e.g. span-link traceState) keeps the inbound p:.
-    assertTrue(tags.headerValue(W3C).contains("p:" + SPAN_A));
-    // An inject override replaces it for that produced header...
-    assertTrue(tags.headerValue(W3C, SPAN_B).contains("p:" + SPAN_B));
-    // ...without mutating the stored inbound value.
-    assertTrue(
-        tags.headerValue(W3C).contains("p:" + SPAN_A), "inbound p: must survive override use");
-  }
+        // No-override path (e.g. span-link traceState) keeps the inbound p:.
+        assertTrue(tags.headerValue(W3C).contains("p:" + SPAN_A));
+        // An inject override replaces it for that produced header...
+        assertTrue(tags.headerValue(W3C, SPAN_B).contains("p:" + SPAN_B));
+        // ...without mutating the stored inbound value.
+        assertTrue(tags.headerValue(W3C).contains("p:" + SPAN_A), "inbound p: must survive override use");
+    }
 }

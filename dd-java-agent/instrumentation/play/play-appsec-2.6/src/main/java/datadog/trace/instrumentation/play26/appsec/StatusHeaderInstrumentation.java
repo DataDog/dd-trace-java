@@ -26,77 +26,74 @@ import play.mvc.StatusHeader;
 
 @AutoService(InstrumenterModule.class)
 public class StatusHeaderInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public StatusHeaderInstrumentation() {
-    super("play");
-  }
+    public StatusHeaderInstrumentation() {
+        super("play");
+    }
 
-  @Override
-  public String muzzleDirective() {
-    return "play26Plus";
-  }
+    @Override
+    public String muzzleDirective() {
+        return "play26Plus";
+    }
 
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return MuzzleReferences.PLAY_26_PLUS; // force failure in <2.6
-  }
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return MuzzleReferences.PLAY_26_PLUS; // force failure in <2.6
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "play.mvc.StatusHeader";
-  }
+    @Override
+    public String instrumentedType() {
+        return "play.mvc.StatusHeader";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("sendJson").and(takesArgument(0, named("com.fasterxml.jackson.databind.JsonNode"))),
-        StatusHeaderInstrumentation.class.getName() + "$StatusHeaderSendJsonAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("sendJson").and(takesArgument(0, named("com.fasterxml.jackson.databind.JsonNode"))),
+                StatusHeaderInstrumentation.class.getName() + "$StatusHeaderSendJsonAdvice");
+    }
 
-  @RequiresRequestContext(RequestContextSlot.APPSEC)
-  public static class StatusHeaderSendJsonAdvice {
+    @RequiresRequestContext(RequestContextSlot.APPSEC)
+    public static class StatusHeaderSendJsonAdvice {
 
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    static void before(
-        @Advice.Argument(0) final JsonNode json,
-        @ActiveRequestContext final RequestContext reqCtx) {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        static void before(@Advice.Argument(0) final JsonNode json, @ActiveRequestContext final RequestContext reqCtx) {
 
-      if (CallDepthThreadLocalMap.incrementCallDepth(StatusHeader.class) > 0) {
-        return;
-      }
+            if (CallDepthThreadLocalMap.incrementCallDepth(StatusHeader.class) > 0) {
+                return;
+            }
 
-      if (json == null) {
-        return;
-      }
+            if (json == null) {
+                return;
+            }
 
-      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-      if (cbp == null) {
-        return;
-      }
-      BiFunction<RequestContext, Object, Flow<Void>> callback =
-          cbp.getCallback(EVENTS.responseBody());
-      if (callback == null) {
-        return;
-      }
+            CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+            if (cbp == null) {
+                return;
+            }
+            BiFunction<RequestContext, Object, Flow<Void>> callback = cbp.getCallback(EVENTS.responseBody());
+            if (callback == null) {
+                return;
+            }
 
-      Flow<Void> flow = callback.apply(reqCtx, json);
-      Flow.Action action = flow.getAction();
-      if (action instanceof Flow.Action.RequestBlockingAction) {
-        BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
-        if (blockResponseFunction == null) {
-          return;
+            Flow<Void> flow = callback.apply(reqCtx, json);
+            Flow.Action action = flow.getAction();
+            if (action instanceof Flow.Action.RequestBlockingAction) {
+                BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
+                if (blockResponseFunction == null) {
+                    return;
+                }
+                Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+                blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+
+                throw new BlockingException("Blocked request (for StatusHeader/sendJson)");
+            }
         }
-        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
 
-        throw new BlockingException("Blocked request (for StatusHeader/sendJson)");
-      }
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        static void after() {
+            CallDepthThreadLocalMap.decrementCallDepth(StatusHeader.class);
+        }
     }
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    static void after() {
-      CallDepthThreadLocalMap.decrementCallDepth(StatusHeader.class);
-    }
-  }
 }

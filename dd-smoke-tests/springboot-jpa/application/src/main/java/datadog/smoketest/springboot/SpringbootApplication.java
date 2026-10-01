@@ -9,12 +9,12 @@ import org.springframework.context.annotation.Bean;
 @SpringBootApplication
 public class SpringbootApplication {
 
-  @Bean
-  public Filter badBehaviorFilter() {
-    return new SessionVisitorFilter();
-  }
+    @Bean
+    public Filter badBehaviorFilter() {
+        return new SessionVisitorFilter();
+    }
 
-  public static void main(final String[] args) {
-    SpringApplication.run(SpringbootApplication.class, args);
-  }
+    public static void main(final String[] args) {
+        SpringApplication.run(SpringbootApplication.class, args);
+    }
 }

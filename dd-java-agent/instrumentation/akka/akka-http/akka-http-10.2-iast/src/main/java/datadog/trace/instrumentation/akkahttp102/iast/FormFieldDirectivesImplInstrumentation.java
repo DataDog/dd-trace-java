@@ -5,8 +5,8 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(InstrumenterModule.class)
 public class FormFieldDirectivesImplInstrumentation extends ParameterDirectivesImplInstrumentation {
-  @Override
-  public String instrumentedType() {
-    return "akka.http.scaladsl.server.directives.FormFieldDirectives$Impl$";
-  }
+    @Override
+    public String instrumentedType() {
+        return "akka.http.scaladsl.server.directives.FormFieldDirectives$Impl$";
+    }
 }

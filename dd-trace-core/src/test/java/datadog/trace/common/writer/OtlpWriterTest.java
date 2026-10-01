@@ -17,67 +17,68 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class OtlpWriterTest {
 
-  @Mock OtlpSender sender;
+    @Mock
+    OtlpSender sender;
 
-  @Test
-  void closeShutsDownSender() {
-    OtlpWriter writer = OtlpWriter.builder().sender(sender).build();
-    writer.start();
+    @Test
+    void closeShutsDownSender() {
+        OtlpWriter writer = OtlpWriter.builder().sender(sender).build();
+        writer.start();
 
-    writer.close();
+        writer.close();
 
-    verify(sender).shutdown();
-  }
-
-  @Test
-  void getApisIsEmpty() {
-    OtlpWriter writer = OtlpWriter.builder().sender(sender).build();
-    writer.start();
-    try {
-      assertTrue(writer.getApis().isEmpty());
-    } finally {
-      writer.close();
+        verify(sender).shutdown();
     }
-  }
 
-  @Test
-  void builderRespectsInjectedSenderAcrossProtocols() {
-    for (OtlpConfig.Protocol protocol : OtlpConfig.Protocol.values()) {
-      OtlpWriter writer = OtlpWriter.builder().protocol(protocol).sender(sender).build();
-      writer.start();
-      writer.close();
+    @Test
+    void getApisIsEmpty() {
+        OtlpWriter writer = OtlpWriter.builder().sender(sender).build();
+        writer.start();
+        try {
+            assertTrue(writer.getApis().isEmpty());
+        } finally {
+            writer.close();
+        }
     }
-    // One shutdown per writer we built.
-    verify(sender, org.mockito.Mockito.times(OtlpConfig.Protocol.values().length)).shutdown();
-  }
 
-  @Test
-  void buildWithDefaultsDoesNotThrow() {
-    // Exercises the default-path sender construction (real OtlpHttpSender) without
-    // actually sending anything — start/close only. Guards against a default config
-    // that would otherwise fail at construction time.
-    assertDoesNotThrow(
-        () -> {
-          OtlpWriter writer = OtlpWriter.builder().build();
-          writer.start();
-          writer.close();
+    @Test
+    void builderRespectsInjectedSenderAcrossProtocols() {
+        for (OtlpConfig.Protocol protocol : OtlpConfig.Protocol.values()) {
+            OtlpWriter writer =
+                    OtlpWriter.builder().protocol(protocol).sender(sender).build();
+            writer.start();
+            writer.close();
+        }
+        // One shutdown per writer we built.
+        verify(sender, org.mockito.Mockito.times(OtlpConfig.Protocol.values().length))
+                .shutdown();
+    }
+
+    @Test
+    void buildWithDefaultsDoesNotThrow() {
+        // Exercises the default-path sender construction (real OtlpHttpSender) without
+        // actually sending anything — start/close only. Guards against a default config
+        // that would otherwise fail at construction time.
+        assertDoesNotThrow(() -> {
+            OtlpWriter writer = OtlpWriter.builder().build();
+            writer.start();
+            writer.close();
         });
-  }
-
-  @Test
-  void grpcProtocolUsesGrpcMethodPath() {
-    OtlpWriter writer =
-        OtlpWriter.builder()
-            .protocol(OtlpConfig.Protocol.GRPC)
-            .endpoint("http://localhost:4317")
-            .build();
-    try {
-      OtlpGrpcSender grpcSender = assertInstanceOf(OtlpGrpcSender.class, writer.getSender());
-      assertEquals(
-          "/opentelemetry.proto.collector.trace.v1.TraceService/Export",
-          grpcSender.url().encodedPath());
-    } finally {
-      writer.close();
     }
-  }
+
+    @Test
+    void grpcProtocolUsesGrpcMethodPath() {
+        OtlpWriter writer = OtlpWriter.builder()
+                .protocol(OtlpConfig.Protocol.GRPC)
+                .endpoint("http://localhost:4317")
+                .build();
+        try {
+            OtlpGrpcSender grpcSender = assertInstanceOf(OtlpGrpcSender.class, writer.getSender());
+            assertEquals(
+                    "/opentelemetry.proto.collector.trace.v1.TraceService/Export",
+                    grpcSender.url().encodedPath());
+        } finally {
+            writer.close();
+        }
+    }
 }

@@ -12,31 +12,30 @@ import javax.annotation.Nonnull;
  * CallSiteAdvice} implementations.
  */
 public abstract class CallSiteInstrumentation extends InstrumenterModule
-    implements Instrumenter.ForCallSite, Instrumenter.HasTypeAdvice {
+        implements Instrumenter.ForCallSite, Instrumenter.HasTypeAdvice {
 
-  private Advices advices;
+    private Advices advices;
 
-  public CallSiteInstrumentation(
-      @Nonnull final String name, @Nonnull final String... additionalNames) {
-    super(name, additionalNames);
-  }
-
-  @Override
-  public void typeAdvice(TypeTransformer transformer) {
-    transformer.applyAdvice(new CallSiteTransformer(name(), advices()));
-  }
-
-  /** Utility to be able to tune the advices in subclasses */
-  protected Advices buildAdvices(final Iterable<CallSites> callSites) {
-    return Advices.fromCallSites(callSites);
-  }
-
-  protected abstract CallSiteSupplier callSites();
-
-  private Advices advices() {
-    if (null == advices) {
-      advices = buildAdvices(callSites().get());
+    public CallSiteInstrumentation(@Nonnull final String name, @Nonnull final String... additionalNames) {
+        super(name, additionalNames);
     }
-    return advices;
-  }
+
+    @Override
+    public void typeAdvice(TypeTransformer transformer) {
+        transformer.applyAdvice(new CallSiteTransformer(name(), advices()));
+    }
+
+    /** Utility to be able to tune the advices in subclasses */
+    protected Advices buildAdvices(final Iterable<CallSites> callSites) {
+        return Advices.fromCallSites(callSites);
+    }
+
+    protected abstract CallSiteSupplier callSites();
+
+    private Advices advices() {
+        if (null == advices) {
+            advices = buildAdvices(callSites().get());
+        }
+        return advices;
+    }
 }

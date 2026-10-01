@@ -13,47 +13,47 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class PlayInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public PlayInstrumentation() {
-    super("play");
-  }
+    public PlayInstrumentation() {
+        super("play");
+    }
 
-  @Override
-  public String muzzleDirective() {
-    return "play26Plus";
-  }
+    @Override
+    public String muzzleDirective() {
+        return "play26Plus";
+    }
 
-  @Override
-  public String hierarchyMarkerType() {
-    return "play.api.mvc.Action";
-  }
+    @Override
+    public String hierarchyMarkerType() {
+        return "play.api.mvc.Action";
+    }
 
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".PlayHeaders",
-      packageName + ".PlayHeaders$Request",
-      packageName + ".PlayHeaders$Result",
-      packageName + ".PlayHttpServerDecorator",
-      packageName + ".RemoteConnectionWithRawAddress",
-      packageName + ".RequestCompleteCallback",
-      packageName + ".RequestURIDataAdapter",
-      packageName + ".HasPlayRequestSpan",
-    };
-  }
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".PlayHeaders",
+            packageName + ".PlayHeaders$Request",
+            packageName + ".PlayHeaders$Result",
+            packageName + ".PlayHttpServerDecorator",
+            packageName + ".RemoteConnectionWithRawAddress",
+            packageName + ".RequestCompleteCallback",
+            packageName + ".RequestURIDataAdapter",
+            packageName + ".HasPlayRequestSpan",
+        };
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("apply")
-            .and(takesArgument(0, named("play.api.mvc.Request")))
-            .and(returns(named("scala.concurrent.Future"))),
-        packageName + ".PlayAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("apply")
+                        .and(takesArgument(0, named("play.api.mvc.Request")))
+                        .and(returns(named("scala.concurrent.Future"))),
+                packageName + ".PlayAdvice");
+    }
 }

@@ -28,50 +28,49 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class DatadogProfilerOngoingRecording implements OngoingRecording {
-  private static final Logger log = LoggerFactory.getLogger(DatadogProfilerOngoingRecording.class);
+    private static final Logger log = LoggerFactory.getLogger(DatadogProfilerOngoingRecording.class);
 
-  private final ProfilerSettingsSupport configMemento;
+    private final ProfilerSettingsSupport configMemento;
 
-  private final OngoingRecording recording;
-  private final Instant started = Instant.now();
+    private final OngoingRecording recording;
+    private final Instant started = Instant.now();
 
-  DatadogProfilerOngoingRecording(DatadogProfiler datadogProfiler, String recordingName)
-      throws UnsupportedEnvironmentException {
-    log.debug("Creating new recording: {}", recordingName);
-    recording = datadogProfiler.start();
-    if (recording == null) {
-      throw new UnsupportedEnvironmentException("Failed to start Datadog profiler");
+    DatadogProfilerOngoingRecording(DatadogProfiler datadogProfiler, String recordingName)
+            throws UnsupportedEnvironmentException {
+        log.debug("Creating new recording: {}", recordingName);
+        recording = datadogProfiler.start();
+        if (recording == null) {
+            throw new UnsupportedEnvironmentException("Failed to start Datadog profiler");
+        }
+        log.debug("Recording {} started", recordingName);
+        this.configMemento = JavaVirtualMachine.isJ9() ? new DatadogProfilerSettings(datadogProfiler) : null;
     }
-    log.debug("Recording {} started", recordingName);
-    this.configMemento =
-        JavaVirtualMachine.isJ9() ? new DatadogProfilerSettings(datadogProfiler) : null;
-  }
 
-  @Override
-  public RecordingData stop() {
-    publishConfig();
-    return recording.stop();
-  }
-
-  @VisibleForTesting
-  final RecordingData snapshot(final Instant start) {
-    return snapshot(start, ProfilingSnapshot.Kind.PERIODIC);
-  }
-
-  @Override
-  public RecordingData snapshot(final Instant start, ProfilingSnapshot.Kind kind) {
-    publishConfig();
-    return recording.snapshot(start, kind);
-  }
-
-  @Override
-  public void close() {
-    recording.close();
-  }
-
-  private void publishConfig() {
-    if (configMemento != null) {
-      configMemento.publish();
+    @Override
+    public RecordingData stop() {
+        publishConfig();
+        return recording.stop();
     }
-  }
+
+    @VisibleForTesting
+    final RecordingData snapshot(final Instant start) {
+        return snapshot(start, ProfilingSnapshot.Kind.PERIODIC);
+    }
+
+    @Override
+    public RecordingData snapshot(final Instant start, ProfilingSnapshot.Kind kind) {
+        publishConfig();
+        return recording.snapshot(start, kind);
+    }
+
+    @Override
+    public void close() {
+        recording.close();
+    }
+
+    private void publishConfig() {
+        if (configMemento != null) {
+            configMemento.publish();
+        }
+    }
 }

@@ -26,95 +26,90 @@ import org.elasticsearch.client.ResponseListener;
 
 @AutoService(InstrumenterModule.class)
 public class Elasticsearch7RestClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public Elasticsearch7RestClientInstrumentation() {
-    super("elasticsearch", "elasticsearch-rest", "elasticsearch-rest-7");
-  }
-
-  @Override
-  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    // Avoid matching pre-ES7 releases which have their own instrumentations.
-    return hasClassNamed("org.elasticsearch.client.RestClient$InternalRequest");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.elasticsearch.ElasticsearchRestClientDecorator",
-      packageName + ".RestResponseListener",
-    };
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.elasticsearch.client.RestClient";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("performRequest"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("org.elasticsearch.client.Request"))),
-        Elasticsearch7RestClientInstrumentation.class.getName() + "$ElasticsearchRestClientAdvice");
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("performRequestAsync"))
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("org.elasticsearch.client.Request")))
-            .and(takesArgument(1, named("org.elasticsearch.client.ResponseListener"))),
-        Elasticsearch7RestClientInstrumentation.class.getName() + "$ElasticsearchRestClientAdvice");
-  }
-
-  public static class ElasticsearchRestClientAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onEnter(
-        @Advice.Argument(0) final Request request,
-        @Advice.Argument(value = 1, readOnly = false, optional = true)
-            ResponseListener responseListener) {
-
-      final AgentSpan span = startSpan(ELASTICSEARCH_JAVA.toString(), OPERATION_NAME);
-      DECORATE.afterStart(span);
-      DECORATE.onRequest(
-          span,
-          request.getMethod(),
-          request.getEndpoint(),
-          request.getEntity(),
-          request.getParameters());
-
-      if (responseListener != null) {
-        responseListener = new RestResponseListener(responseListener, span);
-      }
-
-      return activateSpan(span);
+    public Elasticsearch7RestClientInstrumentation() {
+        super("elasticsearch", "elasticsearch-rest", "elasticsearch-rest-7");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.Enter final ContextScope scope,
-        @Advice.Thrown final Throwable throwable,
-        @Advice.Return(typing = Assigner.Typing.DYNAMIC) final Object result) {
-      if (throwable != null) {
-        final AgentSpan span = spanFromScope(scope);
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-        scope.close();
-        span.finish();
-      } else if (result instanceof Response) {
-        final AgentSpan span = spanFromScope(scope);
-        if (((Response) result).getHost() != null) {
-          DECORATE.onResponse(span, ((Response) result));
+    @Override
+    public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+        // Avoid matching pre-ES7 releases which have their own instrumentations.
+        return hasClassNamed("org.elasticsearch.client.RestClient$InternalRequest");
+    }
+
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            "datadog.trace.instrumentation.elasticsearch.ElasticsearchRestClientDecorator",
+            packageName + ".RestResponseListener",
+        };
+    }
+
+    @Override
+    public String instrumentedType() {
+        return "org.elasticsearch.client.RestClient";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("performRequest"))
+                        .and(takesArguments(1))
+                        .and(takesArgument(0, named("org.elasticsearch.client.Request"))),
+                Elasticsearch7RestClientInstrumentation.class.getName() + "$ElasticsearchRestClientAdvice");
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("performRequestAsync"))
+                        .and(takesArguments(2))
+                        .and(takesArgument(0, named("org.elasticsearch.client.Request")))
+                        .and(takesArgument(1, named("org.elasticsearch.client.ResponseListener"))),
+                Elasticsearch7RestClientInstrumentation.class.getName() + "$ElasticsearchRestClientAdvice");
+    }
+
+    public static class ElasticsearchRestClientAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope onEnter(
+                @Advice.Argument(0) final Request request,
+                @Advice.Argument(value = 1, readOnly = false, optional = true) ResponseListener responseListener) {
+
+            final AgentSpan span = startSpan(ELASTICSEARCH_JAVA.toString(), OPERATION_NAME);
+            DECORATE.afterStart(span);
+            DECORATE.onRequest(
+                    span, request.getMethod(), request.getEndpoint(), request.getEntity(), request.getParameters());
+
+            if (responseListener != null) {
+                responseListener = new RestResponseListener(responseListener, span);
+            }
+
+            return activateSpan(span);
         }
-        DECORATE.beforeFinish(span);
-        scope.close();
-        span.finish();
-      } else {
-        scope.close();
-        // async call, span finished by RestResponseListener
-      }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void stopSpan(
+                @Advice.Enter final ContextScope scope,
+                @Advice.Thrown final Throwable throwable,
+                @Advice.Return(typing = Assigner.Typing.DYNAMIC) final Object result) {
+            if (throwable != null) {
+                final AgentSpan span = spanFromScope(scope);
+                DECORATE.onError(span, throwable);
+                DECORATE.beforeFinish(span);
+                scope.close();
+                span.finish();
+            } else if (result instanceof Response) {
+                final AgentSpan span = spanFromScope(scope);
+                if (((Response) result).getHost() != null) {
+                    DECORATE.onResponse(span, ((Response) result));
+                }
+                DECORATE.beforeFinish(span);
+                scope.close();
+                span.finish();
+            } else {
+                scope.close();
+                // async call, span finished by RestResponseListener
+            }
+        }
     }
-  }
 }

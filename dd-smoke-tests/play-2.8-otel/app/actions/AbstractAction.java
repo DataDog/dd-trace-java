@@ -11,22 +11,22 @@ import play.mvc.Result;
 
 public abstract class AbstractAction extends Action.Simple {
 
-  private final String spanName;
+    private final String spanName;
 
-  protected AbstractAction(String spanName) {
-    this.spanName = spanName;
-  }
-
-  @Override
-  public CompletionStage<Result> call(Http.Request req) {
-    Tracer tracer = GlobalOpenTelemetry.getTracer("play-test");
-    Span span = tracer.spanBuilder(spanName).startSpan();
-    Scope scope = span.makeCurrent();
-    try {
-      return delegate.call(req);
-    } finally {
-      scope.close();
-      span.end();
+    protected AbstractAction(String spanName) {
+        this.spanName = spanName;
     }
-  }
+
+    @Override
+    public CompletionStage<Result> call(Http.Request req) {
+        Tracer tracer = GlobalOpenTelemetry.getTracer("play-test");
+        Span span = tracer.spanBuilder(spanName).startSpan();
+        Scope scope = span.makeCurrent();
+        try {
+            return delegate.call(req);
+        } finally {
+            scope.close();
+            span.end();
+        }
+    }
 }

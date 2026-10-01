@@ -15,47 +15,49 @@ import java.util.HashSet;
 import org.junit.jupiter.api.Test;
 
 class LenExpressionTest {
-  private final EvalContext evalContext = createEvalContext(this);
+    private final EvalContext evalContext = createEvalContext(this);
 
-  @Test
-  void nullExpression() {
-    LenExpression expression = new LenExpression(null);
-    EvaluationException exception =
-        assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext).getValue());
-    assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
-    assertEquals("len(null)", print(expression));
-  }
+    @Test
+    void nullExpression() {
+        LenExpression expression = new LenExpression(null);
+        EvaluationException exception = assertThrows(
+                EvaluationException.class,
+                () -> expression.evaluate(evalContext).getValue());
+        assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
+        assertEquals("len(null)", print(expression));
+    }
 
-  @Test
-  void undefinedExpression() {
-    LenExpression expression = new LenExpression(DSL.value(Values.UNDEFINED_OBJECT));
-    EvaluationException exception =
-        assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext).getValue());
-    assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
-    assertEquals("len(UNDEFINED)", print(expression));
-  }
+    @Test
+    void undefinedExpression() {
+        LenExpression expression = new LenExpression(DSL.value(Values.UNDEFINED_OBJECT));
+        EvaluationException exception = assertThrows(
+                EvaluationException.class,
+                () -> expression.evaluate(evalContext).getValue());
+        assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
+        assertEquals("len(UNDEFINED)", print(expression));
+    }
 
-  @Test
-  void stringExpression() {
-    LenExpression expression = new LenExpression(DSL.value("a"));
-    assertEquals(1, expression.evaluate(evalContext).getValue());
-    assertEquals("len(\"a\")", print(expression));
-  }
+    @Test
+    void stringExpression() {
+        LenExpression expression = new LenExpression(DSL.value("a"));
+        assertEquals(1, expression.evaluate(evalContext).getValue());
+        assertEquals("len(\"a\")", print(expression));
+    }
 
-  @Test
-  void collectionExpression() {
-    LenExpression expression = new LenExpression(DSL.value(Arrays.asList("a", "b")));
-    assertEquals(2, expression.evaluate(evalContext).getValue());
-    assertEquals("len(List)", print(expression));
-    expression = new LenExpression(DSL.value(new HashSet<>(Arrays.asList("a", "b"))));
-    assertEquals(2, expression.evaluate(evalContext).getValue());
-    assertEquals("len(Set)", print(expression));
-  }
+    @Test
+    void collectionExpression() {
+        LenExpression expression = new LenExpression(DSL.value(Arrays.asList("a", "b")));
+        assertEquals(2, expression.evaluate(evalContext).getValue());
+        assertEquals("len(List)", print(expression));
+        expression = new LenExpression(DSL.value(new HashSet<>(Arrays.asList("a", "b"))));
+        assertEquals(2, expression.evaluate(evalContext).getValue());
+        assertEquals("len(Set)", print(expression));
+    }
 
-  @Test
-  void mapExpression() {
-    LenExpression expression = new LenExpression(DSL.value(Collections.singletonMap("a", "b")));
-    assertEquals(1, expression.evaluate(evalContext).getValue());
-    assertEquals("len(Map)", print(expression));
-  }
+    @Test
+    void mapExpression() {
+        LenExpression expression = new LenExpression(DSL.value(Collections.singletonMap("a", "b")));
+        assertEquals(1, expression.evaluate(evalContext).getValue());
+        assertEquals("len(Map)", print(expression));
+    }
 }

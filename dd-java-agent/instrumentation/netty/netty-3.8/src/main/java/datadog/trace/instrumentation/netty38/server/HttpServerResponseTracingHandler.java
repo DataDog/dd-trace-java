@@ -16,50 +16,47 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 public class HttpServerResponseTracingHandler extends SimpleChannelDownstreamHandler {
 
-  private final ContextStore<Channel, ChannelTraceContext> contextStore;
-  private static final String UPGRADE_HEADER = "upgrade";
+    private final ContextStore<Channel, ChannelTraceContext> contextStore;
+    private static final String UPGRADE_HEADER = "upgrade";
 
-  public HttpServerResponseTracingHandler(
-      final ContextStore<Channel, ChannelTraceContext> contextStore) {
-    this.contextStore = contextStore;
-  }
-
-  @Override
-  public void writeRequested(final ChannelHandlerContext ctx, final MessageEvent msg) {
-    final ChannelTraceContext channelTraceContext =
-        contextStore.getOrCreate(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
-
-    final AgentSpan span = channelTraceContext.getServerSpan();
-    if (span == null || !(msg.getMessage() instanceof HttpResponse)) {
-      ctx.sendDownstream(msg);
-      return;
+    public HttpServerResponseTracingHandler(final ContextStore<Channel, ChannelTraceContext> contextStore) {
+        this.contextStore = contextStore;
     }
 
-    try (final ContextScope scope = span.attachWithContext()) {
-      final HttpResponse response = (HttpResponse) msg.getMessage();
+    @Override
+    public void writeRequested(final ChannelHandlerContext ctx, final MessageEvent msg) {
+        final ChannelTraceContext channelTraceContext =
+                contextStore.getOrCreate(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
 
-      try {
-        ctx.sendDownstream(msg);
-      } catch (final Throwable throwable) {
-        DECORATE.onError(span, throwable);
-        span.setHttpStatusCode(500);
-        span.finish(); // Finish the span manually since finishSpanOnClose was false
-        throw throwable;
-      }
-      final boolean isWebsocketUpgrade =
-          response.getStatus() == HttpResponseStatus.SWITCHING_PROTOCOLS
-              && "websocket".equals(response.headers().get(UPGRADE_HEADER));
-      if (isWebsocketUpgrade) {
-        String channelId = ctx.getChannel().getId().toString();
-        channelTraceContext.setSenderHandlerContext(new HandlerContext.Sender(span, channelId));
-      }
-      if (response.getStatus() != HttpResponseStatus.CONTINUE
-          && (response.getStatus() != HttpResponseStatus.SWITCHING_PROTOCOLS
-              || isWebsocketUpgrade)) {
-        DECORATE.onResponse(span, response);
-        DECORATE.beforeFinish(scope.context());
-        span.finish(); // Finish the span manually since finishSpanOnClose was false
-      }
+        final AgentSpan span = channelTraceContext.getServerSpan();
+        if (span == null || !(msg.getMessage() instanceof HttpResponse)) {
+            ctx.sendDownstream(msg);
+            return;
+        }
+
+        try (final ContextScope scope = span.attachWithContext()) {
+            final HttpResponse response = (HttpResponse) msg.getMessage();
+
+            try {
+                ctx.sendDownstream(msg);
+            } catch (final Throwable throwable) {
+                DECORATE.onError(span, throwable);
+                span.setHttpStatusCode(500);
+                span.finish(); // Finish the span manually since finishSpanOnClose was false
+                throw throwable;
+            }
+            final boolean isWebsocketUpgrade = response.getStatus() == HttpResponseStatus.SWITCHING_PROTOCOLS
+                    && "websocket".equals(response.headers().get(UPGRADE_HEADER));
+            if (isWebsocketUpgrade) {
+                String channelId = ctx.getChannel().getId().toString();
+                channelTraceContext.setSenderHandlerContext(new HandlerContext.Sender(span, channelId));
+            }
+            if (response.getStatus() != HttpResponseStatus.CONTINUE
+                    && (response.getStatus() != HttpResponseStatus.SWITCHING_PROTOCOLS || isWebsocketUpgrade)) {
+                DECORATE.onResponse(span, response);
+                DECORATE.beforeFinish(scope.context());
+                span.finish(); // Finish the span manually since finishSpanOnClose was false
+            }
+        }
     }
-  }
 }

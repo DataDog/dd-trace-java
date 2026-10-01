@@ -42,143 +42,141 @@ import org.openjdk.jmh.infra.Blackhole;
 @Measurement(iterations = 5, time = 1)
 @Fork(2)
 public class TunnelingJdkSocketBenchmark {
-  private static final InetSocketAddress ENDPOINT = new InetSocketAddress("localhost", 0);
+    private static final InetSocketAddress ENDPOINT = new InetSocketAddress("localhost", 0);
 
-  @Benchmark
-  public void connectAndClose(Listener listener, Blackhole blackhole) throws IOException {
-    try (TunnelingJdkSocket socket = new TunnelingJdkSocket(listener.path)) {
-      socket.connect(ENDPOINT);
-      try (SocketChannel peer = listener.server.accept()) {
-        blackhole.consume(socket.getInputStream());
-        blackhole.consume(socket.getOutputStream());
-      }
-    }
-  }
-
-  @Benchmark
-  public byte roundTrip(Connection connection) throws IOException {
-    connection.output.write(connection.request);
-    int received = 0;
-    while (received < connection.response.length) {
-      int count =
-          connection.input.read(
-              connection.response, received, connection.response.length - received);
-      if (count <= 0) {
-        throw new IOException("Peer closed or timed out", connection.peerFailure);
-      }
-      received += count;
-    }
-    return connection.response[received - 1];
-  }
-
-  @State(Scope.Thread)
-  public static class Listener {
-    private Path path;
-    private ServerSocketChannel server;
-
-    @Setup
-    public void setup() throws IOException {
-      // Gradle's JMH temp directory can exceed the Unix-domain socket path limit.
-      path = Files.createTempFile(Paths.get("/tmp"), "uds-jmh-", ".sock");
-      Files.delete(path);
-      server = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
-      try {
-        server.bind(UnixDomainSocketAddress.of(path));
-      } catch (IOException | RuntimeException e) {
-        close();
-        throw e;
-      }
-    }
-
-    @TearDown
-    public void close() throws IOException {
-      try {
-        server.close();
-      } finally {
-        Files.deleteIfExists(path);
-      }
-    }
-  }
-
-  @State(Scope.Thread)
-  public static class Connection {
-    @Param({"256", "8192", "65536"})
-    public int bytes;
-
-    private Socket socket;
-    private SocketChannel peer;
-    private InputStream input;
-    private OutputStream output;
-    private byte[] request;
-    private byte[] response;
-    private Thread responder;
-    private volatile IOException peerFailure;
-
-    @Setup
-    public void setup(Listener listener) throws IOException {
-      request = new byte[bytes];
-      Arrays.fill(request, (byte) 1);
-      response = new byte[bytes];
-      socket = new TunnelingJdkSocket(listener.path);
-      try {
-        socket.connect(ENDPOINT);
-        peer = listener.server.accept();
-        socket.setSoTimeout(5000);
-        input = socket.getInputStream();
-        output = socket.getOutputStream();
-      } catch (IOException | RuntimeException e) {
-        socket.close();
-        if (peer != null) {
-          peer.close();
-        }
-        throw e;
-      }
-      responder = new Thread(this::echo, "uds-jmh-peer");
-      responder.setDaemon(true);
-      responder.start();
-    }
-
-    private void echo() {
-      ByteBuffer buffer = ByteBuffer.allocate(bytes);
-      try {
-        while (true) {
-          buffer.clear();
-          while (buffer.hasRemaining()) {
-            if (peer.read(buffer) == -1) {
-              return;
+    @Benchmark
+    public void connectAndClose(Listener listener, Blackhole blackhole) throws IOException {
+        try (TunnelingJdkSocket socket = new TunnelingJdkSocket(listener.path)) {
+            socket.connect(ENDPOINT);
+            try (SocketChannel peer = listener.server.accept()) {
+                blackhole.consume(socket.getInputStream());
+                blackhole.consume(socket.getOutputStream());
             }
-          }
-          buffer.flip();
-          while (buffer.hasRemaining()) {
-            peer.write(buffer);
-          }
         }
-      } catch (IOException e) {
-        if (peer.isOpen()) {
-          peerFailure = e;
-          try {
-            socket.close();
-          } catch (IOException closeFailure) {
-            e.addSuppressed(closeFailure);
-          }
-        }
-      }
     }
 
-    @TearDown
-    public void close() throws IOException, InterruptedException {
-      try {
-        peer.close();
-      } finally {
-        socket.close();
-      }
-      responder.join(TimeUnit.SECONDS.toMillis(5));
-      if (responder.isAlive()) {
-        throw new IllegalStateException("Peer did not terminate");
-      }
-      if (peerFailure != null) {
-        throw peerFailure;
-      }
+    @Benchmark
+    public byte roundTrip(Connection connection) throws IOException {
+        connection.output.write(connection.request);
+        int received = 0;
+        while (received < connection.response.length) {
+            int count = connection.input.read(connection.response, received, connection.response.length - received);
+            if (count <= 0) {
+                throw new IOException("Peer closed or timed out", connection.peerFailure);
+            }
+            received += count;
+        }
+        return connection.response[received - 1];
     }
-  }
+
+    @State(Scope.Thread)
+    public static class Listener {
+        private Path path;
+        private ServerSocketChannel server;
+
+        @Setup
+        public void setup() throws IOException {
+            // Gradle's JMH temp directory can exceed the Unix-domain socket path limit.
+            path = Files.createTempFile(Paths.get("/tmp"), "uds-jmh-", ".sock");
+            Files.delete(path);
+            server = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
+            try {
+                server.bind(UnixDomainSocketAddress.of(path));
+            } catch (IOException | RuntimeException e) {
+                close();
+                throw e;
+            }
+        }
+
+        @TearDown
+        public void close() throws IOException {
+            try {
+                server.close();
+            } finally {
+                Files.deleteIfExists(path);
+            }
+        }
+    }
+
+    @State(Scope.Thread)
+    public static class Connection {
+        @Param({"256", "8192", "65536"})
+        public int bytes;
+
+        private Socket socket;
+        private SocketChannel peer;
+        private InputStream input;
+        private OutputStream output;
+        private byte[] request;
+        private byte[] response;
+        private Thread responder;
+        private volatile IOException peerFailure;
+
+        @Setup
+        public void setup(Listener listener) throws IOException {
+            request = new byte[bytes];
+            Arrays.fill(request, (byte) 1);
+            response = new byte[bytes];
+            socket = new TunnelingJdkSocket(listener.path);
+            try {
+                socket.connect(ENDPOINT);
+                peer = listener.server.accept();
+                socket.setSoTimeout(5000);
+                input = socket.getInputStream();
+                output = socket.getOutputStream();
+            } catch (IOException | RuntimeException e) {
+                socket.close();
+                if (peer != null) {
+                    peer.close();
+                }
+                throw e;
+            }
+            responder = new Thread(this::echo, "uds-jmh-peer");
+            responder.setDaemon(true);
+            responder.start();
+        }
+
+        private void echo() {
+            ByteBuffer buffer = ByteBuffer.allocate(bytes);
+            try {
+                while (true) {
+                    buffer.clear();
+                    while (buffer.hasRemaining()) {
+                        if (peer.read(buffer) == -1) {
+                            return;
+                        }
+                    }
+                    buffer.flip();
+                    while (buffer.hasRemaining()) {
+                        peer.write(buffer);
+                    }
+                }
+            } catch (IOException e) {
+                if (peer.isOpen()) {
+                    peerFailure = e;
+                    try {
+                        socket.close();
+                    } catch (IOException closeFailure) {
+                        e.addSuppressed(closeFailure);
+                    }
+                }
+            }
+        }
+
+        @TearDown
+        public void close() throws IOException, InterruptedException {
+            try {
+                peer.close();
+            } finally {
+                socket.close();
+            }
+            responder.join(TimeUnit.SECONDS.toMillis(5));
+            if (responder.isAlive()) {
+                throw new IllegalStateException("Peer did not terminate");
+            }
+            if (peerFailure != null) {
+                throw peerFailure;
+            }
+        }
+    }
 }

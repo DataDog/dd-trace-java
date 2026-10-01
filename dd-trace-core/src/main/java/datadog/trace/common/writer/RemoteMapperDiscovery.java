@@ -1,7 +1,7 @@
 package datadog.trace.common.writer;
 
 public interface RemoteMapperDiscovery {
-  void discover();
+    void discover();
 
-  RemoteMapper getMapper();
+    RemoteMapper getMapper();
 }

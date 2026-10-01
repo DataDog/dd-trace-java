@@ -37,68 +37,68 @@ import org.openjdk.jmh.annotations.Warmup;
 @Threads(8)
 public class ConcurrentHashtableFindBenchmark {
 
-  static final int N_KEYS = 64;
-  static final int CAPACITY = 128;
+    static final int N_KEYS = 64;
+    static final int CAPACITY = 128;
 
-  static final long[] KEY_HASHES = new long[N_KEYS];
+    static final long[] KEY_HASHES = new long[N_KEYS];
 
-  static {
-    for (int i = 0; i < N_KEYS; ++i) {
-      KEY_HASHES[i] = LongHashingUtils.hash("key-" + i);
-    }
-  }
-
-  /** Mirrors {@code LogCollector.RawLogMessage}: a keyHash plus a payload compared on match. */
-  static final class FindEntry extends ConcurrentHashtable.Entry<FindEntry> {
-    final int payload;
-
-    FindEntry(long keyHash, int payload) {
-      super(keyHash);
-      this.payload = payload;
-    }
-
-    @Override
-    public boolean matches(@Nonnull FindEntry other) {
-      return payload == other.payload;
-    }
-  }
-
-  @State(Scope.Benchmark)
-  public static class SharedState {
-    ConcurrentHashtable.State<FindEntry> table;
-
-    @Setup(Level.Iteration)
-    public void setUp() {
-      table = ConcurrentHashtable.createBounded(FindEntry.class, CAPACITY);
-      for (int i = 0; i < N_KEYS; ++i) {
-        try (ConcurrentHashtable.Reservation<FindEntry> reservation =
-            ConcurrentHashtable.tryReserve(table, KEY_HASHES[i])) {
-          reservation.tryGetOrInsertOrNull(new FindEntry(KEY_HASHES[i], i));
+    static {
+        for (int i = 0; i < N_KEYS; ++i) {
+            KEY_HASHES[i] = LongHashingUtils.hash("key-" + i);
         }
-      }
     }
-  }
 
-  @State(Scope.Thread)
-  public static class ThreadState {
-    int cursor;
+    /** Mirrors {@code LogCollector.RawLogMessage}: a keyHash plus a payload compared on match. */
+    static final class FindEntry extends ConcurrentHashtable.Entry<FindEntry> {
+        final int payload;
 
-    int next() {
-      int i = cursor;
-      cursor = (i + 1) & (N_KEYS - 1);
-      return i;
+        FindEntry(long keyHash, int payload) {
+            super(keyHash);
+            this.payload = payload;
+        }
+
+        @Override
+        public boolean matches(@Nonnull FindEntry other) {
+            return payload == other.payload;
+        }
     }
-  }
 
-  /** Same loop shape as {@code LogCollector.find}: scan candidates for a keyHash, match, return. */
-  @Benchmark
-  public FindEntry find(SharedState s, ThreadState t) {
-    int i = t.next();
-    for (FindEntry entry : ConcurrentHashtable.hashIterable(s.table, KEY_HASHES[i])) {
-      if (entry.payload == i) {
-        return entry;
-      }
+    @State(Scope.Benchmark)
+    public static class SharedState {
+        ConcurrentHashtable.State<FindEntry> table;
+
+        @Setup(Level.Iteration)
+        public void setUp() {
+            table = ConcurrentHashtable.createBounded(FindEntry.class, CAPACITY);
+            for (int i = 0; i < N_KEYS; ++i) {
+                try (ConcurrentHashtable.Reservation<FindEntry> reservation =
+                        ConcurrentHashtable.tryReserve(table, KEY_HASHES[i])) {
+                    reservation.tryGetOrInsertOrNull(new FindEntry(KEY_HASHES[i], i));
+                }
+            }
+        }
     }
-    return null;
-  }
+
+    @State(Scope.Thread)
+    public static class ThreadState {
+        int cursor;
+
+        int next() {
+            int i = cursor;
+            cursor = (i + 1) & (N_KEYS - 1);
+            return i;
+        }
+    }
+
+    /** Same loop shape as {@code LogCollector.find}: scan candidates for a keyHash, match, return. */
+    @Benchmark
+    public FindEntry find(SharedState s, ThreadState t) {
+        int i = t.next();
+        for (FindEntry entry : ConcurrentHashtable.hashIterable(s.table, KEY_HASHES[i])) {
+            if (entry.payload == i) {
+                return entry;
+            }
+        }
+        return null;
+    }
 }

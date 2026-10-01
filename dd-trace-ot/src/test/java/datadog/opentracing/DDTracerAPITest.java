@@ -19,44 +19,46 @@ import org.junit.jupiter.api.Test;
 
 class DDTracerAPITest extends DDJavaSpecification {
 
-  @Test
-  void verifySamplerWriterConstructor() throws Exception {
-    ListWriter writer = new ListWriter();
-    RateByServiceTraceSampler sampler = new RateByServiceTraceSampler();
-    DDTracer tracerOT = new DDTracer(DEFAULT_SERVICE_NAME, writer, sampler);
-    try {
-      AgentTracer.TracerAPI tracerAPI = tracerOT.getInternalTracer();
-      CoreTracer tracer = (CoreTracer) tracerAPI;
+    @Test
+    void verifySamplerWriterConstructor() throws Exception {
+        ListWriter writer = new ListWriter();
+        RateByServiceTraceSampler sampler = new RateByServiceTraceSampler();
+        DDTracer tracerOT = new DDTracer(DEFAULT_SERVICE_NAME, writer, sampler);
+        try {
+            AgentTracer.TracerAPI tracerAPI = tracerOT.getInternalTracer();
+            CoreTracer tracer = (CoreTracer) tracerAPI;
 
-      assertEquals(DEFAULT_SERVICE_NAME, getField(tracer, "serviceName"));
-      assertSame(sampler, getField(tracer, "initialSampler"));
-      assertSame(writer, getField(tracer, "writer"));
+            assertEquals(DEFAULT_SERVICE_NAME, getField(tracer, "serviceName"));
+            assertSame(sampler, getField(tracer, "initialSampler"));
+            assertSame(writer, getField(tracer, "writer"));
 
-      Object localRootSpanTagsHolder = getField(tracer, "localRootSpanTags");
-      Object localRootSpanTags = getField(localRootSpanTagsHolder, "tags");
-      assertNotNull(localRootSpanTags.toString());
-      // Verify runtime-id and language tags are populated
-      assertTrue(
-          ((java.util.Map<?, ?>) localRootSpanTags).get(RUNTIME_ID_TAG).toString().length() > 0);
-      assertEquals(
-          LANGUAGE_TAG_VALUE, ((java.util.Map<?, ?>) localRootSpanTags).get(LANGUAGE_TAG_KEY));
-    } finally {
-      tracerOT.close();
+            Object localRootSpanTagsHolder = getField(tracer, "localRootSpanTags");
+            Object localRootSpanTags = getField(localRootSpanTagsHolder, "tags");
+            assertNotNull(localRootSpanTags.toString());
+            // Verify runtime-id and language tags are populated
+            assertTrue(((java.util.Map<?, ?>) localRootSpanTags)
+                            .get(RUNTIME_ID_TAG)
+                            .toString()
+                            .length()
+                    > 0);
+            assertEquals(LANGUAGE_TAG_VALUE, ((java.util.Map<?, ?>) localRootSpanTags).get(LANGUAGE_TAG_KEY));
+        } finally {
+            tracerOT.close();
+        }
     }
-  }
 
-  @SuppressWarnings("unchecked")
-  private static <T> T getField(Object obj, String fieldName) throws Exception {
-    Class<?> cls = obj.getClass();
-    while (cls != null) {
-      try {
-        Field field = cls.getDeclaredField(fieldName);
-        field.setAccessible(true);
-        return (T) field.get(obj);
-      } catch (NoSuchFieldException ignored) {
-        cls = cls.getSuperclass();
-      }
+    @SuppressWarnings("unchecked")
+    private static <T> T getField(Object obj, String fieldName) throws Exception {
+        Class<?> cls = obj.getClass();
+        while (cls != null) {
+            try {
+                Field field = cls.getDeclaredField(fieldName);
+                field.setAccessible(true);
+                return (T) field.get(obj);
+            } catch (NoSuchFieldException ignored) {
+                cls = cls.getSuperclass();
+            }
+        }
+        throw new NoSuchFieldException("Field " + fieldName + " not found on " + obj.getClass());
     }
-    throw new NoSuchFieldException("Field " + fieldName + " not found on " + obj.getClass());
-  }
 }

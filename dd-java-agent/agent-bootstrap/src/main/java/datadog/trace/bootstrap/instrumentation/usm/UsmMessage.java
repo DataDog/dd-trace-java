@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.usm;
 
 public interface UsmMessage {
-  int dataSize();
+    int dataSize();
 
-  boolean validate();
+    boolean validate();
 }

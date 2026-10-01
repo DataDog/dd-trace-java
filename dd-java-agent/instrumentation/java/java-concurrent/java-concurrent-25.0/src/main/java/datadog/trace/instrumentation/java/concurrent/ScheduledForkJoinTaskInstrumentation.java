@@ -17,41 +17,41 @@ import net.bytebuddy.asm.Advice;
 /** Captures context for one-shot tasks scheduled through ForkJoinPool's delay scheduler. */
 @AutoService(InstrumenterModule.class)
 public final class ScheduledForkJoinTaskInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public ScheduledForkJoinTaskInstrumentation() {
-    super("java_concurrent", "fjp");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "java.util.concurrent.DelayScheduler$ScheduledForkJoinTask";
-  }
-
-  @Override
-  public boolean isEnabled() {
-    return isJavaVersionAtLeast(25) && super.isEnabled();
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("java.util.concurrent.ForkJoinTask", State.class.getName());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
-  }
-
-  public static final class Construct {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void captureContext(
-        @Advice.This ForkJoinTask<?> task,
-        @Advice.FieldValue("nextDelay") long nextDelay,
-        @Advice.FieldValue("isImmediate") boolean isImmediate) {
-      // Periodic tasks must not retain their creator; immediate tasks are internal timeout actions.
-      if (nextDelay == 0 && !isImmediate) {
-        capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
-      }
+        implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public ScheduledForkJoinTaskInstrumentation() {
+        super("java_concurrent", "fjp");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "java.util.concurrent.DelayScheduler$ScheduledForkJoinTask";
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return isJavaVersionAtLeast(25) && super.isEnabled();
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("java.util.concurrent.ForkJoinTask", State.class.getName());
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
+    }
+
+    public static final class Construct {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void captureContext(
+                @Advice.This ForkJoinTask<?> task,
+                @Advice.FieldValue("nextDelay") long nextDelay,
+                @Advice.FieldValue("isImmediate") boolean isImmediate) {
+            // Periodic tasks must not retain their creator; immediate tasks are internal timeout actions.
+            if (nextDelay == 0 && !isImmediate) {
+                capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
+            }
+        }
+    }
 }

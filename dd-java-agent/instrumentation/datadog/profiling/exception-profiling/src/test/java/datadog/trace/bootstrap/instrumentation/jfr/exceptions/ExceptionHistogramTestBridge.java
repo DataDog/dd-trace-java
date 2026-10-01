@@ -16,25 +16,25 @@ import java.util.stream.Stream;
  */
 public class ExceptionHistogramTestBridge {
 
-  public static ExceptionHistogram create(final Config config) {
-    return new ExceptionHistogram(config);
-  }
+    public static ExceptionHistogram create(final Config config) {
+        return new ExceptionHistogram(config);
+    }
 
-  public static ExceptionHistogram create(final Config config, Runnable afterEmit) {
-    return new ExceptionHistogram(config) {
-      @Override
-      void emitEvents(Stream<Pair<String, Long>> items) {
-        super.emitEvents(items);
-        afterEmit.run();
-      }
-    };
-  }
+    public static ExceptionHistogram create(final Config config, Runnable afterEmit) {
+        return new ExceptionHistogram(config) {
+            @Override
+            void emitEvents(Stream<Pair<String, Long>> items) {
+                super.emitEvents(items);
+                afterEmit.run();
+            }
+        };
+    }
 
-  public static void doEmit(final ExceptionHistogram histogram) {
-    histogram.doEmit();
-  }
+    public static void doEmit(final ExceptionHistogram histogram) {
+        histogram.doEmit();
+    }
 
-  public static void deregister(final ExceptionHistogram histogram) {
-    histogram.deregister();
-  }
+    public static void deregister(final ExceptionHistogram histogram) {
+        histogram.deregister();
+    }
 }

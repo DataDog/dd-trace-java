@@ -6,16 +6,14 @@ import java.util.Set;
 
 @FunctionalInterface
 public interface InstrumenterModuleFilter {
-  InstrumenterModuleFilter ALL_MODULES = (name, systems, needsEarlyLoad) -> true;
+    InstrumenterModuleFilter ALL_MODULES = (name, systems, needsEarlyLoad) -> true;
 
-  static InstrumenterModuleFilter forTargetSystemsOrNeedToEarlyLoad(
-      final Set<InstrumenterModule.TargetSystem> enabledSystems) {
-    return (instrumenterModuleName, targetSystems, needsEarlyLoad) ->
-        needsEarlyLoad || !disjoint(enabledSystems, targetSystems);
-  }
+    static InstrumenterModuleFilter forTargetSystemsOrNeedToEarlyLoad(
+            final Set<InstrumenterModule.TargetSystem> enabledSystems) {
+        return (instrumenterModuleName, targetSystems, needsEarlyLoad) ->
+                needsEarlyLoad || !disjoint(enabledSystems, targetSystems);
+    }
 
-  boolean test(
-      String instrumenterModuleName,
-      Set<InstrumenterModule.TargetSystem> targetSystems,
-      boolean needsEarlyLoad);
+    boolean test(
+            String instrumenterModuleName, Set<InstrumenterModule.TargetSystem> targetSystems, boolean needsEarlyLoad);
 }

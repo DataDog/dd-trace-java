@@ -9,14 +9,14 @@ import javax.annotation.Nonnull;
 
 public class BuildModuleLayout implements Serializable {
 
-  private final List<SourceSet> sourceSets;
+    private final List<SourceSet> sourceSets;
 
-  public BuildModuleLayout(@Nonnull Collection<SourceSet> sourceSets) {
-    this.sourceSets = sourceSets.stream().filter(Objects::nonNull).collect(Collectors.toList());
-  }
+    public BuildModuleLayout(@Nonnull Collection<SourceSet> sourceSets) {
+        this.sourceSets = sourceSets.stream().filter(Objects::nonNull).collect(Collectors.toList());
+    }
 
-  @Nonnull
-  public List<SourceSet> getSourceSets() {
-    return sourceSets;
-  }
+    @Nonnull
+    public List<SourceSet> getSourceSets() {
+        return sourceSets;
+    }
 }

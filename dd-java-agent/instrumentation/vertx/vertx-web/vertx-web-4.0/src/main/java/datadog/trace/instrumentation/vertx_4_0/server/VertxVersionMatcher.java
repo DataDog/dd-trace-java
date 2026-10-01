@@ -4,7 +4,7 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 
 // checks for vertx > 4
 public class VertxVersionMatcher {
-  // added in 4.0
-  public static final Reference HTTP_1X_SERVER_RESPONSE =
-      new Reference.Builder("io.vertx.core.http.impl.headers.HeadersAdaptor").build();
+    // added in 4.0
+    public static final Reference HTTP_1X_SERVER_RESPONSE =
+            new Reference.Builder("io.vertx.core.http.impl.headers.HeadersAdaptor").build();
 }

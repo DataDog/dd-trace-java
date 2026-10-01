@@ -53,30 +53,30 @@ import org.openjdk.jmh.annotations.Warmup;
 @Threads(8)
 public class SQLCommenterGetFirstWordBenchmark {
 
-  // Representative first-word shapes: plain keywords, a stored-proc brace, a CALL, leading space.
-  static final String[] SQL = {
-    "SELECT * FROM foo WHERE id = 42",
-    "{call dogshelterProc(?, ?)}",
-    "CALL dogshelterProc(?, ?)",
-    "UPDATE accounts SET balance = balance - 100 WHERE id = 42",
-    "  INSERT INTO logs VALUES (?)",
-  };
+    // Representative first-word shapes: plain keywords, a stored-proc brace, a CALL, leading space.
+    static final String[] SQL = {
+        "SELECT * FROM foo WHERE id = 42",
+        "{call dogshelterProc(?, ?)}",
+        "CALL dogshelterProc(?, ?)",
+        "UPDATE accounts SET balance = balance - 100 WHERE id = 42",
+        "  INSERT INTO logs VALUES (?)",
+    };
 
-  /** Per-thread cursor so threads don't contend on a shared index under {@code @Threads(8)}. */
-  @State(Scope.Thread)
-  public static class Cursor {
-    int index = 0;
+    /** Per-thread cursor so threads don't contend on a shared index under {@code @Threads(8)}. */
+    @State(Scope.Thread)
+    public static class Cursor {
+        int index = 0;
 
-    String next() {
-      int i = index;
-      index = (i + 1) % SQL.length;
-      return SQL[i];
+        String next() {
+            int i = index;
+            index = (i + 1) % SQL.length;
+            return SQL[i];
+        }
     }
-  }
 
-  @Benchmark
-  public boolean firstWordCheck(Cursor cursor) {
-    // Mirrors inject(): take the first word, make a boolean decision, discard it.
-    return SQLCommenter.getFirstWord(cursor.next()).startsWith("{");
-  }
+    @Benchmark
+    public boolean firstWordCheck(Cursor cursor) {
+        // Mirrors inject(): take the first word, make a boolean decision, discard it.
+        return SQLCommenter.getFirstWord(cursor.next()).startsWith("{");
+    }
 }

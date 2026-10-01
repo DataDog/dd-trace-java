@@ -8,16 +8,15 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 public abstract class ServerDecorator extends BaseDecorator {
-  private static final TagMap.Entry SPAN_KIND_ENTRY =
-      TagMap.Entry.create(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER);
-  private static final TagMap.Entry LANG_ENTRY =
-      TagMap.Entry.create(DDTags.LANGUAGE_TAG_KEY, DDTags.LANGUAGE_TAG_VALUE);
+    private static final TagMap.Entry SPAN_KIND_ENTRY = TagMap.Entry.create(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER);
+    private static final TagMap.Entry LANG_ENTRY =
+            TagMap.Entry.create(DDTags.LANGUAGE_TAG_KEY, DDTags.LANGUAGE_TAG_VALUE);
 
-  @Override
-  protected void doAfterStart(final AgentSpan span) {
-    span.setTag(SPAN_KIND_ENTRY);
-    span.setTag(LANG_ENTRY);
+    @Override
+    protected void doAfterStart(final AgentSpan span) {
+        span.setTag(SPAN_KIND_ENTRY);
+        span.setTag(LANG_ENTRY);
 
-    super.doAfterStart(span);
-  }
+        super.doAfterStart(span);
+    }
 }

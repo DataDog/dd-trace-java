@@ -12,33 +12,33 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 
 @AutoService(InstrumenterModule.class)
 public class JsonRendererInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  // so it doesn't apply to ratpack < 1.5
-  private static final Reference FILE_IO = new Reference.Builder("ratpack.file.FileIo").build();
+    // so it doesn't apply to ratpack < 1.5
+    private static final Reference FILE_IO = new Reference.Builder("ratpack.file.FileIo").build();
 
-  public JsonRendererInstrumentation() {
-    super("ratpack");
-  }
+    public JsonRendererInstrumentation() {
+        super("ratpack");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "ratpack.jackson.internal.JsonRenderer";
-  }
+    @Override
+    public String instrumentedType() {
+        return "ratpack.jackson.internal.JsonRenderer";
+    }
 
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {FILE_IO};
-  }
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return new Reference[] {FILE_IO};
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("render"))
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("ratpack.handling.Context")))
-            .and(takesArgument(1, named("ratpack.jackson.JsonRender"))),
-        packageName + ".JsonRendererAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("render"))
+                        .and(takesArguments(2))
+                        .and(takesArgument(0, named("ratpack.handling.Context")))
+                        .and(takesArgument(1, named("ratpack.jackson.JsonRender"))),
+                packageName + ".JsonRendererAdvice");
+    }
 }

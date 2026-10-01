@@ -25,63 +25,61 @@ import org.jboss.netty.handler.codec.http.HttpRequest;
 
 public class HttpClientRequestTracingHandler extends SimpleChannelDownstreamHandler {
 
-  private final ContextStore<Channel, ChannelTraceContext> contextStore;
+    private final ContextStore<Channel, ChannelTraceContext> contextStore;
 
-  public HttpClientRequestTracingHandler(
-      final ContextStore<Channel, ChannelTraceContext> contextStore) {
-    this.contextStore = contextStore;
-  }
-
-  @Override
-  public void writeRequested(final ChannelHandlerContext ctx, final MessageEvent msg)
-      throws Exception {
-    if (!(msg.getMessage() instanceof HttpRequest)) {
-      ctx.sendDownstream(msg);
-      return;
+    public HttpClientRequestTracingHandler(final ContextStore<Channel, ChannelTraceContext> contextStore) {
+        this.contextStore = contextStore;
     }
 
-    final ChannelTraceContext channelTraceContext =
-        contextStore.getOrCreate(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
+    @Override
+    public void writeRequested(final ChannelHandlerContext ctx, final MessageEvent msg) throws Exception {
+        if (!(msg.getMessage() instanceof HttpRequest)) {
+            ctx.sendDownstream(msg);
+            return;
+        }
 
-    ContextScope parentScope = null;
-    final ContextContinuation continuation = channelTraceContext.getConnectionContinuation();
-    if (continuation != null) {
-      parentScope = continuation.resume();
-      channelTraceContext.setConnectionContinuation(null);
+        final ChannelTraceContext channelTraceContext =
+                contextStore.getOrCreate(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
+
+        ContextScope parentScope = null;
+        final ContextContinuation continuation = channelTraceContext.getConnectionContinuation();
+        if (continuation != null) {
+            parentScope = continuation.resume();
+            channelTraceContext.setConnectionContinuation(null);
+        }
+
+        final HttpRequest request = (HttpRequest) msg.getMessage();
+
+        channelTraceContext.setClientParentSpan(activeSpan());
+        boolean isSecure = ctx.getPipeline().get("sslHandler") != null;
+        NettyHttpClientDecorator decorate = isSecure ? DECORATE_SECURE : DECORATE;
+
+        final AgentSpan span = startSpan(NETTY_CLIENT.toString(), NETTY_CLIENT_REQUEST);
+        try (final ContextScope scope = activateSpan(span)) {
+            decorate.afterStart(span);
+            decorate.onRequest(span, request);
+
+            SocketAddress socketAddress = ctx.getChannel().getRemoteAddress();
+            if (socketAddress instanceof InetSocketAddress) {
+                decorate.onPeerConnection(span, (InetSocketAddress) socketAddress);
+            }
+
+            DECORATE.injectContext(Context.current(), request.headers(), SETTER);
+
+            channelTraceContext.setClientSpan(span);
+
+            try {
+                ctx.sendDownstream(msg);
+            } catch (final Throwable throwable) {
+                DECORATE.onError(span, throwable);
+                DECORATE.beforeFinish(span);
+                span.finish();
+                throw throwable;
+            }
+        } finally {
+            if (parentScope != null) {
+                parentScope.close();
+            }
+        }
     }
-
-    final HttpRequest request = (HttpRequest) msg.getMessage();
-
-    channelTraceContext.setClientParentSpan(activeSpan());
-    boolean isSecure = ctx.getPipeline().get("sslHandler") != null;
-    NettyHttpClientDecorator decorate = isSecure ? DECORATE_SECURE : DECORATE;
-
-    final AgentSpan span = startSpan(NETTY_CLIENT.toString(), NETTY_CLIENT_REQUEST);
-    try (final ContextScope scope = activateSpan(span)) {
-      decorate.afterStart(span);
-      decorate.onRequest(span, request);
-
-      SocketAddress socketAddress = ctx.getChannel().getRemoteAddress();
-      if (socketAddress instanceof InetSocketAddress) {
-        decorate.onPeerConnection(span, (InetSocketAddress) socketAddress);
-      }
-
-      DECORATE.injectContext(Context.current(), request.headers(), SETTER);
-
-      channelTraceContext.setClientSpan(span);
-
-      try {
-        ctx.sendDownstream(msg);
-      } catch (final Throwable throwable) {
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-        span.finish();
-        throw throwable;
-      }
-    } finally {
-      if (parentScope != null) {
-        parentScope.close();
-      }
-    }
-  }
 }

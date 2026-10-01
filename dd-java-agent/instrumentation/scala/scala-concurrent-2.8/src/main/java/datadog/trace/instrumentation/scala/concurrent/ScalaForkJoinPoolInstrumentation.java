@@ -16,36 +16,35 @@ import net.bytebuddy.asm.Advice;
 import scala.concurrent.forkjoin.ForkJoinTask;
 
 public final class ScalaForkJoinPoolInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String instrumentedType() {
-    return "scala.concurrent.forkjoin.ForkJoinPool";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(namedOneOf("doSubmit", "externalPush"))
-            .and(takesArgument(0, named("scala.concurrent.forkjoin.ForkJoinTask"))),
-        getClass().getName() + "$StartTask");
-  }
-
-  public static final class StartTask {
-    @Advice.OnMethodEnter
-    public static <T> void before(@Advice.Argument(0) ForkJoinTask<T> task) {
-      if (!exclude(FORK_JOIN_TASK, task)) {
-        capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
-      }
+    @Override
+    public String instrumentedType() {
+        return "scala.concurrent.forkjoin.ForkJoinPool";
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static <T> void cleanup(
-        @Advice.Argument(0) ForkJoinTask<T> task, @Advice.Thrown Throwable thrown) {
-      if (null != thrown) {
-        cancelTask(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
-      }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(namedOneOf("doSubmit", "externalPush"))
+                        .and(takesArgument(0, named("scala.concurrent.forkjoin.ForkJoinTask"))),
+                getClass().getName() + "$StartTask");
     }
-  }
+
+    public static final class StartTask {
+        @Advice.OnMethodEnter
+        public static <T> void before(@Advice.Argument(0) ForkJoinTask<T> task) {
+            if (!exclude(FORK_JOIN_TASK, task)) {
+                capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
+            }
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class)
+        public static <T> void cleanup(@Advice.Argument(0) ForkJoinTask<T> task, @Advice.Thrown Throwable thrown) {
+            if (null != thrown) {
+                cancelTask(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
+            }
+        }
+    }
 }

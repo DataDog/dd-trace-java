@@ -10,15 +10,15 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class RetryDescriptorFactories {
 
-  private static final Map<String, RetryDescriptorFactory> BY_ENGINE_ID = new ConcurrentHashMap<>();
+    private static final Map<String, RetryDescriptorFactory> BY_ENGINE_ID = new ConcurrentHashMap<>();
 
-  private RetryDescriptorFactories() {}
+    private RetryDescriptorFactories() {}
 
-  public static void register(String engineId, RetryDescriptorFactory factory) {
-    BY_ENGINE_ID.put(engineId, factory);
-  }
+    public static void register(String engineId, RetryDescriptorFactory factory) {
+        BY_ENGINE_ID.put(engineId, factory);
+    }
 
-  public static RetryDescriptorFactory forEngine(String engineId) {
-    return engineId != null ? BY_ENGINE_ID.get(engineId) : null;
-  }
+    public static RetryDescriptorFactory forEngine(String engineId) {
+        return engineId != null ? BY_ENGINE_ID.get(engineId) : null;
+    }
 }

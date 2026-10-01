@@ -50,496 +50,487 @@ import scala.math.BigDecimal;
 
 public class BodyParserHelpers {
 
-  public static final int MAX_CONVERSION_DEPTH = 10;
-  private static final Logger log = LoggerFactory.getLogger(BodyParserHelpers.class);
-  public static final int MAX_RECURSION = 15;
+    public static final int MAX_CONVERSION_DEPTH = 10;
+    private static final Logger log = LoggerFactory.getLogger(BodyParserHelpers.class);
+    public static final int MAX_RECURSION = 15;
 
-  // Cached via reflection to avoid embedding a hard binary reference to
-  // files():Lscala/collection/Seq; — the return type changed to
-  // Lscala/collection/immutable/Seq; in Scala 2.13 (Play 2.7+), which would
-  // cause muzzle to disable the instrumentation for Play 2.7.
-  private static final Method MULTIPART_FILES_METHOD;
+    // Cached via reflection to avoid embedding a hard binary reference to
+    // files():Lscala/collection/Seq; — the return type changed to
+    // Lscala/collection/immutable/Seq; in Scala 2.13 (Play 2.7+), which would
+    // cause muzzle to disable the instrumentation for Play 2.7.
+    private static final Method MULTIPART_FILES_METHOD;
 
-  // Cached via reflection: FilePart.ref() returns the generic file reference (TemporaryFile in
-  // Play 2.5/2.6), and TemporaryFile.file() returns java.io.File. Using reflection avoids
-  // embedding bytecode references to TemporaryFile that could break muzzle.
-  private static final Method FILE_PART_REF;
-  private static final Method TEMP_FILE_FILE;
+    // Cached via reflection: FilePart.ref() returns the generic file reference (TemporaryFile in
+    // Play 2.5/2.6), and TemporaryFile.file() returns java.io.File. Using reflection avoids
+    // embedding bytecode references to TemporaryFile that could break muzzle.
+    private static final Method FILE_PART_REF;
+    private static final Method TEMP_FILE_FILE;
 
-  public static final int MAX_CONTENT_BYTES = Config.get().getAppSecMaxFileContentBytes();
-  public static final int MAX_FILES_TO_INSPECT = Config.get().getAppSecMaxFileContentCount();
+    public static final int MAX_CONTENT_BYTES = Config.get().getAppSecMaxFileContentBytes();
+    public static final int MAX_FILES_TO_INSPECT = Config.get().getAppSecMaxFileContentCount();
 
-  static {
-    Method m = null;
-    try {
-      m = MultipartFormData.class.getMethod("files");
-    } catch (Exception ignored) {
-    }
-    MULTIPART_FILES_METHOD = m;
-
-    Method ref = null;
-    Method file = null;
-    try {
-      ref = MultipartFormData.FilePart.class.getMethod("ref");
-    } catch (Exception ignored) {
-    }
-    try {
-      file =
-          Class.forName(
-                  "play.api.libs.Files$TemporaryFile",
-                  false,
-                  BodyParserHelpers.class.getClassLoader())
-              .getMethod("file");
-    } catch (Exception ignored) {
-    }
-    FILE_PART_REF = ref;
-    TEMP_FILE_FILE = file;
-  }
-
-  private static JFunction1<
-          scala.collection.immutable.Map<String, Seq<String>>,
-          scala.collection.immutable.Map<String, Seq<String>>>
-      HANDLE_URL_ENCODED = BodyParserHelpers::handleUrlEncoded;
-  private static JFunction1<String, String> HANDLE_TEXT = BodyParserHelpers::handleText;
-  private static JFunction1<MultipartFormData<?>, MultipartFormData<?>> HANDLE_MULTIPART_FORM_DATA =
-      BodyParserHelpers::handleMultipartFormData;
-  private static JFunction1<JsValue, JsValue> HANDLE_JSON = BodyParserHelpers::handleJson;
-
-  private BodyParserHelpers() {}
-
-  public static Function1<
-          scala.collection.immutable.Map<String, Seq<String>>,
-          scala.collection.immutable.Map<String, Seq<String>>>
-      getHandleUrlEncodedMapF() {
-    return HANDLE_URL_ENCODED;
-  }
-
-  private static scala.collection.immutable.Map<String, Seq<String>> handleUrlEncoded(
-      scala.collection.immutable.Map<String, Seq<String>> data) {
-    if (data == null || data.isEmpty()) {
-      return data;
-    }
-
-    try {
-      Object conv = tryConvertingScalaContainers(data, MAX_CONVERSION_DEPTH);
-      handleArbitraryPostData(conv, "tolerantFormUrlEncoded");
-    } catch (Exception e) {
-      handleException(e, "Error handling result of tolerantFormUrlEncoded BodyParser");
-    }
-    return data;
-  }
-
-  public static Function1<String, String> getHandleStringMapF() {
-    return HANDLE_TEXT;
-  }
-
-  private static String handleText(String s) {
-    if (s == null || s.isEmpty()) {
-      return s;
-    }
-
-    try {
-      handleArbitraryPostData(s, "tolerantText");
-    } catch (Exception e) {
-      handleException(e, "Error handling result of tolerantText BodyParser");
-    }
-
-    return s;
-  }
-
-  public static Function1<MultipartFormData<?>, MultipartFormData<?>>
-      getHandleMultipartFormDataF() {
-    return HANDLE_MULTIPART_FORM_DATA;
-  }
-
-  private static MultipartFormData<?> handleMultipartFormData(MultipartFormData<?> data) {
-    scala.collection.immutable.Map<String, Seq<String>> mpfd = data.asFormUrlEncoded();
-    BlockingException pendingBlock = null;
-
-    if (mpfd != null && !mpfd.isEmpty()) {
-      try {
-        Object conv = tryConvertingScalaContainers(mpfd, MAX_CONVERSION_DEPTH);
-        handleArbitraryPostData(conv, "multipartFormData");
-      } catch (BlockingException be) {
-        pendingBlock = be;
-      } catch (Exception e) {
-        log.debug("Error handling result of multipartFormData BodyParser", e);
-      }
-    }
-
-    try {
-      if (MULTIPART_FILES_METHOD != null) {
-        Object files = MULTIPART_FILES_METHOD.invoke(data);
-        if (files instanceof scala.collection.Iterable) {
-          handleMultipartFilenames(
-              new ScalaIteratorAdapter(((scala.collection.Iterable<?>) files).iterator()));
+    static {
+        Method m = null;
+        try {
+            m = MultipartFormData.class.getMethod("files");
+        } catch (Exception ignored) {
         }
-      }
-    } catch (BlockingException be) {
-      if (pendingBlock == null) pendingBlock = be;
-    } catch (Exception e) {
-      log.debug("Error handling multipartFormData filenames", e);
-    }
+        MULTIPART_FILES_METHOD = m;
 
-    if (pendingBlock == null) {
-      try {
-        if (MULTIPART_FILES_METHOD != null) {
-          Object files = MULTIPART_FILES_METHOD.invoke(data);
-          if (files instanceof scala.collection.Iterable) {
-            handleMultipartFilesContent(
-                new ScalaIteratorAdapter(((scala.collection.Iterable<?>) files).iterator()));
-          }
+        Method ref = null;
+        Method file = null;
+        try {
+            ref = MultipartFormData.FilePart.class.getMethod("ref");
+        } catch (Exception ignored) {
         }
-      } catch (BlockingException be) {
-        pendingBlock = be;
-      } catch (Exception e) {
-        log.debug("Error handling multipartFormData files content", e);
-      }
-    }
-
-    if (pendingBlock != null) throw pendingBlock;
-    return data;
-  }
-
-  private static void handleMultipartFilenames(java.util.Iterator<?> iterator) {
-    AgentSpan span = activeSpan();
-    if (span == null) {
-      return;
-    }
-    RequestContext reqCtx = span.getRequestContext();
-    if (reqCtx == null || reqCtx.getData(RequestContextSlot.APPSEC) == null) {
-      return;
-    }
-
-    List<String> filenames = collectFilenames(iterator);
-    if (filenames.isEmpty()) {
-      return;
-    }
-
-    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-    BiFunction<RequestContext, List<String>, Flow<Void>> callback =
-        cbp.getCallback(EVENTS.requestFilesFilenames());
-    if (callback == null) {
-      return;
-    }
-    executeFilenamesCallback(reqCtx, callback, filenames);
-  }
-
-  @VisibleForTesting
-  static List<String> collectFilenames(java.util.Iterator<?> iterator) {
-    List<String> filenames = new ArrayList<>();
-    while (iterator.hasNext()) {
-      MultipartFormData.FilePart<?> part = (MultipartFormData.FilePart<?>) iterator.next();
-      String filename = part.filename();
-      if (filename != null && !filename.isEmpty()) {
-        filenames.add(filename);
-      }
-    }
-    return filenames;
-  }
-
-  private static void executeFilenamesCallback(
-      RequestContext reqCtx,
-      BiFunction<RequestContext, List<String>, Flow<Void>> callback,
-      List<String> filenames) {
-    Flow<Void> flow = callback.apply(reqCtx, filenames);
-    Flow.Action action = flow.getAction();
-    if (action instanceof Flow.Action.RequestBlockingAction) {
-      Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-      BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-      if (brf != null) {
-        boolean success = brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-        if (success) {
-          throw new BlockingException("Blocked request (multipart file upload)");
+        try {
+            file = Class.forName("play.api.libs.Files$TemporaryFile", false, BodyParserHelpers.class.getClassLoader())
+                    .getMethod("file");
+        } catch (Exception ignored) {
         }
-      }
-    }
-  }
-
-  private static void handleMultipartFilesContent(java.util.Iterator<?> iterator) {
-    AgentSpan span = activeSpan();
-    if (span == null) {
-      return;
-    }
-    RequestContext reqCtx = span.getRequestContext();
-    if (reqCtx == null || reqCtx.getData(RequestContextSlot.APPSEC) == null) {
-      return;
+        FILE_PART_REF = ref;
+        TEMP_FILE_FILE = file;
     }
 
-    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-    BiFunction<RequestContext, List<String>, Flow<Void>> callback =
-        cbp.getCallback(EVENTS.requestFilesContent());
-    if (callback == null) {
-      return;
+    private static JFunction1<
+                    scala.collection.immutable.Map<String, Seq<String>>,
+                    scala.collection.immutable.Map<String, Seq<String>>>
+            HANDLE_URL_ENCODED = BodyParserHelpers::handleUrlEncoded;
+    private static JFunction1<String, String> HANDLE_TEXT = BodyParserHelpers::handleText;
+    private static JFunction1<MultipartFormData<?>, MultipartFormData<?>> HANDLE_MULTIPART_FORM_DATA =
+            BodyParserHelpers::handleMultipartFormData;
+    private static JFunction1<JsValue, JsValue> HANDLE_JSON = BodyParserHelpers::handleJson;
+
+    private BodyParserHelpers() {}
+
+    public static Function1<
+                    scala.collection.immutable.Map<String, Seq<String>>,
+                    scala.collection.immutable.Map<String, Seq<String>>>
+            getHandleUrlEncodedMapF() {
+        return HANDLE_URL_ENCODED;
     }
 
-    List<String> contents = collectFilesContent(iterator);
-    if (contents.isEmpty()) {
-      return;
-    }
-
-    executeFilesContentCallback(reqCtx, callback, contents);
-  }
-
-  @VisibleForTesting
-  static List<String> collectFilesContent(java.util.Iterator<?> iterator) {
-    List<String> contents = new ArrayList<>(MAX_FILES_TO_INSPECT);
-    while (iterator.hasNext() && contents.size() < MAX_FILES_TO_INSPECT) {
-      MultipartFormData.FilePart<?> part = (MultipartFormData.FilePart<?>) iterator.next();
-      // null filename → no Content-Disposition filename attribute → form field → skip
-      // empty filename → file upload with no name → content still inspected
-      if (part.filename() == null) {
-        continue;
-      }
-      contents.add(readFilePartContent(part));
-    }
-    return contents;
-  }
-
-  @VisibleForTesting
-  static String readFilePartContent(MultipartFormData.FilePart<?> part) {
-    if (FILE_PART_REF == null || TEMP_FILE_FILE == null) {
-      return "";
-    }
-    try {
-      Object ref = FILE_PART_REF.invoke(part);
-      if (ref == null) {
-        return "";
-      }
-      Object fileObj = TEMP_FILE_FILE.invoke(ref);
-      if (!(fileObj instanceof File)) {
-        return "";
-      }
-      String contentType = null;
-      scala.Option<?> ct = (scala.Option<?>) part.contentType();
-      if (ct != null && ct.isDefined()) {
-        contentType = (String) ct.get();
-      }
-      try (InputStream is = new FileInputStream((File) fileObj)) {
-        return MultipartContentDecoder.readInputStream(is, MAX_CONTENT_BYTES, contentType);
-      }
-    } catch (Exception ignored) {
-      return "";
-    }
-  }
-
-  private static void executeFilesContentCallback(
-      RequestContext reqCtx,
-      BiFunction<RequestContext, List<String>, Flow<Void>> callback,
-      List<String> contents) {
-    Flow<Void> flow = callback.apply(reqCtx, contents);
-    Flow.Action action = flow.getAction();
-    if (action instanceof Flow.Action.RequestBlockingAction) {
-      Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-      BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-      if (brf != null) {
-        boolean success = brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-        if (success) {
-          throw new BlockingException("Blocked request (multipart file upload content)");
+    private static scala.collection.immutable.Map<String, Seq<String>> handleUrlEncoded(
+            scala.collection.immutable.Map<String, Seq<String>> data) {
+        if (data == null || data.isEmpty()) {
+            return data;
         }
-      }
-    }
-  }
 
-  public static Function1<JsValue, JsValue> getHandleJsonF() {
-    return HANDLE_JSON;
-  }
-
-  private static JsValue handleJson(JsValue data) {
-    if (data == null) {
-      return null;
-    }
-
-    try {
-      Object conv = jsValueToJavaObject(data, MAX_RECURSION);
-      handleArbitraryPostData(conv, "json");
-    } catch (Exception e) {
-      handleException(e, "Error handling result of json BodyParser");
-    }
-    return data;
-  }
-
-  private static void executeCallback(
-      RequestContext reqCtx,
-      BiFunction<RequestContext, Object, Flow<Void>> callback,
-      Object conv,
-      String details) {
-    Flow<Void> flow = callback.apply(reqCtx, conv);
-    Flow.Action action = flow.getAction();
-    if (action instanceof Flow.Action.RequestBlockingAction) {
-      Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-      BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
-      if (blockResponseFunction != null) {
-        boolean success =
-            blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-        if (success) {
-          throw new BlockingException("Blocked request (for " + details + ")");
+        try {
+            Object conv = tryConvertingScalaContainers(data, MAX_CONVERSION_DEPTH);
+            handleArbitraryPostData(conv, "tolerantFormUrlEncoded");
+        } catch (Exception e) {
+            handleException(e, "Error handling result of tolerantFormUrlEncoded BodyParser");
         }
-      }
-    }
-  }
-
-  private static Object tryConvertingScalaContainers(Object obj, int depth) {
-    if (depth == 0) {
-      return obj;
-    }
-    if (obj instanceof scala.collection.Map) {
-      scala.collection.Map map = (scala.collection.Map) obj;
-      Map<Object, Object> ret = new HashMap<>();
-      Iterator<Tuple2> iterator = map.iterator();
-      while (iterator.hasNext()) {
-        Tuple2 next = iterator.next();
-        ret.put(next._1(), tryConvertingScalaContainers(next._2(), depth - 1));
-      }
-      return ret;
-    } else if (obj instanceof Iterable) {
-      List<Object> ret = new ArrayList<>();
-      Iterator iterator = ((Iterable) obj).iterator();
-      while (iterator.hasNext()) {
-        Object next = iterator.next();
-        ret.add(tryConvertingScalaContainers(next, depth - 1));
-      }
-      return ret;
-    }
-    return obj;
-  }
-
-  public static void handleJsonNode(JsonNode n, String source) {
-    Object o = jsNodeToJavaObject(n, MAX_RECURSION);
-    handleArbitraryPostDataWithSpanError(o, source);
-  }
-
-  public static void handleArbitraryPostDataWithSpanError(Object o, String source) {
-    AgentSpan span = activeSpan();
-    try {
-      doHandleArbitraryPostData(span, o, source);
-    } catch (BlockingException be) {
-      span.addThrowable(be);
-      throw be;
-    }
-  }
-
-  public static void handleArbitraryPostData(Object o, String source) {
-    doHandleArbitraryPostData(activeSpan(), o, source);
-  }
-
-  public static void doHandleArbitraryPostData(AgentSpan span, Object o, String source) {
-    RequestContext reqCtx;
-    if (span == null
-        || (reqCtx = span.getRequestContext()) == null
-        || reqCtx.getData(RequestContextSlot.APPSEC) == null) {
-      return;
+        return data;
     }
 
-    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-    BiFunction<RequestContext, Object, Flow<Void>> callback =
-        cbp.getCallback(EVENTS.requestBodyProcessed());
-    if (callback == null) {
-      return;
+    public static Function1<String, String> getHandleStringMapF() {
+        return HANDLE_TEXT;
     }
 
-    // callback execution
-    executeCallback(reqCtx, callback, o, source);
-  }
+    private static String handleText(String s) {
+        if (s == null || s.isEmpty()) {
+            return s;
+        }
 
-  private static void handleException(Exception e, String logMessage) {
-    if (e instanceof BlockingException) {
-      throw (BlockingException) e;
+        try {
+            handleArbitraryPostData(s, "tolerantText");
+        } catch (Exception e) {
+            handleException(e, "Error handling result of tolerantText BodyParser");
+        }
+
+        return s;
     }
 
-    log.warn(logMessage, e);
-  }
-
-  public static Object jsValueToJavaObject(JsValue value) {
-    return jsValueToJavaObject(value, MAX_RECURSION);
-  }
-
-  public static Object jsValueToJavaObject(JsValue value, int maxRecursion) {
-    if (value == null || maxRecursion <= 0) {
-      return null;
+    public static Function1<MultipartFormData<?>, MultipartFormData<?>> getHandleMultipartFormDataF() {
+        return HANDLE_MULTIPART_FORM_DATA;
     }
 
-    if (value instanceof JsString) {
-      return ((JsString) value).value();
-    } else if (value instanceof JsNumber) {
-      final BigDecimal number = ((JsNumber) value).value();
-      return number == null ? null : number.bigDecimal();
-    } else if (value instanceof JsBoolean) {
-      return ((JsBoolean) value).value();
-    } else if (value instanceof JsObject) {
-      Map<String, Object> map = new HashMap<>();
-      JsObject jsonObject = (JsObject) value;
-      Iterator<Tuple2<String, JsValue>> iterator = jsonObject.fields().iterator();
-      while (iterator.hasNext()) {
-        Tuple2<String, JsValue> e = iterator.next();
-        map.put(e._1(), jsValueToJavaObject(e._2(), maxRecursion - 1));
-      }
-      return map;
-    } else if (value instanceof JsArray) {
-      List<Object> list = new ArrayList<>();
-      JsArray jsArray = (JsArray) value;
-      Iterator<JsValue> iterator = jsArray.value().iterator();
-      while (iterator.hasNext()) {
-        JsValue next = iterator.next();
-        list.add(jsValueToJavaObject(next, maxRecursion - 1));
-      }
-      return list;
-    } else {
-      return null;
-    }
-  }
+    private static MultipartFormData<?> handleMultipartFormData(MultipartFormData<?> data) {
+        scala.collection.immutable.Map<String, Seq<String>> mpfd = data.asFormUrlEncoded();
+        BlockingException pendingBlock = null;
 
-  private static Object jsNodeToJavaObject(JsonNode value, int maxRecursion) {
-    if (value == null || maxRecursion <= 0) {
-      return null;
-    }
+        if (mpfd != null && !mpfd.isEmpty()) {
+            try {
+                Object conv = tryConvertingScalaContainers(mpfd, MAX_CONVERSION_DEPTH);
+                handleArbitraryPostData(conv, "multipartFormData");
+            } catch (BlockingException be) {
+                pendingBlock = be;
+            } catch (Exception e) {
+                log.debug("Error handling result of multipartFormData BodyParser", e);
+            }
+        }
 
-    if (value instanceof TextNode) {
-      return value.asText();
-    } else if (value instanceof FloatNode || value instanceof DoubleNode) {
-      return value.asDouble();
-    } else if (value instanceof NumericNode) {
-      return value.asLong();
-    } else if (value instanceof ObjectNode) {
-      Map<String, Object> map = new HashMap<>();
-      ObjectNode jsonObject = (ObjectNode) value;
-      java.util.Iterator<Map.Entry<String, JsonNode>> iterator = jsonObject.fields();
-      while (iterator.hasNext()) {
-        Map.Entry<String, JsonNode> e = iterator.next();
-        map.put(e.getKey(), jsNodeToJavaObject(e.getValue(), maxRecursion - 1));
-      }
-      return map;
-    } else if (value instanceof ArrayNode) {
-      List<Object> list = new ArrayList<>();
-      ArrayNode arrayNode = (ArrayNode) value;
-      java.util.Iterator<JsonNode> iterator = arrayNode.elements();
-      while (iterator.hasNext()) {
-        JsonNode next = iterator.next();
-        list.add(jsNodeToJavaObject(next, maxRecursion - 1));
-      }
-      return list;
-    } else if (value instanceof NullNode) {
-      return null;
-    } else {
-      return value.asText("");
-    }
-  }
+        try {
+            if (MULTIPART_FILES_METHOD != null) {
+                Object files = MULTIPART_FILES_METHOD.invoke(data);
+                if (files instanceof scala.collection.Iterable) {
+                    handleMultipartFilenames(
+                            new ScalaIteratorAdapter(((scala.collection.Iterable<?>) files).iterator()));
+                }
+            }
+        } catch (BlockingException be) {
+            if (pendingBlock == null) pendingBlock = be;
+        } catch (Exception e) {
+            log.debug("Error handling multipartFormData filenames", e);
+        }
 
-  static final class ScalaIteratorAdapter implements java.util.Iterator<Object> {
-    private final Iterator<?> delegate;
+        if (pendingBlock == null) {
+            try {
+                if (MULTIPART_FILES_METHOD != null) {
+                    Object files = MULTIPART_FILES_METHOD.invoke(data);
+                    if (files instanceof scala.collection.Iterable) {
+                        handleMultipartFilesContent(
+                                new ScalaIteratorAdapter(((scala.collection.Iterable<?>) files).iterator()));
+                    }
+                }
+            } catch (BlockingException be) {
+                pendingBlock = be;
+            } catch (Exception e) {
+                log.debug("Error handling multipartFormData files content", e);
+            }
+        }
 
-    ScalaIteratorAdapter(Iterator<?> delegate) {
-      this.delegate = delegate;
+        if (pendingBlock != null) throw pendingBlock;
+        return data;
     }
 
-    @Override
-    public boolean hasNext() {
-      return delegate.hasNext();
+    private static void handleMultipartFilenames(java.util.Iterator<?> iterator) {
+        AgentSpan span = activeSpan();
+        if (span == null) {
+            return;
+        }
+        RequestContext reqCtx = span.getRequestContext();
+        if (reqCtx == null || reqCtx.getData(RequestContextSlot.APPSEC) == null) {
+            return;
+        }
+
+        List<String> filenames = collectFilenames(iterator);
+        if (filenames.isEmpty()) {
+            return;
+        }
+
+        CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+        BiFunction<RequestContext, List<String>, Flow<Void>> callback = cbp.getCallback(EVENTS.requestFilesFilenames());
+        if (callback == null) {
+            return;
+        }
+        executeFilenamesCallback(reqCtx, callback, filenames);
     }
 
-    @Override
-    public Object next() {
-      return delegate.next();
+    @VisibleForTesting
+    static List<String> collectFilenames(java.util.Iterator<?> iterator) {
+        List<String> filenames = new ArrayList<>();
+        while (iterator.hasNext()) {
+            MultipartFormData.FilePart<?> part = (MultipartFormData.FilePart<?>) iterator.next();
+            String filename = part.filename();
+            if (filename != null && !filename.isEmpty()) {
+                filenames.add(filename);
+            }
+        }
+        return filenames;
     }
-  }
+
+    private static void executeFilenamesCallback(
+            RequestContext reqCtx,
+            BiFunction<RequestContext, List<String>, Flow<Void>> callback,
+            List<String> filenames) {
+        Flow<Void> flow = callback.apply(reqCtx, filenames);
+        Flow.Action action = flow.getAction();
+        if (action instanceof Flow.Action.RequestBlockingAction) {
+            Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+            BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+            if (brf != null) {
+                boolean success = brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+                if (success) {
+                    throw new BlockingException("Blocked request (multipart file upload)");
+                }
+            }
+        }
+    }
+
+    private static void handleMultipartFilesContent(java.util.Iterator<?> iterator) {
+        AgentSpan span = activeSpan();
+        if (span == null) {
+            return;
+        }
+        RequestContext reqCtx = span.getRequestContext();
+        if (reqCtx == null || reqCtx.getData(RequestContextSlot.APPSEC) == null) {
+            return;
+        }
+
+        CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+        BiFunction<RequestContext, List<String>, Flow<Void>> callback = cbp.getCallback(EVENTS.requestFilesContent());
+        if (callback == null) {
+            return;
+        }
+
+        List<String> contents = collectFilesContent(iterator);
+        if (contents.isEmpty()) {
+            return;
+        }
+
+        executeFilesContentCallback(reqCtx, callback, contents);
+    }
+
+    @VisibleForTesting
+    static List<String> collectFilesContent(java.util.Iterator<?> iterator) {
+        List<String> contents = new ArrayList<>(MAX_FILES_TO_INSPECT);
+        while (iterator.hasNext() && contents.size() < MAX_FILES_TO_INSPECT) {
+            MultipartFormData.FilePart<?> part = (MultipartFormData.FilePart<?>) iterator.next();
+            // null filename → no Content-Disposition filename attribute → form field → skip
+            // empty filename → file upload with no name → content still inspected
+            if (part.filename() == null) {
+                continue;
+            }
+            contents.add(readFilePartContent(part));
+        }
+        return contents;
+    }
+
+    @VisibleForTesting
+    static String readFilePartContent(MultipartFormData.FilePart<?> part) {
+        if (FILE_PART_REF == null || TEMP_FILE_FILE == null) {
+            return "";
+        }
+        try {
+            Object ref = FILE_PART_REF.invoke(part);
+            if (ref == null) {
+                return "";
+            }
+            Object fileObj = TEMP_FILE_FILE.invoke(ref);
+            if (!(fileObj instanceof File)) {
+                return "";
+            }
+            String contentType = null;
+            scala.Option<?> ct = (scala.Option<?>) part.contentType();
+            if (ct != null && ct.isDefined()) {
+                contentType = (String) ct.get();
+            }
+            try (InputStream is = new FileInputStream((File) fileObj)) {
+                return MultipartContentDecoder.readInputStream(is, MAX_CONTENT_BYTES, contentType);
+            }
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
+
+    private static void executeFilesContentCallback(
+            RequestContext reqCtx,
+            BiFunction<RequestContext, List<String>, Flow<Void>> callback,
+            List<String> contents) {
+        Flow<Void> flow = callback.apply(reqCtx, contents);
+        Flow.Action action = flow.getAction();
+        if (action instanceof Flow.Action.RequestBlockingAction) {
+            Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+            BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+            if (brf != null) {
+                boolean success = brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+                if (success) {
+                    throw new BlockingException("Blocked request (multipart file upload content)");
+                }
+            }
+        }
+    }
+
+    public static Function1<JsValue, JsValue> getHandleJsonF() {
+        return HANDLE_JSON;
+    }
+
+    private static JsValue handleJson(JsValue data) {
+        if (data == null) {
+            return null;
+        }
+
+        try {
+            Object conv = jsValueToJavaObject(data, MAX_RECURSION);
+            handleArbitraryPostData(conv, "json");
+        } catch (Exception e) {
+            handleException(e, "Error handling result of json BodyParser");
+        }
+        return data;
+    }
+
+    private static void executeCallback(
+            RequestContext reqCtx,
+            BiFunction<RequestContext, Object, Flow<Void>> callback,
+            Object conv,
+            String details) {
+        Flow<Void> flow = callback.apply(reqCtx, conv);
+        Flow.Action action = flow.getAction();
+        if (action instanceof Flow.Action.RequestBlockingAction) {
+            Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+            BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
+            if (blockResponseFunction != null) {
+                boolean success = blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+                if (success) {
+                    throw new BlockingException("Blocked request (for " + details + ")");
+                }
+            }
+        }
+    }
+
+    private static Object tryConvertingScalaContainers(Object obj, int depth) {
+        if (depth == 0) {
+            return obj;
+        }
+        if (obj instanceof scala.collection.Map) {
+            scala.collection.Map map = (scala.collection.Map) obj;
+            Map<Object, Object> ret = new HashMap<>();
+            Iterator<Tuple2> iterator = map.iterator();
+            while (iterator.hasNext()) {
+                Tuple2 next = iterator.next();
+                ret.put(next._1(), tryConvertingScalaContainers(next._2(), depth - 1));
+            }
+            return ret;
+        } else if (obj instanceof Iterable) {
+            List<Object> ret = new ArrayList<>();
+            Iterator iterator = ((Iterable) obj).iterator();
+            while (iterator.hasNext()) {
+                Object next = iterator.next();
+                ret.add(tryConvertingScalaContainers(next, depth - 1));
+            }
+            return ret;
+        }
+        return obj;
+    }
+
+    public static void handleJsonNode(JsonNode n, String source) {
+        Object o = jsNodeToJavaObject(n, MAX_RECURSION);
+        handleArbitraryPostDataWithSpanError(o, source);
+    }
+
+    public static void handleArbitraryPostDataWithSpanError(Object o, String source) {
+        AgentSpan span = activeSpan();
+        try {
+            doHandleArbitraryPostData(span, o, source);
+        } catch (BlockingException be) {
+            span.addThrowable(be);
+            throw be;
+        }
+    }
+
+    public static void handleArbitraryPostData(Object o, String source) {
+        doHandleArbitraryPostData(activeSpan(), o, source);
+    }
+
+    public static void doHandleArbitraryPostData(AgentSpan span, Object o, String source) {
+        RequestContext reqCtx;
+        if (span == null
+                || (reqCtx = span.getRequestContext()) == null
+                || reqCtx.getData(RequestContextSlot.APPSEC) == null) {
+            return;
+        }
+
+        CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+        BiFunction<RequestContext, Object, Flow<Void>> callback = cbp.getCallback(EVENTS.requestBodyProcessed());
+        if (callback == null) {
+            return;
+        }
+
+        // callback execution
+        executeCallback(reqCtx, callback, o, source);
+    }
+
+    private static void handleException(Exception e, String logMessage) {
+        if (e instanceof BlockingException) {
+            throw (BlockingException) e;
+        }
+
+        log.warn(logMessage, e);
+    }
+
+    public static Object jsValueToJavaObject(JsValue value) {
+        return jsValueToJavaObject(value, MAX_RECURSION);
+    }
+
+    public static Object jsValueToJavaObject(JsValue value, int maxRecursion) {
+        if (value == null || maxRecursion <= 0) {
+            return null;
+        }
+
+        if (value instanceof JsString) {
+            return ((JsString) value).value();
+        } else if (value instanceof JsNumber) {
+            final BigDecimal number = ((JsNumber) value).value();
+            return number == null ? null : number.bigDecimal();
+        } else if (value instanceof JsBoolean) {
+            return ((JsBoolean) value).value();
+        } else if (value instanceof JsObject) {
+            Map<String, Object> map = new HashMap<>();
+            JsObject jsonObject = (JsObject) value;
+            Iterator<Tuple2<String, JsValue>> iterator = jsonObject.fields().iterator();
+            while (iterator.hasNext()) {
+                Tuple2<String, JsValue> e = iterator.next();
+                map.put(e._1(), jsValueToJavaObject(e._2(), maxRecursion - 1));
+            }
+            return map;
+        } else if (value instanceof JsArray) {
+            List<Object> list = new ArrayList<>();
+            JsArray jsArray = (JsArray) value;
+            Iterator<JsValue> iterator = jsArray.value().iterator();
+            while (iterator.hasNext()) {
+                JsValue next = iterator.next();
+                list.add(jsValueToJavaObject(next, maxRecursion - 1));
+            }
+            return list;
+        } else {
+            return null;
+        }
+    }
+
+    private static Object jsNodeToJavaObject(JsonNode value, int maxRecursion) {
+        if (value == null || maxRecursion <= 0) {
+            return null;
+        }
+
+        if (value instanceof TextNode) {
+            return value.asText();
+        } else if (value instanceof FloatNode || value instanceof DoubleNode) {
+            return value.asDouble();
+        } else if (value instanceof NumericNode) {
+            return value.asLong();
+        } else if (value instanceof ObjectNode) {
+            Map<String, Object> map = new HashMap<>();
+            ObjectNode jsonObject = (ObjectNode) value;
+            java.util.Iterator<Map.Entry<String, JsonNode>> iterator = jsonObject.fields();
+            while (iterator.hasNext()) {
+                Map.Entry<String, JsonNode> e = iterator.next();
+                map.put(e.getKey(), jsNodeToJavaObject(e.getValue(), maxRecursion - 1));
+            }
+            return map;
+        } else if (value instanceof ArrayNode) {
+            List<Object> list = new ArrayList<>();
+            ArrayNode arrayNode = (ArrayNode) value;
+            java.util.Iterator<JsonNode> iterator = arrayNode.elements();
+            while (iterator.hasNext()) {
+                JsonNode next = iterator.next();
+                list.add(jsNodeToJavaObject(next, maxRecursion - 1));
+            }
+            return list;
+        } else if (value instanceof NullNode) {
+            return null;
+        } else {
+            return value.asText("");
+        }
+    }
+
+    static final class ScalaIteratorAdapter implements java.util.Iterator<Object> {
+        private final Iterator<?> delegate;
+
+        ScalaIteratorAdapter(Iterator<?> delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public boolean hasNext() {
+            return delegate.hasNext();
+        }
+
+        @Override
+        public Object next() {
+            return delegate.next();
+        }
+    }
 }

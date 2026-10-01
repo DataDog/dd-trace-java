@@ -12,10 +12,11 @@ import org.springframework.web.reactive.function.server.ServerResponse;
 // Need to keep this in Java because groovy creates crazy proxies around lambdas
 @Component
 public class RedirectComponent {
-  @Bean
-  public RouterFunction<ServerResponse> redirectRouterFunction() {
-    return route(
-        GET("/double-greet-redirect"),
-        req -> ServerResponse.temporaryRedirect(URI.create("/double-greet")).build());
-  }
+    @Bean
+    public RouterFunction<ServerResponse> redirectRouterFunction() {
+        return route(
+                GET("/double-greet-redirect"),
+                req -> ServerResponse.temporaryRedirect(URI.create("/double-greet"))
+                        .build());
+    }
 }

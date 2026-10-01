@@ -21,82 +21,71 @@ import org.junit.jupiter.api.Test;
 
 class TestEventsHandlerImplTest {
 
-  @Test
-  void doesNotCreateSessionWhenUnused() {
-    AtomicInteger creations = new AtomicInteger();
-    TestEventsHandlerImpl<Object, Object> handler =
-        handler(
-            () -> {
-              creations.incrementAndGet();
-              return mock(TestFrameworkSession.class);
-            });
+    @Test
+    void doesNotCreateSessionWhenUnused() {
+        AtomicInteger creations = new AtomicInteger();
+        TestEventsHandlerImpl<Object, Object> handler = handler(() -> {
+            creations.incrementAndGet();
+            return mock(TestFrameworkSession.class);
+        });
 
-    handler.close();
+        handler.close();
 
-    assertEquals(0, creations.get());
-  }
+        assertEquals(0, creations.get());
+    }
 
-  @Test
-  void createsSessionAndModuleOnceAndClosesThem() {
-    TestFrameworkSession session = mock(TestFrameworkSession.class);
-    TestFrameworkModule module = mock(TestFrameworkModule.class);
-    when(session.testModuleStart("module", null)).thenReturn(module);
-    TestIdentifier test = new TestIdentifier("suite", "test", null);
-    when(module.skipReason(test)).thenReturn(SkipReason.ITR);
-    AtomicInteger creations = new AtomicInteger();
-    TestEventsHandlerImpl<Object, Object> handler =
-        handler(
-            () -> {
-              creations.incrementAndGet();
-              return session;
-            });
+    @Test
+    void createsSessionAndModuleOnceAndClosesThem() {
+        TestFrameworkSession session = mock(TestFrameworkSession.class);
+        TestFrameworkModule module = mock(TestFrameworkModule.class);
+        when(session.testModuleStart("module", null)).thenReturn(module);
+        TestIdentifier test = new TestIdentifier("suite", "test", null);
+        when(module.skipReason(test)).thenReturn(SkipReason.ITR);
+        AtomicInteger creations = new AtomicInteger();
+        TestEventsHandlerImpl<Object, Object> handler = handler(() -> {
+            creations.incrementAndGet();
+            return session;
+        });
 
-    assertSame(SkipReason.ITR, handler.skipReason(test));
-    assertSame(SkipReason.ITR, handler.skipReason(test));
-    handler.close();
+        assertSame(SkipReason.ITR, handler.skipReason(test));
+        assertSame(SkipReason.ITR, handler.skipReason(test));
+        handler.close();
 
-    assertEquals(1, creations.get());
-    verify(session).testModuleStart("module", null);
-    verify(module).end(null);
-    verify(session).end(null);
-  }
+        assertEquals(1, creations.get());
+        verify(session).testModuleStart("module", null);
+        verify(module).end(null);
+        verify(session).end(null);
+    }
 
-  @Test
-  void createsSessionImmediatelyWhenRequested() {
-    TestFrameworkSession session = mock(TestFrameworkSession.class);
-    TestFrameworkModule module = mock(TestFrameworkModule.class);
-    when(session.testModuleStart("module", null)).thenReturn(module);
-    AtomicInteger creations = new AtomicInteger();
+    @Test
+    void createsSessionImmediatelyWhenRequested() {
+        TestFrameworkSession session = mock(TestFrameworkSession.class);
+        TestFrameworkModule module = mock(TestFrameworkModule.class);
+        when(session.testModuleStart("module", null)).thenReturn(module);
+        AtomicInteger creations = new AtomicInteger();
 
-    TestEventsHandlerImpl<Object, Object> handler =
-        handler(
-            () -> {
-              creations.incrementAndGet();
-              return session;
-            },
-            true);
+        TestEventsHandlerImpl<Object, Object> handler = handler(
+                () -> {
+                    creations.incrementAndGet();
+                    return session;
+                },
+                true);
 
-    assertEquals(1, creations.get());
-    handler.close();
-    verify(module).end(null);
-    verify(session).end(null);
-  }
+        assertEquals(1, creations.get());
+        handler.close();
+        verify(module).end(null);
+        verify(session).end(null);
+    }
 
-  private static TestEventsHandlerImpl<Object, Object> handler(
-      Supplier<TestFrameworkSession> testSessionSupplier) {
-    return handler(testSessionSupplier, false);
-  }
+    private static TestEventsHandlerImpl<Object, Object> handler(Supplier<TestFrameworkSession> testSessionSupplier) {
+        return handler(testSessionSupplier, false);
+    }
 
-  private static TestEventsHandlerImpl<Object, Object> handler(
-      Supplier<TestFrameworkSession> testSessionSupplier, boolean eagerSessionStart) {
-    ContextStore<Object, DDTestSuite> suiteStore = new StrongMapContextStore<>();
-    ContextStore<Object, DDTest> testStore = new StrongMapContextStore<>();
-    return new TestEventsHandlerImpl<>(
-        NoOpMetricCollector.INSTANCE,
-        testSessionSupplier,
-        "module",
-        eagerSessionStart,
-        suiteStore,
-        testStore);
-  }
+    private static TestEventsHandlerImpl<Object, Object> handler(
+            Supplier<TestFrameworkSession> testSessionSupplier, boolean eagerSessionStart) {
+        ContextStore<Object, DDTestSuite> suiteStore = new StrongMapContextStore<>();
+        ContextStore<Object, DDTest> testStore = new StrongMapContextStore<>();
+        return new TestEventsHandlerImpl<>(
+                NoOpMetricCollector.INSTANCE, testSessionSupplier, "module", eagerSessionStart, suiteStore, testStore);
+    }
 }

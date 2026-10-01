@@ -12,26 +12,26 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
  */
 public abstract class LogContextScopeListener implements ScopeListener, WithGlobalTracer.Callback {
 
-  @Override
-  public void afterScopeActivated() {
-    if (AgentTracer.traceConfig().isLogsInjectionEnabled()) {
-      add(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
-      add(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
+    @Override
+    public void afterScopeActivated() {
+        if (AgentTracer.traceConfig().isLogsInjectionEnabled()) {
+            add(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
+            add(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
+        }
     }
-  }
 
-  @Override
-  public void afterScopeClosed() {
-    remove(CorrelationIdentifier.getTraceIdKey());
-    remove(CorrelationIdentifier.getSpanIdKey());
-  }
+    @Override
+    public void afterScopeClosed() {
+        remove(CorrelationIdentifier.getTraceIdKey());
+        remove(CorrelationIdentifier.getSpanIdKey());
+    }
 
-  public abstract void add(String key, String value);
+    public abstract void add(String key, String value);
 
-  public abstract void remove(String key);
+    public abstract void remove(String key);
 
-  @Override
-  public void withTracer(TracerAPI tracer) {
-    tracer.addScopeListener(this);
-  }
+    @Override
+    public void withTracer(TracerAPI tracer) {
+        tracer.addScopeListener(this);
+    }
 }

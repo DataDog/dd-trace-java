@@ -8,15 +8,15 @@ import java.util.List;
 
 @AutoService(InstrumenterModule.class)
 public class KotlinCoroutinesModule extends InstrumenterModule.ContextTracking {
-  public KotlinCoroutinesModule() {
-    super("kotlin_coroutine");
-  }
+    public KotlinCoroutinesModule() {
+        super("kotlin_coroutine");
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return Arrays.asList(
-        new CoroutineContextInstrumentation(),
-        new CoroutineInstrumentation(),
-        new LazyCoroutineInstrumentation());
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return Arrays.asList(
+                new CoroutineContextInstrumentation(),
+                new CoroutineInstrumentation(),
+                new LazyCoroutineInstrumentation());
+    }
 }

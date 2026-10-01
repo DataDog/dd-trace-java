@@ -6,7 +6,7 @@ import javax.annotation.Nonnull;
 
 public interface HttpCookieModule<T> extends IastModule {
 
-  boolean isVulnerable(@Nonnull final Cookie cookie);
+    boolean isVulnerable(@Nonnull final Cookie cookie);
 
-  T getType();
+    T getType();
 }

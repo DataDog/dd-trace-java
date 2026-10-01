@@ -10,21 +10,20 @@ import java.util.Set;
 
 @AutoService(InstrumenterModule.class)
 public class SpringWebCodeOriginInstrumentation extends CodeOriginInstrumentation {
-  private static final String WEB_BIND_ANNOTATION = "org.springframework.web.bind.annotation.";
+    private static final String WEB_BIND_ANNOTATION = "org.springframework.web.bind.annotation.";
 
-  public SpringWebCodeOriginInstrumentation() {
-    super("spring-web-code-origin");
-  }
+    public SpringWebCodeOriginInstrumentation() {
+        super("spring-web-code-origin");
+    }
 
-  @Override
-  protected Set<String> getAnnotations() {
-    return new HashSet<>(
-        asList(
-            WEB_BIND_ANNOTATION + "DeleteMapping",
-            WEB_BIND_ANNOTATION + "GetMapping",
-            WEB_BIND_ANNOTATION + "PatchMapping",
-            WEB_BIND_ANNOTATION + "PostMapping",
-            WEB_BIND_ANNOTATION + "PutMapping",
-            WEB_BIND_ANNOTATION + "RequestMapping"));
-  }
+    @Override
+    protected Set<String> getAnnotations() {
+        return new HashSet<>(asList(
+                WEB_BIND_ANNOTATION + "DeleteMapping",
+                WEB_BIND_ANNOTATION + "GetMapping",
+                WEB_BIND_ANNOTATION + "PatchMapping",
+                WEB_BIND_ANNOTATION + "PostMapping",
+                WEB_BIND_ANNOTATION + "PutMapping",
+                WEB_BIND_ANNOTATION + "RequestMapping"));
+    }
 }

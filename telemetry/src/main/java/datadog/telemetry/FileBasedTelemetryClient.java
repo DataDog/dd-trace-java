@@ -20,72 +20,70 @@ import org.slf4j.LoggerFactory;
  */
 public class FileBasedTelemetryClient extends TelemetryClient {
 
-  private static final Logger log = LoggerFactory.getLogger(FileBasedTelemetryClient.class);
+    private static final Logger log = LoggerFactory.getLogger(FileBasedTelemetryClient.class);
 
-  private static final String DD_TELEMETRY_REQUEST_TYPE = "DD-Telemetry-Request-Type";
-  private static final HttpUrl PLACEHOLDER_URL =
-      HttpUrl.get("http://localhost/bazel-file-telemetry");
+    private static final String DD_TELEMETRY_REQUEST_TYPE = "DD-Telemetry-Request-Type";
+    private static final HttpUrl PLACEHOLDER_URL = HttpUrl.get("http://localhost/bazel-file-telemetry");
 
-  private final File outputDir;
-  private final AtomicLong sequence = new AtomicLong(0);
+    private final File outputDir;
+    private final AtomicLong sequence = new AtomicLong(0);
 
-  public FileBasedTelemetryClient(String outputDirPath) {
-    super(null, null, PLACEHOLDER_URL, null);
-    this.outputDir = new File(outputDirPath);
-  }
-
-  @Override
-  public Result sendHttpRequest(Request.Builder httpRequestBuilder) {
-    Request request = httpRequestBuilder.url(PLACEHOLDER_URL).build();
-    String requestType = request.header(DD_TELEMETRY_REQUEST_TYPE);
-
-    try {
-      ensureOutputDir();
-      byte[] bytes = readBody(request);
-      writeFileAtomically(bytes);
-      if (log.isDebugEnabled()) {
-        log.debug(
-            "[bazel mode] Wrote telemetry payload {} ({} bytes) to {}",
-            requestType,
-            bytes.length,
-            outputDir);
-      }
-      return Result.SUCCESS;
-    } catch (IOException e) {
-      log.error(
-          "[bazel mode] Failed to write telemetry payload {} to {}", requestType, outputDir, e);
-      return Result.FAILURE;
+    public FileBasedTelemetryClient(String outputDirPath) {
+        super(null, null, PLACEHOLDER_URL, null);
+        this.outputDir = new File(outputDirPath);
     }
-  }
 
-  private void ensureOutputDir() throws IOException {
-    if (!outputDir.exists() && !outputDir.mkdirs() && !outputDir.exists()) {
-      throw new IOException("Failed to create output directory: " + outputDir);
-    }
-  }
+    @Override
+    public Result sendHttpRequest(Request.Builder httpRequestBuilder) {
+        Request request = httpRequestBuilder.url(PLACEHOLDER_URL).build();
+        String requestType = request.header(DD_TELEMETRY_REQUEST_TYPE);
 
-  private static byte[] readBody(Request request) throws IOException {
-    if (request.body() == null) {
-      return new byte[0];
+        try {
+            ensureOutputDir();
+            byte[] bytes = readBody(request);
+            writeFileAtomically(bytes);
+            if (log.isDebugEnabled()) {
+                log.debug(
+                        "[bazel mode] Wrote telemetry payload {} ({} bytes) to {}",
+                        requestType,
+                        bytes.length,
+                        outputDir);
+            }
+            return Result.SUCCESS;
+        } catch (IOException e) {
+            log.error("[bazel mode] Failed to write telemetry payload {} to {}", requestType, outputDir, e);
+            return Result.FAILURE;
+        }
     }
-    Buffer buffer = new Buffer();
-    request.body().writeTo(buffer);
-    return buffer.readByteArray();
-  }
 
-  private void writeFileAtomically(byte[] data) throws IOException {
-    long seq = sequence.getAndIncrement();
-    String pid = PidHelper.getPid();
-    String filename = String.format("telemetry-%020d-%s.json", seq, pid);
-    File target = new File(outputDir, filename);
-    File tmp = new File(outputDir, filename + ".tmp");
+    private void ensureOutputDir() throws IOException {
+        if (!outputDir.exists() && !outputDir.mkdirs() && !outputDir.exists()) {
+            throw new IOException("Failed to create output directory: " + outputDir);
+        }
+    }
 
-    try (FileOutputStream out = new FileOutputStream(tmp)) {
-      out.write(data);
+    private static byte[] readBody(Request request) throws IOException {
+        if (request.body() == null) {
+            return new byte[0];
+        }
+        Buffer buffer = new Buffer();
+        request.body().writeTo(buffer);
+        return buffer.readByteArray();
     }
-    if (!tmp.renameTo(target)) {
-      tmp.delete();
-      throw new IOException("Failed to rename " + tmp + " to " + target);
+
+    private void writeFileAtomically(byte[] data) throws IOException {
+        long seq = sequence.getAndIncrement();
+        String pid = PidHelper.getPid();
+        String filename = String.format("telemetry-%020d-%s.json", seq, pid);
+        File target = new File(outputDir, filename);
+        File tmp = new File(outputDir, filename + ".tmp");
+
+        try (FileOutputStream out = new FileOutputStream(tmp)) {
+            out.write(data);
+        }
+        if (!tmp.renameTo(target)) {
+            tmp.delete();
+            throw new IOException("Failed to rename " + tmp + " to " + target);
+        }
     }
-  }
 }

@@ -11,16 +11,15 @@ import javax.servlet.http.HttpServletRequest;
 
 @WebFilter(filterName = "test", value = "/*", asyncSupported = true)
 public class HtmlJspFilter implements Filter {
-  @Override
-  public void doFilter(
-      ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)
-      throws IOException, ServletException {
-    final String uri = ((HttpServletRequest) servletRequest).getRequestURI();
-    if (uri.contains("/xml")) {
-      filterChain.doFilter(servletRequest, servletResponse);
-    } else {
-      // FIXME: async injection looks not working on wildfly
-      servletRequest.getRequestDispatcher("/jsp/html.jsp").forward(servletRequest, servletResponse);
+    @Override
+    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)
+            throws IOException, ServletException {
+        final String uri = ((HttpServletRequest) servletRequest).getRequestURI();
+        if (uri.contains("/xml")) {
+            filterChain.doFilter(servletRequest, servletResponse);
+        } else {
+            // FIXME: async injection looks not working on wildfly
+            servletRequest.getRequestDispatcher("/jsp/html.jsp").forward(servletRequest, servletResponse);
+        }
     }
-  }
 }

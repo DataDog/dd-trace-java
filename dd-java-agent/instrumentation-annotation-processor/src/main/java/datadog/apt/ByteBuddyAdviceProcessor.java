@@ -30,59 +30,58 @@ import javax.lang.model.type.TypeMirror;
 @SupportedAnnotationTypes({"net.bytebuddy.asm.Advice.*"})
 public class ByteBuddyAdviceProcessor extends AbstractProcessor {
 
-  @Override
-  public SourceVersion getSupportedSourceVersion() {
-    return SourceVersion.latestSupported();
-  }
-
-  @Override
-  @SuppressForbidden
-  public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-    try {
-      processImpl(annotations, roundEnv);
-    } catch (RuntimeException e) {
-      e.printStackTrace(System.err);
+    @Override
+    public SourceVersion getSupportedSourceVersion() {
+        return SourceVersion.latestSupported();
     }
-    return false;
-  }
 
-  private void processImpl(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-    if (annotations.isEmpty()) return;
-
-    TypeElement beforeAnno = findType(annotations, "net.bytebuddy.asm.Advice.OnMethodEnter");
-    TypeElement afterAnno = findType(annotations, "net.bytebuddy.asm.Advice.OnMethodExit");
-
-    if (beforeAnno != null) processAnnotation(beforeAnno, roundEnv);
-    if (afterAnno != null) processAnnotation(afterAnno, roundEnv);
-  }
-
-  private void processAnnotation(TypeElement adviceAnno, RoundEnvironment roundEnv) {
-    Set<? extends Element> annotatedElements = roundEnv.getElementsAnnotatedWith(adviceAnno);
-    log(processingEnv, "Processing annotation %s...", adviceAnno.getSimpleName());
-    if (annotatedElements.isEmpty()) return;
-
-    for (Element annotatedElement : annotatedElements) {
-      log(
-          processingEnv,
-          "\tProcessing annotated element %s::%s...",
-          annotatedElement.getEnclosingElement().getSimpleName(),
-          annotatedElement.getSimpleName());
-
-      AnnotationMirror adviceAnnoMirror = findAnnotation(annotatedElement, adviceAnno);
-      TypeMirror suppressType = asType(getValue(adviceAnnoMirror, "suppress"));
-      if (suppressType == null
-          && !isSuppressed(annotatedElement, "bytebuddy-exception-suppression")) {
-        warning(
-            processingEnv,
-            annotatedElement,
-            "Missing `suppress` attribute - use @SuppressWarnings(\"bytebuddy-exception-suppression\") to ignore");
-      } else if (!isClass(suppressType, Throwable.class)
-          && !isSuppressed(annotatedElement, "bytebuddy-exception-suppression")) {
-        warning(
-            processingEnv,
-            annotatedElement,
-            "`suppress` attribute != Throwable.class - use @SuppressWarnings(\"bytebuddy-exception-suppression\") to ignore");
-      }
+    @Override
+    @SuppressForbidden
+    public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+        try {
+            processImpl(annotations, roundEnv);
+        } catch (RuntimeException e) {
+            e.printStackTrace(System.err);
+        }
+        return false;
     }
-  }
+
+    private void processImpl(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+        if (annotations.isEmpty()) return;
+
+        TypeElement beforeAnno = findType(annotations, "net.bytebuddy.asm.Advice.OnMethodEnter");
+        TypeElement afterAnno = findType(annotations, "net.bytebuddy.asm.Advice.OnMethodExit");
+
+        if (beforeAnno != null) processAnnotation(beforeAnno, roundEnv);
+        if (afterAnno != null) processAnnotation(afterAnno, roundEnv);
+    }
+
+    private void processAnnotation(TypeElement adviceAnno, RoundEnvironment roundEnv) {
+        Set<? extends Element> annotatedElements = roundEnv.getElementsAnnotatedWith(adviceAnno);
+        log(processingEnv, "Processing annotation %s...", adviceAnno.getSimpleName());
+        if (annotatedElements.isEmpty()) return;
+
+        for (Element annotatedElement : annotatedElements) {
+            log(
+                    processingEnv,
+                    "\tProcessing annotated element %s::%s...",
+                    annotatedElement.getEnclosingElement().getSimpleName(),
+                    annotatedElement.getSimpleName());
+
+            AnnotationMirror adviceAnnoMirror = findAnnotation(annotatedElement, adviceAnno);
+            TypeMirror suppressType = asType(getValue(adviceAnnoMirror, "suppress"));
+            if (suppressType == null && !isSuppressed(annotatedElement, "bytebuddy-exception-suppression")) {
+                warning(
+                        processingEnv,
+                        annotatedElement,
+                        "Missing `suppress` attribute - use @SuppressWarnings(\"bytebuddy-exception-suppression\") to ignore");
+            } else if (!isClass(suppressType, Throwable.class)
+                    && !isSuppressed(annotatedElement, "bytebuddy-exception-suppression")) {
+                warning(
+                        processingEnv,
+                        annotatedElement,
+                        "`suppress` attribute != Throwable.class - use @SuppressWarnings(\"bytebuddy-exception-suppression\") to ignore");
+            }
+        }
+    }
 }

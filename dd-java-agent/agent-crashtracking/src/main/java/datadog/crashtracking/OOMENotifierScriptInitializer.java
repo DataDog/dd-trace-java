@@ -21,173 +21,169 @@ import java.io.InputStream;
 import java.util.Set;
 
 public final class OOMENotifierScriptInitializer {
-  private static final String OOME_NOTIFIER_SCRIPT_PREFIX = "dd_oome_notifier.";
+    private static final String OOME_NOTIFIER_SCRIPT_PREFIX = "dd_oome_notifier.";
 
-  private OOMENotifierScriptInitializer() {}
+    private OOMENotifierScriptInitializer() {}
 
-  @VisibleForTesting
-  static boolean initialize(String onOutOfMemoryVal) {
-    if (onOutOfMemoryVal == null || onOutOfMemoryVal.isEmpty()) {
-      LOG.debug(
-          SEND_TELEMETRY,
-          "'-XX:OnOutOfMemoryError' argument was not provided. OOME tracking is disabled.");
-      return false;
-    }
-    File scriptFile = getOOMEScriptFile(onOutOfMemoryVal);
-    if (scriptFile == null) {
-      LOG.error(
-          SEND_TELEMETRY,
-          "OOME notifier script value ({}) does not follow the expected format: <path>/dd_oome_notifier.(sh|bat) %p. OOME tracking is disabled.",
-          onOutOfMemoryVal);
-      return false;
-    }
-    String agentJar = findAgentJar();
-    if (agentJar == null) {
-      LOG.warn(
-          SEND_TELEMETRY,
-          "Unable to locate the agent jar. OOME notification will not work properly.");
-      return false;
-    }
-    if (!copyOOMEscript(scriptFile)) {
-      return false;
-    }
-    writeConfigToPath(scriptFile, "agent", agentJar);
-    return true;
-  }
-
-  private static File getOOMEScriptFile(String onOutOfMemoryVal) {
-    String path = getScriptPathFromArg(onOutOfMemoryVal, OOME_NOTIFIER_SCRIPT_PREFIX);
-    return path == null ? null : new File(path);
-  }
-
-  private static boolean copyOOMEscript(File scriptFile) {
-    File scriptDirectory = scriptFile.getParentFile();
-
-    if (scriptDirectory.exists()) {
-      if (!isSafeToRepair(scriptDirectory)) {
-        LOG.warn(
-            SEND_TELEMETRY,
-            "Untrusted OOME script folder {} (wrong owner or group/world-writable). OOME notification will not work properly.",
-            scriptDirectory);
-        return false;
-      }
-      // owned by us but possibly left over from an older, less restrictive version: strip any
-      // stray group/world bits without touching the owner's own bits, so a directory an operator
-      // deliberately made non-writable stays non-writable
-      if (!stripGroupAndWorldBits(scriptDirectory)) {
-        LOG.warn(
-            SEND_TELEMETRY,
-            "Unable to strip group/world permissions from OOME script folder {}. OOME notification will not work properly.",
-            scriptDirectory);
-        return false;
-      }
-      // cleanup all stale process-specific generated files in the parent folder of the given OOME
-      // notifier script
-      runScriptCleanup(scriptDirectory);
-      if (!scriptDirectory.canWrite()) {
-        LOG.warn(
-            SEND_TELEMETRY,
-            "Read only directory {}. OOME notification will not work properly.",
-            scriptDirectory);
-        return false;
-      }
-    } else {
-      if (!scriptDirectory.mkdirs()) {
-        LOG.warn(
-            SEND_TELEMETRY,
-            "Failed to create writable OOME script folder {}. OOME notification will not work properly.",
-            scriptDirectory);
-        return false;
-      }
-      if (!restrictDirectoryToOwnerOnly(scriptDirectory)) {
-        LOG.warn(
-            SEND_TELEMETRY,
-            "Unable to restrict OOME script folder {} to owner-only permissions. OOME notification will not work properly.",
-            scriptDirectory);
-        return false;
-      }
+    @VisibleForTesting
+    static boolean initialize(String onOutOfMemoryVal) {
+        if (onOutOfMemoryVal == null || onOutOfMemoryVal.isEmpty()) {
+            LOG.debug(SEND_TELEMETRY, "'-XX:OnOutOfMemoryError' argument was not provided. OOME tracking is disabled.");
+            return false;
+        }
+        File scriptFile = getOOMEScriptFile(onOutOfMemoryVal);
+        if (scriptFile == null) {
+            LOG.error(
+                    SEND_TELEMETRY,
+                    "OOME notifier script value ({}) does not follow the expected format: <path>/dd_oome_notifier.(sh|bat) %p. OOME tracking is disabled.",
+                    onOutOfMemoryVal);
+            return false;
+        }
+        String agentJar = findAgentJar();
+        if (agentJar == null) {
+            LOG.warn(SEND_TELEMETRY, "Unable to locate the agent jar. OOME notification will not work properly.");
+            return false;
+        }
+        if (!copyOOMEscript(scriptFile)) {
+            return false;
+        }
+        writeConfigToPath(scriptFile, "agent", agentJar);
+        return true;
     }
 
-    try {
-      // do not overwrite existing
-      if (!scriptFile.exists()) {
+    private static File getOOMEScriptFile(String onOutOfMemoryVal) {
+        String path = getScriptPathFromArg(onOutOfMemoryVal, OOME_NOTIFIER_SCRIPT_PREFIX);
+        return path == null ? null : new File(path);
+    }
+
+    private static boolean copyOOMEscript(File scriptFile) {
+        File scriptDirectory = scriptFile.getParentFile();
+
+        if (scriptDirectory.exists()) {
+            if (!isSafeToRepair(scriptDirectory)) {
+                LOG.warn(
+                        SEND_TELEMETRY,
+                        "Untrusted OOME script folder {} (wrong owner or group/world-writable). OOME notification will not work properly.",
+                        scriptDirectory);
+                return false;
+            }
+            // owned by us but possibly left over from an older, less restrictive version: strip any
+            // stray group/world bits without touching the owner's own bits, so a directory an operator
+            // deliberately made non-writable stays non-writable
+            if (!stripGroupAndWorldBits(scriptDirectory)) {
+                LOG.warn(
+                        SEND_TELEMETRY,
+                        "Unable to strip group/world permissions from OOME script folder {}. OOME notification will not work properly.",
+                        scriptDirectory);
+                return false;
+            }
+            // cleanup all stale process-specific generated files in the parent folder of the given OOME
+            // notifier script
+            runScriptCleanup(scriptDirectory);
+            if (!scriptDirectory.canWrite()) {
+                LOG.warn(
+                        SEND_TELEMETRY,
+                        "Read only directory {}. OOME notification will not work properly.",
+                        scriptDirectory);
+                return false;
+            }
+        } else {
+            if (!scriptDirectory.mkdirs()) {
+                LOG.warn(
+                        SEND_TELEMETRY,
+                        "Failed to create writable OOME script folder {}. OOME notification will not work properly.",
+                        scriptDirectory);
+                return false;
+            }
+            if (!restrictDirectoryToOwnerOnly(scriptDirectory)) {
+                LOG.warn(
+                        SEND_TELEMETRY,
+                        "Unable to restrict OOME script folder {} to owner-only permissions. OOME notification will not work properly.",
+                        scriptDirectory);
+                return false;
+            }
+        }
+
         try {
-          copyStream(getOomeNotifierTemplate(), scriptFile);
+            // do not overwrite existing
+            if (!scriptFile.exists()) {
+                try {
+                    copyStream(getOomeNotifierTemplate(), scriptFile);
+                } catch (IOException e) {
+                    // fail closed: never leave a partially written script that a later JVM start would
+                    // silently reuse (it passes isSafeToRepair because it carries no group/world write bits)
+                    scriptFile.delete();
+                    throw e;
+                }
+                // fail closed: never leave a freshly written script we could not lock down
+                if (!restrictScriptToOwnerOnly(scriptFile)) {
+                    scriptFile.delete();
+                    throw new IOException("Unable to restrict OOME script permissions");
+                }
+            } else {
+                // owned by us but possibly left over from an older, less restrictive version: repair in
+                // place by stripping stray group/world bits, preserving the owner's own bits
+                if (!isSafeToRepair(scriptFile)) {
+                    LOG.warn(
+                            SEND_TELEMETRY,
+                            "Untrusted OOME script {} (wrong owner or group/world-writable). OOME notification will not work properly.",
+                            scriptFile);
+                    return false;
+                }
+                if (!stripGroupAndWorldBits(scriptFile)) {
+                    LOG.warn(
+                            SEND_TELEMETRY,
+                            "Unable to strip group/world permissions from OOME script {}. OOME notification will not work properly.",
+                            scriptFile);
+                    return false;
+                }
+            }
         } catch (IOException e) {
-          // fail closed: never leave a partially written script that a later JVM start would
-          // silently reuse (it passes isSafeToRepair because it carries no group/world write bits)
-          scriptFile.delete();
-          throw e;
+            LOG.warn(
+                    SEND_TELEMETRY,
+                    "Failed to copy OOME script {} ({}). OOME notification will not work properly.",
+                    scriptFile,
+                    e.getMessage());
+            return false;
         }
-        // fail closed: never leave a freshly written script we could not lock down
-        if (!restrictScriptToOwnerOnly(scriptFile)) {
-          scriptFile.delete();
-          throw new IOException("Unable to restrict OOME script permissions");
-        }
-      } else {
-        // owned by us but possibly left over from an older, less restrictive version: repair in
-        // place by stripping stray group/world bits, preserving the owner's own bits
-        if (!isSafeToRepair(scriptFile)) {
-          LOG.warn(
-              SEND_TELEMETRY,
-              "Untrusted OOME script {} (wrong owner or group/world-writable). OOME notification will not work properly.",
-              scriptFile);
-          return false;
-        }
-        if (!stripGroupAndWorldBits(scriptFile)) {
-          LOG.warn(
-              SEND_TELEMETRY,
-              "Unable to strip group/world permissions from OOME script {}. OOME notification will not work properly.",
-              scriptFile);
-          return false;
-        }
-      }
-    } catch (IOException e) {
-      LOG.warn(
-          SEND_TELEMETRY,
-          "Failed to copy OOME script {} ({}). OOME notification will not work properly.",
-          scriptFile,
-          e.getMessage());
-      return false;
+        return true;
     }
-    return true;
-  }
 
-  private static void copyStream(InputStream in, File dest) throws IOException {
-    try (InputStream src = in;
-        FileOutputStream out = new FileOutputStream(dest)) {
-      byte[] buf = new byte[4096];
-      int n;
-      while ((n = src.read(buf)) >= 0) {
-        out.write(buf, 0, n);
-      }
+    private static void copyStream(InputStream in, File dest) throws IOException {
+        try (InputStream src = in;
+                FileOutputStream out = new FileOutputStream(dest)) {
+            byte[] buf = new byte[4096];
+            int n;
+            while ((n = src.read(buf)) >= 0) {
+                out.write(buf, 0, n);
+            }
+        }
     }
-  }
 
-  private static void runScriptCleanup(File dir) {
-    if (!dir.exists()) {
-      return;
-    }
-    File[] files = dir.listFiles();
-    if (files == null) {
-      return;
-    }
-    Set<String> pidSet = null;
-    for (File file : files) {
-      if (!file.isFile()) {
-        continue;
-      }
-      String pid = pidFromSpecialFileName(file.getName());
-      if (pid != null && !pid.equals(PidHelper.getPid())) {
-        if (pidSet == null) {
-          // lazy init: forks jps to get the list of running Java PIDs
-          pidSet = PidHelper.getJavaPids();
+    private static void runScriptCleanup(File dir) {
+        if (!dir.exists()) {
+            return;
         }
-        if (!pidSet.contains(pid)) {
-          LOG.debug("Cleaning process specific file {}", file);
-          file.delete();
+        File[] files = dir.listFiles();
+        if (files == null) {
+            return;
         }
-      }
+        Set<String> pidSet = null;
+        for (File file : files) {
+            if (!file.isFile()) {
+                continue;
+            }
+            String pid = pidFromSpecialFileName(file.getName());
+            if (pid != null && !pid.equals(PidHelper.getPid())) {
+                if (pidSet == null) {
+                    // lazy init: forks jps to get the list of running Java PIDs
+                    pidSet = PidHelper.getJavaPids();
+                }
+                if (!pidSet.contains(pid)) {
+                    LOG.debug("Cleaning process specific file {}", file);
+                    file.delete();
+                }
+            }
+        }
     }
-  }
 }

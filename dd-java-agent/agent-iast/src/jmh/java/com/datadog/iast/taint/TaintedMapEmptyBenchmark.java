@@ -26,29 +26,29 @@ import org.openjdk.jmh.infra.Blackhole;
 @State(Scope.Benchmark)
 public class TaintedMapEmptyBenchmark {
 
-  private static final int OP_COUNT = 1024;
-  private TaintedMap map;
-  private final Object anyObject = new Object();
+    private static final int OP_COUNT = 1024;
+    private TaintedMap map;
+    private final Object anyObject = new Object();
 
-  @Setup(Level.Iteration)
-  public void setup(BenchmarkParams params) {
-    final boolean baseline = params.getBenchmark().endsWith("baseline");
-    map = baseline ? TaintedMap.NoOp.INSTANCE : new TaintedMap.TaintedMapImpl();
-  }
-
-  @Benchmark
-  @OperationsPerInvocation(OP_COUNT)
-  public void baseline(final Blackhole bh) {
-    for (int i = 0; i < OP_COUNT; i++) {
-      bh.consume(map.get(anyObject));
+    @Setup(Level.Iteration)
+    public void setup(BenchmarkParams params) {
+        final boolean baseline = params.getBenchmark().endsWith("baseline");
+        map = baseline ? TaintedMap.NoOp.INSTANCE : new TaintedMap.TaintedMapImpl();
     }
-  }
 
-  @Benchmark
-  @OperationsPerInvocation(OP_COUNT)
-  public void getFromEmptyMap(final Blackhole bh) {
-    for (int i = 0; i < OP_COUNT; i++) {
-      bh.consume(map.get(anyObject));
+    @Benchmark
+    @OperationsPerInvocation(OP_COUNT)
+    public void baseline(final Blackhole bh) {
+        for (int i = 0; i < OP_COUNT; i++) {
+            bh.consume(map.get(anyObject));
+        }
     }
-  }
+
+    @Benchmark
+    @OperationsPerInvocation(OP_COUNT)
+    public void getFromEmptyMap(final Blackhole bh) {
+        for (int i = 0; i < OP_COUNT; i++) {
+            bh.consume(map.get(anyObject));
+        }
+    }
 }

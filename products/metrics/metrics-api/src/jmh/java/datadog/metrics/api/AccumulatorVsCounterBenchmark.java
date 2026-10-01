@@ -74,119 +74,118 @@ import org.openjdk.jmh.annotations.Warmup;
 @Fork(5)
 public class AccumulatorVsCounterBenchmark {
 
-  enum Metric {
-    HITS
-  }
-
-  private final Accumulator<Metric> accumulator = Accumulator.of(Metric.class);
-  private final Counter counter = new SynchronousStatsDCounter("hits", new LockingStatsDClient());
-
-  /**
-   * Mirrors {@code StatsDCounter}'s real shape: every {@link #increment} forwards straight to the
-   * client, with no batching of its own. Reimplemented here rather than depending on {@code
-   * metrics-lib} because {@code StatsDCounter}'s constructor is package-private.
-   */
-  private static final class SynchronousStatsDCounter implements Counter {
-    private static final String[] NO_TAGS = new String[0];
-    private final String name;
-    private final StatsDClient statsd;
-
-    SynchronousStatsDCounter(String name, StatsDClient statsd) {
-      this.name = name;
-      this.statsd = statsd;
+    enum Metric {
+        HITS
     }
 
-    @Override
-    public void increment(int delta) {
-      statsd.count(name, delta, NO_TAGS);
+    private final Accumulator<Metric> accumulator = Accumulator.of(Metric.class);
+    private final Counter counter = new SynchronousStatsDCounter("hits", new LockingStatsDClient());
+
+    /**
+     * Mirrors {@code StatsDCounter}'s real shape: every {@link #increment} forwards straight to the
+     * client, with no batching of its own. Reimplemented here rather than depending on {@code
+     * metrics-lib} because {@code StatsDCounter}'s constructor is package-private.
+     */
+    private static final class SynchronousStatsDCounter implements Counter {
+        private static final String[] NO_TAGS = new String[0];
+        private final String name;
+        private final StatsDClient statsd;
+
+        SynchronousStatsDCounter(String name, StatsDClient statsd) {
+            this.name = name;
+            this.statsd = statsd;
+        }
+
+        @Override
+        public void increment(int delta) {
+            statsd.count(name, delta, NO_TAGS);
+        }
+
+        @Override
+        public void incrementErrorCount(String cause, int delta) {
+            statsd.count(name, delta, new String[] {"cause:" + cause});
+        }
     }
 
-    @Override
-    public void incrementErrorCount(String cause, int delta) {
-      statsd.count(name, delta, new String[] {"cause:" + cause});
-    }
-  }
+    /**
+     * A {@link StatsDClient} stand-in that pays a real, serialized per-call cost instead of a true
+     * no-op: every real {@code StatsDClient} forwards {@code count} through one shared connection (a
+     * lock or an offer to a single non-blocking queue), so a true no-op would measure only
+     * virtual-dispatch overhead and understate the cost this benchmark exists to isolate. A {@code
+     * synchronized} increment of a shared counter is a reasonable stand-in for that shared
+     * serialization point without pulling in a real socket/queue implementation this benchmark
+     * doesn't need.
+     */
+    private static final class LockingStatsDClient implements StatsDClient {
+        private final Object lock = new Object();
+        private long total;
 
-  /**
-   * A {@link StatsDClient} stand-in that pays a real, serialized per-call cost instead of a true
-   * no-op: every real {@code StatsDClient} forwards {@code count} through one shared connection (a
-   * lock or an offer to a single non-blocking queue), so a true no-op would measure only
-   * virtual-dispatch overhead and understate the cost this benchmark exists to isolate. A {@code
-   * synchronized} increment of a shared counter is a reasonable stand-in for that shared
-   * serialization point without pulling in a real socket/queue implementation this benchmark
-   * doesn't need.
-   */
-  private static final class LockingStatsDClient implements StatsDClient {
-    private final Object lock = new Object();
-    private long total;
+        @Override
+        public void incrementCounter(String metricName, String... tags) {
+            count(metricName, 1L, tags);
+        }
 
-    @Override
-    public void incrementCounter(String metricName, String... tags) {
-      count(metricName, 1L, tags);
-    }
+        @Override
+        public void count(String metricName, long delta, String... tags) {
+            synchronized (lock) {
+                total += delta;
+            }
+        }
 
-    @Override
-    public void count(String metricName, long delta, String... tags) {
-      synchronized (lock) {
-        total += delta;
-      }
-    }
+        @Override
+        public void gauge(String metricName, long value, String... tags) {}
 
-    @Override
-    public void gauge(String metricName, long value, String... tags) {}
+        @Override
+        public void gauge(String metricName, double value, String... tags) {}
 
-    @Override
-    public void gauge(String metricName, double value, String... tags) {}
+        @Override
+        public void histogram(String metricName, long value, String... tags) {}
 
-    @Override
-    public void histogram(String metricName, long value, String... tags) {}
+        @Override
+        public void histogram(String metricName, double value, String... tags) {}
 
-    @Override
-    public void histogram(String metricName, double value, String... tags) {}
+        @Override
+        public void distribution(String metricName, long value, String... tags) {}
 
-    @Override
-    public void distribution(String metricName, long value, String... tags) {}
+        @Override
+        public void distribution(String metricName, double value, String... tags) {}
 
-    @Override
-    public void distribution(String metricName, double value, String... tags) {}
+        @Override
+        public void serviceCheck(String serviceCheckName, String status, String message, String... tags) {}
 
-    @Override
-    public void serviceCheck(
-        String serviceCheckName, String status, String message, String... tags) {}
+        @Override
+        public void error(Exception error) {}
 
-    @Override
-    public void error(Exception error) {}
+        @Override
+        public int getErrorCount() {
+            return 0;
+        }
 
-    @Override
-    public int getErrorCount() {
-      return 0;
+        @Override
+        public void close() {}
     }
 
-    @Override
-    public void close() {}
-  }
+    @Benchmark
+    @Threads(1)
+    public void accumulatorIncrement_lowContention() {
+        accumulator.inc(Metric.HITS);
+    }
 
-  @Benchmark
-  @Threads(1)
-  public void accumulatorIncrement_lowContention() {
-    accumulator.inc(Metric.HITS);
-  }
+    @Benchmark
+    @Threads(Threads.MAX)
+    public void accumulatorIncrement_highContention() {
+        accumulator.inc(Metric.HITS);
+    }
 
-  @Benchmark
-  @Threads(Threads.MAX)
-  public void accumulatorIncrement_highContention() {
-    accumulator.inc(Metric.HITS);
-  }
+    @Benchmark
+    @Threads(1)
+    public void counterIncrement_lowContention() {
+        counter.increment(1);
+    }
 
-  @Benchmark
-  @Threads(1)
-  public void counterIncrement_lowContention() {
-    counter.increment(1);
-  }
-
-  @Benchmark
-  @Threads(Threads.MAX)
-  public void counterIncrement_highContention() {
-    counter.increment(1);
-  }
+    @Benchmark
+    @Threads(Threads.MAX)
+    public void counterIncrement_highContention() {
+        counter.increment(1);
+    }
 }

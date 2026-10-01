@@ -7,12 +7,12 @@ import org.junit.Test;
 
 public class TestSucceedAndSkipped {
 
-  @Test
-  public void test_succeed() {
-    assertTrue(true);
-  }
+    @Test
+    public void test_succeed() {
+        assertTrue(true);
+    }
 
-  @Ignore("Ignore reason in test")
-  @Test
-  public void test_skipped() {}
+    @Ignore("Ignore reason in test")
+    @Test
+    public void test_skipped() {}
 }

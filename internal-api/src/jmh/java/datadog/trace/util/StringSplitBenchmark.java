@@ -44,51 +44,52 @@ import org.openjdk.jmh.infra.Blackhole;
 @State(Scope.Benchmark)
 @SuppressForbidden
 public class StringSplitBenchmark {
-  public enum TestString {
-    EMPTY(""),
-    TRIVIAL("app_key=1111"),
-    SMALL("app_key=1111&foo=bar&baz=quux"),
-    MEDIUM(repeat("app_key=1111", '&', 100)),
-    LARGE(repeat("app_key=1111&application_key=2222&token=0894-4832", '&', 4096));
+    public enum TestString {
+        EMPTY(""),
+        TRIVIAL("app_key=1111"),
+        SMALL("app_key=1111&foo=bar&baz=quux"),
+        MEDIUM(repeat("app_key=1111", '&', 100)),
+        LARGE(repeat("app_key=1111&application_key=2222&token=0894-4832", '&', 4096));
 
-    final String str;
+        final String str;
 
-    TestString(String str) {
-      this.str = str;
+        TestString(String str) {
+            this.str = str;
+        }
+    };
+
+    @Param
+    TestString testStr;
+
+    static final String repeat(String repeat, char separator, int length) {
+        StringBuilder builder = new StringBuilder(length);
+        builder.append(repeat);
+        while (builder.length() + repeat.length() + 1 < length) {
+            builder.append(separator).append(repeat);
+        }
+        return builder.toString();
     }
-  };
 
-  @Param TestString testStr;
-
-  static final String repeat(String repeat, char separator, int length) {
-    StringBuilder builder = new StringBuilder(length);
-    builder.append(repeat);
-    while (builder.length() + repeat.length() + 1 < length) {
-      builder.append(separator).append(repeat);
+    @Benchmark
+    public void string_split(Blackhole bh) {
+        for (String substr : this.testStr.str.split("\\&")) {
+            bh.consume(substr);
+        }
     }
-    return builder.toString();
-  }
 
-  @Benchmark
-  public void string_split(Blackhole bh) {
-    for (String substr : this.testStr.str.split("\\&")) {
-      bh.consume(substr);
+    static final Pattern PATTERN = Pattern.compile("\\&");
+
+    @Benchmark
+    public void pattern_split(Blackhole bh) {
+        for (String str : PATTERN.split(this.testStr.str)) {
+            bh.consume(str);
+        }
     }
-  }
 
-  static final Pattern PATTERN = Pattern.compile("\\&");
-
-  @Benchmark
-  public void pattern_split(Blackhole bh) {
-    for (String str : PATTERN.split(this.testStr.str)) {
-      bh.consume(str);
+    @Benchmark
+    public void strings_split(Blackhole bh) {
+        for (SubSequence subSeq : Strings.split(this.testStr.str, '&')) {
+            bh.consume(subSeq);
+        }
     }
-  }
-
-  @Benchmark
-  public void strings_split(Blackhole bh) {
-    for (SubSequence subSeq : Strings.split(this.testStr.str, '&')) {
-      bh.consume(subSeq);
-    }
-  }
 }

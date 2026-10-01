@@ -31,81 +31,71 @@ import org.openjdk.jmh.annotations.Warmup;
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @Fork(
-    value = 3,
-    jvmArgsAppend = {
-      "-Xms512m",
-      "-Xmx512m",
-      "-Ddd.service=orders",
-      "-Ddd.env=prod",
-      "-Ddd.version=1.2.3"
-    })
+        value = 3,
+        jvmArgsAppend = {"-Xms512m", "-Xmx512m", "-Ddd.service=orders", "-Ddd.env=prod", "-Ddd.version=1.2.3"})
 @Warmup(iterations = 3, time = 1)
 @Measurement(iterations = 4, time = 1)
 @Threads(1)
 @State(Scope.Thread)
 public class DBMCommentSizingBenchmark {
-  @Param({"short_service", "short_full", "long_full", "escaped_full"})
-  public String scenario;
+    @Param({"short_service", "short_full", "long_full", "escaped_full"})
+    public String scenario;
 
-  String[] services = new String[32],
-      hosts = new String[32],
-      databases = new String[32],
-      parents = new String[32],
-      queries = new String[32];
-  int index;
+    String[] services = new String[32],
+            hosts = new String[32],
+            databases = new String[32],
+            parents = new String[32],
+            queries = new String[32];
+    int index;
 
-  @Setup
-  public void setup() {
-    for (int i = 0; i < 32; i++) {
-      services[i] = "orders-db-" + i;
-      hosts[i] = "db-" + i + ".internal";
-      databases[i] = "orders_" + i;
-      parents[i] =
-          scenario.equals("short_service")
-              ? null
-              : "00-12345678901234567890123456789012"
-                  + String.format("%02x", i)
-                  + "-98765432109876"
-                  + String.format("%02x", i)
-                  + "-01";
-      if (scenario.equals("long_full")) {
-        services[i] = repeat("service", 80) + i;
-        hosts[i] = repeat("hostname", 30) + i;
-        databases[i] = repeat("database", 60) + i;
-      }
-      if (scenario.equals("escaped_full")) {
-        services[i] = repeat("café 東京 &/", 16) + i;
-        databases[i] = repeat("orders '€'", 16) + i;
-      }
-      queries[i] =
-          "SELECT * FROM orders WHERE customer_id = "
-              + i
-              + (scenario.equals("long_full") ? " /* " + repeat("query padding ", 280) + " */" : "")
-              + ";";
+    @Setup
+    public void setup() {
+        for (int i = 0; i < 32; i++) {
+            services[i] = "orders-db-" + i;
+            hosts[i] = "db-" + i + ".internal";
+            databases[i] = "orders_" + i;
+            parents[i] = scenario.equals("short_service")
+                    ? null
+                    : "00-12345678901234567890123456789012"
+                            + String.format("%02x", i)
+                            + "-98765432109876"
+                            + String.format("%02x", i)
+                            + "-01";
+            if (scenario.equals("long_full")) {
+                services[i] = repeat("service", 80) + i;
+                hosts[i] = repeat("hostname", 30) + i;
+                databases[i] = repeat("database", 60) + i;
+            }
+            if (scenario.equals("escaped_full")) {
+                services[i] = repeat("café 東京 &/", 16) + i;
+                databases[i] = repeat("orders '€'", 16) + i;
+            }
+            queries[i] = "SELECT * FROM orders WHERE customer_id = "
+                    + i
+                    + (scenario.equals("long_full") ? " /* " + repeat("query padding ", 280) + " */" : "")
+                    + ";";
+        }
     }
-  }
 
-  static String repeat(String s, int n) {
-    StringBuilder b = new StringBuilder();
-    for (int i = 0; i < n; i++) b.append(s);
-    return b.toString();
-  }
+    static String repeat(String s, int n) {
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; i < n; i++) b.append(s);
+        return b.toString();
+    }
 
-  int next() {
-    return index++ & 31;
-  }
+    int next() {
+        return index++ & 31;
+    }
 
-  @Benchmark
-  public String buildComment() {
-    int i = next();
-    return SharedDBCommenter.buildComment(
-        services[i], "postgresql", hosts[i], databases[i], parents[i]);
-  }
+    @Benchmark
+    public String buildComment() {
+        int i = next();
+        return SharedDBCommenter.buildComment(services[i], "postgresql", hosts[i], databases[i], parents[i]);
+    }
 
-  @Benchmark
-  public String injectSql() {
-    int i = next();
-    return SQLCommenter.inject(
-        queries[i], services[i], "postgresql", hosts[i], databases[i], parents[i], false);
-  }
+    @Benchmark
+    public String injectSql() {
+        int i = next();
+        return SQLCommenter.inject(queries[i], services[i], "postgresql", hosts[i], databases[i], parents[i], false);
+    }
 }

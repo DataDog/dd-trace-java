@@ -36,125 +36,123 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class JakartaRsAnnotationsInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  private static final String JAKARTA_ENDPOINT_OPERATION_NAME = "jakarta-rs.request";
+    private static final String JAKARTA_ENDPOINT_OPERATION_NAME = "jakarta-rs.request";
 
-  public JakartaRsAnnotationsInstrumentation() {
-    super("jakarta-rs", "jakartars", "jakarta-rs-annotations");
-  }
+    public JakartaRsAnnotationsInstrumentation() {
+        super("jakarta-rs", "jakartars", "jakarta-rs-annotations");
+    }
 
-  private Collection<String> getJaxRsAnnotations() {
-    final Set<String> ret = new HashSet<>();
-    ret.add("jakarta.ws.rs.Path");
-    ret.add("jakarta.ws.rs.DELETE");
-    ret.add("jakarta.ws.rs.GET");
-    ret.add("jakarta.ws.rs.HEAD");
-    ret.add("jakarta.ws.rs.OPTIONS");
-    ret.add("jakarta.ws.rs.POST");
-    ret.add("jakarta.ws.rs.PUT");
-    ret.add("jakarta.ws.rs.PATCH");
-    ret.addAll(InstrumenterConfig.get().getAdditionalJaxRsAnnotations());
-    return ret;
-  }
+    private Collection<String> getJaxRsAnnotations() {
+        final Set<String> ret = new HashSet<>();
+        ret.add("jakarta.ws.rs.Path");
+        ret.add("jakarta.ws.rs.DELETE");
+        ret.add("jakarta.ws.rs.GET");
+        ret.add("jakarta.ws.rs.HEAD");
+        ret.add("jakarta.ws.rs.OPTIONS");
+        ret.add("jakarta.ws.rs.POST");
+        ret.add("jakarta.ws.rs.PUT");
+        ret.add("jakarta.ws.rs.PATCH");
+        ret.addAll(InstrumenterConfig.get().getAdditionalJaxRsAnnotations());
+        return ret;
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("jakarta.ws.rs.container.AsyncResponse", AgentSpan.class.getName());
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("jakarta.ws.rs.container.AsyncResponse", AgentSpan.class.getName());
+    }
 
-  @Override
-  public String hierarchyMarkerType() {
-    return "jakarta.ws.rs.Path";
-  }
+    @Override
+    public String hierarchyMarkerType() {
+        return "jakarta.ws.rs.Path";
+    }
 
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return hasSuperType(
-        declaresAnnotation(named(hierarchyMarkerType()))
-            .or(declaresMethod(isAnnotatedWith(named(hierarchyMarkerType())))));
-  }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return hasSuperType(declaresAnnotation(named(hierarchyMarkerType()))
+                .or(declaresMethod(isAnnotatedWith(named(hierarchyMarkerType())))));
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(hasSuperMethod(isAnnotatedWith(namedOneOf(getJaxRsAnnotations())))),
-        JakartaRsAnnotationsInstrumentation.class.getName() + "$JakartaRsAnnotationsAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(hasSuperMethod(isAnnotatedWith(namedOneOf(getJaxRsAnnotations())))),
+                JakartaRsAnnotationsInstrumentation.class.getName() + "$JakartaRsAnnotationsAdvice");
+    }
 
-  public static class JakartaRsAnnotationsAdvice {
+    public static class JakartaRsAnnotationsAdvice {
 
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope nameSpan(
-        @Advice.This final Object target,
-        @Advice.Origin final Method method,
-        @Advice.AllArguments final Object[] args,
-        @Advice.Local("asyncResponse") AsyncResponse asyncResponse) {
-      ContextStore<AsyncResponse, AgentSpan> contextStore = null;
-      for (final Object arg : args) {
-        if (arg instanceof AsyncResponse) {
-          asyncResponse = (AsyncResponse) arg;
-          contextStore = InstrumentationContext.get(AsyncResponse.class, AgentSpan.class);
-          if (contextStore.get(asyncResponse) != null) {
-            /**
-             * We are probably in a recursive call and don't want to start a new span because it
-             * would replace the existing span in the asyncResponse and cause it to never finish. We
-             * could work around this by using a list instead, but we likely don't want the extra
-             * span anyway.
-             */
-            return null;
-          }
-          break;
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope nameSpan(
+                @Advice.This final Object target,
+                @Advice.Origin final Method method,
+                @Advice.AllArguments final Object[] args,
+                @Advice.Local("asyncResponse") AsyncResponse asyncResponse) {
+            ContextStore<AsyncResponse, AgentSpan> contextStore = null;
+            for (final Object arg : args) {
+                if (arg instanceof AsyncResponse) {
+                    asyncResponse = (AsyncResponse) arg;
+                    contextStore = InstrumentationContext.get(AsyncResponse.class, AgentSpan.class);
+                    if (contextStore.get(asyncResponse) != null) {
+                        /**
+                         * We are probably in a recursive call and don't want to start a new span because it
+                         * would replace the existing span in the asyncResponse and cause it to never finish. We
+                         * could work around this by using a list instead, but we likely don't want the extra
+                         * span anyway.
+                         */
+                        return null;
+                    }
+                    break;
+                }
+            }
+
+            // Rename the parent span according to the path represented by these annotations.
+            final AgentSpan parent = activeSpan();
+
+            final AgentSpan span = startSpan(JAKARTA_RS_CONTROLLER.toString(), JAKARTA_ENDPOINT_OPERATION_NAME);
+            span.setMeasured(true);
+            DECORATE.onJakartaRsSpan(span, parent, target.getClass(), method);
+            DECORATE.afterStart(span);
+
+            final ContextScope scope = activateSpan(span);
+
+            if (contextStore != null && asyncResponse != null) {
+                contextStore.put(asyncResponse, span);
+            }
+
+            return scope;
         }
-      }
 
-      // Rename the parent span according to the path represented by these annotations.
-      final AgentSpan parent = activeSpan();
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void stopSpan(
+                @Advice.Enter final ContextScope scope,
+                @Advice.Thrown final Throwable throwable,
+                @Advice.Local("asyncResponse") final AsyncResponse asyncResponse) {
+            if (scope == null) {
+                return;
+            }
+            final AgentSpan span = spanFromScope(scope);
+            if (throwable != null) {
+                DECORATE.onError(span, throwable);
+                DECORATE.beforeFinish(span);
+                scope.close();
+                span.finish();
+                return;
+            }
 
-      final AgentSpan span =
-          startSpan(JAKARTA_RS_CONTROLLER.toString(), JAKARTA_ENDPOINT_OPERATION_NAME);
-      span.setMeasured(true);
-      DECORATE.onJakartaRsSpan(span, parent, target.getClass(), method);
-      DECORATE.afterStart(span);
-
-      final ContextScope scope = activateSpan(span);
-
-      if (contextStore != null && asyncResponse != null) {
-        contextStore.put(asyncResponse, span);
-      }
-
-      return scope;
+            if (asyncResponse != null && !asyncResponse.isSuspended()) {
+                // Clear span from the asyncResponse. Logically this should never happen. Added to be safe.
+                InstrumentationContext.get(AsyncResponse.class, AgentSpan.class).put(asyncResponse, null);
+            }
+            if (asyncResponse == null || !asyncResponse.isSuspended()) {
+                DECORATE.beforeFinish(span);
+                scope.close();
+                span.finish();
+            } else {
+                scope.close();
+            }
+            // else span finished by AsyncResponseAdvice
+        }
     }
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.Enter final ContextScope scope,
-        @Advice.Thrown final Throwable throwable,
-        @Advice.Local("asyncResponse") final AsyncResponse asyncResponse) {
-      if (scope == null) {
-        return;
-      }
-      final AgentSpan span = spanFromScope(scope);
-      if (throwable != null) {
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-        scope.close();
-        span.finish();
-        return;
-      }
-
-      if (asyncResponse != null && !asyncResponse.isSuspended()) {
-        // Clear span from the asyncResponse. Logically this should never happen. Added to be safe.
-        InstrumentationContext.get(AsyncResponse.class, AgentSpan.class).put(asyncResponse, null);
-      }
-      if (asyncResponse == null || !asyncResponse.isSuspended()) {
-        DECORATE.beforeFinish(span);
-        scope.close();
-        span.finish();
-      } else {
-        scope.close();
-      }
-      // else span finished by AsyncResponseAdvice
-    }
-  }
 }

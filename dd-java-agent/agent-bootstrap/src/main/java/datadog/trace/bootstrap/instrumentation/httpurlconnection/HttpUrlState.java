@@ -11,65 +11,64 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.net.HttpURLConnection;
 
 public class HttpUrlState {
-  public static final ContextStore.Factory<HttpUrlState> FACTORY = HttpUrlState::new;
+    public static final ContextStore.Factory<HttpUrlState> FACTORY = HttpUrlState::new;
 
-  private volatile AgentSpan span = null;
-  private volatile boolean finished = false;
+    private volatile AgentSpan span = null;
+    private volatile boolean finished = false;
 
-  public AgentSpan start(final HttpURLConnection connection) {
-    span = startSpan(HTTP_URL_CONNECTION.toString(), DECORATE.operationName());
-    try (final ContextScope scope = activateSpan(span)) {
-      DECORATE.afterStart(span);
-      DECORATE.onRequest(span, connection);
-      return span;
+    public AgentSpan start(final HttpURLConnection connection) {
+        span = startSpan(HTTP_URL_CONNECTION.toString(), DECORATE.operationName());
+        try (final ContextScope scope = activateSpan(span)) {
+            DECORATE.afterStart(span);
+            DECORATE.onRequest(span, connection);
+            return span;
+        }
     }
-  }
 
-  public boolean hasSpan() {
-    return span != null;
-  }
-
-  public boolean isFinished() {
-    return finished;
-  }
-
-  public void finish() {
-    finished = true;
-  }
-
-  public void finishSpan(
-      final HttpURLConnection connection, final int responseCode, final Throwable throwable) {
-    try (final ContextScope scope = activateSpan(span)) {
-      if (responseCode > 0) {
-        // safe to access response data as 'responseCode' is set
-        DECORATE.onResponse(span, connection);
-      } else {
-        // Ignoring the throwable if we have response code
-        // to have consistent behavior with other http clients.
-        DECORATE.onError(span, throwable);
-      }
-      DECORATE.beforeFinish(span);
-      span.finish();
-      span = null;
-      finished = true;
+    public boolean hasSpan() {
+        return span != null;
     }
-  }
 
-  public void finishSpan(final HttpURLConnection connection, final int responseCode) {
-    /*
-     * responseCode field is sometimes not populated.
-     * We can't call getResponseCode() due to some unwanted side-effects
-     * (e.g. breaks getOutputStream).
-     */
-    if (responseCode > 0) {
-      try (final ContextScope scope = activateSpan(span)) {
-        // safe to access response data as 'responseCode' is set
-        DECORATE.onResponse(span, connection);
-        DECORATE.beforeFinish(span);
-        span.finish();
-        span = null;
+    public boolean isFinished() {
+        return finished;
+    }
+
+    public void finish() {
         finished = true;
-      }
     }
-  }
+
+    public void finishSpan(final HttpURLConnection connection, final int responseCode, final Throwable throwable) {
+        try (final ContextScope scope = activateSpan(span)) {
+            if (responseCode > 0) {
+                // safe to access response data as 'responseCode' is set
+                DECORATE.onResponse(span, connection);
+            } else {
+                // Ignoring the throwable if we have response code
+                // to have consistent behavior with other http clients.
+                DECORATE.onError(span, throwable);
+            }
+            DECORATE.beforeFinish(span);
+            span.finish();
+            span = null;
+            finished = true;
+        }
+    }
+
+    public void finishSpan(final HttpURLConnection connection, final int responseCode) {
+        /*
+         * responseCode field is sometimes not populated.
+         * We can't call getResponseCode() due to some unwanted side-effects
+         * (e.g. breaks getOutputStream).
+         */
+        if (responseCode > 0) {
+            try (final ContextScope scope = activateSpan(span)) {
+                // safe to access response data as 'responseCode' is set
+                DECORATE.onResponse(span, connection);
+                DECORATE.beforeFinish(span);
+                span.finish();
+                span = null;
+                finished = true;
+            }
+        }
+    }
 }

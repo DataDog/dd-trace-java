@@ -27,8 +27,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 class CommandLineTest {
 
-  static Stream<Arguments> data() {
-    // spotless:off
+    static Stream<Arguments> data() {
+        // spotless:off
     return Stream.of(
         arguments(
             "No JVM options nor command argument",
@@ -65,73 +65,71 @@ class CommandLineTest {
             of(flatten("-Dtest.property=value", expectedArsFromArgFile("tab-separated")), asList("arg1", "arg2")))
     );
     // spotless:on
-  }
-
-  @ParameterizedTest(name = "[{index}] {0}")
-  @MethodSource("data")
-  void testGetVmArguments(String useCase, RunArguments arguments, RunArguments expectedArguments)
-      throws Exception {
-    // Skip unsupported test cases
-    skipArgFileTestOnJava8(arguments);
-    // Run test process
-    Result result = forkAndRunWithArgs(arguments);
-    // Check results
-    assertEquals(expectedArguments.jvmOptions, result.jvmOptions, "Failed to get JVM options");
-    assertEquals(TEST_PROCESS_CLASS_NAME, result.mainClass(), "Failed to get main class");
-    assertEquals(result.realCmdArgs, result.cmdArgs, "Failed to get command arguments");
-    assertEquals(result.realCmdArgs, expectedArguments.cmdArgs, "Unexpected command arguments");
-  }
-
-  private static void skipArgFileTestOnJava8(RunArguments arguments) {
-    boolean useArgFile = false;
-    for (String jvmOption : arguments.jvmOptions) {
-      if (jvmOption.startsWith("@")) {
-        useArgFile = true;
-        break;
-      }
     }
-    if (!useArgFile) {
-      for (String cmdArg : arguments.cmdArgs) {
-        if (cmdArg.startsWith("@")) {
-          useArgFile = true;
-          break;
+
+    @ParameterizedTest(name = "[{index}] {0}")
+    @MethodSource("data")
+    void testGetVmArguments(String useCase, RunArguments arguments, RunArguments expectedArguments) throws Exception {
+        // Skip unsupported test cases
+        skipArgFileTestOnJava8(arguments);
+        // Run test process
+        Result result = forkAndRunWithArgs(arguments);
+        // Check results
+        assertEquals(expectedArguments.jvmOptions, result.jvmOptions, "Failed to get JVM options");
+        assertEquals(TEST_PROCESS_CLASS_NAME, result.mainClass(), "Failed to get main class");
+        assertEquals(result.realCmdArgs, result.cmdArgs, "Failed to get command arguments");
+        assertEquals(result.realCmdArgs, expectedArguments.cmdArgs, "Unexpected command arguments");
+    }
+
+    private static void skipArgFileTestOnJava8(RunArguments arguments) {
+        boolean useArgFile = false;
+        for (String jvmOption : arguments.jvmOptions) {
+            if (jvmOption.startsWith("@")) {
+                useArgFile = true;
+                break;
+            }
         }
-      }
+        if (!useArgFile) {
+            for (String cmdArg : arguments.cmdArgs) {
+                if (cmdArg.startsWith("@")) {
+                    useArgFile = true;
+                    break;
+                }
+            }
+        }
+        if (useArgFile) {
+            assumeTrue(JavaVirtualMachine.isJavaVersionAtLeast(9));
+        }
     }
-    if (useArgFile) {
-      assumeTrue(JavaVirtualMachine.isJavaVersionAtLeast(9));
-    }
-  }
 
-  private static String argFile(String name) {
-    return "@src/test/resources/argfiles/" + name + ".txt";
-  }
-
-  private static List<String> expectedArsFromArgFile(String name) {
-    List<String> arguments = new ArrayList<>();
-    try (InputStream stream =
-            requireNonNull(
-                CommandLineTest.class.getResourceAsStream("/argfiles/" + name + "-expected.txt"));
-        BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
-      String line;
-      while ((line = reader.readLine()) != null) {
-        arguments.add(line);
-      }
-    } catch (IOException e) {
-      Assertions.fail("Failed to read expected args from " + name + "argfile", e);
+    private static String argFile(String name) {
+        return "@src/test/resources/argfiles/" + name + ".txt";
     }
-    return arguments;
-  }
 
-  private static List<String> flatten(Object... values) {
-    List<String> result = new ArrayList<>();
-    for (Object value : values) {
-      if (value instanceof Collection) {
-        result.addAll((Collection<? extends String>) value);
-      } else {
-        result.add(value.toString());
-      }
+    private static List<String> expectedArsFromArgFile(String name) {
+        List<String> arguments = new ArrayList<>();
+        try (InputStream stream = requireNonNull(
+                        CommandLineTest.class.getResourceAsStream("/argfiles/" + name + "-expected.txt"));
+                BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                arguments.add(line);
+            }
+        } catch (IOException e) {
+            Assertions.fail("Failed to read expected args from " + name + "argfile", e);
+        }
+        return arguments;
     }
-    return result;
-  }
+
+    private static List<String> flatten(Object... values) {
+        List<String> result = new ArrayList<>();
+        for (Object value : values) {
+            if (value instanceof Collection) {
+                result.addAll((Collection<? extends String>) value);
+            } else {
+                result.add(value.toString());
+            }
+        }
+        return result;
+    }
 }

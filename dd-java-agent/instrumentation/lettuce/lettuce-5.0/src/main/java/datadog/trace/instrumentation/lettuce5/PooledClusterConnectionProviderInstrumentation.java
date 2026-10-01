@@ -29,51 +29,47 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class PooledClusterConnectionProviderInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public PooledClusterConnectionProviderInstrumentation() {
-    super("lettuce", "lettuce-5");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "io.lettuce.core.cluster.PooledClusterConnectionProvider";
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "io.lettuce.core.api.StatefulConnection", "io.lettuce.core.RedisURI");
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            // Synchronous getConnection delegates here after resolving the command slot.
-            .and(named("getConnectionAsync"))
-            .and(takesArguments(2))
-            .and(takesArgument(1, int.class))
-            .and(returns(named("java.util.concurrent.CompletableFuture"))),
-        PooledClusterConnectionProviderInstrumentation.class.getName() + "$ConnectionAdvice");
-  }
-
-  public static class ConnectionAdvice {
-
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static <T extends StatefulConnection> void onExit(
-        @Advice.Return(readOnly = false) CompletableFuture<T> connectionFuture) {
-      final AgentSpan span = activeSpan();
-      if (!MasterReplicaConnectionHelper.isRedisClientSpan(span) || connectionFuture == null) {
-        return;
-      }
-
-      connectionFuture =
-          MasterReplicaConnectionHelper.onConnectionFuture(
-              span,
-              connectionFuture,
-              InstrumentationContext.get(StatefulConnection.class, RedisURI.class));
+    public PooledClusterConnectionProviderInstrumentation() {
+        super("lettuce", "lettuce-5");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "io.lettuce.core.cluster.PooledClusterConnectionProvider";
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap("io.lettuce.core.api.StatefulConnection", "io.lettuce.core.RedisURI");
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPublic())
+                        // Synchronous getConnection delegates here after resolving the command slot.
+                        .and(named("getConnectionAsync"))
+                        .and(takesArguments(2))
+                        .and(takesArgument(1, int.class))
+                        .and(returns(named("java.util.concurrent.CompletableFuture"))),
+                PooledClusterConnectionProviderInstrumentation.class.getName() + "$ConnectionAdvice");
+    }
+
+    public static class ConnectionAdvice {
+
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static <T extends StatefulConnection> void onExit(
+                @Advice.Return(readOnly = false) CompletableFuture<T> connectionFuture) {
+            final AgentSpan span = activeSpan();
+            if (!MasterReplicaConnectionHelper.isRedisClientSpan(span) || connectionFuture == null) {
+                return;
+            }
+
+            connectionFuture = MasterReplicaConnectionHelper.onConnectionFuture(
+                    span, connectionFuture, InstrumentationContext.get(StatefulConnection.class, RedisURI.class));
+        }
+    }
 }

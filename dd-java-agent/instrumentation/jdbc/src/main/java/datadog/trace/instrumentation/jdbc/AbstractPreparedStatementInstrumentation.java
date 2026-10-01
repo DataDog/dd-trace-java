@@ -32,103 +32,97 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 public abstract class AbstractPreparedStatementInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForBootstrap, Instrumenter.HasMethodAdvice {
 
-  public AbstractPreparedStatementInstrumentation(
-      String instrumentationName, String... additionalNames) {
-    super(instrumentationName, additionalNames);
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    Map<String, String> contextStore = new HashMap<>(4);
-    contextStore.put("java.sql.Statement", DBQueryInfo.class.getName());
-    contextStore.put("java.sql.Connection", JDBCConnectionContext.class.getName());
-    return contextStore;
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        nameStartsWith("execute").and(takesArguments(0)).and(isPublic()),
-        AbstractPreparedStatementInstrumentation.class.getName() + "$PreparedStatementAdvice");
-  }
-
-  public static class PreparedStatementAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onEnter(@Advice.This final Statement statement) {
-      int depth = CallDepthThreadLocalMap.incrementCallDepth(Statement.class);
-      if (depth > 0) {
-        return null;
-      }
-      try {
-        final Connection connection = statement.getConnection();
-        final DBQueryInfo queryInfo =
-            InstrumentationContext.get(Statement.class, DBQueryInfo.class).get(statement);
-        if (null == queryInfo) {
-          logMissingQueryInfo(statement);
-          return null;
-        }
-        final AgentSpan span;
-        final JDBCConnectionContext connectionContext =
-            JDBCDecorator.parseConnectionContext(
-                connection,
-                InstrumentationContext.get(Connection.class, JDBCConnectionContext.class));
-        final DBInfo dbInfo = connectionContext.getDbInfo();
-        final boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
-
-        final String oracleServiceHash =
-            DECORATE.setServiceHashAction(connection, connectionContext);
-
-        if (INJECT_COMMENT && injectTraceContext) {
-          if (DECORATE.isSqlServer(dbInfo)) {
-            // The span ID is pre-determined so that we can reference it when setting the context
-            final long spanID = DECORATE.setContextInfo(connection, connectionContext);
-            // we then force that pre-determined span ID for the span covering the actual query
-            span =
-                AgentTracer.get()
-                    .singleSpanBuilder("java-jdbc-prepared_statement", DATABASE_QUERY)
-                    .withSpanId(spanID)
-                    .start();
-            span.setTag(DBM_TRACE_INJECTED, true);
-          } else if (DECORATE.isPostgres(dbInfo) && DBM_TRACE_PREPARED_STATEMENTS) {
-            span = startSpan("java-jdbc-prepared_statement", DATABASE_QUERY);
-            DECORATE.setApplicationName(span, connection);
-          } else if (DECORATE.isOracle(dbInfo)) {
-            span = startSpan("java-jdbc-prepared_statement", DATABASE_QUERY);
-            DECORATE.setAction(span, connection);
-          } else {
-            span = startSpan("java-jdbc-prepared_statement", DATABASE_QUERY);
-          }
-        } else {
-          span = startSpan("java-jdbc-prepared_statement", DATABASE_QUERY);
-        }
-        DECORATE.afterStart(span);
-        DECORATE.onConnection(span, connectionContext);
-        DECORATE.onPreparedStatement(span, queryInfo);
-        DECORATE.withBaseHash(span, dbInfo, oracleServiceHash);
-
-        return activateSpan(span);
-      } catch (SQLException e) {
-        logSQLException(e);
-        // if we can't get the connection for any reason
-        return null;
-      }
+    public AbstractPreparedStatementInstrumentation(String instrumentationName, String... additionalNames) {
+        super(instrumentationName, additionalNames);
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
-      CallDepthThreadLocalMap.decrementCallDepth(Statement.class);
-      if (scope == null) {
-        return;
-      }
-      AgentSpan span = spanFromScope(scope);
-      DECORATE.onError(span, throwable);
-      DECORATE.beforeFinish(span);
-      scope.close();
-      span.finish();
+    @Override
+    public Map<String, String> contextStore() {
+        Map<String, String> contextStore = new HashMap<>(4);
+        contextStore.put("java.sql.Statement", DBQueryInfo.class.getName());
+        contextStore.put("java.sql.Connection", JDBCConnectionContext.class.getName());
+        return contextStore;
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                nameStartsWith("execute").and(takesArguments(0)).and(isPublic()),
+                AbstractPreparedStatementInstrumentation.class.getName() + "$PreparedStatementAdvice");
+    }
+
+    public static class PreparedStatementAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope onEnter(@Advice.This final Statement statement) {
+            int depth = CallDepthThreadLocalMap.incrementCallDepth(Statement.class);
+            if (depth > 0) {
+                return null;
+            }
+            try {
+                final Connection connection = statement.getConnection();
+                final DBQueryInfo queryInfo = InstrumentationContext.get(Statement.class, DBQueryInfo.class)
+                        .get(statement);
+                if (null == queryInfo) {
+                    logMissingQueryInfo(statement);
+                    return null;
+                }
+                final AgentSpan span;
+                final JDBCConnectionContext connectionContext = JDBCDecorator.parseConnectionContext(
+                        connection, InstrumentationContext.get(Connection.class, JDBCConnectionContext.class));
+                final DBInfo dbInfo = connectionContext.getDbInfo();
+                final boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
+
+                final String oracleServiceHash = DECORATE.setServiceHashAction(connection, connectionContext);
+
+                if (INJECT_COMMENT && injectTraceContext) {
+                    if (DECORATE.isSqlServer(dbInfo)) {
+                        // The span ID is pre-determined so that we can reference it when setting the context
+                        final long spanID = DECORATE.setContextInfo(connection, connectionContext);
+                        // we then force that pre-determined span ID for the span covering the actual query
+                        span = AgentTracer.get()
+                                .singleSpanBuilder("java-jdbc-prepared_statement", DATABASE_QUERY)
+                                .withSpanId(spanID)
+                                .start();
+                        span.setTag(DBM_TRACE_INJECTED, true);
+                    } else if (DECORATE.isPostgres(dbInfo) && DBM_TRACE_PREPARED_STATEMENTS) {
+                        span = startSpan("java-jdbc-prepared_statement", DATABASE_QUERY);
+                        DECORATE.setApplicationName(span, connection);
+                    } else if (DECORATE.isOracle(dbInfo)) {
+                        span = startSpan("java-jdbc-prepared_statement", DATABASE_QUERY);
+                        DECORATE.setAction(span, connection);
+                    } else {
+                        span = startSpan("java-jdbc-prepared_statement", DATABASE_QUERY);
+                    }
+                } else {
+                    span = startSpan("java-jdbc-prepared_statement", DATABASE_QUERY);
+                }
+                DECORATE.afterStart(span);
+                DECORATE.onConnection(span, connectionContext);
+                DECORATE.onPreparedStatement(span, queryInfo);
+                DECORATE.withBaseHash(span, dbInfo, oracleServiceHash);
+
+                return activateSpan(span);
+            } catch (SQLException e) {
+                logSQLException(e);
+                // if we can't get the connection for any reason
+                return null;
+            }
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void stopSpan(@Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+            CallDepthThreadLocalMap.decrementCallDepth(Statement.class);
+            if (scope == null) {
+                return;
+            }
+            AgentSpan span = spanFromScope(scope);
+            DECORATE.onError(span, throwable);
+            DECORATE.beforeFinish(span);
+            scope.close();
+            span.finish();
+        }
+    }
 }

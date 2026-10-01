@@ -27,232 +27,221 @@ import org.slf4j.LoggerFactory;
 
 @ParametersAreNonnullByDefault
 public abstract class BaseDecorator {
-  private static final Logger log = LoggerFactory.getLogger(BaseDecorator.class);
+    private static final Logger log = LoggerFactory.getLogger(BaseDecorator.class);
 
-  protected static final int UNSET_PORT = 0;
+    protected static final int UNSET_PORT = 0;
 
-  private static final QualifiedClassNameCache CLASS_NAMES =
-      new QualifiedClassNameCache(
-          new Function<Class<?>, CharSequence>() {
-            @Override
-            public String apply(Class<?> clazz) {
-              String simpleName = clazz.getSimpleName();
-              if (simpleName.isEmpty()) {
-                String name = clazz.getName();
-                int start = name.lastIndexOf('.');
-                return name.substring(start + 1);
-              }
-              return simpleName;
+    private static final QualifiedClassNameCache CLASS_NAMES = new QualifiedClassNameCache(
+            new Function<Class<?>, CharSequence>() {
+                @Override
+                public String apply(Class<?> clazz) {
+                    String simpleName = clazz.getSimpleName();
+                    if (simpleName.isEmpty()) {
+                        String name = clazz.getName();
+                        int start = name.lastIndexOf('.');
+                        return name.substring(start + 1);
+                    }
+                    return simpleName;
+                }
+            },
+            Functions.PrefixJoin.of("."));
+
+    protected final boolean traceAnalyticsEnabled;
+    protected final double traceAnalyticsSampleRate;
+
+    private final TagMap.Entry traceAnalyticsEntry;
+
+    // Deliberately not volatile, reading null and repeating the calculation is safe
+    private TagMap.Entry cachedComponentEntry = null;
+
+    protected BaseDecorator() {
+        final Config config = Config.get();
+        final String[] instrumentationNames = instrumentationNames();
+
+        this.traceAnalyticsEnabled = instrumentationNames.length > 0
+                && config.isTraceAnalyticsIntegrationEnabled(traceAnalyticsDefault(), instrumentationNames);
+
+        this.traceAnalyticsSampleRate = (double) config.getInstrumentationAnalyticsSampleRate(instrumentationNames);
+
+        this.traceAnalyticsEntry = this.traceAnalyticsEnabled
+                ? TagMap.Entry.create(DDTags.ANALYTICS_SAMPLE_RATE, traceAnalyticsSampleRate)
+                : null;
+    }
+
+    protected abstract String[] instrumentationNames();
+
+    protected abstract CharSequence spanType();
+
+    protected abstract CharSequence component();
+
+    /** Caches the component TagMap.Entry, so it isn't recreated for every trace */
+    protected final TagMap.Entry componentEntry() {
+        // DQH = Tried calling component() in the constructor, but that had issues with static
+        // field ordering.  That was caught be an integration test, but I didn't want to risk
+        // breaking other integrations where the test is not as thorough.
+
+        // This approach while more complicated doesn't have any field initialization ordering issues.
+        TagMap.Entry componentEntry = cachedComponentEntry;
+        if (componentEntry == null) {
+            cachedComponentEntry = componentEntry = TagMap.Entry.create(Tags.COMPONENT, component());
+        }
+        return componentEntry;
+    }
+
+    protected boolean traceAnalyticsDefault() {
+        return false;
+    }
+
+    public final void afterStart(final AgentSpan span) {
+        try {
+            doAfterStart(span);
+        } catch (BlockingException e) {
+            throw e;
+        } catch (Throwable t) {
+            log.debug("Failed to decorate span after start", t);
+        }
+    }
+
+    protected void doAfterStart(final AgentSpan span) {
+        if (spanType() != null) {
+            span.setSpanType(spanType());
+        }
+
+        span.setTag(componentEntry());
+
+        // DQH - Could retrieve the value from componentEntry and cast to avoid the virtual call,
+        // unclear which option is better here
+        final CharSequence component = component();
+        span.spanContext().setIntegrationName(component);
+
+        // null handled by setMetric
+        span.setMetric(traceAnalyticsEntry);
+    }
+
+    public final void beforeFinish(@Nullable final ContextScope scope) {
+        if (scope != null) {
+            beforeFinish(scope.context());
+        }
+    }
+
+    public final void beforeFinish(@Nullable final AgentSpan span) {
+        if (span != null) {
+            beforeFinish((Context) span);
+        }
+    }
+
+    public final void beforeFinish(final Context context) {
+        try {
+            doBeforeFinish(context);
+        } catch (BlockingException e) {
+            throw e;
+        } catch (Throwable t) {
+            log.debug("Failed to decorate span before finish", t);
+        }
+    }
+
+    protected void doBeforeFinish(final Context context) {}
+
+    public final void onError(@Nullable final AgentSpan span, @Nullable final Throwable throwable) {
+        onError(span, throwable, ErrorPriorities.DEFAULT);
+    }
+
+    public final void onError(@Nullable final AgentSpan span, @Nullable final Throwable throwable, byte errorPriority) {
+        if (span != null && throwable != null) {
+            try {
+                doOnError(span, throwable, errorPriority);
+            } catch (BlockingException e) {
+                throw e;
+            } catch (Throwable t) {
+                log.debug("Failed to decorate span on error", t);
             }
-          },
-          Functions.PrefixJoin.of("."));
-
-  protected final boolean traceAnalyticsEnabled;
-  protected final double traceAnalyticsSampleRate;
-
-  private final TagMap.Entry traceAnalyticsEntry;
-
-  // Deliberately not volatile, reading null and repeating the calculation is safe
-  private TagMap.Entry cachedComponentEntry = null;
-
-  protected BaseDecorator() {
-    final Config config = Config.get();
-    final String[] instrumentationNames = instrumentationNames();
-
-    this.traceAnalyticsEnabled =
-        instrumentationNames.length > 0
-            && config.isTraceAnalyticsIntegrationEnabled(
-                traceAnalyticsDefault(), instrumentationNames);
-
-    this.traceAnalyticsSampleRate =
-        (double) config.getInstrumentationAnalyticsSampleRate(instrumentationNames);
-
-    this.traceAnalyticsEntry =
-        this.traceAnalyticsEnabled
-            ? TagMap.Entry.create(DDTags.ANALYTICS_SAMPLE_RATE, traceAnalyticsSampleRate)
-            : null;
-  }
-
-  protected abstract String[] instrumentationNames();
-
-  protected abstract CharSequence spanType();
-
-  protected abstract CharSequence component();
-
-  /** Caches the component TagMap.Entry, so it isn't recreated for every trace */
-  protected final TagMap.Entry componentEntry() {
-    // DQH = Tried calling component() in the constructor, but that had issues with static
-    // field ordering.  That was caught be an integration test, but I didn't want to risk
-    // breaking other integrations where the test is not as thorough.
-
-    // This approach while more complicated doesn't have any field initialization ordering issues.
-    TagMap.Entry componentEntry = cachedComponentEntry;
-    if (componentEntry == null) {
-      cachedComponentEntry = componentEntry = TagMap.Entry.create(Tags.COMPONENT, component());
-    }
-    return componentEntry;
-  }
-
-  protected boolean traceAnalyticsDefault() {
-    return false;
-  }
-
-  public final void afterStart(final AgentSpan span) {
-    try {
-      doAfterStart(span);
-    } catch (BlockingException e) {
-      throw e;
-    } catch (Throwable t) {
-      log.debug("Failed to decorate span after start", t);
-    }
-  }
-
-  protected void doAfterStart(final AgentSpan span) {
-    if (spanType() != null) {
-      span.setSpanType(spanType());
+        }
     }
 
-    span.setTag(componentEntry());
-
-    // DQH - Could retrieve the value from componentEntry and cast to avoid the virtual call,
-    // unclear which option is better here
-    final CharSequence component = component();
-    span.spanContext().setIntegrationName(component);
-
-    // null handled by setMetric
-    span.setMetric(traceAnalyticsEntry);
-  }
-
-  public final void beforeFinish(@Nullable final ContextScope scope) {
-    if (scope != null) {
-      beforeFinish(scope.context());
+    public final void onError(@Nullable final ContextScope scope, @Nullable final Throwable throwable) {
+        if (scope != null) {
+            onError(AgentSpan.fromContext(scope.context()), throwable);
+        }
     }
-  }
 
-  public final void beforeFinish(@Nullable final AgentSpan span) {
-    if (span != null) {
-      beforeFinish((Context) span);
+    protected void doOnError(final AgentSpan span, final Throwable throwable, byte errorPriority) {
+        span.addThrowable(throwable instanceof ExecutionException ? throwable.getCause() : throwable, errorPriority);
     }
-  }
 
-  public final void beforeFinish(final Context context) {
-    try {
-      doBeforeFinish(context);
-    } catch (BlockingException e) {
-      throw e;
-    } catch (Throwable t) {
-      log.debug("Failed to decorate span before finish", t);
+    public final void onPeerConnection(final AgentSpan span, @Nullable final InetSocketAddress remoteConnection) {
+        if (remoteConnection != null) {
+            onPeerConnection(span, remoteConnection.getAddress(), !remoteConnection.isUnresolved());
+            setPeerPort(span, remoteConnection.getPort());
+        }
     }
-  }
 
-  protected void doBeforeFinish(final Context context) {}
-
-  public final void onError(@Nullable final AgentSpan span, @Nullable final Throwable throwable) {
-    onError(span, throwable, ErrorPriorities.DEFAULT);
-  }
-
-  public final void onError(
-      @Nullable final AgentSpan span, @Nullable final Throwable throwable, byte errorPriority) {
-    if (span != null && throwable != null) {
-      try {
-        doOnError(span, throwable, errorPriority);
-      } catch (BlockingException e) {
-        throw e;
-      } catch (Throwable t) {
-        log.debug("Failed to decorate span on error", t);
-      }
+    public final void onPeerConnection(final AgentSpan span, @Nullable final InetAddress remoteAddress) {
+        onPeerConnection(span, remoteAddress, true);
     }
-  }
 
-  public final void onError(
-      @Nullable final ContextScope scope, @Nullable final Throwable throwable) {
-    if (scope != null) {
-      onError(AgentSpan.fromContext(scope.context()), throwable);
+    public final void onPeerConnection(AgentSpan span, @Nullable InetAddress remoteAddress, boolean resolved) {
+        if (remoteAddress != null) {
+            String ip = remoteAddress.getHostAddress();
+            if (resolved && Config.get().isPeerHostNameEnabled()) {
+                span.setTag(Tags.PEER_HOSTNAME, hostName(remoteAddress, ip));
+            }
+            if (remoteAddress instanceof Inet4Address) {
+                span.setTag(Tags.PEER_HOST_IPV4, ip);
+            } else if (remoteAddress instanceof Inet6Address) {
+                span.setTag(Tags.PEER_HOST_IPV6, ip);
+            }
+        }
     }
-  }
 
-  protected void doOnError(final AgentSpan span, final Throwable throwable, byte errorPriority) {
-    span.addThrowable(
-        throwable instanceof ExecutionException ? throwable.getCause() : throwable, errorPriority);
-  }
-
-  public final void onPeerConnection(
-      final AgentSpan span, @Nullable final InetSocketAddress remoteConnection) {
-    if (remoteConnection != null) {
-      onPeerConnection(span, remoteConnection.getAddress(), !remoteConnection.isUnresolved());
-      setPeerPort(span, remoteConnection.getPort());
+    public void setPeerPort(AgentSpan span, String port) {
+        span.setTag(Tags.PEER_PORT, port);
     }
-  }
 
-  public final void onPeerConnection(
-      final AgentSpan span, @Nullable final InetAddress remoteAddress) {
-    onPeerConnection(span, remoteAddress, true);
-  }
-
-  public final void onPeerConnection(
-      AgentSpan span, @Nullable InetAddress remoteAddress, boolean resolved) {
-    if (remoteAddress != null) {
-      String ip = remoteAddress.getHostAddress();
-      if (resolved && Config.get().isPeerHostNameEnabled()) {
-        span.setTag(Tags.PEER_HOSTNAME, hostName(remoteAddress, ip));
-      }
-      if (remoteAddress instanceof Inet4Address) {
-        span.setTag(Tags.PEER_HOST_IPV4, ip);
-      } else if (remoteAddress instanceof Inet6Address) {
-        span.setTag(Tags.PEER_HOST_IPV6, ip);
-      }
+    public void setPeerPort(AgentSpan span, int port) {
+        if (port > UNSET_PORT) {
+            span.setTag(Tags.PEER_PORT, port);
+        }
     }
-  }
 
-  public void setPeerPort(AgentSpan span, String port) {
-    span.setTag(Tags.PEER_PORT, port);
-  }
-
-  public void setPeerPort(AgentSpan span, int port) {
-    if (port > UNSET_PORT) {
-      span.setTag(Tags.PEER_PORT, port);
+    /**
+     * This method is used to generate an acceptable span (operation) name based on a given method
+     * reference. Anonymous classes are named based on their parent.
+     */
+    public CharSequence spanNameForMethod(final Method method) {
+        return spanNameForMethod(method.getDeclaringClass(), method);
     }
-  }
 
-  /**
-   * This method is used to generate an acceptable span (operation) name based on a given method
-   * reference. Anonymous classes are named based on their parent.
-   */
-  public CharSequence spanNameForMethod(final Method method) {
-    return spanNameForMethod(method.getDeclaringClass(), method);
-  }
-
-  /**
-   * This method is used to generate an acceptable span (operation) name based on a given method
-   * reference. Anonymous classes are named based on their parent.
-   *
-   * @param method the method to get the name from, nullable
-   * @return the span name from the class and method
-   */
-  public CharSequence spanNameForMethod(final Class<?> clazz, @Nullable final Method method) {
-    if (null == method) {
-      return CLASS_NAMES.getClassName(clazz);
+    /**
+     * This method is used to generate an acceptable span (operation) name based on a given method
+     * reference. Anonymous classes are named based on their parent.
+     *
+     * @param method the method to get the name from, nullable
+     * @return the span name from the class and method
+     */
+    public CharSequence spanNameForMethod(final Class<?> clazz, @Nullable final Method method) {
+        if (null == method) {
+            return CLASS_NAMES.getClassName(clazz);
+        }
+        return CLASS_NAMES.getQualifiedName(clazz, method.getName());
     }
-    return CLASS_NAMES.getQualifiedName(clazz, method.getName());
-  }
 
-  /**
-   * This method is used to generate an acceptable span (operation) name based on a given method
-   * reference. Anonymous classes are named based on their parent.
-   *
-   * @param methodName the name of the method to get the name from, nullable
-   * @return the span name from the class and method
-   */
-  public CharSequence spanNameForMethod(final Class<?> clazz, @Nullable final String methodName) {
-    return CLASS_NAMES.getQualifiedName(clazz, methodName);
-  }
+    /**
+     * This method is used to generate an acceptable span (operation) name based on a given method
+     * reference. Anonymous classes are named based on their parent.
+     *
+     * @param methodName the name of the method to get the name from, nullable
+     * @return the span name from the class and method
+     */
+    public CharSequence spanNameForMethod(final Class<?> clazz, @Nullable final String methodName) {
+        return CLASS_NAMES.getQualifiedName(clazz, methodName);
+    }
 
-  /**
-   * This method is used to generate an acceptable span (operation) name based on a given class
-   * reference. Anonymous classes are named based on their parent.
-   */
-  public CharSequence className(final Class<?> clazz) {
-    String simpleName = clazz.getSimpleName();
-    return simpleName.isEmpty() ? CLASS_NAMES.getClassName(clazz) : simpleName;
-  }
+    /**
+     * This method is used to generate an acceptable span (operation) name based on a given class
+     * reference. Anonymous classes are named based on their parent.
+     */
+    public CharSequence className(final Class<?> clazz) {
+        String simpleName = clazz.getSimpleName();
+        return simpleName.isEmpty() ? CLASS_NAMES.getClassName(clazz) : simpleName;
+    }
 }

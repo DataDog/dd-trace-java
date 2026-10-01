@@ -17,28 +17,27 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 class UrlRegexpTokenizerTest {
 
-  @ParameterizedTest(name = "{0}")
-  @MethodSource("redactsUrlSecretsArguments")
-  void redactsUrlSecrets(final String description, final String url, final List<String> expected) {
-    assertEquals(expected, tokenize(url));
-  }
-
-  static Stream<Arguments> redactsUrlSecretsArguments() {
-    return Stream.of(
-        arguments("userinfo authority", "https://user:pass@host/path", singletonList("user:pass")),
-        arguments("single user authority", "ftp://bob@server/file", singletonList("bob")),
-        arguments(
-            "query parameter values", "http://h/p?token=secret&id=42", asList("secret", "42")),
-        arguments("authority and query together", "https://user@host/p?q=v", asList("user", "v")));
-  }
-
-  private static List<String> tokenize(String url) {
-    Tokenizer tokenizer = new UrlRegexpTokenizer(new Evidence(url));
-    List<String> tokens = new ArrayList<>();
-    while (tokenizer.next()) {
-      Ranged range = tokenizer.current();
-      tokens.add(url.substring(range.getStart(), range.getStart() + range.getLength()));
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("redactsUrlSecretsArguments")
+    void redactsUrlSecrets(final String description, final String url, final List<String> expected) {
+        assertEquals(expected, tokenize(url));
     }
-    return tokens;
-  }
+
+    static Stream<Arguments> redactsUrlSecretsArguments() {
+        return Stream.of(
+                arguments("userinfo authority", "https://user:pass@host/path", singletonList("user:pass")),
+                arguments("single user authority", "ftp://bob@server/file", singletonList("bob")),
+                arguments("query parameter values", "http://h/p?token=secret&id=42", asList("secret", "42")),
+                arguments("authority and query together", "https://user@host/p?q=v", asList("user", "v")));
+    }
+
+    private static List<String> tokenize(String url) {
+        Tokenizer tokenizer = new UrlRegexpTokenizer(new Evidence(url));
+        List<String> tokens = new ArrayList<>();
+        while (tokenizer.next()) {
+            Ranged range = tokenizer.current();
+            tokens.add(url.substring(range.getStart(), range.getStart() + range.getLength()));
+        }
+        return tokens;
+    }
 }

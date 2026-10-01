@@ -33,114 +33,114 @@ import net.bytebuddy.pool.TypePool;
 
 @AutoService(InstrumenterModule.class)
 public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType,
-        Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice,
-        ExcludeFilterProvider {
+        implements Instrumenter.ForSingleType,
+                Instrumenter.HasTypeAdvice,
+                Instrumenter.HasMethodAdvice,
+                ExcludeFilterProvider {
 
-  public JettyServerInstrumentation() {
-    super("jetty");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.eclipse.jetty.server.HttpChannel";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ExtractAdapter",
-      packageName + ".ExtractAdapter$Request",
-      packageName + ".ExtractAdapter$Response",
-      packageName + ".JettyDecorator",
-      packageName + ".JettyDecorator$OnResponse",
-      "datadog.trace.instrumentation.jetty9.RequestURIDataAdapter",
-      "datadog.trace.instrumentation.jetty.JettyBlockResponseFunction",
-      "datadog.trace.instrumentation.jetty.JettyBlockingHelper",
-    };
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {
-      new Reference.Builder("org.eclipse.jetty.server.HttpChannel")
-          .withMethod(new String[0], Reference.EXPECTS_NON_STATIC, "handle", "Z")
-          .withMethod(new String[0], Reference.EXPECTS_NON_STATIC, "recycle", "V")
-          .withMethod(
-              new String[0],
-              Reference.EXPECTS_NON_STATIC,
-              "handleException",
-              "V",
-              "Ljava/lang/Throwable;")
-          .build()
-    };
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "10_series";
-  }
-
-  @Override
-  public void typeAdvice(TypeTransformer transformer) {
-    transformer.applyAdvice(new HttpChannelHandleVisitorWrapper());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvices(
-        takesNoArguments().and(named("handle")),
-        packageName + ".HandleAdvice$ContextTrackingAdvice",
-        packageName + ".HandleAdvice");
-    transformer.applyAdvice(named("recycle").and(takesNoArguments()), packageName + ".ResetAdvice");
-
-    if (InstrumenterConfig.get().getAppSecActivation() != ProductActivation.FULLY_DISABLED) {
-      transformer.applyAdvice(
-          named("handleException").and(takesArguments(1)).and(takesArgument(0, Throwable.class)),
-          packageName + ".HandleExceptionAdvice");
-    }
-  }
-
-  @Override
-  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
-    return Collections.singletonMap(
-        RUNNABLE,
-        Arrays.asList(
-            "org.eclipse.jetty.util.thread.strategy.ProduceConsume",
-            "org.eclipse.jetty.util.thread.strategy.ExecuteProduceConsume",
-            "org.eclipse.jetty.io.ManagedSelector",
-            "org.eclipse.jetty.util.thread.TimerScheduler",
-            "org.eclipse.jetty.util.thread.TimerScheduler$SimpleTask"));
-  }
-
-  public static class HttpChannelHandleVisitorWrapper implements AsmVisitorWrapper {
-
-    @Override
-    public int mergeWriter(int flags) {
-      return flags | ClassWriter.COMPUTE_MAXS;
+    public JettyServerInstrumentation() {
+        super("jetty");
     }
 
     @Override
-    public int mergeReader(int flags) {
-      return flags;
+    public String instrumentedType() {
+        return "org.eclipse.jetty.server.HttpChannel";
     }
 
     @Override
-    public ClassVisitor wrap(
-        TypeDescription instrumentedType,
-        ClassVisitor classVisitor,
-        Implementation.Context implementationContext,
-        TypePool typePool,
-        FieldList<FieldDescription.InDefinedShape> fields,
-        MethodList<?> methods,
-        int writerFlags,
-        int readerFlags) {
-      if (Config.get().getAppSecActivation() == ProductActivation.FULLY_DISABLED) {
-        return classVisitor;
-      }
-
-      return new HttpChannelHandleVisitor(Opcodes.ASM7, classVisitor);
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".ExtractAdapter",
+            packageName + ".ExtractAdapter$Request",
+            packageName + ".ExtractAdapter$Response",
+            packageName + ".JettyDecorator",
+            packageName + ".JettyDecorator$OnResponse",
+            "datadog.trace.instrumentation.jetty9.RequestURIDataAdapter",
+            "datadog.trace.instrumentation.jetty.JettyBlockResponseFunction",
+            "datadog.trace.instrumentation.jetty.JettyBlockingHelper",
+        };
     }
-  }
+
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return new Reference[] {
+            new Reference.Builder("org.eclipse.jetty.server.HttpChannel")
+                    .withMethod(new String[0], Reference.EXPECTS_NON_STATIC, "handle", "Z")
+                    .withMethod(new String[0], Reference.EXPECTS_NON_STATIC, "recycle", "V")
+                    .withMethod(
+                            new String[0],
+                            Reference.EXPECTS_NON_STATIC,
+                            "handleException",
+                            "V",
+                            "Ljava/lang/Throwable;")
+                    .build()
+        };
+    }
+
+    @Override
+    public String muzzleDirective() {
+        return "10_series";
+    }
+
+    @Override
+    public void typeAdvice(TypeTransformer transformer) {
+        transformer.applyAdvice(new HttpChannelHandleVisitorWrapper());
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvices(
+                takesNoArguments().and(named("handle")),
+                packageName + ".HandleAdvice$ContextTrackingAdvice",
+                packageName + ".HandleAdvice");
+        transformer.applyAdvice(named("recycle").and(takesNoArguments()), packageName + ".ResetAdvice");
+
+        if (InstrumenterConfig.get().getAppSecActivation() != ProductActivation.FULLY_DISABLED) {
+            transformer.applyAdvice(
+                    named("handleException").and(takesArguments(1)).and(takesArgument(0, Throwable.class)),
+                    packageName + ".HandleExceptionAdvice");
+        }
+    }
+
+    @Override
+    public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
+        return Collections.singletonMap(
+                RUNNABLE,
+                Arrays.asList(
+                        "org.eclipse.jetty.util.thread.strategy.ProduceConsume",
+                        "org.eclipse.jetty.util.thread.strategy.ExecuteProduceConsume",
+                        "org.eclipse.jetty.io.ManagedSelector",
+                        "org.eclipse.jetty.util.thread.TimerScheduler",
+                        "org.eclipse.jetty.util.thread.TimerScheduler$SimpleTask"));
+    }
+
+    public static class HttpChannelHandleVisitorWrapper implements AsmVisitorWrapper {
+
+        @Override
+        public int mergeWriter(int flags) {
+            return flags | ClassWriter.COMPUTE_MAXS;
+        }
+
+        @Override
+        public int mergeReader(int flags) {
+            return flags;
+        }
+
+        @Override
+        public ClassVisitor wrap(
+                TypeDescription instrumentedType,
+                ClassVisitor classVisitor,
+                Implementation.Context implementationContext,
+                TypePool typePool,
+                FieldList<FieldDescription.InDefinedShape> fields,
+                MethodList<?> methods,
+                int writerFlags,
+                int readerFlags) {
+            if (Config.get().getAppSecActivation() == ProductActivation.FULLY_DISABLED) {
+                return classVisitor;
+            }
+
+            return new HttpChannelHandleVisitor(Opcodes.ASM7, classVisitor);
+        }
+    }
 }

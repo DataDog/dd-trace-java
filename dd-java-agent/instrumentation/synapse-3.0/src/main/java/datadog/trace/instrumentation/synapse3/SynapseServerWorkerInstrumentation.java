@@ -24,76 +24,71 @@ import org.apache.synapse.transport.passthru.SourceRequest;
 
 @AutoService(InstrumenterModule.class)
 public final class SynapseServerWorkerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public SynapseServerWorkerInstrumentation() {
-    super("synapse3-server", "synapse3");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.apache.synapse.transport.passthru.ServerWorker";
-  }
-
-  @Override
-  public void methodAdvice(final MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor()
-            .and(takesArgument(0, named("org.apache.synapse.transport.passthru.SourceRequest"))),
-        getClass().getName() + "$NewServerWorkerAdvice");
-    transformer.applyAdvice(
-        isMethod().and(named("run")).and(takesNoArguments()),
-        getClass().getName() + "$ServerWorkerResponseAdvice");
-  }
-
-  public static final class NewServerWorkerAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void createWorker(@Advice.Argument(0) final SourceRequest request) {
-      ContextContinuation continuation = currentContext().capture();
-      if (continuation.context() != rootContext()) {
-        request.getConnection().getContext().setAttribute(SYNAPSE_CONTINUATION_KEY, continuation);
-      }
-    }
-  }
-
-  public static final class ServerWorkerResponseAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope beginResponse(
-        @Advice.FieldValue("request") final SourceRequest request) {
-      Object continuation =
-          request.getConnection().getContext().removeAttribute(SYNAPSE_CONTINUATION_KEY);
-      return continuation instanceof ContextContinuation
-          ? ((ContextContinuation) continuation).resume()
-          : null;
+    public SynapseServerWorkerInstrumentation() {
+        super("synapse3-server", "synapse3");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void responseReady(
-        @Advice.Enter final ContextScope scope,
-        @Advice.FieldValue("request") final SourceRequest request,
-        @Advice.Thrown final Throwable error) {
-      if (null == scope) {
-        return;
-      }
-      AgentSpan span = spanFromContext(scope.context());
-      HttpResponse httpResponse = request.getConnection().getHttpResponse();
-      if (null != httpResponse) {
-        DECORATE.onResponse(span, httpResponse);
-      }
-      if (null != error) {
-        DECORATE.onError(span, error);
-      }
-      // server worker is created in request event so be prepared to finish the span here
-      // (if there's an ACK response or error we might not get a separate response event)
-      if ((null != httpResponse || null != error)
-          && null != request.getConnection().getContext().removeAttribute(SYNAPSE_CONTEXT_KEY)) {
-        DECORATE.beforeFinish(scope.context());
-        scope.close();
-        span.finish();
-      } else {
-        scope.close();
-        // otherwise will be finished by a separate server response event
-      }
+    @Override
+    public String instrumentedType() {
+        return "org.apache.synapse.transport.passthru.ServerWorker";
     }
-  }
+
+    @Override
+    public void methodAdvice(final MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isConstructor().and(takesArgument(0, named("org.apache.synapse.transport.passthru.SourceRequest"))),
+                getClass().getName() + "$NewServerWorkerAdvice");
+        transformer.applyAdvice(
+                isMethod().and(named("run")).and(takesNoArguments()),
+                getClass().getName() + "$ServerWorkerResponseAdvice");
+    }
+
+    public static final class NewServerWorkerAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void createWorker(@Advice.Argument(0) final SourceRequest request) {
+            ContextContinuation continuation = currentContext().capture();
+            if (continuation.context() != rootContext()) {
+                request.getConnection().getContext().setAttribute(SYNAPSE_CONTINUATION_KEY, continuation);
+            }
+        }
+    }
+
+    public static final class ServerWorkerResponseAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope beginResponse(@Advice.FieldValue("request") final SourceRequest request) {
+            Object continuation = request.getConnection().getContext().removeAttribute(SYNAPSE_CONTINUATION_KEY);
+            return continuation instanceof ContextContinuation ? ((ContextContinuation) continuation).resume() : null;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void responseReady(
+                @Advice.Enter final ContextScope scope,
+                @Advice.FieldValue("request") final SourceRequest request,
+                @Advice.Thrown final Throwable error) {
+            if (null == scope) {
+                return;
+            }
+            AgentSpan span = spanFromContext(scope.context());
+            HttpResponse httpResponse = request.getConnection().getHttpResponse();
+            if (null != httpResponse) {
+                DECORATE.onResponse(span, httpResponse);
+            }
+            if (null != error) {
+                DECORATE.onError(span, error);
+            }
+            // server worker is created in request event so be prepared to finish the span here
+            // (if there's an ACK response or error we might not get a separate response event)
+            if ((null != httpResponse || null != error)
+                    && null != request.getConnection().getContext().removeAttribute(SYNAPSE_CONTEXT_KEY)) {
+                DECORATE.beforeFinish(scope.context());
+                scope.close();
+                span.finish();
+            } else {
+                scope.close();
+                // otherwise will be finished by a separate server response event
+            }
+        }
+    }
 }

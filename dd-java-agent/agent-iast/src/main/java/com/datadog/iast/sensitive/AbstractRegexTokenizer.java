@@ -8,27 +8,29 @@ import javax.annotation.Nullable;
 
 public abstract class AbstractRegexTokenizer implements SensitiveHandler.Tokenizer {
 
-  protected final Matcher matcher;
-  @Nullable private Ranged current;
+    protected final Matcher matcher;
 
-  protected AbstractRegexTokenizer(final Pattern pattern, final String evidence) {
-    matcher = pattern.matcher(evidence);
-  }
+    @Nullable
+    private Ranged current;
 
-  @Override
-  public final boolean next() {
-    final boolean hasNext = matcher.find();
-    current = hasNext ? buildNext() : null;
-    return hasNext;
-  }
-
-  @Override
-  public final Ranged current() {
-    if (current == null) {
-      throw new NoSuchElementException();
+    protected AbstractRegexTokenizer(final Pattern pattern, final String evidence) {
+        matcher = pattern.matcher(evidence);
     }
-    return current;
-  }
 
-  protected abstract Ranged buildNext();
+    @Override
+    public final boolean next() {
+        final boolean hasNext = matcher.find();
+        current = hasNext ? buildNext() : null;
+        return hasNext;
+    }
+
+    @Override
+    public final Ranged current() {
+        if (current == null) {
+            throw new NoSuchElementException();
+        }
+        return current;
+    }
+
+    protected abstract Ranged buildNext();
 }

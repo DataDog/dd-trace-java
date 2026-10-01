@@ -8,68 +8,67 @@ import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabas
 
 public class OpensearchTransportClientDecorator extends DBTypeProcessingDatabaseClientDecorator {
 
-  private static final String DB_TYPE = "opensearch";
-  private static final String SERVICE_NAME =
-      SpanNaming.instance().namingSchema().database().service(DB_TYPE);
+    private static final String DB_TYPE = "opensearch";
+    private static final String SERVICE_NAME =
+            SpanNaming.instance().namingSchema().database().service(DB_TYPE);
 
-  public static final CharSequence OPERATION_NAME =
-      UTF8BytesString.create(SpanNaming.instance().namingSchema().database().operation(DB_TYPE));
-  public static final CharSequence OPENSEARCH_JAVA = UTF8BytesString.create("opensearch-java");
+    public static final CharSequence OPERATION_NAME = UTF8BytesString.create(
+            SpanNaming.instance().namingSchema().database().operation(DB_TYPE));
+    public static final CharSequence OPENSEARCH_JAVA = UTF8BytesString.create("opensearch-java");
 
-  public static final OpensearchTransportClientDecorator DECORATE =
-      new OpensearchTransportClientDecorator();
+    public static final OpensearchTransportClientDecorator DECORATE = new OpensearchTransportClientDecorator();
 
-  @Override
-  protected String[] instrumentationNames() {
-    return new String[] {"opensearch"};
-  }
-
-  @Override
-  protected String service() {
-    return SERVICE_NAME;
-  }
-
-  @Override
-  protected CharSequence component() {
-    return OPENSEARCH_JAVA;
-  }
-
-  @Override
-  protected CharSequence spanType() {
-    return InternalSpanTypes.OPENSEARCH;
-  }
-
-  @Override
-  protected String dbType() {
-    return DB_TYPE;
-  }
-
-  @Override
-  protected String dbUser(final Object o) {
-    return null;
-  }
-
-  @Override
-  protected String dbInstance(final Object o) {
-    return null;
-  }
-
-  @Override
-  protected String dbHostname(Object o) {
-    return null;
-  }
-
-  public void onRequest(final AgentSpan span, final Class action, final Class request) {
-    if (action != null) {
-      String actionName = action.getSimpleName();
-      if ("AutoPutMappingAction".equals(actionName)) {
-        actionName = "PutMappingAction";
-      }
-      span.setResourceName(actionName);
-      span.setTag("opensearch.action", actionName);
+    @Override
+    protected String[] instrumentationNames() {
+        return new String[] {"opensearch"};
     }
-    if (request != null) {
-      span.setTag("opensearch.request", request.getSimpleName());
+
+    @Override
+    protected String service() {
+        return SERVICE_NAME;
     }
-  }
+
+    @Override
+    protected CharSequence component() {
+        return OPENSEARCH_JAVA;
+    }
+
+    @Override
+    protected CharSequence spanType() {
+        return InternalSpanTypes.OPENSEARCH;
+    }
+
+    @Override
+    protected String dbType() {
+        return DB_TYPE;
+    }
+
+    @Override
+    protected String dbUser(final Object o) {
+        return null;
+    }
+
+    @Override
+    protected String dbInstance(final Object o) {
+        return null;
+    }
+
+    @Override
+    protected String dbHostname(Object o) {
+        return null;
+    }
+
+    public void onRequest(final AgentSpan span, final Class action, final Class request) {
+        if (action != null) {
+            String actionName = action.getSimpleName();
+            if ("AutoPutMappingAction".equals(actionName)) {
+                actionName = "PutMappingAction";
+            }
+            span.setResourceName(actionName);
+            span.setTag("opensearch.action", actionName);
+        }
+        if (request != null) {
+            span.setTag("opensearch.request", request.getSimpleName());
+        }
+    }
 }

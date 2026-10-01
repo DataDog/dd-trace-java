@@ -22,315 +22,303 @@ import net.bytebuddy.jar.asm.Type;
 
 /** Scans helper classes to find what classes they depend on and what order to load them. */
 public final class HelperScanner extends ClassVisitor {
-  static final int READER_OPTIONS = ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES;
+    static final int READER_OPTIONS = ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES;
 
-  private static final String[] SHARED_HELPER_PREFIXES = {
-    "datadog.opentelemetry.shim.",
-    "datadog.trace.agent.tooling.iast.",
-    "datadog.trace.agent.tooling.nativeimage."
-  };
+    private static final String[] SHARED_HELPER_PREFIXES = {
+        "datadog.opentelemetry.shim.", "datadog.trace.agent.tooling.iast.", "datadog.trace.agent.tooling.nativeimage."
+    };
 
-  static final ClassFileLocator locator =
-      ClassFileLocator.ForClassLoader.of(Utils.getAgentClassLoader());
+    static final ClassFileLocator locator = ClassFileLocator.ForClassLoader.of(Utils.getAgentClassLoader());
 
-  final MethodScanner methodScanner = new MethodScanner();
+    final MethodScanner methodScanner = new MethodScanner();
 
-  final Consumer<String> REQUIRES = this::requiresClass;
-  final Consumer<String> USES = this::usesClass;
+    final Consumer<String> REQUIRES = this::requiresClass;
+    final Consumer<String> USES = this::usesClass;
 
-  final Map<String, Set<String>> classGraph = new LinkedHashMap<>();
-  final Set<String> search = new HashSet<>();
-  final Set<String> visited = new HashSet<>();
+    final Map<String, Set<String>> classGraph = new LinkedHashMap<>();
+    final Set<String> search = new HashSet<>();
+    final Set<String> visited = new HashSet<>();
 
-  String className;
-  Set<String> requires;
-  Set<String> uses;
+    String className;
+    Set<String> requires;
+    Set<String> uses;
 
-  HelperScanner() {
-    super(Opcodes.ASM7, null);
-  }
-
-  /** Expands helper class names to include any non-bootstrap classes they depend on. */
-  public static String[] withClassDependencies(String... helperClassNames) {
-    return new HelperScanner().simulateClassLoading(helperClassNames);
-  }
-
-  /** Whether a class can be injected as an instrumentation helper. */
-  public static boolean isHelperClass(
-      String className, boolean fromModuleOutput, InstrumenterModule module) {
-    if (isBootstrapClass(className)) {
-      return false;
-    }
-    if (fromModuleOutput) {
-      return true;
-    }
-    for (String prefix : SHARED_HELPER_PREFIXES) {
-      if (className.startsWith(prefix)) {
-        return true;
-      }
-    }
-    return module.isHelperClass(className);
-  }
-
-  /**
-   * Simulates class-loading by finding all classes required to load the helper classes as well as
-   * optional classes used in method instructions that may be needed later when invoking the method.
-   * Classes are arranged in order of loading to satisfy the constraints of {@link HelperInjector}.
-   *
-   * <p>Bootstrap types are not included in the list.
-   */
-  String[] simulateClassLoading(String... helperClassNames) {
-    Deque<String> workQueue = new ArrayDeque<>();
-
-    for (String className : helperClassNames) {
-      workQueue.addLast(className);
-      // keep root names in the final list even if they're not loadable at this point
-      classGraph.put(className, Collections.emptySet());
+    HelperScanner() {
+        super(Opcodes.ASM7, null);
     }
 
-    // scan each class in turn, adding new types to the work queue
-    while ((className = workQueue.pollFirst()) != null) {
-      if (visited.add(className)) {
-        try {
-          byte[] bytecode = locator.locate(className).resolve();
+    /** Expands helper class names to include any non-bootstrap classes they depend on. */
+    public static String[] withClassDependencies(String... helperClassNames) {
+        return new HelperScanner().simulateClassLoading(helperClassNames);
+    }
 
-          requires = new LinkedHashSet<>();
-          uses = new LinkedHashSet<>();
-
-          new ClassReader(bytecode).accept(this, READER_OPTIONS);
-
-          classGraph.put(className, requires);
-          uses.removeAll(visited);
-          workQueue.addAll(uses);
-        } catch (Throwable ignore) {
+    /** Whether a class can be injected as an instrumentation helper. */
+    public static boolean isHelperClass(String className, boolean fromModuleOutput, InstrumenterModule module) {
+        if (isBootstrapClass(className)) {
+            return false;
         }
-      }
-    }
-
-    visited.clear();
-    for (String className : classGraph.keySet()) {
-      removeCycles(className);
-    }
-
-    // load types without any dependencies, then load those satisfied by what's loaded so far...
-    // (this assumes that the class graph has had cycles removed and is a directed acyclic graph)
-    Set<String> loaded = new LinkedHashSet<>();
-    while (!classGraph.isEmpty()) {
-      boolean unchanged = true;
-      Iterator<Map.Entry<String, Set<String>>> itr = classGraph.entrySet().iterator();
-      while (itr.hasNext()) {
-        Map.Entry<String, Set<String>> node = itr.next();
-        if (loaded.containsAll(node.getValue())) {
-          loaded.add(node.getKey());
-          itr.remove();
-          unchanged = false;
+        if (fromModuleOutput) {
+            return true;
         }
-      }
-      if (unchanged) {
-        throw new IllegalStateException("Unable to resolve load order for: " + classGraph);
-      }
-    }
-    return loaded.toArray(new String[0]);
-  }
-
-  /** Simple depth-first search to make sure we end up with a directed acyclic graph. */
-  void removeCycles(String className) {
-    if (visited.add(className)) {
-      search.add(className);
-      Iterator<String> itr = classGraph.get(className).iterator();
-      while (itr.hasNext()) {
-        String nextName = itr.next();
-        if (search.contains(nextName) // cycle detected, remove link to break it
-            || !classGraph.containsKey(nextName) // remove any non-loadable types
-            || nextName.startsWith(className + "$")) { // skip links to inner types
-          itr.remove();
-        } else {
-          removeCycles(nextName);
+        for (String prefix : SHARED_HELPER_PREFIXES) {
+            if (className.startsWith(prefix)) {
+                return true;
+            }
         }
-      }
-      search.remove(className);
+        return module.isHelperClass(className);
     }
-  }
 
-  /** Types that contribute to the helper class shape/hierarchy are required at load-time. */
-  @Override
-  public void visit(
-      final int version,
-      final int access,
-      final String name,
-      final String signature,
-      final String superName,
-      final String[] interfaces) {
-    record(superName, REQUIRES);
-    record(interfaces, REQUIRES);
-  }
+    /**
+     * Simulates class-loading by finding all classes required to load the helper classes as well as
+     * optional classes used in method instructions that may be needed later when invoking the method.
+     * Classes are arranged in order of loading to satisfy the constraints of {@link HelperInjector}.
+     *
+     * <p>Bootstrap types are not included in the list.
+     */
+    String[] simulateClassLoading(String... helperClassNames) {
+        Deque<String> workQueue = new ArrayDeque<>();
 
-  @Override
-  public void visitInnerClass(String name, String outerName, String innerName, int access) {
-    if (this.className.equals(name)) {
-      record(outerName, REQUIRES);
+        for (String className : helperClassNames) {
+            workQueue.addLast(className);
+            // keep root names in the final list even if they're not loadable at this point
+            classGraph.put(className, Collections.emptySet());
+        }
+
+        // scan each class in turn, adding new types to the work queue
+        while ((className = workQueue.pollFirst()) != null) {
+            if (visited.add(className)) {
+                try {
+                    byte[] bytecode = locator.locate(className).resolve();
+
+                    requires = new LinkedHashSet<>();
+                    uses = new LinkedHashSet<>();
+
+                    new ClassReader(bytecode).accept(this, READER_OPTIONS);
+
+                    classGraph.put(className, requires);
+                    uses.removeAll(visited);
+                    workQueue.addAll(uses);
+                } catch (Throwable ignore) {
+                }
+            }
+        }
+
+        visited.clear();
+        for (String className : classGraph.keySet()) {
+            removeCycles(className);
+        }
+
+        // load types without any dependencies, then load those satisfied by what's loaded so far...
+        // (this assumes that the class graph has had cycles removed and is a directed acyclic graph)
+        Set<String> loaded = new LinkedHashSet<>();
+        while (!classGraph.isEmpty()) {
+            boolean unchanged = true;
+            Iterator<Map.Entry<String, Set<String>>> itr = classGraph.entrySet().iterator();
+            while (itr.hasNext()) {
+                Map.Entry<String, Set<String>> node = itr.next();
+                if (loaded.containsAll(node.getValue())) {
+                    loaded.add(node.getKey());
+                    itr.remove();
+                    unchanged = false;
+                }
+            }
+            if (unchanged) {
+                throw new IllegalStateException("Unable to resolve load order for: " + classGraph);
+            }
+        }
+        return loaded.toArray(new String[0]);
     }
-  }
 
-  @Override
-  public FieldVisitor visitField(
-      final int access,
-      final String name,
-      final String descriptor,
-      final String signature,
-      final Object value) {
-    // Field types are resolved lazily by the JVM, not during defineClass.
-    // Using USES (not REQUIRES) avoids false dependency cycles that can break
-    // topological sort ordering for superclass/interface relationships.
-    record(Type.getType(descriptor), USES);
-    return null;
-  }
+    /** Simple depth-first search to make sure we end up with a directed acyclic graph. */
+    void removeCycles(String className) {
+        if (visited.add(className)) {
+            search.add(className);
+            Iterator<String> itr = classGraph.get(className).iterator();
+            while (itr.hasNext()) {
+                String nextName = itr.next();
+                if (search.contains(nextName) // cycle detected, remove link to break it
+                        || !classGraph.containsKey(nextName) // remove any non-loadable types
+                        || nextName.startsWith(className + "$")) { // skip links to inner types
+                    itr.remove();
+                } else {
+                    removeCycles(nextName);
+                }
+            }
+            search.remove(className);
+        }
+    }
 
-  @Override
-  public MethodVisitor visitMethod(
-      final int access,
-      final String name,
-      final String descriptor,
-      final String signature,
-      final String[] exceptions) {
-    // Method parameter/return types and declared exceptions are resolved lazily
-    // by the JVM, not during defineClass. Only superclass and interfaces are
-    // eagerly resolved, which are handled by visit().
-    record(Type.getMethodType(descriptor), USES);
-    record(exceptions, USES);
-    return methodScanner;
-  }
-
-  /** Attempts to find all types used in method instructions by the helper class. */
-  class MethodScanner extends MethodVisitor {
-    MethodScanner() {
-      super(Opcodes.ASM7, null);
+    /** Types that contribute to the helper class shape/hierarchy are required at load-time. */
+    @Override
+    public void visit(
+            final int version,
+            final int access,
+            final String name,
+            final String signature,
+            final String superName,
+            final String[] interfaces) {
+        record(superName, REQUIRES);
+        record(interfaces, REQUIRES);
     }
 
     @Override
-    public void visitFieldInsn(
-        final int opcode, final String owner, final String name, final String descriptor) {
-      record(Type.getObjectType(owner), USES);
-      record(Type.getType(descriptor), USES);
-    }
-
-    @Override
-    public void visitMethodInsn(
-        final int opcode,
-        final String owner,
-        final String name,
-        final String descriptor,
-        final boolean isInterface) {
-      record(Type.getObjectType(owner), USES);
-      record(Type.getMethodType(descriptor), USES);
-    }
-
-    @Override
-    public void visitTypeInsn(final int opcode, final String type) {
-      record(Type.getObjectType(type), USES);
-    }
-
-    @Override
-    public void visitInvokeDynamicInsn(
-        String name,
-        String descriptor,
-        Handle bootstrapMethodHandle,
-        Object... bootstrapMethodArguments) {
-      record(Type.getType(descriptor), USES);
-      record(bootstrapMethodHandle, USES);
-      for (Object value : bootstrapMethodArguments) {
-        if (value instanceof Type) {
-          record((Type) value, USES);
-        } else if (value instanceof Handle) {
-          record((Handle) value, USES);
+    public void visitInnerClass(String name, String outerName, String innerName, int access) {
+        if (this.className.equals(name)) {
+            record(outerName, REQUIRES);
         }
-      }
     }
 
     @Override
-    public void visitLdcInsn(final Object value) {
-      if (value instanceof Type) {
-        record((Type) value, USES);
-      } else if (value instanceof Handle) {
-        record((Handle) value, USES);
-      }
+    public FieldVisitor visitField(
+            final int access, final String name, final String descriptor, final String signature, final Object value) {
+        // Field types are resolved lazily by the JVM, not during defineClass.
+        // Using USES (not REQUIRES) avoids false dependency cycles that can break
+        // topological sort ordering for superclass/interface relationships.
+        record(Type.getType(descriptor), USES);
+        return null;
     }
-  }
 
-  /** Marks a class as required; the helper won't load if this class hasn't been loaded first. */
-  void requiresClass(String className) {
-    requires.add(className);
-    uses.add(className);
-  }
+    @Override
+    public MethodVisitor visitMethod(
+            final int access,
+            final String name,
+            final String descriptor,
+            final String signature,
+            final String[] exceptions) {
+        // Method parameter/return types and declared exceptions are resolved lazily
+        // by the JVM, not during defineClass. Only superclass and interfaces are
+        // eagerly resolved, which are handled by visit().
+        record(Type.getMethodType(descriptor), USES);
+        record(exceptions, USES);
+        return methodScanner;
+    }
 
-  /** Marks a class as used; the helper doesn't need it at load time but may use it when called. */
-  void usesClass(String className) {
-    uses.add(className);
-  }
-
-  void record(Type type, Consumer<String> action) {
-    if (null != type) {
-      while (type.getSort() == Type.ARRAY) {
-        type = type.getElementType();
-      }
-      if (type.getSort() == Type.METHOD) {
-        record(type.getArgumentTypes(), action);
-        record(type.getReturnType(), action);
-      } else if (type.getSort() == Type.OBJECT) {
-        String className = type.getClassName();
-        // ignore types that we expect to be on the boot-class-path
-        if (this.className.equals(className) || isBootstrapClass(className)) {
-          return;
+    /** Attempts to find all types used in method instructions by the helper class. */
+    class MethodScanner extends MethodVisitor {
+        MethodScanner() {
+            super(Opcodes.ASM7, null);
         }
-        action.accept(className);
-      }
-    }
-  }
 
-  private static boolean isBootstrapClass(String className) {
-    if (className.startsWith("java.")
-        || className.startsWith("javax.")
-        || className.startsWith("jdk.")
-        || className.startsWith("com.sun.")
-        || className.startsWith("sun.")
-        || className.startsWith("org.slf4j.")
-        || className.startsWith("datadog.slf4j.")) {
-      return true;
-    }
-    for (String prefix : Constants.BOOTSTRAP_PACKAGE_PREFIXES) {
-      if (className.startsWith(prefix)) {
-        return true;
-      }
-    }
-    return false;
-  }
+        @Override
+        public void visitFieldInsn(final int opcode, final String owner, final String name, final String descriptor) {
+            record(Type.getObjectType(owner), USES);
+            record(Type.getType(descriptor), USES);
+        }
 
-  void record(Type[] types, Consumer<String> action) {
-    if (null != types) {
-      for (Type t : types) {
-        record(t, action);
-      }
-    }
-  }
+        @Override
+        public void visitMethodInsn(
+                final int opcode,
+                final String owner,
+                final String name,
+                final String descriptor,
+                final boolean isInterface) {
+            record(Type.getObjectType(owner), USES);
+            record(Type.getMethodType(descriptor), USES);
+        }
 
-  void record(Handle handle, Consumer<String> action) {
-    if (null != handle) {
-      record(Type.getObjectType(handle.getOwner()), action);
-      record(Type.getType(handle.getDesc()), action);
-    }
-  }
+        @Override
+        public void visitTypeInsn(final int opcode, final String type) {
+            record(Type.getObjectType(type), USES);
+        }
 
-  void record(String internalName, Consumer<String> action) {
-    if (null != internalName) {
-      record(Type.getObjectType(internalName), action);
-    }
-  }
+        @Override
+        public void visitInvokeDynamicInsn(
+                String name, String descriptor, Handle bootstrapMethodHandle, Object... bootstrapMethodArguments) {
+            record(Type.getType(descriptor), USES);
+            record(bootstrapMethodHandle, USES);
+            for (Object value : bootstrapMethodArguments) {
+                if (value instanceof Type) {
+                    record((Type) value, USES);
+                } else if (value instanceof Handle) {
+                    record((Handle) value, USES);
+                }
+            }
+        }
 
-  void record(String[] internalNames, Consumer<String> action) {
-    if (null != internalNames) {
-      for (String n : internalNames) {
-        record(Type.getObjectType(n), action);
-      }
+        @Override
+        public void visitLdcInsn(final Object value) {
+            if (value instanceof Type) {
+                record((Type) value, USES);
+            } else if (value instanceof Handle) {
+                record((Handle) value, USES);
+            }
+        }
     }
-  }
+
+    /** Marks a class as required; the helper won't load if this class hasn't been loaded first. */
+    void requiresClass(String className) {
+        requires.add(className);
+        uses.add(className);
+    }
+
+    /** Marks a class as used; the helper doesn't need it at load time but may use it when called. */
+    void usesClass(String className) {
+        uses.add(className);
+    }
+
+    void record(Type type, Consumer<String> action) {
+        if (null != type) {
+            while (type.getSort() == Type.ARRAY) {
+                type = type.getElementType();
+            }
+            if (type.getSort() == Type.METHOD) {
+                record(type.getArgumentTypes(), action);
+                record(type.getReturnType(), action);
+            } else if (type.getSort() == Type.OBJECT) {
+                String className = type.getClassName();
+                // ignore types that we expect to be on the boot-class-path
+                if (this.className.equals(className) || isBootstrapClass(className)) {
+                    return;
+                }
+                action.accept(className);
+            }
+        }
+    }
+
+    private static boolean isBootstrapClass(String className) {
+        if (className.startsWith("java.")
+                || className.startsWith("javax.")
+                || className.startsWith("jdk.")
+                || className.startsWith("com.sun.")
+                || className.startsWith("sun.")
+                || className.startsWith("org.slf4j.")
+                || className.startsWith("datadog.slf4j.")) {
+            return true;
+        }
+        for (String prefix : Constants.BOOTSTRAP_PACKAGE_PREFIXES) {
+            if (className.startsWith(prefix)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void record(Type[] types, Consumer<String> action) {
+        if (null != types) {
+            for (Type t : types) {
+                record(t, action);
+            }
+        }
+    }
+
+    void record(Handle handle, Consumer<String> action) {
+        if (null != handle) {
+            record(Type.getObjectType(handle.getOwner()), action);
+            record(Type.getType(handle.getDesc()), action);
+        }
+    }
+
+    void record(String internalName, Consumer<String> action) {
+        if (null != internalName) {
+            record(Type.getObjectType(internalName), action);
+        }
+    }
+
+    void record(String[] internalNames, Consumer<String> action) {
+        if (null != internalNames) {
+            for (String n : internalNames) {
+                record(Type.getObjectType(n), action);
+            }
+        }
+    }
 }

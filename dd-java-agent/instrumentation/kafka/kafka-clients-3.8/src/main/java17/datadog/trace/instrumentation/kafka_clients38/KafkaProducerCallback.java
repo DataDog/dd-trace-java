@@ -13,50 +13,42 @@ import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.RecordMetadata;
 
 public class KafkaProducerCallback implements Callback {
-  private final Callback callback;
-  private final AgentSpan parent;
-  private final AgentSpan span;
-  private final String clusterId;
+    private final Callback callback;
+    private final AgentSpan parent;
+    private final AgentSpan span;
+    private final String clusterId;
 
-  public KafkaProducerCallback(
-      final Callback callback,
-      final AgentSpan parent,
-      final AgentSpan span,
-      final String clusterId) {
-    this.callback = callback;
-    this.parent = parent;
-    this.span = span;
-    this.clusterId = clusterId;
-  }
-
-  @Override
-  public void onCompletion(final RecordMetadata metadata, final Exception exception) {
-    if (metadata != null) {
-      span.setTag(PARTITION, metadata.partition());
-      span.setTag(OFFSET, metadata.offset());
+    public KafkaProducerCallback(
+            final Callback callback, final AgentSpan parent, final AgentSpan span, final String clusterId) {
+        this.callback = callback;
+        this.parent = parent;
+        this.span = span;
+        this.clusterId = clusterId;
     }
-    PRODUCER_DECORATE.onError(span, exception);
-    PRODUCER_DECORATE.beforeFinish(span);
-    span.finish();
-    if (callback != null) {
-      if (parent != null) {
-        try (final ContextScope scope = activateSpan(parent)) {
-          callback.onCompletion(metadata, exception);
+
+    @Override
+    public void onCompletion(final RecordMetadata metadata, final Exception exception) {
+        if (metadata != null) {
+            span.setTag(PARTITION, metadata.partition());
+            span.setTag(OFFSET, metadata.offset());
         }
-      } else {
-        callback.onCompletion(metadata, exception);
-      }
+        PRODUCER_DECORATE.onError(span, exception);
+        PRODUCER_DECORATE.beforeFinish(span);
+        span.finish();
+        if (callback != null) {
+            if (parent != null) {
+                try (final ContextScope scope = activateSpan(parent)) {
+                    callback.onCompletion(metadata, exception);
+                }
+            } else {
+                callback.onCompletion(metadata, exception);
+            }
+        }
+        if (metadata == null) {
+            return;
+        }
+        DataStreamsTags tags = DataStreamsTags.createWithPartition(
+                "kafka_produce", metadata.topic(), String.valueOf(metadata.partition()), clusterId, null);
+        AgentTracer.get().getDataStreamsMonitoring().trackBacklog(tags, metadata.offset());
     }
-    if (metadata == null) {
-      return;
-    }
-    DataStreamsTags tags =
-        DataStreamsTags.createWithPartition(
-            "kafka_produce",
-            metadata.topic(),
-            String.valueOf(metadata.partition()),
-            clusterId,
-            null);
-    AgentTracer.get().getDataStreamsMonitoring().trackBacklog(tags, metadata.offset());
-  }
 }

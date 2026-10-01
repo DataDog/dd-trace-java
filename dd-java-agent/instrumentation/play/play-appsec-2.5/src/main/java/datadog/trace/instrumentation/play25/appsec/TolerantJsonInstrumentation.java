@@ -17,29 +17,29 @@ import play.mvc.Http;
  */
 @AutoService(InstrumenterModule.class)
 public class TolerantJsonInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public TolerantJsonInstrumentation() {
-    super("play");
-  }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public TolerantJsonInstrumentation() {
+        super("play");
+    }
 
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return MuzzleReferences.PLAY_25_ONLY;
-  }
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return MuzzleReferences.PLAY_25_ONLY;
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "play.mvc.BodyParser$TolerantJson";
-  }
+    @Override
+    public String instrumentedType() {
+        return "play.mvc.BodyParser$TolerantJson";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("parse")
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("play.mvc.Http$RequestHeader")))
-            .and(takesArgument(1, named("akka.util.ByteString")))
-            .and(returns(named("com.fasterxml.jackson.databind.JsonNode"))),
-        packageName + ".BodyParserTolerantJsonParseAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("parse")
+                        .and(takesArguments(2))
+                        .and(takesArgument(0, named("play.mvc.Http$RequestHeader")))
+                        .and(takesArgument(1, named("akka.util.ByteString")))
+                        .and(returns(named("com.fasterxml.jackson.databind.JsonNode"))),
+                packageName + ".BodyParserTolerantJsonParseAdvice");
+    }
 }

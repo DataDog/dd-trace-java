@@ -6,11 +6,11 @@ import java.nio.ByteBuffer;
 
 public abstract class TestMetadataSerializer {
 
-  public static void serialize(Serializer serializer, TestMetadata testMetadata) {
-    serializer.write(testMetadata.isMissingLineCodeCoverage());
-  }
+    public static void serialize(Serializer serializer, TestMetadata testMetadata) {
+        serializer.write(testMetadata.isMissingLineCodeCoverage());
+    }
 
-  public static TestMetadata deserialize(ByteBuffer buffer) {
-    return new TestMetadata(Serializer.readBoolean(buffer));
-  }
+    public static TestMetadata deserialize(ByteBuffer buffer) {
+        return new TestMetadata(Serializer.readBoolean(buffer));
+    }
 }

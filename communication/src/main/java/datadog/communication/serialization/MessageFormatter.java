@@ -1,7 +1,7 @@
 package datadog.communication.serialization;
 
 public interface MessageFormatter {
-  <T> boolean format(T message, Mapper<T> mapper);
+    <T> boolean format(T message, Mapper<T> mapper);
 
-  void flush();
+    void flush();
 }

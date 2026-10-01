@@ -28,62 +28,57 @@ import org.junit.jupiter.api.Test;
  */
 class MetricsAggregatorFactoryTest {
 
-  private static SharedCommunicationObjects sharedCommunicationObjects() {
-    SharedCommunicationObjects sco = mock(SharedCommunicationObjects.class);
-    sco.agentUrl = HttpUrl.parse("http://localhost:8126");
-    when(sco.featuresDiscovery(any())).thenReturn(mock(DDAgentFeaturesDiscovery.class));
-    return sco;
-  }
-
-  private static Properties props(String... keyValues) {
-    Properties props = new Properties();
-    for (int i = 0; i < keyValues.length; i += 2) {
-      props.setProperty(keyValues[i], keyValues[i + 1]);
+    private static SharedCommunicationObjects sharedCommunicationObjects() {
+        SharedCommunicationObjects sco = mock(SharedCommunicationObjects.class);
+        sco.agentUrl = HttpUrl.parse("http://localhost:8126");
+        when(sco.featuresDiscovery(any())).thenReturn(mock(DDAgentFeaturesDiscovery.class));
+        return sco;
     }
-    return props;
-  }
 
-  @Test
-  void whenAllMetricsDisabledNoOpAggregatorCreated() {
-    Config config = Config.get(props(TRACE_STATS_COMPUTATION_ENABLED, "false"));
+    private static Properties props(String... keyValues) {
+        Properties props = new Properties();
+        for (int i = 0; i < keyValues.length; i += 2) {
+            props.setProperty(keyValues[i], keyValues[i + 1]);
+        }
+        return props;
+    }
 
-    MetricsAggregator aggregator =
-        MetricsAggregatorFactory.createMetricsAggregator(
-            config, sharedCommunicationObjects(), HealthMetrics.NO_OP);
+    @Test
+    void whenAllMetricsDisabledNoOpAggregatorCreated() {
+        Config config = Config.get(props(TRACE_STATS_COMPUTATION_ENABLED, "false"));
 
-    assertInstanceOf(NoOpMetricsAggregator.class, aggregator);
-  }
+        MetricsAggregator aggregator = MetricsAggregatorFactory.createMetricsAggregator(
+                config, sharedCommunicationObjects(), HealthMetrics.NO_OP);
 
-  @Test
-  void whenNativeTracerMetricsEnabledSerializingWriterSelected() {
-    // tracer metrics default to enabled; OTLP span metrics default off (no OTLP trace export).
-    Config config = Config.get(props());
+        assertInstanceOf(NoOpMetricsAggregator.class, aggregator);
+    }
 
-    MetricsAggregator aggregator =
-        MetricsAggregatorFactory.createMetricsAggregator(
-            config, sharedCommunicationObjects(), HealthMetrics.NO_OP);
+    @Test
+    void whenNativeTracerMetricsEnabledSerializingWriterSelected() {
+        // tracer metrics default to enabled; OTLP span metrics default off (no OTLP trace export).
+        Config config = Config.get(props());
 
-    ClientStatsAggregator conflating = assertInstanceOf(ClientStatsAggregator.class, aggregator);
-    assertFalse(conflating.isOtlpStatsExportEnabled());
-    // native path uses a hardcoded 10s cadence, not trace.stats.interval.
-    assertEquals(10, conflating.reportingInterval());
-    assertEquals(SECONDS, conflating.reportingIntervalTimeUnit());
-  }
+        MetricsAggregator aggregator = MetricsAggregatorFactory.createMetricsAggregator(
+                config, sharedCommunicationObjects(), HealthMetrics.NO_OP);
 
-  @Test
-  void whenOtlpTraceMetricsEnabledOtlpStatsMetricWriterSelected() {
-    Config config =
-        Config.get(
-            props(OTEL_TRACES_SPAN_METRICS_ENABLED, "true", OTLP_METRICS_PROTOCOL, "http/json"));
+        ClientStatsAggregator conflating = assertInstanceOf(ClientStatsAggregator.class, aggregator);
+        assertFalse(conflating.isOtlpStatsExportEnabled());
+        // native path uses a hardcoded 10s cadence, not trace.stats.interval.
+        assertEquals(10, conflating.reportingInterval());
+        assertEquals(SECONDS, conflating.reportingIntervalTimeUnit());
+    }
 
-    MetricsAggregator aggregator =
-        MetricsAggregatorFactory.createMetricsAggregator(
-            config, sharedCommunicationObjects(), HealthMetrics.NO_OP);
+    @Test
+    void whenOtlpTraceMetricsEnabledOtlpStatsMetricWriterSelected() {
+        Config config = Config.get(props(OTEL_TRACES_SPAN_METRICS_ENABLED, "true", OTLP_METRICS_PROTOCOL, "http/json"));
 
-    ClientStatsAggregator conflating = assertInstanceOf(ClientStatsAggregator.class, aggregator);
-    assertTrue(conflating.isOtlpStatsExportEnabled());
-    // OTLP path sources the cadence from trace.stats.interval (ms), default 10s.
-    assertEquals(config.getTraceStatsInterval(), conflating.reportingInterval());
-    assertEquals(MILLISECONDS, conflating.reportingIntervalTimeUnit());
-  }
+        MetricsAggregator aggregator = MetricsAggregatorFactory.createMetricsAggregator(
+                config, sharedCommunicationObjects(), HealthMetrics.NO_OP);
+
+        ClientStatsAggregator conflating = assertInstanceOf(ClientStatsAggregator.class, aggregator);
+        assertTrue(conflating.isOtlpStatsExportEnabled());
+        // OTLP path sources the cadence from trace.stats.interval (ms), default 10s.
+        assertEquals(config.getTraceStatsInterval(), conflating.reportingInterval());
+        assertEquals(MILLISECONDS, conflating.reportingIntervalTimeUnit());
+    }
 }

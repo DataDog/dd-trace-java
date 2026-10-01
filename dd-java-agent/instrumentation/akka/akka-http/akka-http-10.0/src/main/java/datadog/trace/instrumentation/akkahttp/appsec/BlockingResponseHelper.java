@@ -23,81 +23,71 @@ import java.util.Optional;
 import scala.collection.immutable.List;
 
 public class BlockingResponseHelper {
-  private BlockingResponseHelper() {}
+    private BlockingResponseHelper() {}
 
-  public static HttpResponse handleFinishForWaf(final AgentSpan span, final HttpResponse response) {
-    RequestContext requestContext = span.getRequestContext();
-    BlockResponseFunction brf = requestContext.getBlockResponseFunction();
-    if (brf instanceof AkkaBlockResponseFunction) {
-      HttpResponse altResponse = ((AkkaBlockResponseFunction) brf).maybeCreateAlternativeResponse();
-      if (altResponse != null) {
-        // we already blocked during the request
-        return altResponse;
-      }
-    }
-    Flow<Void> flow =
-        DECORATE.callIGCallbackResponseAndHeaders(
-            span, response, response.status().intValue(), AkkaHttpServerHeaders.responseGetter());
-    Flow.Action action = flow.getAction();
-    if (action instanceof Flow.Action.RequestBlockingAction) {
-      Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-      if (brf instanceof AkkaBlockResponseFunction) {
-        brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
-        HttpResponse altResponse =
-            ((AkkaBlockResponseFunction) brf).maybeCreateAlternativeResponse();
-        if (altResponse != null) {
-          return altResponse;
+    public static HttpResponse handleFinishForWaf(final AgentSpan span, final HttpResponse response) {
+        RequestContext requestContext = span.getRequestContext();
+        BlockResponseFunction brf = requestContext.getBlockResponseFunction();
+        if (brf instanceof AkkaBlockResponseFunction) {
+            HttpResponse altResponse = ((AkkaBlockResponseFunction) brf).maybeCreateAlternativeResponse();
+            if (altResponse != null) {
+                // we already blocked during the request
+                return altResponse;
+            }
         }
-      }
+        Flow<Void> flow = DECORATE.callIGCallbackResponseAndHeaders(
+                span, response, response.status().intValue(), AkkaHttpServerHeaders.responseGetter());
+        Flow.Action action = flow.getAction();
+        if (action instanceof Flow.Action.RequestBlockingAction) {
+            Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+            if (brf instanceof AkkaBlockResponseFunction) {
+                brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
+                HttpResponse altResponse = ((AkkaBlockResponseFunction) brf).maybeCreateAlternativeResponse();
+                if (altResponse != null) {
+                    return altResponse;
+                }
+            }
+        }
+
+        return response;
     }
 
-    return response;
-  }
-
-  public static HttpResponse maybeCreateBlockingResponse(AgentSpan span, HttpRequest request) {
-    return maybeCreateBlockingResponse(span.getRequestBlockingAction(), request);
-  }
-
-  public static HttpResponse maybeCreateBlockingResponse(
-      Flow.Action.RequestBlockingAction rba, HttpRequest request) {
-    if (rba == null) {
-      return null;
-    }
-    Optional<HttpHeader> accept = request.getHeader("accept");
-    BlockingContentType bct = rba.getBlockingContentType();
-    int httpCode = BlockingActionHelper.getHttpCode(rba.getStatusCode());
-    ResponseEntity entity;
-    if (bct != BlockingContentType.NONE) {
-      BlockingActionHelper.TemplateType tt =
-          BlockingActionHelper.determineTemplateType(bct, accept.map(h -> h.value()).orElse(null));
-      byte[] template = BlockingActionHelper.getTemplate(tt, rba.getSecurityResponseId());
-      if (tt == BlockingActionHelper.TemplateType.HTML) {
-        entity =
-            HttpEntity$.MODULE$.apply(
-                ContentTypes.text$divhtml$u0028UTF$minus8$u0029(), ByteString.fromArray(template));
-      } else { // json
-        entity =
-            HttpEntity$.MODULE$.apply(
-                ContentTypes.application$divjson(), ByteString.fromArray(template));
-      }
-    } else {
-      entity = HttpEntity$.MODULE$.Empty();
+    public static HttpResponse maybeCreateBlockingResponse(AgentSpan span, HttpRequest request) {
+        return maybeCreateBlockingResponse(span.getRequestBlockingAction(), request);
     }
 
-    List<akka.http.scaladsl.model.HttpHeader> headersList =
-        rba.getExtraHeaders().entrySet().stream()
-            .map(
-                e ->
-                    (akka.http.scaladsl.model.HttpHeader)
-                        RawHeader.create(e.getKey(), e.getValue()))
-            .collect(ScalaListCollector.toScalaList());
+    public static HttpResponse maybeCreateBlockingResponse(Flow.Action.RequestBlockingAction rba, HttpRequest request) {
+        if (rba == null) {
+            return null;
+        }
+        Optional<HttpHeader> accept = request.getHeader("accept");
+        BlockingContentType bct = rba.getBlockingContentType();
+        int httpCode = BlockingActionHelper.getHttpCode(rba.getStatusCode());
+        ResponseEntity entity;
+        if (bct != BlockingContentType.NONE) {
+            BlockingActionHelper.TemplateType tt = BlockingActionHelper.determineTemplateType(
+                    bct, accept.map(h -> h.value()).orElse(null));
+            byte[] template = BlockingActionHelper.getTemplate(tt, rba.getSecurityResponseId());
+            if (tt == BlockingActionHelper.TemplateType.HTML) {
+                entity = HttpEntity$.MODULE$.apply(
+                        ContentTypes.text$divhtml$u0028UTF$minus8$u0029(), ByteString.fromArray(template));
+            } else { // json
+                entity = HttpEntity$.MODULE$.apply(ContentTypes.application$divjson(), ByteString.fromArray(template));
+            }
+        } else {
+            entity = HttpEntity$.MODULE$.Empty();
+        }
 
-    StatusCode code;
-    try {
-      code = StatusCode.int2StatusCode(httpCode);
-    } catch (RuntimeException e) {
-      code = StatusCodes.custom(httpCode, "Request Blocked", "", false, true);
+        List<akka.http.scaladsl.model.HttpHeader> headersList = rba.getExtraHeaders().entrySet().stream()
+                .map(e -> (akka.http.scaladsl.model.HttpHeader) RawHeader.create(e.getKey(), e.getValue()))
+                .collect(ScalaListCollector.toScalaList());
+
+        StatusCode code;
+        try {
+            code = StatusCode.int2StatusCode(httpCode);
+        } catch (RuntimeException e) {
+            code = StatusCodes.custom(httpCode, "Request Blocked", "", false, true);
+        }
+        return HttpResponse.apply(code, headersList, entity, request.protocol());
     }
-    return HttpResponse.apply(code, headersList, entity, request.protocol());
-  }
 }

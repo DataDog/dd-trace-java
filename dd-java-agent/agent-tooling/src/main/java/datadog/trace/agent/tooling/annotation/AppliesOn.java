@@ -22,14 +22,14 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.CLASS)
 @Target(ElementType.TYPE)
 public @interface AppliesOn {
-  /**
-   * The target systems for which this advice is applied.
-   *
-   * <p>The advice will only be applied if at least one of the specified target systems is enabled.
-   * If multiple target systems are specified, the advice applies when any of them are enabled (OR
-   * logic).
-   *
-   * @return the target systems this advice applies to
-   */
-  InstrumenterModule.TargetSystem[] value();
+    /**
+     * The target systems for which this advice is applied.
+     *
+     * <p>The advice will only be applied if at least one of the specified target systems is enabled.
+     * If multiple target systems are specified, the advice applies when any of them are enabled (OR
+     * logic).
+     *
+     * @return the target systems this advice applies to
+     */
+    InstrumenterModule.TargetSystem[] value();
 }

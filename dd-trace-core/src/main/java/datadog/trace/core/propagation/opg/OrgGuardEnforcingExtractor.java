@@ -11,21 +11,21 @@ import datadog.trace.core.propagation.HttpCodec;
  */
 final class OrgGuardEnforcingExtractor implements HttpCodec.Extractor {
 
-  private final HttpCodec.Extractor delegate;
-  private final OrgGuardEnforcer enforcer;
+    private final HttpCodec.Extractor delegate;
+    private final OrgGuardEnforcer enforcer;
 
-  OrgGuardEnforcingExtractor(HttpCodec.Extractor delegate, OrgGuardEnforcer enforcer) {
-    this.delegate = delegate;
-    this.enforcer = enforcer;
-  }
+    OrgGuardEnforcingExtractor(HttpCodec.Extractor delegate, OrgGuardEnforcer enforcer) {
+        this.delegate = delegate;
+        this.enforcer = enforcer;
+    }
 
-  @Override
-  public <C> TagContext extract(C carrier, AgentPropagation.ContextVisitor<C> getter) {
-    return enforcer.enforce(delegate.extract(carrier, getter));
-  }
+    @Override
+    public <C> TagContext extract(C carrier, AgentPropagation.ContextVisitor<C> getter) {
+        return enforcer.enforce(delegate.extract(carrier, getter));
+    }
 
-  @Override
-  public void cleanup() {
-    delegate.cleanup();
-  }
+    @Override
+    public void cleanup() {
+        delegate.cleanup();
+    }
 }

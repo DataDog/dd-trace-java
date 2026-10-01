@@ -20,50 +20,49 @@ import net.bytebuddy.asm.Advice;
 @RequiresRequestContext(RequestContextSlot.APPSEC)
 class RoutingContextJsonAdvice {
 
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  static void before() {
-    CallDepthThreadLocalMap.incrementCallDepth(RoutingContext.class);
-  }
-
-  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  static void after(
-      @Advice.Return Object obj_,
-      @ActiveRequestContext RequestContext reqCtx,
-      @Advice.Thrown(readOnly = false) Throwable throwable) {
-
-    // in newer versions of vert.x rc.getBodyAsJson() calls internally rc.body().asJsonObject()
-    // so we need to prevent sending the body twice to the WAF
-    if (CallDepthThreadLocalMap.decrementCallDepth(RoutingContext.class) != 0) {
-      return;
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    static void before() {
+        CallDepthThreadLocalMap.incrementCallDepth(RoutingContext.class);
     }
 
-    if (obj_ == null) {
-      return;
-    }
-    Object obj = obj_;
-    if (obj instanceof JsonObject) {
-      obj = ((JsonObject) obj).getMap();
-    }
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    static void after(
+            @Advice.Return Object obj_,
+            @ActiveRequestContext RequestContext reqCtx,
+            @Advice.Thrown(readOnly = false) Throwable throwable) {
 
-    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-    BiFunction<RequestContext, Object, Flow<Void>> callback =
-        cbp.getCallback(EVENTS.requestBodyProcessed());
-    if (callback == null) {
-      return;
-    }
+        // in newer versions of vert.x rc.getBodyAsJson() calls internally rc.body().asJsonObject()
+        // so we need to prevent sending the body twice to the WAF
+        if (CallDepthThreadLocalMap.decrementCallDepth(RoutingContext.class) != 0) {
+            return;
+        }
 
-    Flow<Void> flow = callback.apply(reqCtx, obj);
-    Flow.Action action = flow.getAction();
-    if (action instanceof Flow.Action.RequestBlockingAction) {
-      BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
-      if (blockResponseFunction == null) {
-        return;
-      }
-      Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-      blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-      if (throwable == null) {
-        throwable = new BlockingException("Blocked request (for RoutingContextImpl/getBodyAsJson)");
-      }
+        if (obj_ == null) {
+            return;
+        }
+        Object obj = obj_;
+        if (obj instanceof JsonObject) {
+            obj = ((JsonObject) obj).getMap();
+        }
+
+        CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+        BiFunction<RequestContext, Object, Flow<Void>> callback = cbp.getCallback(EVENTS.requestBodyProcessed());
+        if (callback == null) {
+            return;
+        }
+
+        Flow<Void> flow = callback.apply(reqCtx, obj);
+        Flow.Action action = flow.getAction();
+        if (action instanceof Flow.Action.RequestBlockingAction) {
+            BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
+            if (blockResponseFunction == null) {
+                return;
+            }
+            Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+            blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+            if (throwable == null) {
+                throwable = new BlockingException("Blocked request (for RoutingContextImpl/getBodyAsJson)");
+            }
+        }
     }
-  }
 }

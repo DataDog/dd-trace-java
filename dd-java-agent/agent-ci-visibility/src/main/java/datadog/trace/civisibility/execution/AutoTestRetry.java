@@ -12,75 +12,75 @@ import java.util.concurrent.atomic.AtomicInteger;
  * number of times. Stops retrying as soon as the test passes.
  */
 @SuppressFBWarnings(
-    value = {"AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE", "AT_STALE_THREAD_WRITE_OF_PRIMITIVE"},
-    justification =
-        "TestExecutionPolicy instances are confined to a single thread and are not meant to be thread-safe")
+        value = {"AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE", "AT_STALE_THREAD_WRITE_OF_PRIMITIVE"},
+        justification =
+                "TestExecutionPolicy instances are confined to a single thread and are not meant to be thread-safe")
 public class AutoTestRetry implements TestExecutionPolicy {
 
-  private int maxExecutions;
-  private final boolean suppressFailures;
-  private int executions;
-  private ExecutionAggregation results;
+    private int maxExecutions;
+    private final boolean suppressFailures;
+    private int executions;
+    private ExecutionAggregation results;
 
-  /** Total retry counter that is shared by all auto test retry policies */
-  private final AtomicInteger totalRetryCount;
+    /** Total retry counter that is shared by all auto test retry policies */
+    private final AtomicInteger totalRetryCount;
 
-  public AutoTestRetry(int maxExecutions, boolean suppressFailures, AtomicInteger totalRetryCount) {
-    this.maxExecutions = maxExecutions;
-    this.suppressFailures = suppressFailures;
-    this.totalRetryCount = totalRetryCount;
-    this.executions = 0;
-    this.results = ExecutionAggregation.NONE;
-  }
-
-  protected int maxExecutionsForDuration(long durationMillis) {
-    return maxExecutions;
-  }
-
-  @Override
-  public final ExecutionOutcome registerExecution(TestStatus status, long durationMillis) {
-    if (executions == 0) {
-      maxExecutions = maxExecutionsForDuration(durationMillis);
-    }
-    ++executions;
-    results = results.withExecution(status);
-    if (executions > 1) {
-      totalRetryCount.incrementAndGet();
+    public AutoTestRetry(int maxExecutions, boolean suppressFailures, AtomicInteger totalRetryCount) {
+        this.maxExecutions = maxExecutions;
+        this.suppressFailures = suppressFailures;
+        this.totalRetryCount = totalRetryCount;
+        this.executions = 0;
+        this.results = ExecutionAggregation.NONE;
     }
 
-    boolean lastExecution = !retriesLeft();
-    boolean retry = executions > 1; // first execution is not a retry
-    boolean failureSuppressed = status == TestStatus.fail && (!lastExecution || suppressFailures);
-    TestStatus finalStatus = null;
-    if (lastExecution) {
-      // final status is always the last status reported (or pass if a failure is suppressed)
-      finalStatus = failureSuppressed ? TestStatus.pass : status;
+    protected int maxExecutionsForDuration(long durationMillis) {
+        return maxExecutions;
     }
 
-    return new ExecutionOutcomeImpl(
-        failureSuppressed, lastExecution, results, retry ? RetryReason.atr : null, finalStatus);
-  }
+    @Override
+    public final ExecutionOutcome registerExecution(TestStatus status, long durationMillis) {
+        if (executions == 0) {
+            maxExecutions = maxExecutionsForDuration(durationMillis);
+        }
+        ++executions;
+        results = results.withExecution(status);
+        if (executions > 1) {
+            totalRetryCount.incrementAndGet();
+        }
 
-  private boolean retriesLeft() {
-    return executions < maxExecutions
-        && results != ExecutionAggregation.ONLY_PASSED
-        && results != ExecutionAggregation.MIXED;
-  }
+        boolean lastExecution = !retriesLeft();
+        boolean retry = executions > 1; // first execution is not a retry
+        boolean failureSuppressed = status == TestStatus.fail && (!lastExecution || suppressFailures);
+        TestStatus finalStatus = null;
+        if (lastExecution) {
+            // final status is always the last status reported (or pass if a failure is suppressed)
+            finalStatus = failureSuppressed ? TestStatus.pass : status;
+        }
 
-  @Override
-  public boolean applicable() {
-    return retriesLeft();
-  }
+        return new ExecutionOutcomeImpl(
+                failureSuppressed, lastExecution, results, retry ? RetryReason.atr : null, finalStatus);
+    }
 
-  @Override
-  public boolean suppressFailures() {
-    // do not suppress failures for last execution (unless flag to suppress all failures is set);
-    // the +1 is because this method is called _before_ subsequent execution is registered
-    return executions + 1 < maxExecutions || suppressFailures;
-  }
+    private boolean retriesLeft() {
+        return executions < maxExecutions
+                && results != ExecutionAggregation.ONLY_PASSED
+                && results != ExecutionAggregation.MIXED;
+    }
 
-  @Override
-  public boolean failedTestReplayApplicable() {
-    return true;
-  }
+    @Override
+    public boolean applicable() {
+        return retriesLeft();
+    }
+
+    @Override
+    public boolean suppressFailures() {
+        // do not suppress failures for last execution (unless flag to suppress all failures is set);
+        // the +1 is because this method is called _before_ subsequent execution is registered
+        return executions + 1 < maxExecutions || suppressFailures;
+    }
+
+    @Override
+    public boolean failedTestReplayApplicable() {
+        return true;
+    }
 }

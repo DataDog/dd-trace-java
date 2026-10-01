@@ -14,55 +14,56 @@ import org.apache.kafka.clients.consumer.internals.RequestFuture;
 import org.apache.kafka.common.TopicPartition;
 
 public class ConsumerCoordinatorAdvice {
-  @Advice.OnMethodExit(suppress = Throwable.class)
-  public static void trackCommitOffset(
-      @Advice.This ConsumerCoordinator coordinator,
-      @Advice.Return RequestFuture<Void> requestFuture,
-      @Advice.Argument(0) final Map<TopicPartition, OffsetAndMetadata> offsets) {
-    if (requestFuture == null || requestFuture.failed()) {
-      return;
-    }
-    if (offsets == null) {
-      return;
-    }
-    KafkaConsumerInfo kafkaConsumerInfo =
-        InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
-            .get(coordinator);
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void trackCommitOffset(
+            @Advice.This ConsumerCoordinator coordinator,
+            @Advice.Return RequestFuture<Void> requestFuture,
+            @Advice.Argument(0) final Map<TopicPartition, OffsetAndMetadata> offsets) {
+        if (requestFuture == null || requestFuture.failed()) {
+            return;
+        }
+        if (offsets == null) {
+            return;
+        }
+        KafkaConsumerInfo kafkaConsumerInfo = InstrumentationContext.get(
+                        ConsumerCoordinator.class, KafkaConsumerInfo.class)
+                .get(coordinator);
 
-    if (kafkaConsumerInfo == null) {
-      return;
+        if (kafkaConsumerInfo == null) {
+            return;
+        }
+
+        String consumerGroup = kafkaConsumerInfo.getConsumerGroup().orElse(null);
+        Metadata consumerMetadata = kafkaConsumerInfo.getmetadata().orElse(null);
+        String clusterId = null;
+        if (consumerMetadata != null) {
+            MetadataState metadataState = InstrumentationContext.get(Metadata.class, MetadataState.class)
+                    .get(consumerMetadata);
+            clusterId = metadataState != null ? metadataState.clusterId : null;
+        }
+
+        for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : offsets.entrySet()) {
+            if (consumerGroup == null) {
+                consumerGroup = "";
+            }
+            if (entry.getKey() == null || entry.getValue() == null) {
+                continue;
+            }
+            DataStreamsTags tags = DataStreamsTags.createWithPartition(
+                    "kafka_commit",
+                    entry.getKey().topic(),
+                    String.valueOf(entry.getKey().partition()),
+                    clusterId,
+                    consumerGroup);
+            AgentTracer.get()
+                    .getDataStreamsMonitoring()
+                    .trackBacklog(tags, entry.getValue().offset());
+        }
     }
 
-    String consumerGroup = kafkaConsumerInfo.getConsumerGroup().orElse(null);
-    Metadata consumerMetadata = kafkaConsumerInfo.getmetadata().orElse(null);
-    String clusterId = null;
-    if (consumerMetadata != null) {
-      MetadataState metadataState =
-          InstrumentationContext.get(Metadata.class, MetadataState.class).get(consumerMetadata);
-      clusterId = metadataState != null ? metadataState.clusterId : null;
+    public static void muzzleCheck(ConsumerRecord record) {
+        // KafkaConsumerInstrumentation only applies for kafka versions with headers
+        // Make an explicit call so ConsumerCoordinatorInstrumentation does the same
+        record.headers();
     }
-
-    for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : offsets.entrySet()) {
-      if (consumerGroup == null) {
-        consumerGroup = "";
-      }
-      if (entry.getKey() == null || entry.getValue() == null) {
-        continue;
-      }
-      DataStreamsTags tags =
-          DataStreamsTags.createWithPartition(
-              "kafka_commit",
-              entry.getKey().topic(),
-              String.valueOf(entry.getKey().partition()),
-              clusterId,
-              consumerGroup);
-      AgentTracer.get().getDataStreamsMonitoring().trackBacklog(tags, entry.getValue().offset());
-    }
-  }
-
-  public static void muzzleCheck(ConsumerRecord record) {
-    // KafkaConsumerInstrumentation only applies for kafka versions with headers
-    // Make an explicit call so ConsumerCoordinatorInstrumentation does the same
-    record.headers();
-  }
 }

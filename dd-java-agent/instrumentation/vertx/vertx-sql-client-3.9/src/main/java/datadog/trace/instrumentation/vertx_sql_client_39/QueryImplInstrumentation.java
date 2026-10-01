@@ -16,35 +16,32 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class QueryImplInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public QueryImplInstrumentation() {
-    super("vertx", "vertx-sql-client");
-  }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public QueryImplInstrumentation() {
+        super("vertx", "vertx-sql-client");
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("io.vertx.sqlclient.Query", "datadog.trace.api.Pair");
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("io.vertx.sqlclient.Query", "datadog.trace.api.Pair");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "io.vertx.sqlclient.impl.SqlClientBase$QueryImpl";
-  }
+    @Override
+    public String instrumentedType() {
+        return "io.vertx.sqlclient.impl.SqlClientBase$QueryImpl";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(named("execute"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("io.vertx.core.Handler"))),
-        packageName + ".QueryAdvice$Execute");
-    transformer.applyAdvice(
-        isMethod()
-            .and(isVirtual())
-            .and(named("copy"))
-            .and(returns(named("io.vertx.sqlclient.impl.QueryBase"))),
-        packageName + ".QueryAdvice$Copy");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPublic())
+                        .and(named("execute"))
+                        .and(takesArguments(1))
+                        .and(takesArgument(0, named("io.vertx.core.Handler"))),
+                packageName + ".QueryAdvice$Execute");
+        transformer.applyAdvice(
+                isMethod().and(isVirtual()).and(named("copy")).and(returns(named("io.vertx.sqlclient.impl.QueryBase"))),
+                packageName + ".QueryAdvice$Copy");
+    }
 }

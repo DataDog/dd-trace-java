@@ -4,12 +4,11 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
-public abstract class DBTypeProcessingDatabaseClientDecorator<CONNECTION>
-    extends DatabaseClientDecorator<CONNECTION> {
+public abstract class DBTypeProcessingDatabaseClientDecorator<CONNECTION> extends DatabaseClientDecorator<CONNECTION> {
 
-  @Override
-  protected void doAfterStart(AgentSpan span) {
-    processDatabaseType(span, dbType());
-    super.doAfterStart(span);
-  }
+    @Override
+    protected void doAfterStart(AgentSpan span) {
+        processDatabaseType(span, dbType());
+        super.doAfterStart(span);
+    }
 }

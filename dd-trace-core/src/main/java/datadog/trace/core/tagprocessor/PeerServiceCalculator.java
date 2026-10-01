@@ -13,52 +13,51 @@ import java.util.Map;
 import javax.annotation.Nonnull;
 
 public final class PeerServiceCalculator extends TagsPostProcessor {
-  private final NamingSchema.ForPeerService peerServiceNaming;
+    private final NamingSchema.ForPeerService peerServiceNaming;
 
-  private final Map<String, String> peerServiceMapping;
+    private final Map<String, String> peerServiceMapping;
 
-  private final boolean canRemap;
+    private final boolean canRemap;
 
-  public PeerServiceCalculator() {
-    this(SpanNaming.instance().namingSchema().peerService(), Config.get().getPeerServiceMapping());
-  }
-
-  @VisibleForTesting
-  PeerServiceCalculator(
-      @Nonnull final NamingSchema.ForPeerService peerServiceNaming,
-      @Nonnull final Map<String, String> peerServiceMapping) {
-    this.peerServiceNaming = peerServiceNaming;
-    this.peerServiceMapping = peerServiceMapping;
-    this.canRemap = !peerServiceMapping.isEmpty();
-  }
-
-  @Override
-  public void processTags(
-      TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
-    Object peerService = unsafeTags.getObject(Tags.PEER_SERVICE);
-    // the user set it
-    if (peerService != null) {
-      if (canRemap) {
-        remapPeerService(unsafeTags, peerService);
-        return;
-      }
-    } else if (peerServiceNaming.supports()) {
-      // calculate the defaults (if any)
-      peerServiceNaming.tags(unsafeTags);
-      // only remap if the mapping is not empty (saves one get)
-      remapPeerService(unsafeTags, canRemap ? unsafeTags.getObject(Tags.PEER_SERVICE) : null);
-      return;
+    public PeerServiceCalculator() {
+        this(SpanNaming.instance().namingSchema().peerService(), Config.get().getPeerServiceMapping());
     }
-    // we have no peer.service and we do not compute defaults. Leave the map untouched
-  }
 
-  private void remapPeerService(TagMap unsafeTags, Object value) {
-    if (value != null) {
-      String mapped = peerServiceMapping.get(value);
-      if (mapped != null) {
-        unsafeTags.put(Tags.PEER_SERVICE, mapped);
-        unsafeTags.put(DDTags.PEER_SERVICE_REMAPPED_FROM, value);
-      }
+    @VisibleForTesting
+    PeerServiceCalculator(
+            @Nonnull final NamingSchema.ForPeerService peerServiceNaming,
+            @Nonnull final Map<String, String> peerServiceMapping) {
+        this.peerServiceNaming = peerServiceNaming;
+        this.peerServiceMapping = peerServiceMapping;
+        this.canRemap = !peerServiceMapping.isEmpty();
     }
-  }
+
+    @Override
+    public void processTags(TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+        Object peerService = unsafeTags.getObject(Tags.PEER_SERVICE);
+        // the user set it
+        if (peerService != null) {
+            if (canRemap) {
+                remapPeerService(unsafeTags, peerService);
+                return;
+            }
+        } else if (peerServiceNaming.supports()) {
+            // calculate the defaults (if any)
+            peerServiceNaming.tags(unsafeTags);
+            // only remap if the mapping is not empty (saves one get)
+            remapPeerService(unsafeTags, canRemap ? unsafeTags.getObject(Tags.PEER_SERVICE) : null);
+            return;
+        }
+        // we have no peer.service and we do not compute defaults. Leave the map untouched
+    }
+
+    private void remapPeerService(TagMap unsafeTags, Object value) {
+        if (value != null) {
+            String mapped = peerServiceMapping.get(value);
+            if (mapped != null) {
+                unsafeTags.put(Tags.PEER_SERVICE, mapped);
+                unsafeTags.put(DDTags.PEER_SERVICE_REMAPPED_FROM, value);
+            }
+        }
+    }
 }

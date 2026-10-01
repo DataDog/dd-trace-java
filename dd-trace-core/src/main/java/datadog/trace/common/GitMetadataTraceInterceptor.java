@@ -11,26 +11,24 @@ import java.util.Collection;
 
 public class GitMetadataTraceInterceptor extends AbstractTraceInterceptor {
 
-  public static final TraceInterceptor INSTANCE =
-      new GitMetadataTraceInterceptor(Priority.GIT_METADATA);
+    public static final TraceInterceptor INSTANCE = new GitMetadataTraceInterceptor(Priority.GIT_METADATA);
 
-  protected GitMetadataTraceInterceptor(Priority priority) {
-    super(priority);
-  }
-
-  @Override
-  public Collection<? extends MutableSpan> onTraceComplete(
-      Collection<? extends MutableSpan> trace) {
-    if (trace.isEmpty()) {
-      return trace;
+    protected GitMetadataTraceInterceptor(Priority priority) {
+        super(priority);
     }
 
-    final DDSpan firstSpan = (DDSpan) trace.iterator().next();
-    String ciWorkspacePath = (String) firstSpan.getTag(Tags.CI_WORKSPACE_PATH);
+    @Override
+    public Collection<? extends MutableSpan> onTraceComplete(Collection<? extends MutableSpan> trace) {
+        if (trace.isEmpty()) {
+            return trace;
+        }
 
-    GitInfo gitInfo = GitInfoProvider.INSTANCE.getGitInfo(ciWorkspacePath);
-    gitInfo.addTags(firstSpan);
+        final DDSpan firstSpan = (DDSpan) trace.iterator().next();
+        String ciWorkspacePath = (String) firstSpan.getTag(Tags.CI_WORKSPACE_PATH);
 
-    return trace;
-  }
+        GitInfo gitInfo = GitInfoProvider.INSTANCE.getGitInfo(ciWorkspacePath);
+        gitInfo.addTags(firstSpan);
+
+        return trace;
+    }
 }

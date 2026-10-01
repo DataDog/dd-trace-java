@@ -3,15 +3,15 @@ import javax.xml.ws.WebServiceProvider;
 
 @WebServiceProvider
 public class TestProvider implements Provider<String> {
-  @Override
-  public String invoke(final String request) {
-    if ("fail".equals(request)) {
-      throw new IllegalArgumentException("bad request");
+    @Override
+    public String invoke(final String request) {
+        if ("fail".equals(request)) {
+            throw new IllegalArgumentException("bad request");
+        }
+        return random();
     }
-    return random();
-  }
 
-  protected String random() {
-    return Double.toHexString(Math.random());
-  }
+    protected String random() {
+        return Double.toHexString(Math.random());
+    }
 }

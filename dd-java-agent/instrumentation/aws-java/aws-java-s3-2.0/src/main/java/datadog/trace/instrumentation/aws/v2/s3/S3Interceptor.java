@@ -17,44 +17,43 @@ import software.amazon.awssdk.services.s3.model.CopyObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 
 public class S3Interceptor implements ExecutionInterceptor {
-  private static final Logger log = LoggerFactory.getLogger(S3Interceptor.class);
+    private static final Logger log = LoggerFactory.getLogger(S3Interceptor.class);
 
-  public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE =
-      InstanceStore.of(ExecutionAttribute.class)
-          .getOrCreate("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
+    public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE = InstanceStore.of(ExecutionAttribute.class)
+            .getOrCreate("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
 
-  private static final boolean CAN_ADD_SPAN_POINTERS = Config.get().isAddSpanPointers("aws");
+    private static final boolean CAN_ADD_SPAN_POINTERS = Config.get().isAddSpanPointers("aws");
 
-  @Override
-  public void afterExecution(AfterExecution context, ExecutionAttributes executionAttributes) {
-    if (!CAN_ADD_SPAN_POINTERS) {
-      return;
+    @Override
+    public void afterExecution(AfterExecution context, ExecutionAttributes executionAttributes) {
+        if (!CAN_ADD_SPAN_POINTERS) {
+            return;
+        }
+
+        Context ddContext = executionAttributes.getAttribute(CONTEXT_ATTRIBUTE);
+        AgentSpan span = AgentSpan.fromContext(ddContext);
+        if (span == null) {
+            log.debug("Unable to find S3 request span. Not creating span pointer.");
+            return;
+        }
+        String eTag;
+        Object response = context.response();
+
+        // Get eTag for hash calculation.
+        // https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/services/s3/S3Client.html
+        if (response instanceof PutObjectResponse) {
+            eTag = ((PutObjectResponse) response).eTag();
+        } else if (response instanceof CopyObjectResponse) {
+            eTag = ((CopyObjectResponse) response).copyObjectResult().eTag();
+        } else if (response instanceof CompleteMultipartUploadResponse) {
+            eTag = ((CompleteMultipartUploadResponse) response).eTag();
+        } else {
+            return;
+        }
+
+        // Store eTag as tag, then calculate hash + add span pointers in SpanPointersProcessor.
+        // Bucket and key are already stored as tags in AwsSdkClientDecorator, so need to make redundant
+        // tags.
+        span.setTag(S3_ETAG, eTag);
     }
-
-    Context ddContext = executionAttributes.getAttribute(CONTEXT_ATTRIBUTE);
-    AgentSpan span = AgentSpan.fromContext(ddContext);
-    if (span == null) {
-      log.debug("Unable to find S3 request span. Not creating span pointer.");
-      return;
-    }
-    String eTag;
-    Object response = context.response();
-
-    // Get eTag for hash calculation.
-    // https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/services/s3/S3Client.html
-    if (response instanceof PutObjectResponse) {
-      eTag = ((PutObjectResponse) response).eTag();
-    } else if (response instanceof CopyObjectResponse) {
-      eTag = ((CopyObjectResponse) response).copyObjectResult().eTag();
-    } else if (response instanceof CompleteMultipartUploadResponse) {
-      eTag = ((CompleteMultipartUploadResponse) response).eTag();
-    } else {
-      return;
-    }
-
-    // Store eTag as tag, then calculate hash + add span pointers in SpanPointersProcessor.
-    // Bucket and key are already stored as tags in AwsSdkClientDecorator, so need to make redundant
-    // tags.
-    span.setTag(S3_ETAG, eTag);
-  }
 }

@@ -16,20 +16,20 @@ import reactor.core.publisher.Flux;
 
 @RequiresRequestContext(RequestContextSlot.IAST)
 class Jackson2TokenizerApplyAdvice {
-  @Advice.OnMethodExit(suppress = Throwable.class)
-  @Source(SourceTypes.REQUEST_BODY)
-  public static void after(
-      @Advice.Argument(0) DataBuffer dataBuffer,
-      @Advice.Return(readOnly = false) Flux<TokenBuffer> flux,
-      @ActiveRequestContext RequestContext reqCtx) {
-    PropagationModule propagation = InstrumentationBridge.PROPAGATION;
-    if (propagation == null || flux == null || dataBuffer == null) {
-      return;
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_BODY)
+    public static void after(
+            @Advice.Argument(0) DataBuffer dataBuffer,
+            @Advice.Return(readOnly = false) Flux<TokenBuffer> flux,
+            @ActiveRequestContext RequestContext reqCtx) {
+        PropagationModule propagation = InstrumentationBridge.PROPAGATION;
+        if (propagation == null || flux == null || dataBuffer == null) {
+            return;
+        }
+        IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+        if (!propagation.isTainted(ctx, dataBuffer)) {
+            return;
+        }
+        flux = flux.map(new TaintFluxElementsFunction<>(ctx, propagation));
     }
-    IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-    if (!propagation.isTainted(ctx, dataBuffer)) {
-      return;
-    }
-    flux = flux.map(new TaintFluxElementsFunction<>(ctx, propagation));
-  }
 }

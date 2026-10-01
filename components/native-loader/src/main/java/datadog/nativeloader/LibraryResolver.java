@@ -11,11 +11,10 @@ import java.net.URL;
  */
 @FunctionalInterface
 public interface LibraryResolver {
-  default boolean isPreloaded(PlatformSpec platform, String libName) {
-    return false;
-  }
+    default boolean isPreloaded(PlatformSpec platform, String libName) {
+        return false;
+    }
 
-  URL resolve(
-      PathLocator pathLocator, PlatformSpec platformSpec, String optionalComponent, String libName)
-      throws Exception;
+    URL resolve(PathLocator pathLocator, PlatformSpec platformSpec, String optionalComponent, String libName)
+            throws Exception;
 }

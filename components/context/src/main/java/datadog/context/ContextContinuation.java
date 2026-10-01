@@ -49,31 +49,31 @@ package datadog.context;
  */
 public interface ContextContinuation {
 
-  /**
-   * Optional builder method to stop {@link #resume()} from implicitly releasing the captured
-   * context. This is useful when multiple threads may concurrently resume the context. You must
-   * then explicitly {@link #release() release} the context once all threads are resumed/done.
-   *
-   * @return this continuation, but with implicit release-after-resume turned off.
-   */
-  ContextContinuation hold();
+    /**
+     * Optional builder method to stop {@link #resume()} from implicitly releasing the captured
+     * context. This is useful when multiple threads may concurrently resume the context. You must
+     * then explicitly {@link #release() release} the context once all threads are resumed/done.
+     *
+     * @return this continuation, but with implicit release-after-resume turned off.
+     */
+    ContextContinuation hold();
 
-  /**
-   * Returns the context captured by this continuation.
-   *
-   * @return the captured context.
-   */
-  Context context();
+    /**
+     * Returns the context captured by this continuation.
+     *
+     * @return the captured context.
+     */
+    Context context();
 
-  /**
-   * Resumes the context captured by this continuation by attaching it to the current execution
-   * unit. Implicitly {@link #release() releases} the captured context at the end of the resumed
-   * scope, unless {@link #hold()} was called when creating the continuation.
-   *
-   * @return a scope to be closed when the resumed context is invalid.
-   */
-  ContextScope resume();
+    /**
+     * Resumes the context captured by this continuation by attaching it to the current execution
+     * unit. Implicitly {@link #release() releases} the captured context at the end of the resumed
+     * scope, unless {@link #hold()} was called when creating the continuation.
+     *
+     * @return a scope to be closed when the resumed context is invalid.
+     */
+    ContextScope resume();
 
-  /** Explicitly releases the context captured by this continuation. */
-  void release();
+    /** Explicitly releases the context captured by this continuation. */
+    void release();
 }

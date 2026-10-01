@@ -27,110 +27,107 @@ import org.apache.http.nio.protocol.HttpAsyncRequestProducer;
 import org.apache.http.protocol.HttpContext;
 
 public class ApacheHttpAsyncClientInstrumentation
-    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
 
-  public ApacheHttpAsyncClientInstrumentation() {
-    super();
-  }
-
-  @Override
-  public boolean onlyMatchKnownTypes() {
-    return InstrumenterConfig.get()
-        .isIntegrationShortcutMatchingEnabled(
-            asList("httpasyncclient", "apache-httpasyncclient"), false);
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "org.apache.http.impl.nio.client.AbstractHttpAsyncClient",
-      "org.apache.http.impl.nio.client.CloseableHttpAsyncClient",
-      "org.apache.http.impl.nio.client.CloseableHttpAsyncClientBase",
-      "org.apache.http.impl.nio.client.CloseableHttpPipeliningClient",
-      "org.apache.http.impl.nio.client.DefaultHttpAsyncClient",
-      "org.apache.http.impl.nio.client.InternalHttpAsyncClient",
-      "org.apache.http.impl.nio.client.MinimalHttpAsyncClient"
-    };
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "org.apache.http.nio.client.HttpAsyncClient";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvices(
-        isMethod()
-            .and(named("execute"))
-            .and(takesArguments(4))
-            .and(takesArgument(0, named("org.apache.http.nio.protocol.HttpAsyncRequestProducer")))
-            .and(takesArgument(1, named("org.apache.http.nio.protocol.HttpAsyncResponseConsumer")))
-            .and(takesArgument(2, named("org.apache.http.protocol.HttpContext")))
-            .and(takesArgument(3, named("org.apache.http.concurrent.FutureCallback"))),
-        ApacheHttpAsyncClientInstrumentation.class.getName() + "$ClientContextPropagationAdvice",
-        ApacheHttpAsyncClientInstrumentation.class.getName() + "$ClientAdvice");
-  }
-
-  @AppliesOn(CONTEXT_TRACKING)
-  @SuppressFBWarnings("UC_USELESS_OBJECT")
-  public static class ClientContextPropagationAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void methodEnter(
-        @Advice.Argument(value = 0, readOnly = false) HttpAsyncRequestProducer requestProducer) {
-      final DelegatingRequestProducer delegatingRequestProducer =
-          new DelegatingRequestProducer(requestProducer);
-      delegatingRequestProducer.setInjectContext(true);
-      requestProducer = delegatingRequestProducer;
-    }
-  }
-
-  @SuppressFBWarnings("UC_USELESS_OBJECT")
-  public static class ClientAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentSpan methodEnter(
-        @Advice.Argument(value = 0, readOnly = false) HttpAsyncRequestProducer requestProducer,
-        @Advice.Argument(2) HttpContext context,
-        @Advice.Argument(value = 3, readOnly = false) FutureCallback<?> futureCallback,
-        @Advice.Local("parentContinuation") ContextContinuation parentContinuation) {
-
-      if (!(requestProducer instanceof DelegatingRequestProducer)) {
-        requestProducer = new DelegatingRequestProducer(requestProducer);
-      }
-
-      parentContinuation = currentContext().capture();
-      final AgentSpan clientSpan = startSpan(APACHE_HTTPASYNCCLIENT.toString(), HTTP_REQUEST);
-      DECORATE.afterStart(clientSpan);
-      ((DelegatingRequestProducer) requestProducer).setSpan(clientSpan);
-      futureCallback =
-          new TraceContinuedFutureCallback<>(
-              parentContinuation, clientSpan, context, futureCallback);
-
-      return clientSpan;
+    public ApacheHttpAsyncClientInstrumentation() {
+        super();
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit(
-        @Advice.Enter final AgentSpan span,
-        @Advice.Local("parentContinuation") final ContextContinuation parentContinuation,
-        @Advice.Thrown final Throwable throwable) {
-      if (throwable != null) {
-        try {
-          DECORATE.onError(span, throwable);
-          DECORATE.beforeFinish(span);
-          span.finish();
-        } finally {
-          // Submission failed before a callback could take ownership.
-          if (parentContinuation != null) {
-            parentContinuation.release();
-          }
+    @Override
+    public boolean onlyMatchKnownTypes() {
+        return InstrumenterConfig.get()
+                .isIntegrationShortcutMatchingEnabled(asList("httpasyncclient", "apache-httpasyncclient"), false);
+    }
+
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            "org.apache.http.impl.nio.client.AbstractHttpAsyncClient",
+            "org.apache.http.impl.nio.client.CloseableHttpAsyncClient",
+            "org.apache.http.impl.nio.client.CloseableHttpAsyncClientBase",
+            "org.apache.http.impl.nio.client.CloseableHttpPipeliningClient",
+            "org.apache.http.impl.nio.client.DefaultHttpAsyncClient",
+            "org.apache.http.impl.nio.client.InternalHttpAsyncClient",
+            "org.apache.http.impl.nio.client.MinimalHttpAsyncClient"
+        };
+    }
+
+    @Override
+    public String hierarchyMarkerType() {
+        return "org.apache.http.nio.client.HttpAsyncClient";
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvices(
+                isMethod()
+                        .and(named("execute"))
+                        .and(takesArguments(4))
+                        .and(takesArgument(0, named("org.apache.http.nio.protocol.HttpAsyncRequestProducer")))
+                        .and(takesArgument(1, named("org.apache.http.nio.protocol.HttpAsyncResponseConsumer")))
+                        .and(takesArgument(2, named("org.apache.http.protocol.HttpContext")))
+                        .and(takesArgument(3, named("org.apache.http.concurrent.FutureCallback"))),
+                ApacheHttpAsyncClientInstrumentation.class.getName() + "$ClientContextPropagationAdvice",
+                ApacheHttpAsyncClientInstrumentation.class.getName() + "$ClientAdvice");
+    }
+
+    @AppliesOn(CONTEXT_TRACKING)
+    @SuppressFBWarnings("UC_USELESS_OBJECT")
+    public static class ClientContextPropagationAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void methodEnter(
+                @Advice.Argument(value = 0, readOnly = false) HttpAsyncRequestProducer requestProducer) {
+            final DelegatingRequestProducer delegatingRequestProducer = new DelegatingRequestProducer(requestProducer);
+            delegatingRequestProducer.setInjectContext(true);
+            requestProducer = delegatingRequestProducer;
         }
-      }
     }
-  }
+
+    @SuppressFBWarnings("UC_USELESS_OBJECT")
+    public static class ClientAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static AgentSpan methodEnter(
+                @Advice.Argument(value = 0, readOnly = false) HttpAsyncRequestProducer requestProducer,
+                @Advice.Argument(2) HttpContext context,
+                @Advice.Argument(value = 3, readOnly = false) FutureCallback<?> futureCallback,
+                @Advice.Local("parentContinuation") ContextContinuation parentContinuation) {
+
+            if (!(requestProducer instanceof DelegatingRequestProducer)) {
+                requestProducer = new DelegatingRequestProducer(requestProducer);
+            }
+
+            parentContinuation = currentContext().capture();
+            final AgentSpan clientSpan = startSpan(APACHE_HTTPASYNCCLIENT.toString(), HTTP_REQUEST);
+            DECORATE.afterStart(clientSpan);
+            ((DelegatingRequestProducer) requestProducer).setSpan(clientSpan);
+            futureCallback =
+                    new TraceContinuedFutureCallback<>(parentContinuation, clientSpan, context, futureCallback);
+
+            return clientSpan;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void methodExit(
+                @Advice.Enter final AgentSpan span,
+                @Advice.Local("parentContinuation") final ContextContinuation parentContinuation,
+                @Advice.Thrown final Throwable throwable) {
+            if (throwable != null) {
+                try {
+                    DECORATE.onError(span, throwable);
+                    DECORATE.beforeFinish(span);
+                    span.finish();
+                } finally {
+                    // Submission failed before a callback could take ownership.
+                    if (parentContinuation != null) {
+                        parentContinuation.release();
+                    }
+                }
+            }
+        }
+    }
 }

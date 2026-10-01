@@ -11,37 +11,32 @@ import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Publisher;
 
-public class CircuitBreakerOperatorInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+public class CircuitBreakerOperatorInstrumentation implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String instrumentedType() {
-    return "io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("apply"))
-            .and(takesArgument(0, named("org.reactivestreams.Publisher"))),
-        CircuitBreakerOperatorInstrumentation.class.getName() + "$ApplyAdvice");
-  }
-
-  public static class ApplyAdvice {
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void after(
-        @Advice.Return(readOnly = false) Publisher<?> result,
-        @Advice.FieldValue(value = "circuitBreaker") CircuitBreaker circuitBreaker) {
-
-      result =
-          ReactorHelper.wrapPublisher(
-              result,
-              CircuitBreakerDecorator.DECORATE,
-              circuitBreaker,
-              ReactorHelper.putInto(
-                  InstrumentationContext.get(Publisher.class, HandoffContext.class)));
+    @Override
+    public String instrumentedType() {
+        return "io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator";
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("apply")).and(takesArgument(0, named("org.reactivestreams.Publisher"))),
+                CircuitBreakerOperatorInstrumentation.class.getName() + "$ApplyAdvice");
+    }
+
+    public static class ApplyAdvice {
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void after(
+                @Advice.Return(readOnly = false) Publisher<?> result,
+                @Advice.FieldValue(value = "circuitBreaker") CircuitBreaker circuitBreaker) {
+
+            result = ReactorHelper.wrapPublisher(
+                    result,
+                    CircuitBreakerDecorator.DECORATE,
+                    circuitBreaker,
+                    ReactorHelper.putInto(InstrumentationContext.get(Publisher.class, HandoffContext.class)));
+        }
+    }
 }

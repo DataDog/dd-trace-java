@@ -3,13 +3,13 @@ package com.datadog.appsec.config;
 import java.io.Closeable;
 
 public interface AppSecConfigService extends Closeable {
-  void init();
+    void init();
 
-  void close();
+    void close();
 
-  TransactionalAppSecModuleConfigurer createAppSecModuleConfigurer();
+    TransactionalAppSecModuleConfigurer createAppSecModuleConfigurer();
 
-  interface TransactionalAppSecModuleConfigurer extends AppSecModuleConfigurer {
-    void commit();
-  }
+    interface TransactionalAppSecModuleConfigurer extends AppSecModuleConfigurer {
+        void commit();
+    }
 }

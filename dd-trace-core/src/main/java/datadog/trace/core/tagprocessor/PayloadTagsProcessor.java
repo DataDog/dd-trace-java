@@ -24,247 +24,238 @@ import org.slf4j.LoggerFactory;
 
 /** Post-processor that extracts tags from payload data injected as tags by instrumentations. */
 public final class PayloadTagsProcessor extends TagsPostProcessor {
-  private static final Logger log = LoggerFactory.getLogger(PayloadTagsProcessor.class);
+    private static final Logger log = LoggerFactory.getLogger(PayloadTagsProcessor.class);
 
-  private static final String REDACTED = "redacted";
-  private static final String BINARY = "<binary>";
-  private static final String DD_PAYLOAD_TAGS_INCOMPLETE = "_dd.payload_tags_incomplete";
+    private static final String REDACTED = "redacted";
+    private static final String BINARY = "<binary>";
+    private static final String DD_PAYLOAD_TAGS_INCOMPLETE = "_dd.payload_tags_incomplete";
 
-  @Nullable
-  public static PayloadTagsProcessor create(Config config) {
-    Map<String, RedactionRules> redactionRulesByTagPrefix = new HashMap<>();
-    if (config.isCloudRequestPayloadTaggingEnabled()) {
-      redactionRulesByTagPrefix.put(
-          ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_REQUEST_TAG,
-          new RedactionRules.Builder()
-              .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_COMMON_PAYLOAD_TAGGING)
-              .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_REQUEST_PAYLOAD_TAGGING)
-              .addParsedRedactionJsonPaths(config.getCloudRequestPayloadTagging())
-              .build());
+    @Nullable
+    public static PayloadTagsProcessor create(Config config) {
+        Map<String, RedactionRules> redactionRulesByTagPrefix = new HashMap<>();
+        if (config.isCloudRequestPayloadTaggingEnabled()) {
+            redactionRulesByTagPrefix.put(
+                    ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_REQUEST_TAG,
+                    new RedactionRules.Builder()
+                            .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_COMMON_PAYLOAD_TAGGING)
+                            .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_REQUEST_PAYLOAD_TAGGING)
+                            .addParsedRedactionJsonPaths(config.getCloudRequestPayloadTagging())
+                            .build());
+        }
+        if (config.isCloudResponsePayloadTaggingEnabled()) {
+            redactionRulesByTagPrefix.put(
+                    ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_RESPONSE_TAG,
+                    new RedactionRules.Builder()
+                            .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_COMMON_PAYLOAD_TAGGING)
+                            .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_RESPONSE_PAYLOAD_TAGGING)
+                            .addParsedRedactionJsonPaths(config.getCloudResponsePayloadTagging())
+                            .build());
+        }
+        if (redactionRulesByTagPrefix.isEmpty()) {
+            return null;
+        }
+        int maxDepth = config.getCloudPayloadTaggingMaxDepth();
+        int maxTags = config.getCloudPayloadTaggingMaxTags();
+        return new PayloadTagsProcessor(redactionRulesByTagPrefix, maxDepth, maxTags);
     }
-    if (config.isCloudResponsePayloadTaggingEnabled()) {
-      redactionRulesByTagPrefix.put(
-          ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_RESPONSE_TAG,
-          new RedactionRules.Builder()
-              .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_COMMON_PAYLOAD_TAGGING)
-              .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_RESPONSE_PAYLOAD_TAGGING)
-              .addParsedRedactionJsonPaths(config.getCloudResponsePayloadTagging())
-              .build());
+
+    final Map<String, RedactionRules> redactionRulesByTagPrefix;
+    final int maxDepth;
+    final int maxTags;
+
+    PayloadTagsProcessor(Map<String, RedactionRules> redactionRulesByTagPrefix, int maxDepth, int maxTags) {
+        this.redactionRulesByTagPrefix = redactionRulesByTagPrefix;
+        this.maxDepth = maxDepth;
+        this.maxTags = maxTags;
     }
-    if (redactionRulesByTagPrefix.isEmpty()) {
-      return null;
+
+    @Override
+    public void processTags(TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+        int spanMaxTags = maxTags + unsafeTags.size();
+        for (Map.Entry<String, RedactionRules> tagPrefixRedactionRules : redactionRulesByTagPrefix.entrySet()) {
+            String tagPrefix = tagPrefixRedactionRules.getKey();
+            RedactionRules redactionRules = tagPrefixRedactionRules.getValue();
+            Object tagValue = unsafeTags.getObject(tagPrefix);
+            if (tagValue instanceof PayloadTagsData) {
+                if (unsafeTags.remove(tagPrefix)) {
+                    spanMaxTags -= 1;
+                }
+
+                PayloadTagsData payloadTagsData = (PayloadTagsData) tagValue;
+                PayloadTagsCollector payloadTagsCollector =
+                        new PayloadTagsCollector(maxDepth, spanMaxTags, redactionRules, tagPrefix, unsafeTags);
+                collectPayloadTags(payloadTagsData, payloadTagsCollector);
+            } else if (tagValue != null) {
+                log.debug(
+                        LogCollector.SEND_TELEMETRY,
+                        "Expected PayloadTagsData for known payload tag '{}', but got '{}'",
+                        tagPrefix,
+                        tagValue);
+            }
+        }
     }
-    int maxDepth = config.getCloudPayloadTaggingMaxDepth();
-    int maxTags = config.getCloudPayloadTaggingMaxTags();
-    return new PayloadTagsProcessor(redactionRulesByTagPrefix, maxDepth, maxTags);
-  }
 
-  final Map<String, RedactionRules> redactionRulesByTagPrefix;
-  final int maxDepth;
-  final int maxTags;
+    private void collectPayloadTags(PayloadTagsData payloadTagsData, PayloadTagsCollector payloadTagsCollector) {
+        for (PayloadTagsData.PathAndValue pathAndValue : payloadTagsData.pathAndValues) {
+            if (pathAndValue.path.length > maxDepth) {
+                continue;
+            }
+            if (!payloadTagsCollector.keepCollectingTags()) {
+                break;
+            }
+            PathCursor cursor = new PathCursor(pathAndValue.path, maxDepth);
+            if (payloadTagsCollector.notRedacted(cursor)) {
+                Object value = pathAndValue.value;
+                if (value instanceof InputStream) {
+                    if (!JsonStreamParser.tryToParse((InputStream) value, payloadTagsCollector, cursor)) {
+                        payloadTagsCollector.stringValue(cursor, BINARY);
+                    }
+                } else if (value instanceof String) {
+                    String str = (String) value;
+                    if (!JsonStreamParser.tryToParse(str, payloadTagsCollector, cursor)) {
+                        payloadTagsCollector.stringValue(cursor, str);
+                    }
+                } else if (value instanceof Boolean) {
+                    payloadTagsCollector.booleanValue(cursor, (Boolean) value);
+                } else if (value instanceof Integer) {
+                    payloadTagsCollector.intValue(cursor, (Integer) value);
+                } else if (value instanceof Long) {
+                    payloadTagsCollector.longValue(cursor, (Long) value);
+                } else if (value instanceof Double) {
+                    payloadTagsCollector.doubleValue(cursor, (Double) value);
+                } else if (value == null) {
+                    payloadTagsCollector.nullValue(cursor);
+                } else {
+                    payloadTagsCollector.stringValue(cursor, String.valueOf(value));
+                }
+            }
+        }
+    }
 
-  PayloadTagsProcessor(
-      Map<String, RedactionRules> redactionRulesByTagPrefix, int maxDepth, int maxTags) {
-    this.redactionRulesByTagPrefix = redactionRulesByTagPrefix;
-    this.maxDepth = maxDepth;
-    this.maxTags = maxTags;
-  }
+    static final class RedactionRules {
 
-  @Override
-  public void processTags(
-      TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
-    int spanMaxTags = maxTags + unsafeTags.size();
-    for (Map.Entry<String, RedactionRules> tagPrefixRedactionRules :
-        redactionRulesByTagPrefix.entrySet()) {
-      String tagPrefix = tagPrefixRedactionRules.getKey();
-      RedactionRules redactionRules = tagPrefixRedactionRules.getValue();
-      Object tagValue = unsafeTags.getObject(tagPrefix);
-      if (tagValue instanceof PayloadTagsData) {
-        if (unsafeTags.remove(tagPrefix)) {
-          spanMaxTags -= 1;
+        public static final class Builder {
+            private final List<JsonPath> redactionRules = new ArrayList<>();
+
+            public RedactionRules.Builder addRedactionJsonPaths(List<String> jsonPaths) {
+                this.redactionRules.addAll(parseJsonPaths(jsonPaths));
+                return this;
+            }
+
+            public RedactionRules.Builder addParsedRedactionJsonPaths(List<JsonPath> jsonPaths) {
+                if (null == jsonPaths) {
+                    log.warn("Provided JsonPaths list is null, skipping.");
+                    return this;
+                }
+                this.redactionRules.addAll(jsonPaths);
+                return this;
+            }
+
+            RedactionRules build() {
+                return new RedactionRules(redactionRules);
+            }
         }
 
-        PayloadTagsData payloadTagsData = (PayloadTagsData) tagValue;
-        PayloadTagsCollector payloadTagsCollector =
-            new PayloadTagsCollector(maxDepth, spanMaxTags, redactionRules, tagPrefix, unsafeTags);
-        collectPayloadTags(payloadTagsData, payloadTagsCollector);
-      } else if (tagValue != null) {
-        log.debug(
-            LogCollector.SEND_TELEMETRY,
-            "Expected PayloadTagsData for known payload tag '{}', but got '{}'",
-            tagPrefix,
-            tagValue);
-      }
-    }
-  }
+        private final List<JsonPath> paths;
 
-  private void collectPayloadTags(
-      PayloadTagsData payloadTagsData, PayloadTagsCollector payloadTagsCollector) {
-    for (PayloadTagsData.PathAndValue pathAndValue : payloadTagsData.pathAndValues) {
-      if (pathAndValue.path.length > maxDepth) {
-        continue;
-      }
-      if (!payloadTagsCollector.keepCollectingTags()) {
-        break;
-      }
-      PathCursor cursor = new PathCursor(pathAndValue.path, maxDepth);
-      if (payloadTagsCollector.notRedacted(cursor)) {
-        Object value = pathAndValue.value;
-        if (value instanceof InputStream) {
-          if (!JsonStreamParser.tryToParse((InputStream) value, payloadTagsCollector, cursor)) {
-            payloadTagsCollector.stringValue(cursor, BINARY);
-          }
-        } else if (value instanceof String) {
-          String str = (String) value;
-          if (!JsonStreamParser.tryToParse(str, payloadTagsCollector, cursor)) {
-            payloadTagsCollector.stringValue(cursor, str);
-          }
-        } else if (value instanceof Boolean) {
-          payloadTagsCollector.booleanValue(cursor, (Boolean) value);
-        } else if (value instanceof Integer) {
-          payloadTagsCollector.intValue(cursor, (Integer) value);
-        } else if (value instanceof Long) {
-          payloadTagsCollector.longValue(cursor, (Long) value);
-        } else if (value instanceof Double) {
-          payloadTagsCollector.doubleValue(cursor, (Double) value);
-        } else if (value == null) {
-          payloadTagsCollector.nullValue(cursor);
-        } else {
-          payloadTagsCollector.stringValue(cursor, String.valueOf(value));
+        private RedactionRules(List<JsonPath> paths) {
+            this.paths = paths;
         }
-      }
-    }
-  }
 
-  static final class RedactionRules {
-
-    public static final class Builder {
-      private final List<JsonPath> redactionRules = new ArrayList<>();
-
-      public RedactionRules.Builder addRedactionJsonPaths(List<String> jsonPaths) {
-        this.redactionRules.addAll(parseJsonPaths(jsonPaths));
-        return this;
-      }
-
-      public RedactionRules.Builder addParsedRedactionJsonPaths(List<JsonPath> jsonPaths) {
-        if (null == jsonPaths) {
-          log.warn("Provided JsonPaths list is null, skipping.");
-          return this;
+        public JsonPath findMatching(PathCursor pathCursor) {
+            for (JsonPath jp : paths) {
+                if (jp.matches(pathCursor)) {
+                    return jp;
+                }
+            }
+            return null;
         }
-        this.redactionRules.addAll(jsonPaths);
-        return this;
-      }
-
-      RedactionRules build() {
-        return new RedactionRules(redactionRules);
-      }
     }
 
-    private final List<JsonPath> paths;
+    private static final class PayloadTagsCollector implements JsonStreamParser.Visitor {
+        private final int maxTags;
+        private final int maxDepth;
+        private final RedactionRules redactionRules;
+        private final String tagPrefix;
 
-    private RedactionRules(List<JsonPath> paths) {
-      this.paths = paths;
-    }
+        private final TagMap collectedTags;
 
-    public JsonPath findMatching(PathCursor pathCursor) {
-      for (JsonPath jp : paths) {
-        if (jp.matches(pathCursor)) {
-          return jp;
+        public PayloadTagsCollector(
+                int maxDepth, int maxTags, RedactionRules redactionRules, String tagPrefix, TagMap collectedTags) {
+            this.maxDepth = maxDepth;
+            this.maxTags = maxTags;
+            this.redactionRules = redactionRules;
+            this.tagPrefix = tagPrefix;
+            this.collectedTags = collectedTags;
         }
-      }
-      return null;
+
+        @Override
+        public boolean visitCompound(PathCursor path) {
+            if (path.length() < maxDepth) {
+                return notRedacted(path);
+            }
+            return false;
+        }
+
+        @Override
+        public boolean visitPrimitive(PathCursor path) {
+            return notRedacted(path);
+        }
+
+        private boolean notRedacted(PathCursor path) {
+            if (redactionRules.findMatching(path) != null) {
+                collectedTags.set(path.toString(tagPrefix), REDACTED);
+                return false;
+            }
+            return true;
+        }
+
+        @Override
+        public void booleanValue(PathCursor path, boolean value) {
+            collectedTags.set(path.toString(tagPrefix), value);
+        }
+
+        @Override
+        public void stringValue(PathCursor path, String value) {
+            collectedTags.set(path.toString(tagPrefix), value);
+        }
+
+        @Override
+        public void intValue(PathCursor path, int value) {
+            collectedTags.set(path.toString(tagPrefix), value);
+        }
+
+        @Override
+        public void longValue(PathCursor path, long value) {
+            collectedTags.set(path.toString(tagPrefix), value);
+        }
+
+        @Override
+        public void doubleValue(PathCursor path, double value) {
+            collectedTags.set(path.toString(tagPrefix), value);
+        }
+
+        @Override
+        public void nullValue(PathCursor path) {
+            collectedTags.set(path.toString(tagPrefix), null);
+        }
+
+        @Override
+        public boolean keepParsing(PathCursor path) {
+            return keepCollectingTags();
+        }
+
+        public boolean keepCollectingTags() {
+            if (collectedTags.size() < maxTags) {
+                return true;
+            }
+            collectedTags.set(DD_PAYLOAD_TAGS_INCOMPLETE, true);
+            return false;
+        }
+
+        @Override
+        public void expandValueFailed(PathCursor path, Exception exception) {
+            log.debug(EXCLUDE_TELEMETRY, "Failed to expand value at path '{}'", path.toString(""), exception);
+        }
     }
-  }
-
-  private static final class PayloadTagsCollector implements JsonStreamParser.Visitor {
-    private final int maxTags;
-    private final int maxDepth;
-    private final RedactionRules redactionRules;
-    private final String tagPrefix;
-
-    private final TagMap collectedTags;
-
-    public PayloadTagsCollector(
-        int maxDepth,
-        int maxTags,
-        RedactionRules redactionRules,
-        String tagPrefix,
-        TagMap collectedTags) {
-      this.maxDepth = maxDepth;
-      this.maxTags = maxTags;
-      this.redactionRules = redactionRules;
-      this.tagPrefix = tagPrefix;
-      this.collectedTags = collectedTags;
-    }
-
-    @Override
-    public boolean visitCompound(PathCursor path) {
-      if (path.length() < maxDepth) {
-        return notRedacted(path);
-      }
-      return false;
-    }
-
-    @Override
-    public boolean visitPrimitive(PathCursor path) {
-      return notRedacted(path);
-    }
-
-    private boolean notRedacted(PathCursor path) {
-      if (redactionRules.findMatching(path) != null) {
-        collectedTags.set(path.toString(tagPrefix), REDACTED);
-        return false;
-      }
-      return true;
-    }
-
-    @Override
-    public void booleanValue(PathCursor path, boolean value) {
-      collectedTags.set(path.toString(tagPrefix), value);
-    }
-
-    @Override
-    public void stringValue(PathCursor path, String value) {
-      collectedTags.set(path.toString(tagPrefix), value);
-    }
-
-    @Override
-    public void intValue(PathCursor path, int value) {
-      collectedTags.set(path.toString(tagPrefix), value);
-    }
-
-    @Override
-    public void longValue(PathCursor path, long value) {
-      collectedTags.set(path.toString(tagPrefix), value);
-    }
-
-    @Override
-    public void doubleValue(PathCursor path, double value) {
-      collectedTags.set(path.toString(tagPrefix), value);
-    }
-
-    @Override
-    public void nullValue(PathCursor path) {
-      collectedTags.set(path.toString(tagPrefix), null);
-    }
-
-    @Override
-    public boolean keepParsing(PathCursor path) {
-      return keepCollectingTags();
-    }
-
-    public boolean keepCollectingTags() {
-      if (collectedTags.size() < maxTags) {
-        return true;
-      }
-      collectedTags.set(DD_PAYLOAD_TAGS_INCOMPLETE, true);
-      return false;
-    }
-
-    @Override
-    public void expandValueFailed(PathCursor path, Exception exception) {
-      log.debug(
-          EXCLUDE_TELEMETRY, "Failed to expand value at path '{}'", path.toString(""), exception);
-    }
-  }
 }

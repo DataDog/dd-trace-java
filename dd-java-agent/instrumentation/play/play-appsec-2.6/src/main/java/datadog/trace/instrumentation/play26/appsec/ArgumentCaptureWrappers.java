@@ -15,117 +15,113 @@ import java.util.function.Function;
 import play.libs.F;
 
 public class ArgumentCaptureWrappers {
-  public static class ArgumentCaptureFunction<R> implements Function<Object, R> {
-    private final Function<Object, R> delegate;
+    public static class ArgumentCaptureFunction<R> implements Function<Object, R> {
+        private final Function<Object, R> delegate;
 
-    public ArgumentCaptureFunction(Function<Object, R> delegate) {
-      this.delegate = delegate;
+        public ArgumentCaptureFunction(Function<Object, R> delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public R apply(Object o) {
+            if (o == null) {
+                return delegate.apply(null);
+            }
+
+            AgentSpan agentSpan = activeSpan();
+            if (agentSpan == null) {
+                return delegate.apply(o);
+            }
+
+            RequestContext requestContext = agentSpan.getRequestContext();
+            if (requestContext.getData(RequestContextSlot.APPSEC) == null) {
+                return delegate.apply(o);
+            }
+
+            Map<String, Object> conv = Collections.singletonMap("0", o);
+
+            BlockingException t =
+                    PathExtractionHelpers.callRequestPathParamsCallback(requestContext, conv, "RoutingDsl#routeTo");
+            if (t != null) {
+                throw t;
+            }
+
+            return delegate.apply(o);
+        }
     }
 
-    @Override
-    public R apply(Object o) {
-      if (o == null) {
-        return delegate.apply(null);
-      }
+    public static class ArgumentCaptureBiFunction<R> implements BiFunction<Object, Object, R> {
+        private final BiFunction<Object, Object, R> delegate;
 
-      AgentSpan agentSpan = activeSpan();
-      if (agentSpan == null) {
-        return delegate.apply(o);
-      }
+        public ArgumentCaptureBiFunction(BiFunction<Object, Object, R> delegate) {
+            this.delegate = delegate;
+        }
 
-      RequestContext requestContext = agentSpan.getRequestContext();
-      if (requestContext.getData(RequestContextSlot.APPSEC) == null) {
-        return delegate.apply(o);
-      }
+        @Override
+        public R apply(Object o1, Object o2) {
+            if (o1 == null && o2 == null) {
+                return delegate.apply(null, null);
+            }
 
-      Map<String, Object> conv = Collections.singletonMap("0", o);
+            AgentSpan agentSpan = activeSpan();
+            if (agentSpan == null) {
+                return delegate.apply(o1, o2);
+            }
 
-      BlockingException t =
-          PathExtractionHelpers.callRequestPathParamsCallback(
-              requestContext, conv, "RoutingDsl#routeTo");
-      if (t != null) {
-        throw t;
-      }
+            RequestContext requestContext = agentSpan.getRequestContext();
+            if (requestContext.getData(RequestContextSlot.APPSEC) == null) {
+                return delegate.apply(o1, o2);
+            }
 
-      return delegate.apply(o);
-    }
-  }
+            Map<String, Object> conv = new HashMap<>();
+            conv.put("0", o1);
+            conv.put("1", o2);
 
-  public static class ArgumentCaptureBiFunction<R> implements BiFunction<Object, Object, R> {
-    private final BiFunction<Object, Object, R> delegate;
+            BlockingException t =
+                    PathExtractionHelpers.callRequestPathParamsCallback(requestContext, conv, "RoutingDsl#routeTo");
+            if (t != null) {
+                throw t;
+            }
 
-    public ArgumentCaptureBiFunction(BiFunction<Object, Object, R> delegate) {
-      this.delegate = delegate;
-    }
-
-    @Override
-    public R apply(Object o1, Object o2) {
-      if (o1 == null && o2 == null) {
-        return delegate.apply(null, null);
-      }
-
-      AgentSpan agentSpan = activeSpan();
-      if (agentSpan == null) {
-        return delegate.apply(o1, o2);
-      }
-
-      RequestContext requestContext = agentSpan.getRequestContext();
-      if (requestContext.getData(RequestContextSlot.APPSEC) == null) {
-        return delegate.apply(o1, o2);
-      }
-
-      Map<String, Object> conv = new HashMap<>();
-      conv.put("0", o1);
-      conv.put("1", o2);
-
-      BlockingException t =
-          PathExtractionHelpers.callRequestPathParamsCallback(
-              requestContext, conv, "RoutingDsl#routeTo");
-      if (t != null) {
-        throw t;
-      }
-
-      return delegate.apply(o1, o2);
-    }
-  }
-
-  public static class ArgumentCaptureFunction3<R>
-      implements F.Function3<Object, Object, Object, R> {
-    private final F.Function3<Object, Object, Object, R> delegate;
-
-    public ArgumentCaptureFunction3(F.Function3<Object, Object, Object, R> delegate) {
-      this.delegate = delegate;
+            return delegate.apply(o1, o2);
+        }
     }
 
-    @Override
-    public R apply(Object o1, Object o2, Object o3) throws Throwable {
-      if (o1 == null && o2 == null && o3 == null) {
-        return delegate.apply(null, null, null);
-      }
+    public static class ArgumentCaptureFunction3<R> implements F.Function3<Object, Object, Object, R> {
+        private final F.Function3<Object, Object, Object, R> delegate;
 
-      AgentSpan agentSpan = activeSpan();
-      if (agentSpan == null) {
-        return delegate.apply(o1, o2, o3);
-      }
+        public ArgumentCaptureFunction3(F.Function3<Object, Object, Object, R> delegate) {
+            this.delegate = delegate;
+        }
 
-      RequestContext requestContext = agentSpan.getRequestContext();
-      if (requestContext.getData(RequestContextSlot.APPSEC) == null) {
-        return delegate.apply(o1, o2, o3);
-      }
+        @Override
+        public R apply(Object o1, Object o2, Object o3) throws Throwable {
+            if (o1 == null && o2 == null && o3 == null) {
+                return delegate.apply(null, null, null);
+            }
 
-      Map<String, Object> conv = new HashMap<>();
-      conv.put("0", o1);
-      conv.put("1", o2);
-      conv.put("2", o3);
+            AgentSpan agentSpan = activeSpan();
+            if (agentSpan == null) {
+                return delegate.apply(o1, o2, o3);
+            }
 
-      BlockingException t =
-          PathExtractionHelpers.callRequestPathParamsCallback(
-              requestContext, conv, "RoutingDsl#routeTo");
-      if (t != null) {
-        throw t;
-      }
+            RequestContext requestContext = agentSpan.getRequestContext();
+            if (requestContext.getData(RequestContextSlot.APPSEC) == null) {
+                return delegate.apply(o1, o2, o3);
+            }
 
-      return delegate.apply(o1, o2, o3);
+            Map<String, Object> conv = new HashMap<>();
+            conv.put("0", o1);
+            conv.put("1", o2);
+            conv.put("2", o3);
+
+            BlockingException t =
+                    PathExtractionHelpers.callRequestPathParamsCallback(requestContext, conv, "RoutingDsl#routeTo");
+            if (t != null) {
+                throw t;
+            }
+
+            return delegate.apply(o1, o2, o3);
+        }
     }
-  }
 }

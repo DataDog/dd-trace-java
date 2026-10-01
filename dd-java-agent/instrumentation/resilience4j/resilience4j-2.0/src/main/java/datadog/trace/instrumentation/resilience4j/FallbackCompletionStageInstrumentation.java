@@ -10,33 +10,32 @@ import java.util.function.Supplier;
 import net.bytebuddy.asm.Advice;
 
 public class FallbackCompletionStageInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String instrumentedType() {
-    return "io.github.resilience4j.decorators.Decorators$DecorateCompletionStage";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("withFallback")),
-        FallbackCompletionStageInstrumentation.class.getName() + "$CompletionStageAdvice");
-  }
-
-  public static class CompletionStageAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void afterExecute(
-        @Advice.FieldValue(value = "stageSupplier", readOnly = false)
-            Supplier<CompletionStage<?>> stageSupplier) {
-      stageSupplier =
-          new WrapperWithContext.SupplierOfCompletionStageWithContext<>(
-              stageSupplier, Resilience4jSpanDecorator.DECORATE, null);
+    @Override
+    public String instrumentedType() {
+        return "io.github.resilience4j.decorators.Decorators$DecorateCompletionStage";
     }
 
-    // 2.0.0+
-    public static void muzzleCheck(CheckedSupplier<?> cs) throws Throwable {
-      cs.get();
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("withFallback")),
+                FallbackCompletionStageInstrumentation.class.getName() + "$CompletionStageAdvice");
     }
-  }
+
+    public static class CompletionStageAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void afterExecute(
+                @Advice.FieldValue(value = "stageSupplier", readOnly = false)
+                        Supplier<CompletionStage<?>> stageSupplier) {
+            stageSupplier = new WrapperWithContext.SupplierOfCompletionStageWithContext<>(
+                    stageSupplier, Resilience4jSpanDecorator.DECORATE, null);
+        }
+
+        // 2.0.0+
+        public static void muzzleCheck(CheckedSupplier<?> cs) throws Throwable {
+            cs.get();
+        }
+    }
 }

@@ -34,33 +34,32 @@ import org.openjdk.jmh.infra.Blackhole;
 @Fork(value = 1)
 @SuppressForbidden
 public class LongAdderBenchmark {
-  public final LongAdder adder = new LongAdder();
-  public final FixedSizeStripedLongCounter counter =
-      CountersFactory.createFixedSizeStripedCounter(8);
+    public final LongAdder adder = new LongAdder();
+    public final FixedSizeStripedLongCounter counter = CountersFactory.createFixedSizeStripedCounter(8);
 
-  @Benchmark
-  @Threads(Threads.MAX)
-  public void benchLongAdderIncrement(Blackhole blackhole) {
-    adder.increment();
-  }
+    @Benchmark
+    @Threads(Threads.MAX)
+    public void benchLongAdderIncrement(Blackhole blackhole) {
+        adder.increment();
+    }
 
-  @Benchmark
-  @Threads(Threads.MAX)
-  public void benchStripedCounterIncrement(Blackhole blackhole) {
-    counter.inc();
-  }
+    @Benchmark
+    @Threads(Threads.MAX)
+    public void benchStripedCounterIncrement(Blackhole blackhole) {
+        counter.inc();
+    }
 
-  @Benchmark
-  @Threads(Threads.MAX)
-  public void benchLongAdderSum(Blackhole blackhole) {
-    adder.increment();
-    blackhole.consume(adder.sum());
-  }
+    @Benchmark
+    @Threads(Threads.MAX)
+    public void benchLongAdderSum(Blackhole blackhole) {
+        adder.increment();
+        blackhole.consume(adder.sum());
+    }
 
-  @Benchmark
-  @Threads(Threads.MAX)
-  public void benchStripedCounterSum(Blackhole blackhole) {
-    counter.inc();
-    blackhole.consume(counter.get());
-  }
+    @Benchmark
+    @Threads(Threads.MAX)
+    public void benchStripedCounterSum(Blackhole blackhole) {
+        counter.inc();
+        blackhole.consume(counter.get());
+    }
 }

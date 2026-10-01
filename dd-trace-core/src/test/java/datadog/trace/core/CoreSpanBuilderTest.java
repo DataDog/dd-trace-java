@@ -59,70 +59,68 @@ import org.tabletest.junit.TableTest;
 
 public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
 
-  private static final String INHERITED_RANDOM_VALUE = "ef284ace7a91e1";
-  private static final String OTEL_TRACE_STATE =
-      "dd=s:0,ot=rv:" + INHERITED_RANDOM_VALUE + ";th:e6666666666668";
-  private static final String OTEL_MEMBER = "ot=";
-  private static final String THRESHOLD_0_5 = ";th:8";
-  private static final double SAMPLE_RATE_0_5 = 0.5;
-  private static final String DATADOG_TRACE_STATE = "_dd.p.dm=934086a686-4,_dd.p.anytag=value";
+    private static final String INHERITED_RANDOM_VALUE = "ef284ace7a91e1";
+    private static final String OTEL_TRACE_STATE = "dd=s:0,ot=rv:" + INHERITED_RANDOM_VALUE + ";th:e6666666666668";
+    private static final String OTEL_MEMBER = "ot=";
+    private static final String THRESHOLD_0_5 = ";th:8";
+    private static final double SAMPLE_RATE_0_5 = 0.5;
+    private static final String DATADOG_TRACE_STATE = "_dd.p.dm=934086a686-4,_dd.p.anytag=value";
 
-  private ListWriter writer;
-  private CoreTracer tracer;
+    private ListWriter writer;
+    private CoreTracer tracer;
 
-  @BeforeEach
-  void setup() {
-    writer = new ListWriter();
-    tracer = tracerBuilder().writer(writer).build();
-  }
-
-  @Test
-  void buildSimpleSpan() {
-    DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").withServiceName("foo").start();
-    assertEquals("op name", span.getOperationName());
-  }
-
-  @Test
-  void buildComplexSpan() {
-    String expectedName = "fakeName";
-    Map<String, Object> tags = new HashMap<>();
-    tags.put("1", true);
-    tags.put("2", "fakeString");
-    tags.put("3", 42.0);
-
-    AgentTracer.SpanBuilder builder =
-        tracer.buildSpan("datadog", expectedName).withServiceName("foo");
-    for (Map.Entry<String, Object> entry : tags.entrySet()) {
-      builder = builder.withTag(entry.getKey(), entry.getValue());
+    @BeforeEach
+    void setup() {
+        writer = new ListWriter();
+        tracer = tracerBuilder().writer(writer).build();
     }
 
-    DDSpan span = (DDSpan) builder.start();
-
-    assertEquals(expectedName, span.getOperationName());
-    for (Map.Entry<String, Object> entry : tags.entrySet()) {
-      assertEquals(entry.getValue(), span.getTags().get(entry.getKey()));
+    @Test
+    void buildSimpleSpan() {
+        DDSpan span = (DDSpan)
+                tracer.buildSpan("test", "op name").withServiceName("foo").start();
+        assertEquals("op name", span.getOperationName());
     }
 
-    span = (DDSpan) tracer.buildSpan("test", expectedName).withServiceName("foo").start();
+    @Test
+    void buildComplexSpan() {
+        String expectedName = "fakeName";
+        Map<String, Object> tags = new HashMap<>();
+        tags.put("1", true);
+        tags.put("2", "fakeString");
+        tags.put("3", 42.0);
 
-    Map<String, Object> expectedTags = new HashMap<>();
-    expectedTags.put(THREAD_NAME, Thread.currentThread().getName());
-    expectedTags.put(THREAD_ID, Thread.currentThread().getId());
-    expectedTags.put(RUNTIME_ID_TAG, Config.get().getRuntimeId());
-    expectedTags.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
-    expectedTags.put(PID_TAG, Config.get().getProcessId());
-    expectedTags.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
-    expectedTags.putAll(productTags());
-    assertEquals(expectedTags, span.getTags());
+        AgentTracer.SpanBuilder builder =
+                tracer.buildSpan("datadog", expectedName).withServiceName("foo");
+        for (Map.Entry<String, Object> entry : tags.entrySet()) {
+            builder = builder.withTag(entry.getKey(), entry.getValue());
+        }
 
-    String expectedResource = "fakeResource";
-    String expectedService = "fakeService";
-    String expectedType = "fakeType";
+        DDSpan span = (DDSpan) builder.start();
 
-    span =
-        (DDSpan)
-            tracer
-                .buildSpan("test", expectedName)
+        assertEquals(expectedName, span.getOperationName());
+        for (Map.Entry<String, Object> entry : tags.entrySet()) {
+            assertEquals(entry.getValue(), span.getTags().get(entry.getKey()));
+        }
+
+        span = (DDSpan)
+                tracer.buildSpan("test", expectedName).withServiceName("foo").start();
+
+        Map<String, Object> expectedTags = new HashMap<>();
+        expectedTags.put(THREAD_NAME, Thread.currentThread().getName());
+        expectedTags.put(THREAD_ID, Thread.currentThread().getId());
+        expectedTags.put(RUNTIME_ID_TAG, Config.get().getRuntimeId());
+        expectedTags.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
+        expectedTags.put(PID_TAG, Config.get().getProcessId());
+        expectedTags.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
+        expectedTags.putAll(productTags());
+        assertEquals(expectedTags, span.getTags());
+
+        String expectedResource = "fakeResource";
+        String expectedService = "fakeService";
+        String expectedType = "fakeType";
+
+        span = (DDSpan) tracer.buildSpan("test", expectedName)
                 .withServiceName("foo")
                 .withResourceName(expectedResource)
                 .withServiceName(expectedService)
@@ -130,516 +128,488 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
                 .withSpanType(expectedType)
                 .start();
 
-    DDSpanContext spanContext = span.spanContext();
+        DDSpanContext spanContext = span.spanContext();
 
-    assertEquals(expectedResource, spanContext.getResourceName());
-    assertTrue(spanContext.getErrorFlag());
-    assertEquals(expectedService, spanContext.getServiceName());
-    assertEquals(expectedType, spanContext.getSpanType());
-    assertEquals(Thread.currentThread().getName(), spanContext.getTag(THREAD_NAME));
-    assertEquals(Thread.currentThread().getId(), spanContext.getTag(THREAD_ID));
-  }
+        assertEquals(expectedResource, spanContext.getResourceName());
+        assertTrue(spanContext.getErrorFlag());
+        assertEquals(expectedService, spanContext.getServiceName());
+        assertEquals(expectedType, spanContext.getSpanType());
+        assertEquals(Thread.currentThread().getName(), spanContext.getTag(THREAD_NAME));
+        assertEquals(Thread.currentThread().getId(), spanContext.getTag(THREAD_ID));
+    }
 
-  @TableTest({
-    "scenario  | name      | value",
-    "null tag  | null.tag  |      ",
-    "empty tag | empty.tag | ''   "
-  })
-  void settingNameShouldRemove(String name, String value) {
-    DDSpan span =
-        (DDSpan)
-            tracer
-                .buildSpan("test", "op name")
+    @TableTest({
+      "scenario  | name      | value",
+      "null tag  | null.tag  |      ",
+      "empty tag | empty.tag | ''   "
+    })
+    void settingNameShouldRemove(String name, String value) {
+        DDSpan span = (DDSpan) tracer.buildSpan("test", "op name")
                 .withTag(name, "tag value")
                 .withTag(name, value)
                 .start();
 
-    assertNull(span.getTags().get(name));
+        assertNull(span.getTags().get(name));
 
-    span.setTag(name, "a tag");
-    assertEquals("a tag", span.getTags().get(name));
+        span.setTag(name, "a tag");
+        assertEquals("a tag", span.getTags().get(name));
 
-    span.setTag(name, value);
-    assertNull(span.getTags().get(name));
-  }
+        span.setTag(name, value);
+        assertNull(span.getTags().get(name));
+    }
 
-  @Test
-  void shouldBuildSpanTimestampInNano() {
-    long expectedTimestamp = 487517802L * 1000 * 1000L;
-    String expectedName = "fakeName";
+    @Test
+    void shouldBuildSpanTimestampInNano() {
+        long expectedTimestamp = 487517802L * 1000 * 1000L;
+        String expectedName = "fakeName";
 
-    DDSpan span =
-        (DDSpan)
-            tracer
-                .buildSpan("test", expectedName)
+        DDSpan span = (DDSpan) tracer.buildSpan("test", expectedName)
                 .withServiceName("foo")
                 .withStartTimestamp(expectedTimestamp)
                 .start();
 
-    assertEquals(expectedTimestamp * 1000L, span.getStartTime());
+        assertEquals(expectedTimestamp * 1000L, span.getStartTime());
 
-    long start = System.currentTimeMillis();
-    span = (DDSpan) tracer.buildSpan("test", expectedName).withServiceName("foo").start();
-    long stop = System.currentTimeMillis();
+        long start = System.currentTimeMillis();
+        span = (DDSpan)
+                tracer.buildSpan("test", expectedName).withServiceName("foo").start();
+        long stop = System.currentTimeMillis();
 
-    assertTrue(span.getStartTime() >= MILLISECONDS.toNanos(start - 1));
-    assertTrue(span.getStartTime() <= MILLISECONDS.toNanos(stop + 1));
-  }
+        assertTrue(span.getStartTime() >= MILLISECONDS.toNanos(start - 1));
+        assertTrue(span.getStartTime() <= MILLISECONDS.toNanos(stop + 1));
+    }
 
-  @Test
-  void shouldLinkToParentSpan() {
-    long spanId = 1L;
-    DDTraceId traceId = DDTraceId.ONE;
-    long expectedParentId = spanId;
+    @Test
+    void shouldLinkToParentSpan() {
+        long spanId = 1L;
+        DDTraceId traceId = DDTraceId.ONE;
+        long expectedParentId = spanId;
 
-    DDSpanContext mockedContext = mock(DDSpanContext.class);
-    when(mockedContext.getTraceId()).thenReturn(traceId);
-    when(mockedContext.getSpanId()).thenReturn(spanId);
-    when(mockedContext.getServiceName()).thenReturn("foo");
-    when(mockedContext.getBaggageItems()).thenReturn(Collections.<String, String>emptyMap());
-    when(mockedContext.getTraceCollector()).thenReturn(tracer.createTraceCollector(DDTraceId.ONE));
-    when(mockedContext.getPathwayContext()).thenReturn(NoopPathwayContext.INSTANCE);
+        DDSpanContext mockedContext = mock(DDSpanContext.class);
+        when(mockedContext.getTraceId()).thenReturn(traceId);
+        when(mockedContext.getSpanId()).thenReturn(spanId);
+        when(mockedContext.getServiceName()).thenReturn("foo");
+        when(mockedContext.getBaggageItems()).thenReturn(Collections.<String, String>emptyMap());
+        when(mockedContext.getTraceCollector()).thenReturn(tracer.createTraceCollector(DDTraceId.ONE));
+        when(mockedContext.getPathwayContext()).thenReturn(NoopPathwayContext.INSTANCE);
 
-    DDSpan span =
-        (DDSpan)
-            tracer
-                .buildSpan("test", "fakeName")
+        DDSpan span = (DDSpan) tracer.buildSpan("test", "fakeName")
                 .withServiceName("foo")
                 .asChildOf(mockedContext)
                 .start();
 
-    DDSpanContext actualSpanContext = span.spanContext();
-    assertEquals(expectedParentId, actualSpanContext.getParentId());
-    assertEquals(traceId, actualSpanContext.getTraceId());
-  }
-
-  @TableTest({
-    "scenario                  | noopParent | serviceName     | expectTopLevel",
-    "same service, no noop     | false      | service         | false         ",
-    "noop parent, same service | true       | service         | true          ",
-    "diff service, no noop     | false      | another service | true          ",
-    "noop parent, diff service | true       | another service | true          "
-  })
-  void shouldLinkToParentSpanImplicitly(
-      boolean noopParent, String serviceName, boolean expectTopLevel) {
-    try (ContextScope parent =
-        tracer.activateSpan(
-            noopParent
-                ? noopSpan()
-                : tracer.buildSpan("test", "parent").withServiceName("service").start())) {
-      long expectedParentId =
-          noopParent ? DDSpanId.ZERO : AgentSpan.fromScope(parent).spanContext().getSpanId();
-
-      DDSpan span =
-          (DDSpan) tracer.buildSpan("test", "fakeName").withServiceName(serviceName).start();
-
-      DDSpanContext actualSpanContext = span.spanContext();
-      assertEquals(expectedParentId, actualSpanContext.getParentId());
-      assertEquals(expectTopLevel, span.isTopLevel());
+        DDSpanContext actualSpanContext = span.spanContext();
+        assertEquals(expectedParentId, actualSpanContext.getParentId());
+        assertEquals(traceId, actualSpanContext.getTraceId());
     }
-  }
 
-  @Test
-  void shouldInheritTheDDParentAttributes() {
-    String expectedName = "fakeName";
-    String expectedParentResourceName = "fakeResourceName";
-    String expectedParentType = "fakeType";
-    String expectedParentServiceName = "fakeServiceName";
-    String expectedChildServiceName = "fakeServiceName-child";
-    String expectedChildResourceName = "fakeResourceName-child";
-    String expectedChildType = "fakeType-child";
-    String expectedBaggageItemKey = "fakeKey";
-    String expectedBaggageItemValue = "fakeValue";
+    @TableTest({
+      "scenario                  | noopParent | serviceName     | expectTopLevel",
+      "same service, no noop     | false      | service         | false         ",
+      "noop parent, same service | true       | service         | true          ",
+      "diff service, no noop     | false      | another service | true          ",
+      "noop parent, diff service | true       | another service | true          "
+    })
+    void shouldLinkToParentSpanImplicitly(boolean noopParent, String serviceName, boolean expectTopLevel) {
+        try (ContextScope parent = tracer.activateSpan(
+                noopParent
+                        ? noopSpan()
+                        : tracer.buildSpan("test", "parent")
+                                .withServiceName("service")
+                                .start())) {
+            long expectedParentId = noopParent
+                    ? DDSpanId.ZERO
+                    : AgentSpan.fromScope(parent).spanContext().getSpanId();
 
-    DDSpan parent =
-        (DDSpan)
-            tracer
-                .buildSpan("test", expectedName)
+            DDSpan span = (DDSpan) tracer.buildSpan("test", "fakeName")
+                    .withServiceName(serviceName)
+                    .start();
+
+            DDSpanContext actualSpanContext = span.spanContext();
+            assertEquals(expectedParentId, actualSpanContext.getParentId());
+            assertEquals(expectTopLevel, span.isTopLevel());
+        }
+    }
+
+    @Test
+    void shouldInheritTheDDParentAttributes() {
+        String expectedName = "fakeName";
+        String expectedParentResourceName = "fakeResourceName";
+        String expectedParentType = "fakeType";
+        String expectedParentServiceName = "fakeServiceName";
+        String expectedChildServiceName = "fakeServiceName-child";
+        String expectedChildResourceName = "fakeResourceName-child";
+        String expectedChildType = "fakeType-child";
+        String expectedBaggageItemKey = "fakeKey";
+        String expectedBaggageItemValue = "fakeValue";
+
+        DDSpan parent = (DDSpan) tracer.buildSpan("test", expectedName)
                 .withServiceName("foo")
                 .withResourceName(expectedParentResourceName)
                 .withSpanType(expectedParentType)
                 .start();
 
-    parent.setBaggageItem(expectedBaggageItemKey, expectedBaggageItemValue);
+        parent.setBaggageItem(expectedBaggageItemKey, expectedBaggageItemValue);
 
-    // ServiceName and SpanType are always set by the parent if they are not present in the child
-    DDSpan span =
-        (DDSpan)
-            tracer
-                .buildSpan("test", expectedName)
+        // ServiceName and SpanType are always set by the parent if they are not present in the child
+        DDSpan span = (DDSpan) tracer.buildSpan("test", expectedName)
                 .withServiceName(expectedParentServiceName)
                 .asChildOf(parent)
                 .start();
 
-    assertEquals(expectedName, span.getOperationName());
-    assertEquals(expectedBaggageItemValue, span.getBaggageItem(expectedBaggageItemKey));
-    assertEquals(expectedParentServiceName, span.spanContext().getServiceName());
-    assertEquals(expectedName, span.spanContext().getResourceName());
-    assertNull(span.spanContext().getSpanType());
-    assertTrue(span.isTopLevel()); // service names differ between parent and child
+        assertEquals(expectedName, span.getOperationName());
+        assertEquals(expectedBaggageItemValue, span.getBaggageItem(expectedBaggageItemKey));
+        assertEquals(expectedParentServiceName, span.spanContext().getServiceName());
+        assertEquals(expectedName, span.spanContext().getResourceName());
+        assertNull(span.spanContext().getSpanType());
+        assertTrue(span.isTopLevel()); // service names differ between parent and child
 
-    // ServiceName and SpanType are always overwritten by the child if they are present
-    span =
-        (DDSpan)
-            tracer
-                .buildSpan("test", expectedName)
+        // ServiceName and SpanType are always overwritten by the child if they are present
+        span = (DDSpan) tracer.buildSpan("test", expectedName)
                 .withServiceName(expectedChildServiceName)
                 .withResourceName(expectedChildResourceName)
                 .withSpanType(expectedChildType)
                 .asChildOf(parent)
                 .start();
 
-    assertEquals(expectedName, span.getOperationName());
-    assertEquals(expectedBaggageItemValue, span.getBaggageItem(expectedBaggageItemKey));
-    assertEquals(expectedChildServiceName, span.spanContext().getServiceName());
-    assertEquals(expectedChildResourceName, span.spanContext().getResourceName());
-    assertEquals(expectedChildType, span.spanContext().getSpanType());
-  }
-
-  @Test
-  void shouldTrackAllSpansInTrace() {
-    int nbSamples = 10;
-    List<DDSpan> spans = new ArrayList<>();
-
-    DDSpan root = (DDSpan) tracer.buildSpan("test", "fake_O").withServiceName("foo").start();
-    DDSpan lastSpan = root;
-
-    for (int i = 1; i <= 10; i++) {
-      lastSpan =
-          (DDSpan)
-              tracer
-                  .buildSpan("test", "fake_" + i)
-                  .withServiceName("foo")
-                  .asChildOf(lastSpan)
-                  .start();
-      spans.add(lastSpan);
-      lastSpan.finish();
+        assertEquals(expectedName, span.getOperationName());
+        assertEquals(expectedBaggageItemValue, span.getBaggageItem(expectedBaggageItemKey));
+        assertEquals(expectedChildServiceName, span.spanContext().getServiceName());
+        assertEquals(expectedChildResourceName, span.spanContext().getResourceName());
+        assertEquals(expectedChildType, span.spanContext().getSpanType());
     }
 
-    PendingTrace traceCollector = (PendingTrace) root.spanContext().getTraceCollector();
-    assertEquals(root, traceCollector.getRootSpan());
-    assertEquals(nbSamples, traceCollector.size());
-    assertTrue(traceCollector.getSpans().containsAll(spans));
-    DDSpan randomSpan = spans.get((int) (Math.random() * nbSamples));
-    assertTrue(
-        ((PendingTrace) randomSpan.spanContext().getTraceCollector())
-            .getSpans()
-            .containsAll(spans));
-  }
+    @Test
+    void shouldTrackAllSpansInTrace() {
+        int nbSamples = 10;
+        List<DDSpan> spans = new ArrayList<>();
 
-  static Stream<ExtractedContext> extractedContextShouldPopulateNewSpanDetailsArguments() {
-    return Stream.of(
-        new ExtractedContext(
-            DDTraceId.ONE,
-            2,
-            PrioritySampling.SAMPLER_DROP,
-            null,
-            0,
-            Collections.<String, String>emptyMap(),
-            Collections.<String, Object>emptyMap(),
-            null,
-            PropagationTags.factory()
-                .fromHeaderValue(
-                    PropagationTags.HeaderType.DATADOG, "_dd.p.dm=934086a686-4,_dd.p.anytag=value"),
-            null,
-            DATADOG),
-        new ExtractedContext(
-            DDTraceId.from(3),
-            4,
-            PrioritySampling.SAMPLER_KEEP,
-            "some-origin",
-            0,
-            Collections.singletonMap("asdf", "qwer"),
-            buildTagsMap(ORIGIN_KEY, "some-origin", "zxcv", "1234"),
-            null,
-            PropagationTags.factory().empty(),
-            null,
-            DATADOG));
-  }
+        DDSpan root = (DDSpan)
+                tracer.buildSpan("test", "fake_O").withServiceName("foo").start();
+        DDSpan lastSpan = root;
 
-  @ParameterizedTest
-  @MethodSource("extractedContextShouldPopulateNewSpanDetailsArguments")
-  void extractedContextShouldPopulateNewSpanDetails(ExtractedContext extractedContext) {
-    Thread thread = Thread.currentThread();
-    DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").asChildOf(extractedContext).start();
+        for (int i = 1; i <= 10; i++) {
+            lastSpan = (DDSpan) tracer.buildSpan("test", "fake_" + i)
+                    .withServiceName("foo")
+                    .asChildOf(lastSpan)
+                    .start();
+            spans.add(lastSpan);
+            lastSpan.finish();
+        }
 
-    assertEquals(extractedContext.getTraceId(), span.getTraceId());
-    assertEquals(extractedContext.getSpanId(), span.getParentId());
-    assertEquals(extractedContext.getSamplingPriority(), (int) span.getSamplingPriority());
-    assertEquals(extractedContext.getOrigin(), span.spanContext().getOrigin());
-    assertEquals(extractedContext.getBaggage(), span.spanContext().getBaggageItems());
-    assertEquals(thread.getId(), span.getTag(THREAD_ID));
-    assertEquals(thread.getName(), span.getTag(THREAD_NAME));
-    assertEquals(
-        extractedContext.getPropagationTags().headerValue(PropagationTags.HeaderType.DATADOG),
-        span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.DATADOG));
-  }
-
-  @Test
-  @WithConfig(key = "trace.propagation.behavior.extract", value = "restart")
-  void buildContextFromExtractedContextWithRestartBehavior() {
-    ExtractedContext extractedContext =
-        new ExtractedContext(
-            DDTraceId.ONE,
-            2,
-            PrioritySampling.SAMPLER_DROP,
-            null,
-            0,
-            Collections.<String, String>emptyMap(),
-            Collections.<String, Object>emptyMap(),
-            null,
-            propagationTagsWithOtelState(),
-            null,
-            DATADOG);
-    DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").asChildOf(extractedContext).start();
-
-    assertNotEquals(extractedContext.getTraceId(), span.getTraceId());
-    assertNotEquals(extractedContext.getSpanId(), span.getParentId());
-    assertEquals(PrioritySampling.UNSET, span.samplingPriority());
-
-    List<? extends AgentSpanLink> spanLinks = span.getLinks();
-    assertEquals(1, spanLinks.size());
-    AgentSpanLink link = spanLinks.get(0);
-    assertEquals(extractedContext.getTraceId(), link.traceId());
-    assertEquals(extractedContext.getSpanId(), link.spanId());
-    assertEquals(
-        extractedContext.getPropagationTags().headerValue(PropagationTags.HeaderType.W3C),
-        link.traceState());
-    String initialTraceState =
-        span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
-    assertTrue(initialTraceState == null || !initialTraceState.contains(OTEL_MEMBER));
-
-    span.setSamplingPriority(USER_KEEP, SAMPLING_RULE_RATE, SAMPLE_RATE_0_5, LOCAL_USER_RULE);
-
-    String freshTraceState =
-        span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
-    assertFalse(freshTraceState.contains(INHERITED_RANDOM_VALUE));
-    assertTrue(freshTraceState.contains(THRESHOLD_0_5));
-  }
-
-  @Test
-  @WithConfig(key = "trace.propagation.behavior.extract", value = "ignore")
-  void buildContextFromExtractedContextWithIgnoreBehavior() {
-    ExtractedContext extractedContext =
-        new ExtractedContext(
-            DDTraceId.ONE,
-            2,
-            PrioritySampling.SAMPLER_DROP,
-            null,
-            0,
-            Collections.<String, String>emptyMap(),
-            Collections.<String, Object>emptyMap(),
-            null,
-            propagationTagsWithOtelState(),
-            null,
-            DATADOG);
-    DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").asChildOf(extractedContext).start();
-
-    assertNotEquals(extractedContext.getTraceId(), span.getTraceId());
-    assertNotEquals(extractedContext.getSpanId(), span.getParentId());
-    assertEquals(PrioritySampling.UNSET, span.samplingPriority());
-    assertTrue(span.getLinks().isEmpty());
-    String initialTraceState =
-        span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
-    assertTrue(initialTraceState == null || !initialTraceState.contains(OTEL_MEMBER));
-
-    span.setSamplingPriority(USER_KEEP, SAMPLING_RULE_RATE, SAMPLE_RATE_0_5, LOCAL_USER_RULE);
-
-    String freshTraceState =
-        span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
-    assertFalse(freshTraceState.contains(INHERITED_RANDOM_VALUE));
-    assertTrue(freshTraceState.contains(THRESHOLD_0_5));
-  }
-
-  private static PropagationTags propagationTagsWithOtelState() {
-    PropagationTags propagationTags =
-        PropagationTags.factory()
-            .fromHeaderValue(PropagationTags.HeaderType.DATADOG, DATADOG_TRACE_STATE);
-    propagationTags.updateW3CTracestate(OTEL_TRACE_STATE);
-    return propagationTags;
-  }
-
-  @Test
-  @WithConfig(key = "trace.propagation.behavior.extract", value = "ignore")
-  void appSecContextPreservedFromTagContextWithIgnoreBehavior() {
-    Object appSecData = new Object();
-    Object iastData = new Object();
-    TagContext tagContext =
-        new TagContext()
-            .withRequestContextDataAppSec(appSecData)
-            .withRequestContextDataIast(iastData);
-
-    DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").asChildOf(tagContext).start();
-
-    assertEquals(appSecData, span.getRequestContext().getData(RequestContextSlot.APPSEC));
-    assertEquals(iastData, span.getRequestContext().getData(RequestContextSlot.IAST));
-    span.finish();
-  }
-
-  @Test
-  @WithConfig(key = "trace.propagation.behavior.extract", value = "restart")
-  void appSecContextPreservedFromTagContextWithRestartBehavior() {
-    Object appSecData = new Object();
-    Object iastData = new Object();
-    TagContext tagContext =
-        new TagContext()
-            .withRequestContextDataAppSec(appSecData)
-            .withRequestContextDataIast(iastData);
-
-    DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").asChildOf(tagContext).start();
-
-    assertEquals(appSecData, span.getRequestContext().getData(RequestContextSlot.APPSEC));
-    assertEquals(iastData, span.getRequestContext().getData(RequestContextSlot.IAST));
-    span.finish();
-  }
-
-  @TableTest({
-    "scenario      | origin      | tagMap      ",
-    "empty tag map |             | [:]         ",
-    "some origin   | some-origin | [asdf: qwer]"
-  })
-  void tagContextShouldPopulateDefaultSpanDetails(
-      String scenario, String origin, Map<String, String> tagMap) {
-    Thread thread = Thread.currentThread();
-    TagContext tagContext = new TagContext(origin, TagMap.fromMap(tagMap));
-    DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").asChildOf(tagContext).start();
-
-    assertNotEquals(DDTraceId.ZERO, span.getTraceId());
-    assertEquals(DDSpanId.ZERO, span.getParentId());
-    assertNull(span.getSamplingPriority());
-    assertEquals(tagContext.getOrigin(), span.spanContext().getOrigin());
-    assertEquals(Collections.emptyMap(), span.spanContext().getBaggageItems());
-
-    Map<String, Object> expectedTags = new HashMap<>();
-    if (tagContext.getTags() != null) {
-      expectedTags.putAll(tagContext.getTags());
+        PendingTrace traceCollector = (PendingTrace) root.spanContext().getTraceCollector();
+        assertEquals(root, traceCollector.getRootSpan());
+        assertEquals(nbSamples, traceCollector.size());
+        assertTrue(traceCollector.getSpans().containsAll(spans));
+        DDSpan randomSpan = spans.get((int) (Math.random() * nbSamples));
+        assertTrue(((PendingTrace) randomSpan.spanContext().getTraceCollector())
+                .getSpans()
+                .containsAll(spans));
     }
-    expectedTags.put(RUNTIME_ID_TAG, Config.get().getRuntimeId());
-    expectedTags.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
-    expectedTags.put(THREAD_NAME, thread.getName());
-    expectedTags.put(THREAD_ID, thread.getId());
-    expectedTags.put(PID_TAG, Config.get().getProcessId());
-    expectedTags.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
-    expectedTags.putAll(productTags());
-    assertEquals(expectedTags, span.spanContext().getTags());
-  }
 
-  static Stream<Arguments> globalSpanTagsPopulatedOnEachSpanArguments() {
-    return Stream.of(
-        arguments("", Collections.emptyMap()),
-        arguments("is:val:id", Collections.singletonMap("is", "val:id")),
-        arguments("a:x", Collections.singletonMap("a", "x")),
-        arguments("a:a,a:b,a:c", Collections.singletonMap("a", "c")),
-        arguments("a:1,b-c:d", buildStringMap("a", "1", "b-c", "d")));
-  }
-
-  @TableTest({
-    "scenario          | tagString   | tags          ",
-    "empty             | ''          | [:]           ",
-    "column            | is:val:id   | [is: 'val:id']",
-    "single            | a:x         | [a: x]        ",
-    "same multi-values | a:a,a:b,a:c | [a: c]        ",
-    "multi values      | a:1,b-c:d   | [a: 1, b-c: d]"
-  })
-  void globalSpanTagsPopulatedOnEachSpan(String tagString, Map<String, String> tags) {
-    injectSysConfig("dd.trace.span.tags", tagString);
-    CoreTracer customTracer = tracerBuilder().writer(writer).build();
-    DDSpan span = (DDSpan) customTracer.buildSpan("test", "op name").withServiceName("foo").start();
-
-    Map<String, Object> expectedTags = new HashMap<>(tags);
-    expectedTags.put(THREAD_NAME, Thread.currentThread().getName());
-    expectedTags.put(THREAD_ID, Thread.currentThread().getId());
-    expectedTags.put(RUNTIME_ID_TAG, Config.get().getRuntimeId());
-    expectedTags.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
-    expectedTags.put(PID_TAG, Config.get().getProcessId());
-    expectedTags.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
-    expectedTags.putAll(productTags());
-    assertEquals(expectedTags, span.getTags());
-  }
-
-  @Test
-  void canOverwriteRequestContextDataWithBuilderFromEmpty() {
-    AgentSpan span1 = tracer.startSpan("test", "span1");
-
-    assertNull(span1.getRequestContext().getData(RequestContextSlot.APPSEC));
-    assertNull(span1.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY));
-    assertNull(span1.getRequestContext().getData(RequestContextSlot.IAST));
-
-    AgentSpan span2 =
-        tracer
-            .buildSpan("test", "span2")
-            .asChildOf(span1.spanContext())
-            .withRequestContextData(RequestContextSlot.APPSEC, "override")
-            .withRequestContextData(RequestContextSlot.CI_VISIBILITY, "override")
-            .withRequestContextData(RequestContextSlot.IAST, "override")
-            .start();
-
-    assertEquals("override", span2.getRequestContext().getData(RequestContextSlot.APPSEC));
-    assertEquals("override", span2.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY));
-    assertEquals("override", span2.getRequestContext().getData(RequestContextSlot.IAST));
-
-    span2.finish();
-    span1.finish();
-  }
-
-  @Test
-  void canOverwriteRequestContextDataWithBuilder() {
-    TagContext context =
-        new TagContext()
-            .withCiVisibilityContextData("value")
-            .withRequestContextDataIast("value")
-            .withRequestContextDataAppSec("value");
-    AgentSpan span1 = tracer.buildSpan("test", "span1").asChildOf(context).start();
-
-    AgentSpan span2 = tracer.buildSpan("test", "span2").asChildOf(span1.spanContext()).start();
-
-    assertEquals("value", span2.getRequestContext().getData(RequestContextSlot.APPSEC));
-    assertEquals("value", span2.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY));
-    assertEquals("value", span2.getRequestContext().getData(RequestContextSlot.IAST));
-
-    AgentSpan span3 =
-        tracer
-            .buildSpan("test", "span3")
-            .asChildOf(span2.spanContext())
-            .withRequestContextData(RequestContextSlot.APPSEC, "override")
-            .withRequestContextData(RequestContextSlot.CI_VISIBILITY, "override")
-            .withRequestContextData(RequestContextSlot.IAST, "override")
-            .start();
-
-    assertEquals("override", span3.getRequestContext().getData(RequestContextSlot.APPSEC));
-    assertEquals("override", span3.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY));
-    assertEquals("override", span3.getRequestContext().getData(RequestContextSlot.IAST));
-
-    span3.finish();
-    span2.finish();
-    span1.finish();
-  }
-
-  private Map<String, Object> productTags() {
-    Map<String, Object> productTags = new HashMap<>();
-    productTags.put(PROFILING_ENABLED, Config.get().isProfilingEnabled() ? 1 : 0);
-    if (Config.get().isDataStreamsEnabled()) {
-      productTags.put(DSM_ENABLED, 1);
+    static Stream<ExtractedContext> extractedContextShouldPopulateNewSpanDetailsArguments() {
+        return Stream.of(
+                new ExtractedContext(
+                        DDTraceId.ONE,
+                        2,
+                        PrioritySampling.SAMPLER_DROP,
+                        null,
+                        0,
+                        Collections.<String, String>emptyMap(),
+                        Collections.<String, Object>emptyMap(),
+                        null,
+                        PropagationTags.factory()
+                                .fromHeaderValue(
+                                        PropagationTags.HeaderType.DATADOG, "_dd.p.dm=934086a686-4,_dd.p.anytag=value"),
+                        null,
+                        DATADOG),
+                new ExtractedContext(
+                        DDTraceId.from(3),
+                        4,
+                        PrioritySampling.SAMPLER_KEEP,
+                        "some-origin",
+                        0,
+                        Collections.singletonMap("asdf", "qwer"),
+                        buildTagsMap(ORIGIN_KEY, "some-origin", "zxcv", "1234"),
+                        null,
+                        PropagationTags.factory().empty(),
+                        null,
+                        DATADOG));
     }
-    if (Config.get().isDataJobsEnabled()) {
-      productTags.put(DJM_ENABLED, 1);
-    }
-    return productTags;
-  }
 
-  private static Map<String, Object> buildTagsMap(String... keyValues) {
-    Map<String, Object> map = new HashMap<>();
-    for (int i = 0; i < keyValues.length; i += 2) {
-      map.put(keyValues[i], keyValues[i + 1]);
-    }
-    return map;
-  }
+    @ParameterizedTest
+    @MethodSource("extractedContextShouldPopulateNewSpanDetailsArguments")
+    void extractedContextShouldPopulateNewSpanDetails(ExtractedContext extractedContext) {
+        Thread thread = Thread.currentThread();
+        DDSpan span = (DDSpan)
+                tracer.buildSpan("test", "op name").asChildOf(extractedContext).start();
 
-  private static Map<String, String> buildStringMap(String... keyValues) {
-    Map<String, String> map = new HashMap<>();
-    for (int i = 0; i < keyValues.length; i += 2) {
-      map.put(keyValues[i], keyValues[i + 1]);
+        assertEquals(extractedContext.getTraceId(), span.getTraceId());
+        assertEquals(extractedContext.getSpanId(), span.getParentId());
+        assertEquals(extractedContext.getSamplingPriority(), (int) span.getSamplingPriority());
+        assertEquals(extractedContext.getOrigin(), span.spanContext().getOrigin());
+        assertEquals(extractedContext.getBaggage(), span.spanContext().getBaggageItems());
+        assertEquals(thread.getId(), span.getTag(THREAD_ID));
+        assertEquals(thread.getName(), span.getTag(THREAD_NAME));
+        assertEquals(
+                extractedContext.getPropagationTags().headerValue(PropagationTags.HeaderType.DATADOG),
+                span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.DATADOG));
     }
-    return map;
-  }
+
+    @Test
+    @WithConfig(key = "trace.propagation.behavior.extract", value = "restart")
+    void buildContextFromExtractedContextWithRestartBehavior() {
+        ExtractedContext extractedContext = new ExtractedContext(
+                DDTraceId.ONE,
+                2,
+                PrioritySampling.SAMPLER_DROP,
+                null,
+                0,
+                Collections.<String, String>emptyMap(),
+                Collections.<String, Object>emptyMap(),
+                null,
+                propagationTagsWithOtelState(),
+                null,
+                DATADOG);
+        DDSpan span = (DDSpan)
+                tracer.buildSpan("test", "op name").asChildOf(extractedContext).start();
+
+        assertNotEquals(extractedContext.getTraceId(), span.getTraceId());
+        assertNotEquals(extractedContext.getSpanId(), span.getParentId());
+        assertEquals(PrioritySampling.UNSET, span.samplingPriority());
+
+        List<? extends AgentSpanLink> spanLinks = span.getLinks();
+        assertEquals(1, spanLinks.size());
+        AgentSpanLink link = spanLinks.get(0);
+        assertEquals(extractedContext.getTraceId(), link.traceId());
+        assertEquals(extractedContext.getSpanId(), link.spanId());
+        assertEquals(
+                extractedContext.getPropagationTags().headerValue(PropagationTags.HeaderType.W3C), link.traceState());
+        String initialTraceState = span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
+        assertTrue(initialTraceState == null || !initialTraceState.contains(OTEL_MEMBER));
+
+        span.setSamplingPriority(USER_KEEP, SAMPLING_RULE_RATE, SAMPLE_RATE_0_5, LOCAL_USER_RULE);
+
+        String freshTraceState = span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
+        assertFalse(freshTraceState.contains(INHERITED_RANDOM_VALUE));
+        assertTrue(freshTraceState.contains(THRESHOLD_0_5));
+    }
+
+    @Test
+    @WithConfig(key = "trace.propagation.behavior.extract", value = "ignore")
+    void buildContextFromExtractedContextWithIgnoreBehavior() {
+        ExtractedContext extractedContext = new ExtractedContext(
+                DDTraceId.ONE,
+                2,
+                PrioritySampling.SAMPLER_DROP,
+                null,
+                0,
+                Collections.<String, String>emptyMap(),
+                Collections.<String, Object>emptyMap(),
+                null,
+                propagationTagsWithOtelState(),
+                null,
+                DATADOG);
+        DDSpan span = (DDSpan)
+                tracer.buildSpan("test", "op name").asChildOf(extractedContext).start();
+
+        assertNotEquals(extractedContext.getTraceId(), span.getTraceId());
+        assertNotEquals(extractedContext.getSpanId(), span.getParentId());
+        assertEquals(PrioritySampling.UNSET, span.samplingPriority());
+        assertTrue(span.getLinks().isEmpty());
+        String initialTraceState = span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
+        assertTrue(initialTraceState == null || !initialTraceState.contains(OTEL_MEMBER));
+
+        span.setSamplingPriority(USER_KEEP, SAMPLING_RULE_RATE, SAMPLE_RATE_0_5, LOCAL_USER_RULE);
+
+        String freshTraceState = span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
+        assertFalse(freshTraceState.contains(INHERITED_RANDOM_VALUE));
+        assertTrue(freshTraceState.contains(THRESHOLD_0_5));
+    }
+
+    private static PropagationTags propagationTagsWithOtelState() {
+        PropagationTags propagationTags =
+                PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.DATADOG, DATADOG_TRACE_STATE);
+        propagationTags.updateW3CTracestate(OTEL_TRACE_STATE);
+        return propagationTags;
+    }
+
+    @Test
+    @WithConfig(key = "trace.propagation.behavior.extract", value = "ignore")
+    void appSecContextPreservedFromTagContextWithIgnoreBehavior() {
+        Object appSecData = new Object();
+        Object iastData = new Object();
+        TagContext tagContext =
+                new TagContext().withRequestContextDataAppSec(appSecData).withRequestContextDataIast(iastData);
+
+        DDSpan span = (DDSpan)
+                tracer.buildSpan("test", "op name").asChildOf(tagContext).start();
+
+        assertEquals(appSecData, span.getRequestContext().getData(RequestContextSlot.APPSEC));
+        assertEquals(iastData, span.getRequestContext().getData(RequestContextSlot.IAST));
+        span.finish();
+    }
+
+    @Test
+    @WithConfig(key = "trace.propagation.behavior.extract", value = "restart")
+    void appSecContextPreservedFromTagContextWithRestartBehavior() {
+        Object appSecData = new Object();
+        Object iastData = new Object();
+        TagContext tagContext =
+                new TagContext().withRequestContextDataAppSec(appSecData).withRequestContextDataIast(iastData);
+
+        DDSpan span = (DDSpan)
+                tracer.buildSpan("test", "op name").asChildOf(tagContext).start();
+
+        assertEquals(appSecData, span.getRequestContext().getData(RequestContextSlot.APPSEC));
+        assertEquals(iastData, span.getRequestContext().getData(RequestContextSlot.IAST));
+        span.finish();
+    }
+
+    @TableTest({
+      "scenario      | origin      | tagMap      ",
+      "empty tag map |             | [:]         ",
+      "some origin   | some-origin | [asdf: qwer]"
+    })
+    void tagContextShouldPopulateDefaultSpanDetails(String scenario, String origin, Map<String, String> tagMap) {
+        Thread thread = Thread.currentThread();
+        TagContext tagContext = new TagContext(origin, TagMap.fromMap(tagMap));
+        DDSpan span = (DDSpan)
+                tracer.buildSpan("test", "op name").asChildOf(tagContext).start();
+
+        assertNotEquals(DDTraceId.ZERO, span.getTraceId());
+        assertEquals(DDSpanId.ZERO, span.getParentId());
+        assertNull(span.getSamplingPriority());
+        assertEquals(tagContext.getOrigin(), span.spanContext().getOrigin());
+        assertEquals(Collections.emptyMap(), span.spanContext().getBaggageItems());
+
+        Map<String, Object> expectedTags = new HashMap<>();
+        if (tagContext.getTags() != null) {
+            expectedTags.putAll(tagContext.getTags());
+        }
+        expectedTags.put(RUNTIME_ID_TAG, Config.get().getRuntimeId());
+        expectedTags.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
+        expectedTags.put(THREAD_NAME, thread.getName());
+        expectedTags.put(THREAD_ID, thread.getId());
+        expectedTags.put(PID_TAG, Config.get().getProcessId());
+        expectedTags.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
+        expectedTags.putAll(productTags());
+        assertEquals(expectedTags, span.spanContext().getTags());
+    }
+
+    static Stream<Arguments> globalSpanTagsPopulatedOnEachSpanArguments() {
+        return Stream.of(
+                arguments("", Collections.emptyMap()),
+                arguments("is:val:id", Collections.singletonMap("is", "val:id")),
+                arguments("a:x", Collections.singletonMap("a", "x")),
+                arguments("a:a,a:b,a:c", Collections.singletonMap("a", "c")),
+                arguments("a:1,b-c:d", buildStringMap("a", "1", "b-c", "d")));
+    }
+
+    @TableTest({
+      "scenario          | tagString   | tags          ",
+      "empty             | ''          | [:]           ",
+      "column            | is:val:id   | [is: 'val:id']",
+      "single            | a:x         | [a: x]        ",
+      "same multi-values | a:a,a:b,a:c | [a: c]        ",
+      "multi values      | a:1,b-c:d   | [a: 1, b-c: d]"
+    })
+    void globalSpanTagsPopulatedOnEachSpan(String tagString, Map<String, String> tags) {
+        injectSysConfig("dd.trace.span.tags", tagString);
+        CoreTracer customTracer = tracerBuilder().writer(writer).build();
+        DDSpan span = (DDSpan)
+                customTracer.buildSpan("test", "op name").withServiceName("foo").start();
+
+        Map<String, Object> expectedTags = new HashMap<>(tags);
+        expectedTags.put(THREAD_NAME, Thread.currentThread().getName());
+        expectedTags.put(THREAD_ID, Thread.currentThread().getId());
+        expectedTags.put(RUNTIME_ID_TAG, Config.get().getRuntimeId());
+        expectedTags.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
+        expectedTags.put(PID_TAG, Config.get().getProcessId());
+        expectedTags.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
+        expectedTags.putAll(productTags());
+        assertEquals(expectedTags, span.getTags());
+    }
+
+    @Test
+    void canOverwriteRequestContextDataWithBuilderFromEmpty() {
+        AgentSpan span1 = tracer.startSpan("test", "span1");
+
+        assertNull(span1.getRequestContext().getData(RequestContextSlot.APPSEC));
+        assertNull(span1.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY));
+        assertNull(span1.getRequestContext().getData(RequestContextSlot.IAST));
+
+        AgentSpan span2 = tracer.buildSpan("test", "span2")
+                .asChildOf(span1.spanContext())
+                .withRequestContextData(RequestContextSlot.APPSEC, "override")
+                .withRequestContextData(RequestContextSlot.CI_VISIBILITY, "override")
+                .withRequestContextData(RequestContextSlot.IAST, "override")
+                .start();
+
+        assertEquals("override", span2.getRequestContext().getData(RequestContextSlot.APPSEC));
+        assertEquals("override", span2.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY));
+        assertEquals("override", span2.getRequestContext().getData(RequestContextSlot.IAST));
+
+        span2.finish();
+        span1.finish();
+    }
+
+    @Test
+    void canOverwriteRequestContextDataWithBuilder() {
+        TagContext context = new TagContext()
+                .withCiVisibilityContextData("value")
+                .withRequestContextDataIast("value")
+                .withRequestContextDataAppSec("value");
+        AgentSpan span1 = tracer.buildSpan("test", "span1").asChildOf(context).start();
+
+        AgentSpan span2 =
+                tracer.buildSpan("test", "span2").asChildOf(span1.spanContext()).start();
+
+        assertEquals("value", span2.getRequestContext().getData(RequestContextSlot.APPSEC));
+        assertEquals("value", span2.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY));
+        assertEquals("value", span2.getRequestContext().getData(RequestContextSlot.IAST));
+
+        AgentSpan span3 = tracer.buildSpan("test", "span3")
+                .asChildOf(span2.spanContext())
+                .withRequestContextData(RequestContextSlot.APPSEC, "override")
+                .withRequestContextData(RequestContextSlot.CI_VISIBILITY, "override")
+                .withRequestContextData(RequestContextSlot.IAST, "override")
+                .start();
+
+        assertEquals("override", span3.getRequestContext().getData(RequestContextSlot.APPSEC));
+        assertEquals("override", span3.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY));
+        assertEquals("override", span3.getRequestContext().getData(RequestContextSlot.IAST));
+
+        span3.finish();
+        span2.finish();
+        span1.finish();
+    }
+
+    private Map<String, Object> productTags() {
+        Map<String, Object> productTags = new HashMap<>();
+        productTags.put(PROFILING_ENABLED, Config.get().isProfilingEnabled() ? 1 : 0);
+        if (Config.get().isDataStreamsEnabled()) {
+            productTags.put(DSM_ENABLED, 1);
+        }
+        if (Config.get().isDataJobsEnabled()) {
+            productTags.put(DJM_ENABLED, 1);
+        }
+        return productTags;
+    }
+
+    private static Map<String, Object> buildTagsMap(String... keyValues) {
+        Map<String, Object> map = new HashMap<>();
+        for (int i = 0; i < keyValues.length; i += 2) {
+            map.put(keyValues[i], keyValues[i + 1]);
+        }
+        return map;
+    }
+
+    private static Map<String, String> buildStringMap(String... keyValues) {
+        Map<String, String> map = new HashMap<>();
+        for (int i = 0; i < keyValues.length; i += 2) {
+            map.put(keyValues[i], keyValues[i + 1]);
+        }
+        return map;
+    }
 }

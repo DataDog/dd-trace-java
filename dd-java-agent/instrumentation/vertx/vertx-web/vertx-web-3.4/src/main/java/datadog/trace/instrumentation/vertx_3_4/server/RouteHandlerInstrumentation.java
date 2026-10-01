@@ -12,23 +12,23 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(InstrumenterModule.class)
 public class RouteHandlerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public RouteHandlerInstrumentation() {
-    super("vertx", "vertx-3.4");
-  }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public RouteHandlerInstrumentation() {
+        super("vertx", "vertx-3.4");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "io.vertx.ext.web.impl.RouteImpl";
-  }
+    @Override
+    public String instrumentedType() {
+        return "io.vertx.ext.web.impl.RouteImpl";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(namedOneOf("handler", "blockingHandler"))
-            .and(isPublic())
-            .and(takesArgument(0, named("io.vertx.core.Handler"))),
-        packageName + ".RouteHandlerWrapperAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(namedOneOf("handler", "blockingHandler"))
+                        .and(isPublic())
+                        .and(takesArgument(0, named("io.vertx.core.Handler"))),
+                packageName + ".RouteHandlerWrapperAdvice");
+    }
 }

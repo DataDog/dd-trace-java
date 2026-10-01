@@ -60,144 +60,135 @@ import org.openjdk.jmh.infra.Blackhole;
 @Fork(value = 1)
 public class FlagEvalHookHotPathBenchmark {
 
-  /**
-   * Context shapes. The three 100-leaf shapes (flat/100attrs, nested/10structs_10fields,
-   * list/10lists_10items) carry the same leaf count under different structure, so the spread
-   * between them isolates shape cost from leaf count.
-   */
-  @Param({
-    "flat/0attrs",
-    "flat/10attrs",
-    "flat/100attrs",
-    "nested/10structs_10fields",
-    "list/10lists_10items"
-  })
-  public String shape;
+    /**
+     * Context shapes. The three 100-leaf shapes (flat/100attrs, nested/10structs_10fields,
+     * list/10lists_10items) carry the same leaf count under different structure, so the spread
+     * between them isolates shape cost from leaf count.
+     */
+    @Param({"flat/0attrs", "flat/10attrs", "flat/100attrs", "nested/10structs_10fields", "list/10lists_10items"})
+    public String shape;
 
-  private HookContext<Object> hookContext;
-  private FlagEvaluationDetails<Object> consentOnDetails;
-  private FlagEvaluationDetails<Object> consentOffDetails;
-  private FlagEvalLoggingHook<Object> hook;
+    private HookContext<Object> hookContext;
+    private FlagEvaluationDetails<Object> consentOnDetails;
+    private FlagEvaluationDetails<Object> consentOffDetails;
+    private FlagEvalLoggingHook<Object> hook;
 
-  @Setup(Level.Trial)
-  public void setUp() {
-    final MutableContext ctx = buildContext(shape);
-    hookContext =
-        HookContext.builder()
-            .flagKey("bench-flag")
-            .type(FlagValueType.STRING)
-            .defaultValue("default")
-            .ctx(ctx)
-            .build();
+    @Setup(Level.Trial)
+    public void setUp() {
+        final MutableContext ctx = buildContext(shape);
+        hookContext = HookContext.builder()
+                .flagKey("bench-flag")
+                .type(FlagValueType.STRING)
+                .defaultValue("default")
+                .ctx(ctx)
+                .build();
 
-    consentOnDetails = details(true);
-    consentOffDetails = details(false);
+        consentOnDetails = details(true);
+        consentOffDetails = details(false);
 
-    // Discarding writer: isolates hook-inline cost from queue mechanics.
-    hook = new FlagEvalLoggingHook<>(new NoOpWriter());
-    FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(true);
-  }
-
-  @TearDown(Level.Trial)
-  public void tearDown() {
-    FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(false);
-  }
-
-  /** Total inline cost under consent-on: scalar extraction, bounded context copy, and enqueue. */
-  @Benchmark
-  public void hookFinallyAfter() {
-    hook.finallyAfter(hookContext, consentOnDetails, Collections.emptyMap());
-  }
-
-  /** Protected-path floor: consent-off skips the context copy, leaving scalar work plus enqueue. */
-  @Benchmark
-  public void hookFinallyAfterConsentOff() {
-    hook.finallyAfter(hookContext, consentOffDetails, Collections.emptyMap());
-  }
-
-  /** The bounded context copy alone - the component that scales with context shape. */
-  @Benchmark
-  public void contextCopy(final Blackhole blackhole) {
-    blackhole.consume(DDEvaluator.copyPrunedContext(hookContext.getCtx()));
-  }
-
-  private static FlagEvaluationDetails<Object> details(final boolean observeFullEvaluationData) {
-    return FlagEvaluationDetails.builder()
-        .flagKey("bench-flag")
-        .value("on-value")
-        .variant("on")
-        .reason(Reason.TARGETING_MATCH.name())
-        .flagMetadata(
-            ImmutableMetadata.builder()
-                .addString("allocationKey", "alloc-1")
-                .addLong("__dd_eval_timestamp_ms", 1_700_000_000_000L)
-                .addBoolean(
-                    DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData)
-                .build())
-        .build();
-  }
-
-  private static MutableContext buildContext(final String shape) {
-    final MutableContext ctx = new MutableContext("bench-user");
-    if ("flat/0attrs".equals(shape)) {
-      return ctx;
+        // Discarding writer: isolates hook-inline cost from queue mechanics.
+        hook = new FlagEvalLoggingHook<>(new NoOpWriter());
+        FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(true);
     }
-    if ("flat/10attrs".equals(shape)) {
-      return addFlat(ctx, 10);
+
+    @TearDown(Level.Trial)
+    public void tearDown() {
+        FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(false);
     }
-    if ("flat/100attrs".equals(shape)) {
-      return addFlat(ctx, 100);
+
+    /** Total inline cost under consent-on: scalar extraction, bounded context copy, and enqueue. */
+    @Benchmark
+    public void hookFinallyAfter() {
+        hook.finallyAfter(hookContext, consentOnDetails, Collections.emptyMap());
     }
-    if ("nested/10structs_10fields".equals(shape)) {
-      for (int i = 0; i < 10; i++) {
-        final Map<String, Value> inner = new HashMap<>();
-        for (int j = 0; j < 10; j++) {
-          inner.put("field" + j, new Value("value" + j));
+
+    /** Protected-path floor: consent-off skips the context copy, leaving scalar work plus enqueue. */
+    @Benchmark
+    public void hookFinallyAfterConsentOff() {
+        hook.finallyAfter(hookContext, consentOffDetails, Collections.emptyMap());
+    }
+
+    /** The bounded context copy alone - the component that scales with context shape. */
+    @Benchmark
+    public void contextCopy(final Blackhole blackhole) {
+        blackhole.consume(DDEvaluator.copyPrunedContext(hookContext.getCtx()));
+    }
+
+    private static FlagEvaluationDetails<Object> details(final boolean observeFullEvaluationData) {
+        return FlagEvaluationDetails.builder()
+                .flagKey("bench-flag")
+                .value("on-value")
+                .variant("on")
+                .reason(Reason.TARGETING_MATCH.name())
+                .flagMetadata(ImmutableMetadata.builder()
+                        .addString("allocationKey", "alloc-1")
+                        .addLong("__dd_eval_timestamp_ms", 1_700_000_000_000L)
+                        .addBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData)
+                        .build())
+                .build();
+    }
+
+    private static MutableContext buildContext(final String shape) {
+        final MutableContext ctx = new MutableContext("bench-user");
+        if ("flat/0attrs".equals(shape)) {
+            return ctx;
         }
-        ctx.add("struct" + i, new ImmutableStructure(inner));
-      }
-      return ctx;
-    }
-    if ("list/10lists_10items".equals(shape)) {
-      for (int i = 0; i < 10; i++) {
-        final List<Value> items = new ArrayList<>(10);
-        for (int j = 0; j < 10; j++) {
-          items.add(new Value("value" + j));
+        if ("flat/10attrs".equals(shape)) {
+            return addFlat(ctx, 10);
         }
-        ctx.add("list" + i, items);
-      }
-      return ctx;
+        if ("flat/100attrs".equals(shape)) {
+            return addFlat(ctx, 100);
+        }
+        if ("nested/10structs_10fields".equals(shape)) {
+            for (int i = 0; i < 10; i++) {
+                final Map<String, Value> inner = new HashMap<>();
+                for (int j = 0; j < 10; j++) {
+                    inner.put("field" + j, new Value("value" + j));
+                }
+                ctx.add("struct" + i, new ImmutableStructure(inner));
+            }
+            return ctx;
+        }
+        if ("list/10lists_10items".equals(shape)) {
+            for (int i = 0; i < 10; i++) {
+                final List<Value> items = new ArrayList<>(10);
+                for (int j = 0; j < 10; j++) {
+                    items.add(new Value("value" + j));
+                }
+                ctx.add("list" + i, items);
+            }
+            return ctx;
+        }
+        throw new IllegalArgumentException("unknown benchmark shape: " + shape);
     }
-    throw new IllegalArgumentException("unknown benchmark shape: " + shape);
-  }
 
-  private static MutableContext addFlat(final MutableContext ctx, final int count) {
-    for (int i = 0; i < count; i++) {
-      ctx.add("field" + i, "value" + i);
-    }
-    return ctx;
-  }
-
-  /** Discards events so only hook-inline work is measured. */
-  private static final class NoOpWriter implements FlagEvaluationWriter {
-    @Override
-    public void enqueue(final FlagEvalEvent event) {}
-
-    @Override
-    public boolean hasCapacityForEnqueue() {
-      return true;
+    private static MutableContext addFlat(final MutableContext ctx, final int count) {
+        for (int i = 0; i < count; i++) {
+            ctx.add("field" + i, "value" + i);
+        }
+        return ctx;
     }
 
-    @Override
-    public void countPreQueueOverflow() {}
+    /** Discards events so only hook-inline work is measured. */
+    private static final class NoOpWriter implements FlagEvaluationWriter {
+        @Override
+        public void enqueue(final FlagEvalEvent event) {}
 
-    @Override
-    public void countContextTruncated(final String reason) {}
+        @Override
+        public boolean hasCapacityForEnqueue() {
+            return true;
+        }
 
-    @Override
-    public void start() {}
+        @Override
+        public void countPreQueueOverflow() {}
 
-    @Override
-    public void close() {}
-  }
+        @Override
+        public void countContextTruncated(final String reason) {}
+
+        @Override
+        public void start() {}
+
+        @Override
+        public void close() {}
+    }
 }

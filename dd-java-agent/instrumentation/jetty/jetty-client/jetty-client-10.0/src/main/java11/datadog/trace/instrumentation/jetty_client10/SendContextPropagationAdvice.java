@@ -14,13 +14,14 @@ import org.eclipse.jetty.client.api.Request;
 
 @AppliesOn(CONTEXT_TRACKING)
 public class SendContextPropagationAdvice {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static void methodEnter(@Advice.Argument(0) final Request request) {
-    final AgentSpan span = InstrumentationContext.get(Request.class, AgentSpan.class).get(request);
-    Context destination = currentContext();
-    if (span != null) {
-      destination = destination.with(span);
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void methodEnter(@Advice.Argument(0) final Request request) {
+        final AgentSpan span =
+                InstrumentationContext.get(Request.class, AgentSpan.class).get(request);
+        Context destination = currentContext();
+        if (span != null) {
+            destination = destination.with(span);
+        }
+        DECORATE.injectContext(destination, request, SETTER);
     }
-    DECORATE.injectContext(destination, request, SETTER);
-  }
 }

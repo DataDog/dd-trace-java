@@ -17,54 +17,54 @@ import datadog.trace.agent.tooling.muzzle.Reference;
  */
 @AutoService(InstrumenterModule.class)
 public class PlayBodyParsersInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
-  public PlayBodyParsersInstrumentation() {
-    super("play");
-  }
+    public PlayBodyParsersInstrumentation() {
+        super("play");
+    }
 
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return MuzzleReferences.PLAY_25_ONLY;
-  }
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return MuzzleReferences.PLAY_25_ONLY;
+    }
 
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "play.api.mvc.BodyParsers$parse$",
-    };
-  }
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            "play.api.mvc.BodyParsers$parse$",
+        };
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("tolerantText")
-            .and(not(isStatic()))
-            .and(takesArguments(1))
-            .and(takesArgument(0, long.class))
-            .and(returns(named("play.api.mvc.BodyParser"))),
-        packageName + ".PlayBodyParsersTolerantTextAdvice");
-    transformer.applyAdvice(
-        named("tolerantJson")
-            .and(not(isStatic()))
-            .and(takesArguments(1))
-            .and(takesArgument(0, int.class))
-            .and(returns(named("play.api.mvc.BodyParser"))),
-        packageName + ".PlayBodyParsersTolerantJsonAdvice");
-    transformer.applyAdvice(
-        named("tolerantFormUrlEncoded")
-            .and(not(isStatic()))
-            .and(takesArguments(1))
-            .and(takesArgument(0, int.class))
-            .and(returns(named("play.api.mvc.BodyParser"))),
-        packageName + ".PlayBodyParsersTolerantFormUrlEncodedAdvice");
-    transformer.applyAdvice(
-        named("multipartFormData")
-            .and(not(isStatic()))
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("scala.Function1")))
-            .and(takesArgument(1, long.class))
-            .and(returns(named("play.api.mvc.BodyParser"))),
-        packageName + ".PlayBodyParsersMultipartFormDataAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("tolerantText")
+                        .and(not(isStatic()))
+                        .and(takesArguments(1))
+                        .and(takesArgument(0, long.class))
+                        .and(returns(named("play.api.mvc.BodyParser"))),
+                packageName + ".PlayBodyParsersTolerantTextAdvice");
+        transformer.applyAdvice(
+                named("tolerantJson")
+                        .and(not(isStatic()))
+                        .and(takesArguments(1))
+                        .and(takesArgument(0, int.class))
+                        .and(returns(named("play.api.mvc.BodyParser"))),
+                packageName + ".PlayBodyParsersTolerantJsonAdvice");
+        transformer.applyAdvice(
+                named("tolerantFormUrlEncoded")
+                        .and(not(isStatic()))
+                        .and(takesArguments(1))
+                        .and(takesArgument(0, int.class))
+                        .and(returns(named("play.api.mvc.BodyParser"))),
+                packageName + ".PlayBodyParsersTolerantFormUrlEncodedAdvice");
+        transformer.applyAdvice(
+                named("multipartFormData")
+                        .and(not(isStatic()))
+                        .and(takesArguments(2))
+                        .and(takesArgument(0, named("scala.Function1")))
+                        .and(takesArgument(1, long.class))
+                        .and(returns(named("play.api.mvc.BodyParser"))),
+                packageName + ".PlayBodyParsersMultipartFormDataAdvice");
+    }
 }

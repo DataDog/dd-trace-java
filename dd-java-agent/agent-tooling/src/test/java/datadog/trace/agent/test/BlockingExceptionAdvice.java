@@ -5,8 +5,8 @@ import net.bytebuddy.asm.Advice;
 
 public class BlockingExceptionAdvice {
 
-  @Advice.OnMethodExit(suppress = Throwable.class)
-  public static void throwAnException() {
-    throw new BlockingException("You are blocked");
-  }
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void throwAnException() {
+        throw new BlockingException("You are blocked");
+    }
 }

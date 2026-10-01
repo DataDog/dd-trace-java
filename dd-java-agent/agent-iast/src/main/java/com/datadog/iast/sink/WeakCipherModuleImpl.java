@@ -10,19 +10,19 @@ import javax.annotation.Nonnull;
 
 public class WeakCipherModuleImpl extends SinkModuleBase implements WeakCipherModule {
 
-  private Config config;
+    private Config config;
 
-  public WeakCipherModuleImpl(final Dependencies dependencies) {
-    super(dependencies);
-    config = dependencies.getConfig();
-  }
-
-  @Override
-  public void onCipherAlgorithm(@Nonnull final String algorithm) {
-    final String algorithmId = algorithm.toUpperCase(Locale.ROOT);
-    if (!config.getIastWeakCipherAlgorithms().matcher(algorithmId).matches()) {
-      return;
+    public WeakCipherModuleImpl(final Dependencies dependencies) {
+        super(dependencies);
+        config = dependencies.getConfig();
     }
-    report(VulnerabilityType.WEAK_CIPHER, new Evidence(algorithm));
-  }
+
+    @Override
+    public void onCipherAlgorithm(@Nonnull final String algorithm) {
+        final String algorithmId = algorithm.toUpperCase(Locale.ROOT);
+        if (!config.getIastWeakCipherAlgorithms().matcher(algorithmId).matches()) {
+            return;
+        }
+        report(VulnerabilityType.WEAK_CIPHER, new Evidence(algorithm));
+    }
 }

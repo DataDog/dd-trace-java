@@ -21,38 +21,38 @@ import org.jboss.modules.Module;
  */
 @AutoService(InstrumenterModule.class)
 public class ModulePatchInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public ModulePatchInstrumentation() {
-    super("jboss-module-patch");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.jboss.modules.Module";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(named("getResources"), getClass().getName() + "$SystemResourcesAdvice");
-  }
-
-  public static class SystemResourcesAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void onExit(
-        @Advice.This Module self,
-        @Advice.Argument(0) String name,
-        @Advice.Return(readOnly = false) Enumeration<URL> ret) {
-      if ("META-INF/services/javax.servlet.ServletContainerInitializer".equals(name)) {
-        final List<URL> list = new ArrayList<>();
-        while (ret.hasMoreElements()) {
-          URL u = ret.nextElement();
-          if (!u.toString().contains("logback-classic")) {
-            list.add(u);
-          }
-        }
-        ret = Collections.enumeration(list);
-      }
+    public ModulePatchInstrumentation() {
+        super("jboss-module-patch");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "org.jboss.modules.Module";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(named("getResources"), getClass().getName() + "$SystemResourcesAdvice");
+    }
+
+    public static class SystemResourcesAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void onExit(
+                @Advice.This Module self,
+                @Advice.Argument(0) String name,
+                @Advice.Return(readOnly = false) Enumeration<URL> ret) {
+            if ("META-INF/services/javax.servlet.ServletContainerInitializer".equals(name)) {
+                final List<URL> list = new ArrayList<>();
+                while (ret.hasMoreElements()) {
+                    URL u = ret.nextElement();
+                    if (!u.toString().contains("logback-classic")) {
+                        list.add(u);
+                    }
+                }
+                ret = Collections.enumeration(list);
+            }
+        }
+    }
 }

@@ -12,48 +12,45 @@ import org.gradle.api.internal.tasks.testing.ClassTestDefinition;
 import org.gradle.api.internal.tasks.testing.TestDefinitionConsumer;
 import org.gradle.internal.UncheckedException;
 
-public class DDCollectAllTestDefinitionsExecutor
-    implements TestDefinitionConsumer<ClassTestDefinition> {
-  private final List<Class<?>> testClasses = new ArrayList<>();
-  private final Map<String, ClassTestDefinition> testDefinitions = new HashMap<>();
-  private final TestDefinitionConsumer<ClassTestDefinition> delegate;
-  private final ClassLoader classLoader;
+public class DDCollectAllTestDefinitionsExecutor implements TestDefinitionConsumer<ClassTestDefinition> {
+    private final List<Class<?>> testClasses = new ArrayList<>();
+    private final Map<String, ClassTestDefinition> testDefinitions = new HashMap<>();
+    private final TestDefinitionConsumer<ClassTestDefinition> delegate;
+    private final ClassLoader classLoader;
 
-  public DDCollectAllTestDefinitionsExecutor(
-      TestDefinitionConsumer<ClassTestDefinition> delegate, ClassLoader junitClassLoader) {
-    this.delegate = delegate;
-    this.classLoader = junitClassLoader;
-  }
-
-  @Override
-  public void accept(ClassTestDefinition testDefinition) {
-    Class<?> clazz = loadClass(testDefinition.getTestClassName());
-
-    TestFrameworkInstrumentation framework = JUnit4Utils.classToFramework(clazz);
-    if (framework == TestFrameworkInstrumentation.JUNIT4) {
-      TestEventsHandlerHolder.start(
-          TestFrameworkInstrumentation.JUNIT4, JUnit4Utils.capabilities(true));
+    public DDCollectAllTestDefinitionsExecutor(
+            TestDefinitionConsumer<ClassTestDefinition> delegate, ClassLoader junitClassLoader) {
+        this.delegate = delegate;
+        this.classLoader = junitClassLoader;
     }
 
-    testClasses.add(clazz);
-    testDefinitions.put(testDefinition.getTestClassName(), testDefinition);
-  }
+    @Override
+    public void accept(ClassTestDefinition testDefinition) {
+        Class<?> clazz = loadClass(testDefinition.getTestClassName());
 
-  public void processAllTestClasses() {
-    testClasses.sort(
-        new JUnit4FailFastClassOrderer(
-            TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.JUNIT4)));
+        TestFrameworkInstrumentation framework = JUnit4Utils.classToFramework(clazz);
+        if (framework == TestFrameworkInstrumentation.JUNIT4) {
+            TestEventsHandlerHolder.start(TestFrameworkInstrumentation.JUNIT4, JUnit4Utils.capabilities(true));
+        }
 
-    for (Class<?> clazz : testClasses) {
-      delegate.accept(testDefinitions.get(clazz.getName()));
+        testClasses.add(clazz);
+        testDefinitions.put(testDefinition.getTestClassName(), testDefinition);
     }
-  }
 
-  private Class<?> loadClass(String testClassName) {
-    try {
-      return Class.forName(testClassName, false, classLoader);
-    } catch (ClassNotFoundException e) {
-      throw UncheckedException.throwAsUncheckedException(e);
+    public void processAllTestClasses() {
+        testClasses.sort(new JUnit4FailFastClassOrderer(
+                TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.JUNIT4)));
+
+        for (Class<?> clazz : testClasses) {
+            delegate.accept(testDefinitions.get(clazz.getName()));
+        }
     }
-  }
+
+    private Class<?> loadClass(String testClassName) {
+        try {
+            return Class.forName(testClassName, false, classLoader);
+        } catch (ClassNotFoundException e) {
+            throw UncheckedException.throwAsUncheckedException(e);
+        }
+    }
 }

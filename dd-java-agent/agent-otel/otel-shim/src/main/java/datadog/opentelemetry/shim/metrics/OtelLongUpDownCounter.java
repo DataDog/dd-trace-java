@@ -18,66 +18,64 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 final class OtelLongUpDownCounter extends OtelInstrument implements LongUpDownCounter {
-  OtelLongUpDownCounter(OtelMetricStorage storage) {
-    super(storage);
-  }
-
-  @Override
-  public void add(long value) {
-    add(value, Attributes.empty());
-  }
-
-  @Override
-  public void add(long value, Attributes attributes) {
-    storage.recordLong(value, attributes);
-  }
-
-  @Override
-  public void add(long value, Attributes attributes, Context unused) {
-    add(value, attributes);
-  }
-
-  static final class Builder implements LongUpDownCounterBuilder {
-    private final OtelMeter meter;
-    private final OtelInstrumentBuilder builder;
-
-    Builder(OtelMeter meter, String instrumentName) {
-      this.meter = meter;
-      this.builder = ofLongs(instrumentName, UP_DOWN_COUNTER);
+    OtelLongUpDownCounter(OtelMetricStorage storage) {
+        super(storage);
     }
 
     @Override
-    public LongUpDownCounterBuilder setDescription(String description) {
-      builder.setDescription(description);
-      return this;
+    public void add(long value) {
+        add(value, Attributes.empty());
     }
 
     @Override
-    public LongUpDownCounterBuilder setUnit(String unit) {
-      builder.setUnit(unit);
-      return this;
+    public void add(long value, Attributes attributes) {
+        storage.recordLong(value, attributes);
     }
 
     @Override
-    public DoubleUpDownCounterBuilder ofDoubles() {
-      return new OtelDoubleUpDownCounter.Builder(meter, builder);
+    public void add(long value, Attributes attributes, Context unused) {
+        add(value, attributes);
     }
 
-    @Override
-    public LongUpDownCounter build() {
-      return new OtelLongUpDownCounter(
-          meter.registerStorage(builder, OtelMetricStorage::newLongSumStorage));
-    }
+    static final class Builder implements LongUpDownCounterBuilder {
+        private final OtelMeter meter;
+        private final OtelInstrumentBuilder builder;
 
-    @Override
-    public ObservableLongMeasurement buildObserver() {
-      return meter.registerObservableStorage(builder, OtelMetricStorage::newLongDeltaStorage);
-    }
+        Builder(OtelMeter meter, String instrumentName) {
+            this.meter = meter;
+            this.builder = ofLongs(instrumentName, UP_DOWN_COUNTER);
+        }
 
-    @Override
-    public ObservableLongUpDownCounter buildWithCallback(
-        Consumer<ObservableLongMeasurement> callback) {
-      return meter.registerObservableCallback(callback, buildObserver());
+        @Override
+        public LongUpDownCounterBuilder setDescription(String description) {
+            builder.setDescription(description);
+            return this;
+        }
+
+        @Override
+        public LongUpDownCounterBuilder setUnit(String unit) {
+            builder.setUnit(unit);
+            return this;
+        }
+
+        @Override
+        public DoubleUpDownCounterBuilder ofDoubles() {
+            return new OtelDoubleUpDownCounter.Builder(meter, builder);
+        }
+
+        @Override
+        public LongUpDownCounter build() {
+            return new OtelLongUpDownCounter(meter.registerStorage(builder, OtelMetricStorage::newLongSumStorage));
+        }
+
+        @Override
+        public ObservableLongMeasurement buildObserver() {
+            return meter.registerObservableStorage(builder, OtelMetricStorage::newLongDeltaStorage);
+        }
+
+        @Override
+        public ObservableLongUpDownCounter buildWithCallback(Consumer<ObservableLongMeasurement> callback) {
+            return meter.registerObservableCallback(callback, buildObserver());
+        }
     }
-  }
 }

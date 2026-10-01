@@ -11,15 +11,15 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class Http1xServerRequestInstrumentation extends AbstractHttpServerRequestInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  @Override
-  protected ElementMatcher.Junction<MethodDescription> attributesFilter() {
-    return isPrivate().and(named("attributes"));
-  }
+    @Override
+    protected ElementMatcher.Junction<MethodDescription> attributesFilter() {
+        return isPrivate().and(named("attributes"));
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "io.vertx.core.http.impl.Http1xServerRequest";
-  }
+    @Override
+    public String instrumentedType() {
+        return "io.vertx.core.http.impl.Http1xServerRequest";
+    }
 }

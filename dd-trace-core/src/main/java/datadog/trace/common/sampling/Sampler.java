@@ -23,126 +23,122 @@ import org.slf4j.LoggerFactory;
 /** Main interface to sample a collection of traces. */
 public interface Sampler {
 
-  /**
-   * Sample a collection of traces based on the parent span
-   *
-   * @param span the parent span with its context
-   * @return true when the trace/spans has to be reported/written
-   */
-  <T extends CoreSpan<T>> boolean sample(T span);
-
-  /** Returns the sampler applying agent published rates. */
-  @Nullable
-  default RateByServiceTraceSampler agentSampler() {
-    return null;
-  }
-
-  final class Builder {
-    private static final Logger log = LoggerFactory.getLogger(Builder.class);
-
-    public static Sampler forConfig(final Config config, final TraceConfig traceConfig) {
-      return forConfig(config, traceConfig, null);
-    }
-
     /**
-     * Builds the sampler for {@code config}/{@code traceConfig}, using {@code agentSampler} for
-     * agent published rates (defaulting to a new {@link RateByServiceTraceSampler} if null.)
+     * Sample a collection of traces based on the parent span
      *
-     * <p>Callers rebuilding the sampler must reuse the same {@code agentSampler} value: it's
-     * registered once for agent rates, and a fresh one would reset its learned rates to 1.0.
+     * @param span the parent span with its context
+     * @return true when the trace/spans has to be reported/written
      */
-    public static Sampler forConfig(
-        final Config config,
-        final TraceConfig traceConfig,
-        @Nullable final RateByServiceTraceSampler agentSampler) {
-      Sampler sampler;
-      if (config != null) {
-        if (!config.isApmTracingEnabled() && isAsmEnabled(config)) {
-          log.debug("APM is disabled. Only 1 trace per minute will be sent.");
-          return new AsmStandaloneSampler(Clock.systemUTC());
-        }
-        final Map<String, String> serviceRules = config.getTraceSamplingServiceRules();
-        final Map<String, String> operationRules = config.getTraceSamplingOperationRules();
-        List<? extends SamplingRule.TraceSamplingRule> traceSamplingRules;
-        if (null != traceConfig) {
-          traceSamplingRules = traceConfig.getTraceSamplingRules();
-        } else if (null != config.getTraceSamplingRules()) {
-          traceSamplingRules =
-              TraceSamplingRules.deserialize(config.getTraceSamplingRules()).getRules();
-        } else {
-          traceSamplingRules = Collections.emptyList();
-        }
-        boolean serviceRulesDefined = serviceRules != null && !serviceRules.isEmpty();
-        boolean operationRulesDefined = operationRules != null && !operationRules.isEmpty();
-        boolean traceSamplingRulesDefined = !traceSamplingRules.isEmpty();
-        if ((serviceRulesDefined || operationRulesDefined) && traceSamplingRulesDefined) {
-          log.warn(
-              "Both {} and/or {} as well as {} are defined. Only {} will be used for rule-based sampling",
-              TracerConfig.TRACE_SAMPLING_SERVICE_RULES,
-              TracerConfig.TRACE_SAMPLING_OPERATION_RULES,
-              TracerConfig.TRACE_SAMPLING_RULES,
-              TracerConfig.TRACE_SAMPLING_RULES);
-        }
-        Double traceSampleRate =
-            null != traceConfig ? traceConfig.getTraceSampleRate() : config.getTraceSampleRate();
-        if (serviceRulesDefined
-            || operationRulesDefined
-            || traceSamplingRulesDefined
-            || traceSampleRate != null) {
-          try {
-            sampler =
-                RuleBasedTraceSampler.build(
-                    serviceRules,
-                    operationRules,
-                    traceSamplingRules,
-                    traceSampleRate,
-                    config.getTraceRateLimit(),
-                    agentSampler);
-          } catch (final IllegalArgumentException e) {
-            log.error("Invalid sampler configuration. Using AllSampler", e);
-            sampler = new AllSampler();
-          }
-        } else if (config.isPrioritySamplingEnabled()) {
-          if (KEEP.equalsIgnoreCase(config.getPrioritySamplingForce())) {
-            log.debug("Force Sampling Priority to: SAMPLER_KEEP.");
-            sampler =
-                new ForcePrioritySampler(PrioritySampling.SAMPLER_KEEP, SamplingMechanism.DEFAULT);
-          } else if (DROP.equalsIgnoreCase(config.getPrioritySamplingForce())) {
-            log.debug("Force Sampling Priority to: SAMPLER_DROP.");
-            sampler =
-                new ForcePrioritySampler(PrioritySampling.SAMPLER_DROP, SamplingMechanism.DEFAULT);
-          } else if (config.isTraceOtlpExporterEnabled()) {
-            // RateByServiceTraceSampler relies on the Datadog Agent for rate updates.
-            log.debug(
-                "OTLP traces export enabled. Using ParentBasedAlwaysOnSampler instead of RateByServiceTraceSampler.");
-            sampler = new ParentBasedAlwaysOnSampler();
-          } else {
-            sampler = agentSampler != null ? agentSampler : new RateByServiceTraceSampler();
-          }
-        } else if (config.isTraceOtlpExporterEnabled()) {
-          // AllSampler does not emit a sampling priority; OTLP export requires one.
-          log.debug(
-              "OTLP traces export enabled. Using ParentBasedAlwaysOnSampler instead of AllSampler.");
-          sampler = new ParentBasedAlwaysOnSampler();
-        } else {
-          sampler = new AllSampler();
-        }
-      } else {
-        sampler = new AllSampler();
-      }
-      return sampler;
+    <T extends CoreSpan<T>> boolean sample(T span);
+
+    /** Returns the sampler applying agent published rates. */
+    @Nullable
+    default RateByServiceTraceSampler agentSampler() {
+        return null;
     }
 
-    private static boolean isAsmEnabled(Config config) {
-      return config.getAppSecActivation() == ProductActivation.FULLY_ENABLED
-          || config.getIastActivation() == ProductActivation.FULLY_ENABLED
-          || config.isAppSecScaEnabled();
-    }
+    final class Builder {
+        private static final Logger log = LoggerFactory.getLogger(Builder.class);
 
-    public static Sampler forConfig(final Properties config) {
-      return forConfig(Config.get(config), null);
-    }
+        public static Sampler forConfig(final Config config, final TraceConfig traceConfig) {
+            return forConfig(config, traceConfig, null);
+        }
 
-    private Builder() {}
-  }
+        /**
+         * Builds the sampler for {@code config}/{@code traceConfig}, using {@code agentSampler} for
+         * agent published rates (defaulting to a new {@link RateByServiceTraceSampler} if null.)
+         *
+         * <p>Callers rebuilding the sampler must reuse the same {@code agentSampler} value: it's
+         * registered once for agent rates, and a fresh one would reset its learned rates to 1.0.
+         */
+        public static Sampler forConfig(
+                final Config config,
+                final TraceConfig traceConfig,
+                @Nullable final RateByServiceTraceSampler agentSampler) {
+            Sampler sampler;
+            if (config != null) {
+                if (!config.isApmTracingEnabled() && isAsmEnabled(config)) {
+                    log.debug("APM is disabled. Only 1 trace per minute will be sent.");
+                    return new AsmStandaloneSampler(Clock.systemUTC());
+                }
+                final Map<String, String> serviceRules = config.getTraceSamplingServiceRules();
+                final Map<String, String> operationRules = config.getTraceSamplingOperationRules();
+                List<? extends SamplingRule.TraceSamplingRule> traceSamplingRules;
+                if (null != traceConfig) {
+                    traceSamplingRules = traceConfig.getTraceSamplingRules();
+                } else if (null != config.getTraceSamplingRules()) {
+                    traceSamplingRules = TraceSamplingRules.deserialize(config.getTraceSamplingRules())
+                            .getRules();
+                } else {
+                    traceSamplingRules = Collections.emptyList();
+                }
+                boolean serviceRulesDefined = serviceRules != null && !serviceRules.isEmpty();
+                boolean operationRulesDefined = operationRules != null && !operationRules.isEmpty();
+                boolean traceSamplingRulesDefined = !traceSamplingRules.isEmpty();
+                if ((serviceRulesDefined || operationRulesDefined) && traceSamplingRulesDefined) {
+                    log.warn(
+                            "Both {} and/or {} as well as {} are defined. Only {} will be used for rule-based sampling",
+                            TracerConfig.TRACE_SAMPLING_SERVICE_RULES,
+                            TracerConfig.TRACE_SAMPLING_OPERATION_RULES,
+                            TracerConfig.TRACE_SAMPLING_RULES,
+                            TracerConfig.TRACE_SAMPLING_RULES);
+                }
+                Double traceSampleRate =
+                        null != traceConfig ? traceConfig.getTraceSampleRate() : config.getTraceSampleRate();
+                if (serviceRulesDefined
+                        || operationRulesDefined
+                        || traceSamplingRulesDefined
+                        || traceSampleRate != null) {
+                    try {
+                        sampler = RuleBasedTraceSampler.build(
+                                serviceRules,
+                                operationRules,
+                                traceSamplingRules,
+                                traceSampleRate,
+                                config.getTraceRateLimit(),
+                                agentSampler);
+                    } catch (final IllegalArgumentException e) {
+                        log.error("Invalid sampler configuration. Using AllSampler", e);
+                        sampler = new AllSampler();
+                    }
+                } else if (config.isPrioritySamplingEnabled()) {
+                    if (KEEP.equalsIgnoreCase(config.getPrioritySamplingForce())) {
+                        log.debug("Force Sampling Priority to: SAMPLER_KEEP.");
+                        sampler = new ForcePrioritySampler(PrioritySampling.SAMPLER_KEEP, SamplingMechanism.DEFAULT);
+                    } else if (DROP.equalsIgnoreCase(config.getPrioritySamplingForce())) {
+                        log.debug("Force Sampling Priority to: SAMPLER_DROP.");
+                        sampler = new ForcePrioritySampler(PrioritySampling.SAMPLER_DROP, SamplingMechanism.DEFAULT);
+                    } else if (config.isTraceOtlpExporterEnabled()) {
+                        // RateByServiceTraceSampler relies on the Datadog Agent for rate updates.
+                        log.debug(
+                                "OTLP traces export enabled. Using ParentBasedAlwaysOnSampler instead of RateByServiceTraceSampler.");
+                        sampler = new ParentBasedAlwaysOnSampler();
+                    } else {
+                        sampler = agentSampler != null ? agentSampler : new RateByServiceTraceSampler();
+                    }
+                } else if (config.isTraceOtlpExporterEnabled()) {
+                    // AllSampler does not emit a sampling priority; OTLP export requires one.
+                    log.debug("OTLP traces export enabled. Using ParentBasedAlwaysOnSampler instead of AllSampler.");
+                    sampler = new ParentBasedAlwaysOnSampler();
+                } else {
+                    sampler = new AllSampler();
+                }
+            } else {
+                sampler = new AllSampler();
+            }
+            return sampler;
+        }
+
+        private static boolean isAsmEnabled(Config config) {
+            return config.getAppSecActivation() == ProductActivation.FULLY_ENABLED
+                    || config.getIastActivation() == ProductActivation.FULLY_ENABLED
+                    || config.isAppSecScaEnabled();
+        }
+
+        public static Sampler forConfig(final Properties config) {
+            return forConfig(Config.get(config), null);
+        }
+
+        private Builder() {}
+    }
 }

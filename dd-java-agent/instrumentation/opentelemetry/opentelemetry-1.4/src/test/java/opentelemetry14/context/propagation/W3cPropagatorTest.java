@@ -12,24 +12,23 @@ import org.junit.jupiter.params.provider.Arguments;
 
 @WithConfig(key = "trace.propagation.style", value = "tracecontext")
 class W3cPropagatorTest extends AgentPropagatorTest {
-  static Stream<Arguments> values() {
-    return Stream.of(
-        arguments(
-            headers("traceparent", "00-11111111111111111111111111111111-2222222222222222-00"),
-            "11111111111111111111111111111111",
-            "2222222222222222",
-            UNSET),
-        arguments(
-            headers("traceparent", "00-11111111111111111111111111111111-2222222222222222-01"),
-            "11111111111111111111111111111111",
-            "2222222222222222",
-            SAMPLER_KEEP));
-  }
+    static Stream<Arguments> values() {
+        return Stream.of(
+                arguments(
+                        headers("traceparent", "00-11111111111111111111111111111111-2222222222222222-00"),
+                        "11111111111111111111111111111111",
+                        "2222222222222222",
+                        UNSET),
+                arguments(
+                        headers("traceparent", "00-11111111111111111111111111111111-2222222222222222-01"),
+                        "11111111111111111111111111111111",
+                        "2222222222222222",
+                        SAMPLER_KEEP));
+    }
 
-  @Override
-  void assertInjectedHeaders(
-      Map<String, String> headers, String traceId, String spanId, byte sampling) {
-    String traceFlags = sampling == SAMPLER_KEEP ? "01" : "00";
-    assertEquals("00-" + traceId + "-" + spanId + "-" + traceFlags, headers.get("traceparent"));
-  }
+    @Override
+    void assertInjectedHeaders(Map<String, String> headers, String traceId, String spanId, byte sampling) {
+        String traceFlags = sampling == SAMPLER_KEEP ? "01" : "00";
+        assertEquals("00-" + traceId + "-" + spanId + "-" + traceFlags, headers.get("traceparent"));
+    }
 }

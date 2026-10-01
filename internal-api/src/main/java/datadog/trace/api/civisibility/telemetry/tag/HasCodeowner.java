@@ -4,10 +4,10 @@ import datadog.trace.api.civisibility.telemetry.TagValue;
 
 /** Whether CODEOWNERS file could be located when executing a test session */
 public enum HasCodeowner implements TagValue {
-  TRUE;
+    TRUE;
 
-  @Override
-  public String asString() {
-    return "has_codeowner:true";
-  }
+    @Override
+    public String asString() {
+        return "has_codeowner:true";
+    }
 }

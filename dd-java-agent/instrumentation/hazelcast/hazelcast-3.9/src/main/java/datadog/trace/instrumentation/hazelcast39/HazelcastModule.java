@@ -19,25 +19,25 @@ import java.util.Map;
 @AutoService(InstrumenterModule.class)
 public final class HazelcastModule extends InstrumenterModule.Tracing {
 
-  public HazelcastModule() {
-    super(INSTRUMENTATION_NAME);
-  }
+    public HazelcastModule() {
+        super(INSTRUMENTATION_NAME);
+    }
 
-  @Override
-  protected boolean defaultEnabled() {
-    return DEFAULT_ENABLED;
-  }
+    @Override
+    protected boolean defaultEnabled() {
+        return DEFAULT_ENABLED;
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    final Map<String, String> stores = new HashMap<>();
-    stores.put("com.hazelcast.client.impl.protocol.ClientMessage", String.class.getName());
-    stores.put("com.hazelcast.client.spi.impl.ClientInvocation", String.class.getName());
-    return stores;
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        final Map<String, String> stores = new HashMap<>();
+        stores.put("com.hazelcast.client.impl.protocol.ClientMessage", String.class.getName());
+        stores.put("com.hazelcast.client.spi.impl.ClientInvocation", String.class.getName());
+        return stores;
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return Arrays.asList(new ClientInvocationInstrumentation(), new ClientMessageInstrumentation());
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return Arrays.asList(new ClientInvocationInstrumentation(), new ClientMessageInstrumentation());
+    }
 }

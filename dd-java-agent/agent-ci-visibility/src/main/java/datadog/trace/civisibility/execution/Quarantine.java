@@ -10,31 +10,31 @@ import datadog.trace.api.civisibility.execution.TestStatus;
  */
 public class Quarantine implements TestExecutionPolicy {
 
-  private boolean testExecuted;
+    private boolean testExecuted;
 
-  @Override
-  public ExecutionOutcome registerExecution(TestStatus status, long durationMillis) {
-    testExecuted = true;
-    return new ExecutionOutcomeImpl(
-        status == TestStatus.fail,
-        testExecuted,
-        ExecutionAggregation.NONE.withExecution(status),
-        null,
-        status == TestStatus.fail ? TestStatus.pass : status);
-  }
+    @Override
+    public ExecutionOutcome registerExecution(TestStatus status, long durationMillis) {
+        testExecuted = true;
+        return new ExecutionOutcomeImpl(
+                status == TestStatus.fail,
+                testExecuted,
+                ExecutionAggregation.NONE.withExecution(status),
+                null,
+                status == TestStatus.fail ? TestStatus.pass : status);
+    }
 
-  @Override
-  public boolean applicable() {
-    return !testExecuted;
-  }
+    @Override
+    public boolean applicable() {
+        return !testExecuted;
+    }
 
-  @Override
-  public boolean suppressFailures() {
-    return true;
-  }
+    @Override
+    public boolean suppressFailures() {
+        return true;
+    }
 
-  @Override
-  public boolean failedTestReplayApplicable() {
-    return false;
-  }
+    @Override
+    public boolean failedTestReplayApplicable() {
+        return false;
+    }
 }

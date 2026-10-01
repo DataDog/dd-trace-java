@@ -26,51 +26,49 @@ import org.junit.jupiter.api.extension.RegisterExtension;
  */
 class SharedBackendMultiAppTest {
 
-  @Order(1)
-  @RegisterExtension
-  static final AgentBackend agent = AgentBackend.mockAgent();
+    @Order(1)
+    @RegisterExtension
+    static final AgentBackend agent = AgentBackend.mockAgent();
 
-  @Order(2)
-  @RegisterExtension
-  static final SmokeServerApp producer =
-      SmokeServerApp.named("producer")
-          .mainClass("datadog.smoketest.TestServerApp")
-          .args("--server.port=${app.httpPort}")
-          .backend(agent)
-          .noAgent()
-          .build();
+    @Order(2)
+    @RegisterExtension
+    static final SmokeServerApp producer = SmokeServerApp.named("producer")
+            .mainClass("datadog.smoketest.TestServerApp")
+            .args("--server.port=${app.httpPort}")
+            .backend(agent)
+            .noAgent()
+            .build();
 
-  @Order(3)
-  @RegisterExtension
-  static final SmokeServerApp consumer =
-      SmokeServerApp.named("consumer")
-          .mainClass("datadog.smoketest.TestServerApp")
-          .args("--server.port=${app.httpPort}")
-          .backend(agent)
-          .noAgent()
-          .build();
+    @Order(3)
+    @RegisterExtension
+    static final SmokeServerApp consumer = SmokeServerApp.named("consumer")
+            .mainClass("datadog.smoketest.TestServerApp")
+            .args("--server.port=${app.httpPort}")
+            .backend(agent)
+            .noAgent()
+            .build();
 
-  @Test
-  void bothAppsRunOnDistinctPorts() {
-    assertNotEquals(producer.httpPort(), consumer.httpPort(), "each app gets its own port");
-    assertEquals(200, producer.get("/"), "producer serves HTTP");
-    assertEquals(200, consumer.get("/"), "consumer serves HTTP");
-  }
+    @Test
+    void bothAppsRunOnDistinctPorts() {
+        assertNotEquals(producer.httpPort(), consumer.httpPort(), "each app gets its own port");
+        assertEquals(200, producer.get("/"), "producer serves HTTP");
+        assertEquals(200, consumer.get("/"), "consumer serves HTTP");
+    }
 
-  @Test
-  void appsShareTheSameBackend() {
-    assertTrue(agent.isShared(), "backend is inferred shared from its extension registration");
-    assertSame(agent, producer.backend(), "producer uses the shared backend");
-    assertSame(agent, consumer.backend(), "consumer uses the shared backend");
-    assertEquals(
-        producer.backend().port(),
-        consumer.backend().port(),
-        "one shared backend => one agent port for both apps");
-  }
+    @Test
+    void appsShareTheSameBackend() {
+        assertTrue(agent.isShared(), "backend is inferred shared from its extension registration");
+        assertSame(agent, producer.backend(), "producer uses the shared backend");
+        assertSame(agent, consumer.backend(), "consumer uses the shared backend");
+        assertEquals(
+                producer.backend().port(),
+                consumer.backend().port(),
+                "one shared backend => one agent port for both apps");
+    }
 
-  @Test
-  void sharedBackendIsStartedByItsOwnExtension() {
-    assertNotNull(agent.url(), "shared backend was started");
-    assertTrue(agent.traces().getTraces().isEmpty(), "no traces arrive without an agent");
-  }
+    @Test
+    void sharedBackendIsStartedByItsOwnExtension() {
+        assertNotNull(agent.url(), "shared backend was started");
+        assertTrue(agent.traces().getTraces().isEmpty(), "no traces arrive without an agent");
+    }
 }

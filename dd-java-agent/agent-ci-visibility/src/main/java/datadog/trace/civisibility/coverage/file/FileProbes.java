@@ -18,48 +18,48 @@ import javax.annotation.concurrent.NotThreadSafe;
 @NotThreadSafe
 public class FileProbes implements CoverageProbes {
 
-  private final CiVisibilityMetricCollector metrics;
+    private final CiVisibilityMetricCollector metrics;
 
-  private final Map<Class<?>, Class<?>> coveredClasses;
-  private final Map<String, String> nonCodeResources;
+    private final Map<Class<?>, Class<?>> coveredClasses;
+    private final Map<String, String> nonCodeResources;
 
-  private Class<?> lastCoveredClass;
+    private Class<?> lastCoveredClass;
 
-  FileProbes(CiVisibilityMetricCollector metrics, boolean isTestThread) {
-    this.metrics = metrics;
-    coveredClasses = isTestThread ? new IdentityHashMap<>() : new ConcurrentHashMap<>();
-    nonCodeResources = isTestThread ? new HashMap<>() : new ConcurrentHashMap<>();
-  }
-
-  @Override
-  public void record(Class<?> clazz, long classId, int probeId) {
-    record(clazz);
-  }
-
-  @Override
-  public void record(Class<?> clazz) {
-    try {
-      if (lastCoveredClass != clazz) {
-        // optimization to avoid map lookup when reporting same class several times in a row
-        coveredClasses.put(lastCoveredClass = clazz, clazz);
-      }
-
-    } catch (Exception e) {
-      metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.RECORD);
-      throw e;
+    FileProbes(CiVisibilityMetricCollector metrics, boolean isTestThread) {
+        this.metrics = metrics;
+        coveredClasses = isTestThread ? new IdentityHashMap<>() : new ConcurrentHashMap<>();
+        nonCodeResources = isTestThread ? new HashMap<>() : new ConcurrentHashMap<>();
     }
-  }
 
-  @Override
-  public void recordNonCodeResource(String absolutePath) {
-    nonCodeResources.put(absolutePath, absolutePath);
-  }
+    @Override
+    public void record(Class<?> clazz, long classId, int probeId) {
+        record(clazz);
+    }
 
-  public Collection<Class<?>> getCoveredClasses() {
-    return coveredClasses.keySet();
-  }
+    @Override
+    public void record(Class<?> clazz) {
+        try {
+            if (lastCoveredClass != clazz) {
+                // optimization to avoid map lookup when reporting same class several times in a row
+                coveredClasses.put(lastCoveredClass = clazz, clazz);
+            }
 
-  public Collection<String> getNonCodeResources() {
-    return nonCodeResources.keySet();
-  }
+        } catch (Exception e) {
+            metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.RECORD);
+            throw e;
+        }
+    }
+
+    @Override
+    public void recordNonCodeResource(String absolutePath) {
+        nonCodeResources.put(absolutePath, absolutePath);
+    }
+
+    public Collection<Class<?>> getCoveredClasses() {
+        return coveredClasses.keySet();
+    }
+
+    public Collection<String> getNonCodeResources() {
+        return nonCodeResources.keySet();
+    }
 }

@@ -25,99 +25,98 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class PollerRequestFactoryTest extends DDJavaSpecification {
 
-  static final String TRACER_VERSION = "v1.2.3";
-  static final String CONTAINER_ID = "456";
-  static final String ENTITY_ID = "32423";
-  static final String INVALID_REMOTE_CONFIG_URL = "https://invalid.example.com/";
+    static final String TRACER_VERSION = "v1.2.3";
+    static final String CONTAINER_ID = "456";
+    static final String ENTITY_ID = "32423";
+    static final String INVALID_REMOTE_CONFIG_URL = "https://invalid.example.com/";
 
-  @Test
-  @WithConfig(key = "service", value = "Service Name")
-  @WithConfig(key = "env", value = "PROD")
-  @WithConfig(key = "tags", value = "version:1.0.0-SNAPSHOT")
-  @WithConfig(
-      key = "trace.global.tags",
-      value =
-          Tags.GIT_REPOSITORY_URL
-              + ":https://github.com/DataDog/dd-trace-java,"
-              + Tags.GIT_COMMIT_SHA
-              + ":1234")
-  void remoteConfigRequestFieldsBeenSanitized() {
-    PollerRequestFactory factory =
-        new PollerRequestFactory(
-            Config.get(), TRACER_VERSION, CONTAINER_ID, ENTITY_ID, INVALID_REMOTE_CONFIG_URL, null);
+    @Test
+    @WithConfig(key = "service", value = "Service Name")
+    @WithConfig(key = "env", value = "PROD")
+    @WithConfig(key = "tags", value = "version:1.0.0-SNAPSHOT")
+    @WithConfig(
+            key = "trace.global.tags",
+            value = Tags.GIT_REPOSITORY_URL
+                    + ":https://github.com/DataDog/dd-trace-java,"
+                    + Tags.GIT_COMMIT_SHA
+                    + ":1234")
+    void remoteConfigRequestFieldsBeenSanitized() {
+        PollerRequestFactory factory = new PollerRequestFactory(
+                Config.get(), TRACER_VERSION, CONTAINER_ID, ENTITY_ID, INVALID_REMOTE_CONFIG_URL, null);
 
-    RemoteConfigRequest request =
-        factory.buildRemoteConfigRequest(
-            Collections.singletonList("ASM"), null, null, 0, ServiceNameCollector.get());
+        RemoteConfigRequest request = factory.buildRemoteConfigRequest(
+                Collections.singletonList("ASM"), null, null, 0, ServiceNameCollector.get());
 
-    RemoteConfigRequest.ClientInfo.TracerInfo tracerInfo = request.getClient().getTracerInfo();
-    assertEquals("service_name", tracerInfo.getServiceName());
-    assertEquals("prod", tracerInfo.getServiceEnv());
-    assertEquals("1.0.0-snapshot", tracerInfo.getServiceVersion());
-    assertTrue(tracerInfo.getTags().contains("env:PROD"));
-    assertTrue(
-        tracerInfo
-            .getTags()
-            .contains(Tags.GIT_REPOSITORY_URL + ":https://github.com/DataDog/dd-trace-java"));
-    assertTrue(tracerInfo.getTags().contains(Tags.GIT_COMMIT_SHA + ":1234"));
-  }
-
-  @Test
-  @WithConfig(key = "service", value = "Service Name")
-  @WithConfig(key = "env", value = "PROD")
-  @WithConfig(key = "tags", value = "version:1.0.0-SNAPSHOT")
-  void remoteConfigRequestExtraServices() {
-    String extraService = "fakeExtraService";
-    ServiceNameCollector extraServicesProvider = ServiceNameCollector.get();
-    extraServicesProvider.clear();
-    extraServicesProvider.addService(extraService);
-    PollerRequestFactory factory =
-        new PollerRequestFactory(
-            Config.get(), TRACER_VERSION, CONTAINER_ID, ENTITY_ID, INVALID_REMOTE_CONFIG_URL, null);
-
-    RemoteConfigRequest request =
-        factory.buildRemoteConfigRequest(
-            Collections.singletonList("ASM"), null, null, 0, extraServicesProvider);
-
-    assertTrue(request.getClient().getTracerInfo().getExtraServices().contains(extraService));
-  }
-
-  @ParameterizedTest(name = "remote config provides process tags when enabled = {0}")
-  @ValueSource(booleans = {true, false})
-  void remoteConfigProvidesProcessTagsWhenEnabled(boolean enabled) throws Exception {
-    if (!enabled) {
-      injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false");
+        RemoteConfigRequest.ClientInfo.TracerInfo tracerInfo =
+                request.getClient().getTracerInfo();
+        assertEquals("service_name", tracerInfo.getServiceName());
+        assertEquals("prod", tracerInfo.getServiceEnv());
+        assertEquals("1.0.0-snapshot", tracerInfo.getServiceVersion());
+        assertTrue(tracerInfo.getTags().contains("env:PROD"));
+        assertTrue(
+                tracerInfo.getTags().contains(Tags.GIT_REPOSITORY_URL + ":https://github.com/DataDog/dd-trace-java"));
+        assertTrue(tracerInfo.getTags().contains(Tags.GIT_COMMIT_SHA + ":1234"));
     }
-    ProcessTags.reset(Config.get());
-    PollerRequestFactory factory =
-        new PollerRequestFactory(
-            Config.get(), TRACER_VERSION, CONTAINER_ID, ENTITY_ID, INVALID_REMOTE_CONFIG_URL, null);
 
-    RemoteConfigRequest request =
-        factory.buildRemoteConfigRequest(
-            Collections.singletonList("ASM"), null, null, 0, ServiceNameCollector.get());
-    String json = new Moshi.Builder().build().adapter(RemoteConfigRequest.class).toJson(request);
+    @Test
+    @WithConfig(key = "service", value = "Service Name")
+    @WithConfig(key = "env", value = "PROD")
+    @WithConfig(key = "tags", value = "version:1.0.0-SNAPSHOT")
+    void remoteConfigRequestExtraServices() {
+        String extraService = "fakeExtraService";
+        ServiceNameCollector extraServicesProvider = ServiceNameCollector.get();
+        extraServicesProvider.clear();
+        extraServicesProvider.addService(extraService);
+        PollerRequestFactory factory = new PollerRequestFactory(
+                Config.get(), TRACER_VERSION, CONTAINER_ID, ENTITY_ID, INVALID_REMOTE_CONFIG_URL, null);
 
-    List<String> processTags = request.getClient().getTracerInfo().getProcessTags();
-    String entrypointName = findMatching(processTags, "entrypoint.name:.+");
-    String workingDir = findMatching(processTags, "entrypoint.workdir:.+");
+        RemoteConfigRequest request = factory.buildRemoteConfigRequest(
+                Collections.singletonList("ASM"), null, null, 0, extraServicesProvider);
 
-    if (enabled) {
-      assertNotNull(workingDir);
-      assertNotNull(entrypointName);
-      assertThatJson(json).node("client.client_tracer.process_tags").isArray().isNotEmpty();
-    } else {
-      assertNull(workingDir);
-      assertNull(entrypointName);
-      assertThatJson(json).node("client.client_tracer.process_tags").isAbsent();
+        assertTrue(request.getClient().getTracerInfo().getExtraServices().contains(extraService));
     }
-  }
 
-  private static String findMatching(List<String> tags, String regex) {
-    if (tags == null) {
-      return null;
+    @ParameterizedTest(name = "remote config provides process tags when enabled = {0}")
+    @ValueSource(booleans = {true, false})
+    void remoteConfigProvidesProcessTagsWhenEnabled(boolean enabled) throws Exception {
+        if (!enabled) {
+            injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false");
+        }
+        ProcessTags.reset(Config.get());
+        PollerRequestFactory factory = new PollerRequestFactory(
+                Config.get(), TRACER_VERSION, CONTAINER_ID, ENTITY_ID, INVALID_REMOTE_CONFIG_URL, null);
+
+        RemoteConfigRequest request = factory.buildRemoteConfigRequest(
+                Collections.singletonList("ASM"), null, null, 0, ServiceNameCollector.get());
+        String json =
+                new Moshi.Builder().build().adapter(RemoteConfigRequest.class).toJson(request);
+
+        List<String> processTags = request.getClient().getTracerInfo().getProcessTags();
+        String entrypointName = findMatching(processTags, "entrypoint.name:.+");
+        String workingDir = findMatching(processTags, "entrypoint.workdir:.+");
+
+        if (enabled) {
+            assertNotNull(workingDir);
+            assertNotNull(entrypointName);
+            assertThatJson(json)
+                    .node("client.client_tracer.process_tags")
+                    .isArray()
+                    .isNotEmpty();
+        } else {
+            assertNull(workingDir);
+            assertNull(entrypointName);
+            assertThatJson(json).node("client.client_tracer.process_tags").isAbsent();
+        }
     }
-    Pattern pattern = Pattern.compile(regex);
-    return tags.stream().filter(tag -> pattern.matcher(tag).find()).findFirst().orElse(null);
-  }
+
+    private static String findMatching(List<String> tags, String regex) {
+        if (tags == null) {
+            return null;
+        }
+        Pattern pattern = Pattern.compile(regex);
+        return tags.stream()
+                .filter(tag -> pattern.matcher(tag).find())
+                .findFirst()
+                .orElse(null);
+    }
 }

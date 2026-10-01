@@ -16,19 +16,19 @@ import net.bytebuddy.asm.Advice;
  */
 @RequiresRequestContext(RequestContextSlot.IAST)
 class TaintHttpHeadersGetFirstAdvice {
-  @Advice.OnMethodExit(suppress = Throwable.class)
-  @Source(SourceTypes.REQUEST_HEADER_VALUE)
-  public static void after(
-      @Advice.This Object self,
-      @Advice.Argument(0) String arg,
-      @Advice.Return String value,
-      @ActiveRequestContext RequestContext reqCtx) {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_HEADER_VALUE)
+    public static void after(
+            @Advice.This Object self,
+            @Advice.Argument(0) String arg,
+            @Advice.Return String value,
+            @ActiveRequestContext RequestContext reqCtx) {
 
-    PropagationModule module = InstrumentationBridge.PROPAGATION;
-    if (module == null || arg == null || value == null) {
-      return;
+        PropagationModule module = InstrumentationBridge.PROPAGATION;
+        if (module == null || arg == null || value == null) {
+            return;
+        }
+        IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+        module.taintStringIfTainted(ctx, value, self, SourceTypes.REQUEST_HEADER_VALUE, arg);
     }
-    IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-    module.taintStringIfTainted(ctx, value, self, SourceTypes.REQUEST_HEADER_VALUE, arg);
-  }
 }

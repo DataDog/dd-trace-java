@@ -46,59 +46,56 @@ import org.openjdk.jmh.infra.Blackhole;
 @Fork(1)
 public class HighCardinalityResourceMetricsBenchmark {
 
-  private ClientStatsAggregator aggregator;
-  private CountingHealthMetrics health;
+    private ClientStatsAggregator aggregator;
+    private CountingHealthMetrics health;
 
-  @State(Scope.Thread)
-  public static class ThreadState {
-    int cursor;
-  }
+    @State(Scope.Thread)
+    public static class ThreadState {
+        int cursor;
+    }
 
-  @Setup
-  public void setup() {
-    this.health = new CountingHealthMetrics();
-    this.aggregator =
-        new ClientStatsAggregator(
-            new WellKnownTags("", "", "", "", "", ""),
-            Collections.emptySet(),
-            AdditionalTagsSchema.EMPTY,
-            new ClientStatsAggregatorBenchmark.FixedAgentFeaturesDiscovery(
-                Collections.singleton("peer.hostname"), Collections.emptySet()),
-            this.health,
-            new ClientStatsAggregatorBenchmark.NullSink(),
-            2048,
-            2048,
-            false);
-    this.aggregator.start();
-  }
+    @Setup
+    public void setup() {
+        this.health = new CountingHealthMetrics();
+        this.aggregator = new ClientStatsAggregator(
+                new WellKnownTags("", "", "", "", "", ""),
+                Collections.emptySet(),
+                AdditionalTagsSchema.EMPTY,
+                new ClientStatsAggregatorBenchmark.FixedAgentFeaturesDiscovery(
+                        Collections.singleton("peer.hostname"), Collections.emptySet()),
+                this.health,
+                new ClientStatsAggregatorBenchmark.NullSink(),
+                2048,
+                2048,
+                false);
+        this.aggregator.start();
+    }
 
-  @TearDown
-  @SuppressForbidden
-  public void tearDown() {
-    aggregator.close();
-    System.err.println(
-        "[HIGH_CARD_RESOURCE] drops over the trial (8 threads, warmup + measurement combined):");
-    System.err.println("  onStatsInboxFull         = " + health.inboxFull.sum());
-    System.err.println("  onStatsAggregateDropped  = " + health.aggregateDropped.sum());
-  }
+    @TearDown
+    @SuppressForbidden
+    public void tearDown() {
+        aggregator.close();
+        System.err.println("[HIGH_CARD_RESOURCE] drops over the trial (8 threads, warmup + measurement combined):");
+        System.err.println("  onStatsInboxFull         = " + health.inboxFull.sum());
+        System.err.println("  onStatsAggregateDropped  = " + health.aggregateDropped.sum());
+    }
 
-  @Benchmark
-  public void publish(ThreadState ts, Blackhole blackhole) {
-    int idx = ts.cursor++;
-    ThreadLocalRandom rng = ThreadLocalRandom.current();
+    @Benchmark
+    public void publish(ThreadState ts, Blackhole blackhole) {
+        int idx = ts.cursor++;
+        ThreadLocalRandom rng = ThreadLocalRandom.current();
 
-    int scrambled = idx * 0x9E3779B1;
-    String resource = "res-" + ((scrambled ^ 0x5A5A5A) & 0xFFFFF);
-    boolean error = (idx & 7) == 0;
-    boolean topLevel = (idx & 3) == 0;
-    long durationNanos = 1L + (rng.nextLong() & 0x3FFFFFFFL);
+        int scrambled = idx * 0x9E3779B1;
+        String resource = "res-" + ((scrambled ^ 0x5A5A5A) & 0xFFFFF);
+        boolean error = (idx & 7) == 0;
+        boolean topLevel = (idx & 3) == 0;
+        long durationNanos = 1L + (rng.nextLong() & 0x3FFFFFFFL);
 
-    SimpleSpan span =
-        new SimpleSpan("svc", "op", resource, "web", true, topLevel, error, 0, durationNanos, 200);
-    span.setTag(SPAN_KIND, SPAN_KIND_CLIENT);
-    span.setTag("peer.hostname", "localhost");
+        SimpleSpan span = new SimpleSpan("svc", "op", resource, "web", true, topLevel, error, 0, durationNanos, 200);
+        span.setTag(SPAN_KIND, SPAN_KIND_CLIENT);
+        span.setTag("peer.hostname", "localhost");
 
-    List<CoreSpan<?>> trace = Collections.singletonList(span);
-    blackhole.consume(aggregator.publish(trace));
-  }
+        List<CoreSpan<?>> trace = Collections.singletonList(span);
+        blackhole.consume(aggregator.publish(trace));
+    }
 }

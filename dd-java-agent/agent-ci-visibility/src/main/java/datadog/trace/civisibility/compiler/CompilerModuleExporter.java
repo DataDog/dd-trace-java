@@ -21,45 +21,44 @@ import org.slf4j.LoggerFactory;
  */
 public class CompilerModuleExporter implements ClassFileTransformer {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(CompilerModuleExporter.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(CompilerModuleExporter.class);
 
-  private static final String COMPILER_PLUGIN_CLASS_PREFIX = "datadog/compiler/";
-  private static final String[] COMPILER_PACKAGES = {
-    "com.sun.tools.javac.api",
-    "com.sun.tools.javac.code",
-    "com.sun.tools.javac.comp",
-    "com.sun.tools.javac.tree",
-    "com.sun.tools.javac.util"
-  };
+    private static final String COMPILER_PLUGIN_CLASS_PREFIX = "datadog/compiler/";
+    private static final String[] COMPILER_PACKAGES = {
+        "com.sun.tools.javac.api",
+        "com.sun.tools.javac.code",
+        "com.sun.tools.javac.comp",
+        "com.sun.tools.javac.tree",
+        "com.sun.tools.javac.util"
+    };
 
-  private final Instrumentation inst;
-  private final ConcurrentHashMap<ClassLoader, Boolean> exportedClassLoaders =
-      new ConcurrentHashMap<>();
+    private final Instrumentation inst;
+    private final ConcurrentHashMap<ClassLoader, Boolean> exportedClassLoaders = new ConcurrentHashMap<>();
 
-  public CompilerModuleExporter(Instrumentation inst) {
-    this.inst = inst;
-  }
-
-  @Override
-  public byte[] transform(
-      ClassLoader loader,
-      String className,
-      Class<?> classBeingRedefined,
-      ProtectionDomain protectionDomain,
-      byte[] classfileBuffer) {
-    if (loader != null && className != null && className.startsWith(COMPILER_PLUGIN_CLASS_PREFIX)) {
-      exportedClassLoaders.computeIfAbsent(loader, this::exportJdkCompilerModule);
+    public CompilerModuleExporter(Instrumentation inst) {
+        this.inst = inst;
     }
-    return null; // no bytecode modification
-  }
 
-  private Boolean exportJdkCompilerModule(ClassLoader loader) {
-    try {
-      JDK9ModuleAccess.exportModuleToUnnamedModule(inst, "jdk.compiler", COMPILER_PACKAGES, loader);
-      LOGGER.debug("Exported jdk.compiler to classloader {}", loader);
-    } catch (Throwable e) {
-      LOGGER.debug("Could not export jdk.compiler packages for compiler plugin", e);
+    @Override
+    public byte[] transform(
+            ClassLoader loader,
+            String className,
+            Class<?> classBeingRedefined,
+            ProtectionDomain protectionDomain,
+            byte[] classfileBuffer) {
+        if (loader != null && className != null && className.startsWith(COMPILER_PLUGIN_CLASS_PREFIX)) {
+            exportedClassLoaders.computeIfAbsent(loader, this::exportJdkCompilerModule);
+        }
+        return null; // no bytecode modification
     }
-    return Boolean.TRUE;
-  }
+
+    private Boolean exportJdkCompilerModule(ClassLoader loader) {
+        try {
+            JDK9ModuleAccess.exportModuleToUnnamedModule(inst, "jdk.compiler", COMPILER_PACKAGES, loader);
+            LOGGER.debug("Exported jdk.compiler to classloader {}", loader);
+        } catch (Throwable e) {
+            LOGGER.debug("Could not export jdk.compiler packages for compiler plugin", e);
+        }
+        return Boolean.TRUE;
+    }
 }

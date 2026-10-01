@@ -28,87 +28,86 @@ import org.junit.runners.ParentRunner;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit4SkipInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public JUnit4SkipInstrumentation() {
-    super("ci-visibility", "junit-4");
-  }
+    public JUnit4SkipInstrumentation() {
+        super("ci-visibility", "junit-4");
+    }
 
-  @Override
-  public boolean isEnabled() {
-    return super.isEnabled()
-        && (Config.get().isCiVisibilityTestSkippingEnabled()
-            || Config.get().isCiVisibilityTestManagementEnabled());
-  }
+    @Override
+    public boolean isEnabled() {
+        return super.isEnabled()
+                && (Config.get().isCiVisibilityTestSkippingEnabled()
+                        || Config.get().isCiVisibilityTestManagementEnabled());
+    }
 
-  @Override
-  public String hierarchyMarkerType() {
-    return "org.junit.runners.ParentRunner";
-  }
+    @Override
+    public String hierarchyMarkerType() {
+        return "org.junit.runners.ParentRunner";
+    }
 
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named(hierarchyMarkerType()))
-        // ITR skipping for Cucumber is done in a dedicated instrumentation
-        .and(not(extendsClass(named("io.cucumber.junit.FeatureRunner"))));
-  }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return extendsClass(named(hierarchyMarkerType()))
+                // ITR skipping for Cucumber is done in a dedicated instrumentation
+                .and(not(extendsClass(named("io.cucumber.junit.FeatureRunner"))));
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("runChild")
-            .and(takesArguments(2))
-            .and(takesArgument(1, named("org.junit.runner.notification.RunNotifier"))),
-        JUnit4SkipInstrumentation.class.getName() + "$JUnit4SkipInstrumentationAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("runChild")
+                        .and(takesArguments(2))
+                        .and(takesArgument(1, named("org.junit.runner.notification.RunNotifier"))),
+                JUnit4SkipInstrumentation.class.getName() + "$JUnit4SkipInstrumentationAdvice");
+    }
 
-  public static class JUnit4SkipInstrumentationAdvice {
-    @SuppressWarnings("bytebuddy-exception-suppression")
-    @SuppressFBWarnings("NP_BOOLEAN_RETURN_NULL")
-    @Advice.OnMethodEnter(skipOn = Boolean.class)
-    public static Boolean runChild(
-        @Advice.This ParentRunner<?> runner,
-        @Advice.Argument(0) Object child,
-        @Advice.Argument(1) RunNotifier notifier) {
-      Description description = JUnit4Utils.getDescription(runner, child);
-      if (description == null || !description.isTest()) {
-        return null;
-      }
+    public static class JUnit4SkipInstrumentationAdvice {
+        @SuppressWarnings("bytebuddy-exception-suppression")
+        @SuppressFBWarnings("NP_BOOLEAN_RETURN_NULL")
+        @Advice.OnMethodEnter(skipOn = Boolean.class)
+        public static Boolean runChild(
+                @Advice.This ParentRunner<?> runner,
+                @Advice.Argument(0) Object child,
+                @Advice.Argument(1) RunNotifier notifier) {
+            Description description = JUnit4Utils.getDescription(runner, child);
+            if (description == null || !description.isTest()) {
+                return null;
+            }
 
-      Ignore ignoreAnnotation = description.getAnnotation(Ignore.class);
-      if (ignoreAnnotation != null) {
-        // class is ignored
-        return null;
-      }
+            Ignore ignoreAnnotation = description.getAnnotation(Ignore.class);
+            if (ignoreAnnotation != null) {
+                // class is ignored
+                return null;
+            }
 
-      TestIdentifier test = JUnit4Utils.toTestIdentifier(description);
-      SkipReason skipReason =
-          TestEventsHandlerHolder.HANDLERS
-              .get(TestFrameworkInstrumentation.JUNIT4)
-              .skipReason(test);
-      if (skipReason == null) {
-        return null;
-      }
+            TestIdentifier test = JUnit4Utils.toTestIdentifier(description);
+            SkipReason skipReason = TestEventsHandlerHolder.HANDLERS
+                    .get(TestFrameworkInstrumentation.JUNIT4)
+                    .skipReason(test);
+            if (skipReason == null) {
+                return null;
+            }
 
-      if (skipReason == SkipReason.ITR) {
-        Class<?> testClass = description.getTestClass();
-        Method testMethod = JUnit4Utils.getTestMethod(description);
-        List<String> categories = JUnit4Utils.getCategories(testClass, testMethod);
-        for (String category : categories) {
-          if (category.endsWith(CIConstants.Tags.ITR_UNSKIPPABLE_TAG)) {
-            return null;
-          }
+            if (skipReason == SkipReason.ITR) {
+                Class<?> testClass = description.getTestClass();
+                Method testMethod = JUnit4Utils.getTestMethod(description);
+                List<String> categories = JUnit4Utils.getCategories(testClass, testMethod);
+                for (String category : categories) {
+                    if (category.endsWith(CIConstants.Tags.ITR_UNSKIPPABLE_TAG)) {
+                        return null;
+                    }
+                }
+            }
+
+            Description skippedDescription = JUnit4Utils.getSkippedDescription(description, skipReason);
+            notifier.fireTestIgnored(skippedDescription);
+            return Boolean.FALSE;
         }
-      }
 
-      Description skippedDescription = JUnit4Utils.getSkippedDescription(description, skipReason);
-      notifier.fireTestIgnored(skippedDescription);
-      return Boolean.FALSE;
+        // JUnit 4.10 and above
+        public static void muzzleCheck(final RuleChain ruleChain) {
+            ruleChain.apply(null, null);
+        }
     }
-
-    // JUnit 4.10 and above
-    public static void muzzleCheck(final RuleChain ruleChain) {
-      ruleChain.apply(null, null);
-    }
-  }
 }

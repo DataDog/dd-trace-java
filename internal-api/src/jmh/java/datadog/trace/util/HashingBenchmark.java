@@ -59,84 +59,80 @@ import org.openjdk.jmh.annotations.Warmup;
 @Measurement(iterations = 3)
 @Threads(8)
 public class HashingBenchmark {
-  static <T> T init(Supplier<T> supplier) {
-    return supplier.get();
-  }
+    static <T> T init(Supplier<T> supplier) {
+        return supplier.get();
+    }
 
-  // strings used in hashing are set up ahead of time, so that the only allocation is from var-args
-  static String[] TEST_STRINGS =
-      init(
-          () -> {
+    // strings used in hashing are set up ahead of time, so that the only allocation is from var-args
+    static String[] TEST_STRINGS = init(() -> {
+        ThreadLocalRandom random = ThreadLocalRandom.current();
+
+        String[] strings = new String[1024];
+        for (int i = 0; i < strings.length; ++i) {
+            strings[i] = Double.toString(random.nextDouble());
+        }
+        return strings;
+    });
+
+    static {
+        Thread updaterThread = new Thread(() -> {
             ThreadLocalRandom random = ThreadLocalRandom.current();
 
-            String[] strings = new String[1024];
-            for (int i = 0; i < strings.length; ++i) {
-              strings[i] = Double.toString(random.nextDouble());
-            }
-            return strings;
-          });
-
-  static {
-    Thread updaterThread =
-        new Thread(
-            () -> {
-              ThreadLocalRandom random = ThreadLocalRandom.current();
-
-              while (!Thread.interrupted()) {
+            while (!Thread.interrupted()) {
                 str0 = TEST_STRINGS[random.nextInt(0, TEST_STRINGS.length)];
                 str1 = TEST_STRINGS[random.nextInt(0, TEST_STRINGS.length)];
                 str2 = TEST_STRINGS[random.nextInt(0, TEST_STRINGS.length)];
                 str3 = TEST_STRINGS[random.nextInt(0, TEST_STRINGS.length)];
                 str4 = TEST_STRINGS[random.nextInt(0, TEST_STRINGS.length)];
-              }
-            });
-    updaterThread.setDaemon(true);
-    updaterThread.start();
-  }
+            }
+        });
+        updaterThread.setDaemon(true);
+        updaterThread.start();
+    }
 
-  static String str0;
-  static String str1;
-  static String str2;
-  static String str3;
-  static String str4;
+    static String str0;
+    static String str1;
+    static String str2;
+    static String str3;
+    static String str4;
 
-  @Benchmark
-  public int hash2() {
-    return datadog.trace.util.HashingUtils.hash(str0, str1);
-  }
+    @Benchmark
+    public int hash2() {
+        return datadog.trace.util.HashingUtils.hash(str0, str1);
+    }
 
-  @Benchmark
-  public int hash2_varargs() {
-    return java.util.Objects.hash(str0, str1);
-  }
+    @Benchmark
+    public int hash2_varargs() {
+        return java.util.Objects.hash(str0, str1);
+    }
 
-  @Benchmark
-  public int hash3() {
-    return datadog.trace.util.HashingUtils.hash(str0, str1, str2);
-  }
+    @Benchmark
+    public int hash3() {
+        return datadog.trace.util.HashingUtils.hash(str0, str1, str2);
+    }
 
-  @Benchmark
-  public int hash3_varags() {
-    return java.util.Objects.hash(str0, str1, str2);
-  }
+    @Benchmark
+    public int hash3_varags() {
+        return java.util.Objects.hash(str0, str1, str2);
+    }
 
-  @Benchmark
-  public int hash4() {
-    return datadog.trace.util.HashingUtils.hash(str0, str1, str2, str3);
-  }
+    @Benchmark
+    public int hash4() {
+        return datadog.trace.util.HashingUtils.hash(str0, str1, str2, str3);
+    }
 
-  @Benchmark
-  public int hash4_varargs() {
-    return java.util.Objects.hash(str0, str1, str2, str3);
-  }
+    @Benchmark
+    public int hash4_varargs() {
+        return java.util.Objects.hash(str0, str1, str2, str3);
+    }
 
-  @Benchmark
-  public int hash5() {
-    return datadog.trace.util.HashingUtils.hash(str0, str1, str2, str3, str4);
-  }
+    @Benchmark
+    public int hash5() {
+        return datadog.trace.util.HashingUtils.hash(str0, str1, str2, str3, str4);
+    }
 
-  @Benchmark
-  public int hash5_varargs() {
-    return java.util.Objects.hash(str0, str1, str2, str3, str4);
-  }
+    @Benchmark
+    public int hash5_varargs() {
+        return java.util.Objects.hash(str0, str1, str2, str3, str4);
+    }
 }

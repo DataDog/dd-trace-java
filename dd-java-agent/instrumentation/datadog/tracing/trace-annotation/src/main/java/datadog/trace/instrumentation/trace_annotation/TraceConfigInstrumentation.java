@@ -38,78 +38,75 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public class TraceConfigInstrumentation extends InstrumenterModule.Tracing {
-  private final Map<String, Set<String>> classMethodsToTrace;
+    private final Map<String, Set<String>> classMethodsToTrace;
 
-  public TraceConfigInstrumentation() {
-    super("trace", "trace-config");
-    classMethodsToTrace = InstrumenterConfig.get().getTraceMethods();
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".TraceDecorator",
-    };
-  }
-
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    if (classMethodsToTrace.isEmpty()) {
-      return emptyList();
-    }
-    List<Instrumenter> typeInstrumentations = new ArrayList<>();
-    for (Map.Entry<String, Set<String>> entry : classMethodsToTrace.entrySet()) {
-      List<String> integrationNames = singletonList("trace-config_" + entry.getKey());
-      if (InstrumenterConfig.get().isIntegrationEnabled(integrationNames, true)) {
-        typeInstrumentations.add(new TracerClassInstrumentation(entry.getKey(), entry.getValue()));
-      }
-    }
-    return typeInstrumentations;
-  }
-
-  // Not Using AutoService to hook up this instrumentation
-  public static class TracerClassInstrumentation implements ForTypeHierarchy, HasMethodAdvice {
-    private final String className;
-    private final Set<String> methodNames;
-
-    public TracerClassInstrumentation(final String className, final Set<String> methodNames) {
-      this.className = className;
-      this.methodNames = methodNames;
+    public TraceConfigInstrumentation() {
+        super("trace", "trace-config");
+        classMethodsToTrace = InstrumenterConfig.get().getTraceMethods();
     }
 
     @Override
-    public String hierarchyMarkerType() {
-      return className;
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".TraceDecorator",
+        };
     }
 
     @Override
-    public ElementMatcher<TypeDescription> hierarchyMatcher() {
-      return hasSuperType(named(hierarchyMarkerType()));
+    public List<Instrumenter> typeInstrumentations() {
+        if (classMethodsToTrace.isEmpty()) {
+            return emptyList();
+        }
+        List<Instrumenter> typeInstrumentations = new ArrayList<>();
+        for (Map.Entry<String, Set<String>> entry : classMethodsToTrace.entrySet()) {
+            List<String> integrationNames = singletonList("trace-config_" + entry.getKey());
+            if (InstrumenterConfig.get().isIntegrationEnabled(integrationNames, true)) {
+                typeInstrumentations.add(new TracerClassInstrumentation(entry.getKey(), entry.getValue()));
+            }
+        }
+        return typeInstrumentations;
     }
 
-    @Override
-    public void methodAdvice(MethodTransformer transformer) {
-      boolean hasWildcard = false;
-      for (String methodName : methodNames) {
-        hasWildcard |= methodName.equals("*");
-      }
-      ElementMatcher<MethodDescription> methodFilter;
-      if (hasWildcard) {
-        methodFilter =
-            not(
-                isHashCode()
-                    .or(isEquals())
-                    .or(isToString())
-                    .or(isFinalizer())
-                    .or(isGetter())
-                    .or(isSetter())
-                    .or(isSynthetic()));
-      } else {
-        methodFilter = namedOneOf(methodNames);
-      }
-      transformer.applyAdvice(
-          isMethod().and(methodFilter),
-          "datadog.trace.instrumentation.trace_annotation.TraceAdvice");
+    // Not Using AutoService to hook up this instrumentation
+    public static class TracerClassInstrumentation implements ForTypeHierarchy, HasMethodAdvice {
+        private final String className;
+        private final Set<String> methodNames;
+
+        public TracerClassInstrumentation(final String className, final Set<String> methodNames) {
+            this.className = className;
+            this.methodNames = methodNames;
+        }
+
+        @Override
+        public String hierarchyMarkerType() {
+            return className;
+        }
+
+        @Override
+        public ElementMatcher<TypeDescription> hierarchyMatcher() {
+            return hasSuperType(named(hierarchyMarkerType()));
+        }
+
+        @Override
+        public void methodAdvice(MethodTransformer transformer) {
+            boolean hasWildcard = false;
+            for (String methodName : methodNames) {
+                hasWildcard |= methodName.equals("*");
+            }
+            ElementMatcher<MethodDescription> methodFilter;
+            if (hasWildcard) {
+                methodFilter = not(isHashCode()
+                        .or(isEquals())
+                        .or(isToString())
+                        .or(isFinalizer())
+                        .or(isGetter())
+                        .or(isSetter())
+                        .or(isSynthetic()));
+            } else {
+                methodFilter = namedOneOf(methodNames);
+            }
+            transformer.applyAdvice(
+                    isMethod().and(methodFilter), "datadog.trace.instrumentation.trace_annotation.TraceAdvice");
+        }
     }
-  }
 }

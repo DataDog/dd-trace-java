@@ -8,75 +8,74 @@ import io.opentelemetry.api.trace.TraceFlags;
 import io.opentelemetry.api.trace.TraceState;
 
 public class OtelSpanContext implements SpanContext {
-  final AgentSpanContext delegate;
-  private final boolean sampled;
-  private final boolean remote;
-  private final TraceState traceState;
-  private String traceId;
-  private String spanId;
+    final AgentSpanContext delegate;
+    private final boolean sampled;
+    private final boolean remote;
+    private final TraceState traceState;
+    private String traceId;
+    private String spanId;
 
-  public OtelSpanContext(
-      AgentSpanContext delegate, boolean sampled, boolean remote, TraceState traceState) {
-    this.delegate = delegate;
-    this.sampled = sampled;
-    this.remote = remote;
-    this.traceState = traceState;
-  }
-
-  public static SpanContext fromLocalSpan(AgentSpan span) {
-    AgentSpanContext delegate = span.spanContext();
-    AgentSpan localRootSpan = span.getLocalRootSpan();
-    Integer samplingPriority = localRootSpan.getSamplingPriority();
-    boolean sampled = samplingPriority != null && samplingPriority > 0;
-    return new OtelSpanContext(delegate, sampled, false, TraceState.getDefault());
-  }
-
-  public static SpanContext fromRemote(AgentSpanContext extracted, TraceState traceState) {
-    return new OtelSpanContext(extracted, extracted.getSamplingPriority() > 0, true, traceState);
-  }
-
-  @Override
-  public String getTraceId() {
-    if (this.traceId == null) {
-      this.traceId = this.delegate.getTraceId().toHexString();
+    public OtelSpanContext(AgentSpanContext delegate, boolean sampled, boolean remote, TraceState traceState) {
+        this.delegate = delegate;
+        this.sampled = sampled;
+        this.remote = remote;
+        this.traceState = traceState;
     }
-    return this.traceId;
-  }
 
-  @Override
-  public String getSpanId() {
-    if (this.spanId == null) {
-      this.spanId = DDSpanId.toHexStringPadded(this.delegate.getSpanId());
+    public static SpanContext fromLocalSpan(AgentSpan span) {
+        AgentSpanContext delegate = span.spanContext();
+        AgentSpan localRootSpan = span.getLocalRootSpan();
+        Integer samplingPriority = localRootSpan.getSamplingPriority();
+        boolean sampled = samplingPriority != null && samplingPriority > 0;
+        return new OtelSpanContext(delegate, sampled, false, TraceState.getDefault());
     }
-    return this.spanId;
-  }
 
-  @Override
-  public TraceFlags getTraceFlags() {
-    return this.sampled ? TraceFlags.getSampled() : TraceFlags.getDefault();
-  }
+    public static SpanContext fromRemote(AgentSpanContext extracted, TraceState traceState) {
+        return new OtelSpanContext(extracted, extracted.getSamplingPriority() > 0, true, traceState);
+    }
 
-  @Override
-  public TraceState getTraceState() {
-    return this.traceState;
-  }
+    @Override
+    public String getTraceId() {
+        if (this.traceId == null) {
+            this.traceId = this.delegate.getTraceId().toHexString();
+        }
+        return this.traceId;
+    }
 
-  @Override
-  public boolean isRemote() {
-    return this.remote;
-  }
+    @Override
+    public String getSpanId() {
+        if (this.spanId == null) {
+            this.spanId = DDSpanId.toHexStringPadded(this.delegate.getSpanId());
+        }
+        return this.spanId;
+    }
 
-  @Override
-  public String toString() {
-    return "OtelSpanContext{"
-        + "traceId='"
-        + getTraceId()
-        + "', spanId='"
-        + getSpanId()
-        + "', sampled="
-        + this.sampled
-        + ", remote="
-        + this.remote
-        + '}';
-  }
+    @Override
+    public TraceFlags getTraceFlags() {
+        return this.sampled ? TraceFlags.getSampled() : TraceFlags.getDefault();
+    }
+
+    @Override
+    public TraceState getTraceState() {
+        return this.traceState;
+    }
+
+    @Override
+    public boolean isRemote() {
+        return this.remote;
+    }
+
+    @Override
+    public String toString() {
+        return "OtelSpanContext{"
+                + "traceId='"
+                + getTraceId()
+                + "', spanId='"
+                + getSpanId()
+                + "', sampled="
+                + this.sampled
+                + ", remote="
+                + this.remote
+                + '}';
+    }
 }

@@ -16,23 +16,22 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class IntegrationAdderTest extends DDJavaSpecification {
 
-  @ValueSource(booleans = {true, false})
-  @ParameterizedTest(
-      name = "should add or remove _dd.integration when set ({0}) on the span context")
-  void shouldAddOrRemoveDdIntegrationWhenSetOnTheSpanContext(boolean isSet) {
-    IntegrationAdder calculator = new IntegrationAdder();
-    DDSpanContext spanContext = mock(DDSpanContext.class);
-    when(spanContext.getIntegrationName()).thenReturn(isSet ? "test" : null);
+    @ValueSource(booleans = {true, false})
+    @ParameterizedTest(name = "should add or remove _dd.integration when set ({0}) on the span context")
+    void shouldAddOrRemoveDdIntegrationWhenSetOnTheSpanContext(boolean isSet) {
+        IntegrationAdder calculator = new IntegrationAdder();
+        DDSpanContext spanContext = mock(DDSpanContext.class);
+        when(spanContext.getIntegrationName()).thenReturn(isSet ? "test" : null);
 
-    TagMap unsafeTags = TagMap.fromMap(Collections.singletonMap("_dd.integration", "bad"));
-    calculator.processTags(unsafeTags, spanContext, link -> {});
+        TagMap unsafeTags = TagMap.fromMap(Collections.singletonMap("_dd.integration", "bad"));
+        calculator.processTags(unsafeTags, spanContext, link -> {});
 
-    verify(spanContext, times(1)).getIntegrationName();
+        verify(spanContext, times(1)).getIntegrationName();
 
-    if (isSet) {
-      assertEquals(Collections.singletonMap("_dd.integration", "test"), unsafeTags);
-    } else {
-      assertTrue(unsafeTags.isEmpty());
+        if (isSet) {
+            assertEquals(Collections.singletonMap("_dd.integration", "test"), unsafeTags);
+        } else {
+            assertTrue(unsafeTags.isEmpty());
+        }
     }
-  }
 }

@@ -28,162 +28,148 @@ import org.slf4j.LoggerFactory;
 
 public class MavenExecutionListener extends AbstractExecutionListener {
 
-  private static final Logger log = LoggerFactory.getLogger(MavenExecutionListener.class);
-  private static final String TESTS_SKIPPED_BY_CONFIGURATION_REASON =
-      "Tests were skipped by Maven configuration";
+    private static final Logger log = LoggerFactory.getLogger(MavenExecutionListener.class);
+    private static final String TESTS_SKIPPED_BY_CONFIGURATION_REASON = "Tests were skipped by Maven configuration";
 
-  private final BuildEventsHandler<MavenExecutionRequest> buildEventsHandler;
+    private final BuildEventsHandler<MavenExecutionRequest> buildEventsHandler;
 
-  public MavenExecutionListener(BuildEventsHandler<MavenExecutionRequest> buildEventsHandler) {
-    this.buildEventsHandler = buildEventsHandler;
-  }
-
-  @Override
-  public void sessionEnded(ExecutionEvent event) {
-    MavenSession session = event.getSession();
-    MavenExecutionRequest request = session.getRequest();
-
-    MavenExecutionResult result = session.getResult();
-    if (result.hasExceptions()) {
-      Throwable exception = MavenUtils.getException(result);
-      buildEventsHandler.onTestSessionFail(request, exception);
+    public MavenExecutionListener(BuildEventsHandler<MavenExecutionRequest> buildEventsHandler) {
+        this.buildEventsHandler = buildEventsHandler;
     }
 
-    buildEventsHandler.onTestSessionFinish(request);
-  }
+    @Override
+    public void sessionEnded(ExecutionEvent event) {
+        MavenSession session = event.getSession();
+        MavenExecutionRequest request = session.getRequest();
 
-  @Override
-  public void mojoSkipped(ExecutionEvent event) {
-    MojoExecution mojoExecution = event.getMojoExecution();
-    if (MavenUtils.isTestExecution(mojoExecution)) {
-      MavenSession session = event.getSession();
-      MavenExecutionRequest request = session.getRequest();
-      MavenProject project = event.getProject();
-      String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
+        MavenExecutionResult result = session.getResult();
+        if (result.hasExceptions()) {
+            Throwable exception = MavenUtils.getException(result);
+            buildEventsHandler.onTestSessionFail(request, exception);
+        }
 
-      mojoStarted(event);
-      buildEventsHandler.onTestModuleSkip(request, moduleName, null);
-      mojoSucceeded(event);
-    } else {
-      mojoStarted(event);
-      mojoSucceeded(event);
-    }
-  }
-
-  @Override
-  public void mojoStarted(ExecutionEvent event) {
-    MojoExecution mojoExecution = event.getMojoExecution();
-    MavenSession session = event.getSession();
-    MavenExecutionRequest request = session.getRequest();
-    MavenProject project = event.getProject();
-    String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
-
-    if (!MavenUtils.isTestExecution(mojoExecution)) {
-      Map<String, Object> additionalTags = new HashMap<>();
-      additionalTags.put("project", project.getName());
-      additionalTags.put("plugin", mojoExecution.getArtifactId());
-      additionalTags.put("execution", mojoExecution.getExecutionId());
-      buildEventsHandler.onBuildTaskStart(request, moduleName, additionalTags);
-      return;
+        buildEventsHandler.onTestSessionFinish(request);
     }
 
-    Build build = project.getBuild();
-    SourceSet classes =
-        getSourceSet(SourceSet.Type.CODE, build.getSourceDirectory(), build.getOutputDirectory());
-    SourceSet tests =
-        getSourceSet(
-            SourceSet.Type.TEST, build.getTestSourceDirectory(), build.getTestOutputDirectory());
-    BuildModuleLayout moduleLayout = new BuildModuleLayout(Arrays.asList(classes, tests));
+    @Override
+    public void mojoSkipped(ExecutionEvent event) {
+        MojoExecution mojoExecution = event.getMojoExecution();
+        if (MavenUtils.isTestExecution(mojoExecution)) {
+            MavenSession session = event.getSession();
+            MavenExecutionRequest request = session.getRequest();
+            MavenProject project = event.getProject();
+            String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
 
-    Path forkedJvmPath = MavenUtils.getForkedJvmPath(session, mojoExecution);
-    List<Path> classpath = MavenUtils.getClasspath(session, mojoExecution);
-    String executionId =
-        mojoExecution.getPlugin().getArtifactId()
-            + ":"
-            + mojoExecution.getGoal()
-            + ":"
-            + mojoExecution.getExecutionId();
-    Map<String, Object> additionalTags = Collections.singletonMap(Tags.TEST_EXECUTION, executionId);
-    JavaAgent jacocoAgent = MavenUtils.getJacocoAgent(session, project, mojoExecution);
-
-    BuildModuleSettings moduleSettings =
-        buildEventsHandler.onTestModuleStart(
-            request,
-            moduleName,
-            moduleLayout,
-            forkedJvmPath,
-            classpath,
-            jacocoAgent,
-            additionalTags);
-
-    String forkCount = MavenUtils.getConfigurationValue(session, mojoExecution, "forkCount");
-    if ("0".equals(forkCount)) {
-      log.warn(
-          "Tests execution {} does not run in a forked JVM, this configuration is not supported",
-          executionId);
-      return;
+            mojoStarted(event);
+            buildEventsHandler.onTestModuleSkip(request, moduleName, null);
+            mojoSucceeded(event);
+        } else {
+            mojoStarted(event);
+            mojoSucceeded(event);
+        }
     }
 
-    Map<String, String> systemProperties = moduleSettings.getSystemProperties();
-    MavenProjectConfigurator.INSTANCE.configureTracer(
-        session, project, mojoExecution, systemProperties, Config.get());
-  }
+    @Override
+    public void mojoStarted(ExecutionEvent event) {
+        MojoExecution mojoExecution = event.getMojoExecution();
+        MavenSession session = event.getSession();
+        MavenExecutionRequest request = session.getRequest();
+        MavenProject project = event.getProject();
+        String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
 
-  @Nullable
-  private SourceSet getSourceSet(SourceSet.Type type, String source, String output) {
-    if (source == null || output == null) {
-      return null;
+        if (!MavenUtils.isTestExecution(mojoExecution)) {
+            Map<String, Object> additionalTags = new HashMap<>();
+            additionalTags.put("project", project.getName());
+            additionalTags.put("plugin", mojoExecution.getArtifactId());
+            additionalTags.put("execution", mojoExecution.getExecutionId());
+            buildEventsHandler.onBuildTaskStart(request, moduleName, additionalTags);
+            return;
+        }
+
+        Build build = project.getBuild();
+        SourceSet classes = getSourceSet(SourceSet.Type.CODE, build.getSourceDirectory(), build.getOutputDirectory());
+        SourceSet tests =
+                getSourceSet(SourceSet.Type.TEST, build.getTestSourceDirectory(), build.getTestOutputDirectory());
+        BuildModuleLayout moduleLayout = new BuildModuleLayout(Arrays.asList(classes, tests));
+
+        Path forkedJvmPath = MavenUtils.getForkedJvmPath(session, mojoExecution);
+        List<Path> classpath = MavenUtils.getClasspath(session, mojoExecution);
+        String executionId = mojoExecution.getPlugin().getArtifactId()
+                + ":"
+                + mojoExecution.getGoal()
+                + ":"
+                + mojoExecution.getExecutionId();
+        Map<String, Object> additionalTags = Collections.singletonMap(Tags.TEST_EXECUTION, executionId);
+        JavaAgent jacocoAgent = MavenUtils.getJacocoAgent(session, project, mojoExecution);
+
+        BuildModuleSettings moduleSettings = buildEventsHandler.onTestModuleStart(
+                request, moduleName, moduleLayout, forkedJvmPath, classpath, jacocoAgent, additionalTags);
+
+        String forkCount = MavenUtils.getConfigurationValue(session, mojoExecution, "forkCount");
+        if ("0".equals(forkCount)) {
+            log.warn(
+                    "Tests execution {} does not run in a forked JVM, this configuration is not supported",
+                    executionId);
+            return;
+        }
+
+        Map<String, String> systemProperties = moduleSettings.getSystemProperties();
+        MavenProjectConfigurator.INSTANCE.configureTracer(
+                session, project, mojoExecution, systemProperties, Config.get());
     }
-    return new SourceSet(
-        type, Collections.singleton(new File(source)), Collections.singleton(new File(output)));
-  }
 
-  @Override
-  public void mojoSucceeded(ExecutionEvent event) {
-    MojoExecution mojoExecution = event.getMojoExecution();
-    MavenSession session = event.getSession();
-    MavenExecutionRequest request = session.getRequest();
-    MavenProject project = event.getProject();
-    String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
-
-    if (MavenUtils.isTestExecution(mojoExecution)) {
-      // Surefire/Failsafe complete successfully when explicitly configured to skip tests;
-      // Maven does not send mojoSkipped for these executions. Read the resolved plugin
-      // configuration, since a POM can override the command-line skip properties.
-      if (Boolean.parseBoolean(
-              MavenUtils.getConfigurationValue(session, mojoExecution, "skipTests"))
-          || Boolean.parseBoolean(MavenUtils.getConfigurationValue(session, mojoExecution, "skip"))
-          || (("maven-surefire-plugin".equals(mojoExecution.getArtifactId())
-                  || "maven-failsafe-plugin".equals(mojoExecution.getArtifactId()))
-              && Boolean.parseBoolean(
-                  MavenUtils.getConfigurationValue(session, mojoExecution, "skipExec")))
-          || ("maven-failsafe-plugin".equals(mojoExecution.getArtifactId())
-              && Boolean.parseBoolean(
-                  MavenUtils.getConfigurationValue(session, mojoExecution, "skipITs")))) {
-        buildEventsHandler.onTestModuleSkip(
-            request, moduleName, TESTS_SKIPPED_BY_CONFIGURATION_REASON);
-      }
-      buildEventsHandler.onTestModuleFinish(request, moduleName);
-    } else {
-      buildEventsHandler.onBuildTaskFinish(request, moduleName);
+    @Nullable
+    private SourceSet getSourceSet(SourceSet.Type type, String source, String output) {
+        if (source == null || output == null) {
+            return null;
+        }
+        return new SourceSet(type, Collections.singleton(new File(source)), Collections.singleton(new File(output)));
     }
-  }
 
-  @Override
-  public void mojoFailed(ExecutionEvent event) {
-    MojoExecution mojoExecution = event.getMojoExecution();
-    MavenSession session = event.getSession();
-    MavenExecutionRequest request = session.getRequest();
-    MavenProject project = event.getProject();
-    String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
-    Exception exception = event.getException();
+    @Override
+    public void mojoSucceeded(ExecutionEvent event) {
+        MojoExecution mojoExecution = event.getMojoExecution();
+        MavenSession session = event.getSession();
+        MavenExecutionRequest request = session.getRequest();
+        MavenProject project = event.getProject();
+        String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
 
-    if (MavenUtils.isTestExecution(mojoExecution)) {
-      buildEventsHandler.onTestModuleFail(request, moduleName, exception);
-      buildEventsHandler.onTestModuleFinish(request, moduleName);
-    } else {
-      buildEventsHandler.onBuildTaskFail(request, moduleName, exception);
-      buildEventsHandler.onBuildTaskFinish(request, moduleName);
+        if (MavenUtils.isTestExecution(mojoExecution)) {
+            // Surefire/Failsafe complete successfully when explicitly configured to skip tests;
+            // Maven does not send mojoSkipped for these executions. Read the resolved plugin
+            // configuration, since a POM can override the command-line skip properties.
+            if (Boolean.parseBoolean(MavenUtils.getConfigurationValue(session, mojoExecution, "skipTests"))
+                    || Boolean.parseBoolean(MavenUtils.getConfigurationValue(session, mojoExecution, "skip"))
+                    || (("maven-surefire-plugin".equals(mojoExecution.getArtifactId())
+                                    || "maven-failsafe-plugin".equals(mojoExecution.getArtifactId()))
+                            && Boolean.parseBoolean(
+                                    MavenUtils.getConfigurationValue(session, mojoExecution, "skipExec")))
+                    || ("maven-failsafe-plugin".equals(mojoExecution.getArtifactId())
+                            && Boolean.parseBoolean(
+                                    MavenUtils.getConfigurationValue(session, mojoExecution, "skipITs")))) {
+                buildEventsHandler.onTestModuleSkip(request, moduleName, TESTS_SKIPPED_BY_CONFIGURATION_REASON);
+            }
+            buildEventsHandler.onTestModuleFinish(request, moduleName);
+        } else {
+            buildEventsHandler.onBuildTaskFinish(request, moduleName);
+        }
     }
-  }
+
+    @Override
+    public void mojoFailed(ExecutionEvent event) {
+        MojoExecution mojoExecution = event.getMojoExecution();
+        MavenSession session = event.getSession();
+        MavenExecutionRequest request = session.getRequest();
+        MavenProject project = event.getProject();
+        String moduleName = MavenUtils.getUniqueModuleName(project, mojoExecution);
+        Exception exception = event.getException();
+
+        if (MavenUtils.isTestExecution(mojoExecution)) {
+            buildEventsHandler.onTestModuleFail(request, moduleName, exception);
+            buildEventsHandler.onTestModuleFinish(request, moduleName);
+        } else {
+            buildEventsHandler.onBuildTaskFail(request, moduleName, exception);
+            buildEventsHandler.onBuildTaskFinish(request, moduleName);
+        }
+    }
 }

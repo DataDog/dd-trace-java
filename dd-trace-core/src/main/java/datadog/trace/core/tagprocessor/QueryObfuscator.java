@@ -13,68 +13,67 @@ import org.slf4j.LoggerFactory;
 
 public final class QueryObfuscator extends TagsPostProcessor {
 
-  private static final Logger log = LoggerFactory.getLogger(QueryObfuscator.class);
+    private static final Logger log = LoggerFactory.getLogger(QueryObfuscator.class);
 
-  private static final String DEFAULT_OBFUSCATION_PATTERN =
-      "(?i)(?:(?:\"|%22)?)(?:(?:old[-_]?|new[-_]?)?p(?:ass)?w(?:or)?d(?:1|2)?|pass(?:[-_]?phrase)?|secret|(?:api[-_]?|private[-_]?|public[-_]?|access[-_]?|secret[-_]?|app(?:lication)?[-_]?)key(?:[-_]?id)?|token|consumer[-_]?(?:id|key|secret)|sign(?:ed|ature)?|auth(?:entication|orization)?)(?:(?:\\s|%20)*(?:=|%3D)[^&]+|(?:\"|%22)(?:\\s|%20)*(?::|%3A)(?:\\s|%20)*(?:\"|%22)(?:%2[^2]|%[^2]|[^\"%])+(?:\"|%22))|(?:bearer(?:\\s|%20)+[a-z0-9._\\-]+|token(?::|%3A)[a-z0-9]{13}|gh[opsu]_[0-9a-zA-Z]{36}|ey[I-L](?:[\\w=-]|%3D)+\\.ey[I-L](?:[\\w=-]|%3D)+(?:\\.(?:[\\w.+/=-]|%3D|%2F|%2B)+)?|-{5}BEGIN(?:[a-z\\s]|%20)+PRIVATE(?:\\s|%20)KEY-{5}[^\\-]+-{5}END(?:[a-z\\s]|%20)+PRIVATE(?:\\s|%20)KEY(?:-{5})?(?:\\n|%0A)?|(?:ssh-(?:rsa|dss)|ecdsa-[a-z0-9]+-[a-z0-9]+)(?:\\s|%20|%09)+(?:[a-z0-9/.+]|%2F|%5C|%2B){100,}(?:=|%3D)*(?:(?:\\s|%20|%09)+[a-z0-9._-]+)?)";
+    private static final String DEFAULT_OBFUSCATION_PATTERN =
+            "(?i)(?:(?:\"|%22)?)(?:(?:old[-_]?|new[-_]?)?p(?:ass)?w(?:or)?d(?:1|2)?|pass(?:[-_]?phrase)?|secret|(?:api[-_]?|private[-_]?|public[-_]?|access[-_]?|secret[-_]?|app(?:lication)?[-_]?)key(?:[-_]?id)?|token|consumer[-_]?(?:id|key|secret)|sign(?:ed|ature)?|auth(?:entication|orization)?)(?:(?:\\s|%20)*(?:=|%3D)[^&]+|(?:\"|%22)(?:\\s|%20)*(?::|%3A)(?:\\s|%20)*(?:\"|%22)(?:%2[^2]|%[^2]|[^\"%])+(?:\"|%22))|(?:bearer(?:\\s|%20)+[a-z0-9._\\-]+|token(?::|%3A)[a-z0-9]{13}|gh[opsu]_[0-9a-zA-Z]{36}|ey[I-L](?:[\\w=-]|%3D)+\\.ey[I-L](?:[\\w=-]|%3D)+(?:\\.(?:[\\w.+/=-]|%3D|%2F|%2B)+)?|-{5}BEGIN(?:[a-z\\s]|%20)+PRIVATE(?:\\s|%20)KEY-{5}[^\\-]+-{5}END(?:[a-z\\s]|%20)+PRIVATE(?:\\s|%20)KEY(?:-{5})?(?:\\n|%0A)?|(?:ssh-(?:rsa|dss)|ecdsa-[a-z0-9]+-[a-z0-9]+)(?:\\s|%20|%09)+(?:[a-z0-9/.+]|%2F|%5C|%2B){100,}(?:=|%3D)*(?:(?:\\s|%20|%09)+[a-z0-9._-]+)?)";
 
-  private final Pattern pattern;
+    private final Pattern pattern;
 
-  /**
-   * If regex is null - then used default regex pattern If regex is empty string - then disable
-   * regex
-   */
-  public QueryObfuscator(String regex) {
-    // empty string -> disabled query obfuscation
-    if ("".equals(regex)) {
-      this.pattern = null;
-      return;
+    /**
+     * If regex is null - then used default regex pattern If regex is empty string - then disable
+     * regex
+     */
+    public QueryObfuscator(String regex) {
+        // empty string -> disabled query obfuscation
+        if ("".equals(regex)) {
+            this.pattern = null;
+            return;
+        }
+
+        // null -> use default regex
+        if (regex == null) {
+            regex = DEFAULT_OBFUSCATION_PATTERN;
+        }
+
+        Pattern pattern = null;
+        try {
+            pattern = Pattern.compile(regex);
+        } catch (PatternSyntaxException e) {
+            log.error("Could not compile given query obfuscation regex: {}", regex, e);
+        }
+        this.pattern = pattern;
     }
 
-    // null -> use default regex
-    if (regex == null) {
-      regex = DEFAULT_OBFUSCATION_PATTERN;
+    private String obfuscate(String query) {
+        if (pattern == null) {
+            return query;
+        }
+        final Matcher matcher = pattern.matcher(query);
+        if (!matcher.find()) {
+            return query;
+        }
+        // TODO consider an upstream length cap too
+        final StringBuffer sb = new StringBuffer(query.length());
+        do {
+            matcher.appendReplacement(sb, "<redacted>");
+        } while (matcher.find());
+        matcher.appendTail(sb);
+        return sb.toString();
     }
 
-    Pattern pattern = null;
-    try {
-      pattern = Pattern.compile(regex);
-    } catch (PatternSyntaxException e) {
-      log.error("Could not compile given query obfuscation regex: {}", regex, e);
-    }
-    this.pattern = pattern;
-  }
+    @Override
+    public void processTags(TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+        Object query = unsafeTags.getObject(DDTags.HTTP_QUERY);
+        if (query instanceof CharSequence) {
+            query = obfuscate(query.toString());
 
-  private String obfuscate(String query) {
-    if (pattern == null) {
-      return query;
-    }
-    final Matcher matcher = pattern.matcher(query);
-    if (!matcher.find()) {
-      return query;
-    }
-    // TODO consider an upstream length cap too
-    final StringBuffer sb = new StringBuffer(query.length());
-    do {
-      matcher.appendReplacement(sb, "<redacted>");
-    } while (matcher.find());
-    matcher.appendTail(sb);
-    return sb.toString();
-  }
+            unsafeTags.put(DDTags.HTTP_QUERY, query);
 
-  @Override
-  public void processTags(
-      TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
-    Object query = unsafeTags.getObject(DDTags.HTTP_QUERY);
-    if (query instanceof CharSequence) {
-      query = obfuscate(query.toString());
-
-      unsafeTags.put(DDTags.HTTP_QUERY, query);
-
-      Object url = unsafeTags.getObject(Tags.HTTP_URL);
-      if (url instanceof CharSequence) {
-        unsafeTags.put(Tags.HTTP_URL, url + "?" + query);
-      }
+            Object url = unsafeTags.getObject(Tags.HTTP_URL);
+            if (url instanceof CharSequence) {
+                unsafeTags.put(Tags.HTTP_URL, url + "?" + query);
+            }
+        }
     }
-  }
 }

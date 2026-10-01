@@ -12,93 +12,89 @@ import javax.annotation.Nonnull;
 
 // Wraps httpClient calls to dump request/responses records to be used with the mocked backend
 public class OpenAiHttpClientForTests implements HttpClient {
-  private final Path recordsDir;
-  private final HttpClient delegate;
-
-  // Intercepts and dumps a request/response to a record file
-  public OpenAiHttpClientForTests(HttpClient delegate, Path recordsDir) {
-    this.recordsDir = recordsDir;
-    this.delegate = delegate;
-  }
-
-  @Nonnull
-  @Override
-  public HttpResponse execute(
-      @Nonnull HttpRequest request, @Nonnull RequestOptions requestOptions) {
-    HttpResponse response = delegate.execute(request, requestOptions);
-    return wrapIfNeeded(request, response);
-  }
-
-  @Nonnull
-  @Override
-  public CompletableFuture<HttpResponse> executeAsync(
-      @Nonnull HttpRequest request, @Nonnull RequestOptions requestOptions) {
-    return delegate
-        .executeAsync(request, requestOptions)
-        .thenApply(response -> wrapIfNeeded(request, response));
-  }
-
-  @Override
-  public void close() {
-    delegate.close();
-  }
-
-  private HttpResponse wrapIfNeeded(HttpRequest request, HttpResponse response) {
-    if (RequestResponseRecord.exists(recordsDir, request)) {
-      // will NOT rewrite the record file if it exists
-      return response;
-    }
-    return new ResponseRequestInterceptor(request, response, recordsDir);
-  }
-
-  private static class ResponseRequestInterceptor implements HttpResponse {
-    private final HttpRequest request;
-    private final HttpResponse response;
     private final Path recordsDir;
-    private final ByteArrayOutputStream responseBody;
+    private final HttpClient delegate;
 
-    private ResponseRequestInterceptor(
-        HttpRequest request, HttpResponse response, Path recordsDir) {
-      this.request = request;
-      this.response = response;
-      this.recordsDir = recordsDir;
-      responseBody = new ByteArrayOutputStream();
-    }
-
-    @Override
-    public int statusCode() {
-      return response.statusCode();
+    // Intercepts and dumps a request/response to a record file
+    public OpenAiHttpClientForTests(HttpClient delegate, Path recordsDir) {
+        this.recordsDir = recordsDir;
+        this.delegate = delegate;
     }
 
     @Nonnull
     @Override
-    public Headers headers() {
-      return response.headers();
+    public HttpResponse execute(@Nonnull HttpRequest request, @Nonnull RequestOptions requestOptions) {
+        HttpResponse response = delegate.execute(request, requestOptions);
+        return wrapIfNeeded(request, response);
     }
 
     @Nonnull
     @Override
-    public InputStream body() {
-      InputStream body = response.body();
-      return new InputStream() {
-        @Override
-        public int read() throws IOException {
-          int b = body.read();
-          // capture body while it's consumed
-          responseBody.write(b);
-          return b;
-        }
-      };
+    public CompletableFuture<HttpResponse> executeAsync(
+            @Nonnull HttpRequest request, @Nonnull RequestOptions requestOptions) {
+        return delegate.executeAsync(request, requestOptions).thenApply(response -> wrapIfNeeded(request, response));
     }
 
     @Override
     public void close() {
-      try {
-        RequestResponseRecord.dump(recordsDir, request, response, responseBody.toByteArray());
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-      response.close();
+        delegate.close();
     }
-  }
+
+    private HttpResponse wrapIfNeeded(HttpRequest request, HttpResponse response) {
+        if (RequestResponseRecord.exists(recordsDir, request)) {
+            // will NOT rewrite the record file if it exists
+            return response;
+        }
+        return new ResponseRequestInterceptor(request, response, recordsDir);
+    }
+
+    private static class ResponseRequestInterceptor implements HttpResponse {
+        private final HttpRequest request;
+        private final HttpResponse response;
+        private final Path recordsDir;
+        private final ByteArrayOutputStream responseBody;
+
+        private ResponseRequestInterceptor(HttpRequest request, HttpResponse response, Path recordsDir) {
+            this.request = request;
+            this.response = response;
+            this.recordsDir = recordsDir;
+            responseBody = new ByteArrayOutputStream();
+        }
+
+        @Override
+        public int statusCode() {
+            return response.statusCode();
+        }
+
+        @Nonnull
+        @Override
+        public Headers headers() {
+            return response.headers();
+        }
+
+        @Nonnull
+        @Override
+        public InputStream body() {
+            InputStream body = response.body();
+            return new InputStream() {
+                @Override
+                public int read() throws IOException {
+                    int b = body.read();
+                    // capture body while it's consumed
+                    responseBody.write(b);
+                    return b;
+                }
+            };
+        }
+
+        @Override
+        public void close() {
+            try {
+                RequestResponseRecord.dump(recordsDir, request, response, responseBody.toByteArray());
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            response.close();
+        }
+    }
 }

@@ -22,74 +22,71 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class Json2FactoryInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public Json2FactoryInstrumentation() {
-    super("jackson", "jackson-2");
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("createParser")
-            .and(isMethod())
-            .and(
-                isPublic()
-                    .and(
-                        takesArguments(String.class)
-                            .or(takesArguments(InputStream.class))
-                            .or(takesArguments(Reader.class))
-                            .or(takesArguments(URL.class))
-                            .or(takesArguments(byte[].class)))),
-        Json2FactoryInstrumentation.class.getName() + "$InstrumenterAdvice");
-    transformer.applyAdvice(
-        named("createParser")
-            .and(isMethod())
-            .and(isPublic().and(takesArguments(byte[].class, int.class, int.class))),
-        Json2FactoryInstrumentation.class.getName() + "$Instrumenter2Advice");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "com.fasterxml.jackson.core.JsonFactory";
-  }
-
-  public static class InstrumenterAdvice {
-
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Sink(VulnerabilityTypes.SSRF) // it's both propagation and Sink but Sink takes priority
-    public static void onExit(
-        @Advice.Argument(0) final Object input, @Advice.Return final Object parser) {
-      if (input != null) {
-        final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
-        if (propagation != null) {
-          propagation.taintObjectIfTainted(parser, input);
-        }
-        if (input instanceof URL) {
-          final SsrfModule ssrf = InstrumentationBridge.SSRF;
-          if (ssrf != null) {
-            ssrf.onURLConnection(input);
-          }
-        }
-      }
+    public Json2FactoryInstrumentation() {
+        super("jackson", "jackson-2");
     }
-  }
 
-  public static class Instrumenter2Advice {
-
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Propagation
-    public static void onExit(
-        @Advice.Argument(0) final byte[] input,
-        @Advice.Argument(1) final int offset,
-        @Advice.Argument(2) final int length,
-        @Advice.Return final Object parser) {
-      if (input != null || length <= 0) {
-        final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
-        if (propagation != null) {
-          propagation.taintObjectIfRangeTainted(parser, input, offset, length, false, NOT_MARKED);
-        }
-      }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("createParser")
+                        .and(isMethod())
+                        .and(isPublic()
+                                .and(takesArguments(String.class)
+                                        .or(takesArguments(InputStream.class))
+                                        .or(takesArguments(Reader.class))
+                                        .or(takesArguments(URL.class))
+                                        .or(takesArguments(byte[].class)))),
+                Json2FactoryInstrumentation.class.getName() + "$InstrumenterAdvice");
+        transformer.applyAdvice(
+                named("createParser")
+                        .and(isMethod())
+                        .and(isPublic().and(takesArguments(byte[].class, int.class, int.class))),
+                Json2FactoryInstrumentation.class.getName() + "$Instrumenter2Advice");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "com.fasterxml.jackson.core.JsonFactory";
+    }
+
+    public static class InstrumenterAdvice {
+
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Sink(VulnerabilityTypes.SSRF) // it's both propagation and Sink but Sink takes priority
+        public static void onExit(@Advice.Argument(0) final Object input, @Advice.Return final Object parser) {
+            if (input != null) {
+                final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
+                if (propagation != null) {
+                    propagation.taintObjectIfTainted(parser, input);
+                }
+                if (input instanceof URL) {
+                    final SsrfModule ssrf = InstrumentationBridge.SSRF;
+                    if (ssrf != null) {
+                        ssrf.onURLConnection(input);
+                    }
+                }
+            }
+        }
+    }
+
+    public static class Instrumenter2Advice {
+
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Propagation
+        public static void onExit(
+                @Advice.Argument(0) final byte[] input,
+                @Advice.Argument(1) final int offset,
+                @Advice.Argument(2) final int length,
+                @Advice.Return final Object parser) {
+            if (input != null || length <= 0) {
+                final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
+                if (propagation != null) {
+                    propagation.taintObjectIfRangeTainted(parser, input, offset, length, false, NOT_MARKED);
+                }
+            }
+        }
+    }
 }

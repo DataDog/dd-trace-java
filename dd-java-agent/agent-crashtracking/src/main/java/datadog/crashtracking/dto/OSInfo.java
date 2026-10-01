@@ -5,49 +5,48 @@ import datadog.environment.SystemProperties;
 import java.util.Objects;
 
 public final class OSInfo {
-  public final String architecture;
-  public final String bitness;
+    public final String architecture;
+    public final String bitness;
 
-  @Json(name = "os_type")
-  public final String osType;
+    @Json(name = "os_type")
+    public final String osType;
 
-  public final String version;
+    public final String version;
 
-  public OSInfo(String architecture, String bitness, String osType, String version) {
-    this.architecture = architecture;
-    this.bitness = bitness;
-    this.osType = osType;
-    this.version = version;
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
+    public OSInfo(String architecture, String bitness, String osType, String version) {
+        this.architecture = architecture;
+        this.bitness = bitness;
+        this.osType = osType;
+        this.version = version;
     }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    OSInfo osInfo = (OSInfo) o;
-    return Objects.equals(architecture, osInfo.architecture)
-        && Objects.equals(bitness, osInfo.bitness)
-        && Objects.equals(osType, osInfo.osType)
-        && Objects.equals(version, osInfo.version);
-  }
 
-  @Override
-  public int hashCode() {
-    return Objects.hash(architecture, bitness, osType, version);
-  }
-
-  public static OSInfo current() {
-    String rawBitness = SystemProperties.get("sun.arch.data.model");
-    String bitness = rawBitness != null ? rawBitness + "-bit" : null;
-    String osName = SystemProperties.get("os.name");
-    if (osName != null && osName.startsWith("Mac OS")) {
-      osName = "Mac OS";
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        OSInfo osInfo = (OSInfo) o;
+        return Objects.equals(architecture, osInfo.architecture)
+                && Objects.equals(bitness, osInfo.bitness)
+                && Objects.equals(osType, osInfo.osType)
+                && Objects.equals(version, osInfo.version);
     }
-    return new OSInfo(
-        SystemProperties.get("os.arch"), bitness, osName, SystemProperties.get("os.version"));
-  }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(architecture, bitness, osType, version);
+    }
+
+    public static OSInfo current() {
+        String rawBitness = SystemProperties.get("sun.arch.data.model");
+        String bitness = rawBitness != null ? rawBitness + "-bit" : null;
+        String osName = SystemProperties.get("os.name");
+        if (osName != null && osName.startsWith("Mac OS")) {
+            osName = "Mac OS";
+        }
+        return new OSInfo(SystemProperties.get("os.arch"), bitness, osName, SystemProperties.get("os.version"));
+    }
 }

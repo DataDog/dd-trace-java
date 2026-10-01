@@ -5,5 +5,5 @@ import javax.annotation.Nullable;
 
 public interface UntrustedDeserializationModule extends IastModule {
 
-  void onObject(@Nullable Object object);
+    void onObject(@Nullable Object object);
 }

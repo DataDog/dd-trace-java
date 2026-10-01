@@ -19,64 +19,64 @@ import org.springframework.security.core.context.SecurityContext;
 
 @AutoService(InstrumenterModule.class)
 public class SecurityContextHolderInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public SecurityContextHolderInstrumentation() {
-    super("spring-security");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "org.springframework.security.core.context.SecurityContextHolderStrategy";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("setContext"))
-            .and(takesArguments(1))
-            .and(
-                takesArgument(
-                    0, named("org.springframework.security.core.context.SecurityContext")))
-            .and(isPublic()),
-        getClass().getName() + "$SetSecurityContextAdvice");
-    transformer.applyAdvice(
-        isMethod().and(named("setDeferredContext")).and(takesArguments(1)).and(isPublic()),
-        getClass().getName() + "$SetDeferredSecurityContextAdvice");
-  }
-
-  public static class SetSecurityContextAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(@Advice.Argument(0) final SecurityContext context) {
-      if (context == null) {
-        return;
-      }
-      if (!ActiveSubsystems.APPSEC_ACTIVE) {
-        return;
-      }
-      SpringSecurityUserEventDecorator.DECORATE.onUser(context.getAuthentication());
+    public SecurityContextHolderInstrumentation() {
+        super("spring-security");
     }
-  }
 
-  public static class SetDeferredSecurityContextAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(
-        @Advice.Argument(value = 0, readOnly = false) Supplier<SecurityContext> deferred) {
-      if (deferred == null) {
-        return;
-      }
-      if (!ActiveSubsystems.APPSEC_ACTIVE) {
-        return;
-      }
-      deferred = new AppSecDeferredContext(deferred);
+    @Override
+    public String hierarchyMarkerType() {
+        return "org.springframework.security.core.context.SecurityContextHolderStrategy";
     }
-  }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("setContext"))
+                        .and(takesArguments(1))
+                        .and(takesArgument(0, named("org.springframework.security.core.context.SecurityContext")))
+                        .and(isPublic()),
+                getClass().getName() + "$SetSecurityContextAdvice");
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("setDeferredContext"))
+                        .and(takesArguments(1))
+                        .and(isPublic()),
+                getClass().getName() + "$SetDeferredSecurityContextAdvice");
+    }
+
+    public static class SetSecurityContextAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter(@Advice.Argument(0) final SecurityContext context) {
+            if (context == null) {
+                return;
+            }
+            if (!ActiveSubsystems.APPSEC_ACTIVE) {
+                return;
+            }
+            SpringSecurityUserEventDecorator.DECORATE.onUser(context.getAuthentication());
+        }
+    }
+
+    public static class SetDeferredSecurityContextAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter(@Advice.Argument(value = 0, readOnly = false) Supplier<SecurityContext> deferred) {
+            if (deferred == null) {
+                return;
+            }
+            if (!ActiveSubsystems.APPSEC_ACTIVE) {
+                return;
+            }
+            deferred = new AppSecDeferredContext(deferred);
+        }
+    }
 }

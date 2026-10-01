@@ -16,281 +16,277 @@ import org.junit.jupiter.api.Test;
 
 class AccumulatorTest {
 
-  enum Counters {
-    FOO,
-    BAR,
-    BAZ
-  }
-
-  @Test
-  void freshAccumulatorSumsToZero() {
-    Accumulator<Counters> counters = Accumulator.of(Counters.class);
-    Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
-    for (Counters c : Counters.values()) {
-      assertEquals(0L, drained.get(c));
-    }
-  }
-
-  @Test
-  void incIncrementsByOne() {
-    Accumulator<Counters> counters = Accumulator.of(Counters.class);
-    counters.inc(Counters.FOO);
-    counters.inc(Counters.FOO);
-    counters.inc(Counters.BAR);
-
-    Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
-    assertEquals(2L, drained.get(Counters.FOO));
-    assertEquals(1L, drained.get(Counters.BAR));
-    assertEquals(0L, drained.get(Counters.BAZ));
-  }
-
-  @Test
-  void addAppliesArbitraryDelta() {
-    Accumulator<Counters> counters = Accumulator.of(Counters.class);
-    counters.add(Counters.BAZ, 41L);
-    counters.add(Counters.BAZ, 1L);
-
-    Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
-    assertEquals(42L, drained.get(Counters.BAZ));
-  }
-
-  @Test
-  void accumulateAndResetsSoASecondDrainIsZero() {
-    Accumulator<Counters> counters = Accumulator.of(Counters.class);
-    counters.inc(Counters.FOO);
-
-    Accumulator.Counts<Counters> first = counters.accumulateAndReset();
-    assertEquals(1L, first.get(Counters.FOO));
-
-    Accumulator.Counts<Counters> second = counters.accumulateAndReset();
-    for (Counters c : Counters.values()) {
-      assertEquals(0L, second.get(c));
-    }
-  }
-
-  @Test
-  void concurrentIncrementsAreNotLost() throws InterruptedException {
-    Accumulator<Counters> counters = Accumulator.of(Counters.class);
-    int threadCount = 16;
-    int incrementsPerThread = 10_000;
-
-    ExecutorService pool = Executors.newFixedThreadPool(threadCount);
-    CountDownLatch start = new CountDownLatch(1);
-    CountDownLatch done = new CountDownLatch(threadCount);
-    try {
-      for (int t = 0; t < threadCount; t++) {
-        pool.execute(
-            () -> {
-              try {
-                start.await();
-                for (int i = 0; i < incrementsPerThread; i++) {
-                  counters.inc(Counters.FOO);
-                }
-              } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-              } finally {
-                done.countDown();
-              }
-            });
-      }
-      start.countDown();
-      assertTrue(done.await(30, TimeUnit.SECONDS));
-    } finally {
-      pool.shutdown();
+    enum Counters {
+        FOO,
+        BAR,
+        BAZ
     }
 
-    Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
-    assertEquals((long) threadCount * incrementsPerThread, drained.get(Counters.FOO));
-  }
+    @Test
+    void freshAccumulatorSumsToZero() {
+        Accumulator<Counters> counters = Accumulator.of(Counters.class);
+        Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
+        for (Counters c : Counters.values()) {
+            assertEquals(0L, drained.get(c));
+        }
+    }
 
-  @Test
-  void concurrentAccumulateAndDuringWritesNeverExceedsWritten()
-      throws InterruptedException, ExecutionException, TimeoutException {
-    Accumulator<Counters> counters = Accumulator.of(Counters.class);
-    int threadCount = 8;
-    int incrementsPerThread = 5_000;
+    @Test
+    void incIncrementsByOne() {
+        Accumulator<Counters> counters = Accumulator.of(Counters.class);
+        counters.inc(Counters.FOO);
+        counters.inc(Counters.FOO);
+        counters.inc(Counters.BAR);
 
-    ExecutorService pool = Executors.newFixedThreadPool(threadCount + 1);
-    CountDownLatch done = new CountDownLatch(threadCount);
-    AtomicBoolean stop = new AtomicBoolean(false);
-    long[] runningTotal = {0L};
+        Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
+        assertEquals(2L, drained.get(Counters.FOO));
+        assertEquals(1L, drained.get(Counters.BAR));
+        assertEquals(0L, drained.get(Counters.BAZ));
+    }
 
-    try {
-      Future<?> drainer =
-          pool.submit(
-              () -> {
+    @Test
+    void addAppliesArbitraryDelta() {
+        Accumulator<Counters> counters = Accumulator.of(Counters.class);
+        counters.add(Counters.BAZ, 41L);
+        counters.add(Counters.BAZ, 1L);
+
+        Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
+        assertEquals(42L, drained.get(Counters.BAZ));
+    }
+
+    @Test
+    void accumulateAndResetsSoASecondDrainIsZero() {
+        Accumulator<Counters> counters = Accumulator.of(Counters.class);
+        counters.inc(Counters.FOO);
+
+        Accumulator.Counts<Counters> first = counters.accumulateAndReset();
+        assertEquals(1L, first.get(Counters.FOO));
+
+        Accumulator.Counts<Counters> second = counters.accumulateAndReset();
+        for (Counters c : Counters.values()) {
+            assertEquals(0L, second.get(c));
+        }
+    }
+
+    @Test
+    void concurrentIncrementsAreNotLost() throws InterruptedException {
+        Accumulator<Counters> counters = Accumulator.of(Counters.class);
+        int threadCount = 16;
+        int incrementsPerThread = 10_000;
+
+        ExecutorService pool = Executors.newFixedThreadPool(threadCount);
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(threadCount);
+        try {
+            for (int t = 0; t < threadCount; t++) {
+                pool.execute(() -> {
+                    try {
+                        start.await();
+                        for (int i = 0; i < incrementsPerThread; i++) {
+                            counters.inc(Counters.FOO);
+                        }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    } finally {
+                        done.countDown();
+                    }
+                });
+            }
+            start.countDown();
+            assertTrue(done.await(30, TimeUnit.SECONDS));
+        } finally {
+            pool.shutdown();
+        }
+
+        Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
+        assertEquals((long) threadCount * incrementsPerThread, drained.get(Counters.FOO));
+    }
+
+    @Test
+    void concurrentAccumulateAndDuringWritesNeverExceedsWritten()
+            throws InterruptedException, ExecutionException, TimeoutException {
+        Accumulator<Counters> counters = Accumulator.of(Counters.class);
+        int threadCount = 8;
+        int incrementsPerThread = 5_000;
+
+        ExecutorService pool = Executors.newFixedThreadPool(threadCount + 1);
+        CountDownLatch done = new CountDownLatch(threadCount);
+        AtomicBoolean stop = new AtomicBoolean(false);
+        long[] runningTotal = {0L};
+
+        try {
+            Future<?> drainer = pool.submit(() -> {
                 while (!stop.get()) {
-                  Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
-                  synchronized (runningTotal) {
-                    runningTotal[0] += drained.get(Counters.FOO);
-                  }
+                    Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
+                    synchronized (runningTotal) {
+                        runningTotal[0] += drained.get(Counters.FOO);
+                    }
                 }
-              });
-
-      for (int t = 0; t < threadCount; t++) {
-        pool.execute(
-            () -> {
-              for (int i = 0; i < incrementsPerThread; i++) {
-                counters.inc(Counters.FOO);
-              }
-              done.countDown();
             });
-      }
 
-      assertTrue(done.await(30, TimeUnit.SECONDS));
-      stop.set(true);
-      drainer.get(30, TimeUnit.SECONDS);
+            for (int t = 0; t < threadCount; t++) {
+                pool.execute(() -> {
+                    for (int i = 0; i < incrementsPerThread; i++) {
+                        counters.inc(Counters.FOO);
+                    }
+                    done.countDown();
+                });
+            }
 
-      Accumulator.Counts<Counters> finalDrain = counters.accumulateAndReset();
-      synchronized (runningTotal) {
-        runningTotal[0] += finalDrain.get(Counters.FOO);
-      }
+            assertTrue(done.await(30, TimeUnit.SECONDS));
+            stop.set(true);
+            drainer.get(30, TimeUnit.SECONDS);
 
-      assertEquals((long) threadCount * incrementsPerThread, runningTotal[0]);
-    } finally {
-      pool.shutdown();
+            Accumulator.Counts<Counters> finalDrain = counters.accumulateAndReset();
+            synchronized (runningTotal) {
+                runningTotal[0] += finalDrain.get(Counters.FOO);
+            }
+
+            assertEquals((long) threadCount * incrementsPerThread, runningTotal[0]);
+        } finally {
+            pool.shutdown();
+        }
     }
-  }
 
-  @Test
-  void sumDoesNotResetStripes() {
-    Accumulator<Counters> counters = Accumulator.of(Counters.class);
-    counters.inc(Counters.FOO);
+    @Test
+    void sumDoesNotResetStripes() {
+        Accumulator<Counters> counters = Accumulator.of(Counters.class);
+        counters.inc(Counters.FOO);
 
-    Accumulator.Counts<Counters> first = counters.sum();
-    assertEquals(1L, first.get(Counters.FOO));
+        Accumulator.Counts<Counters> first = counters.sum();
+        assertEquals(1L, first.get(Counters.FOO));
 
-    // sum() didn't reset anything, so a second sum() sees the same total
-    Accumulator.Counts<Counters> second = counters.sum();
-    assertEquals(1L, second.get(Counters.FOO));
+        // sum() didn't reset anything, so a second sum() sees the same total
+        Accumulator.Counts<Counters> second = counters.sum();
+        assertEquals(1L, second.get(Counters.FOO));
 
-    // and a real drain afterwards still sees the value sum() didn't consume
-    Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
-    assertEquals(1L, drained.get(Counters.FOO));
-  }
-
-  @Test
-  void sumReflectsIncrementsMadeAfterAnEarlierSum() {
-    Accumulator<Counters> counters = Accumulator.of(Counters.class);
-    counters.inc(Counters.FOO);
-    counters.sum();
-
-    counters.inc(Counters.FOO);
-    Accumulator.Counts<Counters> second = counters.sum();
-    assertEquals(2L, second.get(Counters.FOO));
-  }
-
-  @Test
-  void createSeedsAnAllZeroCountsWithoutAScratchAccumulator() {
-    Accumulator.Counts<Counters> zero = Accumulator.Counts.create(Counters.class);
-    assertEquals(0L, zero.get(Counters.FOO));
-    assertEquals(0L, zero.get(Counters.BAR));
-
-    Accumulator<Counters> counters = Accumulator.of(Counters.class);
-    counters.inc(Counters.FOO);
-
-    Accumulator.Counts<Counters> live = zero.plus(counters.sum());
-    assertEquals(1L, live.get(Counters.FOO));
-  }
-
-  @Test
-  void countsExposesItsOwnKeysWithoutASeparateValuesArray() {
-    Accumulator<Counters> counters = Accumulator.of(Counters.class);
-    counters.inc(Counters.FOO);
-    counters.add(Counters.BAR, 5L);
-
-    Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
-    assertEquals(Counters.values().length, drained.keys().size());
-
-    long total = 0L;
-    for (Counters c : drained.keys()) {
-      total += drained.get(c);
+        // and a real drain afterwards still sees the value sum() didn't consume
+        Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
+        assertEquals(1L, drained.get(Counters.FOO));
     }
-    assertEquals(6L, total);
-  }
 
-  @Test
-  void keysIsUnmodifiable() {
-    Accumulator<Counters> counters = Accumulator.of(Counters.class);
-    Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
-    assertThrows(UnsupportedOperationException.class, () -> drained.keys().set(0, Counters.BAZ));
-  }
+    @Test
+    void sumReflectsIncrementsMadeAfterAnEarlierSum() {
+        Accumulator<Counters> counters = Accumulator.of(Counters.class);
+        counters.inc(Counters.FOO);
+        counters.sum();
 
-  @Test
-  void plusCombinesAStoredRunningTotalWithALiveSumWithoutMutatingEither() {
-    Accumulator<Counters> counters = Accumulator.of(Counters.class);
-    counters.inc(Counters.FOO);
-    counters.add(Counters.BAR, 5L);
+        counters.inc(Counters.FOO);
+        Accumulator.Counts<Counters> second = counters.sum();
+        assertEquals(2L, second.get(Counters.FOO));
+    }
 
-    // drain once, e.g. as if a reporting cycle already ran and stored this total
-    Accumulator.Counts<Counters> storedTotal = counters.accumulateAndReset();
+    @Test
+    void createSeedsAnAllZeroCountsWithoutAScratchAccumulator() {
+        Accumulator.Counts<Counters> zero = Accumulator.Counts.create(Counters.class);
+        assertEquals(0L, zero.get(Counters.FOO));
+        assertEquals(0L, zero.get(Counters.BAR));
 
-    // more activity happens after that drain, before the next one
-    counters.inc(Counters.FOO);
+        Accumulator<Counters> counters = Accumulator.of(Counters.class);
+        counters.inc(Counters.FOO);
 
-    Accumulator.Counts<Counters> live = storedTotal.plus(counters.sum());
-    assertEquals(2L, live.get(Counters.FOO));
-    assertEquals(5L, live.get(Counters.BAR));
+        Accumulator.Counts<Counters> live = zero.plus(counters.sum());
+        assertEquals(1L, live.get(Counters.FOO));
+    }
 
-    // neither input was mutated by combining them
-    assertEquals(1L, storedTotal.get(Counters.FOO));
-    assertEquals(1L, counters.sum().get(Counters.FOO));
-  }
+    @Test
+    void countsExposesItsOwnKeysWithoutASeparateValuesArray() {
+        Accumulator<Counters> counters = Accumulator.of(Counters.class);
+        counters.inc(Counters.FOO);
+        counters.add(Counters.BAR, 5L);
 
-  @Test
-  void fromZeroesEveryEntryBeforeTheGivenIndex() {
-    Accumulator<Counters> counters = Accumulator.of(Counters.class);
-    counters.inc(Counters.FOO);
-    counters.add(Counters.BAR, 4L);
-    counters.add(Counters.BAZ, 2L);
+        Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
+        assertEquals(Counters.values().length, drained.keys().size());
 
-    Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
-    Accumulator.Counts<Counters> remaining = drained.from(Counters.BAR.ordinal());
+        long total = 0L;
+        for (Counters c : drained.keys()) {
+            total += drained.get(c);
+        }
+        assertEquals(6L, total);
+    }
 
-    assertEquals(0L, remaining.get(Counters.FOO));
-    assertEquals(4L, remaining.get(Counters.BAR));
-    assertEquals(2L, remaining.get(Counters.BAZ));
+    @Test
+    void keysIsUnmodifiable() {
+        Accumulator<Counters> counters = Accumulator.of(Counters.class);
+        Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
+        assertThrows(UnsupportedOperationException.class, () -> drained.keys().set(0, Counters.BAZ));
+    }
 
-    // the original Counts is untouched by taking a remainder from it
-    assertEquals(1L, drained.get(Counters.FOO));
-  }
+    @Test
+    void plusCombinesAStoredRunningTotalWithALiveSumWithoutMutatingEither() {
+        Accumulator<Counters> counters = Accumulator.of(Counters.class);
+        counters.inc(Counters.FOO);
+        counters.add(Counters.BAR, 5L);
 
-  @Test
-  void runningTotalSeedsFromTheAccumulatorsCurrentSum() {
-    Accumulator<Counters> counters = Accumulator.of(Counters.class);
-    counters.inc(Counters.FOO);
+        // drain once, e.g. as if a reporting cycle already ran and stored this total
+        Accumulator.Counts<Counters> storedTotal = counters.accumulateAndReset();
 
-    Accumulator.RunningTotal<Counters> runningTotal = Accumulator.RunningTotal.of(counters);
-    assertEquals(1L, runningTotal.live().get(Counters.FOO));
-  }
+        // more activity happens after that drain, before the next one
+        counters.inc(Counters.FOO);
 
-  @Test
-  void runningTotalDrainReturnsTheDeltaAndFoldsItIntoTheTotal() {
-    Accumulator<Counters> counters = Accumulator.of(Counters.class);
-    Accumulator.RunningTotal<Counters> runningTotal = Accumulator.RunningTotal.of(counters);
+        Accumulator.Counts<Counters> live = storedTotal.plus(counters.sum());
+        assertEquals(2L, live.get(Counters.FOO));
+        assertEquals(5L, live.get(Counters.BAR));
 
-    counters.inc(Counters.FOO);
-    Accumulator.Counts<Counters> delta = runningTotal.drain();
-    assertEquals(1L, delta.get(Counters.FOO));
-    assertEquals(1L, runningTotal.live().get(Counters.FOO));
+        // neither input was mutated by combining them
+        assertEquals(1L, storedTotal.get(Counters.FOO));
+        assertEquals(1L, counters.sum().get(Counters.FOO));
+    }
 
-    counters.inc(Counters.FOO);
-    Accumulator.Counts<Counters> secondDelta = runningTotal.drain();
-    assertEquals(1L, secondDelta.get(Counters.FOO));
-    assertEquals(2L, runningTotal.live().get(Counters.FOO));
-  }
+    @Test
+    void fromZeroesEveryEntryBeforeTheGivenIndex() {
+        Accumulator<Counters> counters = Accumulator.of(Counters.class);
+        counters.inc(Counters.FOO);
+        counters.add(Counters.BAR, 4L);
+        counters.add(Counters.BAZ, 2L);
 
-  @Test
-  void runningTotalLiveReflectsActivitySinceTheLastDrainWithoutDraining() {
-    Accumulator<Counters> counters = Accumulator.of(Counters.class);
-    Accumulator.RunningTotal<Counters> runningTotal = Accumulator.RunningTotal.of(counters);
+        Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
+        Accumulator.Counts<Counters> remaining = drained.from(Counters.BAR.ordinal());
 
-    counters.inc(Counters.FOO);
-    runningTotal.drain();
+        assertEquals(0L, remaining.get(Counters.FOO));
+        assertEquals(4L, remaining.get(Counters.BAR));
+        assertEquals(2L, remaining.get(Counters.BAZ));
 
-    counters.inc(Counters.FOO);
-    assertEquals(2L, runningTotal.live().get(Counters.FOO));
-    // live() didn't drain anything, so a real drain afterwards still sees the pending increment
-    assertEquals(1L, runningTotal.drain().get(Counters.FOO));
-  }
+        // the original Counts is untouched by taking a remainder from it
+        assertEquals(1L, drained.get(Counters.FOO));
+    }
+
+    @Test
+    void runningTotalSeedsFromTheAccumulatorsCurrentSum() {
+        Accumulator<Counters> counters = Accumulator.of(Counters.class);
+        counters.inc(Counters.FOO);
+
+        Accumulator.RunningTotal<Counters> runningTotal = Accumulator.RunningTotal.of(counters);
+        assertEquals(1L, runningTotal.live().get(Counters.FOO));
+    }
+
+    @Test
+    void runningTotalDrainReturnsTheDeltaAndFoldsItIntoTheTotal() {
+        Accumulator<Counters> counters = Accumulator.of(Counters.class);
+        Accumulator.RunningTotal<Counters> runningTotal = Accumulator.RunningTotal.of(counters);
+
+        counters.inc(Counters.FOO);
+        Accumulator.Counts<Counters> delta = runningTotal.drain();
+        assertEquals(1L, delta.get(Counters.FOO));
+        assertEquals(1L, runningTotal.live().get(Counters.FOO));
+
+        counters.inc(Counters.FOO);
+        Accumulator.Counts<Counters> secondDelta = runningTotal.drain();
+        assertEquals(1L, secondDelta.get(Counters.FOO));
+        assertEquals(2L, runningTotal.live().get(Counters.FOO));
+    }
+
+    @Test
+    void runningTotalLiveReflectsActivitySinceTheLastDrainWithoutDraining() {
+        Accumulator<Counters> counters = Accumulator.of(Counters.class);
+        Accumulator.RunningTotal<Counters> runningTotal = Accumulator.RunningTotal.of(counters);
+
+        counters.inc(Counters.FOO);
+        runningTotal.drain();
+
+        counters.inc(Counters.FOO);
+        assertEquals(2L, runningTotal.live().get(Counters.FOO));
+        // live() didn't drain anything, so a real drain afterwards still sees the pending increment
+        assertEquals(1L, runningTotal.drain().get(Counters.FOO));
+    }
 }

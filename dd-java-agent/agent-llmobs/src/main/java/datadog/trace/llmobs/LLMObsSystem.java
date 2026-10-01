@@ -22,339 +22,283 @@ import org.slf4j.LoggerFactory;
 
 public class LLMObsSystem {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(LLMObsSystem.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(LLMObsSystem.class);
 
-  private static final String CUSTOM_MODEL_VAL = "custom";
+    private static final String CUSTOM_MODEL_VAL = "custom";
 
-  private static final String EVAL_METRIC_API_PATH = "api/intake/llm-obs/v1/eval-metric";
-  // Feedback is a v2 concept: submitter, the feedback-only targets and the non-score value types
-  // only exist there. Evaluations deliberately stay on v1 with their existing flat payload; both
-  // now carry event_kind, so the two are told apart the same way as in dd-trace-py and dd-trace-js.
-  private static final String FEEDBACK_API_PATH = "api/intake/llm-obs/v2/eval-metric";
+    private static final String EVAL_METRIC_API_PATH = "api/intake/llm-obs/v1/eval-metric";
+    // Feedback is a v2 concept: submitter, the feedback-only targets and the non-score value types
+    // only exist there. Evaluations deliberately stay on v1 with their existing flat payload; both
+    // now carry event_kind, so the two are told apart the same way as in dd-trace-py and dd-trace-js.
+    private static final String FEEDBACK_API_PATH = "api/intake/llm-obs/v2/eval-metric";
 
-  private static final int QUEUE_CAPACITY = 1024;
-  private static final long FLUSH_INTERVAL_MS = 100;
+    private static final int QUEUE_CAPACITY = 1024;
+    private static final long FLUSH_INTERVAL_MS = 100;
 
-  public static void start(Instrumentation inst, SharedCommunicationObjects sco) {
-    Config config = Config.get();
-    if (!config.isLlmObsEnabled()) {
-      LOGGER.debug("LLM Observability is disabled");
-      return;
+    public static void start(Instrumentation inst, SharedCommunicationObjects sco) {
+        Config config = Config.get();
+        if (!config.isLlmObsEnabled()) {
+            LOGGER.debug("LLM Observability is disabled");
+            return;
+        }
+
+        sco.createRemaining(config);
+
+        String mlApp = config.getLlmObsMlApp();
+        WellKnownTags wellKnownTags = config.getWellKnownTags();
+        LLMObsInternal.setSpanFactory(new LLMObsManualSpanFactory(mlApp, wellKnownTags));
+
+        LLMObsInternal.setEvalProcessor(new LLMObsCustomEvalProcessor(mlApp, sco, config));
+
+        LLMObsInternal.setFeedbackProcessor(new LLMObsCustomFeedbackProcessor(mlApp, sco, config));
     }
 
-    sco.createRemaining(config);
+    private static class LLMObsCustomFeedbackProcessor implements LLMObs.LLMObsFeedbackProcessor {
+        private final String defaultMLApp;
+        private final LLMObsIntakeWorker<LLMObsFeedbackEvent> feedbackProcessingWorker;
 
-    String mlApp = config.getLlmObsMlApp();
-    WellKnownTags wellKnownTags = config.getWellKnownTags();
-    LLMObsInternal.setSpanFactory(new LLMObsManualSpanFactory(mlApp, wellKnownTags));
+        public LLMObsCustomFeedbackProcessor(String defaultMLApp, SharedCommunicationObjects sco, Config config) {
 
-    LLMObsInternal.setEvalProcessor(new LLMObsCustomEvalProcessor(mlApp, sco, config));
+            this.defaultMLApp = defaultMLApp;
+            this.feedbackProcessingWorker = new LLMObsIntakeWorker<>(
+                    "feedback",
+                    FEEDBACK_API_PATH,
+                    AgentThread.LLMOBS_FEEDBACK_PROCESSOR,
+                    QUEUE_CAPACITY,
+                    FLUSH_INTERVAL_MS,
+                    TimeUnit.MILLISECONDS,
+                    sco,
+                    config,
+                    LLMObsFeedbackEvent.batchSerializer());
+            this.feedbackProcessingWorker.start();
+        }
 
-    LLMObsInternal.setFeedbackProcessor(new LLMObsCustomFeedbackProcessor(mlApp, sco, config));
-  }
+        @Override
+        public void submitFeedback(LLMObs.Feedback feedback) {
+            if (feedback == null) {
+                LLMObsMetricCollector.get().recordFeedbackSubmitted(null, null, "invalid_feedback");
+                LOGGER.error("null feedback provided, feedback not recorded");
+                return;
+            }
 
-  private static class LLMObsCustomFeedbackProcessor implements LLMObs.LLMObsFeedbackProcessor {
-    private final String defaultMLApp;
-    private final LLMObsIntakeWorker<LLMObsFeedbackEvent> feedbackProcessingWorker;
+            // The builder never throws so that instrumented code stays safe when the agent is absent;
+            // validation happens here instead, only once LLM Observability is actually enabled.
+            LLMObs.Feedback.ValidationError error = feedback.validate();
+            if (error != null) {
+                recordFeedbackTelemetry(feedback, error.getCode());
+                throw new IllegalArgumentException(error.getMessage());
+            }
 
-    public LLMObsCustomFeedbackProcessor(
-        String defaultMLApp, SharedCommunicationObjects sco, Config config) {
+            String mlApp = feedback.getMlApp();
+            if (mlApp == null || mlApp.isEmpty()) {
+                mlApp = defaultMLApp;
+            }
 
-      this.defaultMLApp = defaultMLApp;
-      this.feedbackProcessingWorker =
-          new LLMObsIntakeWorker<>(
-              "feedback",
-              FEEDBACK_API_PATH,
-              AgentThread.LLMOBS_FEEDBACK_PROCESSOR,
-              QUEUE_CAPACITY,
-              FLUSH_INTERVAL_MS,
-              TimeUnit.MILLISECONDS,
-              sco,
-              config,
-              LLMObsFeedbackEvent.batchSerializer());
-      this.feedbackProcessingWorker.start();
+            if (!this.feedbackProcessingWorker.addToQueue(new LLMObsFeedbackEvent(feedback, mlApp))) {
+                recordFeedbackTelemetry(feedback, "queue_full");
+                LOGGER.warn(
+                        "queue full, failed to add feedback, ml_app={}, {}={}, label={}",
+                        mlApp,
+                        feedback.getTargetType().getWireKey(),
+                        feedback.getTargetValue(),
+                        feedback.getLabel());
+                return;
+            }
+
+            recordFeedbackTelemetry(feedback, null);
+        }
+
+        private static void recordFeedbackTelemetry(LLMObs.Feedback feedback, @Nullable String errorCode) {
+            LLMObs.Feedback.MetricType metricType = feedback.getMetricType();
+            LLMObs.Feedback.TargetType targetType = feedback.getTargetType();
+            LLMObsMetricCollector.get()
+                    .recordFeedbackSubmitted(
+                            metricType == null ? null : metricType.toString(),
+                            targetType == null ? null : targetType.getWireKey(),
+                            errorCode);
+        }
     }
 
-    @Override
-    public void submitFeedback(LLMObs.Feedback feedback) {
-      if (feedback == null) {
-        LLMObsMetricCollector.get().recordFeedbackSubmitted(null, null, "invalid_feedback");
-        LOGGER.error("null feedback provided, feedback not recorded");
-        return;
-      }
+    private static class LLMObsCustomEvalProcessor implements LLMObs.LLMObsEvalProcessor {
+        private final String defaultMLApp;
+        private final LLMObsIntakeWorker<LLMObsEval> evalProcessingWorker;
 
-      // The builder never throws so that instrumented code stays safe when the agent is absent;
-      // validation happens here instead, only once LLM Observability is actually enabled.
-      LLMObs.Feedback.ValidationError error = feedback.validate();
-      if (error != null) {
-        recordFeedbackTelemetry(feedback, error.getCode());
-        throw new IllegalArgumentException(error.getMessage());
-      }
+        public LLMObsCustomEvalProcessor(String defaultMLApp, SharedCommunicationObjects sco, Config config) {
 
-      String mlApp = feedback.getMlApp();
-      if (mlApp == null || mlApp.isEmpty()) {
-        mlApp = defaultMLApp;
-      }
+            this.defaultMLApp = defaultMLApp;
+            this.evalProcessingWorker = new LLMObsIntakeWorker<>(
+                    "eval metrics",
+                    EVAL_METRIC_API_PATH,
+                    AgentThread.LLMOBS_EVALS_PROCESSOR,
+                    QUEUE_CAPACITY,
+                    FLUSH_INTERVAL_MS,
+                    TimeUnit.MILLISECONDS,
+                    sco,
+                    config,
+                    LLMObsEval.batchSerializer());
+            this.evalProcessingWorker.start();
+        }
 
-      if (!this.feedbackProcessingWorker.addToQueue(new LLMObsFeedbackEvent(feedback, mlApp))) {
-        recordFeedbackTelemetry(feedback, "queue_full");
-        LOGGER.warn(
-            "queue full, failed to add feedback, ml_app={}, {}={}, label={}",
-            mlApp,
-            feedback.getTargetType().getWireKey(),
-            feedback.getTargetValue(),
-            feedback.getLabel());
-        return;
-      }
+        @Override
+        public void SubmitEvaluation(LLMObsSpan llmObsSpan, String label, double scoreValue, Map<String, Object> tags) {
+            SubmitEvaluation(llmObsSpan, label, scoreValue, defaultMLApp, tags);
+        }
 
-      recordFeedbackTelemetry(feedback, null);
+        @Override
+        public void SubmitEvaluation(
+                LLMObsSpan llmObsSpan, String label, double scoreValue, String mlApp, Map<String, Object> tags) {
+            if (llmObsSpan == null) {
+                LOGGER.error("null llm obs span provided, eval not recorded");
+                return;
+            }
+
+            if (mlApp == null || mlApp.isEmpty()) {
+                mlApp = defaultMLApp;
+            }
+            String traceID = llmObsSpan.getTraceId().toHexString();
+            long spanID = llmObsSpan.getSpanId();
+            LLMObsEval.Score score =
+                    new LLMObsEval.Score(traceID, spanID, System.currentTimeMillis(), mlApp, label, tags, scoreValue);
+            if (!this.evalProcessingWorker.addToQueue(score)) {
+                LOGGER.warn(
+                        "queue full, failed to add score eval, ml_app={}, trace_id={}, span_id={}, label={}",
+                        mlApp,
+                        traceID,
+                        spanID,
+                        label);
+            }
+        }
+
+        @Override
+        public void SubmitEvaluation(
+                LLMObsSpan llmObsSpan, String label, String categoricalValue, Map<String, Object> tags) {
+            SubmitEvaluation(llmObsSpan, label, categoricalValue, defaultMLApp, tags);
+        }
+
+        @Override
+        public void SubmitEvaluation(
+                LLMObsSpan llmObsSpan, String label, String categoricalValue, String mlApp, Map<String, Object> tags) {
+            if (llmObsSpan == null) {
+                LOGGER.error("null llm obs span provided, eval not recorded");
+                return;
+            }
+
+            if (mlApp == null || mlApp.isEmpty()) {
+                mlApp = defaultMLApp;
+            }
+            String traceID = llmObsSpan.getTraceId().toHexString();
+            long spanID = llmObsSpan.getSpanId();
+            LLMObsEval.Categorical category = new LLMObsEval.Categorical(
+                    traceID, spanID, System.currentTimeMillis(), mlApp, label, tags, categoricalValue);
+            if (!this.evalProcessingWorker.addToQueue(category)) {
+                LOGGER.warn(
+                        "queue full, failed to add categorical eval, ml_app={}, trace_id={}, span_id={}, label={}",
+                        mlApp,
+                        traceID,
+                        spanID,
+                        label);
+            }
+        }
     }
 
-    private static void recordFeedbackTelemetry(
-        LLMObs.Feedback feedback, @Nullable String errorCode) {
-      LLMObs.Feedback.MetricType metricType = feedback.getMetricType();
-      LLMObs.Feedback.TargetType targetType = feedback.getTargetType();
-      LLMObsMetricCollector.get()
-          .recordFeedbackSubmitted(
-              metricType == null ? null : metricType.toString(),
-              targetType == null ? null : targetType.getWireKey(),
-              errorCode);
+    private static class LLMObsManualSpanFactory implements LLMObs.LLMObsSpanFactory {
+
+        private final String defaultMLApp;
+        private final String serviceName;
+        private final WellKnownTags wellKnownTags;
+
+        public LLMObsManualSpanFactory(String defaultMLApp, WellKnownTags wellKnownTags) {
+            this.defaultMLApp = defaultMLApp;
+            this.serviceName = wellKnownTags.getService().toString();
+            this.wellKnownTags = wellKnownTags;
+        }
+
+        @Override
+        public LLMObsSpan startLLMSpan(
+                String spanName,
+                String modelName,
+                String modelProvider,
+                @Nullable String mlApp,
+                @Nullable String sessionId) {
+
+            DDLLMObsSpan span = new DDLLMObsSpan(
+                    Tags.LLMOBS_LLM_SPAN_KIND, spanName, getMLApp(mlApp), sessionId, serviceName, wellKnownTags);
+
+            if (modelName == null || modelName.isEmpty()) {
+                modelName = CUSTOM_MODEL_VAL;
+            }
+            span.setTag(LLMObsTags.MODEL_NAME, modelName);
+
+            if (modelProvider == null || modelProvider.isEmpty()) {
+                modelProvider = CUSTOM_MODEL_VAL;
+            }
+            span.setTag(LLMObsTags.MODEL_PROVIDER, modelProvider);
+            return span;
+        }
+
+        @Override
+        public LLMObsSpan startAgentSpan(String spanName, @Nullable String mlApp, @Nullable String sessionId) {
+            return startAgentSpan(spanName, mlApp, sessionId, null);
+        }
+
+        @Override
+        public LLMObsSpan startAgentSpan(
+                String spanName, @Nullable String mlApp, @Nullable String sessionId, @Nullable String version) {
+            return new DDLLMObsSpan(
+                    Tags.LLMOBS_AGENT_SPAN_KIND,
+                    spanName,
+                    getMLApp(mlApp),
+                    sessionId,
+                    serviceName,
+                    wellKnownTags,
+                    version);
+        }
+
+        @Override
+        public LLMObsSpan startToolSpan(String spanName, @Nullable String mlApp, @Nullable String sessionId) {
+            return new DDLLMObsSpan(
+                    Tags.LLMOBS_TOOL_SPAN_KIND, spanName, getMLApp(mlApp), sessionId, serviceName, wellKnownTags);
+        }
+
+        @Override
+        public LLMObsSpan startTaskSpan(String spanName, @Nullable String mlApp, @Nullable String sessionId) {
+            return new DDLLMObsSpan(
+                    Tags.LLMOBS_TASK_SPAN_KIND, spanName, getMLApp(mlApp), sessionId, serviceName, wellKnownTags);
+        }
+
+        @Override
+        public LLMObsSpan startWorkflowSpan(String spanName, @Nullable String mlApp, @Nullable String sessionId) {
+            return new DDLLMObsSpan(
+                    Tags.LLMOBS_WORKFLOW_SPAN_KIND, spanName, getMLApp(mlApp), sessionId, serviceName, wellKnownTags);
+        }
+
+        @Override
+        public LLMObsSpan startEmbeddingSpan(
+                String spanName,
+                @Nullable String mlApp,
+                @Nullable String modelProvider,
+                @Nullable String modelName,
+                @Nullable String sessionId) {
+            if (modelProvider == null) {
+                modelProvider = "custom";
+            }
+            DDLLMObsSpan embeddingSpan = new DDLLMObsSpan(
+                    Tags.LLMOBS_EMBEDDING_SPAN_KIND, spanName, getMLApp(mlApp), sessionId, serviceName, wellKnownTags);
+            embeddingSpan.setTag(LLMObsTags.MODEL_PROVIDER, modelProvider);
+            embeddingSpan.setTag(LLMObsTags.MODEL_NAME, modelName);
+            return embeddingSpan;
+        }
+
+        public LLMObsSpan startRetrievalSpan(String spanName, @Nullable String mlApp, @Nullable String sessionId) {
+            return new DDLLMObsSpan(
+                    Tags.LLMOBS_RETRIEVAL_SPAN_KIND, spanName, getMLApp(mlApp), sessionId, serviceName, wellKnownTags);
+        }
+
+        private String getMLApp(String mlApp) {
+            if (mlApp == null || mlApp.isEmpty()) {
+                return defaultMLApp;
+            }
+            return mlApp;
+        }
     }
-  }
-
-  private static class LLMObsCustomEvalProcessor implements LLMObs.LLMObsEvalProcessor {
-    private final String defaultMLApp;
-    private final LLMObsIntakeWorker<LLMObsEval> evalProcessingWorker;
-
-    public LLMObsCustomEvalProcessor(
-        String defaultMLApp, SharedCommunicationObjects sco, Config config) {
-
-      this.defaultMLApp = defaultMLApp;
-      this.evalProcessingWorker =
-          new LLMObsIntakeWorker<>(
-              "eval metrics",
-              EVAL_METRIC_API_PATH,
-              AgentThread.LLMOBS_EVALS_PROCESSOR,
-              QUEUE_CAPACITY,
-              FLUSH_INTERVAL_MS,
-              TimeUnit.MILLISECONDS,
-              sco,
-              config,
-              LLMObsEval.batchSerializer());
-      this.evalProcessingWorker.start();
-    }
-
-    @Override
-    public void SubmitEvaluation(
-        LLMObsSpan llmObsSpan, String label, double scoreValue, Map<String, Object> tags) {
-      SubmitEvaluation(llmObsSpan, label, scoreValue, defaultMLApp, tags);
-    }
-
-    @Override
-    public void SubmitEvaluation(
-        LLMObsSpan llmObsSpan,
-        String label,
-        double scoreValue,
-        String mlApp,
-        Map<String, Object> tags) {
-      if (llmObsSpan == null) {
-        LOGGER.error("null llm obs span provided, eval not recorded");
-        return;
-      }
-
-      if (mlApp == null || mlApp.isEmpty()) {
-        mlApp = defaultMLApp;
-      }
-      String traceID = llmObsSpan.getTraceId().toHexString();
-      long spanID = llmObsSpan.getSpanId();
-      LLMObsEval.Score score =
-          new LLMObsEval.Score(
-              traceID, spanID, System.currentTimeMillis(), mlApp, label, tags, scoreValue);
-      if (!this.evalProcessingWorker.addToQueue(score)) {
-        LOGGER.warn(
-            "queue full, failed to add score eval, ml_app={}, trace_id={}, span_id={}, label={}",
-            mlApp,
-            traceID,
-            spanID,
-            label);
-      }
-    }
-
-    @Override
-    public void SubmitEvaluation(
-        LLMObsSpan llmObsSpan, String label, String categoricalValue, Map<String, Object> tags) {
-      SubmitEvaluation(llmObsSpan, label, categoricalValue, defaultMLApp, tags);
-    }
-
-    @Override
-    public void SubmitEvaluation(
-        LLMObsSpan llmObsSpan,
-        String label,
-        String categoricalValue,
-        String mlApp,
-        Map<String, Object> tags) {
-      if (llmObsSpan == null) {
-        LOGGER.error("null llm obs span provided, eval not recorded");
-        return;
-      }
-
-      if (mlApp == null || mlApp.isEmpty()) {
-        mlApp = defaultMLApp;
-      }
-      String traceID = llmObsSpan.getTraceId().toHexString();
-      long spanID = llmObsSpan.getSpanId();
-      LLMObsEval.Categorical category =
-          new LLMObsEval.Categorical(
-              traceID, spanID, System.currentTimeMillis(), mlApp, label, tags, categoricalValue);
-      if (!this.evalProcessingWorker.addToQueue(category)) {
-        LOGGER.warn(
-            "queue full, failed to add categorical eval, ml_app={}, trace_id={}, span_id={}, label={}",
-            mlApp,
-            traceID,
-            spanID,
-            label);
-      }
-    }
-  }
-
-  private static class LLMObsManualSpanFactory implements LLMObs.LLMObsSpanFactory {
-
-    private final String defaultMLApp;
-    private final String serviceName;
-    private final WellKnownTags wellKnownTags;
-
-    public LLMObsManualSpanFactory(String defaultMLApp, WellKnownTags wellKnownTags) {
-      this.defaultMLApp = defaultMLApp;
-      this.serviceName = wellKnownTags.getService().toString();
-      this.wellKnownTags = wellKnownTags;
-    }
-
-    @Override
-    public LLMObsSpan startLLMSpan(
-        String spanName,
-        String modelName,
-        String modelProvider,
-        @Nullable String mlApp,
-        @Nullable String sessionId) {
-
-      DDLLMObsSpan span =
-          new DDLLMObsSpan(
-              Tags.LLMOBS_LLM_SPAN_KIND,
-              spanName,
-              getMLApp(mlApp),
-              sessionId,
-              serviceName,
-              wellKnownTags);
-
-      if (modelName == null || modelName.isEmpty()) {
-        modelName = CUSTOM_MODEL_VAL;
-      }
-      span.setTag(LLMObsTags.MODEL_NAME, modelName);
-
-      if (modelProvider == null || modelProvider.isEmpty()) {
-        modelProvider = CUSTOM_MODEL_VAL;
-      }
-      span.setTag(LLMObsTags.MODEL_PROVIDER, modelProvider);
-      return span;
-    }
-
-    @Override
-    public LLMObsSpan startAgentSpan(
-        String spanName, @Nullable String mlApp, @Nullable String sessionId) {
-      return startAgentSpan(spanName, mlApp, sessionId, null);
-    }
-
-    @Override
-    public LLMObsSpan startAgentSpan(
-        String spanName,
-        @Nullable String mlApp,
-        @Nullable String sessionId,
-        @Nullable String version) {
-      return new DDLLMObsSpan(
-          Tags.LLMOBS_AGENT_SPAN_KIND,
-          spanName,
-          getMLApp(mlApp),
-          sessionId,
-          serviceName,
-          wellKnownTags,
-          version);
-    }
-
-    @Override
-    public LLMObsSpan startToolSpan(
-        String spanName, @Nullable String mlApp, @Nullable String sessionId) {
-      return new DDLLMObsSpan(
-          Tags.LLMOBS_TOOL_SPAN_KIND,
-          spanName,
-          getMLApp(mlApp),
-          sessionId,
-          serviceName,
-          wellKnownTags);
-    }
-
-    @Override
-    public LLMObsSpan startTaskSpan(
-        String spanName, @Nullable String mlApp, @Nullable String sessionId) {
-      return new DDLLMObsSpan(
-          Tags.LLMOBS_TASK_SPAN_KIND,
-          spanName,
-          getMLApp(mlApp),
-          sessionId,
-          serviceName,
-          wellKnownTags);
-    }
-
-    @Override
-    public LLMObsSpan startWorkflowSpan(
-        String spanName, @Nullable String mlApp, @Nullable String sessionId) {
-      return new DDLLMObsSpan(
-          Tags.LLMOBS_WORKFLOW_SPAN_KIND,
-          spanName,
-          getMLApp(mlApp),
-          sessionId,
-          serviceName,
-          wellKnownTags);
-    }
-
-    @Override
-    public LLMObsSpan startEmbeddingSpan(
-        String spanName,
-        @Nullable String mlApp,
-        @Nullable String modelProvider,
-        @Nullable String modelName,
-        @Nullable String sessionId) {
-      if (modelProvider == null) {
-        modelProvider = "custom";
-      }
-      DDLLMObsSpan embeddingSpan =
-          new DDLLMObsSpan(
-              Tags.LLMOBS_EMBEDDING_SPAN_KIND,
-              spanName,
-              getMLApp(mlApp),
-              sessionId,
-              serviceName,
-              wellKnownTags);
-      embeddingSpan.setTag(LLMObsTags.MODEL_PROVIDER, modelProvider);
-      embeddingSpan.setTag(LLMObsTags.MODEL_NAME, modelName);
-      return embeddingSpan;
-    }
-
-    public LLMObsSpan startRetrievalSpan(
-        String spanName, @Nullable String mlApp, @Nullable String sessionId) {
-      return new DDLLMObsSpan(
-          Tags.LLMOBS_RETRIEVAL_SPAN_KIND,
-          spanName,
-          getMLApp(mlApp),
-          sessionId,
-          serviceName,
-          wellKnownTags);
-    }
-
-    private String getMLApp(String mlApp) {
-      if (mlApp == null || mlApp.isEmpty()) {
-        return defaultMLApp;
-      }
-      return mlApp;
-    }
-  }
 }

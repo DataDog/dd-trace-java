@@ -22,72 +22,70 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class Json1FactoryInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public Json1FactoryInstrumentation() {
-    super("jackson", "jackson-1");
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("createJsonParser")
-            .and(isMethod())
-            .and(
-                takesArguments(String.class)
-                    .or(takesArguments(InputStream.class))
-                    .or(takesArguments(Reader.class))
-                    .or(takesArguments(URL.class))
-                    .or(takesArguments(byte[].class))),
-        Json1FactoryInstrumentation.class.getName() + "$InstrumenterAdvice");
-    transformer.applyAdvice(
-        named("createJsonParser")
-            .and(isMethod())
-            .and(isPublic().and(takesArguments(byte[].class, int.class, int.class))),
-        Json1FactoryInstrumentation.class.getName() + "$Instrumenter2Advice");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.codehaus.jackson.JsonFactory";
-  }
-
-  public static class InstrumenterAdvice {
-
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Sink(VulnerabilityTypes.SSRF) // SSRF takes priority over the propagation one
-    public static void onExit(
-        @Advice.Argument(0) final Object input, @Advice.Return final Object parser) {
-      if (input != null) {
-        final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
-        if (propagation != null) {
-          propagation.taintObjectIfTainted(parser, input);
-        }
-        if (input instanceof URL) {
-          final SsrfModule ssrf = InstrumentationBridge.SSRF;
-          if (ssrf != null) {
-            ssrf.onURLConnection(input);
-          }
-        }
-      }
+    public Json1FactoryInstrumentation() {
+        super("jackson", "jackson-1");
     }
-  }
 
-  public static class Instrumenter2Advice {
-
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Propagation
-    public static void onExit(
-        @Advice.Argument(0) final byte[] input,
-        @Advice.Argument(1) final int offset,
-        @Advice.Argument(2) final int length,
-        @Advice.Return final Object parser) {
-      if (input != null || length <= 0) {
-        final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
-        if (propagation != null) {
-          propagation.taintObjectIfRangeTainted(parser, input, offset, length, false, NOT_MARKED);
-        }
-      }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("createJsonParser")
+                        .and(isMethod())
+                        .and(takesArguments(String.class)
+                                .or(takesArguments(InputStream.class))
+                                .or(takesArguments(Reader.class))
+                                .or(takesArguments(URL.class))
+                                .or(takesArguments(byte[].class))),
+                Json1FactoryInstrumentation.class.getName() + "$InstrumenterAdvice");
+        transformer.applyAdvice(
+                named("createJsonParser")
+                        .and(isMethod())
+                        .and(isPublic().and(takesArguments(byte[].class, int.class, int.class))),
+                Json1FactoryInstrumentation.class.getName() + "$Instrumenter2Advice");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "org.codehaus.jackson.JsonFactory";
+    }
+
+    public static class InstrumenterAdvice {
+
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Sink(VulnerabilityTypes.SSRF) // SSRF takes priority over the propagation one
+        public static void onExit(@Advice.Argument(0) final Object input, @Advice.Return final Object parser) {
+            if (input != null) {
+                final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
+                if (propagation != null) {
+                    propagation.taintObjectIfTainted(parser, input);
+                }
+                if (input instanceof URL) {
+                    final SsrfModule ssrf = InstrumentationBridge.SSRF;
+                    if (ssrf != null) {
+                        ssrf.onURLConnection(input);
+                    }
+                }
+            }
+        }
+    }
+
+    public static class Instrumenter2Advice {
+
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Propagation
+        public static void onExit(
+                @Advice.Argument(0) final byte[] input,
+                @Advice.Argument(1) final int offset,
+                @Advice.Argument(2) final int length,
+                @Advice.Return final Object parser) {
+            if (input != null || length <= 0) {
+                final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
+                if (propagation != null) {
+                    propagation.taintObjectIfRangeTainted(parser, input, offset, length, false, NOT_MARKED);
+                }
+            }
+        }
+    }
 }

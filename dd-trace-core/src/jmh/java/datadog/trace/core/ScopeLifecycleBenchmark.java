@@ -26,53 +26,53 @@ import org.openjdk.jmh.annotations.Warmup;
 @OutputTimeUnit(MICROSECONDS)
 @Fork(value = 1)
 public class ScopeLifecycleBenchmark {
-  static final CoreTracer TRACER = CoreTracer.builder().build();
+    static final CoreTracer TRACER = CoreTracer.builder().build();
 
-  @State(Scope.Thread)
-  public static class ThreadState {
-    AgentSpan span;
-    AgentSpan childSpan;
-    ContextScope activeScope;
+    @State(Scope.Thread)
+    public static class ThreadState {
+        AgentSpan span;
+        AgentSpan childSpan;
+        ContextScope activeScope;
 
-    @Setup(Level.Iteration)
-    public void setup() {
-      span = TRACER.startSpan("benchmark", "parent");
-      childSpan = TRACER.startSpan("benchmark", "child");
-      activeScope = TRACER.activateSpan(span);
+        @Setup(Level.Iteration)
+        public void setup() {
+            span = TRACER.startSpan("benchmark", "parent");
+            childSpan = TRACER.startSpan("benchmark", "child");
+            activeScope = TRACER.activateSpan(span);
+        }
+
+        @TearDown(Level.Iteration)
+        public void tearDown() {
+            activeScope.close();
+            childSpan.finish();
+            span.finish();
+        }
     }
 
-    @TearDown(Level.Iteration)
-    public void tearDown() {
-      activeScope.close();
-      childSpan.finish();
-      span.finish();
+    @Benchmark
+    public void activateAndClose(ThreadState state) {
+        ContextScope scope = TRACER.activateSpan(state.span);
+        scope.close();
     }
-  }
 
-  @Benchmark
-  public void activateAndClose(ThreadState state) {
-    ContextScope scope = TRACER.activateSpan(state.span);
-    scope.close();
-  }
+    @Benchmark
+    public void activateSameSpan(ThreadState state) {
+        ContextScope outer = TRACER.activateSpan(state.span);
+        ContextScope inner = TRACER.activateSpan(state.span);
+        inner.close();
+        outer.close();
+    }
 
-  @Benchmark
-  public void activateSameSpan(ThreadState state) {
-    ContextScope outer = TRACER.activateSpan(state.span);
-    ContextScope inner = TRACER.activateSpan(state.span);
-    inner.close();
-    outer.close();
-  }
+    @Benchmark
+    public void nestedActivateAndClose(ThreadState state) {
+        ContextScope parentScope = TRACER.activateSpan(state.span);
+        ContextScope childScope = TRACER.activateSpan(state.childSpan);
+        childScope.close();
+        parentScope.close();
+    }
 
-  @Benchmark
-  public void nestedActivateAndClose(ThreadState state) {
-    ContextScope parentScope = TRACER.activateSpan(state.span);
-    ContextScope childScope = TRACER.activateSpan(state.childSpan);
-    childScope.close();
-    parentScope.close();
-  }
-
-  @Benchmark
-  public AgentSpan activeSpanLookup() {
-    return TRACER.activeSpan();
-  }
+    @Benchmark
+    public AgentSpan activeSpanLookup() {
+        return TRACER.activeSpan();
+    }
 }

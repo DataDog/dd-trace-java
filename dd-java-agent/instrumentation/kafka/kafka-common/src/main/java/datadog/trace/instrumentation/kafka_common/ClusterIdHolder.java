@@ -6,17 +6,17 @@ package datadog.trace.instrumentation.kafka_common;
  * registry serializer/deserializer instrumentation reads it.
  */
 public class ClusterIdHolder {
-  private static final ThreadLocal<String> CLUSTER_ID = new ThreadLocal<>();
+    private static final ThreadLocal<String> CLUSTER_ID = new ThreadLocal<>();
 
-  public static void set(String clusterId) {
-    CLUSTER_ID.set(clusterId);
-  }
+    public static void set(String clusterId) {
+        CLUSTER_ID.set(clusterId);
+    }
 
-  public static String get() {
-    return CLUSTER_ID.get();
-  }
+    public static String get() {
+        return CLUSTER_ID.get();
+    }
 
-  public static void clear() {
-    CLUSTER_ID.set(null);
-  }
+    public static void clear() {
+        CLUSTER_ID.set(null);
+    }
 }

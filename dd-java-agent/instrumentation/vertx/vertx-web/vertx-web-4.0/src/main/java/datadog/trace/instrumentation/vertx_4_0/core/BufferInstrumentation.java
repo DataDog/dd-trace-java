@@ -20,77 +20,73 @@ import net.bytebuddy.asm.Advice;
 /** Propagation is way easier in io.vertx.core.buffer.impl.BufferImpl than in io.netty.Buffer */
 @AutoService(InstrumenterModule.class)
 public class BufferInstrumentation extends InstrumenterModule.TaintableIast
-    implements Instrumenter.ForSingleType,
-        Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice, Instrumenter.HasMethodAdvice {
 
-  private final String className = BufferInstrumentation.class.getName();
+    private final String className = BufferInstrumentation.class.getName();
 
-  public BufferInstrumentation() {
-    super("vertx", "vertx-4.0");
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {HTTP_1X_SERVER_RESPONSE};
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "io.vertx.core.buffer.impl.BufferImpl";
-  }
-
-  @Override
-  public void typeAdvice(TypeTransformer transformer) {
-    transformer.applyAdvice(new TaintableVisitor(instrumentedType()));
-  }
-
-  @Override
-  public void methodAdvice(final MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(isPublic()).and(named("toString")), className + "$ToStringAdvice");
-    transformer.applyAdvice(
-        isMethod().and(isPublic()).and(named("getByteBuf")).and(takesNoArguments()),
-        className + "$GetByteBuffAdvice");
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(named("appendBuffer"))
-            .and(takesArgument(0, named("io.vertx.core.buffer.Buffer"))),
-        className + "$AppendBufferAdvice");
-  }
-
-  public static class ToStringAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Propagation
-    public static void get(@Advice.This final Object self, @Advice.Return final String result) {
-      final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        module.taintStringIfTainted(result, self);
-      }
+    public BufferInstrumentation() {
+        super("vertx", "vertx-4.0");
     }
-  }
 
-  public static class GetByteBuffAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Propagation
-    public static void get(@Advice.This final Object self, @Advice.Return final Object result) {
-      final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        module.taintObjectIfTainted(result, self);
-      }
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return new Reference[] {HTTP_1X_SERVER_RESPONSE};
     }
-  }
 
-  public static class AppendBufferAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Propagation
-    public static void get(
-        @Advice.Argument(0) final Object buffer, @Advice.Return final Object result) {
-      final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        module.taintObjectIfTainted(result, buffer);
-      }
+    @Override
+    public String instrumentedType() {
+        return "io.vertx.core.buffer.impl.BufferImpl";
     }
-  }
+
+    @Override
+    public void typeAdvice(TypeTransformer transformer) {
+        transformer.applyAdvice(new TaintableVisitor(instrumentedType()));
+    }
+
+    @Override
+    public void methodAdvice(final MethodTransformer transformer) {
+        transformer.applyAdvice(isMethod().and(isPublic()).and(named("toString")), className + "$ToStringAdvice");
+        transformer.applyAdvice(
+                isMethod().and(isPublic()).and(named("getByteBuf")).and(takesNoArguments()),
+                className + "$GetByteBuffAdvice");
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPublic())
+                        .and(named("appendBuffer"))
+                        .and(takesArgument(0, named("io.vertx.core.buffer.Buffer"))),
+                className + "$AppendBufferAdvice");
+    }
+
+    public static class ToStringAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Propagation
+        public static void get(@Advice.This final Object self, @Advice.Return final String result) {
+            final PropagationModule module = InstrumentationBridge.PROPAGATION;
+            if (module != null) {
+                module.taintStringIfTainted(result, self);
+            }
+        }
+    }
+
+    public static class GetByteBuffAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Propagation
+        public static void get(@Advice.This final Object self, @Advice.Return final Object result) {
+            final PropagationModule module = InstrumentationBridge.PROPAGATION;
+            if (module != null) {
+                module.taintObjectIfTainted(result, self);
+            }
+        }
+    }
+
+    public static class AppendBufferAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Propagation
+        public static void get(@Advice.Argument(0) final Object buffer, @Advice.Return final Object result) {
+            final PropagationModule module = InstrumentationBridge.PROPAGATION;
+            if (module != null) {
+                module.taintObjectIfTainted(result, buffer);
+            }
+        }
+    }
 }

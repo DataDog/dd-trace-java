@@ -5,7 +5,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public class SeedNodeHelper {
-  public static String toStringForm(final Set<SeedNode> seedNodes) {
-    return seedNodes.stream().map(SeedNode::address).distinct().collect(Collectors.joining(","));
-  }
+    public static String toStringForm(final Set<SeedNode> seedNodes) {
+        return seedNodes.stream().map(SeedNode::address).distinct().collect(Collectors.joining(","));
+    }
 }

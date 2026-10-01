@@ -59,555 +59,543 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 public class DebuggerSinkTest {
-  private static final ProbeId PROBE_ID = new ProbeId("12fd-8490-c111-4374-ffde", 42);
-  private static final ProbeLocation PROBE_LOCATION =
-      new ProbeLocation("java.lang.String", "indexOf", null, null);
-  public static final int MAX_PAYLOAD = 5 * 1024 * 1024;
+    private static final ProbeId PROBE_ID = new ProbeId("12fd-8490-c111-4374-ffde", 42);
+    private static final ProbeLocation PROBE_LOCATION = new ProbeLocation("java.lang.String", "indexOf", null, null);
+    public static final int MAX_PAYLOAD = 5 * 1024 * 1024;
 
-  @Mock private Config config;
-  @Mock private BatchUploader snapshotUploader;
-  @Mock private BatchUploader logUploader;
-  @Captor private ArgumentCaptor<byte[]> payloadCaptor;
+    @Mock
+    private Config config;
 
-  private String EXPECTED_SNAPSHOT_TAGS;
-  private ProbeStatusSink probeStatusSink;
+    @Mock
+    private BatchUploader snapshotUploader;
 
-  @BeforeEach
-  void setUp() {
-    JsonSnapshotSerializer jsonSnapshotSerializer = new JsonSnapshotSerializer();
-    DebuggerContext.initValueSerializer(jsonSnapshotSerializer);
-    DebuggerAgentHelper.injectSerializer(jsonSnapshotSerializer);
-    when(config.getHostName()).thenReturn("host-name");
-    when(config.getServiceName()).thenReturn("service-name");
-    when(config.getEnv()).thenReturn("test");
-    when(config.getVersion()).thenReturn("foo");
-    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(1);
-    when(config.getFinalDebuggerSnapshotUrl())
-        .thenReturn("http://localhost:8126/debugger/v1/input");
-    when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
+    @Mock
+    private BatchUploader logUploader;
 
-    EXPECTED_SNAPSHOT_TAGS =
-        "^env:test,version:foo,debugger_version:\\d+\\.\\d+\\.\\d+[^~]*~[0-9a-f]+,agent_version:[^,]+,host_name:"
-            + config.getHostName()
-            + "$";
-    probeStatusSink = new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false);
-  }
+    @Captor
+    private ArgumentCaptor<byte[]> payloadCaptor;
 
-  @ParameterizedTest(name = "Process tags enabled ''{0}''")
-  @ValueSource(booleans = {true, false})
-  public void addSnapshot(boolean processTagsEnabled) throws IOException {
-    when(config.isExperimentalPropagateProcessTagsEnabled()).thenReturn(processTagsEnabled);
-    ProcessTags.reset(config);
-    DebuggerSink sink = createDefaultDebuggerSink();
-    DebuggerAgentHelper.injectSerializer(new JsonSnapshotSerializer());
-    Snapshot snapshot = createSnapshot();
-    sink.addSnapshot(snapshot);
-    sink.lowRateFlush(sink);
-    verify(snapshotUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
-    String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
-    System.out.println(strPayload);
-    JsonSnapshotSerializer.IntakeRequest intakeRequest = assertOneIntakeRequest(strPayload);
-    assertEquals("dd_debugger", intakeRequest.getDdsource());
-    assertEquals("service-name", intakeRequest.getService());
-    assertEquals("java.lang.String", intakeRequest.getLoggerName());
-    assertEquals("indexOf", intakeRequest.getLoggerMethod());
-    assertEquals(PROBE_ID.getId(), intakeRequest.getDebugger().getSnapshot().getProbe().getId());
-    assertEquals(
-        PROBE_LOCATION, intakeRequest.getDebugger().getSnapshot().getProbe().getLocation());
-    assertTrue(
-        intakeRequest
-            .getDebugger()
-            .getRuntimeId()
-            .matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"));
-    if (processTagsEnabled) {
-      assertNotNull(ProcessTags.getTagsForSerialization());
-      assertEquals(
-          ProcessTags.getTagsForSerialization().toString(), intakeRequest.getProcessTags());
-    } else {
-      assertNull(intakeRequest.getProcessTags());
+    private String EXPECTED_SNAPSHOT_TAGS;
+    private ProbeStatusSink probeStatusSink;
+
+    @BeforeEach
+    void setUp() {
+        JsonSnapshotSerializer jsonSnapshotSerializer = new JsonSnapshotSerializer();
+        DebuggerContext.initValueSerializer(jsonSnapshotSerializer);
+        DebuggerAgentHelper.injectSerializer(jsonSnapshotSerializer);
+        when(config.getHostName()).thenReturn("host-name");
+        when(config.getServiceName()).thenReturn("service-name");
+        when(config.getEnv()).thenReturn("test");
+        when(config.getVersion()).thenReturn("foo");
+        when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(1);
+        when(config.getFinalDebuggerSnapshotUrl()).thenReturn("http://localhost:8126/debugger/v1/input");
+        when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
+
+        EXPECTED_SNAPSHOT_TAGS =
+                "^env:test,version:foo,debugger_version:\\d+\\.\\d+\\.\\d+[^~]*~[0-9a-f]+,agent_version:[^,]+,host_name:"
+                        + config.getHostName()
+                        + "$";
+        probeStatusSink = new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false);
     }
-  }
 
-  @Test
-  public void addMultipleSnapshots() throws IOException {
-    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(2);
-    DebuggerSink sink = createDefaultDebuggerSink();
-    DebuggerAgentHelper.injectSerializer(new JsonSnapshotSerializer());
-    Snapshot snapshot = createSnapshot();
-    Arrays.asList(snapshot, snapshot).forEach(sink::addSnapshot);
-    sink.lowRateFlush(sink);
-    verify(snapshotUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
-    String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
-    System.out.println(strPayload);
-    ParameterizedType type =
-        Types.newParameterizedType(List.class, JsonSnapshotSerializer.IntakeRequest.class);
-    JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter =
-        MoshiSnapshotTestHelper.createMoshiSnapshot().adapter(type);
-    List<JsonSnapshotSerializer.IntakeRequest> intakeRequests = adapter.fromJson(strPayload);
-    assertEquals(2, intakeRequests.size());
-  }
-
-  @Test
-  public void splitSnapshotBatch() {
-    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(10);
-    DebuggerSink sink = createDefaultDebuggerSink();
-    DebuggerAgentHelper.injectSerializer(new JsonSnapshotSerializer());
-    Snapshot largeSnapshot = createSnapshot();
-    for (int i = 0; i < 15_000; i++) {
-      largeSnapshot.getStack().add(new CapturedStackFrame("f" + i, i));
+    @ParameterizedTest(name = "Process tags enabled ''{0}''")
+    @ValueSource(booleans = {true, false})
+    public void addSnapshot(boolean processTagsEnabled) throws IOException {
+        when(config.isExperimentalPropagateProcessTagsEnabled()).thenReturn(processTagsEnabled);
+        ProcessTags.reset(config);
+        DebuggerSink sink = createDefaultDebuggerSink();
+        DebuggerAgentHelper.injectSerializer(new JsonSnapshotSerializer());
+        Snapshot snapshot = createSnapshot();
+        sink.addSnapshot(snapshot);
+        sink.lowRateFlush(sink);
+        verify(snapshotUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
+        String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
+        System.out.println(strPayload);
+        JsonSnapshotSerializer.IntakeRequest intakeRequest = assertOneIntakeRequest(strPayload);
+        assertEquals("dd_debugger", intakeRequest.getDdsource());
+        assertEquals("service-name", intakeRequest.getService());
+        assertEquals("java.lang.String", intakeRequest.getLoggerName());
+        assertEquals("indexOf", intakeRequest.getLoggerMethod());
+        assertEquals(
+                PROBE_ID.getId(),
+                intakeRequest.getDebugger().getSnapshot().getProbe().getId());
+        assertEquals(
+                PROBE_LOCATION,
+                intakeRequest.getDebugger().getSnapshot().getProbe().getLocation());
+        assertTrue(intakeRequest
+                .getDebugger()
+                .getRuntimeId()
+                .matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"));
+        if (processTagsEnabled) {
+            assertNotNull(ProcessTags.getTagsForSerialization());
+            assertEquals(ProcessTags.getTagsForSerialization().toString(), intakeRequest.getProcessTags());
+        } else {
+            assertNull(intakeRequest.getProcessTags());
+        }
     }
-    for (int i = 0; i < 10; i++) {
-      sink.addSnapshot(largeSnapshot);
+
+    @Test
+    public void addMultipleSnapshots() throws IOException {
+        when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(2);
+        DebuggerSink sink = createDefaultDebuggerSink();
+        DebuggerAgentHelper.injectSerializer(new JsonSnapshotSerializer());
+        Snapshot snapshot = createSnapshot();
+        Arrays.asList(snapshot, snapshot).forEach(sink::addSnapshot);
+        sink.lowRateFlush(sink);
+        verify(snapshotUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
+        String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
+        System.out.println(strPayload);
+        ParameterizedType type = Types.newParameterizedType(List.class, JsonSnapshotSerializer.IntakeRequest.class);
+        JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter =
+                MoshiSnapshotTestHelper.createMoshiSnapshot().adapter(type);
+        List<JsonSnapshotSerializer.IntakeRequest> intakeRequests = adapter.fromJson(strPayload);
+        assertEquals(2, intakeRequests.size());
     }
-    sink.lowRateFlush(sink);
-    verify(snapshotUploader, times(2))
-        .upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
-    Assertions.assertTrue(payloadCaptor.getAllValues().get(0).length < MAX_PAYLOAD);
-    Assertions.assertTrue(payloadCaptor.getAllValues().get(1).length < MAX_PAYLOAD);
-  }
 
-  @Test
-  public void tooLargeSnapshot() {
-    DebuggerSink sink = createDefaultDebuggerSink();
-    Snapshot largeSnapshot = createSnapshot();
-    for (int i = 0; i < 150_000; i++) {
-      largeSnapshot.getStack().add(new CapturedStackFrame("f" + i, i));
+    @Test
+    public void splitSnapshotBatch() {
+        when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(10);
+        DebuggerSink sink = createDefaultDebuggerSink();
+        DebuggerAgentHelper.injectSerializer(new JsonSnapshotSerializer());
+        Snapshot largeSnapshot = createSnapshot();
+        for (int i = 0; i < 15_000; i++) {
+            largeSnapshot.getStack().add(new CapturedStackFrame("f" + i, i));
+        }
+        for (int i = 0; i < 10; i++) {
+            sink.addSnapshot(largeSnapshot);
+        }
+        sink.lowRateFlush(sink);
+        verify(snapshotUploader, times(2)).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
+        Assertions.assertTrue(payloadCaptor.getAllValues().get(0).length < MAX_PAYLOAD);
+        Assertions.assertTrue(payloadCaptor.getAllValues().get(1).length < MAX_PAYLOAD);
     }
-    sink.addSnapshot(largeSnapshot);
-    sink.lowRateFlush(sink);
-    verifyNoInteractions(snapshotUploader);
-  }
 
-  @Test
-  public void tooLargeUTF8Snapshot() {
-    DebuggerSink sink = createDefaultDebuggerSink();
-    Snapshot largeSnapshot = createSnapshot();
-    for (int i = 0; i < 140_000; i++) {
-      largeSnapshot.getStack().add(new CapturedStackFrame("f€" + i, i));
+    @Test
+    public void tooLargeSnapshot() {
+        DebuggerSink sink = createDefaultDebuggerSink();
+        Snapshot largeSnapshot = createSnapshot();
+        for (int i = 0; i < 150_000; i++) {
+            largeSnapshot.getStack().add(new CapturedStackFrame("f" + i, i));
+        }
+        sink.addSnapshot(largeSnapshot);
+        sink.lowRateFlush(sink);
+        verifyNoInteractions(snapshotUploader);
     }
-    sink.addSnapshot(largeSnapshot);
-    sink.lowRateFlush(sink);
-    verifyNoInteractions(snapshotUploader);
-  }
 
-  static class Node {
-    String name;
-    List<Node> children;
-
-    public Node(String name, List<Node> children) {
-      this.name = name;
-      this.children = children;
+    @Test
+    public void tooLargeUTF8Snapshot() {
+        DebuggerSink sink = createDefaultDebuggerSink();
+        Snapshot largeSnapshot = createSnapshot();
+        for (int i = 0; i < 140_000; i++) {
+            largeSnapshot.getStack().add(new CapturedStackFrame("f€" + i, i));
+        }
+        sink.addSnapshot(largeSnapshot);
+        sink.lowRateFlush(sink);
+        verifyNoInteractions(snapshotUploader);
     }
-  }
 
-  @Test
-  public void pruneTooLargeSnapshot() {
-    DebuggerSink sink = createDefaultDebuggerSink();
-    char[] chars = new char[Limits.DEFAULT_LENGTH];
-    Arrays.fill(chars, 'a');
-    String strPayLoad = new String(chars);
-    List<Node> children = createChildren(3, strPayLoad);
-    Node root = new Node("ROOT", children);
-    CapturedValue rootLocal =
-        CapturedValue.of(
-            "root",
-            Node.class.getTypeName(),
-            root,
-            5,
-            Limits.DEFAULT_COLLECTION_SIZE,
-            Limits.DEFAULT_LENGTH,
-            Limits.DEFAULT_FIELD_COUNT);
-    CapturedContext context = new CapturedContext();
-    context.addLocals(new CapturedValue[] {rootLocal});
-    Snapshot largeSnapshot =
-        new Snapshot(
-            Thread.currentThread(),
-            new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION),
-            5);
-    largeSnapshot.setEntry(context);
-    sink.addSnapshot(largeSnapshot);
-    sink.lowRateFlush(sink);
-    verify(snapshotUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
-    String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
-    assertTrue(strPayload.length() < SnapshotSink.MAX_SNAPSHOT_SIZE);
-  }
+    static class Node {
+        String name;
+        List<Node> children;
 
-  private List<Node> createChildren(int level, String strPayLoad) {
-    if (level == 0) {
-      return Collections.emptyList();
+        public Node(String name, List<Node> children) {
+            this.name = name;
+            this.children = children;
+        }
     }
-    ArrayList<Node> list = new ArrayList<>();
-    for (int i = 0; i < Limits.DEFAULT_COLLECTION_SIZE; i++) {
-      list.add(new Node(strPayLoad, createChildren(level - 1, strPayLoad)));
+
+    @Test
+    public void pruneTooLargeSnapshot() {
+        DebuggerSink sink = createDefaultDebuggerSink();
+        char[] chars = new char[Limits.DEFAULT_LENGTH];
+        Arrays.fill(chars, 'a');
+        String strPayLoad = new String(chars);
+        List<Node> children = createChildren(3, strPayLoad);
+        Node root = new Node("ROOT", children);
+        CapturedValue rootLocal = CapturedValue.of(
+                "root",
+                Node.class.getTypeName(),
+                root,
+                5,
+                Limits.DEFAULT_COLLECTION_SIZE,
+                Limits.DEFAULT_LENGTH,
+                Limits.DEFAULT_FIELD_COUNT);
+        CapturedContext context = new CapturedContext();
+        context.addLocals(new CapturedValue[] {rootLocal});
+        Snapshot largeSnapshot = new Snapshot(
+                Thread.currentThread(), new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION), 5);
+        largeSnapshot.setEntry(context);
+        sink.addSnapshot(largeSnapshot);
+        sink.lowRateFlush(sink);
+        verify(snapshotUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
+        String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
+        assertTrue(strPayload.length() < SnapshotSink.MAX_SNAPSHOT_SIZE);
     }
-    return list;
-  }
 
-  @Test
-  public void addNoSnapshots() {
-    DebuggerSink sink = createDefaultDebuggerSink();
-    sink.lowRateFlush(sink);
-    verifyNoInteractions(snapshotUploader);
-  }
-
-  @Test
-  public void addDiagnostics() throws IOException {
-    BatchUploader diagnosticUploader = mock(BatchUploader.class);
-    DebuggerSink sink = createDebuggerSink(diagnosticUploader, false);
-    sink.addReceived(new ProbeId("1", 2));
-    sink.lowRateFlush(sink);
-    verify(diagnosticUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
-    String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
-    System.out.println(strPayload);
-    ParameterizedType type = Types.newParameterizedType(List.class, ProbeStatus.class);
-    JsonAdapter<List<ProbeStatus>> adapter = MoshiHelper.createMoshiProbeStatus().adapter(type);
-    List<ProbeStatus> statuses = adapter.fromJson(strPayload);
-    assertEquals(1, statuses.size());
-    ProbeStatus status = statuses.get(0);
-    assertEquals("dd_debugger", status.getDdSource());
-    assertEquals("Received probe ProbeId{id='1', version=2}.", status.getMessage());
-    assertEquals("service-name", status.getService());
-    assertEquals(ProbeStatus.Status.RECEIVED, status.getDiagnostics().getStatus());
-    assertEquals("1", status.getDiagnostics().getProbeId().getId());
-  }
-
-  @Test
-  public void addDiagnosticsDebuggerTrack() throws IOException {
-    BatchUploader diagnosticUploader = mock(BatchUploader.class);
-    DebuggerSink sink = createDebuggerSink(diagnosticUploader, true);
-    sink.addReceived(new ProbeId("1", 2));
-    sink.lowRateFlush(sink);
-    ArgumentCaptor<BatchUploader.MultiPartContent> partCaptor =
-        ArgumentCaptor.forClass(BatchUploader.MultiPartContent.class);
-    verify(diagnosticUploader).uploadAsMultipart(anyString(), partCaptor.capture());
-    String strPayload =
-        new String(partCaptor.getAllValues().get(0).getContent(), StandardCharsets.UTF_8);
-    System.out.println(strPayload);
-    ParameterizedType type = Types.newParameterizedType(List.class, ProbeStatus.class);
-    JsonAdapter<List<ProbeStatus>> adapter = MoshiHelper.createMoshiProbeStatus().adapter(type);
-    List<ProbeStatus> statuses = adapter.fromJson(strPayload);
-    assertEquals(1, statuses.size());
-    ProbeStatus status = statuses.get(0);
-    assertEquals("dd_debugger", status.getDdSource());
-    assertEquals("Received probe ProbeId{id='1', version=2}.", status.getMessage());
-    assertEquals("service-name", status.getService());
-    assertEquals(ProbeStatus.Status.RECEIVED, status.getDiagnostics().getStatus());
-    assertEquals("1", status.getDiagnostics().getProbeId().getId());
-  }
-
-  @Test
-  public void addMultipleDiagnostics() throws IOException {
-    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
-    BatchUploader diagnosticUploader = mock(BatchUploader.class);
-    DebuggerSink sink = createDebuggerSink(diagnosticUploader, false);
-    for (String probeId : Arrays.asList("1", "2")) {
-      sink.addReceived(new ProbeId(probeId, 1));
+    private List<Node> createChildren(int level, String strPayLoad) {
+        if (level == 0) {
+            return Collections.emptyList();
+        }
+        ArrayList<Node> list = new ArrayList<>();
+        for (int i = 0; i < Limits.DEFAULT_COLLECTION_SIZE; i++) {
+            list.add(new Node(strPayLoad, createChildren(level - 1, strPayLoad)));
+        }
+        return list;
     }
-    sink.lowRateFlush(sink);
-    verify(diagnosticUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
-    String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
-    System.out.println(strPayload);
-    ParameterizedType type = Types.newParameterizedType(List.class, ProbeStatus.class);
-    JsonAdapter<List<ProbeStatus>> adapter = MoshiHelper.createMoshiProbeStatus().adapter(type);
-    List<ProbeStatus> statuses = adapter.fromJson(strPayload);
-    assertEquals(2, statuses.size());
-  }
 
-  @Test
-  public void addMultipleDiagnosticsDebuggerTrack() throws IOException {
-    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
-    BatchUploader diagnosticUploader = mock(BatchUploader.class);
-    DebuggerSink sink = createDebuggerSink(diagnosticUploader, true);
-    for (String probeId : Arrays.asList("1", "2")) {
-      sink.addReceived(new ProbeId(probeId, 1));
+    @Test
+    public void addNoSnapshots() {
+        DebuggerSink sink = createDefaultDebuggerSink();
+        sink.lowRateFlush(sink);
+        verifyNoInteractions(snapshotUploader);
     }
-    sink.lowRateFlush(sink);
-    ArgumentCaptor<BatchUploader.MultiPartContent> partCaptor =
-        ArgumentCaptor.forClass(BatchUploader.MultiPartContent.class);
-    verify(diagnosticUploader).uploadAsMultipart(anyString(), partCaptor.capture());
-    String strPayload =
-        new String(partCaptor.getAllValues().get(0).getContent(), StandardCharsets.UTF_8);
-    System.out.println(strPayload);
-    ParameterizedType type = Types.newParameterizedType(List.class, ProbeStatus.class);
-    JsonAdapter<List<ProbeStatus>> adapter = MoshiHelper.createMoshiProbeStatus().adapter(type);
-    List<ProbeStatus> statuses = adapter.fromJson(strPayload);
-    assertEquals(2, statuses.size());
-  }
 
-  @Test
-  public void splitDiagnosticsBatch() {
-    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
-    BatchUploader diagnosticUploader = mock(BatchUploader.class);
-    DebuggerSink sink = createDebuggerSink(diagnosticUploader, false);
-    StringBuilder largeMessageBuilder = new StringBuilder(100_001);
-    for (int i = 0; i < 100_000; i++) {
-      largeMessageBuilder.append('f');
+    @Test
+    public void addDiagnostics() throws IOException {
+        BatchUploader diagnosticUploader = mock(BatchUploader.class);
+        DebuggerSink sink = createDebuggerSink(diagnosticUploader, false);
+        sink.addReceived(new ProbeId("1", 2));
+        sink.lowRateFlush(sink);
+        verify(diagnosticUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
+        String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
+        System.out.println(strPayload);
+        ParameterizedType type = Types.newParameterizedType(List.class, ProbeStatus.class);
+        JsonAdapter<List<ProbeStatus>> adapter =
+                MoshiHelper.createMoshiProbeStatus().adapter(type);
+        List<ProbeStatus> statuses = adapter.fromJson(strPayload);
+        assertEquals(1, statuses.size());
+        ProbeStatus status = statuses.get(0);
+        assertEquals("dd_debugger", status.getDdSource());
+        assertEquals("Received probe ProbeId{id='1', version=2}.", status.getMessage());
+        assertEquals("service-name", status.getService());
+        assertEquals(ProbeStatus.Status.RECEIVED, status.getDiagnostics().getStatus());
+        assertEquals("1", status.getDiagnostics().getProbeId().getId());
     }
-    String largeMessage = largeMessageBuilder.toString();
-    for (int i = 0; i < 100; i++) {
-      sink.getProbeDiagnosticsSink().addError(new ProbeId(String.valueOf(i), i), largeMessage);
+
+    @Test
+    public void addDiagnosticsDebuggerTrack() throws IOException {
+        BatchUploader diagnosticUploader = mock(BatchUploader.class);
+        DebuggerSink sink = createDebuggerSink(diagnosticUploader, true);
+        sink.addReceived(new ProbeId("1", 2));
+        sink.lowRateFlush(sink);
+        ArgumentCaptor<BatchUploader.MultiPartContent> partCaptor =
+                ArgumentCaptor.forClass(BatchUploader.MultiPartContent.class);
+        verify(diagnosticUploader).uploadAsMultipart(anyString(), partCaptor.capture());
+        String strPayload = new String(partCaptor.getAllValues().get(0).getContent(), StandardCharsets.UTF_8);
+        System.out.println(strPayload);
+        ParameterizedType type = Types.newParameterizedType(List.class, ProbeStatus.class);
+        JsonAdapter<List<ProbeStatus>> adapter =
+                MoshiHelper.createMoshiProbeStatus().adapter(type);
+        List<ProbeStatus> statuses = adapter.fromJson(strPayload);
+        assertEquals(1, statuses.size());
+        ProbeStatus status = statuses.get(0);
+        assertEquals("dd_debugger", status.getDdSource());
+        assertEquals("Received probe ProbeId{id='1', version=2}.", status.getMessage());
+        assertEquals("service-name", status.getService());
+        assertEquals(ProbeStatus.Status.RECEIVED, status.getDiagnostics().getStatus());
+        assertEquals("1", status.getDiagnostics().getProbeId().getId());
     }
-    sink.lowRateFlush(sink);
-    verify(diagnosticUploader, times(2))
-        .upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
-    Assertions.assertTrue(payloadCaptor.getAllValues().get(0).length < MAX_PAYLOAD);
-    Assertions.assertTrue(payloadCaptor.getAllValues().get(1).length < MAX_PAYLOAD);
-  }
 
-  @Test
-  public void splitDiagnosticsBatchDebuggerTrack() {
-    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
-    BatchUploader diagnosticUploader = mock(BatchUploader.class);
-    DebuggerSink sink = createDebuggerSink(diagnosticUploader, true);
-    StringBuilder largeMessageBuilder = new StringBuilder(100_001);
-    for (int i = 0; i < 100_000; i++) {
-      largeMessageBuilder.append('f');
+    @Test
+    public void addMultipleDiagnostics() throws IOException {
+        when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
+        BatchUploader diagnosticUploader = mock(BatchUploader.class);
+        DebuggerSink sink = createDebuggerSink(diagnosticUploader, false);
+        for (String probeId : Arrays.asList("1", "2")) {
+            sink.addReceived(new ProbeId(probeId, 1));
+        }
+        sink.lowRateFlush(sink);
+        verify(diagnosticUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
+        String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
+        System.out.println(strPayload);
+        ParameterizedType type = Types.newParameterizedType(List.class, ProbeStatus.class);
+        JsonAdapter<List<ProbeStatus>> adapter =
+                MoshiHelper.createMoshiProbeStatus().adapter(type);
+        List<ProbeStatus> statuses = adapter.fromJson(strPayload);
+        assertEquals(2, statuses.size());
     }
-    String largeMessage = largeMessageBuilder.toString();
-    for (int i = 0; i < 100; i++) {
-      sink.getProbeDiagnosticsSink().addError(new ProbeId(String.valueOf(i), i), largeMessage);
+
+    @Test
+    public void addMultipleDiagnosticsDebuggerTrack() throws IOException {
+        when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
+        BatchUploader diagnosticUploader = mock(BatchUploader.class);
+        DebuggerSink sink = createDebuggerSink(diagnosticUploader, true);
+        for (String probeId : Arrays.asList("1", "2")) {
+            sink.addReceived(new ProbeId(probeId, 1));
+        }
+        sink.lowRateFlush(sink);
+        ArgumentCaptor<BatchUploader.MultiPartContent> partCaptor =
+                ArgumentCaptor.forClass(BatchUploader.MultiPartContent.class);
+        verify(diagnosticUploader).uploadAsMultipart(anyString(), partCaptor.capture());
+        String strPayload = new String(partCaptor.getAllValues().get(0).getContent(), StandardCharsets.UTF_8);
+        System.out.println(strPayload);
+        ParameterizedType type = Types.newParameterizedType(List.class, ProbeStatus.class);
+        JsonAdapter<List<ProbeStatus>> adapter =
+                MoshiHelper.createMoshiProbeStatus().adapter(type);
+        List<ProbeStatus> statuses = adapter.fromJson(strPayload);
+        assertEquals(2, statuses.size());
     }
-    sink.lowRateFlush(sink);
-    ArgumentCaptor<BatchUploader.MultiPartContent> partCaptor =
-        ArgumentCaptor.forClass(BatchUploader.MultiPartContent.class);
-    verify(diagnosticUploader, times(2)).uploadAsMultipart(anyString(), partCaptor.capture());
-    Assertions.assertTrue(partCaptor.getAllValues().get(0).getContent().length < MAX_PAYLOAD);
-    Assertions.assertTrue(partCaptor.getAllValues().get(1).getContent().length < MAX_PAYLOAD);
-  }
 
-  @Test
-  public void tooLargeDiagnostic() {
-    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
-    DebuggerSink sink = createDefaultDebuggerSink();
-    StringBuilder tooLargeMessageBuilder = new StringBuilder(MAX_PAYLOAD + 1);
-    for (int i = 0; i < MAX_PAYLOAD; i++) {
-      tooLargeMessageBuilder.append('f');
+    @Test
+    public void splitDiagnosticsBatch() {
+        when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
+        BatchUploader diagnosticUploader = mock(BatchUploader.class);
+        DebuggerSink sink = createDebuggerSink(diagnosticUploader, false);
+        StringBuilder largeMessageBuilder = new StringBuilder(100_001);
+        for (int i = 0; i < 100_000; i++) {
+            largeMessageBuilder.append('f');
+        }
+        String largeMessage = largeMessageBuilder.toString();
+        for (int i = 0; i < 100; i++) {
+            sink.getProbeDiagnosticsSink().addError(new ProbeId(String.valueOf(i), i), largeMessage);
+        }
+        sink.lowRateFlush(sink);
+        verify(diagnosticUploader, times(2)).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
+        Assertions.assertTrue(payloadCaptor.getAllValues().get(0).length < MAX_PAYLOAD);
+        Assertions.assertTrue(payloadCaptor.getAllValues().get(1).length < MAX_PAYLOAD);
     }
-    String tooLargeMessage = tooLargeMessageBuilder.toString();
-    sink.getProbeDiagnosticsSink().addError(new ProbeId("1", 1), tooLargeMessage);
-    sink.lowRateFlush(sink);
-    verifyNoInteractions(snapshotUploader);
-  }
 
-  @Test
-  public void tooLargeUTF8Diagnostic() {
-    when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
-    DebuggerSink sink = createDefaultDebuggerSink();
-    StringBuilder tooLargeMessageBuilder = new StringBuilder(MAX_PAYLOAD + 4);
-    for (int i = 0; i < MAX_PAYLOAD; i += 4) {
-      tooLargeMessageBuilder.append("\uD80C\uDCF0"); // 4 bytes
+    @Test
+    public void splitDiagnosticsBatchDebuggerTrack() {
+        when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
+        BatchUploader diagnosticUploader = mock(BatchUploader.class);
+        DebuggerSink sink = createDebuggerSink(diagnosticUploader, true);
+        StringBuilder largeMessageBuilder = new StringBuilder(100_001);
+        for (int i = 0; i < 100_000; i++) {
+            largeMessageBuilder.append('f');
+        }
+        String largeMessage = largeMessageBuilder.toString();
+        for (int i = 0; i < 100; i++) {
+            sink.getProbeDiagnosticsSink().addError(new ProbeId(String.valueOf(i), i), largeMessage);
+        }
+        sink.lowRateFlush(sink);
+        ArgumentCaptor<BatchUploader.MultiPartContent> partCaptor =
+                ArgumentCaptor.forClass(BatchUploader.MultiPartContent.class);
+        verify(diagnosticUploader, times(2)).uploadAsMultipart(anyString(), partCaptor.capture());
+        Assertions.assertTrue(partCaptor.getAllValues().get(0).getContent().length < MAX_PAYLOAD);
+        Assertions.assertTrue(partCaptor.getAllValues().get(1).getContent().length < MAX_PAYLOAD);
     }
-    String tooLargeMessage = tooLargeMessageBuilder.toString();
-    sink.getProbeDiagnosticsSink().addError(new ProbeId("1", 1), tooLargeMessage);
-    sink.lowRateFlush(sink);
-    verifyNoInteractions(snapshotUploader);
-  }
 
-  @Test
-  public void addNoDiagnostic() {
-    DebuggerSink sink = createDefaultDebuggerSink();
-    sink.lowRateFlush(sink);
-    verifyNoInteractions(snapshotUploader);
-  }
-
-  @Test
-  public void reconsiderFlushIntervalIncreaseFlushInterval() {
-    DebuggerSink sink = createDefaultDebuggerSink();
-    long currentFlushInterval = sink.getCurrentLowRateFlushInterval();
-    Snapshot snapshot = createSnapshot();
-    sink.addSnapshot(snapshot);
-    sink.doReconsiderLowRateFlushInterval();
-    long newFlushInterval = sink.getCurrentLowRateFlushInterval();
-    assertEquals(currentFlushInterval + DebuggerSink.LOW_RATE_STEP_SIZE, newFlushInterval);
-  }
-
-  @Test
-  public void reconsiderFlushIntervalDecreaseFlushInterval() {
-    DebuggerSink sink = createDefaultDebuggerSink();
-    long currentFlushInterval = sink.getCurrentLowRateFlushInterval();
-    sink.lowRateFlush(sink);
-    Snapshot snapshot = createSnapshot();
-    for (int i = 0; i < 1000; i++) {
-      sink.addSnapshot(snapshot);
+    @Test
+    public void tooLargeDiagnostic() {
+        when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
+        DebuggerSink sink = createDefaultDebuggerSink();
+        StringBuilder tooLargeMessageBuilder = new StringBuilder(MAX_PAYLOAD + 1);
+        for (int i = 0; i < MAX_PAYLOAD; i++) {
+            tooLargeMessageBuilder.append('f');
+        }
+        String tooLargeMessage = tooLargeMessageBuilder.toString();
+        sink.getProbeDiagnosticsSink().addError(new ProbeId("1", 1), tooLargeMessage);
+        sink.lowRateFlush(sink);
+        verifyNoInteractions(snapshotUploader);
     }
-    sink.doReconsiderLowRateFlushInterval();
-    long newFlushInterval = sink.getCurrentLowRateFlushInterval();
-    assertEquals(currentFlushInterval - DebuggerSink.LOW_RATE_STEP_SIZE, newFlushInterval);
-  }
 
-  @Test
-  public void reconsiderFlushIntervalNoChange() {
-    DebuggerSink sink = createDefaultDebuggerSink();
-    long currentFlushInterval = sink.getCurrentLowRateFlushInterval();
-    Snapshot snapshot = createSnapshot();
-    for (int i = 0; i < 500; i++) {
-      sink.addSnapshot(snapshot);
+    @Test
+    public void tooLargeUTF8Diagnostic() {
+        when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
+        DebuggerSink sink = createDefaultDebuggerSink();
+        StringBuilder tooLargeMessageBuilder = new StringBuilder(MAX_PAYLOAD + 4);
+        for (int i = 0; i < MAX_PAYLOAD; i += 4) {
+            tooLargeMessageBuilder.append("\uD80C\uDCF0"); // 4 bytes
+        }
+        String tooLargeMessage = tooLargeMessageBuilder.toString();
+        sink.getProbeDiagnosticsSink().addError(new ProbeId("1", 1), tooLargeMessage);
+        sink.lowRateFlush(sink);
+        verifyNoInteractions(snapshotUploader);
     }
-    sink.doReconsiderLowRateFlushInterval();
-    long newFlushInterval = sink.getCurrentLowRateFlushInterval();
-    assertEquals(currentFlushInterval, newFlushInterval);
-  }
 
-  @Test
-  public void addSnapshotWithCorrelationIdsMethodProbe() throws IOException {
-    DebuggerSink sink = createDefaultDebuggerSink();
-    DebuggerAgentHelper.injectSerializer(new JsonSnapshotSerializer());
-    Snapshot snapshot = createSnapshot();
-    snapshot.setTraceId("123");
-    snapshot.setSpanId("456");
-    sink.addSnapshot(snapshot);
-    sink.lowRateFlush(sink);
-    verify(snapshotUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
-    String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
-    System.out.println(strPayload);
-    JsonSnapshotSerializer.IntakeRequest intakeRequest = assertOneIntakeRequest(strPayload);
-    assertEquals("123", intakeRequest.getTraceId());
-    assertEquals("456", intakeRequest.getSpanId());
-  }
+    @Test
+    public void addNoDiagnostic() {
+        DebuggerSink sink = createDefaultDebuggerSink();
+        sink.lowRateFlush(sink);
+        verifyNoInteractions(snapshotUploader);
+    }
 
-  @Test
-  public void addSnapshotWithEvalErrors() throws IOException {
-    DebuggerSink sink = createDefaultDebuggerSink();
-    DebuggerAgentHelper.injectSerializer(new JsonSnapshotSerializer());
-    CapturedContext entry = new CapturedContext();
-    Snapshot snapshot = createSnapshot();
-    snapshot.setEntry(entry);
-    snapshot.addEvaluationErrors(
-        Arrays.asList(new EvaluationError("obj.field", "Cannot dereference obj")));
-    sink.addSnapshot(snapshot);
-    sink.lowRateFlush(sink);
-    verify(snapshotUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
-    String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
-    System.out.println(strPayload);
-    JsonSnapshotSerializer.IntakeRequest intakeRequest = assertOneIntakeRequest(strPayload);
-    List<EvaluationError> evaluationErrors =
-        intakeRequest.getDebugger().getSnapshot().getEvaluationErrors();
-    assertEquals(1, evaluationErrors.size());
-    assertEquals("obj.field", evaluationErrors.get(0).getExpr());
-    assertEquals("Cannot dereference obj", evaluationErrors.get(0).getMessage());
-  }
+    @Test
+    public void reconsiderFlushIntervalIncreaseFlushInterval() {
+        DebuggerSink sink = createDefaultDebuggerSink();
+        long currentFlushInterval = sink.getCurrentLowRateFlushInterval();
+        Snapshot snapshot = createSnapshot();
+        sink.addSnapshot(snapshot);
+        sink.doReconsiderLowRateFlushInterval();
+        long newFlushInterval = sink.getCurrentLowRateFlushInterval();
+        assertEquals(currentFlushInterval + DebuggerSink.LOW_RATE_STEP_SIZE, newFlushInterval);
+    }
 
-  @Test
-  public void addDiagnostic() {
-    DebuggerSink sink = createDefaultDebuggerSink();
-    DiagnosticMessage info = new DiagnosticMessage(DiagnosticMessage.Kind.INFO, "info message");
-    DiagnosticMessage warn = new DiagnosticMessage(DiagnosticMessage.Kind.WARN, "info message");
-    DiagnosticMessage error = new DiagnosticMessage(DiagnosticMessage.Kind.ERROR, "info message");
-    sink.addDiagnostics(PROBE_ID, Arrays.asList(info, warn, error));
-    // ensure just that the code is executed to have coverage (just logging)
-  }
+    @Test
+    public void reconsiderFlushIntervalDecreaseFlushInterval() {
+        DebuggerSink sink = createDefaultDebuggerSink();
+        long currentFlushInterval = sink.getCurrentLowRateFlushInterval();
+        sink.lowRateFlush(sink);
+        Snapshot snapshot = createSnapshot();
+        for (int i = 0; i < 1000; i++) {
+            sink.addSnapshot(snapshot);
+        }
+        sink.doReconsiderLowRateFlushInterval();
+        long newFlushInterval = sink.getCurrentLowRateFlushInterval();
+        assertEquals(currentFlushInterval - DebuggerSink.LOW_RATE_STEP_SIZE, newFlushInterval);
+    }
 
-  @Test
-  public void skipSnapshot() {
-    DebuggerMetricCollector metricCollector = spy(DebuggerMetricCollector.get());
-    SnapshotSink snapshotSink =
-        new SnapshotSink(
-            config,
-            "",
-            new BatchUploader(
-                "Snapshots",
+    @Test
+    public void reconsiderFlushIntervalNoChange() {
+        DebuggerSink sink = createDefaultDebuggerSink();
+        long currentFlushInterval = sink.getCurrentLowRateFlushInterval();
+        Snapshot snapshot = createSnapshot();
+        for (int i = 0; i < 500; i++) {
+            sink.addSnapshot(snapshot);
+        }
+        sink.doReconsiderLowRateFlushInterval();
+        long newFlushInterval = sink.getCurrentLowRateFlushInterval();
+        assertEquals(currentFlushInterval, newFlushInterval);
+    }
+
+    @Test
+    public void addSnapshotWithCorrelationIdsMethodProbe() throws IOException {
+        DebuggerSink sink = createDefaultDebuggerSink();
+        DebuggerAgentHelper.injectSerializer(new JsonSnapshotSerializer());
+        Snapshot snapshot = createSnapshot();
+        snapshot.setTraceId("123");
+        snapshot.setSpanId("456");
+        sink.addSnapshot(snapshot);
+        sink.lowRateFlush(sink);
+        verify(snapshotUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
+        String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
+        System.out.println(strPayload);
+        JsonSnapshotSerializer.IntakeRequest intakeRequest = assertOneIntakeRequest(strPayload);
+        assertEquals("123", intakeRequest.getTraceId());
+        assertEquals("456", intakeRequest.getSpanId());
+    }
+
+    @Test
+    public void addSnapshotWithEvalErrors() throws IOException {
+        DebuggerSink sink = createDefaultDebuggerSink();
+        DebuggerAgentHelper.injectSerializer(new JsonSnapshotSerializer());
+        CapturedContext entry = new CapturedContext();
+        Snapshot snapshot = createSnapshot();
+        snapshot.setEntry(entry);
+        snapshot.addEvaluationErrors(Arrays.asList(new EvaluationError("obj.field", "Cannot dereference obj")));
+        sink.addSnapshot(snapshot);
+        sink.lowRateFlush(sink);
+        verify(snapshotUploader).upload(payloadCaptor.capture(), matches(EXPECTED_SNAPSHOT_TAGS));
+        String strPayload = new String(payloadCaptor.getValue(), StandardCharsets.UTF_8);
+        System.out.println(strPayload);
+        JsonSnapshotSerializer.IntakeRequest intakeRequest = assertOneIntakeRequest(strPayload);
+        List<EvaluationError> evaluationErrors =
+                intakeRequest.getDebugger().getSnapshot().getEvaluationErrors();
+        assertEquals(1, evaluationErrors.size());
+        assertEquals("obj.field", evaluationErrors.get(0).getExpr());
+        assertEquals("Cannot dereference obj", evaluationErrors.get(0).getMessage());
+    }
+
+    @Test
+    public void addDiagnostic() {
+        DebuggerSink sink = createDefaultDebuggerSink();
+        DiagnosticMessage info = new DiagnosticMessage(DiagnosticMessage.Kind.INFO, "info message");
+        DiagnosticMessage warn = new DiagnosticMessage(DiagnosticMessage.Kind.WARN, "info message");
+        DiagnosticMessage error = new DiagnosticMessage(DiagnosticMessage.Kind.ERROR, "info message");
+        sink.addDiagnostics(PROBE_ID, Arrays.asList(info, warn, error));
+        // ensure just that the code is executed to have coverage (just logging)
+    }
+
+    @Test
+    public void skipSnapshot() {
+        DebuggerMetricCollector metricCollector = spy(DebuggerMetricCollector.get());
+        SnapshotSink snapshotSink = new SnapshotSink(
                 config,
-                config.getFinalDebuggerSnapshotUrl(),
-                SnapshotSink.RETRY_POLICY),
-            new BatchUploader(
-                "Logs", config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY));
-    SymbolSink symbolSink = new SymbolSink(config);
-    DebuggerSink sink =
-        new DebuggerSink(config, "", metricCollector, probeStatusSink, snapshotSink, symbolSink);
-    Snapshot snapshot = createSnapshot();
-    sink.skipSnapshot(snapshot.getProbe().getId(), RATE_LIMIT);
-    verify(metricCollector).recordEventSkipped(eq(RATE_LIMIT));
-  }
-
-  @Test
-  public void skipSnapshotEvaluationTimeOut() {
-    DebuggerMetricCollector metricCollector = spy(DebuggerMetricCollector.get());
-    DebuggerSink sink =
-        new DebuggerSink(
-            config,
-            "",
-            metricCollector,
-            probeStatusSink,
-            new SnapshotSink(config, "", snapshotUploader, logUploader),
-            new SymbolSink(config));
-    Snapshot snapshot = createSnapshot();
-    sink.skipSnapshot(snapshot.getProbe().getId(), EVALUATION_TIME_OUT);
-    verify(metricCollector).recordEventSkipped(eq(EVALUATION_TIME_OUT));
-  }
-
-  @Test
-  public void addSnapshotQueueFullRecordsDropped() {
-    DebuggerMetricCollector metricCollector = spy(DebuggerMetricCollector.get());
-    SnapshotSink snapshotSink = new SnapshotSink(config, "", snapshotUploader, logUploader);
-    DebuggerSink sink =
-        new DebuggerSink(
-            config, "", metricCollector, probeStatusSink, snapshotSink, new SymbolSink(config));
-    Snapshot snapshot = createSnapshot();
-    for (int i = 0; i < SnapshotSink.LOW_RATE_CAPACITY; i++) {
-      sink.addSnapshot(snapshot);
+                "",
+                new BatchUploader("Snapshots", config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY),
+                new BatchUploader("Logs", config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY));
+        SymbolSink symbolSink = new SymbolSink(config);
+        DebuggerSink sink = new DebuggerSink(config, "", metricCollector, probeStatusSink, snapshotSink, symbolSink);
+        Snapshot snapshot = createSnapshot();
+        sink.skipSnapshot(snapshot.getProbe().getId(), RATE_LIMIT);
+        verify(metricCollector).recordEventSkipped(eq(RATE_LIMIT));
     }
-    verify(metricCollector, times(0)).recordEventDropped(QUEUE_FULL);
-    sink.addSnapshot(snapshot);
-    verify(metricCollector, times(1)).recordEventDropped(QUEUE_FULL);
-  }
 
-  @Test
-  public void addHighRateSnapshotRecordsEveryDrop() {
-    DebuggerMetricCollector metricCollector = spy(DebuggerMetricCollector.get());
-    SnapshotSink snapshotSink = new SnapshotSink(config, "", snapshotUploader, logUploader);
-    DebuggerSink sink =
-        new DebuggerSink(
-            config, "", metricCollector, probeStatusSink, snapshotSink, new SymbolSink(config));
-    Snapshot snapshot = createSnapshot();
-    // fill the high rate queue to capacity
-    for (int i = 0; i < SnapshotSink.HIGH_RATE_CAPACITY; i++) {
-      sink.addHighRateSnapshot(snapshot);
+    @Test
+    public void skipSnapshotEvaluationTimeOut() {
+        DebuggerMetricCollector metricCollector = spy(DebuggerMetricCollector.get());
+        DebuggerSink sink = new DebuggerSink(
+                config,
+                "",
+                metricCollector,
+                probeStatusSink,
+                new SnapshotSink(config, "", snapshotUploader, logUploader),
+                new SymbolSink(config));
+        Snapshot snapshot = createSnapshot();
+        sink.skipSnapshot(snapshot.getProbe().getId(), EVALUATION_TIME_OUT);
+        verify(metricCollector).recordEventSkipped(eq(EVALUATION_TIME_OUT));
     }
-    verify(metricCollector, times(0)).recordEventDropped(QUEUE_FULL);
-    for (int i = 0; i < 3; i++) {
-      sink.addHighRateSnapshot(snapshot);
+
+    @Test
+    public void addSnapshotQueueFullRecordsDropped() {
+        DebuggerMetricCollector metricCollector = spy(DebuggerMetricCollector.get());
+        SnapshotSink snapshotSink = new SnapshotSink(config, "", snapshotUploader, logUploader);
+        DebuggerSink sink =
+                new DebuggerSink(config, "", metricCollector, probeStatusSink, snapshotSink, new SymbolSink(config));
+        Snapshot snapshot = createSnapshot();
+        for (int i = 0; i < SnapshotSink.LOW_RATE_CAPACITY; i++) {
+            sink.addSnapshot(snapshot);
+        }
+        verify(metricCollector, times(0)).recordEventDropped(QUEUE_FULL);
+        sink.addSnapshot(snapshot);
+        verify(metricCollector, times(1)).recordEventDropped(QUEUE_FULL);
     }
-    verify(metricCollector, times(3)).recordEventDropped(QUEUE_FULL);
-  }
 
-  private JsonSnapshotSerializer.IntakeRequest assertOneIntakeRequest(String strPayload)
-      throws IOException {
-    ParameterizedType type =
-        Types.newParameterizedType(List.class, JsonSnapshotSerializer.IntakeRequest.class);
-    JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter =
-        MoshiSnapshotTestHelper.createMoshiSnapshot().adapter(type);
-    List<JsonSnapshotSerializer.IntakeRequest> intakeRequests = adapter.fromJson(strPayload);
-    assertEquals(1, intakeRequests.size());
-    return intakeRequests.get(0);
-  }
+    @Test
+    public void addHighRateSnapshotRecordsEveryDrop() {
+        DebuggerMetricCollector metricCollector = spy(DebuggerMetricCollector.get());
+        SnapshotSink snapshotSink = new SnapshotSink(config, "", snapshotUploader, logUploader);
+        DebuggerSink sink =
+                new DebuggerSink(config, "", metricCollector, probeStatusSink, snapshotSink, new SymbolSink(config));
+        Snapshot snapshot = createSnapshot();
+        // fill the high rate queue to capacity
+        for (int i = 0; i < SnapshotSink.HIGH_RATE_CAPACITY; i++) {
+            sink.addHighRateSnapshot(snapshot);
+        }
+        verify(metricCollector, times(0)).recordEventDropped(QUEUE_FULL);
+        for (int i = 0; i < 3; i++) {
+            sink.addHighRateSnapshot(snapshot);
+        }
+        verify(metricCollector, times(3)).recordEventDropped(QUEUE_FULL);
+    }
 
-  private Snapshot createSnapshot() {
-    return new Snapshot(
-        Thread.currentThread(),
-        new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION),
-        Limits.DEFAULT_REFERENCE_DEPTH);
-  }
+    private JsonSnapshotSerializer.IntakeRequest assertOneIntakeRequest(String strPayload) throws IOException {
+        ParameterizedType type = Types.newParameterizedType(List.class, JsonSnapshotSerializer.IntakeRequest.class);
+        JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter =
+                MoshiSnapshotTestHelper.createMoshiSnapshot().adapter(type);
+        List<JsonSnapshotSerializer.IntakeRequest> intakeRequests = adapter.fromJson(strPayload);
+        assertEquals(1, intakeRequests.size());
+        return intakeRequests.get(0);
+    }
 
-  private DebuggerSink createDefaultDebuggerSink() {
-    String tags = DebuggerAgent.getDefaultTagsMergedWithGlobalTags(config);
-    return new DebuggerSink(
-        config,
-        tags,
-        DebuggerMetricCollector.get(),
-        probeStatusSink,
-        new SnapshotSink(config, tags, snapshotUploader, logUploader),
-        new SymbolSink(config));
-  }
+    private Snapshot createSnapshot() {
+        return new Snapshot(
+                Thread.currentThread(),
+                new ProbeImplementation.NoopProbeImplementation(PROBE_ID, PROBE_LOCATION),
+                Limits.DEFAULT_REFERENCE_DEPTH);
+    }
 
-  private DebuggerSink createDebuggerSink(BatchUploader diagnosticUploader, boolean useMultiPart) {
-    String tags = DebuggerAgent.getDefaultTagsMergedWithGlobalTags(config);
-    ProbeStatusSink probeSink = new ProbeStatusSink(config, diagnosticUploader, useMultiPart);
-    return new DebuggerSink(
-        config,
-        tags,
-        DebuggerMetricCollector.get(),
-        probeSink,
-        new SnapshotSink(config, tags, snapshotUploader, logUploader),
-        new SymbolSink(config));
-  }
+    private DebuggerSink createDefaultDebuggerSink() {
+        String tags = DebuggerAgent.getDefaultTagsMergedWithGlobalTags(config);
+        return new DebuggerSink(
+                config,
+                tags,
+                DebuggerMetricCollector.get(),
+                probeStatusSink,
+                new SnapshotSink(config, tags, snapshotUploader, logUploader),
+                new SymbolSink(config));
+    }
+
+    private DebuggerSink createDebuggerSink(BatchUploader diagnosticUploader, boolean useMultiPart) {
+        String tags = DebuggerAgent.getDefaultTagsMergedWithGlobalTags(config);
+        ProbeStatusSink probeSink = new ProbeStatusSink(config, diagnosticUploader, useMultiPart);
+        return new DebuggerSink(
+                config,
+                tags,
+                DebuggerMetricCollector.get(),
+                probeSink,
+                new SnapshotSink(config, tags, snapshotUploader, logUploader),
+                new SymbolSink(config));
+    }
 }

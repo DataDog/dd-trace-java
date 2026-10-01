@@ -16,31 +16,31 @@ import org.junit.jupiter.api.Test;
 
 class OtlpMetricsTemporalityTest {
 
-  @Test
-  void deltaPreferenceMakesEligibleTypesDelta() {
-    assertEquals(TEMPORALITY_DELTA, temporality(DELTA, HISTOGRAM));
-    assertEquals(TEMPORALITY_DELTA, temporality(DELTA, COUNTER));
-    assertEquals(TEMPORALITY_DELTA, temporality(DELTA, OBSERVABLE_COUNTER));
-  }
+    @Test
+    void deltaPreferenceMakesEligibleTypesDelta() {
+        assertEquals(TEMPORALITY_DELTA, temporality(DELTA, HISTOGRAM));
+        assertEquals(TEMPORALITY_DELTA, temporality(DELTA, COUNTER));
+        assertEquals(TEMPORALITY_DELTA, temporality(DELTA, OBSERVABLE_COUNTER));
+    }
 
-  @Test
-  void deltaPreferenceKeepsIneligibleTypesCumulative() {
-    assertEquals(TEMPORALITY_CUMULATIVE, temporality(DELTA, GAUGE));
-  }
+    @Test
+    void deltaPreferenceKeepsIneligibleTypesCumulative() {
+        assertEquals(TEMPORALITY_CUMULATIVE, temporality(DELTA, GAUGE));
+    }
 
-  @Test
-  void lowMemoryPreferenceMakesEligibleTypesDelta() {
-    assertEquals(TEMPORALITY_DELTA, temporality(LOWMEMORY, HISTOGRAM));
-    assertEquals(TEMPORALITY_DELTA, temporality(LOWMEMORY, COUNTER));
-  }
+    @Test
+    void lowMemoryPreferenceMakesEligibleTypesDelta() {
+        assertEquals(TEMPORALITY_DELTA, temporality(LOWMEMORY, HISTOGRAM));
+        assertEquals(TEMPORALITY_DELTA, temporality(LOWMEMORY, COUNTER));
+    }
 
-  @Test
-  void lowMemoryPreferenceKeepsObservableCounterCumulative() {
-    assertEquals(TEMPORALITY_CUMULATIVE, temporality(LOWMEMORY, OBSERVABLE_COUNTER));
-  }
+    @Test
+    void lowMemoryPreferenceKeepsObservableCounterCumulative() {
+        assertEquals(TEMPORALITY_CUMULATIVE, temporality(LOWMEMORY, OBSERVABLE_COUNTER));
+    }
 
-  @Test
-  void cumulativePreferenceIsAlwaysCumulative() {
-    assertEquals(TEMPORALITY_CUMULATIVE, temporality(CUMULATIVE, COUNTER));
-  }
+    @Test
+    void cumulativePreferenceIsAlwaysCumulative() {
+        assertEquals(TEMPORALITY_CUMULATIVE, temporality(CUMULATIVE, COUNTER));
+    }
 }

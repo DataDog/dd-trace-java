@@ -42,132 +42,130 @@ import org.openjdk.jmh.infra.Blackhole;
 @Fork(value = 1)
 public class HttpServerDecoratorBenchmark {
 
-  @Param({"https://foo.bar:4711/normal/path", "https://foo.bar:4711/numb3r/path"})
-  String url;
+    @Param({"https://foo.bar:4711/normal/path", "https://foo.bar:4711/numb3r/path"})
+    String url;
 
-  Request request;
-  BenchmarkHttpServerDecorator decorator;
-  AgentSpan span;
+    Request request;
+    BenchmarkHttpServerDecorator decorator;
+    AgentSpan span;
 
-  @Setup(Level.Trial)
-  public void setUp() {
-    request = new Request("GET", URI.create(url));
-    CoreTracer tracer =
-        CoreTracer.builder()
-            .strictTraceWrites(
-                true) // Avoid any extra bookkeeping for traces since we write directly
-            .writer(new NoOpWriter()) // Avoid writing
-            .build();
-    GlobalTracer.forceRegister(tracer);
-    decorator = new BenchmarkHttpServerDecorator();
-    Context context = decorator.startSpan(emptyMap(), root());
-    span = fromContext(context);
-  }
-
-  @Benchmark
-  public void onRequest(Blackhole bh) {
-    decorator.onRequest(span, null, request, root());
-    bh.consume(span);
-  }
-
-  public static class Request {
-    private final String method;
-    private final URI uri;
-    private final URIDataAdapter uriDataAdapter;
-
-    public Request(String method, URI uri) {
-      this.method = method;
-      this.uri = uri;
-      this.uriDataAdapter = new URIDefaultDataAdapter(uri);
+    @Setup(Level.Trial)
+    public void setUp() {
+        request = new Request("GET", URI.create(url));
+        CoreTracer tracer = CoreTracer.builder()
+                .strictTraceWrites(true) // Avoid any extra bookkeeping for traces since we write directly
+                .writer(new NoOpWriter()) // Avoid writing
+                .build();
+        GlobalTracer.forceRegister(tracer);
+        decorator = new BenchmarkHttpServerDecorator();
+        Context context = decorator.startSpan(emptyMap(), root());
+        span = fromContext(context);
     }
 
-    public String method() {
-      return method;
+    @Benchmark
+    public void onRequest(Blackhole bh) {
+        decorator.onRequest(span, null, request, root());
+        bh.consume(span);
     }
 
-    public URIDataAdapter uriDataAdapter() {
-      return uriDataAdapter;
-    }
-  }
+    public static class Request {
+        private final String method;
+        private final URI uri;
+        private final URIDataAdapter uriDataAdapter;
 
-  public static class BenchmarkHttpServerDecorator
-      extends HttpServerDecorator<Request, Void, Void, Map<String, String>> {
+        public Request(String method, URI uri) {
+            this.method = method;
+            this.uri = uri;
+            this.uriDataAdapter = new URIDefaultDataAdapter(uri);
+        }
 
-    private static final CharSequence COMPONENT = UTF8BytesString.create("benchmark");
+        public String method() {
+            return method;
+        }
 
-    private final CharSequence SPAN_NAME;
-
-    public BenchmarkHttpServerDecorator() {
-      this.SPAN_NAME = UTF8BytesString.create(this.operationName());
-    }
-
-    @Override
-    protected String[] instrumentationNames() {
-      return new String[] {"benchmark"};
-    }
-
-    @Override
-    protected CharSequence component() {
-      return COMPONENT;
+        public URIDataAdapter uriDataAdapter() {
+            return uriDataAdapter;
+        }
     }
 
-    @Override
-    protected AgentPropagation.ContextVisitor<Map<String, String>> getter() {
-      return ContextVisitors.stringValuesMap();
+    public static class BenchmarkHttpServerDecorator
+            extends HttpServerDecorator<Request, Void, Void, Map<String, String>> {
+
+        private static final CharSequence COMPONENT = UTF8BytesString.create("benchmark");
+
+        private final CharSequence SPAN_NAME;
+
+        public BenchmarkHttpServerDecorator() {
+            this.SPAN_NAME = UTF8BytesString.create(this.operationName());
+        }
+
+        @Override
+        protected String[] instrumentationNames() {
+            return new String[] {"benchmark"};
+        }
+
+        @Override
+        protected CharSequence component() {
+            return COMPONENT;
+        }
+
+        @Override
+        protected AgentPropagation.ContextVisitor<Map<String, String>> getter() {
+            return ContextVisitors.stringValuesMap();
+        }
+
+        @Override
+        protected AgentPropagation.ContextVisitor<Void> responseGetter() {
+            return null;
+        }
+
+        @Override
+        public CharSequence spanName() {
+            return SPAN_NAME;
+        }
+
+        @Override
+        protected String method(Request request) {
+            return request.method();
+        }
+
+        @Override
+        protected URIDataAdapter url(Request request) {
+            return request.uriDataAdapter();
+        }
+
+        @Override
+        protected String peerHostIP(Void connection) {
+            return null;
+        }
+
+        @Override
+        protected int peerPort(Void connection) {
+            return 0;
+        }
+
+        @Override
+        protected int status(Void response) {
+            return 0;
+        }
     }
 
-    @Override
-    protected AgentPropagation.ContextVisitor<Void> responseGetter() {
-      return null;
+    private static class NoOpWriter implements Writer {
+        @Override
+        public void write(final List<DDSpan> trace) {}
+
+        @Override
+        public void start() {}
+
+        @Override
+        public boolean flush() {
+            return false;
+        }
+
+        @Override
+        public void close() {}
+
+        @Override
+        public void incrementDropCounts(final int spanCount) {}
     }
-
-    @Override
-    public CharSequence spanName() {
-      return SPAN_NAME;
-    }
-
-    @Override
-    protected String method(Request request) {
-      return request.method();
-    }
-
-    @Override
-    protected URIDataAdapter url(Request request) {
-      return request.uriDataAdapter();
-    }
-
-    @Override
-    protected String peerHostIP(Void connection) {
-      return null;
-    }
-
-    @Override
-    protected int peerPort(Void connection) {
-      return 0;
-    }
-
-    @Override
-    protected int status(Void response) {
-      return 0;
-    }
-  }
-
-  private static class NoOpWriter implements Writer {
-    @Override
-    public void write(final List<DDSpan> trace) {}
-
-    @Override
-    public void start() {}
-
-    @Override
-    public boolean flush() {
-      return false;
-    }
-
-    @Override
-    public void close() {}
-
-    @Override
-    public void incrementDropCounts(final int spanCount) {}
-  }
 }

@@ -7,9 +7,8 @@ import org.aopalliance.intercept.MethodInvocation;
 
 public class SpringAsyncAdvice {
 
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static void scheduleAsync(
-      @Advice.Argument(value = 0, readOnly = false) MethodInvocation invocation) {
-    invocation = new SpannedMethodInvocation(currentContext().capture(), invocation);
-  }
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void scheduleAsync(@Advice.Argument(value = 0, readOnly = false) MethodInvocation invocation) {
+        invocation = new SpannedMethodInvocation(currentContext().capture(), invocation);
+    }
 }

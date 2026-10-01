@@ -7,8 +7,8 @@ import datadog.trace.test.junit.utils.config.WithConfig;
 @WithConfig(key = "logs.otel.enabled", value = "true")
 class OpenTelemetryLogsActivationByOtelRfcNameForkedTest extends OpenTelemetryLogsActivationTest {
 
-  @Override
-  boolean shouldBeInjected() {
-    return true;
-  }
+    @Override
+    boolean shouldBeInjected() {
+        return true;
+    }
 }

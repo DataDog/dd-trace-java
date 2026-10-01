@@ -10,97 +10,95 @@ import datadog.trace.bootstrap.debugger.el.Values;
  * @param <T>
  */
 public interface CollectionValue<T> extends Value<T> {
-  CollectionValue<?> UNDEFINED =
-      new CollectionValue<Object>() {
+    CollectionValue<?> UNDEFINED = new CollectionValue<Object>() {
         @Override
         public boolean isEmpty() {
-          return true;
+            return true;
         }
 
         @Override
         public int count() {
-          return 0;
+            return 0;
         }
 
         @Override
         public Value<?> get(Object key) {
-          return Value.undefinedValue();
+            return Value.undefinedValue();
         }
 
         @Override
         public Object getValue() {
-          return Values.UNDEFINED_OBJECT;
+            return Values.UNDEFINED_OBJECT;
         }
 
         @Override
         public ValueType getType() {
-          return ValueType.OBJECT;
+            return ValueType.OBJECT;
         }
 
         @Override
         public boolean isUndefined() {
-          return true;
+            return true;
         }
 
         @Override
         public boolean isNull() {
-          return false;
+            return false;
         }
 
         @Override
         public boolean contains(Value<?> val) {
-          return false;
+            return false;
         }
-      };
+    };
 
-  CollectionValue<?> NULL =
-      new CollectionValue<Object>() {
+    CollectionValue<?> NULL = new CollectionValue<Object>() {
         @Override
         public boolean isEmpty() {
-          return true;
+            return true;
         }
 
         @Override
         public int count() {
-          return -1;
+            return -1;
         }
 
         @Override
         public Value<?> get(Object key) {
-          return Value.nullValue();
+            return Value.nullValue();
         }
 
         @Override
         public Object getValue() {
-          return Value.nullValue();
+            return Value.nullValue();
         }
 
         @Override
         public ValueType getType() {
-          return ValueType.OBJECT;
+            return ValueType.OBJECT;
         }
 
         @Override
         public boolean isUndefined() {
-          return false;
+            return false;
         }
 
         @Override
         public boolean isNull() {
-          return true;
+            return true;
         }
 
         @Override
         public boolean contains(Value<?> val) {
-          return false;
+            return false;
         }
-      };
+    };
 
-  boolean isEmpty();
+    boolean isEmpty();
 
-  int count();
+    int count();
 
-  Value<?> get(Object key);
+    Value<?> get(Object key);
 
-  boolean contains(Value<?> val);
+    boolean contains(Value<?> val);
 }

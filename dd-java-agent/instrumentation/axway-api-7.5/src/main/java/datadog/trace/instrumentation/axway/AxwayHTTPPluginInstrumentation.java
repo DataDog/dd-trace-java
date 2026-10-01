@@ -12,34 +12,30 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public final class AxwayHTTPPluginInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
-  public AxwayHTTPPluginInstrumentation() {
-    super("axway-api");
-  }
+    public AxwayHTTPPluginInstrumentation() {
+        super("axway-api");
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("com.vordel.dwe.http.ServerTransaction", int.class.getName());
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("com.vordel.dwe.http.ServerTransaction", int.class.getName());
+    }
 
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "com.vordel.dwe.http.HTTPPlugin",
-      "com.vordel.dwe.http.ServerTransaction",
-      "com.vordel.circuit.net.State"
-    };
-  }
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            "com.vordel.dwe.http.HTTPPlugin", "com.vordel.dwe.http.ServerTransaction", "com.vordel.circuit.net.State"
+        };
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(isPublic()).and(named("invokeDispose")), packageName + ".HTTPPluginAdvice");
-    transformer.applyAdvice(
-        isMethod().and(isPublic()).and(named("tryTransaction")), packageName + ".StateAdvice");
-    transformer.applyAdvice(
-        isMethod().and(isPublic()).and(named("sendResponse")),
-        packageName + ".ServerTransactionAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(isPublic()).and(named("invokeDispose")), packageName + ".HTTPPluginAdvice");
+        transformer.applyAdvice(isMethod().and(isPublic()).and(named("tryTransaction")), packageName + ".StateAdvice");
+        transformer.applyAdvice(
+                isMethod().and(isPublic()).and(named("sendResponse")), packageName + ".ServerTransactionAdvice");
+    }
 }

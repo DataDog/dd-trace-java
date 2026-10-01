@@ -11,21 +11,20 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class ApacheHttpAsyncClientModule extends InstrumenterModule.Tracing {
-  public ApacheHttpAsyncClientModule() {
-    super("httpasyncclient", "apache-httpasyncclient");
-  }
+    public ApacheHttpAsyncClientModule() {
+        super("httpasyncclient", "apache-httpasyncclient");
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap(
-        "org.apache.http.concurrent.BasicFuture", "org.apache.http.concurrent.FutureCallback");
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("org.apache.http.concurrent.BasicFuture", "org.apache.http.concurrent.FutureCallback");
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return asList(
-        new ApacheHttpAsyncClientInstrumentation(),
-        new ApacheHttpClientRedirectInstrumentation(),
-        new BasicFutureInstrumentation());
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return asList(
+                new ApacheHttpAsyncClientInstrumentation(),
+                new ApacheHttpClientRedirectInstrumentation(),
+                new BasicFutureInstrumentation());
+    }
 }

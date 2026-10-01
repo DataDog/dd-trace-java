@@ -16,77 +16,74 @@ import org.junit.jupiter.api.extension.TestTemplateInvocationContextProvider;
 
 public class TestFailedTemplate {
 
-  @org.junit.jupiter.api.TestTemplate
-  @ExtendWith(SampleInvocationContextProvider.class)
-  public void test_template(final SampleTestCase testCase) {
-    assertEquals(testCase.result, testCase.a + testCase.b);
-  }
-
-  public static class SampleTestCase {
-    private final String displayName;
-    private final int a;
-    private final int b;
-    private final int result;
-
-    public SampleTestCase(final String displayName, final int a, final int b, final int result) {
-      this.displayName = displayName;
-      this.a = a;
-      this.b = b;
-      this.result = result;
-    }
-  }
-
-  public static class SampleInvocationContextProvider
-      implements TestTemplateInvocationContextProvider {
-
-    @Override
-    public boolean supportsTestTemplate(final ExtensionContext context) {
-      return true;
+    @org.junit.jupiter.api.TestTemplate
+    @ExtendWith(SampleInvocationContextProvider.class)
+    public void test_template(final SampleTestCase testCase) {
+        assertEquals(testCase.result, testCase.a + testCase.b);
     }
 
-    @Override
-    public Stream<TestTemplateInvocationContext> provideTestTemplateInvocationContexts(
-        final ExtensionContext context) {
-      return Stream.of(
-          featureEnabledContext(new SampleTestCase("test_template_failed", 0, 0, 42)),
-          featureEnabledContext(new SampleTestCase("test_template_succeed", 1, 1, 2)));
+    public static class SampleTestCase {
+        private final String displayName;
+        private final int a;
+        private final int b;
+        private final int result;
+
+        public SampleTestCase(final String displayName, final int a, final int b, final int result) {
+            this.displayName = displayName;
+            this.a = a;
+            this.b = b;
+            this.result = result;
+        }
     }
 
-    private TestTemplateInvocationContext featureEnabledContext(
-        final SampleTestCase sampleTestCase) {
-      return new TestTemplateInvocationContext() {
+    public static class SampleInvocationContextProvider implements TestTemplateInvocationContextProvider {
+
         @Override
-        public String getDisplayName(final int invocationIndex) {
-          return sampleTestCase.displayName;
+        public boolean supportsTestTemplate(final ExtensionContext context) {
+            return true;
         }
 
         @Override
-        public List<Extension> getAdditionalExtensions() {
-          return asList(new GenericTypedParameterResolver(sampleTestCase));
+        public Stream<TestTemplateInvocationContext> provideTestTemplateInvocationContexts(
+                final ExtensionContext context) {
+            return Stream.of(
+                    featureEnabledContext(new SampleTestCase("test_template_failed", 0, 0, 42)),
+                    featureEnabledContext(new SampleTestCase("test_template_succeed", 1, 1, 2)));
         }
-      };
-    }
-  }
 
-  public static class GenericTypedParameterResolver<T> implements ParameterResolver {
-    T data;
+        private TestTemplateInvocationContext featureEnabledContext(final SampleTestCase sampleTestCase) {
+            return new TestTemplateInvocationContext() {
+                @Override
+                public String getDisplayName(final int invocationIndex) {
+                    return sampleTestCase.displayName;
+                }
 
-    public GenericTypedParameterResolver(final T data) {
-      this.data = data;
-    }
-
-    @Override
-    public boolean supportsParameter(
-        final ParameterContext parameterContext, final ExtensionContext extensionContext)
-        throws ParameterResolutionException {
-      return parameterContext.getParameter().getType().isInstance(data);
+                @Override
+                public List<Extension> getAdditionalExtensions() {
+                    return asList(new GenericTypedParameterResolver(sampleTestCase));
+                }
+            };
+        }
     }
 
-    @Override
-    public Object resolveParameter(
-        final ParameterContext parameterContext, final ExtensionContext extensionContext)
-        throws ParameterResolutionException {
-      return data;
+    public static class GenericTypedParameterResolver<T> implements ParameterResolver {
+        T data;
+
+        public GenericTypedParameterResolver(final T data) {
+            this.data = data;
+        }
+
+        @Override
+        public boolean supportsParameter(
+                final ParameterContext parameterContext, final ExtensionContext extensionContext)
+                throws ParameterResolutionException {
+            return parameterContext.getParameter().getType().isInstance(data);
+        }
+
+        @Override
+        public Object resolveParameter(final ParameterContext parameterContext, final ExtensionContext extensionContext)
+                throws ParameterResolutionException {
+            return data;
+        }
     }
-  }
 }

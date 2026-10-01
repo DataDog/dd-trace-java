@@ -8,85 +8,89 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TelemetryRouter {
-  private static final Logger log = LoggerFactory.getLogger(TelemetryRouter.class);
+    private static final Logger log = LoggerFactory.getLogger(TelemetryRouter.class);
 
-  @Nullable private final DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery;
-  private final TelemetryClient agentClient;
-  @Nullable private final TelemetryClient intakeClient;
-  private final boolean useIntakeClientByDefault;
-  private TelemetryClient currentClient;
-  private boolean errorReported;
+    @Nullable
+    private final DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery;
 
-  public TelemetryRouter(
-      DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery,
-      TelemetryClient agentClient,
-      @Nullable TelemetryClient intakeClient,
-      boolean useIntakeClientByDefault) {
-    this.ddAgentFeaturesDiscovery = ddAgentFeaturesDiscovery;
-    this.agentClient = agentClient;
-    this.intakeClient = intakeClient;
-    this.useIntakeClientByDefault = useIntakeClientByDefault;
-    this.currentClient = useIntakeClientByDefault ? intakeClient : agentClient;
-  }
+    private final TelemetryClient agentClient;
 
-  /**
-   * Single-client constructor used for CiVis' Bazel mode file-based telemetry. Feature discovery
-   * and client-switching logic are skipped.
-   */
-  public TelemetryRouter(TelemetryClient singleClient) {
-    this.ddAgentFeaturesDiscovery = null;
-    this.agentClient = singleClient;
-    this.intakeClient = null;
-    this.useIntakeClientByDefault = false;
-    this.currentClient = singleClient;
-  }
+    @Nullable
+    private final TelemetryClient intakeClient;
 
-  public TelemetryClient.Result sendRequest(TelemetryRequest request) {
-    if (ddAgentFeaturesDiscovery == null) {
-      return currentClient.sendHttpRequest(request.httpRequest());
+    private final boolean useIntakeClientByDefault;
+    private TelemetryClient currentClient;
+    private boolean errorReported;
+
+    public TelemetryRouter(
+            DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery,
+            TelemetryClient agentClient,
+            @Nullable TelemetryClient intakeClient,
+            boolean useIntakeClientByDefault) {
+        this.ddAgentFeaturesDiscovery = ddAgentFeaturesDiscovery;
+        this.agentClient = agentClient;
+        this.intakeClient = intakeClient;
+        this.useIntakeClientByDefault = useIntakeClientByDefault;
+        this.currentClient = useIntakeClientByDefault ? intakeClient : agentClient;
     }
-    ddAgentFeaturesDiscovery.discoverIfOutdated();
-    boolean agentSupportsTelemetryProxy = ddAgentFeaturesDiscovery.supportsTelemetryProxy();
 
-    Request.Builder httpRequestBuilder = request.httpRequest();
-    TelemetryClient.Result result = currentClient.sendHttpRequest(httpRequestBuilder);
+    /**
+     * Single-client constructor used for CiVis' Bazel mode file-based telemetry. Feature discovery
+     * and client-switching logic are skipped.
+     */
+    public TelemetryRouter(TelemetryClient singleClient) {
+        this.ddAgentFeaturesDiscovery = null;
+        this.agentClient = singleClient;
+        this.intakeClient = null;
+        this.useIntakeClientByDefault = false;
+        this.currentClient = singleClient;
+    }
 
-    boolean requestFailed =
-        result != TelemetryClient.Result.SUCCESS
-            // interrupted request is most likely due to telemetry system shutdown,
-            // we do not want to log errors and reattempt in this case
-            && result != TelemetryClient.Result.INTERRUPTED;
-    if (currentClient == agentClient) {
-      if (requestFailed) {
-        reportErrorOnce(currentClient.getUrl(), result);
-        if (intakeClient != null) {
-          log.info("Agent Telemetry endpoint failed. Telemetry will be sent to Intake.");
-          errorReported = false;
-          currentClient = intakeClient;
+    public TelemetryClient.Result sendRequest(TelemetryRequest request) {
+        if (ddAgentFeaturesDiscovery == null) {
+            return currentClient.sendHttpRequest(request.httpRequest());
         }
-      }
-    } else {
-      if (requestFailed) {
-        reportErrorOnce(currentClient.getUrl(), result);
-      }
-      if ((agentSupportsTelemetryProxy && !useIntakeClientByDefault) || requestFailed) {
-        errorReported = false;
-        if (requestFailed) {
-          log.info("Intake Telemetry endpoint failed. Telemetry will be sent to Agent.");
+        ddAgentFeaturesDiscovery.discoverIfOutdated();
+        boolean agentSupportsTelemetryProxy = ddAgentFeaturesDiscovery.supportsTelemetryProxy();
+
+        Request.Builder httpRequestBuilder = request.httpRequest();
+        TelemetryClient.Result result = currentClient.sendHttpRequest(httpRequestBuilder);
+
+        boolean requestFailed = result != TelemetryClient.Result.SUCCESS
+                // interrupted request is most likely due to telemetry system shutdown,
+                // we do not want to log errors and reattempt in this case
+                && result != TelemetryClient.Result.INTERRUPTED;
+        if (currentClient == agentClient) {
+            if (requestFailed) {
+                reportErrorOnce(currentClient.getUrl(), result);
+                if (intakeClient != null) {
+                    log.info("Agent Telemetry endpoint failed. Telemetry will be sent to Intake.");
+                    errorReported = false;
+                    currentClient = intakeClient;
+                }
+            }
         } else {
-          log.info("Agent Telemetry endpoint is now available. Telemetry will be sent to Agent.");
+            if (requestFailed) {
+                reportErrorOnce(currentClient.getUrl(), result);
+            }
+            if ((agentSupportsTelemetryProxy && !useIntakeClientByDefault) || requestFailed) {
+                errorReported = false;
+                if (requestFailed) {
+                    log.info("Intake Telemetry endpoint failed. Telemetry will be sent to Agent.");
+                } else {
+                    log.info("Agent Telemetry endpoint is now available. Telemetry will be sent to Agent.");
+                }
+                currentClient = agentClient;
+            }
         }
-        currentClient = agentClient;
-      }
+
+        return result;
     }
 
-    return result;
-  }
-
-  private void reportErrorOnce(HttpUrl requestUrl, TelemetryClient.Result result) {
-    if (!errorReported) {
-      log.warn("Got {} sending telemetry request to {}.", result, requestUrl);
-      errorReported = true;
+    private void reportErrorOnce(HttpUrl requestUrl, TelemetryClient.Result result) {
+        if (!errorReported) {
+            log.warn("Got {} sending telemetry request to {}.", result, requestUrl);
+            errorReported = true;
+        }
     }
-  }
 }

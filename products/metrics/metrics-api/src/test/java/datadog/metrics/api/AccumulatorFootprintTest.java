@@ -38,103 +38,102 @@ import org.openjdk.jol.info.GraphLayout;
  */
 class AccumulatorFootprintTest {
 
-  enum Counters {
-    REQUESTS,
-    ERRORS,
-    RETRIES,
-    BYTES_SENT
-  }
-
-  @BeforeAll
-  static void assumeNotJ9Jvm() {
-    // JOL's GraphLayout relies on HotSpot-specific Unsafe internals and throws
-    // IllegalStateException on J9-based JVMs (IBM/Semeru) -- same guard as
-    // StringIndexFootprintTest / ScopeAndContinuationLayoutTest.
-    assumeFalse(JavaVirtualMachine.isJ9());
-  }
-
-  static long bytes(Object root) {
-    return GraphLayout.parseInstance(root).totalSize();
-  }
-
-  static LongAdder[] freshAdders() {
-    LongAdder[] adders = new LongAdder[Counters.values().length];
-    for (int i = 0; i < adders.length; i++) {
-      adders[i] = new LongAdder();
-    }
-    return adders;
-  }
-
-  @Test
-  void freshFootprint() {
-    LongAdder[] adders = freshAdders();
-    Accumulator<Counters> accumulator = Accumulator.of(Counters.class);
-
-    long adderBytes = bytes((Object) adders);
-    long accumulatorBytes = bytes(accumulator);
-
-    System.out.printf(
-        "fresh:      %d LongAdders = %6d bytes, Accumulator = %6d bytes%n",
-        adders.length, adderBytes, accumulatorBytes);
-  }
-
-  /**
-   * Drives real multi-threaded contention against a fresh set of {@code LongAdder}s to force their
-   * {@code Cell[]} tables to grow, then compares against {@link Accumulator}'s fixed footprint --
-   * the realistic comparison, since production callers write to these counters concurrently rather
-   * than leaving them untouched.
-   *
-   * <p>Cell-table growth is driven by JVM-internal CAS-collision detection, not something this test
-   * controls directly, so the exact grown size can vary by run/JVM; the one invariant asserted is
-   * monotonic growth (a contended footprint can only be at least the fresh one).
-   */
-  @Test
-  void contendedFootprint() throws InterruptedException {
-    LongAdder[] adders = freshAdders();
-    long freshAdderBytes = bytes((Object) adders);
-
-    int threads = Math.min(16, Math.max(4, Runtime.getRuntime().availableProcessors()));
-    ExecutorService pool = Executors.newFixedThreadPool(threads);
-    CountDownLatch start = new CountDownLatch(1);
-    CountDownLatch done = new CountDownLatch(threads);
-    try {
-      for (int t = 0; t < threads; t++) {
-        pool.execute(
-            () -> {
-              try {
-                start.await();
-                long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
-                while (System.nanoTime() < deadline) {
-                  for (LongAdder adder : adders) {
-                    adder.increment();
-                  }
-                }
-              } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-              } finally {
-                done.countDown();
-              }
-            });
-      }
-      start.countDown();
-      assertTrue(done.await(30, TimeUnit.SECONDS));
-    } finally {
-      pool.shutdown();
+    enum Counters {
+        REQUESTS,
+        ERRORS,
+        RETRIES,
+        BYTES_SENT
     }
 
-    long contendedAdderBytes = bytes((Object) adders);
-    Accumulator<Counters> accumulator = Accumulator.of(Counters.class);
-    long accumulatorBytes = bytes(accumulator);
+    @BeforeAll
+    static void assumeNotJ9Jvm() {
+        // JOL's GraphLayout relies on HotSpot-specific Unsafe internals and throws
+        // IllegalStateException on J9-based JVMs (IBM/Semeru) -- same guard as
+        // StringIndexFootprintTest / ScopeAndContinuationLayoutTest.
+        assumeFalse(JavaVirtualMachine.isJ9());
+    }
 
-    System.out.printf(
-        "contended:  %d LongAdders = %6d bytes, Accumulator = %6d bytes%n",
-        adders.length, contendedAdderBytes, accumulatorBytes);
+    static long bytes(Object root) {
+        return GraphLayout.parseInstance(root).totalSize();
+    }
 
-    assertTrue(
-        contendedAdderBytes >= freshAdderBytes,
-        "contended LongAdder footprint should never shrink below the fresh footprint");
-    assertTrue(
-        accumulatorBytes < contendedAdderBytes,
-        "Accumulator's fixed footprint should be smaller than N contended LongAdders");
-  }
+    static LongAdder[] freshAdders() {
+        LongAdder[] adders = new LongAdder[Counters.values().length];
+        for (int i = 0; i < adders.length; i++) {
+            adders[i] = new LongAdder();
+        }
+        return adders;
+    }
+
+    @Test
+    void freshFootprint() {
+        LongAdder[] adders = freshAdders();
+        Accumulator<Counters> accumulator = Accumulator.of(Counters.class);
+
+        long adderBytes = bytes((Object) adders);
+        long accumulatorBytes = bytes(accumulator);
+
+        System.out.printf(
+                "fresh:      %d LongAdders = %6d bytes, Accumulator = %6d bytes%n",
+                adders.length, adderBytes, accumulatorBytes);
+    }
+
+    /**
+     * Drives real multi-threaded contention against a fresh set of {@code LongAdder}s to force their
+     * {@code Cell[]} tables to grow, then compares against {@link Accumulator}'s fixed footprint --
+     * the realistic comparison, since production callers write to these counters concurrently rather
+     * than leaving them untouched.
+     *
+     * <p>Cell-table growth is driven by JVM-internal CAS-collision detection, not something this test
+     * controls directly, so the exact grown size can vary by run/JVM; the one invariant asserted is
+     * monotonic growth (a contended footprint can only be at least the fresh one).
+     */
+    @Test
+    void contendedFootprint() throws InterruptedException {
+        LongAdder[] adders = freshAdders();
+        long freshAdderBytes = bytes((Object) adders);
+
+        int threads = Math.min(16, Math.max(4, Runtime.getRuntime().availableProcessors()));
+        ExecutorService pool = Executors.newFixedThreadPool(threads);
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(threads);
+        try {
+            for (int t = 0; t < threads; t++) {
+                pool.execute(() -> {
+                    try {
+                        start.await();
+                        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+                        while (System.nanoTime() < deadline) {
+                            for (LongAdder adder : adders) {
+                                adder.increment();
+                            }
+                        }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    } finally {
+                        done.countDown();
+                    }
+                });
+            }
+            start.countDown();
+            assertTrue(done.await(30, TimeUnit.SECONDS));
+        } finally {
+            pool.shutdown();
+        }
+
+        long contendedAdderBytes = bytes((Object) adders);
+        Accumulator<Counters> accumulator = Accumulator.of(Counters.class);
+        long accumulatorBytes = bytes(accumulator);
+
+        System.out.printf(
+                "contended:  %d LongAdders = %6d bytes, Accumulator = %6d bytes%n",
+                adders.length, contendedAdderBytes, accumulatorBytes);
+
+        assertTrue(
+                contendedAdderBytes >= freshAdderBytes,
+                "contended LongAdder footprint should never shrink below the fresh footprint");
+        assertTrue(
+                accumulatorBytes < contendedAdderBytes,
+                "Accumulator's fixed footprint should be smaller than N contended LongAdders");
+    }
 }

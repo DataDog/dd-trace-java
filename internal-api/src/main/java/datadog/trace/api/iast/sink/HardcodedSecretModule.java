@@ -5,6 +5,5 @@ import javax.annotation.Nonnull;
 
 public interface HardcodedSecretModule extends IastModule {
 
-  void onHardcodedSecret(
-      @Nonnull String value, @Nonnull String method, @Nonnull String clazz, int currentLine);
+    void onHardcodedSecret(@Nonnull String value, @Nonnull String method, @Nonnull String clazz, int currentLine);
 }

@@ -14,46 +14,43 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class HandlerRegistryBuilderInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public HandlerRegistryBuilderInstrumentation() {
-    super("armeria-grpc-server", "armeria-grpc", "armeria", "grpc-server", "grpc");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "com.linecorp.armeria.server.grpc.HandlerRegistry$Builder";
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {
-      new Reference(
-          new String[0],
-          1,
-          "com.linecorp.armeria.common.grpc.protocol.ArmeriaMessageDeframer",
-          null,
-          new String[0],
-          new Reference.Field[0],
-          new Reference.Method[0])
-    };
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("addService"))
-            .and(takesArgument(0, named("io.grpc.ServerServiceDefinition"))),
-        getClass().getName() + "$AddService");
-  }
-
-  public static final class AddService {
-    @Advice.OnMethodEnter
-    public static void before(
-        @Advice.Argument(value = 0, readOnly = false)
-            ServerServiceDefinition serverServiceDefinition) {
-      serverServiceDefinition =
-          ServerInterceptors.intercept(serverServiceDefinition, TracingServerInterceptor.INSTANCE);
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public HandlerRegistryBuilderInstrumentation() {
+        super("armeria-grpc-server", "armeria-grpc", "armeria", "grpc-server", "grpc");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "com.linecorp.armeria.server.grpc.HandlerRegistry$Builder";
+    }
+
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return new Reference[] {
+            new Reference(
+                    new String[0],
+                    1,
+                    "com.linecorp.armeria.common.grpc.protocol.ArmeriaMessageDeframer",
+                    null,
+                    new String[0],
+                    new Reference.Field[0],
+                    new Reference.Method[0])
+        };
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("addService")).and(takesArgument(0, named("io.grpc.ServerServiceDefinition"))),
+                getClass().getName() + "$AddService");
+    }
+
+    public static final class AddService {
+        @Advice.OnMethodEnter
+        public static void before(
+                @Advice.Argument(value = 0, readOnly = false) ServerServiceDefinition serverServiceDefinition) {
+            serverServiceDefinition =
+                    ServerInterceptors.intercept(serverServiceDefinition, TracingServerInterceptor.INSTANCE);
+        }
+    }
 }

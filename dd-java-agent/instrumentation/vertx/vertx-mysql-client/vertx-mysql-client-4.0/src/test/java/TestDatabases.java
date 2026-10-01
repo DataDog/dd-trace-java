@@ -9,96 +9,92 @@ import org.testcontainers.utility.DockerImageName;
 
 public class TestDatabases implements Closeable {
 
-  private final MySQLContainer<?> mysql;
-  private final Map<String, TestDBInfo> dbInfos;
+    private final MySQLContainer<?> mysql;
+    private final Map<String, TestDBInfo> dbInfos;
 
-  @SuppressWarnings("resource")
-  private TestDatabases(String dbName) {
-    Map<String, TestDBInfo> infos = new HashMap<>();
-    mysql =
-        new MySQLContainer<>(
-                DockerImageName.parse(System.getProperty("test.mysql.image"))
-                    .asCompatibleSubstituteFor("mysql"))
-            .withDatabaseName(dbName)
-            .withUsername("sa")
-            .withPassword("sa");
-    // https://github.com/testcontainers/testcontainers-java/issues/914
-    mysql.addParameter("TC_MY_CNF", null);
-    mysql.start();
-    TestDBInfo info =
-        new TestDBInfo(
-            mysql.getUsername(),
-            mysql.getPassword(),
-            mysql.getHost(),
-            mysql.getMappedPort(MySQLContainer.MYSQL_PORT),
-            "mysql",
-            dbName);
-    PortUtils.waitForPortToOpen(info.host, info.port, 5, TimeUnit.SECONDS);
-    infos.put("mysql", info);
-    dbInfos = Collections.unmodifiableMap(infos);
-  }
-
-  public static TestDatabases initialise(String dbName) {
-    return new TestDatabases(dbName);
-  }
-
-  @Override
-  public void close() {
-    if (null != mysql) {
-      mysql.close();
-    }
-  }
-
-  public Map<String, TestDBInfo> getDBInfos() {
-    return dbInfos;
-  }
-
-  public static class TestDBInfo {
-    private final String user;
-    private final String password;
-    private final String host;
-    private final Integer port;
-    private final String type;
-    private final String dbName;
-    private final String uri;
-
-    public TestDBInfo(
-        String user, String password, String host, Integer port, String type, String dbName) {
-      this.user = user;
-      this.password = password;
-      this.host = host;
-      this.port = port;
-      this.type = type;
-      this.dbName = dbName;
-      this.uri = type + "://" + user + ":" + password + "@" + host + ":" + port + "/" + dbName;
+    @SuppressWarnings("resource")
+    private TestDatabases(String dbName) {
+        Map<String, TestDBInfo> infos = new HashMap<>();
+        mysql = new MySQLContainer<>(DockerImageName.parse(System.getProperty("test.mysql.image"))
+                        .asCompatibleSubstituteFor("mysql"))
+                .withDatabaseName(dbName)
+                .withUsername("sa")
+                .withPassword("sa");
+        // https://github.com/testcontainers/testcontainers-java/issues/914
+        mysql.addParameter("TC_MY_CNF", null);
+        mysql.start();
+        TestDBInfo info = new TestDBInfo(
+                mysql.getUsername(),
+                mysql.getPassword(),
+                mysql.getHost(),
+                mysql.getMappedPort(MySQLContainer.MYSQL_PORT),
+                "mysql",
+                dbName);
+        PortUtils.waitForPortToOpen(info.host, info.port, 5, TimeUnit.SECONDS);
+        infos.put("mysql", info);
+        dbInfos = Collections.unmodifiableMap(infos);
     }
 
-    public String getUser() {
-      return user;
+    public static TestDatabases initialise(String dbName) {
+        return new TestDatabases(dbName);
     }
 
-    public String getPassword() {
-      return password;
+    @Override
+    public void close() {
+        if (null != mysql) {
+            mysql.close();
+        }
     }
 
-    public String getHost() {
-      return host;
+    public Map<String, TestDBInfo> getDBInfos() {
+        return dbInfos;
     }
 
-    public String getPort() {
-      return port.toString();
-    }
+    public static class TestDBInfo {
+        private final String user;
+        private final String password;
+        private final String host;
+        private final Integer port;
+        private final String type;
+        private final String dbName;
+        private final String uri;
 
-    public String getType() {
-      return type;
-    }
+        public TestDBInfo(String user, String password, String host, Integer port, String type, String dbName) {
+            this.user = user;
+            this.password = password;
+            this.host = host;
+            this.port = port;
+            this.type = type;
+            this.dbName = dbName;
+            this.uri = type + "://" + user + ":" + password + "@" + host + ":" + port + "/" + dbName;
+        }
 
-    public String getDbName() {
-      return dbName;
-    }
+        public String getUser() {
+            return user;
+        }
 
-    public String getUri() {
-      return uri;
+        public String getPassword() {
+            return password;
+        }
+
+        public String getHost() {
+            return host;
+        }
+
+        public String getPort() {
+            return port.toString();
+        }
+
+        public String getType() {
+            return type;
+        }
+
+        public String getDbName() {
+            return dbName;
+        }
+
+        public String getUri() {
+            return uri;
+        }
     }
-  }
 }

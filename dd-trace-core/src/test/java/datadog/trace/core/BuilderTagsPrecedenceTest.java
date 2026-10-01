@@ -31,119 +31,112 @@ import org.junit.jupiter.api.Test;
  */
 class BuilderTagsPrecedenceTest extends DDCoreJavaSpecification {
 
-  private static final String KEY = "test.collision.tag";
-  private static final String HEADER_VALUE = "from-header";
-  private static final String BUILDER_VALUE = "from-builder";
+    private static final String KEY = "test.collision.tag";
+    private static final String HEADER_VALUE = "from-header";
+    private static final String BUILDER_VALUE = "from-builder";
 
-  private CoreTracer tracer;
+    private CoreTracer tracer;
 
-  @AfterEach
-  void cleanup() {
-    if (tracer != null) {
-      tracer.close();
+    @AfterEach
+    void cleanup() {
+        if (tracer != null) {
+            tracer.close();
+        }
     }
-  }
 
-  /** An extracted context carrying a header-derived tag ({@code coreTags}) on the given key. */
-  private static ExtractedContext extractedWithHeaderTag(String key, String value) {
-    return new ExtractedContext(
-        DDTraceId.ONE,
-        2,
-        PrioritySampling.SAMPLER_KEEP,
-        null,
-        0,
-        Collections.<String, String>emptyMap(),
-        TagMap.fromMap(Collections.singletonMap(key, value)),
-        null,
-        PropagationTags.factory().empty(),
-        null,
-        DATADOG);
-  }
-
-  /**
-   * Default config: the historical order applies, so the inbound header tag overrides the explicit
-   * builder tag. This documents the wart; flipping the default would (intentionally) break this.
-   */
-  @Test
-  void headerTagOverridesBuilderTagByDefault() {
-    tracer = tracerBuilder().build();
-    AgentSpan span =
-        tracer
-            .buildSpan("test", "root")
-            .asChildOf(extractedWithHeaderTag(KEY, HEADER_VALUE))
-            .withTag(KEY, BUILDER_VALUE)
-            .start();
-    try {
-      Object resolved = ((DDSpan) span).getTag(KEY);
-      assertEquals(
-          HEADER_VALUE,
-          resolved,
-          "By default the historical order lets the inbound header tag override the explicit "
-              + "builder tag (the documented wart). If this fails, the default ordering changed.");
-    } finally {
-      span.finish();
+    /** An extracted context carrying a header-derived tag ({@code coreTags}) on the given key. */
+    private static ExtractedContext extractedWithHeaderTag(String key, String value) {
+        return new ExtractedContext(
+                DDTraceId.ONE,
+                2,
+                PrioritySampling.SAMPLER_KEEP,
+                null,
+                0,
+                Collections.<String, String>emptyMap(),
+                TagMap.fromMap(Collections.singletonMap(key, value)),
+                null,
+                PropagationTags.factory().empty(),
+                null,
+                DATADOG);
     }
-  }
 
-  /**
-   * With the flag enabled, the explicit builder tag is applied last, so it wins over the inbound
-   * header tag -- the inversion this PR adds.
-   */
-  @Test
-  void builderTagWinsWhenPrecedenceEnabled() {
-    Properties properties = new Properties();
-    properties.setProperty(TracerConfig.TRACE_BUILDER_TAGS_PRECEDENCE_ENABLED, "true");
-    tracer = tracerBuilder().withProperties(properties).build();
-
-    AgentSpan span =
-        tracer
-            .buildSpan("test", "root")
-            .asChildOf(extractedWithHeaderTag(KEY, HEADER_VALUE))
-            .withTag(KEY, BUILDER_VALUE)
-            .start();
-    try {
-      Object resolved = ((DDSpan) span).getTag(KEY);
-      assertEquals(
-          BUILDER_VALUE,
-          resolved,
-          "With trace.builder.tags.precedence.enabled=true, the explicit builder tag must win "
-              + "over the inbound header tag.");
-    } finally {
-      span.finish();
+    /**
+     * Default config: the historical order applies, so the inbound header tag overrides the explicit
+     * builder tag. This documents the wart; flipping the default would (intentionally) break this.
+     */
+    @Test
+    void headerTagOverridesBuilderTagByDefault() {
+        tracer = tracerBuilder().build();
+        AgentSpan span = tracer.buildSpan("test", "root")
+                .asChildOf(extractedWithHeaderTag(KEY, HEADER_VALUE))
+                .withTag(KEY, BUILDER_VALUE)
+                .start();
+        try {
+            Object resolved = ((DDSpan) span).getTag(KEY);
+            assertEquals(
+                    HEADER_VALUE,
+                    resolved,
+                    "By default the historical order lets the inbound header tag override the explicit "
+                            + "builder tag (the documented wart). If this fails, the default ordering changed.");
+        } finally {
+            span.finish();
+        }
     }
-  }
 
-  /**
-   * Confirms the flag is read from the tracer's own config (set via {@code
-   * CoreTracerBuilder#withProperties}), not a cached global default -- the bug fixed alongside this
-   * test, per the review discussion on this PR.
-   */
-  @Test
-  void precedenceFlagIsPerTracerNotAGlobalDefault() {
-    tracer = tracerBuilder().build();
-    Properties properties = new Properties();
-    properties.setProperty(TracerConfig.TRACE_BUILDER_TAGS_PRECEDENCE_ENABLED, "true");
-    CoreTracer enabledTracer = tracerBuilder().withProperties(properties).build();
-    try {
-      AgentSpan defaultSpan =
-          tracer
-              .buildSpan("test", "root")
-              .asChildOf(extractedWithHeaderTag(KEY, HEADER_VALUE))
-              .withTag(KEY, BUILDER_VALUE)
-              .start();
-      defaultSpan.finish();
-      assertEquals(HEADER_VALUE, ((DDSpan) defaultSpan).getTag(KEY));
+    /**
+     * With the flag enabled, the explicit builder tag is applied last, so it wins over the inbound
+     * header tag -- the inversion this PR adds.
+     */
+    @Test
+    void builderTagWinsWhenPrecedenceEnabled() {
+        Properties properties = new Properties();
+        properties.setProperty(TracerConfig.TRACE_BUILDER_TAGS_PRECEDENCE_ENABLED, "true");
+        tracer = tracerBuilder().withProperties(properties).build();
 
-      AgentSpan enabledSpan =
-          enabledTracer
-              .buildSpan("test", "root")
-              .asChildOf(extractedWithHeaderTag(KEY, HEADER_VALUE))
-              .withTag(KEY, BUILDER_VALUE)
-              .start();
-      enabledSpan.finish();
-      assertEquals(BUILDER_VALUE, ((DDSpan) enabledSpan).getTag(KEY));
-    } finally {
-      enabledTracer.close();
+        AgentSpan span = tracer.buildSpan("test", "root")
+                .asChildOf(extractedWithHeaderTag(KEY, HEADER_VALUE))
+                .withTag(KEY, BUILDER_VALUE)
+                .start();
+        try {
+            Object resolved = ((DDSpan) span).getTag(KEY);
+            assertEquals(
+                    BUILDER_VALUE,
+                    resolved,
+                    "With trace.builder.tags.precedence.enabled=true, the explicit builder tag must win "
+                            + "over the inbound header tag.");
+        } finally {
+            span.finish();
+        }
     }
-  }
+
+    /**
+     * Confirms the flag is read from the tracer's own config (set via {@code
+     * CoreTracerBuilder#withProperties}), not a cached global default -- the bug fixed alongside this
+     * test, per the review discussion on this PR.
+     */
+    @Test
+    void precedenceFlagIsPerTracerNotAGlobalDefault() {
+        tracer = tracerBuilder().build();
+        Properties properties = new Properties();
+        properties.setProperty(TracerConfig.TRACE_BUILDER_TAGS_PRECEDENCE_ENABLED, "true");
+        CoreTracer enabledTracer = tracerBuilder().withProperties(properties).build();
+        try {
+            AgentSpan defaultSpan = tracer.buildSpan("test", "root")
+                    .asChildOf(extractedWithHeaderTag(KEY, HEADER_VALUE))
+                    .withTag(KEY, BUILDER_VALUE)
+                    .start();
+            defaultSpan.finish();
+            assertEquals(HEADER_VALUE, ((DDSpan) defaultSpan).getTag(KEY));
+
+            AgentSpan enabledSpan = enabledTracer
+                    .buildSpan("test", "root")
+                    .asChildOf(extractedWithHeaderTag(KEY, HEADER_VALUE))
+                    .withTag(KEY, BUILDER_VALUE)
+                    .start();
+            enabledSpan.finish();
+            assertEquals(BUILDER_VALUE, ((DDSpan) enabledSpan).getTag(KEY));
+        } finally {
+            enabledTracer.close();
+        }
+    }
 }

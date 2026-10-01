@@ -7,81 +7,79 @@ import java.util.Objects;
 
 public class TestManagementSettings {
 
-  public static final TestManagementSettings DEFAULT = new TestManagementSettings(false, -1);
+    public static final TestManagementSettings DEFAULT = new TestManagementSettings(false, -1);
 
-  private final boolean enabled;
-  private final int attemptToFixRetries;
+    private final boolean enabled;
+    private final int attemptToFixRetries;
 
-  public TestManagementSettings(boolean enabled, int attemptToFixRetries) {
-    this.enabled = enabled;
-    this.attemptToFixRetries = attemptToFixRetries;
-  }
-
-  public boolean isEnabled() {
-    return enabled;
-  }
-
-  public int getAttemptToFixRetries() {
-    return attemptToFixRetries;
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
+    public TestManagementSettings(boolean enabled, int attemptToFixRetries) {
+        this.enabled = enabled;
+        this.attemptToFixRetries = attemptToFixRetries;
     }
 
-    TestManagementSettings that = (TestManagementSettings) o;
-    return enabled == that.enabled && attemptToFixRetries == that.attemptToFixRetries;
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(enabled, attemptToFixRetries);
-  }
-
-  public static final class Serializer {
-    public static void serialize(
-        datadog.trace.civisibility.ipc.serialization.Serializer serializer,
-        TestManagementSettings settings) {
-      if (!settings.enabled) {
-        serializer.write((byte) 0);
-        return;
-      }
-      serializer.write((byte) 1);
-      serializer.write(settings.attemptToFixRetries);
+    public boolean isEnabled() {
+        return enabled;
     }
 
-    public static TestManagementSettings deserialize(ByteBuffer buf) {
-      boolean enabled = datadog.trace.civisibility.ipc.serialization.Serializer.readByte(buf) != 0;
-      if (!enabled) {
-        return TestManagementSettings.DEFAULT;
-      }
-
-      int attemptToFixRetries =
-          datadog.trace.civisibility.ipc.serialization.Serializer.readInt(buf);
-      return new TestManagementSettings(enabled, attemptToFixRetries);
+    public int getAttemptToFixRetries() {
+        return attemptToFixRetries;
     }
-  }
 
-  public static final class JsonAdapter {
-    public static final JsonAdapter INSTANCE = new JsonAdapter();
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
-    @FromJson
-    public TestManagementSettings fromJson(Map<String, Object> json) {
-      if (json == null) {
-        return TestManagementSettings.DEFAULT;
-      }
-
-      Boolean enabled = (Boolean) json.get("enabled");
-      Double attemptToFixRetries = (Double) json.get("attempt_to_fix_retries");
-
-      return new TestManagementSettings(
-          enabled != null ? enabled : false,
-          attemptToFixRetries != null ? attemptToFixRetries.intValue() : 20);
+        TestManagementSettings that = (TestManagementSettings) o;
+        return enabled == that.enabled && attemptToFixRetries == that.attemptToFixRetries;
     }
-  }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(enabled, attemptToFixRetries);
+    }
+
+    public static final class Serializer {
+        public static void serialize(
+                datadog.trace.civisibility.ipc.serialization.Serializer serializer, TestManagementSettings settings) {
+            if (!settings.enabled) {
+                serializer.write((byte) 0);
+                return;
+            }
+            serializer.write((byte) 1);
+            serializer.write(settings.attemptToFixRetries);
+        }
+
+        public static TestManagementSettings deserialize(ByteBuffer buf) {
+            boolean enabled = datadog.trace.civisibility.ipc.serialization.Serializer.readByte(buf) != 0;
+            if (!enabled) {
+                return TestManagementSettings.DEFAULT;
+            }
+
+            int attemptToFixRetries = datadog.trace.civisibility.ipc.serialization.Serializer.readInt(buf);
+            return new TestManagementSettings(enabled, attemptToFixRetries);
+        }
+    }
+
+    public static final class JsonAdapter {
+        public static final JsonAdapter INSTANCE = new JsonAdapter();
+
+        @FromJson
+        public TestManagementSettings fromJson(Map<String, Object> json) {
+            if (json == null) {
+                return TestManagementSettings.DEFAULT;
+            }
+
+            Boolean enabled = (Boolean) json.get("enabled");
+            Double attemptToFixRetries = (Double) json.get("attempt_to_fix_retries");
+
+            return new TestManagementSettings(
+                    enabled != null ? enabled : false,
+                    attemptToFixRetries != null ? attemptToFixRetries.intValue() : 20);
+        }
+    }
 }

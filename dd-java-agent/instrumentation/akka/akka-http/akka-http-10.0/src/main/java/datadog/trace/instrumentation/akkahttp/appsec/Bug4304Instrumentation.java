@@ -29,85 +29,78 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public class Bug4304Instrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForTypeHierarchy,
-        Instrumenter.WithTypeStructure,
-        Instrumenter.HasMethodAdvice {
-  public Bug4304Instrumentation() {
-    super("akka-http");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "akka.http.impl.engine.server.HttpServerBluePrint";
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return ScalaListCollectorMuzzleReferences.additionalMuzzleReferences();
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return nameStartsWith("akka.http.impl.engine.server.HttpServerBluePrint$ControllerStage$$anon$")
-        .and(HierarchyMatchers.extendsClass(named("akka.stream.stage.GraphStageLogic")))
-        .and(MatchesOneHundredContinueStageAnonClass.INSTANCE);
-  }
-
-  public static class MatchesOneHundredContinueStageAnonClass
-      implements ElementMatcher<TypeDescription> {
-    public static final ElementMatcher<TypeDescription> INSTANCE =
-        new MatchesOneHundredContinueStageAnonClass();
-
-    private MatchesOneHundredContinueStageAnonClass() {}
-
-    private static final Pattern ANON_CLASS_PATTERN =
-        Pattern.compile(
-            "akka\\.http\\.impl\\.engine\\.server\\.HttpServerBluePrint\\$ControllerStage\\$\\$anon\\$"
-                + "\\d+\\$OneHundredContinueStage\\$\\$anon\\$\\d+");
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.WithTypeStructure, Instrumenter.HasMethodAdvice {
+    public Bug4304Instrumentation() {
+        super("akka-http");
+    }
 
     @Override
-    public boolean matches(TypeDescription td) {
-      return ANON_CLASS_PATTERN.matcher(td.getName()).matches();
+    public String hierarchyMarkerType() {
+        return "akka.http.impl.engine.server.HttpServerBluePrint";
     }
-  }
 
-  @Override
-  public ElementMatcher<TypeDescription> structureMatcher() {
-    return declaresField(named("oneHundredContinueSent"));
-  }
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return ScalaListCollectorMuzzleReferences.additionalMuzzleReferences();
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor(), Bug4304Instrumentation.class.getName() + "$GraphStageLogicAdvice");
-  }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return nameStartsWith("akka.http.impl.engine.server.HttpServerBluePrint$ControllerStage$$anon$")
+                .and(HierarchyMatchers.extendsClass(named("akka.stream.stage.GraphStageLogic")))
+                .and(MatchesOneHundredContinueStageAnonClass.INSTANCE);
+    }
 
-  static class GraphStageLogicAdvice {
-    // Field::set() is forbidden because it may be used to mutate final fields, disallowed by
-    // https://openjdk.org/jeps/500.
-    // However, in this case the method is called on a non-final field, so it is safe. See
-    // https://github.com/akka/akka-http/blob/8fb19fce3548c3bfa1e8ebcb1115be29f342df69/akka-http-core/src/main/scala/akka/http/impl/engine/server/HttpServerBluePrint.scala#L588
-    @SuppressForbidden
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    static void after(@Advice.This GraphStageLogic thiz)
-        throws NoSuchFieldException, IllegalAccessException {
-      AgentSpan span = activeSpan();
-      RequestContext reqCtx;
-      if (span == null
-          || (reqCtx = span.getRequestContext()) == null
-          || reqCtx.getData(RequestContextSlot.APPSEC) == null) {
-        return;
-      }
+    public static class MatchesOneHundredContinueStageAnonClass implements ElementMatcher<TypeDescription> {
+        public static final ElementMatcher<TypeDescription> INSTANCE = new MatchesOneHundredContinueStageAnonClass();
 
-      BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-      if (brf instanceof AkkaBlockResponseFunction) {
-        AkkaBlockResponseFunction abrf = (AkkaBlockResponseFunction) brf;
-        if (abrf.isBlocking() && abrf.isUnmarshallBlock()) {
-          Field f = thiz.getClass().getDeclaredField("oneHundredContinueSent");
-          f.setAccessible(true);
-          f.set(thiz, true);
+        private MatchesOneHundredContinueStageAnonClass() {}
+
+        private static final Pattern ANON_CLASS_PATTERN = Pattern.compile(
+                "akka\\.http\\.impl\\.engine\\.server\\.HttpServerBluePrint\\$ControllerStage\\$\\$anon\\$"
+                        + "\\d+\\$OneHundredContinueStage\\$\\$anon\\$\\d+");
+
+        @Override
+        public boolean matches(TypeDescription td) {
+            return ANON_CLASS_PATTERN.matcher(td.getName()).matches();
         }
-      }
     }
-  }
+
+    @Override
+    public ElementMatcher<TypeDescription> structureMatcher() {
+        return declaresField(named("oneHundredContinueSent"));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor(), Bug4304Instrumentation.class.getName() + "$GraphStageLogicAdvice");
+    }
+
+    static class GraphStageLogicAdvice {
+        // Field::set() is forbidden because it may be used to mutate final fields, disallowed by
+        // https://openjdk.org/jeps/500.
+        // However, in this case the method is called on a non-final field, so it is safe. See
+        // https://github.com/akka/akka-http/blob/8fb19fce3548c3bfa1e8ebcb1115be29f342df69/akka-http-core/src/main/scala/akka/http/impl/engine/server/HttpServerBluePrint.scala#L588
+        @SuppressForbidden
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        static void after(@Advice.This GraphStageLogic thiz) throws NoSuchFieldException, IllegalAccessException {
+            AgentSpan span = activeSpan();
+            RequestContext reqCtx;
+            if (span == null
+                    || (reqCtx = span.getRequestContext()) == null
+                    || reqCtx.getData(RequestContextSlot.APPSEC) == null) {
+                return;
+            }
+
+            BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+            if (brf instanceof AkkaBlockResponseFunction) {
+                AkkaBlockResponseFunction abrf = (AkkaBlockResponseFunction) brf;
+                if (abrf.isBlocking() && abrf.isUnmarshallBlock()) {
+                    Field f = thiz.getClass().getDeclaredField("oneHundredContinueSent");
+                    f.setAccessible(true);
+                    f.set(thiz, true);
+                }
+            }
+        }
+    }
 }

@@ -1,23 +1,23 @@
 package datadog.trace.api.telemetry;
 
 public enum LoginVersion {
-  V1("v1"),
-  V2("v2"),
-  AUTO(null);
+    V1("v1"),
+    V2("v2"),
+    AUTO(null);
 
-  private final String tag;
+    private final String tag;
 
-  LoginVersion(final String tag) {
-    this.tag = tag;
-  }
+    LoginVersion(final String tag) {
+        this.tag = tag;
+    }
 
-  public String getTag() {
-    return tag;
-  }
+    public String getTag() {
+        return tag;
+    }
 
-  private static final int numValues = LoginVersion.values().length;
+    private static final int numValues = LoginVersion.values().length;
 
-  public static int getNumValues() {
-    return numValues;
-  }
+    public static int getNumValues() {
+        return numValues;
+    }
 }

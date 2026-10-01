@@ -11,111 +11,109 @@ import org.slf4j.LoggerFactory;
  */
 public interface ExceptionProfiling {
 
-  void start();
+    void start();
 
-  ExceptionSampleEvent process(final Throwable t);
+    ExceptionSampleEvent process(final Throwable t);
 
-  boolean recordExceptionMessage();
+    boolean recordExceptionMessage();
 
-  /** Lazy initialization-on-demand. */
-  final class Holder {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ExceptionProfiling.class);
-    static final ExceptionProfiling INSTANCE = create();
+    /** Lazy initialization-on-demand. */
+    final class Holder {
+        private static final Logger LOGGER = LoggerFactory.getLogger(ExceptionProfiling.class);
+        static final ExceptionProfiling INSTANCE = create();
 
-    private static ExceptionProfiling create() {
-      try {
-        return new ExceptionProfilingImpl(Config.get());
-      } catch (Throwable t) {
-        LOGGER.debug("Unable to create ExceptionProfiling", t);
-        return new NoOpExceptionProfiling();
-      }
-    }
-  }
-
-  /**
-   * Support for excluding certain exception types because they are used for control flow or leak
-   * detection.
-   */
-  final class Exclusion {
-    public static void enter() {
-      CallDepthThreadLocalMap.incrementCallDepth(Exclusion.class);
+        private static ExceptionProfiling create() {
+            try {
+                return new ExceptionProfilingImpl(Config.get());
+            } catch (Throwable t) {
+                LOGGER.debug("Unable to create ExceptionProfiling", t);
+                return new NoOpExceptionProfiling();
+            }
+        }
     }
 
-    public static void exit() {
-      CallDepthThreadLocalMap.decrementCallDepth(Exclusion.class);
+    /**
+     * Support for excluding certain exception types because they are used for control flow or leak
+     * detection.
+     */
+    final class Exclusion {
+        public static void enter() {
+            CallDepthThreadLocalMap.incrementCallDepth(Exclusion.class);
+        }
+
+        public static void exit() {
+            CallDepthThreadLocalMap.decrementCallDepth(Exclusion.class);
+        }
+
+        public static boolean isEffective() {
+            return CallDepthThreadLocalMap.getCallDepth(Exclusion.class) > 0;
+        }
     }
 
-    public static boolean isEffective() {
-      return CallDepthThreadLocalMap.getCallDepth(Exclusion.class) > 0;
-    }
-  }
-
-  /**
-   * Get a pre-configured shared instance.
-   *
-   * @return the shared instance
-   */
-  static ExceptionProfiling getInstance() {
-    return Holder.INSTANCE;
-  }
-
-  final class NoOpExceptionProfiling implements ExceptionProfiling {
-    @Override
-    public void start() {}
-
-    @Override
-    public ExceptionSampleEvent process(Throwable t) {
-      return null;
+    /**
+     * Get a pre-configured shared instance.
+     *
+     * @return the shared instance
+     */
+    static ExceptionProfiling getInstance() {
+        return Holder.INSTANCE;
     }
 
-    @Override
-    public boolean recordExceptionMessage() {
-      return false;
-    }
-  }
+    final class NoOpExceptionProfiling implements ExceptionProfiling {
+        @Override
+        public void start() {}
 
-  final class ExceptionProfilingImpl implements ExceptionProfiling {
+        @Override
+        public ExceptionSampleEvent process(Throwable t) {
+            return null;
+        }
 
-    private final ExceptionHistogram histogram;
-    private final ExceptionSampler sampler;
-    private final boolean recordExceptionMessage;
-
-    ExceptionProfilingImpl(final Config config) {
-      this(
-          new ExceptionSampler(config),
-          new ExceptionHistogram(config),
-          config.isProfilingRecordExceptionMessage());
+        @Override
+        public boolean recordExceptionMessage() {
+            return false;
+        }
     }
 
-    ExceptionProfilingImpl(
-        final ExceptionSampler sampler,
-        final ExceptionHistogram histogram,
-        boolean recordExceptionMessage) {
-      this.sampler = sampler;
-      this.histogram = histogram;
-      this.recordExceptionMessage = recordExceptionMessage;
-    }
+    final class ExceptionProfilingImpl implements ExceptionProfiling {
 
-    @Override
-    public void start() {
-      sampler.start();
-    }
+        private final ExceptionHistogram histogram;
+        private final ExceptionSampler sampler;
+        private final boolean recordExceptionMessage;
 
-    @Override
-    public ExceptionSampleEvent process(final Throwable t) {
-      // always record the exception in histogram
-      final boolean firstHit = histogram.record(t);
+        ExceptionProfilingImpl(final Config config) {
+            this(
+                    new ExceptionSampler(config),
+                    new ExceptionHistogram(config),
+                    config.isProfilingRecordExceptionMessage());
+        }
 
-      final boolean sampled = sampler.sample();
-      if (firstHit || sampled) {
-        return new ExceptionSampleEvent(t, sampled, firstHit);
-      }
-      return null;
-    }
+        ExceptionProfilingImpl(
+                final ExceptionSampler sampler, final ExceptionHistogram histogram, boolean recordExceptionMessage) {
+            this.sampler = sampler;
+            this.histogram = histogram;
+            this.recordExceptionMessage = recordExceptionMessage;
+        }
 
-    @Override
-    public boolean recordExceptionMessage() {
-      return recordExceptionMessage;
+        @Override
+        public void start() {
+            sampler.start();
+        }
+
+        @Override
+        public ExceptionSampleEvent process(final Throwable t) {
+            // always record the exception in histogram
+            final boolean firstHit = histogram.record(t);
+
+            final boolean sampled = sampler.sample();
+            if (firstHit || sampled) {
+                return new ExceptionSampleEvent(t, sampled, firstHit);
+            }
+            return null;
+        }
+
+        @Override
+        public boolean recordExceptionMessage() {
+            return recordExceptionMessage;
+        }
     }
-  }
 }

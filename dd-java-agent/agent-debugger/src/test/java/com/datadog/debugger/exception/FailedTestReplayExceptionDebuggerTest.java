@@ -20,40 +20,37 @@ import org.junit.jupiter.api.Test;
 
 public class FailedTestReplayExceptionDebuggerTest {
 
-  private ClassNameFiltering classNameFiltering;
-  private ConfigurationUpdater configurationUpdater;
-  private FailedTestReplayExceptionDebugger exceptionDebugger;
-  private TestSnapshotListener listener;
+    private ClassNameFiltering classNameFiltering;
+    private ConfigurationUpdater configurationUpdater;
+    private FailedTestReplayExceptionDebugger exceptionDebugger;
+    private TestSnapshotListener listener;
 
-  @BeforeEach
-  public void setUp() {
-    configurationUpdater = mock(ConfigurationUpdater.class);
-    classNameFiltering =
-        new ClassNameFiltering(
-            new HashSet<>(singletonList("com.datadog.debugger.exception.ThirdPartyCode")));
-    Config config = createConfig();
-    exceptionDebugger =
-        new FailedTestReplayExceptionDebugger(configurationUpdater, classNameFiltering, config);
-    listener = new TestSnapshotListener(createConfig(), mock(ProbeStatusSink.class));
-    DebuggerAgentHelper.injectSink(listener);
-  }
+    @BeforeEach
+    public void setUp() {
+        configurationUpdater = mock(ConfigurationUpdater.class);
+        classNameFiltering =
+                new ClassNameFiltering(new HashSet<>(singletonList("com.datadog.debugger.exception.ThirdPartyCode")));
+        Config config = createConfig();
+        exceptionDebugger = new FailedTestReplayExceptionDebugger(configurationUpdater, classNameFiltering, config);
+        listener = new TestSnapshotListener(createConfig(), mock(ProbeStatusSink.class));
+        DebuggerAgentHelper.injectSink(listener);
+    }
 
-  @Test
-  public void failedTestReplayModeWithoutActiveTest() {
-    // other execution path is tested with smoke tests
-    ExceptionProbeManager manager = mock(ExceptionProbeManager.class);
-    exceptionDebugger.handleException(new RuntimeException("test"), mock(AgentSpan.class));
-    verify(manager, times(0)).isAlreadyInstrumented(any());
-  }
+    @Test
+    public void failedTestReplayModeWithoutActiveTest() {
+        // other execution path is tested with smoke tests
+        ExceptionProbeManager manager = mock(ExceptionProbeManager.class);
+        exceptionDebugger.handleException(new RuntimeException("test"), mock(AgentSpan.class));
+        verify(manager, times(0)).isAlreadyInstrumented(any());
+    }
 
-  public static Config createConfig() {
-    Config config = mock(Config.class);
-    when(config.getFinalDebuggerSnapshotUrl())
-        .thenReturn("http://localhost:8126/debugger/v1/input");
-    when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
-    when(config.getDebuggerExceptionCaptureInterval()).thenReturn(3600);
-    when(config.getDebuggerMaxExceptionPerSecond()).thenReturn(1);
-    when(config.getDebuggerExceptionMaxCapturedFrames()).thenReturn(3);
-    return config;
-  }
+    public static Config createConfig() {
+        Config config = mock(Config.class);
+        when(config.getFinalDebuggerSnapshotUrl()).thenReturn("http://localhost:8126/debugger/v1/input");
+        when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
+        when(config.getDebuggerExceptionCaptureInterval()).thenReturn(3600);
+        when(config.getDebuggerMaxExceptionPerSecond()).thenReturn(1);
+        when(config.getDebuggerExceptionMaxCapturedFrames()).thenReturn(3);
+        return config;
+    }
 }

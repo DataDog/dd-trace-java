@@ -8,14 +8,14 @@ import java.util.Map;
 
 public class IntegrationPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAction {
 
-  @Override
-  public void doIteration(TelemetryService service) {
-    Map<String, Boolean> integrations = IntegrationsCollector.get().drain();
+    @Override
+    public void doIteration(TelemetryService service) {
+        Map<String, Boolean> integrations = IntegrationsCollector.get().drain();
 
-    for (Map.Entry<String, Boolean> entry : integrations.entrySet()) {
-      String name = entry.getKey();
-      Boolean enabled = entry.getValue();
-      service.addIntegration(new Integration(name, Boolean.TRUE.equals(enabled)));
+        for (Map.Entry<String, Boolean> entry : integrations.entrySet()) {
+            String name = entry.getKey();
+            Boolean enabled = entry.getValue();
+            service.addIntegration(new Integration(name, Boolean.TRUE.equals(enabled)));
+        }
     }
-  }
 }

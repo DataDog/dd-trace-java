@@ -5,15 +5,15 @@ import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
 public interface IGSpanInfo {
-  DDTraceId getTraceId();
+    DDTraceId getTraceId();
 
-  long getSpanId();
+    long getSpanId();
 
-  TagMap getTags();
+    TagMap getTags();
 
-  AgentSpan setTag(String key, boolean value);
+    AgentSpan setTag(String key, boolean value);
 
-  void setRequestBlockingAction(Flow.Action.RequestBlockingAction rba);
+    void setRequestBlockingAction(Flow.Action.RequestBlockingAction rba);
 
-  Flow.Action.RequestBlockingAction getRequestBlockingAction();
+    Flow.Action.RequestBlockingAction getRequestBlockingAction();
 }

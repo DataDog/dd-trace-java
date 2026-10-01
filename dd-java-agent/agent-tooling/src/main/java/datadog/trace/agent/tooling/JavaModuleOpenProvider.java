@@ -10,6 +10,6 @@ import java.util.Collection;
  * that the host application has permitted them.
  */
 public interface JavaModuleOpenProvider {
-  /** Classes whose constructors trigger the one-time module open when first instantiated. */
-  Collection<String> triggerClasses();
+    /** Classes whose constructors trigger the one-time module open when first instantiated. */
+    Collection<String> triggerClasses();
 }

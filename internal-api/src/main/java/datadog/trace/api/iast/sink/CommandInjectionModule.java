@@ -7,9 +7,9 @@ import javax.annotation.Nullable;
 
 public interface CommandInjectionModule extends IastModule {
 
-  void onRuntimeExec(@Nonnull String... command);
+    void onRuntimeExec(@Nonnull String... command);
 
-  void onRuntimeExec(@Nullable String[] env, @Nonnull String... command);
+    void onRuntimeExec(@Nullable String[] env, @Nonnull String... command);
 
-  void onProcessBuilderStart(@Nonnull List<String> command);
+    void onProcessBuilderStart(@Nonnull List<String> command);
 }

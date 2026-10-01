@@ -27,150 +27,149 @@ import org.apache.kafka.common.TopicPartition;
 
 @AutoService(InstrumenterModule.class)
 public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public ConsumerCoordinatorInstrumentation() {
-    super("kafka", "kafka-0.11");
-  }
+    public ConsumerCoordinatorInstrumentation() {
+        super("kafka", "kafka-0.11");
+    }
 
-  @Override
-  public String muzzleDirective() {
-    return "before-3.8";
-  }
+    @Override
+    public String muzzleDirective() {
+        return "before-3.8";
+    }
 
-  @Override
-  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return not(hasClassNamed("org.apache.kafka.clients.MetadataRecoveryStrategy")); // < 3.8
-  }
+    @Override
+    public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+        return not(hasClassNamed("org.apache.kafka.clients.MetadataRecoveryStrategy")); // < 3.8
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    Map<String, String> contextStores = new HashMap<>();
-    contextStores.put(
-        "org.apache.kafka.clients.Metadata",
-        "datadog.trace.instrumentation.kafka_common.MetadataState");
-    contextStores.put(
-        "org.apache.kafka.clients.consumer.internals.ConsumerCoordinator",
-        KafkaConsumerInfo.class.getName());
-    return contextStores;
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        Map<String, String> contextStores = new HashMap<>();
+        contextStores.put(
+                "org.apache.kafka.clients.Metadata", "datadog.trace.instrumentation.kafka_common.MetadataState");
+        contextStores.put(
+                "org.apache.kafka.clients.consumer.internals.ConsumerCoordinator", KafkaConsumerInfo.class.getName());
+        return contextStores;
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "org.apache.kafka.clients.consumer.internals.ConsumerCoordinator";
-  }
+    @Override
+    public String instrumentedType() {
+        return "org.apache.kafka.clients.consumer.internals.ConsumerCoordinator";
+    }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".KafkaConsumerInfo",
-      "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
-      "datadog.trace.instrumentation.kafka_common.PendingConfig",
-      "datadog.trace.instrumentation.kafka_common.MetadataState",
-    };
-  }
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".KafkaConsumerInfo",
+            "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
+            "datadog.trace.instrumentation.kafka_common.PendingConfig",
+            "datadog.trace.instrumentation.kafka_common.MetadataState",
+        };
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("sendOffsetCommitRequest")).and(takesArguments(1)),
-        ConsumerCoordinatorInstrumentation.class.getName() + "$CommitOffsetAdvice");
-    transformer.applyAdvice(
-        isMethod().and(named("onJoinComplete")).and(takesArguments(4)),
-        ConsumerCoordinatorInstrumentation.class.getName() + "$JoinGroupAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("sendOffsetCommitRequest")).and(takesArguments(1)),
+                ConsumerCoordinatorInstrumentation.class.getName() + "$CommitOffsetAdvice");
+        transformer.applyAdvice(
+                isMethod().and(named("onJoinComplete")).and(takesArguments(4)),
+                ConsumerCoordinatorInstrumentation.class.getName() + "$JoinGroupAdvice");
+    }
 
-  public static class CommitOffsetAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void trackCommitOffset(
-        @Advice.This ConsumerCoordinator coordinator,
-        @Advice.Return RequestFuture<Void> requestFuture,
-        @Advice.Argument(0) final Map<TopicPartition, OffsetAndMetadata> offsets) {
-      if (requestFuture == null || requestFuture.failed()) {
-        return;
-      }
-      if (offsets == null) {
-        return;
-      }
-      KafkaConsumerInfo kafkaConsumerInfo =
-          InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
-              .get(coordinator);
+    public static class CommitOffsetAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void trackCommitOffset(
+                @Advice.This ConsumerCoordinator coordinator,
+                @Advice.Return RequestFuture<Void> requestFuture,
+                @Advice.Argument(0) final Map<TopicPartition, OffsetAndMetadata> offsets) {
+            if (requestFuture == null || requestFuture.failed()) {
+                return;
+            }
+            if (offsets == null) {
+                return;
+            }
+            KafkaConsumerInfo kafkaConsumerInfo = InstrumentationContext.get(
+                            ConsumerCoordinator.class, KafkaConsumerInfo.class)
+                    .get(coordinator);
 
-      if (kafkaConsumerInfo == null) {
-        return;
-      }
+            if (kafkaConsumerInfo == null) {
+                return;
+            }
 
-      String consumerGroup = kafkaConsumerInfo.getConsumerGroup();
-      Metadata consumerMetadata = kafkaConsumerInfo.getClientMetadata();
-      String clusterId = null;
-      if (consumerMetadata != null) {
-        MetadataState metadataState =
-            InstrumentationContext.get(Metadata.class, MetadataState.class).get(consumerMetadata);
-        clusterId = metadataState != null ? metadataState.clusterId : null;
-      }
+            String consumerGroup = kafkaConsumerInfo.getConsumerGroup();
+            Metadata consumerMetadata = kafkaConsumerInfo.getClientMetadata();
+            String clusterId = null;
+            if (consumerMetadata != null) {
+                MetadataState metadataState = InstrumentationContext.get(Metadata.class, MetadataState.class)
+                        .get(consumerMetadata);
+                clusterId = metadataState != null ? metadataState.clusterId : null;
+            }
 
-      for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : offsets.entrySet()) {
-        if (consumerGroup == null) {
-          consumerGroup = "";
+            for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : offsets.entrySet()) {
+                if (consumerGroup == null) {
+                    consumerGroup = "";
+                }
+                if (entry.getKey() == null || entry.getValue() == null) {
+                    continue;
+                }
+
+                DataStreamsTags tags = DataStreamsTags.createWithPartition(
+                        "kafka_commit",
+                        entry.getKey().topic(),
+                        String.valueOf(entry.getKey().partition()),
+                        clusterId,
+                        consumerGroup);
+                AgentTracer.get()
+                        .getDataStreamsMonitoring()
+                        .trackBacklog(tags, entry.getValue().offset());
+            }
         }
-        if (entry.getKey() == null || entry.getValue() == null) {
-          continue;
+
+        public static void muzzleCheck(ConsumerRecord record) {
+            // KafkaConsumerInstrumentation only applies for kafka versions with headers
+            // Make an explicit call so ConsumerCoordinatorInstrumentation does the same
+            record.headers();
+        }
+    }
+
+    public static class JoinGroupAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void trackJoinGroup(
+                @Advice.This ConsumerCoordinator coordinator,
+                @Advice.Argument(0) final int generationId,
+                @Advice.Argument(1) final String memberId,
+                @Advice.Argument(2) final String memberProtocol) {
+            if (memberId == null || memberId.isEmpty()) {
+                return;
+            }
+            KafkaConsumerInfo kafkaConsumerInfo = InstrumentationContext.get(
+                            ConsumerCoordinator.class, KafkaConsumerInfo.class)
+                    .get(coordinator);
+            if (kafkaConsumerInfo == null) {
+                return;
+            }
+            if (!kafkaConsumerInfo.hasMembershipChanged(memberId, generationId)) {
+                return;
+            }
+
+            String consumerGroup = kafkaConsumerInfo.getConsumerGroup();
+            Metadata consumerMetadata = kafkaConsumerInfo.getClientMetadata();
+            String clusterId = null;
+            if (consumerMetadata != null) {
+                MetadataState metadataState = InstrumentationContext.get(Metadata.class, MetadataState.class)
+                        .get(consumerMetadata);
+                clusterId = metadataState != null ? metadataState.clusterId : null;
+            }
+            if (KafkaConfigHelper.reportConsumerGroupMember(
+                    clusterId, consumerGroup, memberId, generationId, memberProtocol)) {
+                kafkaConsumerInfo.setLastReportedMembership(memberId, generationId);
+            }
         }
 
-        DataStreamsTags tags =
-            DataStreamsTags.createWithPartition(
-                "kafka_commit",
-                entry.getKey().topic(),
-                String.valueOf(entry.getKey().partition()),
-                clusterId,
-                consumerGroup);
-        AgentTracer.get().getDataStreamsMonitoring().trackBacklog(tags, entry.getValue().offset());
-      }
+        public static void muzzleCheck(ConsumerRecord record) {
+            record.headers();
+        }
     }
-
-    public static void muzzleCheck(ConsumerRecord record) {
-      // KafkaConsumerInstrumentation only applies for kafka versions with headers
-      // Make an explicit call so ConsumerCoordinatorInstrumentation does the same
-      record.headers();
-    }
-  }
-
-  public static class JoinGroupAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void trackJoinGroup(
-        @Advice.This ConsumerCoordinator coordinator,
-        @Advice.Argument(0) final int generationId,
-        @Advice.Argument(1) final String memberId,
-        @Advice.Argument(2) final String memberProtocol) {
-      if (memberId == null || memberId.isEmpty()) {
-        return;
-      }
-      KafkaConsumerInfo kafkaConsumerInfo =
-          InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
-              .get(coordinator);
-      if (kafkaConsumerInfo == null) {
-        return;
-      }
-      if (!kafkaConsumerInfo.hasMembershipChanged(memberId, generationId)) {
-        return;
-      }
-
-      String consumerGroup = kafkaConsumerInfo.getConsumerGroup();
-      Metadata consumerMetadata = kafkaConsumerInfo.getClientMetadata();
-      String clusterId = null;
-      if (consumerMetadata != null) {
-        MetadataState metadataState =
-            InstrumentationContext.get(Metadata.class, MetadataState.class).get(consumerMetadata);
-        clusterId = metadataState != null ? metadataState.clusterId : null;
-      }
-      if (KafkaConfigHelper.reportConsumerGroupMember(
-          clusterId, consumerGroup, memberId, generationId, memberProtocol)) {
-        kafkaConsumerInfo.setLastReportedMembership(memberId, generationId);
-      }
-    }
-
-    public static void muzzleCheck(ConsumerRecord record) {
-      record.headers();
-    }
-  }
 }

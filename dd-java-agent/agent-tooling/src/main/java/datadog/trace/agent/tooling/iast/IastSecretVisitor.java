@@ -11,55 +11,54 @@ import org.objectweb.asm.MethodVisitor;
 
 public class IastSecretVisitor extends ClassVisitor {
 
-  private final Map<String, String> secrets;
-  private final TriConsumer consumer;
-
-  public IastSecretVisitor(final Map<String, String> secrets, final TriConsumer consumer) {
-    super(ASM_API);
-    this.secrets = secrets;
-    this.consumer = consumer;
-  }
-
-  @Override
-  public MethodVisitor visitMethod(
-      int access, final String methodName, String desc, String signature, String[] exceptions) {
-    return new IastMethodVisitor(secrets, methodName, consumer);
-  }
-
-  static class IastMethodVisitor extends MethodVisitor {
-
     private final Map<String, String> secrets;
     private final TriConsumer consumer;
 
-    private final String method;
-
-    private int currentLine;
-
-    public IastMethodVisitor(
-        final Map<String, String> secrets, final String method, final TriConsumer consumer) {
-      super(ASM_API);
-      this.secrets = secrets;
-      this.consumer = consumer;
-      this.method = method;
+    public IastSecretVisitor(final Map<String, String> secrets, final TriConsumer consumer) {
+        super(ASM_API);
+        this.secrets = secrets;
+        this.consumer = consumer;
     }
 
     @Override
-    public void visitLineNumber(int line, Label start) {
-      currentLine = line;
+    public MethodVisitor visitMethod(
+            int access, final String methodName, String desc, String signature, String[] exceptions) {
+        return new IastMethodVisitor(secrets, methodName, consumer);
     }
 
-    @Override
-    public void visitLdcInsn(Object cst) {
-      if (cst instanceof String) {
-        String literal = ((String) cst);
-        if (literal.length() < HardcodedSecretMatcher.MIN_SECRET_LENGTH) {
-          return;
+    static class IastMethodVisitor extends MethodVisitor {
+
+        private final Map<String, String> secrets;
+        private final TriConsumer consumer;
+
+        private final String method;
+
+        private int currentLine;
+
+        public IastMethodVisitor(final Map<String, String> secrets, final String method, final TriConsumer consumer) {
+            super(ASM_API);
+            this.secrets = secrets;
+            this.consumer = consumer;
+            this.method = method;
         }
-        String value = secrets.get(literal);
-        if (value != null) {
-          consumer.accept(method, value, currentLine);
+
+        @Override
+        public void visitLineNumber(int line, Label start) {
+            currentLine = line;
         }
-      }
+
+        @Override
+        public void visitLdcInsn(Object cst) {
+            if (cst instanceof String) {
+                String literal = ((String) cst);
+                if (literal.length() < HardcodedSecretMatcher.MIN_SECRET_LENGTH) {
+                    return;
+                }
+                String value = secrets.get(literal);
+                if (value != null) {
+                    consumer.accept(method, value, currentLine);
+                }
+            }
+        }
     }
-  }
 }

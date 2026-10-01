@@ -17,43 +17,38 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class WithSpanAnnotationInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public WithSpanAnnotationInstrumentation() {
-    super("opentelemetry-annotations", "opentelemetry-annotations-1.20");
-  }
+    public WithSpanAnnotationInstrumentation() {
+        super("opentelemetry-annotations", "opentelemetry-annotations-1.20");
+    }
 
-  @Override
-  protected boolean defaultEnabled() {
-    return InstrumenterConfig.get().isTraceOtelEnabled();
-  }
+    @Override
+    protected boolean defaultEnabled() {
+        return InstrumenterConfig.get().isTraceOtelEnabled();
+    }
 
-  @Override
-  public String hierarchyMarkerType() {
-    return "io.opentelemetry.instrumentation.annotations.WithSpan";
-  }
+    @Override
+    public String hierarchyMarkerType() {
+        return "io.opentelemetry.instrumentation.annotations.WithSpan";
+    }
 
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return declaresMethod(isAnnotatedWith(named(hierarchyMarkerType())));
-  }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return declaresMethod(isAnnotatedWith(named(hierarchyMarkerType())));
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    ElementMatcher.Junction<MethodDescription> annotatedMethodMatcher =
-        isAnnotatedWith(named(hierarchyMarkerType()));
-    ElementMatcher.Junction<MethodDescription> annotatedParametersMatcher =
-        hasParameters(
-            whereAny(
-                isAnnotatedWith(
-                    named("io.opentelemetry.instrumentation.annotations.SpanAttribute"))));
-    // Apply transformation without parameter capture
-    transformer.applyAdvice(
-        annotatedMethodMatcher.and(not(annotatedParametersMatcher)),
-        this.packageName + ".WithSpanAdvice");
-    // Apply transformation with parameter capture
-    transformer.applyAdvice(
-        annotatedMethodMatcher.and(annotatedParametersMatcher),
-        this.packageName + ".WithSpanAttributeAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        ElementMatcher.Junction<MethodDescription> annotatedMethodMatcher =
+                isAnnotatedWith(named(hierarchyMarkerType()));
+        ElementMatcher.Junction<MethodDescription> annotatedParametersMatcher = hasParameters(
+                whereAny(isAnnotatedWith(named("io.opentelemetry.instrumentation.annotations.SpanAttribute"))));
+        // Apply transformation without parameter capture
+        transformer.applyAdvice(
+                annotatedMethodMatcher.and(not(annotatedParametersMatcher)), this.packageName + ".WithSpanAdvice");
+        // Apply transformation with parameter capture
+        transformer.applyAdvice(
+                annotatedMethodMatcher.and(annotatedParametersMatcher), this.packageName + ".WithSpanAttributeAdvice");
+    }
 }

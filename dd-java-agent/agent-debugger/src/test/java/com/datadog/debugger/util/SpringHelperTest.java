@@ -14,36 +14,35 @@ import org.junit.jupiter.api.condition.JRE;
 
 class SpringHelperTest {
 
-  @Test
-  @EnabledForJreRange(min = JRE.JAVA_17)
-  void isSpringUsingOnlyMethodParametersTrueSpringVersion() throws Exception {
-    Class<?> clazz = Class.forName("org.springframework.core.SpringVersion");
-    Instrumentation inst = mock(Instrumentation.class);
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {clazz});
-    assertTrue(SpringHelper.isSpringUsingOnlyMethodParameters(inst));
-  }
+    @Test
+    @EnabledForJreRange(min = JRE.JAVA_17)
+    void isSpringUsingOnlyMethodParametersTrueSpringVersion() throws Exception {
+        Class<?> clazz = Class.forName("org.springframework.core.SpringVersion");
+        Instrumentation inst = mock(Instrumentation.class);
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {clazz});
+        assertTrue(SpringHelper.isSpringUsingOnlyMethodParameters(inst));
+    }
 
-  @Test
-  @EnabledForJreRange(min = JRE.JAVA_17)
-  void isSpringUsingOnlyMethodParametersTrueFallback() throws Exception {
-    Class<?> clazz = Class.forName("org.springframework.web.client.RestClient");
-    Instrumentation inst = mock(Instrumentation.class);
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {clazz});
-    assertTrue(SpringHelper.isSpringUsingOnlyMethodParameters(inst));
-  }
+    @Test
+    @EnabledForJreRange(min = JRE.JAVA_17)
+    void isSpringUsingOnlyMethodParametersTrueFallback() throws Exception {
+        Class<?> clazz = Class.forName("org.springframework.web.client.RestClient");
+        Instrumentation inst = mock(Instrumentation.class);
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[] {clazz});
+        assertTrue(SpringHelper.isSpringUsingOnlyMethodParameters(inst));
+    }
 
-  @Test
-  void isSpringUsingOnlyMethodParametersFalseFallback() throws Exception {
-    Instrumentation inst = mock(Instrumentation.class);
-    when(inst.getAllLoadedClasses()).thenReturn(new Class[0]);
-    assertFalse(SpringHelper.isSpringUsingOnlyMethodParameters(inst));
-  }
+    @Test
+    void isSpringUsingOnlyMethodParametersFalseFallback() throws Exception {
+        Instrumentation inst = mock(Instrumentation.class);
+        when(inst.getAllLoadedClasses()).thenReturn(new Class[0]);
+        assertFalse(SpringHelper.isSpringUsingOnlyMethodParameters(inst));
+    }
 
-  @Test
-  void invalidSpringVersion() {
-    IllegalArgumentException illegalArgumentException =
-        assertThrows(
-            IllegalArgumentException.class, () -> new SpringHelper.ParsedSpringVersion("foo"));
-    assertEquals("Cannot parse SpringVersion: foo", illegalArgumentException.getMessage());
-  }
+    @Test
+    void invalidSpringVersion() {
+        IllegalArgumentException illegalArgumentException =
+                assertThrows(IllegalArgumentException.class, () -> new SpringHelper.ParsedSpringVersion("foo"));
+        assertEquals("Cannot parse SpringVersion: foo", illegalArgumentException.getMessage());
+    }
 }

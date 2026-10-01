@@ -34,55 +34,53 @@ import org.apache.pekko.http.scaladsl.server.util.Tupler$;
  */
 @AutoService(InstrumenterModule.class)
 public class ExtractDirectivesInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-  public ExtractDirectivesInstrumentation() {
-    super("pekko-http");
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "org.apache.pekko.http.scaladsl.server.directives.BasicDirectives$class",
-      "org.apache.pekko.http.scaladsl.server.directives.BasicDirectives",
-    };
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    instrumentDirective(transformer, "extractUri", "TaintUriDirectiveAdvice");
-    instrumentDirective(transformer, "extractRequest", "TaintRequestDirectiveAdvice");
-    instrumentDirective(transformer, "extractRequestContext", "TaintRequestContextDirectiveAdvice");
-  }
-
-  private void instrumentDirective(MethodTransformer transformation, String method, String advice) {
-    transformation.applyAdvice(
-        isTraitDirectiveMethod(
-            "org.apache.pekko.http.scaladsl.server.directives.BasicDirectives", method),
-        ExtractDirectivesInstrumentation.class.getName() + '$' + advice);
-  }
-
-  static class TaintUriDirectiveAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_QUERY)
-    static void after(@Advice.Return(readOnly = false) Directive directive) {
-      directive = directive.tmap(TaintUriFunction.INSTANCE, Tupler$.MODULE$.forTuple(null));
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+    public ExtractDirectivesInstrumentation() {
+        super("pekko-http");
     }
-  }
 
-  static class TaintRequestDirectiveAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_BODY)
-    static void after(@Advice.Return(readOnly = false) Directive directive) {
-      directive = directive.tmap(TaintRequestFunction.INSTANCE, Tupler$.MODULE$.forTuple(null));
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            "org.apache.pekko.http.scaladsl.server.directives.BasicDirectives$class",
+            "org.apache.pekko.http.scaladsl.server.directives.BasicDirectives",
+        };
     }
-  }
 
-  static class TaintRequestContextDirectiveAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_BODY)
-    static void after(@Advice.Return(readOnly = false) Directive directive) {
-      directive =
-          directive.tmap(TaintRequestContextFunction.INSTANCE, Tupler$.MODULE$.forTuple(null));
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        instrumentDirective(transformer, "extractUri", "TaintUriDirectiveAdvice");
+        instrumentDirective(transformer, "extractRequest", "TaintRequestDirectiveAdvice");
+        instrumentDirective(transformer, "extractRequestContext", "TaintRequestContextDirectiveAdvice");
     }
-  }
+
+    private void instrumentDirective(MethodTransformer transformation, String method, String advice) {
+        transformation.applyAdvice(
+                isTraitDirectiveMethod("org.apache.pekko.http.scaladsl.server.directives.BasicDirectives", method),
+                ExtractDirectivesInstrumentation.class.getName() + '$' + advice);
+    }
+
+    static class TaintUriDirectiveAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Source(SourceTypes.REQUEST_QUERY)
+        static void after(@Advice.Return(readOnly = false) Directive directive) {
+            directive = directive.tmap(TaintUriFunction.INSTANCE, Tupler$.MODULE$.forTuple(null));
+        }
+    }
+
+    static class TaintRequestDirectiveAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Source(SourceTypes.REQUEST_BODY)
+        static void after(@Advice.Return(readOnly = false) Directive directive) {
+            directive = directive.tmap(TaintRequestFunction.INSTANCE, Tupler$.MODULE$.forTuple(null));
+        }
+    }
+
+    static class TaintRequestContextDirectiveAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Source(SourceTypes.REQUEST_BODY)
+        static void after(@Advice.Return(readOnly = false) Directive directive) {
+            directive = directive.tmap(TaintRequestContextFunction.INSTANCE, Tupler$.MODULE$.forTuple(null));
+        }
+    }
 }

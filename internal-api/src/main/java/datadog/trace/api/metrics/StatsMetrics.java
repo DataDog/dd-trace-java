@@ -23,89 +23,88 @@ import java.util.concurrent.atomic.AtomicLong;
  * TaggedCounter#getValueAndReset()} is only called from the draining thread.
  */
 public final class StatsMetrics {
-  static final String COLLAPSED_SPANS = "stats.collapsed_spans";
-  static final String COLLAPSED_WHOLE_KEY = "collapsed:whole_key";
+    static final String COLLAPSED_SPANS = "stats.collapsed_spans";
+    static final String COLLAPSED_WHOLE_KEY = "collapsed:whole_key";
 
-  private static final StatsMetrics INSTANCE = new StatsMetrics();
+    private static final StatsMetrics INSTANCE = new StatsMetrics();
 
-  // reason tag (e.g. "collapsed:additional_metric_tags") -> counter. Created on first collapse for
-  // that reason; the reason set is bounded, so this never grows unboundedly.
-  private final ConcurrentMap<String, TaggedCounter> collapsedByReason = new ConcurrentHashMap<>();
+    // reason tag (e.g. "collapsed:additional_metric_tags") -> counter. Created on first collapse for
+    // that reason; the reason set is bounded, so this never grows unboundedly.
+    private final ConcurrentMap<String, TaggedCounter> collapsedByReason = new ConcurrentHashMap<>();
 
-  // The one reason counted per dropped span on the hot aggregator path (aggregate table at cap);
-  // every other reason is batched once per reporting cycle. Pre-created and cached so the per-span
-  // increment is a direct counter hit rather than a map lookup -- this matters precisely when a
-  // cardinality explosion pins the table at cap and every arriving span is dropped, turning a cold
-  // path hot. Still registered in the map above, so the telemetry drain sees it with the rest.
-  private final TaggedCounter wholeKeyCollapses =
-      this.collapsedByReason.computeIfAbsent(
-          COLLAPSED_WHOLE_KEY, tag -> new TaggedCounter(COLLAPSED_SPANS, tag));
+    // The one reason counted per dropped span on the hot aggregator path (aggregate table at cap);
+    // every other reason is batched once per reporting cycle. Pre-created and cached so the per-span
+    // increment is a direct counter hit rather than a map lookup -- this matters precisely when a
+    // cardinality explosion pins the table at cap and every arriving span is dropped, turning a cold
+    // path hot. Still registered in the map above, so the telemetry drain sees it with the rest.
+    private final TaggedCounter wholeKeyCollapses =
+            this.collapsedByReason.computeIfAbsent(COLLAPSED_WHOLE_KEY, tag -> new TaggedCounter(COLLAPSED_SPANS, tag));
 
-  public static StatsMetrics getInstance() {
-    return INSTANCE;
-  }
-
-  private StatsMetrics() {}
-
-  /**
-   * Records {@code count} spans collapsed under the given {@code reason} tag (e.g. {@code
-   * collapsed:additional_metric_tags}). No-op for a non-positive count.
-   */
-  public void onCollapsedSpans(String reason, long count) {
-    if (count <= 0) {
-      return;
-    }
-    collapsedByReason
-        .computeIfAbsent(reason, tag -> new TaggedCounter(COLLAPSED_SPANS, tag))
-        .counter
-        .addAndGet(count);
-  }
-
-  /**
-   * Records a single whole-key collapse: a span dropped because the aggregate table was at cap with
-   * no entry to evict. Increments the pre-created {@link #COLLAPSED_WHOLE_KEY} counter directly,
-   * keeping the per-dropped-span aggregator path off the reason map.
-   */
-  public void onWholeKeyCollapse() {
-    this.wholeKeyCollapses.counter.addAndGet(1);
-  }
-
-  public Collection<TaggedCounter> getTaggedCounters() {
-    return this.collapsedByReason.values();
-  }
-
-  /** A named, single-tag counter drained as a telemetry {@code count} metric. */
-  public static final class TaggedCounter implements CoreCounter {
-    private final String name;
-    private final String tag;
-    private final AtomicLong counter = new AtomicLong();
-    private long previousCount;
-
-    TaggedCounter(String name, String tag) {
-      this.name = name;
-      this.tag = tag;
+    public static StatsMetrics getInstance() {
+        return INSTANCE;
     }
 
-    @Override
-    public String getName() {
-      return this.name;
+    private StatsMetrics() {}
+
+    /**
+     * Records {@code count} spans collapsed under the given {@code reason} tag (e.g. {@code
+     * collapsed:additional_metric_tags}). No-op for a non-positive count.
+     */
+    public void onCollapsedSpans(String reason, long count) {
+        if (count <= 0) {
+            return;
+        }
+        collapsedByReason
+                .computeIfAbsent(reason, tag -> new TaggedCounter(COLLAPSED_SPANS, tag))
+                .counter
+                .addAndGet(count);
     }
 
-    public String getTag() {
-      return this.tag;
+    /**
+     * Records a single whole-key collapse: a span dropped because the aggregate table was at cap with
+     * no entry to evict. Increments the pre-created {@link #COLLAPSED_WHOLE_KEY} counter directly,
+     * keeping the per-dropped-span aggregator path off the reason map.
+     */
+    public void onWholeKeyCollapse() {
+        this.wholeKeyCollapses.counter.addAndGet(1);
     }
 
-    @Override
-    public long getValue() {
-      return this.counter.get();
+    public Collection<TaggedCounter> getTaggedCounters() {
+        return this.collapsedByReason.values();
     }
 
-    @Override
-    public long getValueAndReset() {
-      long count = this.counter.get();
-      long delta = count - this.previousCount;
-      this.previousCount = count;
-      return delta;
+    /** A named, single-tag counter drained as a telemetry {@code count} metric. */
+    public static final class TaggedCounter implements CoreCounter {
+        private final String name;
+        private final String tag;
+        private final AtomicLong counter = new AtomicLong();
+        private long previousCount;
+
+        TaggedCounter(String name, String tag) {
+            this.name = name;
+            this.tag = tag;
+        }
+
+        @Override
+        public String getName() {
+            return this.name;
+        }
+
+        public String getTag() {
+            return this.tag;
+        }
+
+        @Override
+        public long getValue() {
+            return this.counter.get();
+        }
+
+        @Override
+        public long getValueAndReset() {
+            long count = this.counter.get();
+            long delta = count - this.previousCount;
+            this.previousCount = count;
+            return delta;
+        }
     }
-  }
 }

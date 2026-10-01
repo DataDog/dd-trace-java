@@ -5,8 +5,8 @@ import datadog.trace.api.telemetry.MetricCollector;
 
 public class DebuggerMetricPeriodicAction extends MetricPeriodicAction {
 
-  @Override
-  public MetricCollector collector() {
-    return DebuggerMetricCollector.get();
-  }
+    @Override
+    public MetricCollector collector() {
+        return DebuggerMetricCollector.get();
+    }
 }

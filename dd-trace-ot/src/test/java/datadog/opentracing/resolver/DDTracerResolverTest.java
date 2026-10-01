@@ -11,18 +11,18 @@ import org.junit.jupiter.api.Test;
 
 class DDTracerResolverTest extends DDJavaSpecification {
 
-  private final DDTracerResolver resolver = new DDTracerResolver();
+    private final DDTracerResolver resolver = new DDTracerResolver();
 
-  @Test
-  void testResolveTracer() throws Exception {
-    io.opentracing.Tracer tracer = TracerResolver.resolveTracer();
-    assertInstanceOf(DDTracer.class, tracer);
-    tracer.close();
-  }
+    @Test
+    void testResolveTracer() throws Exception {
+        io.opentracing.Tracer tracer = TracerResolver.resolveTracer();
+        assertInstanceOf(DDTracer.class, tracer);
+        tracer.close();
+    }
 
-  @Test
-  @WithConfig(key = "trace.resolver.enabled", value = "false")
-  void testDisableDDTracerResolver() {
-    assertNull(resolver.resolve());
-  }
+    @Test
+    @WithConfig(key = "trace.resolver.enabled", value = "false")
+    void testDisableDDTracerResolver() {
+        assertNull(resolver.resolve());
+    }
 }

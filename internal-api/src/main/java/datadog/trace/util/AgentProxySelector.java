@@ -11,25 +11,25 @@ import java.util.List;
 import java.util.Set;
 
 public final class AgentProxySelector extends ProxySelector {
-  public static final ProxySelector INSTANCE = new AgentProxySelector();
+    public static final ProxySelector INSTANCE = new AgentProxySelector();
 
-  private static final List<Proxy> DIRECT = Collections.singletonList(Proxy.NO_PROXY);
+    private static final List<Proxy> DIRECT = Collections.singletonList(Proxy.NO_PROXY);
 
-  private final Set<String> noProxyHosts = Config.get().getNoProxyHosts();
+    private final Set<String> noProxyHosts = Config.get().getNoProxyHosts();
 
-  private final ProxySelector defaultProxySelector = ProxySelector.getDefault();
+    private final ProxySelector defaultProxySelector = ProxySelector.getDefault();
 
-  @Override
-  public List<Proxy> select(final URI uri) {
-    if (null != uri.getHost() && noProxyHosts.contains(uri.getHost())) {
-      return DIRECT;
-    } else {
-      return defaultProxySelector.select(uri);
+    @Override
+    public List<Proxy> select(final URI uri) {
+        if (null != uri.getHost() && noProxyHosts.contains(uri.getHost())) {
+            return DIRECT;
+        } else {
+            return defaultProxySelector.select(uri);
+        }
     }
-  }
 
-  @Override
-  public void connectFailed(final URI uri, final SocketAddress sa, final IOException ioe) {
-    defaultProxySelector.connectFailed(uri, sa, ioe);
-  }
+    @Override
+    public void connectFailed(final URI uri, final SocketAddress sa, final IOException ioe) {
+        defaultProxySelector.connectFailed(uri, sa, ioe);
+    }
 }

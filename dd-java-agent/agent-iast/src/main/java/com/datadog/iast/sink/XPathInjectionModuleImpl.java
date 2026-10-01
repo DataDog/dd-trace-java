@@ -10,19 +10,19 @@ import javax.annotation.Nullable;
 
 public class XPathInjectionModuleImpl extends SinkModuleBase implements XPathInjectionModule {
 
-  public XPathInjectionModuleImpl(final Dependencies dependencies) {
-    super(dependencies);
-  }
+    public XPathInjectionModuleImpl(final Dependencies dependencies) {
+        super(dependencies);
+    }
 
-  @Override
-  public void onExpression(@Nullable String expression) {
-    if (!canBeTainted(expression)) {
-      return;
+    @Override
+    public void onExpression(@Nullable String expression) {
+        if (!canBeTainted(expression)) {
+            return;
+        }
+        final IastContext ctx = IastContext.Provider.get();
+        if (ctx == null) {
+            return;
+        }
+        checkInjection(VulnerabilityType.XPATH_INJECTION, expression);
     }
-    final IastContext ctx = IastContext.Provider.get();
-    if (ctx == null) {
-      return;
-    }
-    checkInjection(VulnerabilityType.XPATH_INJECTION, expression);
-  }
 }

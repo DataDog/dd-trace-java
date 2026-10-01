@@ -7,13 +7,12 @@ import datadog.trace.api.aiguard.AIGuard;
 
 public class ToolCallWriter implements ValueWriter<AIGuard.ToolCall> {
 
-  @Override
-  public void write(
-      final AIGuard.ToolCall value, final Writable writable, final EncodingCache encodingCache) {
-    writable.startMap(2);
-    writable.writeString("id", encodingCache);
-    writable.writeString(value.getId(), encodingCache);
-    writable.writeString("function", encodingCache);
-    writable.writeObject(value.getFunction(), encodingCache);
-  }
+    @Override
+    public void write(final AIGuard.ToolCall value, final Writable writable, final EncodingCache encodingCache) {
+        writable.startMap(2);
+        writable.writeString("id", encodingCache);
+        writable.writeString(value.getId(), encodingCache);
+        writable.writeString("function", encodingCache);
+        writable.writeObject(value.getFunction(), encodingCache);
+    }
 }

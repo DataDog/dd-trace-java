@@ -9,20 +9,19 @@ import net.bytebuddy.utility.JavaModule;
 
 public class DDTransformers {
 
-  private static final AgentBuilder.Transformer CONSTANT_ADJUSTER =
-      new AgentBuilder.Transformer() {
+    private static final AgentBuilder.Transformer CONSTANT_ADJUSTER = new AgentBuilder.Transformer() {
         @Override
         public DynamicType.Builder<?> transform(
-            final DynamicType.Builder<?> builder,
-            final TypeDescription typeDescription,
-            final ClassLoader classLoader,
-            final JavaModule javaModule,
-            final ProtectionDomain pd) {
-          return builder.visit(TypeConstantAdjustment.INSTANCE);
+                final DynamicType.Builder<?> builder,
+                final TypeDescription typeDescription,
+                final ClassLoader classLoader,
+                final JavaModule javaModule,
+                final ProtectionDomain pd) {
+            return builder.visit(TypeConstantAdjustment.INSTANCE);
         }
-      };
+    };
 
-  public static AgentBuilder.Transformer defaultTransformers() {
-    return CONSTANT_ADJUSTER;
-  }
+    public static AgentBuilder.Transformer defaultTransformers() {
+        return CONSTANT_ADJUSTER;
+    }
 }

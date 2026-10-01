@@ -19,25 +19,25 @@ import org.springframework.web.server.ServerWebExchange;
  */
 @AutoService(InstrumenterModule.class)
 public class RequestHeaderMapResolverInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public RequestHeaderMapResolverInstrumentation() {
-    super("spring-webflux");
-  }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public RequestHeaderMapResolverInstrumentation() {
+        super("spring-webflux");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "org.springframework.web.reactive.result.method.annotation.RequestHeaderMapMethodArgumentResolver";
-  }
+    @Override
+    public String instrumentedType() {
+        return "org.springframework.web.reactive.result.method.annotation.RequestHeaderMapMethodArgumentResolver";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("resolveArgumentValue"))
-            .and(takesArgument(0, named("org.springframework.core.MethodParameter")))
-            .and(takesArgument(1, named("org.springframework.web.reactive.BindingContext")))
-            .and(takesArgument(2, named("org.springframework.web.server.ServerWebExchange")))
-            .and(takesArguments(3)),
-        packageName + ".RequestHeaderMapResolveAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("resolveArgumentValue"))
+                        .and(takesArgument(0, named("org.springframework.core.MethodParameter")))
+                        .and(takesArgument(1, named("org.springframework.web.reactive.BindingContext")))
+                        .and(takesArgument(2, named("org.springframework.web.server.ServerWebExchange")))
+                        .and(takesArguments(3)),
+                packageName + ".RequestHeaderMapResolveAdvice");
+    }
 }

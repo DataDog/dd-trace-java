@@ -14,52 +14,52 @@ import org.slf4j.LoggerFactory;
 
 public class GitClientGitInfoBuilder implements GitInfoBuilder {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(GitClientGitInfoBuilder.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(GitClientGitInfoBuilder.class);
 
-  private final Config config;
-  private final GitClient.Factory gitClientFactory;
+    private final Config config;
+    private final GitClient.Factory gitClientFactory;
 
-  public GitClientGitInfoBuilder(Config config, GitClient.Factory gitClientFactory) {
-    this.config = config;
-    this.gitClientFactory = gitClientFactory;
-  }
-
-  @Override
-  public GitInfo build(@Nullable String repositoryPath) {
-    if (repositoryPath == null) {
-      return GitInfo.NOOP;
+    public GitClientGitInfoBuilder(Config config, GitClient.Factory gitClientFactory) {
+        this.config = config;
+        this.gitClientFactory = gitClientFactory;
     }
 
-    GitClient gitClient = gitClientFactory.create(repositoryPath);
-    try {
-      String remoteName = config.getCiVisibilityGitRemoteName();
-      String remoteUrl = gitClient.getRemoteUrl(remoteName);
-      String branch = gitClient.getCurrentBranch();
-      List<String> tags = gitClient.getTags(GitClient.HEAD);
-      String tag = !tags.isEmpty() ? tags.iterator().next() : null;
+    @Override
+    public GitInfo build(@Nullable String repositoryPath) {
+        if (repositoryPath == null) {
+            return GitInfo.NOOP;
+        }
 
-      CommitInfo commitInfo = gitClient.getCommitInfo(GitClient.HEAD, false);
-      return new GitInfo(remoteUrl, branch, tag, commitInfo);
+        GitClient gitClient = gitClientFactory.create(repositoryPath);
+        try {
+            String remoteName = config.getCiVisibilityGitRemoteName();
+            String remoteUrl = gitClient.getRemoteUrl(remoteName);
+            String branch = gitClient.getCurrentBranch();
+            List<String> tags = gitClient.getTags(GitClient.HEAD);
+            String tag = !tags.isEmpty() ? tags.iterator().next() : null;
 
-    } catch (Exception e) {
-      LOGGER.debug("Error while getting Git data from {}", repositoryPath, e);
-      LOGGER.warn("Error while getting Git data by executing shell commands");
-      return GitInfo.NOOP;
+            CommitInfo commitInfo = gitClient.getCommitInfo(GitClient.HEAD, false);
+            return new GitInfo(remoteUrl, branch, tag, commitInfo);
+
+        } catch (Exception e) {
+            LOGGER.debug("Error while getting Git data from {}", repositoryPath, e);
+            LOGGER.warn("Error while getting Git data by executing shell commands");
+            return GitInfo.NOOP;
+        }
     }
-  }
 
-  @Override
-  public int order() {
-    return 3;
-  }
+    @Override
+    public int order() {
+        return 3;
+    }
 
-  @Override
-  public GitProviderExpected providerAsExpected() {
-    return GitProviderExpected.GIT_CLIENT;
-  }
+    @Override
+    public GitProviderExpected providerAsExpected() {
+        return GitProviderExpected.GIT_CLIENT;
+    }
 
-  @Override
-  public GitProviderDiscrepant providerAsDiscrepant() {
-    return GitProviderDiscrepant.GIT_CLIENT;
-  }
+    @Override
+    public GitProviderDiscrepant providerAsDiscrepant() {
+        return GitProviderDiscrepant.GIT_CLIENT;
+    }
 }

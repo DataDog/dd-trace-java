@@ -22,92 +22,91 @@ import org.slf4j.LoggerFactory;
  */
 public class DependencyService implements Runnable {
 
-  private static final Logger log = LoggerFactory.getLogger(DependencyService.class);
+    private static final Logger log = LoggerFactory.getLogger(DependencyService.class);
 
-  private final DependencyResolverQueue resolverQueue = new DependencyResolverQueue();
+    private final DependencyResolverQueue resolverQueue = new DependencyResolverQueue();
 
-  private final BlockingQueue<Dependency> newDependencies = new LinkedBlockingQueue<>();
+    private final BlockingQueue<Dependency> newDependencies = new LinkedBlockingQueue<>();
 
-  private AgentTaskScheduler.Scheduled<Runnable> scheduledTask;
+    private AgentTaskScheduler.Scheduled<Runnable> scheduledTask;
 
-  public void schedulePeriodicResolution() {
-    scheduledTask =
-        AgentTaskScheduler.get()
-            .scheduleAtFixedRate(
-                AgentTaskScheduler.RunnableTask.INSTANCE,
-                this,
-                0,
-                Config.get().getDependecyResolutionPeriodMillis(),
-                TimeUnit.MILLISECONDS);
-  }
-
-  public void resolveOneDependency() {
-    List<Dependency> dependencies = resolverQueue.pollDependency();
-    if (!dependencies.isEmpty()) {
-      for (Dependency dependency : dependencies) {
-        log.debug("Resolved dependency {}", dependency.name);
-        newDependencies.add(dependency);
-      }
-    }
-  }
-
-  /**
-   * Registers this service as a no-op class file transformer.
-   *
-   * @param instrumentation instrumentation instance to register on
-   */
-  public void installOn(Instrumentation instrumentation) {
-    instrumentation.addTransformer(new LocationsCollectingTransformer(this));
-  }
-
-  public Collection<Dependency> drainDeterminedDependencies() {
-    List<Dependency> list = new LinkedList<>();
-    int drained = newDependencies.drainTo(list);
-    if (drained > 0) {
-      return list;
-    }
-    return Collections.emptyList();
-  }
-
-  public void addURL(URL url) {
-    resolverQueue.queueURI(convertToURI(url));
-  }
-
-  @VisibleForTesting
-  URI convertToURI(URL location) {
-    URI uri = null;
-
-    if (location.getProtocol().equals("vfs")) {
-      // resolve jboss virtual file system
-      try {
-        uri = JbossVirtualFileHelper.getJbossVfsPath(location);
-      } catch (RuntimeException rte) {
-        log.debug("Error in call to getJbossVfsPath", rte);
-        return null;
-      }
+    public void schedulePeriodicResolution() {
+        scheduledTask = AgentTaskScheduler.get()
+                .scheduleAtFixedRate(
+                        AgentTaskScheduler.RunnableTask.INSTANCE,
+                        this,
+                        0,
+                        Config.get().getDependecyResolutionPeriodMillis(),
+                        TimeUnit.MILLISECONDS);
     }
 
-    if (uri == null) {
-      try {
-        uri = new URI(location.toString().replace(" ", "%20"));
-      } catch (URISyntaxException e) {
-        log.warn("Error converting URL to URI", e);
-        // silently ignored
-      }
+    public void resolveOneDependency() {
+        List<Dependency> dependencies = resolverQueue.pollDependency();
+        if (!dependencies.isEmpty()) {
+            for (Dependency dependency : dependencies) {
+                log.debug("Resolved dependency {}", dependency.name);
+                newDependencies.add(dependency);
+            }
+        }
     }
 
-    return uri;
-  }
-
-  @Override
-  public void run() {
-    resolveOneDependency();
-  }
-
-  public void stop() {
-    if (scheduledTask != null) {
-      scheduledTask.cancel();
-      scheduledTask = null;
+    /**
+     * Registers this service as a no-op class file transformer.
+     *
+     * @param instrumentation instrumentation instance to register on
+     */
+    public void installOn(Instrumentation instrumentation) {
+        instrumentation.addTransformer(new LocationsCollectingTransformer(this));
     }
-  }
+
+    public Collection<Dependency> drainDeterminedDependencies() {
+        List<Dependency> list = new LinkedList<>();
+        int drained = newDependencies.drainTo(list);
+        if (drained > 0) {
+            return list;
+        }
+        return Collections.emptyList();
+    }
+
+    public void addURL(URL url) {
+        resolverQueue.queueURI(convertToURI(url));
+    }
+
+    @VisibleForTesting
+    URI convertToURI(URL location) {
+        URI uri = null;
+
+        if (location.getProtocol().equals("vfs")) {
+            // resolve jboss virtual file system
+            try {
+                uri = JbossVirtualFileHelper.getJbossVfsPath(location);
+            } catch (RuntimeException rte) {
+                log.debug("Error in call to getJbossVfsPath", rte);
+                return null;
+            }
+        }
+
+        if (uri == null) {
+            try {
+                uri = new URI(location.toString().replace(" ", "%20"));
+            } catch (URISyntaxException e) {
+                log.warn("Error converting URL to URI", e);
+                // silently ignored
+            }
+        }
+
+        return uri;
+    }
+
+    @Override
+    public void run() {
+        resolveOneDependency();
+    }
+
+    public void stop() {
+        if (scheduledTask != null) {
+            scheduledTask.cancel();
+            scheduledTask = null;
+        }
+    }
 }

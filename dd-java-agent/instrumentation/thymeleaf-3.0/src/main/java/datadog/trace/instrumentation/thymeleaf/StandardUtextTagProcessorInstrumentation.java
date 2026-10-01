@@ -11,26 +11,26 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class StandardUtextTagProcessorInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public StandardUtextTagProcessorInstrumentation() {
-    super("thymeleaf");
-  }
+    public StandardUtextTagProcessorInstrumentation() {
+        super("thymeleaf");
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isMethod().and(named("doProcess")), packageName + ".ProcessAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isMethod().and(named("doProcess")), packageName + ".ProcessAdvice");
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap(
-        "org.thymeleaf.processor.element.IElementTagStructureHandler",
-        "datadog.trace.instrumentation.thymeleaf.ThymeleafContext");
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap(
+                "org.thymeleaf.processor.element.IElementTagStructureHandler",
+                "datadog.trace.instrumentation.thymeleaf.ThymeleafContext");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "org.thymeleaf.standard.processor.StandardUtextTagProcessor";
-  }
+    @Override
+    public String instrumentedType() {
+        return "org.thymeleaf.standard.processor.StandardUtextTagProcessor";
+    }
 }

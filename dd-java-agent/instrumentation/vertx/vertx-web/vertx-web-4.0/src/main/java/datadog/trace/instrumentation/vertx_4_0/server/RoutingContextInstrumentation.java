@@ -16,26 +16,26 @@ import io.vertx.ext.web.impl.RoutingContextImpl;
  */
 @AutoService(InstrumenterModule.class)
 public class RoutingContextInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public RoutingContextInstrumentation() {
-    super("vertx", "vertx-4.0");
-  }
+    public RoutingContextInstrumentation() {
+        super("vertx", "vertx-4.0");
+    }
 
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {VertxVersionMatcher.HTTP_1X_SERVER_RESPONSE};
-  }
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return new Reference[] {VertxVersionMatcher.HTTP_1X_SERVER_RESPONSE};
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "io.vertx.ext.web.RoutingContext";
-  }
+    @Override
+    public String instrumentedType() {
+        return "io.vertx.ext.web.RoutingContext";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("json").and(takesArguments(1)).and(takesArgument(0, Object.class)),
-        packageName + ".RoutingContextJsonResponseAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("json").and(takesArguments(1)).and(takesArgument(0, Object.class)),
+                packageName + ".RoutingContextJsonResponseAdvice");
+    }
 }

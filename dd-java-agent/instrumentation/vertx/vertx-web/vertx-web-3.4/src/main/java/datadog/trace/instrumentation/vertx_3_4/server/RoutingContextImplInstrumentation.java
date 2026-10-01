@@ -13,40 +13,38 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 
 @AutoService(InstrumenterModule.class)
 public class RoutingContextImplInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  private static final Reference FILE_UPLOAD_REF =
-      new Reference.Builder("io.vertx.ext.web.FileUpload")
-          .withMethod(new String[0], 0, "fileName", "Ljava/lang/String;")
-          .withMethod(new String[0], 0, "uploadedFileName", "Ljava/lang/String;")
-          .withMethod(new String[0], 0, "contentType", "Ljava/lang/String;")
-          .withMethod(new String[0], 0, "charSet", "Ljava/lang/String;")
-          .build();
+    private static final Reference FILE_UPLOAD_REF = new Reference.Builder("io.vertx.ext.web.FileUpload")
+            .withMethod(new String[0], 0, "fileName", "Ljava/lang/String;")
+            .withMethod(new String[0], 0, "uploadedFileName", "Ljava/lang/String;")
+            .withMethod(new String[0], 0, "contentType", "Ljava/lang/String;")
+            .withMethod(new String[0], 0, "charSet", "Ljava/lang/String;")
+            .build();
 
-  public RoutingContextImplInstrumentation() {
-    super("vertx", "vertx-3.4");
-  }
+    public RoutingContextImplInstrumentation() {
+        super("vertx", "vertx-3.4");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "io.vertx.ext.web.impl.RoutingContextImpl";
-  }
+    @Override
+    public String instrumentedType() {
+        return "io.vertx.ext.web.impl.RoutingContextImpl";
+    }
 
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {PARSABLE_HEADER_VALUE, VIRTUAL_HOST_HANDLER, FILE_UPLOAD_REF};
-  }
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return new Reference[] {PARSABLE_HEADER_VALUE, VIRTUAL_HOST_HANDLER, FILE_UPLOAD_REF};
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("getBodyAsJson").or(named("getBodyAsJsonArray")).and(takesArguments(0)),
-        packageName + ".RoutingContextJsonAdvice");
-    transformer.applyAdvice(
-        named("setSession").and(takesArgument(0, named("io.vertx.ext.web.Session"))),
-        packageName + ".RoutingContextSessionAdvice");
-    transformer.applyAdvice(
-        named("fileUploads").and(takesArguments(0)),
-        packageName + ".RoutingContextFilenamesAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("getBodyAsJson").or(named("getBodyAsJsonArray")).and(takesArguments(0)),
+                packageName + ".RoutingContextJsonAdvice");
+        transformer.applyAdvice(
+                named("setSession").and(takesArgument(0, named("io.vertx.ext.web.Session"))),
+                packageName + ".RoutingContextSessionAdvice");
+        transformer.applyAdvice(
+                named("fileUploads").and(takesArguments(0)), packageName + ".RoutingContextFilenamesAdvice");
+    }
 }

@@ -23,48 +23,49 @@ import org.mockito.quality.Strictness;
 @MockitoSettings(strictness = Strictness.LENIENT)
 public class DatadogProfilerOngoingRecordingTest {
 
-  private static final String TEST_NAME = "recording name";
+    private static final String TEST_NAME = "recording name";
 
-  @Mock private Instant start;
-  @Mock private Instant end;
+    @Mock
+    private Instant start;
 
-  private DatadogProfilerOngoingRecording ongoingRecording;
+    @Mock
+    private Instant end;
 
-  @BeforeAll
-  public static void setupAll() {
-    // If the profiler couldn't be loaded, the reason why is saved.
-    // This test assumes the profiler could be loaded.
-    assertDoesNotThrow(
-        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
-  }
+    private DatadogProfilerOngoingRecording ongoingRecording;
 
-  @BeforeEach
-  public void setup() throws Exception {
-    ongoingRecording =
-        new DatadogProfilerOngoingRecording(DatadogProfiler.newInstance(), TEST_NAME);
-  }
+    @BeforeAll
+    public static void setupAll() {
+        // If the profiler couldn't be loaded, the reason why is saved.
+        // This test assumes the profiler could be loaded.
+        assertDoesNotThrow(() -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+    }
 
-  @AfterEach
-  public void cleanup() {
-    ongoingRecording.stop();
-  }
+    @BeforeEach
+    public void setup() throws Exception {
+        ongoingRecording = new DatadogProfilerOngoingRecording(DatadogProfiler.newInstance(), TEST_NAME);
+    }
 
-  @Test
-  public void testStop() {
-    RecordingData data = ongoingRecording.stop();
-  }
+    @AfterEach
+    public void cleanup() {
+        ongoingRecording.stop();
+    }
 
-  @Test
-  public void testSnapshot() {
-    final RecordingData recordingData = ongoingRecording.snapshot(start);
-    assertEquals(start, recordingData.getStart());
+    @Test
+    public void testStop() {
+        RecordingData data = ongoingRecording.stop();
+    }
 
-    // We got real recording so we should clean it up
-    recordingData.release();
-  }
+    @Test
+    public void testSnapshot() {
+        final RecordingData recordingData = ongoingRecording.snapshot(start);
+        assertEquals(start, recordingData.getStart());
 
-  @Test
-  public void testClose() {
-    ongoingRecording.close();
-  }
+        // We got real recording so we should clean it up
+        recordingData.release();
+    }
+
+    @Test
+    public void testClose() {
+        ongoingRecording.close();
+    }
 }

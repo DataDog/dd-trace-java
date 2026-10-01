@@ -15,106 +15,103 @@ import org.slf4j.Marker;
 
 public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
 
-  private final boolean telemetryLogCollectionEnabled = isLogCollectionEnabled();
+    private final boolean telemetryLogCollectionEnabled = isLogCollectionEnabled();
 
-  private volatile LoggerHelperFactory helperFactory = null;
-  private volatile LogLevel override = null;
+    private volatile LoggerHelperFactory helperFactory = null;
+    private volatile LogLevel override = null;
 
-  public DDLoggerFactory() {}
+    public DDLoggerFactory() {}
 
-  // Only used for testing
-  public DDLoggerFactory(LoggerHelperFactory helperFactory) {
-    this.helperFactory = helperFactory;
-  }
-
-  @Override
-  public void switchLevel(LogLevel level) {
-    override = level;
-  }
-
-  @Override
-  public void restore() {
-    override = null;
-  }
-
-  final class HelperWrapper extends LoggerHelper {
-    private final LoggerHelper delegate;
-
-    private HelperWrapper(LoggerHelper delegate) {
-      this.delegate = delegate;
+    // Only used for testing
+    public DDLoggerFactory(LoggerHelperFactory helperFactory) {
+        this.helperFactory = helperFactory;
     }
 
     @Override
-    public boolean enabled(LogLevel level, Marker marker) {
-      LogLevel levelOverride = override;
-      if (levelOverride != null) {
-        return level.isEnabled(levelOverride);
-      }
-
-      return delegate.enabled(level, marker);
+    public void switchLevel(LogLevel level) {
+        override = level;
     }
 
     @Override
-    public void log(LogLevel level, Marker marker, String message, Throwable t) {
-      delegate.log(level, marker, message, t);
+    public void restore() {
+        override = null;
     }
-  }
 
-  @Override
-  public Logger getLogger(String name) {
-    LoggerHelper helper = getHelperFactory().loggerHelperForName(name);
-    HelperWrapper helperWrapper = new HelperWrapper(helper);
-    if (!telemetryLogCollectionEnabled || Platform.isNativeImageBuilder()) {
-      return new DDLogger(helperWrapper, name);
-    } else {
-      return new DDTelemetryLogger(helperWrapper, name);
-    }
-  }
+    final class HelperWrapper extends LoggerHelper {
+        private final LoggerHelper delegate;
 
-  private LoggerHelperFactory getHelperFactory() {
-    LoggerHelperFactory factory = helperFactory;
-    if (factory == null) {
-      synchronized (this) {
-        factory = helperFactory;
-        if (factory == null) {
-          factory = helperFactory = new SLCompatFactory();
-          LoggingSettingsDescription.setDescription(factory.getSettingsDescription());
+        private HelperWrapper(LoggerHelper delegate) {
+            this.delegate = delegate;
         }
-      }
-    }
-    return factory;
-  }
 
-  @Override
-  public void reinitialize() {
-    helperFactory = null;
-  }
+        @Override
+        public boolean enabled(LogLevel level, Marker marker) {
+            LogLevel levelOverride = override;
+            if (levelOverride != null) {
+                return level.isEnabled(levelOverride);
+            }
 
-  // DDLoggerFactory can be called at very early stage, before Config is loaded
-  // So to get property/env we use this custom function
-  private static boolean isLogCollectionEnabled() {
-    return isFlagEnabled(
-            "dd.instrumentation.telemetry.enabled", "DD_INSTRUMENTATION_TELEMETRY_ENABLED", true)
-        && isFlagEnabled(
-            "dd.telemetry.log-collection.enabled", "DD_TELEMETRY_LOG_COLLECTION_ENABLED", true);
-  }
+            return delegate.enabled(level, marker);
+        }
 
-  private static boolean isFlagEnabled(
-      final String systemProperty, final String envVar, final boolean defaultValue) {
-    String value = SystemProperties.get(systemProperty);
-    if ("true".equalsIgnoreCase(value)) {
-      return true;
+        @Override
+        public void log(LogLevel level, Marker marker, String message, Throwable t) {
+            delegate.log(level, marker, message, t);
+        }
     }
-    if ("false".equalsIgnoreCase(value)) {
-      return false;
+
+    @Override
+    public Logger getLogger(String name) {
+        LoggerHelper helper = getHelperFactory().loggerHelperForName(name);
+        HelperWrapper helperWrapper = new HelperWrapper(helper);
+        if (!telemetryLogCollectionEnabled || Platform.isNativeImageBuilder()) {
+            return new DDLogger(helperWrapper, name);
+        } else {
+            return new DDTelemetryLogger(helperWrapper, name);
+        }
     }
-    value = ConfigHelper.env(envVar);
-    if ("true".equalsIgnoreCase(value)) {
-      return true;
+
+    private LoggerHelperFactory getHelperFactory() {
+        LoggerHelperFactory factory = helperFactory;
+        if (factory == null) {
+            synchronized (this) {
+                factory = helperFactory;
+                if (factory == null) {
+                    factory = helperFactory = new SLCompatFactory();
+                    LoggingSettingsDescription.setDescription(factory.getSettingsDescription());
+                }
+            }
+        }
+        return factory;
     }
-    if ("false".equalsIgnoreCase(value)) {
-      return false;
+
+    @Override
+    public void reinitialize() {
+        helperFactory = null;
     }
-    return defaultValue;
-  }
+
+    // DDLoggerFactory can be called at very early stage, before Config is loaded
+    // So to get property/env we use this custom function
+    private static boolean isLogCollectionEnabled() {
+        return isFlagEnabled("dd.instrumentation.telemetry.enabled", "DD_INSTRUMENTATION_TELEMETRY_ENABLED", true)
+                && isFlagEnabled("dd.telemetry.log-collection.enabled", "DD_TELEMETRY_LOG_COLLECTION_ENABLED", true);
+    }
+
+    private static boolean isFlagEnabled(final String systemProperty, final String envVar, final boolean defaultValue) {
+        String value = SystemProperties.get(systemProperty);
+        if ("true".equalsIgnoreCase(value)) {
+            return true;
+        }
+        if ("false".equalsIgnoreCase(value)) {
+            return false;
+        }
+        value = ConfigHelper.env(envVar);
+        if ("true".equalsIgnoreCase(value)) {
+            return true;
+        }
+        if ("false".equalsIgnoreCase(value)) {
+            return false;
+        }
+        return defaultValue;
+    }
 }

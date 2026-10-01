@@ -25,37 +25,36 @@ import org.openjdk.jmh.annotations.Warmup;
 @State(Scope.Benchmark)
 public class AdaptiveSamplerBenchmark {
 
-  public static final int ITERATION_TIME_MILLIS = 1000;
-  public static final int BUDGET_LOOKBACK = 16;
+    public static final int ITERATION_TIME_MILLIS = 1000;
+    public static final int BUDGET_LOOKBACK = 16;
 
-  @Param("5000")
-  int samplesPerWindow;
+    @Param("5000")
+    int samplesPerWindow;
 
-  @Param("500")
-  long durationWindowMillis;
+    @Param("500")
+    long durationWindowMillis;
 
-  private AdaptiveSampler sampler;
+    private AdaptiveSampler sampler;
 
-  @Setup(Level.Iteration)
-  public void setup() {
-    int averageLookback = (int) (ITERATION_TIME_MILLIS / durationWindowMillis);
-    sampler =
-        new AdaptiveSampler(
-            Duration.of(durationWindowMillis, ChronoUnit.MILLIS),
-            samplesPerWindow,
-            averageLookback,
-            BUDGET_LOOKBACK,
-            true);
-  }
-
-  @Threads(4)
-  @Benchmark
-  public boolean sample(SamplerCounters counters) {
-    boolean sampled = sampler.sample();
-    if (sampled) {
-      ++counters.sampled;
+    @Setup(Level.Iteration)
+    public void setup() {
+        int averageLookback = (int) (ITERATION_TIME_MILLIS / durationWindowMillis);
+        sampler = new AdaptiveSampler(
+                Duration.of(durationWindowMillis, ChronoUnit.MILLIS),
+                samplesPerWindow,
+                averageLookback,
+                BUDGET_LOOKBACK,
+                true);
     }
-    ++counters.tests;
-    return sampled;
-  }
+
+    @Threads(4)
+    @Benchmark
+    public boolean sample(SamplerCounters counters) {
+        boolean sampled = sampler.sample();
+        if (sampled) {
+            ++counters.sampled;
+        }
+        ++counters.tests;
+        return sampled;
+    }
 }

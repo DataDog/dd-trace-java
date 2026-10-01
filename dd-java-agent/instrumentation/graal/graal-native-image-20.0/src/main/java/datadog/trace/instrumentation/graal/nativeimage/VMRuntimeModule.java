@@ -22,48 +22,47 @@ import org.slf4j.LoggerFactory;
 
 @AutoService(InstrumenterModule.class)
 public final class VMRuntimeModule extends AbstractNativeImageModule
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
-  @Override
-  public String instrumentedType() {
-    return "org.graalvm.nativeimage.VMRuntime";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("initialize")), VMRuntimeModule.class.getName() + "$InitializeAdvice");
-  }
-
-  @Override
-  public boolean injectHelperDependencies() {
-    return true;
-  }
-
-  @Override
-  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
-    return singletonMap(
-        RUNNABLE, singletonList("com.oracle.svm.core.thread.VMOperationControl$VMOperationThread"));
-  }
-
-  public static class InitializeAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter() {
-      if (Config.get().isDebugEnabled()) {
-        // was this native image originally built with debug off?
-        Logger configLogger = LoggerFactory.getLogger(Config.class);
-        if (!configLogger.isDebugEnabled()) {
-          // patch logger level and re-log configuration details
-          GlobalLogLevelSwitcher.get().switchLevel(LogLevel.DEBUG);
-          configLogger.debug("New instance: {}", Config.get());
-        }
-      } else {
-        String logLevel = Config.get().getLogLevel();
-        if (null != logLevel) {
-          GlobalLogLevelSwitcher.get().switchLevel(LogLevel.fromString(logLevel));
-        }
-      }
-
-      datadog.trace.agent.tooling.nativeimage.TracerActivation.activate();
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
+    @Override
+    public String instrumentedType() {
+        return "org.graalvm.nativeimage.VMRuntime";
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("initialize")), VMRuntimeModule.class.getName() + "$InitializeAdvice");
+    }
+
+    @Override
+    public boolean injectHelperDependencies() {
+        return true;
+    }
+
+    @Override
+    public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
+        return singletonMap(RUNNABLE, singletonList("com.oracle.svm.core.thread.VMOperationControl$VMOperationThread"));
+    }
+
+    public static class InitializeAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter() {
+            if (Config.get().isDebugEnabled()) {
+                // was this native image originally built with debug off?
+                Logger configLogger = LoggerFactory.getLogger(Config.class);
+                if (!configLogger.isDebugEnabled()) {
+                    // patch logger level and re-log configuration details
+                    GlobalLogLevelSwitcher.get().switchLevel(LogLevel.DEBUG);
+                    configLogger.debug("New instance: {}", Config.get());
+                }
+            } else {
+                String logLevel = Config.get().getLogLevel();
+                if (null != logLevel) {
+                    GlobalLogLevelSwitcher.get().switchLevel(LogLevel.fromString(logLevel));
+                }
+            }
+
+            datadog.trace.agent.tooling.nativeimage.TracerActivation.activate();
+        }
+    }
 }

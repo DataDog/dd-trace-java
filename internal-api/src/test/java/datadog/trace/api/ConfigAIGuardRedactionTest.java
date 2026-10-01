@@ -11,46 +11,46 @@ import org.junit.jupiter.api.extension.ExtendWith;
 @ExtendWith(WithConfigExtension.class)
 class ConfigAIGuardRedactionTest {
 
-  @Test
-  void redactionIsEnabledByDefault() {
-    assertTrue(Config.get().isAiGuardRedactionEnabled());
-  }
+    @Test
+    void redactionIsEnabledByDefault() {
+        assertTrue(Config.get().isAiGuardRedactionEnabled());
+    }
 
-  @Test
-  void killSwitchDisablesRedactionViaSystemProperty() {
-    WithConfigExtension.injectSysConfig(AI_GUARD_REDACTION_ENABLED, "false");
+    @Test
+    void killSwitchDisablesRedactionViaSystemProperty() {
+        WithConfigExtension.injectSysConfig(AI_GUARD_REDACTION_ENABLED, "false");
 
-    assertFalse(Config.get().isAiGuardRedactionEnabled());
-  }
+        assertFalse(Config.get().isAiGuardRedactionEnabled());
+    }
 
-  @Test
-  void killSwitchDisablesRedactionViaEnvironmentVariable() {
-    WithConfigExtension.injectEnvConfig("DD_AI_GUARD_REDACTION_ENABLED", "false", false);
+    @Test
+    void killSwitchDisablesRedactionViaEnvironmentVariable() {
+        WithConfigExtension.injectEnvConfig("DD_AI_GUARD_REDACTION_ENABLED", "false", false);
 
-    assertFalse(Config.get().isAiGuardRedactionEnabled());
-  }
+        assertFalse(Config.get().isAiGuardRedactionEnabled());
+    }
 
-  @Test
-  void killSwitchAcceptsNumericAndMixedCaseValues() {
-    WithConfigExtension.injectSysConfig(AI_GUARD_REDACTION_ENABLED, "0");
-    assertFalse(Config.get().isAiGuardRedactionEnabled());
+    @Test
+    void killSwitchAcceptsNumericAndMixedCaseValues() {
+        WithConfigExtension.injectSysConfig(AI_GUARD_REDACTION_ENABLED, "0");
+        assertFalse(Config.get().isAiGuardRedactionEnabled());
 
-    WithConfigExtension.injectSysConfig(AI_GUARD_REDACTION_ENABLED, "FALSE");
-    assertFalse(Config.get().isAiGuardRedactionEnabled());
+        WithConfigExtension.injectSysConfig(AI_GUARD_REDACTION_ENABLED, "FALSE");
+        assertFalse(Config.get().isAiGuardRedactionEnabled());
 
-    WithConfigExtension.injectSysConfig(AI_GUARD_REDACTION_ENABLED, "True");
-    assertTrue(Config.get().isAiGuardRedactionEnabled());
-  }
+        WithConfigExtension.injectSysConfig(AI_GUARD_REDACTION_ENABLED, "True");
+        assertTrue(Config.get().isAiGuardRedactionEnabled());
+    }
 
-  /**
-   * Invalid boolean values resolve to {@code false} rather than to the configured default: see the
-   * backward-compatibility branch in {@code ConfigProvider#get}. A typo therefore turns redaction
-   * off, even though it defaults to on.
-   */
-  @Test
-  void unparseableValueDisablesRedaction() {
-    WithConfigExtension.injectSysConfig(AI_GUARD_REDACTION_ENABLED, "not-a-boolean");
+    /**
+     * Invalid boolean values resolve to {@code false} rather than to the configured default: see the
+     * backward-compatibility branch in {@code ConfigProvider#get}. A typo therefore turns redaction
+     * off, even though it defaults to on.
+     */
+    @Test
+    void unparseableValueDisablesRedaction() {
+        WithConfigExtension.injectSysConfig(AI_GUARD_REDACTION_ENABLED, "not-a-boolean");
 
-    assertFalse(Config.get().isAiGuardRedactionEnabled());
-  }
+        assertFalse(Config.get().isAiGuardRedactionEnabled());
+    }
 }

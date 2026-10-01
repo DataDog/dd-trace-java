@@ -13,31 +13,31 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public final class ReactiveStreamsModule extends InstrumenterModule.ContextTracking {
-  public ReactiveStreamsModule() {
-    super("reactive-streams", "reactive-streams-1");
-  }
+    public ReactiveStreamsModule() {
+        super("reactive-streams", "reactive-streams-1");
+    }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ReactiveStreamsContextPropagation",
-      packageName + ".ReactiveStreamsAsyncResultExtension",
-      packageName + ".ReactiveStreamsAsyncResultExtension$WrappedPublisher",
-      packageName + ".ReactiveStreamsAsyncResultExtension$WrappedSubscriber",
-      packageName + ".ReactiveStreamsAsyncResultExtension$WrappedSubscription",
-    };
-  }
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".ReactiveStreamsContextPropagation",
+            packageName + ".ReactiveStreamsAsyncResultExtension",
+            packageName + ".ReactiveStreamsAsyncResultExtension$WrappedPublisher",
+            packageName + ".ReactiveStreamsAsyncResultExtension$WrappedSubscriber",
+            packageName + ".ReactiveStreamsAsyncResultExtension$WrappedSubscription",
+        };
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    final Map<String, String> store = new HashMap<>();
-    store.put("org.reactivestreams.Subscriber", Context.class.getName());
-    store.put("org.reactivestreams.Publisher", HandoffContext.class.getName());
-    return store;
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        final Map<String, String> store = new HashMap<>();
+        store.put("org.reactivestreams.Subscriber", Context.class.getName());
+        store.put("org.reactivestreams.Publisher", HandoffContext.class.getName());
+        return store;
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return asList(new PublisherInstrumentation(), new SubscriberInstrumentation());
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return asList(new PublisherInstrumentation(), new SubscriberInstrumentation());
+    }
 }

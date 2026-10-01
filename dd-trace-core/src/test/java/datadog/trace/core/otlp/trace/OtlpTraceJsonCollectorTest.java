@@ -46,375 +46,361 @@ import org.junit.jupiter.api.Test;
  */
 class OtlpTraceJsonCollectorTest {
 
-  private static final CoreTracer TRACER = CoreTracer.builder().writer(new LoggingWriter()).build();
+    private static final CoreTracer TRACER =
+            CoreTracer.builder().writer(new LoggingWriter()).build();
 
-  @Test
-  void emptyTraceProducesEmptyPayload() {
-    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
-    OtlpPayload payload = collector.collectTraces();
-    assertEquals(OtlpPayload.EMPTY, payload);
-  }
+    @Test
+    void emptyTraceProducesEmptyPayload() {
+        OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+        OtlpPayload payload = collector.collectTraces();
+        assertEquals(OtlpPayload.EMPTY, payload);
+    }
 
-  @Test
-  void singleSpanIsEncodedWithHexIdsAndCamelCaseKeys() throws IOException {
-    DDSpan span = startAndFinish("op.first", "GET /api/users", null);
+    @Test
+    void singleSpanIsEncodedWithHexIdsAndCamelCaseKeys() throws IOException {
+        DDSpan span = startAndFinish("op.first", "GET /api/users", null);
 
-    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
-    collector.addTrace(asList((CoreSpan<?>) span));
-    OtlpPayload payload = collector.collectTraces();
+        OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+        collector.addTrace(asList((CoreSpan<?>) span));
+        OtlpPayload payload = collector.collectTraces();
 
-    Map<String, Object> parsedSpan = onlySpan(payload);
+        Map<String, Object> parsedSpan = onlySpan(payload);
 
-    assertEquals(hexTraceId(span.getTraceId()), parsedSpan.get("traceId"));
-    assertEquals(hexSpanId(span.getSpanId()), parsedSpan.get("spanId"));
-    assertEquals("GET /api/users", parsedSpan.get("name"));
-    assertTrue(parsedSpan.get("startTimeUnixNano") instanceof String, "timestamps are strings");
-    assertTrue(parsedSpan.get("endTimeUnixNano") instanceof String, "timestamps are strings");
-    assertNull(parsedSpan.get("parentSpanId"), "root span has no parentSpanId");
+        assertEquals(hexTraceId(span.getTraceId()), parsedSpan.get("traceId"));
+        assertEquals(hexSpanId(span.getSpanId()), parsedSpan.get("spanId"));
+        assertEquals("GET /api/users", parsedSpan.get("name"));
+        assertTrue(parsedSpan.get("startTimeUnixNano") instanceof String, "timestamps are strings");
+        assertTrue(parsedSpan.get("endTimeUnixNano") instanceof String, "timestamps are strings");
+        assertNull(parsedSpan.get("parentSpanId"), "root span has no parentSpanId");
 
-    Set<String> attrKeys = attributeKeys(parsedSpan);
-    assertTrue(attrKeys.contains("resource.name"));
-    assertTrue(attrKeys.contains("operation.name"));
-  }
+        Set<String> attrKeys = attributeKeys(parsedSpan);
+        assertTrue(attrKeys.contains("resource.name"));
+        assertTrue(attrKeys.contains("operation.name"));
+    }
 
-  @Test
-  void spanKindIsEncodedAsInteger() throws IOException {
-    DDSpan span = startAndFinish("op.server", "GET /api", SPAN_KIND_SERVER);
+    @Test
+    void spanKindIsEncodedAsInteger() throws IOException {
+        DDSpan span = startAndFinish("op.server", "GET /api", SPAN_KIND_SERVER);
 
-    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
-    collector.addTrace(asList((CoreSpan<?>) span));
-    Map<String, Object> parsedSpan = onlySpan(collector.collectTraces());
+        OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+        collector.addTrace(asList((CoreSpan<?>) span));
+        Map<String, Object> parsedSpan = onlySpan(collector.collectTraces());
 
-    assertEquals(2, ((Number) parsedSpan.get("kind")).intValue(), "SPAN_KIND_SERVER = 2");
-  }
+        assertEquals(2, ((Number) parsedSpan.get("kind")).intValue(), "SPAN_KIND_SERVER = 2");
+    }
 
-  @Test
-  void errorSpanHasStatusObject() throws IOException {
-    AgentSpan agentSpan = TRACER.startSpan("test", "op.error");
-    agentSpan.setResourceName("POST /api/data");
-    agentSpan.setError(true);
-    agentSpan.setErrorMessage("boom");
-    agentSpan.finish();
+    @Test
+    void errorSpanHasStatusObject() throws IOException {
+        AgentSpan agentSpan = TRACER.startSpan("test", "op.error");
+        agentSpan.setResourceName("POST /api/data");
+        agentSpan.setError(true);
+        agentSpan.setErrorMessage("boom");
+        agentSpan.finish();
 
-    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
-    collector.addTrace(asList((CoreSpan<?>) agentSpan));
-    Map<String, Object> parsedSpan = onlySpan(collector.collectTraces());
+        OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+        collector.addTrace(asList((CoreSpan<?>) agentSpan));
+        Map<String, Object> parsedSpan = onlySpan(collector.collectTraces());
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> status = (Map<String, Object>) parsedSpan.get("status");
+        assertEquals("boom", status.get("message"));
+        assertEquals(2, ((Number) status.get("code")).intValue(), "STATUS_CODE_ERROR = 2");
+    }
+
+    @Test
+    void nonErrorSpanHasNoStatusObject() throws IOException {
+        DDSpan span = startAndFinish("op.ok", "GET /health", null);
+
+        OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+        collector.addTrace(asList((CoreSpan<?>) span));
+        Map<String, Object> parsedSpan = onlySpan(collector.collectTraces());
+
+        assertFalse(parsedSpan.containsKey("status"));
+    }
+
+    @Test
+    void spanTraceStateIncludesDefaultProbabilityDecision() throws IOException {
+        DDSpan span = startAndFinish("op.notracestate", "GET /no-tracestate", null);
+
+        OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+        collector.addTrace(asList((CoreSpan<?>) span));
+        Map<String, Object> parsedSpan = onlySpan(collector.collectTraces());
+
+        assertTrue(
+                parsedSpan.get("traceState").toString().matches("ot=rv:[0-9a-f]{14};th:0"),
+                parsedSpan.get("traceState").toString());
+    }
+
+    @Test
+    void spanTraceStateIncludedWhenPropagated() throws IOException {
+        PropagationTags propagationTags = PropagationTags.factory().empty();
+        propagationTags.updateW3CTracestate("vendor=state");
+        ExtractedContext parent = new ExtractedContext(
+                DDTraceId.ONE, 0L, PrioritySampling.UNSET, null, propagationTags, TracePropagationStyle.DATADOG);
+
+        AgentSpan agentSpan = TRACER.startSpan("test", "op.tracestate", parent);
+        agentSpan.setResourceName("op.tracestate");
+        agentSpan.finish();
+
+        OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+        collector.addTrace(asList((CoreSpan<?>) agentSpan));
+        Map<String, Object> parsedSpan = onlySpan(collector.collectTraces());
+
+        assertTrue(
+                parsedSpan.get("traceState").toString().matches("ot=rv:[0-9a-f]{14};th:0,vendor=state"),
+                parsedSpan.get("traceState").toString());
+    }
+
+    @Test
+    void spanFlagsOmittedWhenNotSampled() throws IOException {
+        AgentSpan agentSpan = TRACER.startSpan("test", "op.noflags");
+        agentSpan.setResourceName("op.noflags");
+        agentSpan.setSamplingPriority(PrioritySampling.USER_DROP, SamplingMechanism.MANUAL);
+        // Force export despite the dropped trace-level priority, via span-level sampling -
+        // otherwise OtlpTraceCollector#shouldExport would exclude this span entirely.
+        agentSpan.setTag(SPAN_SAMPLING_MECHANISM_TAG, SamplingMechanism.SPAN_SAMPLING_RATE);
+        agentSpan.finish();
+
+        OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+        collector.addTrace(asList((CoreSpan<?>) agentSpan));
+        Map<String, Object> parsedSpan = onlySpan(collector.collectTraces());
+
+        assertFalse(parsedSpan.containsKey("flags"), "unsampled span should omit flags");
+    }
+
+    @Test
+    void spanFlagsIncludeSampledBitWhenSampled() throws IOException {
+        DDSpan span = startAndFinish("op.sampled", "GET /sampled", null);
+
+        OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+        collector.addTrace(asList((CoreSpan<?>) span));
+        Map<String, Object> parsedSpan = onlySpan(collector.collectTraces());
+
+        assertEquals(SAMPLED_TRACE_FLAG, ((Number) parsedSpan.get("flags")).intValue());
+    }
+
+    @Test
+    void traceStateAndFlagsStayPairedAcrossSamplingDecisions() throws IOException {
+        Map<String, Object> localFallback = exportSamplingSpan(localProbabilitySpan(1.0, true));
+        assertTrue(localFallback.get("traceState").toString().matches("ot=rv:[0-9a-f]{14};th:0"));
+        assertEquals(SAMPLED_TRACE_FLAG, ((Number) localFallback.get("flags")).intValue());
+
+        Map<String, Object> inherited = exportSamplingSpan(inheritedSamplingSpan());
+        assertEquals("dd=s:1,ot=rv:ef284ace7a91e1;th:8,vendor=state", inherited.get("traceState"));
+        assertEquals(SAMPLED_TRACE_FLAG, ((Number) inherited.get("flags")).intValue());
+
+        Map<String, Object> probabilityDrop = exportSamplingSpan(localProbabilitySpan(0.0, false));
+        assertTrue(probabilityDrop.get("traceState").toString().matches("ot=rv:[0-9a-f]{14};th:ffffffffffffff"));
+        assertFalse(probabilityDrop.containsKey("flags"));
+
+        DDSpan limiterDrop = localSamplingSpan();
+        limiterDrop
+                .spanContext()
+                .getPropagationTags()
+                .tryUpdateProbabilitySamplingDecision(
+                        PrioritySampling.SAMPLER_DROP,
+                        SamplingMechanism.AGENT_RATE,
+                        1.0,
+                        true,
+                        limiterDrop.getTraceId().toLong(),
+                        true);
+        Map<String, Object> limiter = exportSamplingSpan(limiterDrop);
+        assertNull(limiter.get("traceState"));
+        assertFalse(limiter.containsKey("flags"));
+
+        DDSpan nonProbabilityKeep = localProbabilitySpan(0.0, false);
+        nonProbabilityKeep.spanContext().getPropagationTags().forceKeep(SamplingMechanism.MANUAL);
+        Map<String, Object> nonProbability = exportSamplingSpan(nonProbabilityKeep);
+        assertNull(nonProbability.get("traceState"));
+        assertEquals(SAMPLED_TRACE_FLAG, ((Number) nonProbability.get("flags")).intValue());
+    }
+
+    @Test
+    void multipleSpansInATraceAreAllWritten() throws IOException {
+        AgentSpan parent = TRACER.startSpan("test", "op.parent");
+        parent.setResourceName("parent.op");
+        AgentSpan child = TRACER.startSpan("test", "op.child", parent.spanContext());
+        child.setResourceName("child.op");
+        child.finish();
+        parent.finish();
+
+        List<CoreSpan<?>> spans = new ArrayList<>();
+        spans.add((CoreSpan<?>) parent);
+        spans.add((CoreSpan<?>) child);
+
+        OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+        collector.addTrace(spans);
+        OtlpPayload payload = collector.collectTraces();
+
+        List<Map<String, Object>> parsedSpans = allSpans(payload);
+        assertEquals(2, parsedSpans.size());
+
+        Map<String, Object> parsedChild = parsedSpans.stream()
+                .filter(s -> "child.op".equals(s.get("name")))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("child span not found"));
+        assertEquals(hexSpanId(((DDSpan) parent).getSpanId()), parsedChild.get("parentSpanId"));
+    }
+
+    @Test
+    void poisonedSpanResetsCollectorForNextTrace() throws IOException {
+        // mid-trace exception (e.g. from a malformed span) must not leave partial state behind
+        DDSpan realSpan = startAndFinish("op.first", "GET /first", null);
+
+        CoreSpan<?> poison = mock(CoreSpan.class);
+        when(poison.samplingPriority()).thenReturn(1);
+        when(poison.getTraceId()).thenThrow(new RuntimeException("boom"));
+
+        List<CoreSpan<?>> poisonedTrace = new ArrayList<>();
+        poisonedTrace.add((CoreSpan<?>) realSpan);
+        poisonedTrace.add(poison);
+
+        OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+        assertThrows(RuntimeException.class, () -> collector.addTrace(poisonedTrace));
+
+        // a normal trace collected afterwards must not see any leftover state from the poisoned one
+        DDSpan normalSpan = startAndFinish("op.normal", "GET /normal", null);
+        collector.addTrace(asList((CoreSpan<?>) normalSpan));
+        Map<String, Object> parsedSpan = onlySpan(collector.collectTraces());
+
+        assertEquals("GET /normal", parsedSpan.get("name"));
+    }
+
+    @Test
+    void spanLinkOmitsTraceStateWhenEmpty() throws IOException {
+        AgentSpan linked = TRACER.startSpan("test", "op.linked");
+        linked.finish();
+
+        AgentSpan agentSpan = TRACER.startSpan("test", "op.link");
+        agentSpan.setResourceName("op.link");
+        agentSpan.addLink(SpanLink.from(linked.spanContext()));
+        agentSpan.finish();
+
+        OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+        collector.addTrace(asList((CoreSpan<?>) agentSpan));
+        Map<String, Object> parsedSpan = onlySpan(collector.collectTraces());
+
+        Map<String, Object> parsedLink = onlyLink(parsedSpan);
+        assertFalse(parsedLink.containsKey("traceState"), "empty traceState should be omitted");
+    }
+
+    @Test
+    void spanLinkIncludesTraceStateWhenPresent() throws IOException {
+        AgentSpan linked = TRACER.startSpan("test", "op.linked");
+        linked.finish();
+
+        AgentSpan agentSpan = TRACER.startSpan("test", "op.link");
+        agentSpan.setResourceName("op.link");
+        agentSpan.addLink(SpanLink.from(linked.spanContext(), (byte) 0, "vendor=state", SpanAttributes.EMPTY));
+        agentSpan.finish();
+
+        OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+        collector.addTrace(asList((CoreSpan<?>) agentSpan));
+        Map<String, Object> parsedSpan = onlySpan(collector.collectTraces());
+
+        Map<String, Object> parsedLink = onlyLink(parsedSpan);
+        assertEquals("vendor=state", parsedLink.get("traceState"));
+    }
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+
+    private static DDSpan startAndFinish(String operationName, String resourceName, String spanKind) {
+        AgentSpan agentSpan = TRACER.startSpan("test", operationName);
+        agentSpan.setResourceName(resourceName);
+        if (spanKind != null) {
+            agentSpan.setTag(SPAN_KIND, spanKind);
+        }
+        agentSpan.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.DEFAULT);
+        agentSpan.finish();
+        return (DDSpan) agentSpan;
+    }
+
+    private static DDSpan localSamplingSpan() {
+        AgentSpan span = TRACER.startSpan("test", "op.sampling");
+        span.setResourceName("op.sampling");
+        return (DDSpan) span;
+    }
+
+    private static DDSpan localProbabilitySpan(double rate, boolean sampled) {
+        DDSpan span = localSamplingSpan();
+        span.spanContext()
+                .getPropagationTags()
+                .tryUpdateProbabilitySamplingDecision(
+                        sampled ? PrioritySampling.SAMPLER_KEEP : PrioritySampling.SAMPLER_DROP,
+                        SamplingMechanism.AGENT_RATE,
+                        rate,
+                        false,
+                        span.getTraceId().toLong(),
+                        true);
+        return span;
+    }
+
+    private static DDSpan inheritedSamplingSpan() {
+        PropagationTags propagationTags = PropagationTags.factory()
+                .fromHeaderValue(PropagationTags.HeaderType.W3C, "dd=s:1,vendor=state,ot=rv:ef284ace7a91e1;th:8");
+        ExtractedContext parent = new ExtractedContext(
+                DDTraceId.ONE,
+                0L,
+                PrioritySampling.SAMPLER_KEEP,
+                null,
+                propagationTags,
+                TracePropagationStyle.TRACECONTEXT);
+        AgentSpan span = TRACER.startSpan("test", "op.inherited", parent);
+        span.setResourceName("op.inherited");
+        return (DDSpan) span;
+    }
+
+    private static Map<String, Object> exportSamplingSpan(DDSpan span) throws IOException {
+        if (span.getSamplingPriority() <= 0) {
+            span.setTag(SPAN_SAMPLING_MECHANISM_TAG, SamplingMechanism.SPAN_SAMPLING_RATE);
+        }
+        span.finish();
+        OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+        collector.addTrace(asList((CoreSpan<?>) span));
+        return onlySpan(collector.collectTraces());
+    }
 
     @SuppressWarnings("unchecked")
-    Map<String, Object> status = (Map<String, Object>) parsedSpan.get("status");
-    assertEquals("boom", status.get("message"));
-    assertEquals(2, ((Number) status.get("code")).intValue(), "STATUS_CODE_ERROR = 2");
-  }
-
-  @Test
-  void nonErrorSpanHasNoStatusObject() throws IOException {
-    DDSpan span = startAndFinish("op.ok", "GET /health", null);
-
-    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
-    collector.addTrace(asList((CoreSpan<?>) span));
-    Map<String, Object> parsedSpan = onlySpan(collector.collectTraces());
-
-    assertFalse(parsedSpan.containsKey("status"));
-  }
-
-  @Test
-  void spanTraceStateIncludesDefaultProbabilityDecision() throws IOException {
-    DDSpan span = startAndFinish("op.notracestate", "GET /no-tracestate", null);
-
-    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
-    collector.addTrace(asList((CoreSpan<?>) span));
-    Map<String, Object> parsedSpan = onlySpan(collector.collectTraces());
-
-    assertTrue(
-        parsedSpan.get("traceState").toString().matches("ot=rv:[0-9a-f]{14};th:0"),
-        parsedSpan.get("traceState").toString());
-  }
-
-  @Test
-  void spanTraceStateIncludedWhenPropagated() throws IOException {
-    PropagationTags propagationTags = PropagationTags.factory().empty();
-    propagationTags.updateW3CTracestate("vendor=state");
-    ExtractedContext parent =
-        new ExtractedContext(
-            DDTraceId.ONE,
-            0L,
-            PrioritySampling.UNSET,
-            null,
-            propagationTags,
-            TracePropagationStyle.DATADOG);
-
-    AgentSpan agentSpan = TRACER.startSpan("test", "op.tracestate", parent);
-    agentSpan.setResourceName("op.tracestate");
-    agentSpan.finish();
-
-    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
-    collector.addTrace(asList((CoreSpan<?>) agentSpan));
-    Map<String, Object> parsedSpan = onlySpan(collector.collectTraces());
-
-    assertTrue(
-        parsedSpan.get("traceState").toString().matches("ot=rv:[0-9a-f]{14};th:0,vendor=state"),
-        parsedSpan.get("traceState").toString());
-  }
-
-  @Test
-  void spanFlagsOmittedWhenNotSampled() throws IOException {
-    AgentSpan agentSpan = TRACER.startSpan("test", "op.noflags");
-    agentSpan.setResourceName("op.noflags");
-    agentSpan.setSamplingPriority(PrioritySampling.USER_DROP, SamplingMechanism.MANUAL);
-    // Force export despite the dropped trace-level priority, via span-level sampling -
-    // otherwise OtlpTraceCollector#shouldExport would exclude this span entirely.
-    agentSpan.setTag(SPAN_SAMPLING_MECHANISM_TAG, SamplingMechanism.SPAN_SAMPLING_RATE);
-    agentSpan.finish();
-
-    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
-    collector.addTrace(asList((CoreSpan<?>) agentSpan));
-    Map<String, Object> parsedSpan = onlySpan(collector.collectTraces());
-
-    assertFalse(parsedSpan.containsKey("flags"), "unsampled span should omit flags");
-  }
-
-  @Test
-  void spanFlagsIncludeSampledBitWhenSampled() throws IOException {
-    DDSpan span = startAndFinish("op.sampled", "GET /sampled", null);
-
-    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
-    collector.addTrace(asList((CoreSpan<?>) span));
-    Map<String, Object> parsedSpan = onlySpan(collector.collectTraces());
-
-    assertEquals(SAMPLED_TRACE_FLAG, ((Number) parsedSpan.get("flags")).intValue());
-  }
-
-  @Test
-  void traceStateAndFlagsStayPairedAcrossSamplingDecisions() throws IOException {
-    Map<String, Object> localFallback = exportSamplingSpan(localProbabilitySpan(1.0, true));
-    assertTrue(localFallback.get("traceState").toString().matches("ot=rv:[0-9a-f]{14};th:0"));
-    assertEquals(SAMPLED_TRACE_FLAG, ((Number) localFallback.get("flags")).intValue());
-
-    Map<String, Object> inherited = exportSamplingSpan(inheritedSamplingSpan());
-    assertEquals("dd=s:1,ot=rv:ef284ace7a91e1;th:8,vendor=state", inherited.get("traceState"));
-    assertEquals(SAMPLED_TRACE_FLAG, ((Number) inherited.get("flags")).intValue());
-
-    Map<String, Object> probabilityDrop = exportSamplingSpan(localProbabilitySpan(0.0, false));
-    assertTrue(
-        probabilityDrop
-            .get("traceState")
-            .toString()
-            .matches("ot=rv:[0-9a-f]{14};th:ffffffffffffff"));
-    assertFalse(probabilityDrop.containsKey("flags"));
-
-    DDSpan limiterDrop = localSamplingSpan();
-    limiterDrop
-        .spanContext()
-        .getPropagationTags()
-        .tryUpdateProbabilitySamplingDecision(
-            PrioritySampling.SAMPLER_DROP,
-            SamplingMechanism.AGENT_RATE,
-            1.0,
-            true,
-            limiterDrop.getTraceId().toLong(),
-            true);
-    Map<String, Object> limiter = exportSamplingSpan(limiterDrop);
-    assertNull(limiter.get("traceState"));
-    assertFalse(limiter.containsKey("flags"));
-
-    DDSpan nonProbabilityKeep = localProbabilitySpan(0.0, false);
-    nonProbabilityKeep.spanContext().getPropagationTags().forceKeep(SamplingMechanism.MANUAL);
-    Map<String, Object> nonProbability = exportSamplingSpan(nonProbabilityKeep);
-    assertNull(nonProbability.get("traceState"));
-    assertEquals(SAMPLED_TRACE_FLAG, ((Number) nonProbability.get("flags")).intValue());
-  }
-
-  @Test
-  void multipleSpansInATraceAreAllWritten() throws IOException {
-    AgentSpan parent = TRACER.startSpan("test", "op.parent");
-    parent.setResourceName("parent.op");
-    AgentSpan child = TRACER.startSpan("test", "op.child", parent.spanContext());
-    child.setResourceName("child.op");
-    child.finish();
-    parent.finish();
-
-    List<CoreSpan<?>> spans = new ArrayList<>();
-    spans.add((CoreSpan<?>) parent);
-    spans.add((CoreSpan<?>) child);
-
-    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
-    collector.addTrace(spans);
-    OtlpPayload payload = collector.collectTraces();
-
-    List<Map<String, Object>> parsedSpans = allSpans(payload);
-    assertEquals(2, parsedSpans.size());
-
-    Map<String, Object> parsedChild =
-        parsedSpans.stream()
-            .filter(s -> "child.op".equals(s.get("name")))
-            .findFirst()
-            .orElseThrow(() -> new AssertionError("child span not found"));
-    assertEquals(hexSpanId(((DDSpan) parent).getSpanId()), parsedChild.get("parentSpanId"));
-  }
-
-  @Test
-  void poisonedSpanResetsCollectorForNextTrace() throws IOException {
-    // mid-trace exception (e.g. from a malformed span) must not leave partial state behind
-    DDSpan realSpan = startAndFinish("op.first", "GET /first", null);
-
-    CoreSpan<?> poison = mock(CoreSpan.class);
-    when(poison.samplingPriority()).thenReturn(1);
-    when(poison.getTraceId()).thenThrow(new RuntimeException("boom"));
-
-    List<CoreSpan<?>> poisonedTrace = new ArrayList<>();
-    poisonedTrace.add((CoreSpan<?>) realSpan);
-    poisonedTrace.add(poison);
-
-    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
-    assertThrows(RuntimeException.class, () -> collector.addTrace(poisonedTrace));
-
-    // a normal trace collected afterwards must not see any leftover state from the poisoned one
-    DDSpan normalSpan = startAndFinish("op.normal", "GET /normal", null);
-    collector.addTrace(asList((CoreSpan<?>) normalSpan));
-    Map<String, Object> parsedSpan = onlySpan(collector.collectTraces());
-
-    assertEquals("GET /normal", parsedSpan.get("name"));
-  }
-
-  @Test
-  void spanLinkOmitsTraceStateWhenEmpty() throws IOException {
-    AgentSpan linked = TRACER.startSpan("test", "op.linked");
-    linked.finish();
-
-    AgentSpan agentSpan = TRACER.startSpan("test", "op.link");
-    agentSpan.setResourceName("op.link");
-    agentSpan.addLink(SpanLink.from(linked.spanContext()));
-    agentSpan.finish();
-
-    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
-    collector.addTrace(asList((CoreSpan<?>) agentSpan));
-    Map<String, Object> parsedSpan = onlySpan(collector.collectTraces());
-
-    Map<String, Object> parsedLink = onlyLink(parsedSpan);
-    assertFalse(parsedLink.containsKey("traceState"), "empty traceState should be omitted");
-  }
-
-  @Test
-  void spanLinkIncludesTraceStateWhenPresent() throws IOException {
-    AgentSpan linked = TRACER.startSpan("test", "op.linked");
-    linked.finish();
-
-    AgentSpan agentSpan = TRACER.startSpan("test", "op.link");
-    agentSpan.setResourceName("op.link");
-    agentSpan.addLink(
-        SpanLink.from(linked.spanContext(), (byte) 0, "vendor=state", SpanAttributes.EMPTY));
-    agentSpan.finish();
-
-    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
-    collector.addTrace(asList((CoreSpan<?>) agentSpan));
-    Map<String, Object> parsedSpan = onlySpan(collector.collectTraces());
-
-    Map<String, Object> parsedLink = onlyLink(parsedSpan);
-    assertEquals("vendor=state", parsedLink.get("traceState"));
-  }
-
-  // ── helpers ──────────────────────────────────────────────────────────────
-
-  private static DDSpan startAndFinish(String operationName, String resourceName, String spanKind) {
-    AgentSpan agentSpan = TRACER.startSpan("test", operationName);
-    agentSpan.setResourceName(resourceName);
-    if (spanKind != null) {
-      agentSpan.setTag(SPAN_KIND, spanKind);
+    private static Map<String, Object> onlySpan(OtlpPayload payload) throws IOException {
+        List<Map<String, Object>> spans = allSpans(payload);
+        assertEquals(1, spans.size());
+        return spans.get(0);
     }
-    agentSpan.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.DEFAULT);
-    agentSpan.finish();
-    return (DDSpan) agentSpan;
-  }
 
-  private static DDSpan localSamplingSpan() {
-    AgentSpan span = TRACER.startSpan("test", "op.sampling");
-    span.setResourceName("op.sampling");
-    return (DDSpan) span;
-  }
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> allSpans(OtlpPayload payload) throws IOException {
+        byte[] bytes = new byte[payload.getContentLength()];
+        payload.getContent().get(bytes);
+        String json = new String(bytes, StandardCharsets.UTF_8);
+        Map<String, Object> root = JsonMapper.fromJsonToMap(json);
 
-  private static DDSpan localProbabilitySpan(double rate, boolean sampled) {
-    DDSpan span = localSamplingSpan();
-    span.spanContext()
-        .getPropagationTags()
-        .tryUpdateProbabilitySamplingDecision(
-            sampled ? PrioritySampling.SAMPLER_KEEP : PrioritySampling.SAMPLER_DROP,
-            SamplingMechanism.AGENT_RATE,
-            rate,
-            false,
-            span.getTraceId().toLong(),
-            true);
-    return span;
-  }
+        List<Object> resourceSpans = (List<Object>) root.get("resourceSpans");
+        Map<String, Object> resourceSpan = (Map<String, Object>) resourceSpans.get(0);
+        List<Object> scopeSpans = (List<Object>) resourceSpan.get("scopeSpans");
+        Map<String, Object> scopeSpan = (Map<String, Object>) scopeSpans.get(0);
+        List<Object> spans = (List<Object>) scopeSpan.get("spans");
 
-  private static DDSpan inheritedSamplingSpan() {
-    PropagationTags propagationTags =
-        PropagationTags.factory()
-            .fromHeaderValue(
-                PropagationTags.HeaderType.W3C, "dd=s:1,vendor=state,ot=rv:ef284ace7a91e1;th:8");
-    ExtractedContext parent =
-        new ExtractedContext(
-            DDTraceId.ONE,
-            0L,
-            PrioritySampling.SAMPLER_KEEP,
-            null,
-            propagationTags,
-            TracePropagationStyle.TRACECONTEXT);
-    AgentSpan span = TRACER.startSpan("test", "op.inherited", parent);
-    span.setResourceName("op.inherited");
-    return (DDSpan) span;
-  }
-
-  private static Map<String, Object> exportSamplingSpan(DDSpan span) throws IOException {
-    if (span.getSamplingPriority() <= 0) {
-      span.setTag(SPAN_SAMPLING_MECHANISM_TAG, SamplingMechanism.SPAN_SAMPLING_RATE);
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Object span : spans) {
+            result.add((Map<String, Object>) span);
+        }
+        return result;
     }
-    span.finish();
-    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
-    collector.addTrace(asList((CoreSpan<?>) span));
-    return onlySpan(collector.collectTraces());
-  }
 
-  @SuppressWarnings("unchecked")
-  private static Map<String, Object> onlySpan(OtlpPayload payload) throws IOException {
-    List<Map<String, Object>> spans = allSpans(payload);
-    assertEquals(1, spans.size());
-    return spans.get(0);
-  }
-
-  @SuppressWarnings("unchecked")
-  private static List<Map<String, Object>> allSpans(OtlpPayload payload) throws IOException {
-    byte[] bytes = new byte[payload.getContentLength()];
-    payload.getContent().get(bytes);
-    String json = new String(bytes, StandardCharsets.UTF_8);
-    Map<String, Object> root = JsonMapper.fromJsonToMap(json);
-
-    List<Object> resourceSpans = (List<Object>) root.get("resourceSpans");
-    Map<String, Object> resourceSpan = (Map<String, Object>) resourceSpans.get(0);
-    List<Object> scopeSpans = (List<Object>) resourceSpan.get("scopeSpans");
-    Map<String, Object> scopeSpan = (Map<String, Object>) scopeSpans.get(0);
-    List<Object> spans = (List<Object>) scopeSpan.get("spans");
-
-    List<Map<String, Object>> result = new ArrayList<>();
-    for (Object span : spans) {
-      result.add((Map<String, Object>) span);
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> onlyLink(Map<String, Object> span) {
+        List<Object> links = (List<Object>) span.get("links");
+        assertEquals(1, links.size());
+        return (Map<String, Object>) links.get(0);
     }
-    return result;
-  }
 
-  @SuppressWarnings("unchecked")
-  private static Map<String, Object> onlyLink(Map<String, Object> span) {
-    List<Object> links = (List<Object>) span.get("links");
-    assertEquals(1, links.size());
-    return (Map<String, Object>) links.get(0);
-  }
-
-  @SuppressWarnings("unchecked")
-  private static Set<String> attributeKeys(Map<String, Object> span) {
-    List<Object> attributes = (List<Object>) span.get("attributes");
-    Set<String> keys = new HashSet<>();
-    for (Object attribute : attributes) {
-      keys.add((String) ((Map<String, Object>) attribute).get("key"));
+    @SuppressWarnings("unchecked")
+    private static Set<String> attributeKeys(Map<String, Object> span) {
+        List<Object> attributes = (List<Object>) span.get("attributes");
+        Set<String> keys = new HashSet<>();
+        for (Object attribute : attributes) {
+            keys.add((String) ((Map<String, Object>) attribute).get("key"));
+        }
+        return keys;
     }
-    return keys;
-  }
 }

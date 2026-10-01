@@ -23,60 +23,58 @@ import org.restlet.resource.ServerResource;
 
 @AutoService(InstrumenterModule.class)
 public final class ResourceInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  private static final String RESTLET_HTTP_OPERATION_NAME = "restlet.request";
+    private static final String RESTLET_HTTP_OPERATION_NAME = "restlet.request";
 
-  public ResourceInstrumentation() {
-    super("restlet-http");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.restlet.resource.ServerResource";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("doHandle"))
-            .and(takesArguments(2))
-            // In 2.2 this parameter is of type AnnotationInfo. In 2.3+ it is of type
-            // MethodAnnotationInfo, which is a subclass of AnnotationInfo
-            .and(
-                takesArgument(0, extendsClass(named("org.restlet.engine.resource.AnnotationInfo"))))
-            .and(takesArgument(1, named("org.restlet.representation.Variant"))),
-        getClass().getName() + "$ResourceHandleAdvice");
-  }
-
-  public static class ResourceHandleAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope beginRequest(
-        @Advice.This final ServerResource serverResource,
-        @Advice.Argument(0) final AnnotationInfo annotationInfo) {
-      final AgentSpan parent = activeSpan();
-
-      final AgentSpan span = startSpan(RESTLET_CONTROLLER.toString(), RESTLET_HTTP_OPERATION_NAME);
-      span.setMeasured(true);
-      DECORATE.onRestletSpan(span, parent, serverResource, annotationInfo.getJavaMethod());
-      DECORATE.afterStart(span);
-
-      return activateSpan(span);
+    public ResourceInstrumentation() {
+        super("restlet-http");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void finishRequest(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable error) {
-      AgentSpan span = spanFromScope(scope);
-
-      if (null != error) {
-        DECORATE.onError(span, error);
-      }
-
-      DECORATE.beforeFinish(span);
-      scope.close();
-      span.finish();
+    @Override
+    public String instrumentedType() {
+        return "org.restlet.resource.ServerResource";
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("doHandle"))
+                        .and(takesArguments(2))
+                        // In 2.2 this parameter is of type AnnotationInfo. In 2.3+ it is of type
+                        // MethodAnnotationInfo, which is a subclass of AnnotationInfo
+                        .and(takesArgument(0, extendsClass(named("org.restlet.engine.resource.AnnotationInfo"))))
+                        .and(takesArgument(1, named("org.restlet.representation.Variant"))),
+                getClass().getName() + "$ResourceHandleAdvice");
+    }
+
+    public static class ResourceHandleAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope beginRequest(
+                @Advice.This final ServerResource serverResource,
+                @Advice.Argument(0) final AnnotationInfo annotationInfo) {
+            final AgentSpan parent = activeSpan();
+
+            final AgentSpan span = startSpan(RESTLET_CONTROLLER.toString(), RESTLET_HTTP_OPERATION_NAME);
+            span.setMeasured(true);
+            DECORATE.onRestletSpan(span, parent, serverResource, annotationInfo.getJavaMethod());
+            DECORATE.afterStart(span);
+
+            return activateSpan(span);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void finishRequest(@Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable error) {
+            AgentSpan span = spanFromScope(scope);
+
+            if (null != error) {
+                DECORATE.onError(span, error);
+            }
+
+            DECORATE.beforeFinish(span);
+            scope.close();
+            span.finish();
+        }
+    }
 }

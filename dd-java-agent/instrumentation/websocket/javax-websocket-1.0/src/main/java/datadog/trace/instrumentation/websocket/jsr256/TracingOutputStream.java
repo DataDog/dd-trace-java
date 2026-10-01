@@ -11,58 +11,56 @@ import java.io.IOException;
 import java.io.OutputStream;
 
 public class TracingOutputStream extends OutputStream {
-  private final OutputStream delegate;
-  private final HandlerContext.Sender handlerContext;
+    private final OutputStream delegate;
+    private final HandlerContext.Sender handlerContext;
 
-  public TracingOutputStream(OutputStream delegate, HandlerContext.Sender handlerContext) {
-    super();
-    this.delegate = delegate;
-    this.handlerContext = handlerContext;
-  }
+    public TracingOutputStream(OutputStream delegate, HandlerContext.Sender handlerContext) {
+        super();
+        this.delegate = delegate;
+        this.handlerContext = handlerContext;
+    }
 
-  @Override
-  public void write(int b) throws IOException {
-    final boolean doTrace = CallDepthThreadLocalMap.incrementCallDepth(HandlerContext.class) == 0;
-    if (doTrace) {
-      DECORATE.startOutboundFrameSpan(handlerContext, MESSAGE_TYPE_BINARY, 1);
+    @Override
+    public void write(int b) throws IOException {
+        final boolean doTrace = CallDepthThreadLocalMap.incrementCallDepth(HandlerContext.class) == 0;
+        if (doTrace) {
+            DECORATE.startOutboundFrameSpan(handlerContext, MESSAGE_TYPE_BINARY, 1);
+        }
+        try (final ContextScope ignored = activateSpan(handlerContext.getWebsocketSpan())) {
+            delegate.write(b);
+        } finally {
+            if (doTrace) {
+                CallDepthThreadLocalMap.reset(HandlerContext.class);
+            }
+        }
     }
-    try (final ContextScope ignored = activateSpan(handlerContext.getWebsocketSpan())) {
-      delegate.write(b);
-    } finally {
-      if (doTrace) {
-        CallDepthThreadLocalMap.reset(HandlerContext.class);
-      }
-    }
-  }
 
-  @Override
-  public void write(byte[] b, int off, int len) throws IOException {
-    final boolean doTrace = CallDepthThreadLocalMap.incrementCallDepth(HandlerContext.class) == 0;
-    if (doTrace) {
-      DECORATE.startOutboundFrameSpan(handlerContext, MESSAGE_TYPE_BINARY, len);
+    @Override
+    public void write(byte[] b, int off, int len) throws IOException {
+        final boolean doTrace = CallDepthThreadLocalMap.incrementCallDepth(HandlerContext.class) == 0;
+        if (doTrace) {
+            DECORATE.startOutboundFrameSpan(handlerContext, MESSAGE_TYPE_BINARY, len);
+        }
+        try (final ContextScope ignored = activateSpan(handlerContext.getWebsocketSpan())) {
+            delegate.write(b, off, len);
+        } finally {
+            if (doTrace) {
+                CallDepthThreadLocalMap.reset(HandlerContext.class);
+            }
+        }
     }
-    try (final ContextScope ignored = activateSpan(handlerContext.getWebsocketSpan())) {
-      delegate.write(b, off, len);
-    } finally {
-      if (doTrace) {
-        CallDepthThreadLocalMap.reset(HandlerContext.class);
-      }
-    }
-  }
 
-  @Override
-  public void close() throws IOException {
-    final boolean doTrace = CallDepthThreadLocalMap.incrementCallDepth(HandlerContext.class) == 0;
-    try (final ContextScope ignored =
-        handlerContext.getWebsocketSpan() != null
-            ? activateSpan(handlerContext.getWebsocketSpan())
-            : null) {
-      delegate.close();
-    } finally {
-      if (doTrace) {
-        CallDepthThreadLocalMap.reset(HandlerContext.class);
-        DECORATE.onFrameEnd(handlerContext);
-      }
+    @Override
+    public void close() throws IOException {
+        final boolean doTrace = CallDepthThreadLocalMap.incrementCallDepth(HandlerContext.class) == 0;
+        try (final ContextScope ignored =
+                handlerContext.getWebsocketSpan() != null ? activateSpan(handlerContext.getWebsocketSpan()) : null) {
+            delegate.close();
+        } finally {
+            if (doTrace) {
+                CallDepthThreadLocalMap.reset(HandlerContext.class);
+                DECORATE.onFrameEnd(handlerContext);
+            }
+        }
     }
-  }
 }

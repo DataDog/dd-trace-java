@@ -18,48 +18,46 @@ import net.bytebuddy.asm.Advice;
 
 public class LettuceAsyncCommandsAdvice {
 
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static ContextScope onEnter(
-      @Advice.Argument(0) final RedisCommand command,
-      @Advice.This final AbstractRedisAsyncCommands thiz) {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ContextScope onEnter(
+            @Advice.Argument(0) final RedisCommand command, @Advice.This final AbstractRedisAsyncCommands thiz) {
 
-    final AgentSpan span =
-        startSpan(
-            LettuceClientDecorator.REDIS_CLIENT.toString(), LettuceClientDecorator.OPERATION_NAME);
-    DECORATE.afterStart(span);
-    DECORATE.onConnection(
-        span,
-        InstrumentationContext.get(StatefulConnection.class, RedisURI.class)
-            .get(thiz.getConnection()));
-    DECORATE.onCommand(span, command);
+        final AgentSpan span =
+                startSpan(LettuceClientDecorator.REDIS_CLIENT.toString(), LettuceClientDecorator.OPERATION_NAME);
+        DECORATE.afterStart(span);
+        DECORATE.onConnection(
+                span,
+                InstrumentationContext.get(StatefulConnection.class, RedisURI.class)
+                        .get(thiz.getConnection()));
+        DECORATE.onCommand(span, command);
 
-    return activateSpan(span);
-  }
-
-  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void stopSpan(
-      @Advice.Argument(0) final RedisCommand command,
-      @Advice.Enter final ContextScope scope,
-      @Advice.Thrown final Throwable throwable,
-      @Advice.Return AsyncCommand<?, ?, ?> asyncCommand) {
-
-    final AgentSpan span = spanFromScope(scope);
-    if (throwable != null) {
-      DECORATE.onError(span, throwable);
-      DECORATE.beforeFinish(span);
-      scope.close();
-      span.finish();
-      return;
+        return activateSpan(span);
     }
 
-    // close spans on error or normal completion
-    if (expectsResponse(command)) {
-      asyncCommand.whenComplete(new LettuceAsyncBiConsumer<>(span));
-    } else {
-      DECORATE.beforeFinish(span);
-      span.finish();
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void stopSpan(
+            @Advice.Argument(0) final RedisCommand command,
+            @Advice.Enter final ContextScope scope,
+            @Advice.Thrown final Throwable throwable,
+            @Advice.Return AsyncCommand<?, ?, ?> asyncCommand) {
+
+        final AgentSpan span = spanFromScope(scope);
+        if (throwable != null) {
+            DECORATE.onError(span, throwable);
+            DECORATE.beforeFinish(span);
+            scope.close();
+            span.finish();
+            return;
+        }
+
+        // close spans on error or normal completion
+        if (expectsResponse(command)) {
+            asyncCommand.whenComplete(new LettuceAsyncBiConsumer<>(span));
+        } else {
+            DECORATE.beforeFinish(span);
+            span.finish();
+        }
+        scope.close();
+        // span may be finished by LettuceAsyncBiConsumer
     }
-    scope.close();
-    // span may be finished by LettuceAsyncBiConsumer
-  }
 }

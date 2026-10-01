@@ -5,10 +5,10 @@ import datadog.json.JsonWriter;
 
 public class TextMapInjectAdapter implements CarrierSetter<JsonWriter> {
 
-  public static final TextMapInjectAdapter SETTER = new TextMapInjectAdapter();
+    public static final TextMapInjectAdapter SETTER = new TextMapInjectAdapter();
 
-  @Override
-  public void set(final JsonWriter writer, final String key, final String value) {
-    writer.name(key).value(value);
-  }
+    @Override
+    public void set(final JsonWriter writer, final String key, final String value) {
+        writer.name(key).value(value);
+    }
 }

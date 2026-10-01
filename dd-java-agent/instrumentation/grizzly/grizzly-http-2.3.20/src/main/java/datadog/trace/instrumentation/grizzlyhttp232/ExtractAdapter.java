@@ -9,33 +9,33 @@ import org.glassfish.grizzly.http.util.MimeHeaders;
 
 public class ExtractAdapter<T extends HttpHeader> implements AgentPropagation.ContextVisitor<T> {
 
-  @SuppressWarnings("rawtypes")
-  private static final ExtractAdapter GETTER = new ExtractAdapter();
+    @SuppressWarnings("rawtypes")
+    private static final ExtractAdapter GETTER = new ExtractAdapter();
 
-  private ExtractAdapter() {}
+    private ExtractAdapter() {}
 
-  @SuppressWarnings("unchecked")
-  public static AgentPropagation.ContextVisitor<HttpRequestPacket> requestGetter() {
-    return (AgentPropagation.ContextVisitor<HttpRequestPacket>) GETTER;
-  }
-
-  @SuppressWarnings("unchecked")
-  public static AgentPropagation.ContextVisitor<HttpResponsePacket> responseGetter() {
-    return (AgentPropagation.ContextVisitor<HttpResponsePacket>) GETTER;
-  }
-
-  @Override
-  public void forEachKey(T carrier, AgentPropagation.KeyClassifier classifier) {
-    MimeHeaders headers = carrier.getHeaders();
-    if (headers == null) {
-      return;
+    @SuppressWarnings("unchecked")
+    public static AgentPropagation.ContextVisitor<HttpRequestPacket> requestGetter() {
+        return (AgentPropagation.ContextVisitor<HttpRequestPacket>) GETTER;
     }
-    for (int i = 0; i < headers.size(); ++i) {
-      if (!classifier.accept(
-          headers.getName(i).toString(StandardCharsets.UTF_8),
-          headers.getValue(i).toString(StandardCharsets.UTF_8))) {
-        return;
-      }
+
+    @SuppressWarnings("unchecked")
+    public static AgentPropagation.ContextVisitor<HttpResponsePacket> responseGetter() {
+        return (AgentPropagation.ContextVisitor<HttpResponsePacket>) GETTER;
     }
-  }
+
+    @Override
+    public void forEachKey(T carrier, AgentPropagation.KeyClassifier classifier) {
+        MimeHeaders headers = carrier.getHeaders();
+        if (headers == null) {
+            return;
+        }
+        for (int i = 0; i < headers.size(); ++i) {
+            if (!classifier.accept(
+                    headers.getName(i).toString(StandardCharsets.UTF_8),
+                    headers.getValue(i).toString(StandardCharsets.UTF_8))) {
+                return;
+            }
+        }
+    }
 }

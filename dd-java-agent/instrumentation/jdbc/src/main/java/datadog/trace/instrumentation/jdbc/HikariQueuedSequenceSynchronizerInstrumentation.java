@@ -12,31 +12,29 @@ import net.bytebuddy.asm.Advice;
  * to <code>synchronizer.waitUntilSequenceExceeded(startSeq, timeout)</code>.
  */
 @AutoService(InstrumenterModule.class)
-public final class HikariQueuedSequenceSynchronizerInstrumentation
-    extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+public final class HikariQueuedSequenceSynchronizerInstrumentation extends InstrumenterModule.Tracing
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public HikariQueuedSequenceSynchronizerInstrumentation() {
-    super("jdbc", "hikari");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "com.zaxxer.hikari.util.QueuedSequenceSynchronizer";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("waitUntilSequenceExceeded"),
-        HikariQueuedSequenceSynchronizerInstrumentation.class.getName()
-            + "$WaitUntilSequenceExceededAdvice");
-  }
-
-  public static class WaitUntilSequenceExceededAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter() {
-      HikariBlockedTracker.setBlocked();
+    public HikariQueuedSequenceSynchronizerInstrumentation() {
+        super("jdbc", "hikari");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "com.zaxxer.hikari.util.QueuedSequenceSynchronizer";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("waitUntilSequenceExceeded"),
+                HikariQueuedSequenceSynchronizerInstrumentation.class.getName() + "$WaitUntilSequenceExceededAdvice");
+    }
+
+    public static class WaitUntilSequenceExceededAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter() {
+            HikariBlockedTracker.setBlocked();
+        }
+    }
 }

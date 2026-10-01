@@ -18,31 +18,31 @@ import java.util.Map;
 @AutoService(InstrumenterModule.class)
 public final class HibernateModule extends InstrumenterModule.Tracing {
 
-  static final String SESSION_STATE = "datadog.trace.instrumentation.hibernate.SessionState";
+    static final String SESSION_STATE = "datadog.trace.instrumentation.hibernate.SessionState";
 
-  public HibernateModule() {
-    super("hibernate", "hibernate-core");
-  }
+    public HibernateModule() {
+        super("hibernate", "hibernate-core");
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    final Map<String, String> stores = new HashMap<>();
-    stores.put("org.hibernate.SharedSessionContract", SESSION_STATE);
-    stores.put("org.hibernate.procedure.ProcedureCall", SESSION_STATE);
-    return Collections.unmodifiableMap(stores);
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        final Map<String, String> stores = new HashMap<>();
+        stores.put("org.hibernate.SharedSessionContract", SESSION_STATE);
+        stores.put("org.hibernate.procedure.ProcedureCall", SESSION_STATE);
+        return Collections.unmodifiableMap(stores);
+    }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.hibernate.SessionMethodUtils",
-      "datadog.trace.instrumentation.hibernate.SessionState",
-      "datadog.trace.instrumentation.hibernate.HibernateDecorator",
-    };
-  }
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            "datadog.trace.instrumentation.hibernate.SessionMethodUtils",
+            "datadog.trace.instrumentation.hibernate.SessionState",
+            "datadog.trace.instrumentation.hibernate.HibernateDecorator",
+        };
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return Arrays.asList(new SessionInstrumentation(), new ProcedureCallInstrumentation());
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return Arrays.asList(new SessionInstrumentation(), new ProcedureCallInstrumentation());
+    }
 }

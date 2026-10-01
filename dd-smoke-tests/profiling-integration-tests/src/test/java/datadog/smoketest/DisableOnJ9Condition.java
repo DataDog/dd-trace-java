@@ -9,17 +9,17 @@ import org.junit.jupiter.api.extension.ExecutionCondition;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
 public final class DisableOnJ9Condition implements ExecutionCondition {
-  @Override
-  public ConditionEvaluationResult evaluateExecutionCondition(ExtensionContext context) {
-    return isDdprofSupported()
-        ? ConditionEvaluationResult.enabled("")
-        : ConditionEvaluationResult.disabled("Profiling context is not supported for J9");
-  }
+    @Override
+    public ConditionEvaluationResult evaluateExecutionCondition(ExtensionContext context) {
+        return isDdprofSupported()
+                ? ConditionEvaluationResult.enabled("")
+                : ConditionEvaluationResult.disabled("Profiling context is not supported for J9");
+    }
 
-  private static boolean isDdprofSupported() {
-    return !isJ9()
-        || (isJavaVersion(8) && isJavaVersion(8, 0, 361))
-        || isJavaVersionAtLeast(11, 0, 18)
-        || isJavaVersionAtLeast(17, 0, 6);
-  }
+    private static boolean isDdprofSupported() {
+        return !isJ9()
+                || (isJavaVersion(8) && isJavaVersion(8, 0, 361))
+                || isJavaVersionAtLeast(11, 0, 18)
+                || isJavaVersionAtLeast(17, 0, 6);
+    }
 }

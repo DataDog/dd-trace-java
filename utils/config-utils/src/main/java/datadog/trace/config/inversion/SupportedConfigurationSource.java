@@ -9,39 +9,38 @@ import java.util.List;
  */
 class SupportedConfigurationSource {
 
-  /**
-   * @return Set of supported environment variable keys
-   */
-  public boolean supported(String env) {
-    return GeneratedSupportedConfigurations.SUPPORTED.containsKey(env);
-  }
+    /**
+     * @return Set of supported environment variable keys
+     */
+    public boolean supported(String env) {
+        return GeneratedSupportedConfigurations.SUPPORTED.containsKey(env);
+    }
 
-  /**
-   * @return List of aliases for an environment variable
-   */
-  public List<String> getAliases(String env) {
-    return GeneratedSupportedConfigurations.ALIASES.getOrDefault(env, Collections.emptyList());
-  }
+    /**
+     * @return List of aliases for an environment variable
+     */
+    public List<String> getAliases(String env) {
+        return GeneratedSupportedConfigurations.ALIASES.getOrDefault(env, Collections.emptyList());
+    }
 
-  /**
-   * @return Primary environment variable for a queried alias
-   */
-  public String primaryEnvFromAlias(String alias) {
-    return GeneratedSupportedConfigurations.ALIAS_MAPPING.getOrDefault(alias, null);
-  }
+    /**
+     * @return Primary environment variable for a queried alias
+     */
+    public String primaryEnvFromAlias(String alias) {
+        return GeneratedSupportedConfigurations.ALIAS_MAPPING.getOrDefault(alias, null);
+    }
 
-  /**
-   * @return Map of deprecated configurations
-   */
-  public String primaryEnvFromDeprecated(String deprecated) {
-    return GeneratedSupportedConfigurations.DEPRECATED.getOrDefault(deprecated, null);
-  }
+    /**
+     * @return Map of deprecated configurations
+     */
+    public String primaryEnvFromDeprecated(String deprecated) {
+        return GeneratedSupportedConfigurations.DEPRECATED.getOrDefault(deprecated, null);
+    }
 
-  /**
-   * @return Mapping from propertyKey to configuration
-   */
-  public String envFromTelemetryKey(String telemetryKey) {
-    return GeneratedSupportedConfigurations.REVERSE_PROPERTY_KEYS_MAP.getOrDefault(
-        telemetryKey, null);
-  }
+    /**
+     * @return Mapping from propertyKey to configuration
+     */
+    public String envFromTelemetryKey(String telemetryKey) {
+        return GeneratedSupportedConfigurations.REVERSE_PROPERTY_KEYS_MAP.getOrDefault(telemetryKey, null);
+    }
 }

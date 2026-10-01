@@ -133,383 +133,383 @@ import org.openjdk.jmh.infra.Blackhole;
 @Fork(5)
 public class AccumulatorBenchmark {
 
-  enum Counter {
-    HITS
-  }
-
-  /**
-   * An 8-constant counterpart to {@link Counter}, used only by the {@code *8_*} benchmarks below.
-   * Unlike {@link Counter}, where every thread hits the single {@code HITS} constant (the worst
-   * case for {@code longAdderGroup}'s per-counter locking -- one lock shared by every thread,
-   * regardless of core count), these benchmarks spread writes across all 8 constants: each JMH
-   * worker thread is pinned to one fixed counter for its lifetime (see {@link
-   * #threadCounterIndex}), so under high contention, threads split into up to 8 groups each
-   * contending on their own lock instead of all threads sharing one. This is the topology where
-   * {@code longAdderGroup}'s distributed locking should actually pay off, and where {@link
-   * Accumulator}'s thread-striped design has to earn its win on the write side rather than facing a
-   * single-counter worst case. {@code accumulateAndReset}/{@code groupAccumulateAnd} also now walk
-   * 8 slots per drain instead of 1, sizing the drain cost closer to {@code TracerHealthMetric}'s
-   * 54-constant production shape.
-   */
-  enum Counter8 {
-    COUNTER_0,
-    COUNTER_1,
-    COUNTER_2,
-    COUNTER_3,
-    COUNTER_4,
-    COUNTER_5,
-    COUNTER_6,
-    COUNTER_7
-  }
-
-  private static final Counter8[] COUNTER8_VALUES = Counter8.values();
-
-  private final LongAdder adder = new LongAdder();
-  private final LongAdder deltaAdder = new LongAdder();
-  private long deltaPrevious;
-  private final Accumulator<Counter> accumulator = Accumulator.of(Counter.class);
-  private final Accumulator<Counter8> accumulator8 = Accumulator.of(Counter8.class);
-  private final ConcurrentHashMap<String, AtomicLong> chm = new ConcurrentHashMap<>();
-  private final AtomicLongArray atomicLongArray = new AtomicLongArray(1);
-  private final AtomicLongArray atomicLongArray8 = new AtomicLongArray(8);
-  private final LongAdder[] longAdderGroup = {new LongAdder()};
-  private final LongAdder[] longAdderGroup8 = {
-    new LongAdder(),
-    new LongAdder(),
-    new LongAdder(),
-    new LongAdder(),
-    new LongAdder(),
-    new LongAdder(),
-    new LongAdder(),
-    new LongAdder()
-  };
-
-  /**
-   * Assigns each JMH worker thread a fixed {@code Counter8} index (round-robin over 8) the first
-   * time it calls into any {@code *8_*} benchmark, and keeps returning that same index for the
-   * thread's lifetime -- so under {@code Threads.MAX}, writes spread across all 8 counters instead
-   * of every thread hammering one.
-   */
-  private final AtomicInteger threadIndexAssigner = new AtomicInteger();
-
-  private final ThreadLocal<Integer> threadCounterIndex =
-      ThreadLocal.withInitial(() -> threadIndexAssigner.getAndIncrement() % COUNTER8_VALUES.length);
-
-  /**
-   * The natural "just use LongAdder" fix for the reset hazard: one {@code LongAdder} per counter,
-   * with a per-counter lock guarding both the increment and the drain -- external locking around
-   * only the drain does nothing, since {@code sumThenReset()}'s internal race is against the {@code
-   * LongAdder}'s own CAS-based {@code add()}, not against any lock a caller takes. This is the fair
-   * comparison point: it closes the same reset hazard {@link Accumulator} does, but stripes by
-   * <em>counter</em> (one lock per enum constant) instead of by <em>thread</em> (one shared table
-   * across all counters) -- so N threads hammering the *same* counter contend on one lock
-   * regardless of core count, with no thread-bucket distribution at all.
-   */
-  private static void groupInc(LongAdder[] group, int ordinal) {
-    LongAdder counter = group[ordinal];
-    synchronized (counter) {
-      counter.add(1L);
+    enum Counter {
+        HITS
     }
-  }
 
-  private static long[] groupAccumulateAnd(LongAdder[] group) {
-    long[] acc = new long[group.length];
-    for (int i = 0; i < group.length; i++) {
-      LongAdder counter = group[i];
-      synchronized (counter) {
-        acc[i] = counter.sumThenReset();
-      }
+    /**
+     * An 8-constant counterpart to {@link Counter}, used only by the {@code *8_*} benchmarks below.
+     * Unlike {@link Counter}, where every thread hits the single {@code HITS} constant (the worst
+     * case for {@code longAdderGroup}'s per-counter locking -- one lock shared by every thread,
+     * regardless of core count), these benchmarks spread writes across all 8 constants: each JMH
+     * worker thread is pinned to one fixed counter for its lifetime (see {@link
+     * #threadCounterIndex}), so under high contention, threads split into up to 8 groups each
+     * contending on their own lock instead of all threads sharing one. This is the topology where
+     * {@code longAdderGroup}'s distributed locking should actually pay off, and where {@link
+     * Accumulator}'s thread-striped design has to earn its win on the write side rather than facing a
+     * single-counter worst case. {@code accumulateAndReset}/{@code groupAccumulateAnd} also now walk
+     * 8 slots per drain instead of 1, sizing the drain cost closer to {@code TracerHealthMetric}'s
+     * 54-constant production shape.
+     */
+    enum Counter8 {
+        COUNTER_0,
+        COUNTER_1,
+        COUNTER_2,
+        COUNTER_3,
+        COUNTER_4,
+        COUNTER_5,
+        COUNTER_6,
+        COUNTER_7
     }
-    return acc;
-  }
 
-  /**
-   * The unstriped baseline: a single shared {@code AtomicLongArray}, one slot per counter, with no
-   * per-thread distribution at all -- isolates the cost of {@link Accumulator}'s thread-striping
-   * itself from the cost of correctness (unlike {@code longAdderGroup}, this has no lock: {@code
-   * getAndAdd} and {@code getAndSet} are each already atomic per-slot, so no coordination is needed
-   * to give the same "no increment lost across a drain" guarantee).
-   */
-  private static long[] arrayAccumulateAndReset(AtomicLongArray array) {
-    long[] acc = new long[array.length()];
-    for (int i = 0; i < array.length(); i++) {
-      acc[i] = array.getAndSet(i, 0L);
+    private static final Counter8[] COUNTER8_VALUES = Counter8.values();
+
+    private final LongAdder adder = new LongAdder();
+    private final LongAdder deltaAdder = new LongAdder();
+    private long deltaPrevious;
+    private final Accumulator<Counter> accumulator = Accumulator.of(Counter.class);
+    private final Accumulator<Counter8> accumulator8 = Accumulator.of(Counter8.class);
+    private final ConcurrentHashMap<String, AtomicLong> chm = new ConcurrentHashMap<>();
+    private final AtomicLongArray atomicLongArray = new AtomicLongArray(1);
+    private final AtomicLongArray atomicLongArray8 = new AtomicLongArray(8);
+    private final LongAdder[] longAdderGroup = {new LongAdder()};
+    private final LongAdder[] longAdderGroup8 = {
+        new LongAdder(),
+        new LongAdder(),
+        new LongAdder(),
+        new LongAdder(),
+        new LongAdder(),
+        new LongAdder(),
+        new LongAdder(),
+        new LongAdder()
+    };
+
+    /**
+     * Assigns each JMH worker thread a fixed {@code Counter8} index (round-robin over 8) the first
+     * time it calls into any {@code *8_*} benchmark, and keeps returning that same index for the
+     * thread's lifetime -- so under {@code Threads.MAX}, writes spread across all 8 counters instead
+     * of every thread hammering one.
+     */
+    private final AtomicInteger threadIndexAssigner = new AtomicInteger();
+
+    private final ThreadLocal<Integer> threadCounterIndex =
+            ThreadLocal.withInitial(() -> threadIndexAssigner.getAndIncrement() % COUNTER8_VALUES.length);
+
+    /**
+     * The natural "just use LongAdder" fix for the reset hazard: one {@code LongAdder} per counter,
+     * with a per-counter lock guarding both the increment and the drain -- external locking around
+     * only the drain does nothing, since {@code sumThenReset()}'s internal race is against the {@code
+     * LongAdder}'s own CAS-based {@code add()}, not against any lock a caller takes. This is the fair
+     * comparison point: it closes the same reset hazard {@link Accumulator} does, but stripes by
+     * <em>counter</em> (one lock per enum constant) instead of by <em>thread</em> (one shared table
+     * across all counters) -- so N threads hammering the *same* counter contend on one lock
+     * regardless of core count, with no thread-bucket distribution at all.
+     */
+    private static void groupInc(LongAdder[] group, int ordinal) {
+        LongAdder counter = group[ordinal];
+        synchronized (counter) {
+            counter.add(1L);
+        }
     }
-    return acc;
-  }
 
-  /**
-   * The safe, lock-free alternative to {@code sumThenReset()} that pre-migration {@code
-   * TracerHealthMetrics} actually used (via {@code previousCounts}/{@code countIndex}): never reset
-   * the {@code LongAdder} at all, and have a single differ thread track the last observed {@code
-   * sum()} to compute its own delta. {@code sum()} alone never loses an update permanently -- a
-   * miss just shows up in the next {@code sum()} -- so this closes {@code sumThenReset()}'s reset
-   * race without any lock, at the cost of one extra subtraction per drain. The catch is the "single
-   * differ" part: {@code deltaPrevious} is unsynchronized plain state, correct only because exactly
-   * one thread ever calls this method between increments. Unlike {@code sumThenReset()}, which
-   * degrades gracefully (just an occasional dropped delta) if called from multiple threads at once,
-   * concurrent callers here would race on {@code deltaPrevious} itself and corrupt it -- so there
-   * is deliberately no {@code longAdderDelta_highContention} mirroring {@code
-   * longAdderSumThenReset_highContention}'s "every thread both writes and drains" shape; see {@code
-   * longAdderDeltaMixed_write}/{@code _drain} below for the one topology (many writers, one
-   * dedicated drainer) this baseline is actually valid under.
-   */
-  private long deltaSumAndReset() {
-    long current = deltaAdder.sum();
-    long delta = current - deltaPrevious;
-    deltaPrevious = current;
-    return delta;
-  }
+    private static long[] groupAccumulateAnd(LongAdder[] group) {
+        long[] acc = new long[group.length];
+        for (int i = 0; i < group.length; i++) {
+            LongAdder counter = group[i];
+            synchronized (counter) {
+                acc[i] = counter.sumThenReset();
+            }
+        }
+        return acc;
+    }
 
-  @Benchmark
-  @Threads(1)
-  public void longAdderIncrement_lowContention() {
-    adder.increment();
-  }
+    /**
+     * The unstriped baseline: a single shared {@code AtomicLongArray}, one slot per counter, with no
+     * per-thread distribution at all -- isolates the cost of {@link Accumulator}'s thread-striping
+     * itself from the cost of correctness (unlike {@code longAdderGroup}, this has no lock: {@code
+     * getAndAdd} and {@code getAndSet} are each already atomic per-slot, so no coordination is needed
+     * to give the same "no increment lost across a drain" guarantee).
+     */
+    private static long[] arrayAccumulateAndReset(AtomicLongArray array) {
+        long[] acc = new long[array.length()];
+        for (int i = 0; i < array.length(); i++) {
+            acc[i] = array.getAndSet(i, 0L);
+        }
+        return acc;
+    }
 
-  @Benchmark
-  @Threads(Threads.MAX)
-  public void longAdderIncrement_highContention() {
-    adder.increment();
-  }
+    /**
+     * The safe, lock-free alternative to {@code sumThenReset()} that pre-migration {@code
+     * TracerHealthMetrics} actually used (via {@code previousCounts}/{@code countIndex}): never reset
+     * the {@code LongAdder} at all, and have a single differ thread track the last observed {@code
+     * sum()} to compute its own delta. {@code sum()} alone never loses an update permanently -- a
+     * miss just shows up in the next {@code sum()} -- so this closes {@code sumThenReset()}'s reset
+     * race without any lock, at the cost of one extra subtraction per drain. The catch is the "single
+     * differ" part: {@code deltaPrevious} is unsynchronized plain state, correct only because exactly
+     * one thread ever calls this method between increments. Unlike {@code sumThenReset()}, which
+     * degrades gracefully (just an occasional dropped delta) if called from multiple threads at once,
+     * concurrent callers here would race on {@code deltaPrevious} itself and corrupt it -- so there
+     * is deliberately no {@code longAdderDelta_highContention} mirroring {@code
+     * longAdderSumThenReset_highContention}'s "every thread both writes and drains" shape; see {@code
+     * longAdderDeltaMixed_write}/{@code _drain} below for the one topology (many writers, one
+     * dedicated drainer) this baseline is actually valid under.
+     */
+    private long deltaSumAndReset() {
+        long current = deltaAdder.sum();
+        long delta = current - deltaPrevious;
+        deltaPrevious = current;
+        return delta;
+    }
 
-  @Benchmark
-  @Threads(1)
-  public void accumulatorIncrement_lowContention() {
-    accumulator.inc(Counter.HITS);
-  }
+    @Benchmark
+    @Threads(1)
+    public void longAdderIncrement_lowContention() {
+        adder.increment();
+    }
 
-  @Benchmark
-  @Threads(Threads.MAX)
-  public void accumulatorIncrement_highContention() {
-    accumulator.inc(Counter.HITS);
-  }
+    @Benchmark
+    @Threads(Threads.MAX)
+    public void longAdderIncrement_highContention() {
+        adder.increment();
+    }
 
-  @Benchmark
-  @Threads(1)
-  public void chmAtomicLongIncrement_lowContention() {
-    chm.computeIfAbsent("hits", k -> new AtomicLong()).incrementAndGet();
-  }
+    @Benchmark
+    @Threads(1)
+    public void accumulatorIncrement_lowContention() {
+        accumulator.inc(Counter.HITS);
+    }
 
-  @Benchmark
-  @Threads(Threads.MAX)
-  public void chmAtomicLongIncrement_highContention() {
-    chm.computeIfAbsent("hits", k -> new AtomicLong()).incrementAndGet();
-  }
+    @Benchmark
+    @Threads(Threads.MAX)
+    public void accumulatorIncrement_highContention() {
+        accumulator.inc(Counter.HITS);
+    }
 
-  @Benchmark
-  @Threads(1)
-  public void longAdderSumThenReset_lowContention(Blackhole blackhole) {
-    adder.increment();
-    blackhole.consume(adder.sumThenReset());
-  }
+    @Benchmark
+    @Threads(1)
+    public void chmAtomicLongIncrement_lowContention() {
+        chm.computeIfAbsent("hits", k -> new AtomicLong()).incrementAndGet();
+    }
 
-  @Benchmark
-  @Threads(Threads.MAX)
-  public void longAdderSumThenReset_highContention(Blackhole blackhole) {
-    adder.increment();
-    blackhole.consume(adder.sumThenReset());
-  }
+    @Benchmark
+    @Threads(Threads.MAX)
+    public void chmAtomicLongIncrement_highContention() {
+        chm.computeIfAbsent("hits", k -> new AtomicLong()).incrementAndGet();
+    }
 
-  @Benchmark
-  @Threads(1)
-  public void longAdderDelta_lowContention(Blackhole blackhole) {
-    deltaAdder.increment();
-    blackhole.consume(deltaSumAndReset());
-  }
+    @Benchmark
+    @Threads(1)
+    public void longAdderSumThenReset_lowContention(Blackhole blackhole) {
+        adder.increment();
+        blackhole.consume(adder.sumThenReset());
+    }
 
-  /**
-   * The realistic, valid topology for {@link #deltaSumAndReset} -- many writers, one dedicated
-   * differ -- mirroring {@code accumulatorMixed_write}/{@code _drain} below so the two can be
-   * compared directly: this is the fairest single-counter match for {@link Accumulator}, since both
-   * are lock-free on the write side and both give the same no-lost-update guarantee, just by
-   * different means (per-slot atomic {@code getAndSet} vs. a single differ's own bookkeeping).
-   */
-  @Benchmark
-  @Group("longAdderDeltaMixed")
-  @GroupThreads(4)
-  public void longAdderDeltaMixed_write() {
-    deltaAdder.increment();
-  }
+    @Benchmark
+    @Threads(Threads.MAX)
+    public void longAdderSumThenReset_highContention(Blackhole blackhole) {
+        adder.increment();
+        blackhole.consume(adder.sumThenReset());
+    }
 
-  @Benchmark
-  @Group("longAdderDeltaMixed")
-  @GroupThreads(1)
-  public void longAdderDeltaMixed_drain(Blackhole blackhole) {
-    blackhole.consume(deltaSumAndReset());
-  }
+    @Benchmark
+    @Threads(1)
+    public void longAdderDelta_lowContention(Blackhole blackhole) {
+        deltaAdder.increment();
+        blackhole.consume(deltaSumAndReset());
+    }
 
-  @Benchmark
-  @Threads(1)
-  public void accumulatorAccumulateAndReset_lowContention(Blackhole blackhole) {
-    accumulator.inc(Counter.HITS);
-    blackhole.consume(accumulator.accumulateAndReset());
-  }
+    /**
+     * The realistic, valid topology for {@link #deltaSumAndReset} -- many writers, one dedicated
+     * differ -- mirroring {@code accumulatorMixed_write}/{@code _drain} below so the two can be
+     * compared directly: this is the fairest single-counter match for {@link Accumulator}, since both
+     * are lock-free on the write side and both give the same no-lost-update guarantee, just by
+     * different means (per-slot atomic {@code getAndSet} vs. a single differ's own bookkeeping).
+     */
+    @Benchmark
+    @Group("longAdderDeltaMixed")
+    @GroupThreads(4)
+    public void longAdderDeltaMixed_write() {
+        deltaAdder.increment();
+    }
 
-  /**
-   * A deliberately pessimistic topology: every thread both writes and drains on every op, so {@code
-   * Threads.MAX} threads are all draining concurrently. Real callers don't do this -- see {@code
-   * accumulatorMixed-write}/{@code accumulatorMixed-drain} below for the "many writers, one rare
-   * drainer" shape this class actually targets. Kept as the worst-case upper bound: no production
-   * topology should be more contended on {@link Accumulator#accumulateAndReset} than this.
-   */
-  @Benchmark
-  @Threads(Threads.MAX)
-  public void accumulatorAccumulateAndReset_highContention(Blackhole blackhole) {
-    accumulator.inc(Counter.HITS);
-    blackhole.consume(accumulator.accumulateAndReset());
-  }
+    @Benchmark
+    @Group("longAdderDeltaMixed")
+    @GroupThreads(1)
+    public void longAdderDeltaMixed_drain(Blackhole blackhole) {
+        blackhole.consume(deltaSumAndReset());
+    }
 
-  /**
-   * The realistic counterpart to {@code accumulatorAccumulateAndReset_highContention}: many writer
-   * threads incrementing, and a single dedicated thread polling {@link
-   * Accumulator#accumulateAndReset} -- not every thread doing both on every op. {@code
-   * accumulatorMixed-write} measures increment cost while a drain is actively running; {@code
-   * accumulatorMixed-drain} measures the drain's own cost under that same live write pressure. The
-   * 4:1 writer:drainer ratio is illustrative of "many writers, rare drain," not tuned to a specific
-   * core count.
-   */
-  @Benchmark
-  @Group("accumulatorMixed")
-  @GroupThreads(4)
-  public void accumulatorMixed_write() {
-    accumulator.inc(Counter.HITS);
-  }
+    @Benchmark
+    @Threads(1)
+    public void accumulatorAccumulateAndReset_lowContention(Blackhole blackhole) {
+        accumulator.inc(Counter.HITS);
+        blackhole.consume(accumulator.accumulateAndReset());
+    }
 
-  @Benchmark
-  @Group("accumulatorMixed")
-  @GroupThreads(1)
-  public void accumulatorMixed_drain(Blackhole blackhole) {
-    blackhole.consume(accumulator.accumulateAndReset());
-  }
+    /**
+     * A deliberately pessimistic topology: every thread both writes and drains on every op, so {@code
+     * Threads.MAX} threads are all draining concurrently. Real callers don't do this -- see {@code
+     * accumulatorMixed-write}/{@code accumulatorMixed-drain} below for the "many writers, one rare
+     * drainer" shape this class actually targets. Kept as the worst-case upper bound: no production
+     * topology should be more contended on {@link Accumulator#accumulateAndReset} than this.
+     */
+    @Benchmark
+    @Threads(Threads.MAX)
+    public void accumulatorAccumulateAndReset_highContention(Blackhole blackhole) {
+        accumulator.inc(Counter.HITS);
+        blackhole.consume(accumulator.accumulateAndReset());
+    }
 
-  @Benchmark
-  @Threads(1)
-  public void longAdderGroupIncrement_lowContention() {
-    groupInc(longAdderGroup, Counter.HITS.ordinal());
-  }
+    /**
+     * The realistic counterpart to {@code accumulatorAccumulateAndReset_highContention}: many writer
+     * threads incrementing, and a single dedicated thread polling {@link
+     * Accumulator#accumulateAndReset} -- not every thread doing both on every op. {@code
+     * accumulatorMixed-write} measures increment cost while a drain is actively running; {@code
+     * accumulatorMixed-drain} measures the drain's own cost under that same live write pressure. The
+     * 4:1 writer:drainer ratio is illustrative of "many writers, rare drain," not tuned to a specific
+     * core count.
+     */
+    @Benchmark
+    @Group("accumulatorMixed")
+    @GroupThreads(4)
+    public void accumulatorMixed_write() {
+        accumulator.inc(Counter.HITS);
+    }
 
-  @Benchmark
-  @Threads(Threads.MAX)
-  public void longAdderGroupIncrement_highContention() {
-    groupInc(longAdderGroup, Counter.HITS.ordinal());
-  }
+    @Benchmark
+    @Group("accumulatorMixed")
+    @GroupThreads(1)
+    public void accumulatorMixed_drain(Blackhole blackhole) {
+        blackhole.consume(accumulator.accumulateAndReset());
+    }
 
-  @Benchmark
-  @Threads(1)
-  public void longAdderGroupAccumulateAnd_lowContention(Blackhole blackhole) {
-    groupInc(longAdderGroup, Counter.HITS.ordinal());
-    blackhole.consume(groupAccumulateAnd(longAdderGroup));
-  }
+    @Benchmark
+    @Threads(1)
+    public void longAdderGroupIncrement_lowContention() {
+        groupInc(longAdderGroup, Counter.HITS.ordinal());
+    }
 
-  @Benchmark
-  @Threads(Threads.MAX)
-  public void longAdderGroupAccumulateAnd_highContention(Blackhole blackhole) {
-    groupInc(longAdderGroup, Counter.HITS.ordinal());
-    blackhole.consume(groupAccumulateAnd(longAdderGroup));
-  }
+    @Benchmark
+    @Threads(Threads.MAX)
+    public void longAdderGroupIncrement_highContention() {
+        groupInc(longAdderGroup, Counter.HITS.ordinal());
+    }
 
-  @Benchmark
-  @Threads(1)
-  public void atomicLongArrayIncrement_lowContention() {
-    atomicLongArray.getAndAdd(Counter.HITS.ordinal(), 1L);
-  }
+    @Benchmark
+    @Threads(1)
+    public void longAdderGroupAccumulateAnd_lowContention(Blackhole blackhole) {
+        groupInc(longAdderGroup, Counter.HITS.ordinal());
+        blackhole.consume(groupAccumulateAnd(longAdderGroup));
+    }
 
-  @Benchmark
-  @Threads(Threads.MAX)
-  public void atomicLongArrayIncrement_highContention() {
-    atomicLongArray.getAndAdd(Counter.HITS.ordinal(), 1L);
-  }
+    @Benchmark
+    @Threads(Threads.MAX)
+    public void longAdderGroupAccumulateAnd_highContention(Blackhole blackhole) {
+        groupInc(longAdderGroup, Counter.HITS.ordinal());
+        blackhole.consume(groupAccumulateAnd(longAdderGroup));
+    }
 
-  @Benchmark
-  @Threads(1)
-  public void atomicLongArrayAccumulateAndReset_lowContention(Blackhole blackhole) {
-    atomicLongArray.getAndAdd(Counter.HITS.ordinal(), 1L);
-    blackhole.consume(arrayAccumulateAndReset(atomicLongArray));
-  }
+    @Benchmark
+    @Threads(1)
+    public void atomicLongArrayIncrement_lowContention() {
+        atomicLongArray.getAndAdd(Counter.HITS.ordinal(), 1L);
+    }
 
-  @Benchmark
-  @Threads(Threads.MAX)
-  public void atomicLongArrayAccumulateAndReset_highContention(Blackhole blackhole) {
-    atomicLongArray.getAndAdd(Counter.HITS.ordinal(), 1L);
-    blackhole.consume(arrayAccumulateAndReset(atomicLongArray));
-  }
+    @Benchmark
+    @Threads(Threads.MAX)
+    public void atomicLongArrayIncrement_highContention() {
+        atomicLongArray.getAndAdd(Counter.HITS.ordinal(), 1L);
+    }
 
-  @Benchmark
-  @Threads(1)
-  public void atomicLongArrayIncrement8_lowContention() {
-    atomicLongArray8.getAndAdd(threadCounterIndex.get(), 1L);
-  }
+    @Benchmark
+    @Threads(1)
+    public void atomicLongArrayAccumulateAndReset_lowContention(Blackhole blackhole) {
+        atomicLongArray.getAndAdd(Counter.HITS.ordinal(), 1L);
+        blackhole.consume(arrayAccumulateAndReset(atomicLongArray));
+    }
 
-  @Benchmark
-  @Threads(Threads.MAX)
-  public void atomicLongArrayIncrement8_highContention() {
-    atomicLongArray8.getAndAdd(threadCounterIndex.get(), 1L);
-  }
+    @Benchmark
+    @Threads(Threads.MAX)
+    public void atomicLongArrayAccumulateAndReset_highContention(Blackhole blackhole) {
+        atomicLongArray.getAndAdd(Counter.HITS.ordinal(), 1L);
+        blackhole.consume(arrayAccumulateAndReset(atomicLongArray));
+    }
 
-  @Benchmark
-  @Threads(1)
-  public void atomicLongArrayAccumulateAndReset8_lowContention(Blackhole blackhole) {
-    atomicLongArray8.getAndAdd(threadCounterIndex.get(), 1L);
-    blackhole.consume(arrayAccumulateAndReset(atomicLongArray8));
-  }
+    @Benchmark
+    @Threads(1)
+    public void atomicLongArrayIncrement8_lowContention() {
+        atomicLongArray8.getAndAdd(threadCounterIndex.get(), 1L);
+    }
 
-  @Benchmark
-  @Threads(Threads.MAX)
-  public void atomicLongArrayAccumulateAndReset8_highContention(Blackhole blackhole) {
-    atomicLongArray8.getAndAdd(threadCounterIndex.get(), 1L);
-    blackhole.consume(arrayAccumulateAndReset(atomicLongArray8));
-  }
+    @Benchmark
+    @Threads(Threads.MAX)
+    public void atomicLongArrayIncrement8_highContention() {
+        atomicLongArray8.getAndAdd(threadCounterIndex.get(), 1L);
+    }
 
-  @Benchmark
-  @Threads(1)
-  public void accumulatorIncrement8_lowContention() {
-    accumulator8.inc(COUNTER8_VALUES[threadCounterIndex.get()]);
-  }
+    @Benchmark
+    @Threads(1)
+    public void atomicLongArrayAccumulateAndReset8_lowContention(Blackhole blackhole) {
+        atomicLongArray8.getAndAdd(threadCounterIndex.get(), 1L);
+        blackhole.consume(arrayAccumulateAndReset(atomicLongArray8));
+    }
 
-  @Benchmark
-  @Threads(Threads.MAX)
-  public void accumulatorIncrement8_highContention() {
-    accumulator8.inc(COUNTER8_VALUES[threadCounterIndex.get()]);
-  }
+    @Benchmark
+    @Threads(Threads.MAX)
+    public void atomicLongArrayAccumulateAndReset8_highContention(Blackhole blackhole) {
+        atomicLongArray8.getAndAdd(threadCounterIndex.get(), 1L);
+        blackhole.consume(arrayAccumulateAndReset(atomicLongArray8));
+    }
 
-  @Benchmark
-  @Threads(1)
-  public void accumulatorAccumulateAndReset8_lowContention(Blackhole blackhole) {
-    accumulator8.inc(COUNTER8_VALUES[threadCounterIndex.get()]);
-    blackhole.consume(accumulator8.accumulateAndReset());
-  }
+    @Benchmark
+    @Threads(1)
+    public void accumulatorIncrement8_lowContention() {
+        accumulator8.inc(COUNTER8_VALUES[threadCounterIndex.get()]);
+    }
 
-  @Benchmark
-  @Threads(Threads.MAX)
-  public void accumulatorAccumulateAndReset8_highContention(Blackhole blackhole) {
-    accumulator8.inc(COUNTER8_VALUES[threadCounterIndex.get()]);
-    blackhole.consume(accumulator8.accumulateAndReset());
-  }
+    @Benchmark
+    @Threads(Threads.MAX)
+    public void accumulatorIncrement8_highContention() {
+        accumulator8.inc(COUNTER8_VALUES[threadCounterIndex.get()]);
+    }
 
-  @Benchmark
-  @Threads(1)
-  public void longAdderGroupIncrement8_lowContention() {
-    groupInc(longAdderGroup8, threadCounterIndex.get());
-  }
+    @Benchmark
+    @Threads(1)
+    public void accumulatorAccumulateAndReset8_lowContention(Blackhole blackhole) {
+        accumulator8.inc(COUNTER8_VALUES[threadCounterIndex.get()]);
+        blackhole.consume(accumulator8.accumulateAndReset());
+    }
 
-  @Benchmark
-  @Threads(Threads.MAX)
-  public void longAdderGroupIncrement8_highContention() {
-    groupInc(longAdderGroup8, threadCounterIndex.get());
-  }
+    @Benchmark
+    @Threads(Threads.MAX)
+    public void accumulatorAccumulateAndReset8_highContention(Blackhole blackhole) {
+        accumulator8.inc(COUNTER8_VALUES[threadCounterIndex.get()]);
+        blackhole.consume(accumulator8.accumulateAndReset());
+    }
 
-  @Benchmark
-  @Threads(1)
-  public void longAdderGroupAccumulateAnd8_lowContention(Blackhole blackhole) {
-    groupInc(longAdderGroup8, threadCounterIndex.get());
-    blackhole.consume(groupAccumulateAnd(longAdderGroup8));
-  }
+    @Benchmark
+    @Threads(1)
+    public void longAdderGroupIncrement8_lowContention() {
+        groupInc(longAdderGroup8, threadCounterIndex.get());
+    }
 
-  @Benchmark
-  @Threads(Threads.MAX)
-  public void longAdderGroupAccumulateAnd8_highContention(Blackhole blackhole) {
-    groupInc(longAdderGroup8, threadCounterIndex.get());
-    blackhole.consume(groupAccumulateAnd(longAdderGroup8));
-  }
+    @Benchmark
+    @Threads(Threads.MAX)
+    public void longAdderGroupIncrement8_highContention() {
+        groupInc(longAdderGroup8, threadCounterIndex.get());
+    }
+
+    @Benchmark
+    @Threads(1)
+    public void longAdderGroupAccumulateAnd8_lowContention(Blackhole blackhole) {
+        groupInc(longAdderGroup8, threadCounterIndex.get());
+        blackhole.consume(groupAccumulateAnd(longAdderGroup8));
+    }
+
+    @Benchmark
+    @Threads(Threads.MAX)
+    public void longAdderGroupAccumulateAnd8_highContention(Blackhole blackhole) {
+        groupInc(longAdderGroup8, threadCounterIndex.get());
+        blackhole.consume(groupAccumulateAnd(longAdderGroup8));
+    }
 }

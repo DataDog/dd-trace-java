@@ -17,64 +17,58 @@ import net.bytebuddy.asm.Advice;
 import scala.concurrent.impl.CallbackRunnable;
 import scala.util.Try;
 
-public final class CallbackRunnableInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+public final class CallbackRunnableInstrumentation implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String instrumentedType() {
-    return "scala.concurrent.impl.CallbackRunnable";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
-    transformer.applyAdvice(isMethod().and(named("run")), getClass().getName() + "$Run");
-    transformer.applyAdvice(
-        isMethod().and(named("executeWithValue")), getClass().getName() + "$ExecuteWithValue");
-  }
-
-  /** Capture the scope when the promise is created */
-  public static final class Construct {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static <T> void onConstruct(@Advice.This CallbackRunnable<T> task) {
-      capture(InstrumentationContext.get(CallbackRunnable.class, State.class), task);
-    }
-  }
-
-  public static final class Run {
-    @Advice.OnMethodEnter
-    public static <T> ContextScope before(@Advice.This CallbackRunnable<T> task) {
-      return PromiseHelper.runWithContext(
-          InstrumentationContext.get(CallbackRunnable.class, State.class).get(task));
+    @Override
+    public String instrumentedType() {
+        return "scala.concurrent.impl.CallbackRunnable";
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter ContextScope scope) {
-      endTaskScope(scope);
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
+        transformer.applyAdvice(isMethod().and(named("run")), getClass().getName() + "$Run");
+        transformer.applyAdvice(
+                isMethod().and(named("executeWithValue")), getClass().getName() + "$ExecuteWithValue");
     }
-  }
 
-  public static final class ExecuteWithValue {
-    @Advice.OnMethodEnter
-    public static <T> void beforeExecute(
-        @Advice.This CallbackRunnable<T> task, @Advice.Argument(value = 0) Try<T> resolved) {
-      // About to enter an ExecutionContext so capture the Scope if necessary
-      ContextStore<CallbackRunnable, State> contextStore =
-          InstrumentationContext.get(CallbackRunnable.class, State.class);
-      State state = contextStore.get(task);
-      if (PromiseHelper.completionPriority) {
-        state =
-            PromiseHelper.executeCaptureContext(
-                InstrumentationContext.get(Try.class, Context.class),
-                resolved,
-                contextStore,
-                task,
-                state);
-      }
-      // If nothing else has been picked up, then try to pick up the current Scope
-      if (null == state) {
-        capture(contextStore, task);
-      }
+    /** Capture the scope when the promise is created */
+    public static final class Construct {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static <T> void onConstruct(@Advice.This CallbackRunnable<T> task) {
+            capture(InstrumentationContext.get(CallbackRunnable.class, State.class), task);
+        }
     }
-  }
+
+    public static final class Run {
+        @Advice.OnMethodEnter
+        public static <T> ContextScope before(@Advice.This CallbackRunnable<T> task) {
+            return PromiseHelper.runWithContext(InstrumentationContext.get(CallbackRunnable.class, State.class)
+                    .get(task));
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class)
+        public static void after(@Advice.Enter ContextScope scope) {
+            endTaskScope(scope);
+        }
+    }
+
+    public static final class ExecuteWithValue {
+        @Advice.OnMethodEnter
+        public static <T> void beforeExecute(
+                @Advice.This CallbackRunnable<T> task, @Advice.Argument(value = 0) Try<T> resolved) {
+            // About to enter an ExecutionContext so capture the Scope if necessary
+            ContextStore<CallbackRunnable, State> contextStore =
+                    InstrumentationContext.get(CallbackRunnable.class, State.class);
+            State state = contextStore.get(task);
+            if (PromiseHelper.completionPriority) {
+                state = PromiseHelper.executeCaptureContext(
+                        InstrumentationContext.get(Try.class, Context.class), resolved, contextStore, task, state);
+            }
+            // If nothing else has been picked up, then try to pick up the current Scope
+            if (null == state) {
+                capture(contextStore, task);
+            }
+        }
+    }
 }

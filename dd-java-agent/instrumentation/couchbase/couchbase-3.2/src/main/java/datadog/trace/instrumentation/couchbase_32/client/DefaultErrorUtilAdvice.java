@@ -6,19 +6,18 @@ import com.couchbase.client.core.msg.kv.KeyValueRequest;
 import net.bytebuddy.asm.Advice;
 
 public class DefaultErrorUtilAdvice {
-  @Advice.OnMethodExit(suppress = Throwable.class)
-  public static void onExit(
-      @Advice.Argument(0) KeyValueRequest<?> request, @Advice.Return CouchbaseException ex) {
-    if (null != request) {
-      RequestSpan requestSpan = request.requestSpan();
-      if (requestSpan instanceof DatadogRequestSpan) {
-        ((DatadogRequestSpan) requestSpan).setErrorDirectly(ex);
-      }
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void onExit(@Advice.Argument(0) KeyValueRequest<?> request, @Advice.Return CouchbaseException ex) {
+        if (null != request) {
+            RequestSpan requestSpan = request.requestSpan();
+            if (requestSpan instanceof DatadogRequestSpan) {
+                ((DatadogRequestSpan) requestSpan).setErrorDirectly(ex);
+            }
+        }
     }
-  }
 
-  // Use this to not apply instrumentation on [2,3.2)
-  private static void muzzleCheck(RequestSpan requestSpan) {
-    requestSpan.status(RequestSpan.StatusCode.ERROR);
-  }
+    // Use this to not apply instrumentation on [2,3.2)
+    private static void muzzleCheck(RequestSpan requestSpan) {
+        requestSpan.status(RequestSpan.StatusCode.ERROR);
+    }
 }

@@ -12,60 +12,54 @@ import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
  *
  * <p>This class is only used on Java 9+, for Java 7/8 see {@link DDClassFileTransformer}.
  */
-public final class DDJava9ClassFileTransformer
-    extends ResettableClassFileTransformer.WithDelegation {
+public final class DDJava9ClassFileTransformer extends ResettableClassFileTransformer.WithDelegation {
 
-  public static final TransformerDecorator DECORATOR = DDJava9ClassFileTransformer::new;
+    public static final TransformerDecorator DECORATOR = DDJava9ClassFileTransformer::new;
 
-  public DDJava9ClassFileTransformer(final ResettableClassFileTransformer classFileTransformer) {
-    super(classFileTransformer);
-  }
-
-  @Override
-  public byte[] transform(
-      final ClassLoader classLoader,
-      final String internalClassName,
-      final Class<?> classBeingRedefined,
-      final ProtectionDomain protectionDomain,
-      final byte[] classFileBuffer)
-      throws IllegalClassFormatException {
-
-    if (null != classLoader && canSkipClassLoaderByName(classLoader)) {
-      return null;
+    public DDJava9ClassFileTransformer(final ResettableClassFileTransformer classFileTransformer) {
+        super(classFileTransformer);
     }
 
-    try {
-      return classFileTransformer.transform(
-          classLoader, internalClassName, classBeingRedefined, protectionDomain, classFileBuffer);
-    } finally {
-      SharedTypePools.endTransform();
-    }
-  }
+    @Override
+    public byte[] transform(
+            final ClassLoader classLoader,
+            final String internalClassName,
+            final Class<?> classBeingRedefined,
+            final ProtectionDomain protectionDomain,
+            final byte[] classFileBuffer)
+            throws IllegalClassFormatException {
 
-  @Override
-  public byte[] transform(
-      final Module module,
-      final ClassLoader classLoader,
-      final String internalClassName,
-      final Class<?> classBeingRedefined,
-      final ProtectionDomain protectionDomain,
-      final byte[] classFileBuffer)
-      throws IllegalClassFormatException {
+        if (null != classLoader && canSkipClassLoaderByName(classLoader)) {
+            return null;
+        }
 
-    if (null != classLoader && canSkipClassLoaderByName(classLoader)) {
-      return null;
+        try {
+            return classFileTransformer.transform(
+                    classLoader, internalClassName, classBeingRedefined, protectionDomain, classFileBuffer);
+        } finally {
+            SharedTypePools.endTransform();
+        }
     }
 
-    try {
-      return classFileTransformer.transform(
-          module,
-          classLoader,
-          internalClassName,
-          classBeingRedefined,
-          protectionDomain,
-          classFileBuffer);
-    } finally {
-      SharedTypePools.endTransform();
+    @Override
+    public byte[] transform(
+            final Module module,
+            final ClassLoader classLoader,
+            final String internalClassName,
+            final Class<?> classBeingRedefined,
+            final ProtectionDomain protectionDomain,
+            final byte[] classFileBuffer)
+            throws IllegalClassFormatException {
+
+        if (null != classLoader && canSkipClassLoaderByName(classLoader)) {
+            return null;
+        }
+
+        try {
+            return classFileTransformer.transform(
+                    module, classLoader, internalClassName, classBeingRedefined, protectionDomain, classFileBuffer);
+        } finally {
+            SharedTypePools.endTransform();
+        }
     }
-  }
 }

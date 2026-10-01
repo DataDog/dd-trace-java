@@ -13,53 +13,52 @@ import org.testng.ITestResult;
 
 public class RetryAnalyzer implements IRetryAnalyzer {
 
-  private volatile TestExecutionPolicy executionPolicy;
+    private volatile TestExecutionPolicy executionPolicy;
 
-  @SuppressFBWarnings(
-      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
-      justification = "the field is confined to a single thread")
-  private boolean suppressFailures;
+    @SuppressFBWarnings(
+            value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+            justification = "the field is confined to a single thread")
+    private boolean suppressFailures;
 
-  public void createExecutionPolicy(ITestResult result) {
-    if (executionPolicy == null) {
-      synchronized (this) {
+    public void createExecutionPolicy(ITestResult result) {
         if (executionPolicy == null) {
-          TestIdentifier testIdentifier = TestNGUtils.toTestIdentifier(result);
-          TestSourceData testSourceData = TestNGUtils.toTestSourceData(result);
-          Collection<String> testTags = TestNGUtils.getGroups(result);
-          executionPolicy =
-              TestEventsHandlerHolder.TEST_EVENTS_HANDLER.executionPolicy(
-                  testIdentifier, testSourceData, testTags);
+            synchronized (this) {
+                if (executionPolicy == null) {
+                    TestIdentifier testIdentifier = TestNGUtils.toTestIdentifier(result);
+                    TestSourceData testSourceData = TestNGUtils.toTestSourceData(result);
+                    Collection<String> testTags = TestNGUtils.getGroups(result);
+                    executionPolicy = TestEventsHandlerHolder.TEST_EVENTS_HANDLER.executionPolicy(
+                            testIdentifier, testSourceData, testTags);
+                }
+            }
         }
-      }
     }
-  }
 
-  @Override
-  public boolean retry(ITestResult result) {
-    if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER == null) {
-      return false;
+    @Override
+    public boolean retry(ITestResult result) {
+        if (TestEventsHandlerHolder.TEST_EVENTS_HANDLER == null) {
+            return false;
+        }
+        createExecutionPolicy(result);
+        return executionPolicy.applicable();
     }
-    createExecutionPolicy(result);
-    return executionPolicy.applicable();
-  }
 
-  public void setSuppressFailures(ITestResult result) {
-    createExecutionPolicy(result);
-    suppressFailures = executionPolicy.suppressFailures();
-  }
+    public void setSuppressFailures(ITestResult result) {
+        createExecutionPolicy(result);
+        suppressFailures = executionPolicy.suppressFailures();
+    }
 
-  public boolean shouldPropagateFailure() {
-    return executionPolicy != null && executionPolicy.propagateFailure();
-  }
+    public boolean shouldPropagateFailure() {
+        return executionPolicy != null && executionPolicy.propagateFailure();
+    }
 
-  public boolean getAndResetSuppressFailures() {
-    boolean suppressFailures = this.suppressFailures;
-    this.suppressFailures = false;
-    return suppressFailures;
-  }
+    public boolean getAndResetSuppressFailures() {
+        boolean suppressFailures = this.suppressFailures;
+        this.suppressFailures = false;
+        return suppressFailures;
+    }
 
-  public TestExecutionTracker getExecutionTracker() {
-    return executionPolicy;
-  }
+    public TestExecutionTracker getExecutionTracker() {
+        return executionPolicy;
+    }
 }

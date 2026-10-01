@@ -5,16 +5,16 @@ import datadog.trace.bootstrap.instrumentation.api.java.lang.ProcessImplInstrume
 import net.bytebuddy.asm.Advice;
 
 class RuntimeExecStringAdvice {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static void beforeExec(@Advice.Argument(0) final String command) {
-    if (command == null || !AgentTracer.isRegistered()) {
-      return;
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void beforeExec(@Advice.Argument(0) final String command) {
+        if (command == null || !AgentTracer.isRegistered()) {
+            return;
+        }
+        ProcessImplInstrumentationHelpers.shiRaspCheck(command);
     }
-    ProcessImplInstrumentationHelpers.shiRaspCheck(command);
-  }
 
-  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void afterExec() {
-    ProcessImplInstrumentationHelpers.resetCheckShi();
-  }
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void afterExec() {
+        ProcessImplInstrumentationHelpers.resetCheckShi();
+    }
 }

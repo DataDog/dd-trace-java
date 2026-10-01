@@ -24,66 +24,64 @@ import play.api.libs.json.JsValue;
 
 @AutoService(InstrumenterModule.class)
 public class ResultsStatusInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public ResultsStatusInstrumentation() {
-    super("play");
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "play26Plus";
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return MuzzleReferences.PLAY_26_PLUS;
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "play.api.mvc.Results$Status";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("apply"), ResultsStatusInstrumentation.class.getName() + "$ResultsStatusApplyAdvice");
-  }
-
-  @RequiresRequestContext(RequestContextSlot.APPSEC)
-  public static class ResultsStatusApplyAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    static void after(
-        @Advice.Argument(0) final Object content, @ActiveRequestContext RequestContext reqCtx) {
-
-      if (!(content instanceof JsValue)) {
-        return;
-      }
-
-      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-      if (cbp == null) {
-        return;
-      }
-      BiFunction<RequestContext, Object, Flow<Void>> callback =
-          cbp.getCallback(EVENTS.responseBody());
-      if (callback == null) {
-        return;
-      }
-
-      Flow<Void> flow = callback.apply(reqCtx, jsValueToJavaObject((JsValue) content));
-      Flow.Action action = flow.getAction();
-      if (action instanceof Flow.Action.RequestBlockingAction) {
-        BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
-        if (blockResponseFunction == null) {
-          return;
-        }
-        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-
-        throw new BlockingException("Blocked request (for Results$Status/apply)");
-      }
+    public ResultsStatusInstrumentation() {
+        super("play");
     }
-  }
+
+    @Override
+    public String muzzleDirective() {
+        return "play26Plus";
+    }
+
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return MuzzleReferences.PLAY_26_PLUS;
+    }
+
+    @Override
+    public String instrumentedType() {
+        return "play.api.mvc.Results$Status";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("apply"), ResultsStatusInstrumentation.class.getName() + "$ResultsStatusApplyAdvice");
+    }
+
+    @RequiresRequestContext(RequestContextSlot.APPSEC)
+    public static class ResultsStatusApplyAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        static void after(@Advice.Argument(0) final Object content, @ActiveRequestContext RequestContext reqCtx) {
+
+            if (!(content instanceof JsValue)) {
+                return;
+            }
+
+            CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+            if (cbp == null) {
+                return;
+            }
+            BiFunction<RequestContext, Object, Flow<Void>> callback = cbp.getCallback(EVENTS.responseBody());
+            if (callback == null) {
+                return;
+            }
+
+            Flow<Void> flow = callback.apply(reqCtx, jsValueToJavaObject((JsValue) content));
+            Flow.Action action = flow.getAction();
+            if (action instanceof Flow.Action.RequestBlockingAction) {
+                BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
+                if (blockResponseFunction == null) {
+                    return;
+                }
+                Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+                blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+
+                throw new BlockingException("Blocked request (for Results$Status/apply)");
+            }
+        }
+    }
 }

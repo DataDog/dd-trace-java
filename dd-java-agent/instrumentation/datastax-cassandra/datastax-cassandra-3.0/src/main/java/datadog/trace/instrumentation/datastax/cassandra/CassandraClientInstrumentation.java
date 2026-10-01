@@ -17,51 +17,49 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class CassandraClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public CassandraClientInstrumentation() {
-    super("cassandra");
-  }
-
-  @Override
-  public String instrumentedType() {
-    // Note: Cassandra has a large driver and we instrument single class in it.
-    // The rest is ignored in the additional ignores of GlobalIgnoresMatcher
-    return "com.datastax.driver.core.Cluster$Manager";
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap("com.datastax.driver.core.Cluster", String.class.getName());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(isPrivate()).and(named("newSession")).and(takesArguments(0)),
-        CassandraClientInstrumentation.class.getName() + "$CassandraClientAdvice");
-  }
-
-  public static class CassandraClientAdvice {
-    /**
-     * Strategy: each time we build a connection to a Cassandra cluster, the
-     * com.datastax.driver.core.Cluster$Manager.newSession() method is called. The opentracing
-     * contribution is a simple wrapper, so we just have to wrap the new session.
-     *
-     * @param session The fresh session to patch. This session is replaced with new session
-     * @throws Exception
-     */
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void injectTracingSession(@Advice.Return(readOnly = false) Session session)
-        throws Exception {
-      // This should cover ours and OT's TracingSession
-      if (session.getClass().getName().endsWith("cassandra.TracingSession")) {
-        return;
-      }
-      session =
-          new TracingSession(
-              session,
-              InstrumentationContext.get(Cluster.class, String.class).get(session.getCluster()));
+    public CassandraClientInstrumentation() {
+        super("cassandra");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        // Note: Cassandra has a large driver and we instrument single class in it.
+        // The rest is ignored in the additional ignores of GlobalIgnoresMatcher
+        return "com.datastax.driver.core.Cluster$Manager";
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap("com.datastax.driver.core.Cluster", String.class.getName());
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(isPrivate()).and(named("newSession")).and(takesArguments(0)),
+                CassandraClientInstrumentation.class.getName() + "$CassandraClientAdvice");
+    }
+
+    public static class CassandraClientAdvice {
+        /**
+         * Strategy: each time we build a connection to a Cassandra cluster, the
+         * com.datastax.driver.core.Cluster$Manager.newSession() method is called. The opentracing
+         * contribution is a simple wrapper, so we just have to wrap the new session.
+         *
+         * @param session The fresh session to patch. This session is replaced with new session
+         * @throws Exception
+         */
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void injectTracingSession(@Advice.Return(readOnly = false) Session session) throws Exception {
+            // This should cover ours and OT's TracingSession
+            if (session.getClass().getName().endsWith("cassandra.TracingSession")) {
+                return;
+            }
+            session = new TracingSession(
+                    session,
+                    InstrumentationContext.get(Cluster.class, String.class).get(session.getCluster()));
+        }
+    }
 }

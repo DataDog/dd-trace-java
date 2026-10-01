@@ -29,547 +29,539 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class Initializer {
-  static final Logger LOG = LoggerFactory.getLogger(Initializer.class);
-  static final String PID_PREFIX = "_pid";
+    static final Logger LOG = LoggerFactory.getLogger(Initializer.class);
+    static final String PID_PREFIX = "_pid";
 
-  private interface FlagAccess {
-    String getValue(String flagName);
+    private interface FlagAccess {
+        String getValue(String flagName);
 
-    boolean setValue(String flagName, String value);
-  }
-
-  private static final class JVMFlagAccess implements FlagAccess {
-    private final JVMAccess.Flags flags;
-
-    JVMFlagAccess(JVMAccess.Flags flags) {
-      this.flags = flags;
+        boolean setValue(String flagName, String value);
     }
 
-    @Override
-    public String getValue(String flagName) {
-      return flags.getStringFlag(flagName);
-    }
+    private static final class JVMFlagAccess implements FlagAccess {
+        private final JVMAccess.Flags flags;
 
-    @Override
-    public boolean setValue(String flagName, String value) {
-      flags.setStringFlag(flagName, value);
-      return flags.getStringFlag(flagName).equals(value);
-    }
-  }
-
-  private static final class JMXFlagAccess implements FlagAccess {
-    private final HotSpotDiagnosticMXBean diagBean;
-
-    JMXFlagAccess(HotSpotDiagnosticMXBean diagBean) {
-      this.diagBean = diagBean;
-    }
-
-    @Override
-    public String getValue(String flagName) {
-      return diagBean.getVMOption(flagName).getValue();
-    }
-
-    @Override
-    public boolean setValue(String flagName, String value) {
-      // cannot really set the underlying JVM flag value
-      // let's pretend everything went just fine
-      return true;
-    }
-  }
-
-  public static boolean initialize(boolean forceJmx) {
-    // J9/OpenJ9 requires different initialization path
-    if (JavaVirtualMachine.isJ9()) {
-      return initializeJ9();
-    }
-
-    try {
-      FlagAccess access = null;
-      // Native images don't support the native ddprof library, use JMX instead
-      if (forceJmx || Platform.isNativeImage()) {
-        access =
-            new JMXFlagAccess(ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class));
-      } else {
-        DdprofLibraryLoader.JVMAccessHolder jvmAccessHolder = DdprofLibraryLoader.jvmAccess();
-        Throwable reasonNotLoaded = jvmAccessHolder.getReasonNotLoaded();
-        if (reasonNotLoaded != null) {
-          LOG.debug(
-              SEND_TELEMETRY,
-              "Failed to load JVM access library: {}. Crash tracking will need to rely on user provided JVM arguments.",
-              jvmAccessHolder.getReasonNotLoaded().getMessage());
-          return false;
-        } else {
-          JVMAccess.Flags flags = jvmAccessHolder.getComponent().flags();
-          access = new JVMFlagAccess(flags);
+        JVMFlagAccess(JVMAccess.Flags flags) {
+            this.flags = flags;
         }
-      }
 
-      initializeCrashUploader(access);
-      initializeOOMENotifier(access);
-      return true;
-    } catch (Throwable t) {
-      LOG.debug("Failed to initialize crash tracking: {}", t.getMessage(), t);
+        @Override
+        public String getValue(String flagName) {
+            return flags.getStringFlag(flagName);
+        }
+
+        @Override
+        public boolean setValue(String flagName, String value) {
+            flags.setStringFlag(flagName, value);
+            return flags.getStringFlag(flagName).equals(value);
+        }
     }
-    return false;
-  }
 
-  /**
-   * Initialize crash tracking for J9/OpenJ9 JVMs.
-   *
-   * <p>Unlike HotSpot, J9's -Xdump option cannot be modified at runtime. This method:
-   *
-   * <ol>
-   *   <li>Checks if -Xdump:tool is already configured
-   *   <li>Deploys the crash uploader script if configured
-   *   <li>Logs instructions for manual configuration if not configured
-   * </ol>
-   *
-   * @return true if -Xdump is properly configured, false otherwise
-   */
-  private static boolean initializeJ9() {
-    try {
-      // Check if -Xdump:tool is already configured via JVM arguments
-      boolean xdumpConfigured = isXdumpToolConfigured();
-      // Get custom javacore path if configured
-      String javacorePath = getJ9JavacorePath();
-      if (javacorePath == null || javacorePath.isEmpty()) {
-        // OpenJ9 defaults javacore output to the JVM working directory. Persist that location in
-        // the uploader config so the crash script does not need to guess from its own cwd.
-        javacorePath = SystemProperties.get("user.dir");
-      }
+    private static final class JMXFlagAccess implements FlagAccess {
+        private final HotSpotDiagnosticMXBean diagBean;
 
-      if (xdumpConfigured) {
-        LOG.debug("J9 crash tracking: -Xdump:tool already configured, crash uploads enabled");
-        // Use the path from the -Xdump:tool arg when available (allows callers to specify a known
-        // path via -Xdump:tool:events=gpf+abort,exec=<path>\ %pid), falling back to the default
-        // TempLocationManager path when the path cannot be extracted.
-        String extractedPath = extractJ9ScriptPathFromXdumpArg();
-        String scriptPath = extractedPath != null ? extractedPath : getJ9CrashUploaderScriptPath();
-        // Initialize the crash uploader script and config manager
-        CrashUploaderScriptInitializer.initialize(scriptPath, null, javacorePath);
-        // Also set up OOME notifier script
-        String oomeScript = getScript("dd_oome_notifier");
-        OOMENotifierScriptInitializer.initialize(oomeScript);
-        return true;
-      } else {
-        String scriptPath = getJ9CrashUploaderScriptPath();
-        // Log instructions for manual configuration
-        LOG.info("J9 JVM detected. To enable crash tracking, add this JVM argument at startup:");
-        LOG.info("  -Xdump:tool:events=gpf+abort,exec={}\\ %pid", scriptPath);
-        LOG.info(
-            "Crash tracking will not be active until this argument is added and JVM is restarted.");
+        JMXFlagAccess(HotSpotDiagnosticMXBean diagBean) {
+            this.diagBean = diagBean;
+        }
+
+        @Override
+        public String getValue(String flagName) {
+            return diagBean.getVMOption(flagName).getValue();
+        }
+
+        @Override
+        public boolean setValue(String flagName, String value) {
+            // cannot really set the underlying JVM flag value
+            // let's pretend everything went just fine
+            return true;
+        }
+    }
+
+    public static boolean initialize(boolean forceJmx) {
+        // J9/OpenJ9 requires different initialization path
+        if (JavaVirtualMachine.isJ9()) {
+            return initializeJ9();
+        }
+
+        try {
+            FlagAccess access = null;
+            // Native images don't support the native ddprof library, use JMX instead
+            if (forceJmx || Platform.isNativeImage()) {
+                access = new JMXFlagAccess(ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class));
+            } else {
+                DdprofLibraryLoader.JVMAccessHolder jvmAccessHolder = DdprofLibraryLoader.jvmAccess();
+                Throwable reasonNotLoaded = jvmAccessHolder.getReasonNotLoaded();
+                if (reasonNotLoaded != null) {
+                    LOG.debug(
+                            SEND_TELEMETRY,
+                            "Failed to load JVM access library: {}. Crash tracking will need to rely on user provided JVM arguments.",
+                            jvmAccessHolder.getReasonNotLoaded().getMessage());
+                    return false;
+                } else {
+                    JVMAccess.Flags flags = jvmAccessHolder.getComponent().flags();
+                    access = new JVMFlagAccess(flags);
+                }
+            }
+
+            initializeCrashUploader(access);
+            initializeOOMENotifier(access);
+            return true;
+        } catch (Throwable t) {
+            LOG.debug("Failed to initialize crash tracking: {}", t.getMessage(), t);
+        }
         return false;
-      }
-    } catch (Throwable t) {
-      LOG.warn(
-          SEND_TELEMETRY,
-          "Unexpected exception while initializing J9 crash tracking. Crash tracking will not work.",
-          t);
     }
-    return false;
-  }
 
-  /**
-   * Extract the crash uploader script path from the {@code -Xdump:tool} JVM argument.
-   *
-   * <p>Looks for a JVM argument of the form {@code
-   * -Xdump:tool:events=...,exec=/path/to/dd_crash_uploader.sh\ %pid} and returns the script path
-   * portion (before the {@code \ %pid} argument separator).
-   *
-   * @return the script path, or {@code null} if not found or not extractable
-   */
-  private static String extractJ9ScriptPathFromXdumpArg() {
-    List<String> vmArgs = JavaVirtualMachine.getVmOptions();
-    for (String arg : vmArgs) {
-      if (arg.startsWith("-Xdump:tool") && arg.contains("dd_crash_uploader")) {
-        int execIdx = arg.indexOf("exec=");
-        if (execIdx >= 0) {
-          String execVal = arg.substring(execIdx + 5);
-          // Separator between command and args: plain space, or "\ " (backslash + space) as
-          // suggested by the Initializer's log hint. Check plain space first since that is the
-          // form that actually works when the shell splits the exec string into tokens.
-          int spaceIdx = execVal.indexOf(' ');
-          if (spaceIdx >= 0) {
-            String candidate = execVal.substring(0, spaceIdx);
-            // Strip a trailing backslash left over from the "\ %pid" notation
-            return candidate.endsWith("\\")
-                ? candidate.substring(0, candidate.length() - 1)
-                : candidate;
-          }
-          return execVal;
+    /**
+     * Initialize crash tracking for J9/OpenJ9 JVMs.
+     *
+     * <p>Unlike HotSpot, J9's -Xdump option cannot be modified at runtime. This method:
+     *
+     * <ol>
+     *   <li>Checks if -Xdump:tool is already configured
+     *   <li>Deploys the crash uploader script if configured
+     *   <li>Logs instructions for manual configuration if not configured
+     * </ol>
+     *
+     * @return true if -Xdump is properly configured, false otherwise
+     */
+    private static boolean initializeJ9() {
+        try {
+            // Check if -Xdump:tool is already configured via JVM arguments
+            boolean xdumpConfigured = isXdumpToolConfigured();
+            // Get custom javacore path if configured
+            String javacorePath = getJ9JavacorePath();
+            if (javacorePath == null || javacorePath.isEmpty()) {
+                // OpenJ9 defaults javacore output to the JVM working directory. Persist that location in
+                // the uploader config so the crash script does not need to guess from its own cwd.
+                javacorePath = SystemProperties.get("user.dir");
+            }
+
+            if (xdumpConfigured) {
+                LOG.debug("J9 crash tracking: -Xdump:tool already configured, crash uploads enabled");
+                // Use the path from the -Xdump:tool arg when available (allows callers to specify a known
+                // path via -Xdump:tool:events=gpf+abort,exec=<path>\ %pid), falling back to the default
+                // TempLocationManager path when the path cannot be extracted.
+                String extractedPath = extractJ9ScriptPathFromXdumpArg();
+                String scriptPath = extractedPath != null ? extractedPath : getJ9CrashUploaderScriptPath();
+                // Initialize the crash uploader script and config manager
+                CrashUploaderScriptInitializer.initialize(scriptPath, null, javacorePath);
+                // Also set up OOME notifier script
+                String oomeScript = getScript("dd_oome_notifier");
+                OOMENotifierScriptInitializer.initialize(oomeScript);
+                return true;
+            } else {
+                String scriptPath = getJ9CrashUploaderScriptPath();
+                // Log instructions for manual configuration
+                LOG.info("J9 JVM detected. To enable crash tracking, add this JVM argument at startup:");
+                LOG.info("  -Xdump:tool:events=gpf+abort,exec={}\\ %pid", scriptPath);
+                LOG.info("Crash tracking will not be active until this argument is added and JVM is restarted.");
+                return false;
+            }
+        } catch (Throwable t) {
+            LOG.warn(
+                    SEND_TELEMETRY,
+                    "Unexpected exception while initializing J9 crash tracking. Crash tracking will not work.",
+                    t);
         }
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Get the custom javacore file path from -Xdump:java:file=... JVM argument.
-   *
-   * @return the custom javacore path, or null if not configured
-   */
-  private static String getJ9JavacorePath() {
-    List<String> vmArgs = JavaVirtualMachine.getVmOptions();
-    for (String arg : vmArgs) {
-      if (arg.startsWith("-Xdump:java:file=") || arg.startsWith("-Xdump:java+heap:file=")) {
-        int fileIdx = arg.indexOf("file=");
-        if (fileIdx >= 0) {
-          String path = arg.substring(fileIdx + 5);
-          // Handle comma-separated options: -Xdump:java:file=/path,request=exclusive
-          int commaIdx = path.indexOf(',');
-          if (commaIdx > 0) {
-            path = path.substring(0, commaIdx);
-          }
-          return path;
-        }
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Check if -Xdump:tool is configured with our crash uploader script.
-   *
-   * <p>Looks for JVM arguments matching: -Xdump:tool:events=...,exec=...dd_crash_uploader...
-   */
-  private static boolean isXdumpToolConfigured() {
-    List<String> vmArgs = JavaVirtualMachine.getVmOptions();
-    for (String arg : vmArgs) {
-      if (arg.startsWith("-Xdump:tool") && arg.contains("dd_crash_uploader")) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  /**
-   * Get the path where the crash uploader script should be deployed for J9.
-   *
-   * <p>Note: The actual script deployment is handled by {@link CrashUploaderScriptInitializer} when
-   * initialize() is called with this path.
-   *
-   * @return the full path for the crash uploader script
-   */
-  private static String getJ9CrashUploaderScriptPath() {
-    String scriptFileName = getScriptFileName("dd_crash_uploader");
-    String tempDir = TempLocationManager.getInstance().getTempDir().toString();
-    return tempDir + File.separator + scriptFileName;
-  }
-
-  static InputStream getCrashUploaderTemplate() {
-    String name = OperatingSystem.isWindows() ? "upload_crash.bat" : "upload_crash.sh";
-    return CrashUploader.class.getResourceAsStream(name);
-  }
-
-  static InputStream getOomeNotifierTemplate() {
-    String name = OperatingSystem.isWindows() ? "notify_oome.bat" : "notify_oome.sh";
-    return OOMENotifier.class.getResourceAsStream(name);
-  }
-
-  static String findAgentJar() {
-    String agentPath = null;
-    String classResourceName = CrashUploader.class.getName().replace('.', '/') + ".class";
-    URL classResource = CrashUploader.class.getClassLoader().getResource(classResourceName);
-    String selfClass = classResource == null ? "null" : classResource.toString();
-    if (selfClass.startsWith("jar:file:")) {
-      int idx = selfClass.lastIndexOf(".jar");
-      if (idx > -1) {
-        agentPath = selfClass.substring(9, idx + 4);
-      }
-    }
-    // test harness env is different; use the known project structure to locate the agent jar
-    else if (selfClass.startsWith("file:")) {
-      int idx = selfClass.lastIndexOf("dd-java-agent");
-      if (idx > -1) {
-        File libsDir = new File(selfClass.substring(5, idx + 13), "build/libs");
-        File[] jars = libsDir.listFiles(f -> f.getName().toLowerCase(ROOT).endsWith(".jar"));
-        if (jars != null && jars.length > 0) {
-          Arrays.sort(jars, (a, b) -> b.getName().compareTo(a.getName()));
-          agentPath = jars[0].getAbsolutePath();
-        }
-      }
-    }
-    return agentPath;
-  }
-
-  static String pidFromSpecialFileName(String fileName) {
-    if (fileName == null || fileName.isEmpty()) {
-      return null;
-    }
-    int index = fileName.indexOf(PID_PREFIX);
-    if (index < 0) {
-      return null; // not a process specific file
-    }
-    int pos = index + PID_PREFIX.length();
-    int startPos = pos;
-
-    // check if the file name contains a PID
-    if (fileName.length() <= pos) {
-      return null; // no PID in the file name
-    }
-    // extract the PID from the file name
-    // eg. pid_12345.log -> 12345
-    while (pos < fileName.length() && Character.isDigit(fileName.charAt(pos))) {
-      pos++;
-    }
-    return fileName.substring(startPos, pos);
-  }
-
-  static String getScriptPathFromArg(String arg, String scriptNamePrefix) {
-    if (arg == null || arg.isEmpty()) {
-      return null;
-    }
-    int idx = arg.toLowerCase().indexOf(scriptNamePrefix);
-    if (idx < 0) {
-      // the script name is not present in the value, so we cannot extract the path
-      return null;
-    }
-    // the script name is present, so we can extract the path
-
-    char ch;
-    idx += scriptNamePrefix.length();
-    while (idx < arg.length() && (ch = arg.charAt(idx)) != ' ' && ch != ';') {
-      idx++;
-    }
-    String path = arg.substring(0, idx);
-    idx = path.lastIndexOf(';'); // the arg may contain multiple commands separated by semicolons
-    if (idx >= 0) {
-      // if there is a semicolon, we take the part after it and trim it
-      path = path.substring(idx + 1).trim();
-    }
-    return path;
-  }
-
-  /**
-   * If the value of `-XX:OnError` JVM argument is referring to `dd_crash_uploader.sh` or
-   * `dd_crash_uploader.bat` and the script does not exist it will be created and prefilled with
-   * code ensuring the error log upload will be triggered on JVM crash.
-   */
-  private static void initializeCrashUploader(FlagAccess flags) {
-    try {
-      String onErrorVal = flags.getValue("OnError");
-      String onErrorFile = flags.getValue("ErrorFile");
-
-      String uploadScript = getScript("dd_crash_uploader");
-      if (onErrorVal == null || onErrorVal.isEmpty()) {
-        onErrorVal = uploadScript;
-      } else if (!onErrorVal.contains("dd_crash_uploader")) {
-        // we can chain scripts so let's preserve the original value in addition to our crash
-        // uploader
-        onErrorVal = uploadScript + "; " + onErrorVal;
-      } else {
-        StringTokenizer st = new StringTokenizer(onErrorVal, ";");
-        while (st.hasMoreTokens()) {
-          String part = st.nextToken();
-          if (part.trim().contains("dd_crash_uploader")) {
-            // reuse the existing script name
-            uploadScript = part.trim().replace(" %p", "");
-            break;
-          }
-        }
-      }
-
-      if (CrashUploaderScriptInitializer.initialize(uploadScript, onErrorFile)) {
-        // set the JVM flag only if the script was successfully initialized
-        boolean rslt = flags.setValue("OnError", onErrorVal);
-        if (!rslt && LOG.isDebugEnabled()) {
-          LOG.debug(
-              SEND_TELEMETRY,
-              "Unable to set OnError flag to {}. Crash-tracking may not work.",
-              onErrorVal);
-        }
-      }
-    } catch (Throwable t) {
-      LOG.warn(
-          SEND_TELEMETRY,
-          "Unexpected exception while creating custom crash upload script. Crash tracking will not work properly.",
-          t);
-    }
-  }
-
-  private static void initializeOOMENotifier(FlagAccess flags) {
-    try {
-      String onOutOfMemoryVal = flags.getValue("OnOutOfMemoryError");
-
-      String notifierScript = getScript("dd_oome_notifier");
-
-      if (onOutOfMemoryVal == null || onOutOfMemoryVal.isEmpty()) {
-        onOutOfMemoryVal = notifierScript;
-      } else if (!onOutOfMemoryVal.contains("dd_oome_notifier")) {
-        // we can chain scripts so let's preserve the original value in addition to our oome tracker
-        onOutOfMemoryVal = notifierScript + "; " + onOutOfMemoryVal;
-      } else {
-        StringTokenizer st = new StringTokenizer(onOutOfMemoryVal, ";");
-        while (st.hasMoreTokens()) {
-          String part = st.nextToken();
-          if (part.trim().contains("dd_oome_notifier")) {
-            // reuse the existing script name
-            notifierScript = part.trim();
-            break;
-          }
-        }
-      }
-
-      if (OOMENotifierScriptInitializer.initialize(notifierScript)) {
-        // set the JVM flag only if the script was successfully initialized
-        boolean rslt = flags.setValue("OnOutOfMemoryError", onOutOfMemoryVal);
-        if (!rslt && LOG.isDebugEnabled()) {
-          LOG.debug(
-              SEND_TELEMETRY,
-              "Unable to set OnOutOfMemoryError flag to {}. OOME tracking may not work.",
-              onOutOfMemoryVal);
-        }
-      }
-    } catch (Throwable t) {
-      LOG.warn(
-          SEND_TELEMETRY,
-          "Unexpected exception while initializing OOME notifier. OOMEs will not be tracked.",
-          t);
-    }
-  }
-
-  private static String getScript(String scriptName) {
-    return TempLocationManager.getInstance().getTempDir().toString()
-        + "/"
-        + getScriptFileName(scriptName)
-        + " %p";
-  }
-
-  private static String getScriptFileName(String scriptName) {
-    return scriptName + "." + (OperatingSystem.isWindows() ? "bat" : "sh");
-  }
-
-  private static final Set<PosixFilePermission> GROUP_WORLD_BITS =
-      EnumSet.of(
-          PosixFilePermission.GROUP_READ,
-          PosixFilePermission.GROUP_WRITE,
-          PosixFilePermission.GROUP_EXECUTE,
-          PosixFilePermission.OTHERS_READ,
-          PosixFilePermission.OTHERS_WRITE,
-          PosixFilePermission.OTHERS_EXECUTE);
-
-  private static final Set<PosixFilePermission> GROUP_WORLD_WRITE_BITS =
-      EnumSet.of(PosixFilePermission.GROUP_WRITE, PosixFilePermission.OTHERS_WRITE);
-
-  /**
-   * Returns {@code true} when {@code f} is owned by the current JVM user and has no group/world
-   * <em>write</em> bit set; on non-POSIX file systems always returns {@code true}. Stray
-   * group/world <em>read</em> or <em>execute</em> bits (e.g. the {@code 0755} a pre-upgrade version
-   * of this initializer, which did not lock down permissions, could have left behind) do not
-   * disqualify the path here: those bits are safe to tighten in place with {@link
-   * #stripGroupAndWorldBits(File)} rather than treating the path as untrusted. A group/world write
-   * bit is still treated as a sign of possible tampering and causes this method to return {@code
-   * false}.
-   */
-  static boolean isSafeToRepair(File f) {
-    return isOwnedWithoutBits(f, GROUP_WORLD_WRITE_BITS);
-  }
-
-  /**
-   * Returns {@code true} when {@code f} is owned by the current JVM user and has none of {@code
-   * forbiddenBits} set. On non-POSIX file systems always returns {@code true}.
-   */
-  private static boolean isOwnedWithoutBits(File f, Set<PosixFilePermission> forbiddenBits) {
-    if (OperatingSystem.isWindows()) {
-      return true;
-    }
-    try {
-      Path path = f.toPath();
-      if (!isJvmOwner(path)) {
         return false;
-      }
-      Set<PosixFilePermission> perms = Files.getPosixFilePermissions(path);
-      return perms.stream().noneMatch(forbiddenBits::contains);
-    } catch (IOException | IllegalStateException | UnsupportedOperationException e) {
-      LOG.debug("Unable to check ownership/permissions for {}: {}", f, e.getMessage());
-      return false;
     }
-  }
 
-  private static boolean isJvmOwner(Path path) throws IOException {
-    UserPrincipal owner = Files.getOwner(path);
-    UserPrincipal jvmUser = Files.getOwner(TempLocationManager.getInstance().getTempDir());
-    return jvmUser.equals(owner);
-  }
+    /**
+     * Extract the crash uploader script path from the {@code -Xdump:tool} JVM argument.
+     *
+     * <p>Looks for a JVM argument of the form {@code
+     * -Xdump:tool:events=...,exec=/path/to/dd_crash_uploader.sh\ %pid} and returns the script path
+     * portion (before the {@code \ %pid} argument separator).
+     *
+     * @return the script path, or {@code null} if not found or not extractable
+     */
+    private static String extractJ9ScriptPathFromXdumpArg() {
+        List<String> vmArgs = JavaVirtualMachine.getVmOptions();
+        for (String arg : vmArgs) {
+            if (arg.startsWith("-Xdump:tool") && arg.contains("dd_crash_uploader")) {
+                int execIdx = arg.indexOf("exec=");
+                if (execIdx >= 0) {
+                    String execVal = arg.substring(execIdx + 5);
+                    // Separator between command and args: plain space, or "\ " (backslash + space) as
+                    // suggested by the Initializer's log hint. Check plain space first since that is the
+                    // form that actually works when the shell splits the exec string into tokens.
+                    int spaceIdx = execVal.indexOf(' ');
+                    if (spaceIdx >= 0) {
+                        String candidate = execVal.substring(0, spaceIdx);
+                        // Strip a trailing backslash left over from the "\ %pid" notation
+                        return candidate.endsWith("\\") ? candidate.substring(0, candidate.length() - 1) : candidate;
+                    }
+                    return execVal;
+                }
+            }
+        }
+        return null;
+    }
 
-  /**
-   * Sets read/write/execute for the owner only on a freshly created script directory (effective
-   * {@code 0700}, stripping any group/world bits left over from the process umask). Returns {@code
-   * true} when the permissions were applied; on failure the caller must treat the directory as
-   * unusable.
-   */
-  static boolean restrictDirectoryToOwnerOnly(File dir) {
-    return setOwnerOnlyPermissions(dir, true);
-  }
+    /**
+     * Get the custom javacore file path from -Xdump:java:file=... JVM argument.
+     *
+     * @return the custom javacore path, or null if not configured
+     */
+    private static String getJ9JavacorePath() {
+        List<String> vmArgs = JavaVirtualMachine.getVmOptions();
+        for (String arg : vmArgs) {
+            if (arg.startsWith("-Xdump:java:file=") || arg.startsWith("-Xdump:java+heap:file=")) {
+                int fileIdx = arg.indexOf("file=");
+                if (fileIdx >= 0) {
+                    String path = arg.substring(fileIdx + 5);
+                    // Handle comma-separated options: -Xdump:java:file=/path,request=exclusive
+                    int commaIdx = path.indexOf(',');
+                    if (commaIdx > 0) {
+                        path = path.substring(0, commaIdx);
+                    }
+                    return path;
+                }
+            }
+        }
+        return null;
+    }
 
-  /**
-   * Sets read/execute (but not write) for the owner only on a freshly created script file. Returns
-   * {@code true} when the permissions were applied; on failure the caller must discard the file.
-   */
-  static boolean restrictScriptToOwnerOnly(File scriptFile) {
-    return setOwnerOnlyPermissions(scriptFile, false);
-  }
+    /**
+     * Check if -Xdump:tool is configured with our crash uploader script.
+     *
+     * <p>Looks for JVM arguments matching: -Xdump:tool:events=...,exec=...dd_crash_uploader...
+     */
+    private static boolean isXdumpToolConfigured() {
+        List<String> vmArgs = JavaVirtualMachine.getVmOptions();
+        for (String arg : vmArgs) {
+            if (arg.startsWith("-Xdump:tool") && arg.contains("dd_crash_uploader")) {
+                return true;
+            }
+        }
+        return false;
+    }
 
-  /**
-   * Applies owner-only permissions to {@code f}: all group/world bits are cleared and the owner
-   * keeps read and execute, plus write iff {@code ownerWritable}. On POSIX file systems this is a
-   * single atomic operation whose failure makes the caller refuse the path. On file systems without
-   * POSIX permission bits (e.g. Windows) there is nothing to verify, so restriction is best-effort
-   * through the legacy API and the method returns {@code true} even on partial failure.
-   */
-  private static boolean setOwnerOnlyPermissions(File f, boolean ownerWritable) {
-    Path path = f.toPath();
-    if (path.getFileSystem().supportedFileAttributeViews().contains("posix")) {
-      try {
-        Set<PosixFilePermission> perms =
-            EnumSet.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_EXECUTE);
+    /**
+     * Get the path where the crash uploader script should be deployed for J9.
+     *
+     * <p>Note: The actual script deployment is handled by {@link CrashUploaderScriptInitializer} when
+     * initialize() is called with this path.
+     *
+     * @return the full path for the crash uploader script
+     */
+    private static String getJ9CrashUploaderScriptPath() {
+        String scriptFileName = getScriptFileName("dd_crash_uploader");
+        String tempDir = TempLocationManager.getInstance().getTempDir().toString();
+        return tempDir + File.separator + scriptFileName;
+    }
+
+    static InputStream getCrashUploaderTemplate() {
+        String name = OperatingSystem.isWindows() ? "upload_crash.bat" : "upload_crash.sh";
+        return CrashUploader.class.getResourceAsStream(name);
+    }
+
+    static InputStream getOomeNotifierTemplate() {
+        String name = OperatingSystem.isWindows() ? "notify_oome.bat" : "notify_oome.sh";
+        return OOMENotifier.class.getResourceAsStream(name);
+    }
+
+    static String findAgentJar() {
+        String agentPath = null;
+        String classResourceName = CrashUploader.class.getName().replace('.', '/') + ".class";
+        URL classResource = CrashUploader.class.getClassLoader().getResource(classResourceName);
+        String selfClass = classResource == null ? "null" : classResource.toString();
+        if (selfClass.startsWith("jar:file:")) {
+            int idx = selfClass.lastIndexOf(".jar");
+            if (idx > -1) {
+                agentPath = selfClass.substring(9, idx + 4);
+            }
+        }
+        // test harness env is different; use the known project structure to locate the agent jar
+        else if (selfClass.startsWith("file:")) {
+            int idx = selfClass.lastIndexOf("dd-java-agent");
+            if (idx > -1) {
+                File libsDir = new File(selfClass.substring(5, idx + 13), "build/libs");
+                File[] jars =
+                        libsDir.listFiles(f -> f.getName().toLowerCase(ROOT).endsWith(".jar"));
+                if (jars != null && jars.length > 0) {
+                    Arrays.sort(jars, (a, b) -> b.getName().compareTo(a.getName()));
+                    agentPath = jars[0].getAbsolutePath();
+                }
+            }
+        }
+        return agentPath;
+    }
+
+    static String pidFromSpecialFileName(String fileName) {
+        if (fileName == null || fileName.isEmpty()) {
+            return null;
+        }
+        int index = fileName.indexOf(PID_PREFIX);
+        if (index < 0) {
+            return null; // not a process specific file
+        }
+        int pos = index + PID_PREFIX.length();
+        int startPos = pos;
+
+        // check if the file name contains a PID
+        if (fileName.length() <= pos) {
+            return null; // no PID in the file name
+        }
+        // extract the PID from the file name
+        // eg. pid_12345.log -> 12345
+        while (pos < fileName.length() && Character.isDigit(fileName.charAt(pos))) {
+            pos++;
+        }
+        return fileName.substring(startPos, pos);
+    }
+
+    static String getScriptPathFromArg(String arg, String scriptNamePrefix) {
+        if (arg == null || arg.isEmpty()) {
+            return null;
+        }
+        int idx = arg.toLowerCase().indexOf(scriptNamePrefix);
+        if (idx < 0) {
+            // the script name is not present in the value, so we cannot extract the path
+            return null;
+        }
+        // the script name is present, so we can extract the path
+
+        char ch;
+        idx += scriptNamePrefix.length();
+        while (idx < arg.length() && (ch = arg.charAt(idx)) != ' ' && ch != ';') {
+            idx++;
+        }
+        String path = arg.substring(0, idx);
+        idx = path.lastIndexOf(';'); // the arg may contain multiple commands separated by semicolons
+        if (idx >= 0) {
+            // if there is a semicolon, we take the part after it and trim it
+            path = path.substring(idx + 1).trim();
+        }
+        return path;
+    }
+
+    /**
+     * If the value of `-XX:OnError` JVM argument is referring to `dd_crash_uploader.sh` or
+     * `dd_crash_uploader.bat` and the script does not exist it will be created and prefilled with
+     * code ensuring the error log upload will be triggered on JVM crash.
+     */
+    private static void initializeCrashUploader(FlagAccess flags) {
+        try {
+            String onErrorVal = flags.getValue("OnError");
+            String onErrorFile = flags.getValue("ErrorFile");
+
+            String uploadScript = getScript("dd_crash_uploader");
+            if (onErrorVal == null || onErrorVal.isEmpty()) {
+                onErrorVal = uploadScript;
+            } else if (!onErrorVal.contains("dd_crash_uploader")) {
+                // we can chain scripts so let's preserve the original value in addition to our crash
+                // uploader
+                onErrorVal = uploadScript + "; " + onErrorVal;
+            } else {
+                StringTokenizer st = new StringTokenizer(onErrorVal, ";");
+                while (st.hasMoreTokens()) {
+                    String part = st.nextToken();
+                    if (part.trim().contains("dd_crash_uploader")) {
+                        // reuse the existing script name
+                        uploadScript = part.trim().replace(" %p", "");
+                        break;
+                    }
+                }
+            }
+
+            if (CrashUploaderScriptInitializer.initialize(uploadScript, onErrorFile)) {
+                // set the JVM flag only if the script was successfully initialized
+                boolean rslt = flags.setValue("OnError", onErrorVal);
+                if (!rslt && LOG.isDebugEnabled()) {
+                    LOG.debug(
+                            SEND_TELEMETRY,
+                            "Unable to set OnError flag to {}. Crash-tracking may not work.",
+                            onErrorVal);
+                }
+            }
+        } catch (Throwable t) {
+            LOG.warn(
+                    SEND_TELEMETRY,
+                    "Unexpected exception while creating custom crash upload script. Crash tracking will not work properly.",
+                    t);
+        }
+    }
+
+    private static void initializeOOMENotifier(FlagAccess flags) {
+        try {
+            String onOutOfMemoryVal = flags.getValue("OnOutOfMemoryError");
+
+            String notifierScript = getScript("dd_oome_notifier");
+
+            if (onOutOfMemoryVal == null || onOutOfMemoryVal.isEmpty()) {
+                onOutOfMemoryVal = notifierScript;
+            } else if (!onOutOfMemoryVal.contains("dd_oome_notifier")) {
+                // we can chain scripts so let's preserve the original value in addition to our oome tracker
+                onOutOfMemoryVal = notifierScript + "; " + onOutOfMemoryVal;
+            } else {
+                StringTokenizer st = new StringTokenizer(onOutOfMemoryVal, ";");
+                while (st.hasMoreTokens()) {
+                    String part = st.nextToken();
+                    if (part.trim().contains("dd_oome_notifier")) {
+                        // reuse the existing script name
+                        notifierScript = part.trim();
+                        break;
+                    }
+                }
+            }
+
+            if (OOMENotifierScriptInitializer.initialize(notifierScript)) {
+                // set the JVM flag only if the script was successfully initialized
+                boolean rslt = flags.setValue("OnOutOfMemoryError", onOutOfMemoryVal);
+                if (!rslt && LOG.isDebugEnabled()) {
+                    LOG.debug(
+                            SEND_TELEMETRY,
+                            "Unable to set OnOutOfMemoryError flag to {}. OOME tracking may not work.",
+                            onOutOfMemoryVal);
+                }
+            }
+        } catch (Throwable t) {
+            LOG.warn(
+                    SEND_TELEMETRY,
+                    "Unexpected exception while initializing OOME notifier. OOMEs will not be tracked.",
+                    t);
+        }
+    }
+
+    private static String getScript(String scriptName) {
+        return TempLocationManager.getInstance().getTempDir().toString() + "/" + getScriptFileName(scriptName) + " %p";
+    }
+
+    private static String getScriptFileName(String scriptName) {
+        return scriptName + "." + (OperatingSystem.isWindows() ? "bat" : "sh");
+    }
+
+    private static final Set<PosixFilePermission> GROUP_WORLD_BITS = EnumSet.of(
+            PosixFilePermission.GROUP_READ,
+            PosixFilePermission.GROUP_WRITE,
+            PosixFilePermission.GROUP_EXECUTE,
+            PosixFilePermission.OTHERS_READ,
+            PosixFilePermission.OTHERS_WRITE,
+            PosixFilePermission.OTHERS_EXECUTE);
+
+    private static final Set<PosixFilePermission> GROUP_WORLD_WRITE_BITS =
+            EnumSet.of(PosixFilePermission.GROUP_WRITE, PosixFilePermission.OTHERS_WRITE);
+
+    /**
+     * Returns {@code true} when {@code f} is owned by the current JVM user and has no group/world
+     * <em>write</em> bit set; on non-POSIX file systems always returns {@code true}. Stray
+     * group/world <em>read</em> or <em>execute</em> bits (e.g. the {@code 0755} a pre-upgrade version
+     * of this initializer, which did not lock down permissions, could have left behind) do not
+     * disqualify the path here: those bits are safe to tighten in place with {@link
+     * #stripGroupAndWorldBits(File)} rather than treating the path as untrusted. A group/world write
+     * bit is still treated as a sign of possible tampering and causes this method to return {@code
+     * false}.
+     */
+    static boolean isSafeToRepair(File f) {
+        return isOwnedWithoutBits(f, GROUP_WORLD_WRITE_BITS);
+    }
+
+    /**
+     * Returns {@code true} when {@code f} is owned by the current JVM user and has none of {@code
+     * forbiddenBits} set. On non-POSIX file systems always returns {@code true}.
+     */
+    private static boolean isOwnedWithoutBits(File f, Set<PosixFilePermission> forbiddenBits) {
+        if (OperatingSystem.isWindows()) {
+            return true;
+        }
+        try {
+            Path path = f.toPath();
+            if (!isJvmOwner(path)) {
+                return false;
+            }
+            Set<PosixFilePermission> perms = Files.getPosixFilePermissions(path);
+            return perms.stream().noneMatch(forbiddenBits::contains);
+        } catch (IOException | IllegalStateException | UnsupportedOperationException e) {
+            LOG.debug("Unable to check ownership/permissions for {}: {}", f, e.getMessage());
+            return false;
+        }
+    }
+
+    private static boolean isJvmOwner(Path path) throws IOException {
+        UserPrincipal owner = Files.getOwner(path);
+        UserPrincipal jvmUser = Files.getOwner(TempLocationManager.getInstance().getTempDir());
+        return jvmUser.equals(owner);
+    }
+
+    /**
+     * Sets read/write/execute for the owner only on a freshly created script directory (effective
+     * {@code 0700}, stripping any group/world bits left over from the process umask). Returns {@code
+     * true} when the permissions were applied; on failure the caller must treat the directory as
+     * unusable.
+     */
+    static boolean restrictDirectoryToOwnerOnly(File dir) {
+        return setOwnerOnlyPermissions(dir, true);
+    }
+
+    /**
+     * Sets read/execute (but not write) for the owner only on a freshly created script file. Returns
+     * {@code true} when the permissions were applied; on failure the caller must discard the file.
+     */
+    static boolean restrictScriptToOwnerOnly(File scriptFile) {
+        return setOwnerOnlyPermissions(scriptFile, false);
+    }
+
+    /**
+     * Applies owner-only permissions to {@code f}: all group/world bits are cleared and the owner
+     * keeps read and execute, plus write iff {@code ownerWritable}. On POSIX file systems this is a
+     * single atomic operation whose failure makes the caller refuse the path. On file systems without
+     * POSIX permission bits (e.g. Windows) there is nothing to verify, so restriction is best-effort
+     * through the legacy API and the method returns {@code true} even on partial failure.
+     */
+    private static boolean setOwnerOnlyPermissions(File f, boolean ownerWritable) {
+        Path path = f.toPath();
+        if (path.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+            try {
+                Set<PosixFilePermission> perms =
+                        EnumSet.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_EXECUTE);
+                if (ownerWritable) {
+                    perms.add(PosixFilePermission.OWNER_WRITE);
+                }
+                Files.setPosixFilePermissions(path, perms);
+                return true;
+            } catch (IOException | IllegalStateException | UnsupportedOperationException e) {
+                LOG.debug("Unable to restrict permissions for {}: {}", f, e.getMessage());
+                return false;
+            }
+        }
+        boolean ok = f.setReadable(false, false);
+        ok &= f.setWritable(false, false);
+        ok &= f.setExecutable(false, false);
+        ok &= f.setReadable(true, true);
         if (ownerWritable) {
-          perms.add(PosixFilePermission.OWNER_WRITE);
+            ok &= f.setWritable(true, true);
         }
-        Files.setPosixFilePermissions(path, perms);
+        ok &= f.setExecutable(true, true);
+        if (!ok) {
+            LOG.debug("Unable to fully restrict permissions for {} on a file system without POSIX support", f);
+        }
         return true;
-      } catch (IOException | IllegalStateException | UnsupportedOperationException e) {
-        LOG.debug("Unable to restrict permissions for {}: {}", f, e.getMessage());
-        return false;
-      }
     }
-    boolean ok = f.setReadable(false, false);
-    ok &= f.setWritable(false, false);
-    ok &= f.setExecutable(false, false);
-    ok &= f.setReadable(true, true);
-    if (ownerWritable) {
-      ok &= f.setWritable(true, true);
-    }
-    ok &= f.setExecutable(true, true);
-    if (!ok) {
-      LOG.debug(
-          "Unable to fully restrict permissions for {} on a file system without POSIX support", f);
-    }
-    return true;
-  }
 
-  /**
-   * Removes any group/world permission bits from {@code f} while leaving the owner's own bits
-   * untouched, in a single atomic operation. Unlike {@link #restrictDirectoryToOwnerOnly(File)},
-   * this never adds a permission (e.g. owner write) that {@code f} did not already have, so a path
-   * an operator deliberately made non-writable for the owner stays non-writable after repair.
-   * Returns {@code true} when the bits were applied or nothing needed stripping; on failure the
-   * caller must treat {@code f} as unusable. On Windows this is a no-op that returns {@code true}.
-   */
-  static boolean stripGroupAndWorldBits(File f) {
-    if (OperatingSystem.isWindows()) {
-      return true;
+    /**
+     * Removes any group/world permission bits from {@code f} while leaving the owner's own bits
+     * untouched, in a single atomic operation. Unlike {@link #restrictDirectoryToOwnerOnly(File)},
+     * this never adds a permission (e.g. owner write) that {@code f} did not already have, so a path
+     * an operator deliberately made non-writable for the owner stays non-writable after repair.
+     * Returns {@code true} when the bits were applied or nothing needed stripping; on failure the
+     * caller must treat {@code f} as unusable. On Windows this is a no-op that returns {@code true}.
+     */
+    static boolean stripGroupAndWorldBits(File f) {
+        if (OperatingSystem.isWindows()) {
+            return true;
+        }
+        try {
+            Path path = f.toPath();
+            Set<PosixFilePermission> perms = EnumSet.noneOf(PosixFilePermission.class);
+            perms.addAll(Files.getPosixFilePermissions(path));
+            perms.removeAll(GROUP_WORLD_BITS);
+            Files.setPosixFilePermissions(path, perms);
+            return true;
+        } catch (IOException | IllegalStateException | UnsupportedOperationException e) {
+            LOG.debug("Unable to strip group/world permissions for {}: {}", f, e.getMessage());
+            return false;
+        }
     }
-    try {
-      Path path = f.toPath();
-      Set<PosixFilePermission> perms = EnumSet.noneOf(PosixFilePermission.class);
-      perms.addAll(Files.getPosixFilePermissions(path));
-      perms.removeAll(GROUP_WORLD_BITS);
-      Files.setPosixFilePermissions(path, perms);
-      return true;
-    } catch (IOException | IllegalStateException | UnsupportedOperationException e) {
-      LOG.debug("Unable to strip group/world permissions for {}: {}", f, e.getMessage());
-      return false;
-    }
-  }
 }

@@ -4,8 +4,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 public class HandlerStreamingWithError implements RequestStreamHandler {
-  @Override
-  public void handleRequest(InputStream inputStream, OutputStream outputStream, Context context) {
-    throw new Error("Some error");
-  }
+    @Override
+    public void handleRequest(InputStream inputStream, OutputStream outputStream, Context context) {
+        throw new Error("Some error");
+    }
 }

@@ -21,59 +21,55 @@ import org.junit.jupiter.api.Test;
 
 class DatadogProfilerRecordingTest {
 
-  private DatadogProfiler profiler;
-  private DatadogProfilerRecording recording;
+    private DatadogProfiler profiler;
+    private DatadogProfilerRecording recording;
 
-  @BeforeEach
-  void setup() throws Exception {
-    assumeTrue(OperatingSystem.isLinux());
-    assertDoesNotThrow(
-        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
-    profiler = DatadogProfiler.newInstance(ConfigProvider.getInstance());
-    Assumptions.assumeFalse(profiler.isActive());
-    recording = (DatadogProfilerRecording) profiler.start();
-    assumeTrue(recording != null);
-  }
-
-  @AfterEach
-  void shutdown() {
-    // Apparently, failed 'assume' does not prevent shutdown from running
-    // Do a sanity check before invoking profiler methods
-    if (profiler != null && recording != null) {
-      profiler.stop(recording);
+    @BeforeEach
+    void setup() throws Exception {
+        assumeTrue(OperatingSystem.isLinux());
+        assertDoesNotThrow(() -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+        profiler = DatadogProfiler.newInstance(ConfigProvider.getInstance());
+        Assumptions.assumeFalse(profiler.isActive());
+        recording = (DatadogProfilerRecording) profiler.start();
+        assumeTrue(recording != null);
     }
-  }
 
-  @Test
-  void testClose() throws Exception {
-    assertDoesNotThrow(
-        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
-    assertTrue(Files.exists(recording.getRecordingFile()));
-    recording.close();
-    assertFalse(Files.exists(recording.getRecordingFile()));
-  }
+    @AfterEach
+    void shutdown() {
+        // Apparently, failed 'assume' does not prevent shutdown from running
+        // Do a sanity check before invoking profiler methods
+        if (profiler != null && recording != null) {
+            profiler.stop(recording);
+        }
+    }
 
-  @Test
-  void testStop() throws Exception {
-    assertDoesNotThrow(
-        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
-    RecordingData data = recording.stop();
-    assertNotNull(data);
-    assertTrue(Files.exists(recording.getRecordingFile()));
-  }
+    @Test
+    void testClose() throws Exception {
+        assertDoesNotThrow(() -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+        assertTrue(Files.exists(recording.getRecordingFile()));
+        recording.close();
+        assertFalse(Files.exists(recording.getRecordingFile()));
+    }
 
-  @Test
-  void testSnapshot() throws Exception {
-    assertDoesNotThrow(
-        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
-    RecordingData data = recording.snapshot(Instant.now());
-    assertNotNull(data);
-    assertTrue(Files.exists(recording.getRecordingFile()));
-    InputStream inputStream = data.getStream();
-    assertNotNull(inputStream);
-    assertTrue(inputStream.available() > 0);
-    // Snapshot files must live under the same recordings dir as start (SCP-1361).
-    assertNotNull(data.getPath());
-    assertEquals(recording.getRecordingFile().getParent(), data.getPath().getParent());
-  }
+    @Test
+    void testStop() throws Exception {
+        assertDoesNotThrow(() -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+        RecordingData data = recording.stop();
+        assertNotNull(data);
+        assertTrue(Files.exists(recording.getRecordingFile()));
+    }
+
+    @Test
+    void testSnapshot() throws Exception {
+        assertDoesNotThrow(() -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+        RecordingData data = recording.snapshot(Instant.now());
+        assertNotNull(data);
+        assertTrue(Files.exists(recording.getRecordingFile()));
+        InputStream inputStream = data.getStream();
+        assertNotNull(inputStream);
+        assertTrue(inputStream.available() > 0);
+        // Snapshot files must live under the same recordings dir as start (SCP-1361).
+        assertNotNull(data.getPath());
+        assertEquals(recording.getRecordingFile().getParent(), data.getPath().getParent());
+    }
 }

@@ -6,10 +6,10 @@ import org.testng.annotations.Test;
 
 public class TestSucceedAndThenFail {
 
-  private int executions;
+    private int executions;
 
-  @Test
-  public void test_succeed_and_then_fail() {
-    assertTrue(++executions < 2);
-  }
+    @Test
+    public void test_succeed_and_then_fail() {
+        assertTrue(++executions < 2);
+    }
 }

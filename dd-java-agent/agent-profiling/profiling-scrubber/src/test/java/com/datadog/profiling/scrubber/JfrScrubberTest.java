@@ -24,93 +24,90 @@ import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit;
 
 class JfrScrubberTest {
 
-  @TempDir Path tempDir;
+    @TempDir
+    Path tempDir;
 
-  private Path inputFile;
+    private Path inputFile;
 
-  @BeforeEach
-  void setUp() throws IOException {
-    inputFile = tempDir.resolve("input.jfr");
-    try (InputStream is = getClass().getResourceAsStream("/test-recording.jfr")) {
-      if (is == null) {
-        throw new IllegalStateException("test-recording.jfr not found in test resources");
-      }
-      Files.copy(is, inputFile, StandardCopyOption.REPLACE_EXISTING);
-    }
-  }
-
-  @Test
-  void scrubInitialSystemPropertyValues() throws Exception {
-    JfrScrubber scrubber = DefaultScrubDefinition.create(null);
-    Path outputFile = tempDir.resolve("output.jfr");
-    scrubber.scrubFile(inputFile, outputFile);
-
-    assertTrue(Files.exists(outputFile));
-    assertTrue(Files.size(outputFile) > 0, "Scrubbed file should not be empty");
-
-    // Verify scrubbed values contain only 'x' characters
-    IItemCollection events = JfrLoaderToolkit.loadEvents(outputFile.toFile());
-    IItemCollection systemPropertyEvents =
-        events.apply(ItemFilters.type("jdk.InitialSystemProperty"));
-    assertTrue(systemPropertyEvents.hasItems(), "Expected jdk.InitialSystemProperty events");
-
-    IAttribute<String> valueAttr = attr("value", "value", "value", PLAIN_TEXT);
-    for (IItemIterable itemIterable : systemPropertyEvents) {
-      IMemberAccessor<String, IItem> accessor = valueAttr.getAccessor(itemIterable.getType());
-      for (IItem item : itemIterable) {
-        String value = accessor.getMember(item);
-        if (value != null && !value.isEmpty()) {
-          assertTrue(
-              value.chars().allMatch(c -> c == 'x'),
-              "System property value should be scrubbed: " + value);
+    @BeforeEach
+    void setUp() throws IOException {
+        inputFile = tempDir.resolve("input.jfr");
+        try (InputStream is = getClass().getResourceAsStream("/test-recording.jfr")) {
+            if (is == null) {
+                throw new IllegalStateException("test-recording.jfr not found in test resources");
+            }
+            Files.copy(is, inputFile, StandardCopyOption.REPLACE_EXISTING);
         }
-      }
     }
-  }
 
-  @Test
-  void scrubWithNoMatchingEvents() throws Exception {
-    // Scrubber with all default events excluded — nothing matches
-    JfrScrubber scrubber = new JfrScrubber(name -> null);
-    Path outputFile = tempDir.resolve("output.jfr");
-    scrubber.scrubFile(inputFile, outputFile);
+    @Test
+    void scrubInitialSystemPropertyValues() throws Exception {
+        JfrScrubber scrubber = DefaultScrubDefinition.create(null);
+        Path outputFile = tempDir.resolve("output.jfr");
+        scrubber.scrubFile(inputFile, outputFile);
 
-    // Output should be identical to input when no events match
-    assertEquals(Files.size(inputFile), Files.size(outputFile));
-  }
+        assertTrue(Files.exists(outputFile));
+        assertTrue(Files.size(outputFile) > 0, "Scrubbed file should not be empty");
 
-  @Test
-  void scrubWithExcludedEventType() throws Exception {
-    // Exclude jdk.InitialSystemProperty from scrubbing
-    JfrScrubber scrubber =
-        DefaultScrubDefinition.create(Collections.singletonList("jdk.InitialSystemProperty"));
-    Path outputFile = tempDir.resolve("output.jfr");
-    scrubber.scrubFile(inputFile, outputFile);
+        // Verify scrubbed values contain only 'x' characters
+        IItemCollection events = JfrLoaderToolkit.loadEvents(outputFile.toFile());
+        IItemCollection systemPropertyEvents = events.apply(ItemFilters.type("jdk.InitialSystemProperty"));
+        assertTrue(systemPropertyEvents.hasItems(), "Expected jdk.InitialSystemProperty events");
 
-    assertTrue(Files.exists(outputFile));
-    assertTrue(Files.size(outputFile) > 0);
-
-    // Verify excluded event type values are preserved (not scrubbed to 'x')
-    IItemCollection events = JfrLoaderToolkit.loadEvents(outputFile.toFile());
-    IItemCollection systemPropertyEvents =
-        events.apply(ItemFilters.type("jdk.InitialSystemProperty"));
-    assertTrue(systemPropertyEvents.hasItems(), "Expected jdk.InitialSystemProperty events");
-
-    IAttribute<String> valueAttr = attr("value", "value", "value", PLAIN_TEXT);
-    boolean foundNonTrivialValue = false;
-    for (IItemIterable itemIterable : systemPropertyEvents) {
-      IMemberAccessor<String, IItem> accessor = valueAttr.getAccessor(itemIterable.getType());
-      for (IItem item : itemIterable) {
-        String value = accessor.getMember(item);
-        if (value != null && !value.isEmpty()) {
-          // At least one value should NOT be all-x (proving exclusion worked)
-          if (!value.chars().allMatch(c -> c == 'x')) {
-            foundNonTrivialValue = true;
-          }
+        IAttribute<String> valueAttr = attr("value", "value", "value", PLAIN_TEXT);
+        for (IItemIterable itemIterable : systemPropertyEvents) {
+            IMemberAccessor<String, IItem> accessor = valueAttr.getAccessor(itemIterable.getType());
+            for (IItem item : itemIterable) {
+                String value = accessor.getMember(item);
+                if (value != null && !value.isEmpty()) {
+                    assertTrue(
+                            value.chars().allMatch(c -> c == 'x'),
+                            "System property value should be scrubbed: " + value);
+                }
+            }
         }
-      }
     }
-    assertTrue(
-        foundNonTrivialValue, "Excluded event type values should be preserved, not scrubbed");
-  }
+
+    @Test
+    void scrubWithNoMatchingEvents() throws Exception {
+        // Scrubber with all default events excluded — nothing matches
+        JfrScrubber scrubber = new JfrScrubber(name -> null);
+        Path outputFile = tempDir.resolve("output.jfr");
+        scrubber.scrubFile(inputFile, outputFile);
+
+        // Output should be identical to input when no events match
+        assertEquals(Files.size(inputFile), Files.size(outputFile));
+    }
+
+    @Test
+    void scrubWithExcludedEventType() throws Exception {
+        // Exclude jdk.InitialSystemProperty from scrubbing
+        JfrScrubber scrubber = DefaultScrubDefinition.create(Collections.singletonList("jdk.InitialSystemProperty"));
+        Path outputFile = tempDir.resolve("output.jfr");
+        scrubber.scrubFile(inputFile, outputFile);
+
+        assertTrue(Files.exists(outputFile));
+        assertTrue(Files.size(outputFile) > 0);
+
+        // Verify excluded event type values are preserved (not scrubbed to 'x')
+        IItemCollection events = JfrLoaderToolkit.loadEvents(outputFile.toFile());
+        IItemCollection systemPropertyEvents = events.apply(ItemFilters.type("jdk.InitialSystemProperty"));
+        assertTrue(systemPropertyEvents.hasItems(), "Expected jdk.InitialSystemProperty events");
+
+        IAttribute<String> valueAttr = attr("value", "value", "value", PLAIN_TEXT);
+        boolean foundNonTrivialValue = false;
+        for (IItemIterable itemIterable : systemPropertyEvents) {
+            IMemberAccessor<String, IItem> accessor = valueAttr.getAccessor(itemIterable.getType());
+            for (IItem item : itemIterable) {
+                String value = accessor.getMember(item);
+                if (value != null && !value.isEmpty()) {
+                    // At least one value should NOT be all-x (proving exclusion worked)
+                    if (!value.chars().allMatch(c -> c == 'x')) {
+                        foundNonTrivialValue = true;
+                    }
+                }
+            }
+        }
+        assertTrue(foundNonTrivialValue, "Excluded event type values should be preserved, not scrubbed");
+    }
 }

@@ -11,32 +11,32 @@ import org.apache.hc.core5.http.message.BasicClassicHttpRequest;
 /** Wraps HttpHost and HttpRequest into a HttpUriRequest for decorators and injectors */
 public class HostAndRequestAsHttpUriRequest extends BasicClassicHttpRequest {
 
-  private final HttpRequest actualRequest;
+    private final HttpRequest actualRequest;
 
-  public HostAndRequestAsHttpUriRequest(final HttpHost httpHost, final HttpRequest httpRequest) {
-    super(httpRequest.getMethod(), httpHost, httpRequest.getPath());
-    actualRequest = httpRequest;
-    // Propagate in case the host or request is tainted
-    PropagationUtils.taintObjectIfTainted(this, httpHost);
-    PropagationUtils.taintObjectIfTainted(this, httpRequest);
-  }
-
-  @Override
-  public URI getUri() throws URISyntaxException {
-    URI uri = super.getUri();
-    if (uri != null && uri.getHost() != null) {
-      return uri;
+    public HostAndRequestAsHttpUriRequest(final HttpHost httpHost, final HttpRequest httpRequest) {
+        super(httpRequest.getMethod(), httpHost, httpRequest.getPath());
+        actualRequest = httpRequest;
+        // Propagate in case the host or request is tainted
+        PropagationUtils.taintObjectIfTainted(this, httpHost);
+        PropagationUtils.taintObjectIfTainted(this, httpRequest);
     }
-    return actualRequest.getUri();
-  }
 
-  @Override
-  public void setHeader(String name, Object value) {
-    actualRequest.setHeader(name, value);
-  }
+    @Override
+    public URI getUri() throws URISyntaxException {
+        URI uri = super.getUri();
+        if (uri != null && uri.getHost() != null) {
+            return uri;
+        }
+        return actualRequest.getUri();
+    }
 
-  @Override
-  public Header getFirstHeader(String name) {
-    return actualRequest.getFirstHeader(name);
-  }
+    @Override
+    public void setHeader(String name, Object value) {
+        actualRequest.setHeader(name, value);
+    }
+
+    @Override
+    public Header getFirstHeader(String name) {
+        return actualRequest.getFirstHeader(name);
+    }
 }

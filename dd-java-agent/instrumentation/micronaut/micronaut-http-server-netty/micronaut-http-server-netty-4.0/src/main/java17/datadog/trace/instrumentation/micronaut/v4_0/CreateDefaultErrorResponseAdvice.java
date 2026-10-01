@@ -8,14 +8,14 @@ import io.micronaut.http.HttpRequest;
 import net.bytebuddy.asm.Advice;
 
 public class CreateDefaultErrorResponseAdvice {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static void captureError(
-      @Advice.Argument(0) final HttpRequest httpRequest,
-      @Advice.Argument(1) final Throwable cause) {
-    AgentSpan span = httpRequest.getAttribute(SPAN_ATTRIBUTE, AgentSpan.class).orElse(null);
-    if (null == span) {
-      return;
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void captureError(
+            @Advice.Argument(0) final HttpRequest httpRequest, @Advice.Argument(1) final Throwable cause) {
+        AgentSpan span =
+                httpRequest.getAttribute(SPAN_ATTRIBUTE, AgentSpan.class).orElse(null);
+        if (null == span) {
+            return;
+        }
+        DECORATE.onError(span, cause);
     }
-    DECORATE.onError(span, cause);
-  }
 }

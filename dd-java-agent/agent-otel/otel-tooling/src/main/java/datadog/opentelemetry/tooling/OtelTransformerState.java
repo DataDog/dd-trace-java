@@ -18,56 +18,55 @@ import net.bytebuddy.matcher.ElementMatcher;
  * request through the mapped OpenTelemetry callback.
  */
 final class OtelTransformerState implements OtelTransformer {
-  private static final OtelTransformerState CURRENT = new OtelTransformerState();
+    private static final OtelTransformerState CURRENT = new OtelTransformerState();
 
-  private OtelInstrumenter instrumenter;
-  private Instrumenter.MethodTransformer methodTransformer;
-  private Instrumenter.TypeTransformer typeTransformer;
+    private OtelInstrumenter instrumenter;
+    private Instrumenter.MethodTransformer methodTransformer;
+    private Instrumenter.TypeTransformer typeTransformer;
 
-  static OtelTransformerState capture(OtelInstrumenter instrumenter) {
-    if (instrumenter != CURRENT.instrumenter) {
-      CURRENT.reset();
-      CURRENT.instrumenter = instrumenter;
+    static OtelTransformerState capture(OtelInstrumenter instrumenter) {
+        if (instrumenter != CURRENT.instrumenter) {
+            CURRENT.reset();
+            CURRENT.instrumenter = instrumenter;
+        }
+        return CURRENT;
     }
-    return CURRENT;
-  }
 
-  void with(Instrumenter.MethodTransformer methodTransformer) {
-    this.methodTransformer = methodTransformer;
-    if (null != this.typeTransformer) {
-      triggerTransform();
+    void with(Instrumenter.MethodTransformer methodTransformer) {
+        this.methodTransformer = methodTransformer;
+        if (null != this.typeTransformer) {
+            triggerTransform();
+        }
     }
-  }
 
-  void with(Instrumenter.TypeTransformer typeTransformer) {
-    this.typeTransformer = typeTransformer;
-    if (null != this.methodTransformer) {
-      triggerTransform();
+    void with(Instrumenter.TypeTransformer typeTransformer) {
+        this.typeTransformer = typeTransformer;
+        if (null != this.methodTransformer) {
+            triggerTransform();
+        }
     }
-  }
 
-  private void triggerTransform() {
-    try {
-      instrumenter.transform(this);
-    } finally {
-      reset();
+    private void triggerTransform() {
+        try {
+            instrumenter.transform(this);
+        } finally {
+            reset();
+        }
     }
-  }
 
-  private void reset() {
-    this.instrumenter = null;
-    this.methodTransformer = null;
-    this.typeTransformer = null;
-  }
+    private void reset() {
+        this.instrumenter = null;
+        this.methodTransformer = null;
+        this.typeTransformer = null;
+    }
 
-  @Override
-  public void applyAdviceToMethod(
-      ElementMatcher<? super MethodDescription> methodMatcher, String adviceClassName) {
-    methodTransformer.applyAdvice(methodMatcher, adviceClassName);
-  }
+    @Override
+    public void applyAdviceToMethod(ElementMatcher<? super MethodDescription> methodMatcher, String adviceClassName) {
+        methodTransformer.applyAdvice(methodMatcher, adviceClassName);
+    }
 
-  @Override
-  public void applyTransformer(AgentBuilder.Transformer transformer) {
-    typeTransformer.applyAdvice(transformer::transform);
-  }
+    @Override
+    public void applyTransformer(AgentBuilder.Transformer transformer) {
+        typeTransformer.applyAdvice(transformer::transform);
+    }
 }

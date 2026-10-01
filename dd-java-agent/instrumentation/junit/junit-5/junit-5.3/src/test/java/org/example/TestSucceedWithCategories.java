@@ -9,9 +9,9 @@ import org.junit.jupiter.api.Test;
 @Tags({@Tag("Slow"), @Tag("Flaky")})
 public class TestSucceedWithCategories {
 
-  @Test
-  @Tags({@Tag("End2end"), @Tag("Browser")})
-  public void test_succeed() {
-    assertTrue(true);
-  }
+    @Test
+    @Tags({@Tag("End2end"), @Tag("Browser")})
+    public void test_succeed() {
+        assertTrue(true);
+    }
 }

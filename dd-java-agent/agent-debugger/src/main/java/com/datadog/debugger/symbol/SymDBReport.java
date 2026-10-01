@@ -4,20 +4,19 @@ import java.io.IOException;
 
 public interface SymDBReport {
 
-  void addMissingJar(String jarPath);
+    void addMissingJar(String jarPath);
 
-  void addIOException(String jarPath, IOException e);
+    void addIOException(String jarPath, IOException e);
 
-  void addLocationError(String locationStr);
+    void addLocationError(String locationStr);
 
-  void incClassCount(String jarPath);
+    void incClassCount(String jarPath);
 
-  void addScannedJar(String jarPath);
+    void addScannedJar(String jarPath);
 
-  void report();
+    void report();
 
-  SymDBReport NO_OP =
-      new SymDBReport() {
+    SymDBReport NO_OP = new SymDBReport() {
         @Override
         public void addMissingJar(String jarPath) {}
 
@@ -35,5 +34,5 @@ public interface SymDBReport {
 
         @Override
         public void report() {}
-      };
+    };
 }

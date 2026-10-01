@@ -24,76 +24,72 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 abstract class AbstractPropagatorTest extends AbstractOpenTelemetry14Test {
 
-  abstract TextMapPropagator propagator();
+    abstract TextMapPropagator propagator();
 
-  abstract void assertInjectedHeaders(
-      Map<String, String> headers, String traceId, String spanId, byte sampling);
+    abstract void assertInjectedHeaders(Map<String, String> headers, String traceId, String spanId, byte sampling);
 
-  @ParameterizedTest
-  @MethodSource("values")
-  void testContextExtractionAndInjection(
-      Map<String, String> headers, String traceId, String spanId, byte sampling) {
-    TextMapPropagator propagator = propagator();
-    boolean expectedSampled = sampling == SAMPLER_KEEP;
+    @ParameterizedTest
+    @MethodSource("values")
+    void testContextExtractionAndInjection(Map<String, String> headers, String traceId, String spanId, byte sampling) {
+        TextMapPropagator propagator = propagator();
+        boolean expectedSampled = sampling == SAMPLER_KEEP;
 
-    Context context = propagator.extract(Context.root(), headers, TextMap.INSTANCE);
-    assertNotEquals(Context.root(), context);
+        Context context = propagator.extract(Context.root(), headers, TextMap.INSTANCE);
+        assertNotEquals(Context.root(), context);
 
-    Span localSpan = this.otelTracer.spanBuilder("some-name").setParent(context).startSpan();
-    String localSpanId = localSpan.getSpanContext().getSpanId();
-    boolean spanSampled = localSpan.getSpanContext().getTraceFlags().isSampled();
-    Map<String, String> injectedHeaders = new HashMap<>();
-    try (Scope ignoredScope = localSpan.makeCurrent()) {
-      propagator.inject(Context.current(), injectedHeaders, new TextMap());
-    }
-    localSpan.end();
+        Span localSpan =
+                this.otelTracer.spanBuilder("some-name").setParent(context).startSpan();
+        String localSpanId = localSpan.getSpanContext().getSpanId();
+        boolean spanSampled = localSpan.getSpanContext().getTraceFlags().isSampled();
+        Map<String, String> injectedHeaders = new HashMap<>();
+        try (Scope ignoredScope = localSpan.makeCurrent()) {
+            propagator.inject(Context.current(), injectedHeaders, new TextMap());
+        }
+        localSpan.end();
 
-    assertTraces(
-        trace(
-            span()
-                .traceId((DDTraceId) expectedTraceId(traceId))
+        assertTraces(trace(span().traceId((DDTraceId) expectedTraceId(traceId))
                 .childOf(DDSpanId.fromHex(spanId))
                 .operationName("internal")
                 .resourceName("some-name")));
-    assertEquals(expectedSampled, spanSampled);
-    assertInjectedHeaders(injectedHeaders, traceId, localSpanId, sampling);
-  }
-
-  @Test
-  void testContextExtractOnMissingTraceContext() {
-    Map<String, String> headers = new HashMap<>();
-    headers.put("User-Agent", "test");
-
-    Context context = propagator().extract(Context.root(), headers, TextMap.INSTANCE);
-    Span extractedSpan = Span.fromContext(context);
-
-    assertNotNull(extractedSpan);
-    assertFalse(extractedSpan.getSpanContext().isValid());
-    assertNull(Span.fromContextOrNull(context));
-  }
-
-  // Using Object instead of DDTraceId to avoid loading bootstrap classes before test run
-  Object expectedTraceId(String traceId) {
-    return DDTraceId.fromHex(traceId);
-  }
-
-  static String zeroPadLeft(String value, int length) {
-    if (value.length() >= length) {
-      return value;
+        assertEquals(expectedSampled, spanSampled);
+        assertInjectedHeaders(injectedHeaders, traceId, localSpanId, sampling);
     }
-    StringBuilder sb = new StringBuilder(length);
-    for (int i = value.length(); i < length; i++) {
-      sb.append('0');
-    }
-    sb.append(value);
-    return sb.toString();
-  }
 
-  static Map<String, String> headers(String... keyValues) {
-    Map<String, String> map = new HashMap<>();
-    for (int i = 0; i + 1 < keyValues.length; i += 2) {
-      map.put(keyValues[i], keyValues[i + 1]);
+    @Test
+    void testContextExtractOnMissingTraceContext() {
+        Map<String, String> headers = new HashMap<>();
+        headers.put("User-Agent", "test");
+
+        Context context = propagator().extract(Context.root(), headers, TextMap.INSTANCE);
+        Span extractedSpan = Span.fromContext(context);
+
+        assertNotNull(extractedSpan);
+        assertFalse(extractedSpan.getSpanContext().isValid());
+        assertNull(Span.fromContextOrNull(context));
     }
-    return map;
-  }
+
+    // Using Object instead of DDTraceId to avoid loading bootstrap classes before test run
+    Object expectedTraceId(String traceId) {
+        return DDTraceId.fromHex(traceId);
+    }
+
+    static String zeroPadLeft(String value, int length) {
+        if (value.length() >= length) {
+            return value;
+        }
+        StringBuilder sb = new StringBuilder(length);
+        for (int i = value.length(); i < length; i++) {
+            sb.append('0');
+        }
+        sb.append(value);
+        return sb.toString();
+    }
+
+    static Map<String, String> headers(String... keyValues) {
+        Map<String, String> map = new HashMap<>();
+        for (int i = 0; i + 1 < keyValues.length; i += 2) {
+            map.put(keyValues[i], keyValues[i + 1]);
+        }
+        return map;
+    }
 }

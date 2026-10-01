@@ -7,18 +7,18 @@ import org.junit.jupiter.api.Test;
 
 public class TestFailedSuiteSetup {
 
-  @BeforeAll
-  public static void suiteSetup() {
-    throw new RuntimeException("suite set up failed");
-  }
+    @BeforeAll
+    public static void suiteSetup() {
+        throw new RuntimeException("suite set up failed");
+    }
 
-  @Test
-  public void test_succeed() {
-    assertTrue(true);
-  }
+    @Test
+    public void test_succeed() {
+        assertTrue(true);
+    }
 
-  @Test
-  public void test_another_succeed() {
-    assertTrue(true);
-  }
+    @Test
+    public void test_another_succeed() {
+        assertTrue(true);
+    }
 }

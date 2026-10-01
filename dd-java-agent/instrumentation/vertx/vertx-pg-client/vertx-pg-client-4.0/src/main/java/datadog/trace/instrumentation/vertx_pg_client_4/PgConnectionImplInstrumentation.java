@@ -13,28 +13,28 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class PgConnectionImplInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public PgConnectionImplInstrumentation() {
-    super("vertx", "vertx-sql-client");
-  }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public PgConnectionImplInstrumentation() {
+        super("vertx", "vertx-sql-client");
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    Map<String, String> contextStores = new HashMap<>();
-    contextStores.put("io.vertx.pgclient.impl.PgConnectionFactory", DBInfo.class.getName());
-    contextStores.put("io.vertx.sqlclient.SqlClient", DBInfo.class.getName());
-    return contextStores;
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        Map<String, String> contextStores = new HashMap<>();
+        contextStores.put("io.vertx.pgclient.impl.PgConnectionFactory", DBInfo.class.getName());
+        contextStores.put("io.vertx.sqlclient.SqlClient", DBInfo.class.getName());
+        return contextStores;
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "io.vertx.pgclient.impl.PgConnectionImpl";
-  }
+    @Override
+    public String instrumentedType() {
+        return "io.vertx.pgclient.impl.PgConnectionImpl";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor().and(takesArgument(0, named("io.vertx.pgclient.impl.PgConnectionFactory"))),
-        packageName + ".PgConnectionImplConstructorAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isConstructor().and(takesArgument(0, named("io.vertx.pgclient.impl.PgConnectionFactory"))),
+                packageName + ".PgConnectionImplConstructorAdvice");
+    }
 }

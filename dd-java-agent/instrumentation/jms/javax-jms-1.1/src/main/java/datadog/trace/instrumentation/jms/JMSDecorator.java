@@ -30,292 +30,275 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class JMSDecorator extends MessagingClientDecorator {
-  private static final Logger log = LoggerFactory.getLogger(JMSDecorator.class);
+    private static final Logger log = LoggerFactory.getLogger(JMSDecorator.class);
 
-  public static final CharSequence JMS = UTF8BytesString.create("jms");
-  public static final CharSequence JMS_CONSUME =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().messaging().inboundOperation(JMS.toString()));
-  public static final CharSequence JMS_PRODUCE =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().messaging().outboundOperation(JMS.toString()));
-  public static final CharSequence JMS_DELIVER = UTF8BytesString.create("jms.deliver");
+    public static final CharSequence JMS = UTF8BytesString.create("jms");
+    public static final CharSequence JMS_CONSUME = UTF8BytesString.create(
+            SpanNaming.instance().namingSchema().messaging().inboundOperation(JMS.toString()));
+    public static final CharSequence JMS_PRODUCE = UTF8BytesString.create(
+            SpanNaming.instance().namingSchema().messaging().outboundOperation(JMS.toString()));
+    public static final CharSequence JMS_DELIVER = UTF8BytesString.create("jms.deliver");
 
-  public static final boolean JMS_LEGACY_TRACING = Config.get().isJmsLegacyTracingEnabled();
+    public static final boolean JMS_LEGACY_TRACING = Config.get().isJmsLegacyTracingEnabled();
 
-  public static final boolean TIME_IN_QUEUE_ENABLED =
-      Config.get().isTimeInQueueEnabled(!JMS_LEGACY_TRACING, "jms");
-  public static final String JMS_PRODUCED_KEY = "x_datadog_jms_produced";
-  public static final String JMS_BATCH_ID_KEY = "x_datadog_jms_batch_id";
+    public static final boolean TIME_IN_QUEUE_ENABLED = Config.get().isTimeInQueueEnabled(!JMS_LEGACY_TRACING, "jms");
+    public static final String JMS_PRODUCED_KEY = "x_datadog_jms_produced";
+    public static final String JMS_BATCH_ID_KEY = "x_datadog_jms_batch_id";
 
-  private static final Join QUEUE_JOINER = PrefixJoin.of("Queue ");
-  private static final Join TOPIC_JOINER = PrefixJoin.of("Topic ");
+    private static final Join QUEUE_JOINER = PrefixJoin.of("Queue ");
+    private static final Join TOPIC_JOINER = PrefixJoin.of("Topic ");
 
-  private final DDCache<CharSequence, CharSequence> resourceNameCache =
-      DDCaches.newFixedSizeCache(32);
+    private final DDCache<CharSequence, CharSequence> resourceNameCache = DDCaches.newFixedSizeCache(32);
 
-  private final String resourcePrefix;
+    private final String resourcePrefix;
 
-  private final UTF8BytesString queueTempResourceName;
-  private final UTF8BytesString topicTempResourceName;
+    private final UTF8BytesString queueTempResourceName;
+    private final UTF8BytesString topicTempResourceName;
 
-  private final Function<CharSequence, CharSequence> queueResourceJoiner;
-  private final Function<CharSequence, CharSequence> topicResourceJoiner;
+    private final Function<CharSequence, CharSequence> queueResourceJoiner;
+    private final Function<CharSequence, CharSequence> topicResourceJoiner;
 
-  private final String spanKind;
-  private final CharSequence spanType;
-  private final Supplier<String> serviceNameSupplier;
+    private final String spanKind;
+    private final CharSequence spanType;
+    private final Supplier<String> serviceNameSupplier;
 
-  public static final JMSDecorator PRODUCER_DECORATE =
-      new JMSDecorator(
-          "Produced for ",
-          Tags.SPAN_KIND_PRODUCER,
-          InternalSpanTypes.MESSAGE_PRODUCER,
-          SpanNaming.instance()
-              .namingSchema()
-              .messaging()
-              .outboundService("jms", JMS_LEGACY_TRACING));
+    public static final JMSDecorator PRODUCER_DECORATE = new JMSDecorator(
+            "Produced for ",
+            Tags.SPAN_KIND_PRODUCER,
+            InternalSpanTypes.MESSAGE_PRODUCER,
+            SpanNaming.instance().namingSchema().messaging().outboundService("jms", JMS_LEGACY_TRACING));
 
-  public static final JMSDecorator CONSUMER_DECORATE =
-      new JMSDecorator(
-          "Consumed from ",
-          Tags.SPAN_KIND_CONSUMER,
-          InternalSpanTypes.MESSAGE_CONSUMER,
-          SpanNaming.instance()
-              .namingSchema()
-              .messaging()
-              .inboundService("jms", JMS_LEGACY_TRACING));
+    public static final JMSDecorator CONSUMER_DECORATE = new JMSDecorator(
+            "Consumed from ",
+            Tags.SPAN_KIND_CONSUMER,
+            InternalSpanTypes.MESSAGE_CONSUMER,
+            SpanNaming.instance().namingSchema().messaging().inboundService("jms", JMS_LEGACY_TRACING));
 
-  public static final JMSDecorator BROKER_DECORATE =
-      new JMSDecorator(
-          "",
-          Tags.SPAN_KIND_BROKER,
-          InternalSpanTypes.MESSAGE_BROKER,
-          SpanNaming.instance().namingSchema().messaging().timeInQueueService(JMS.toString()));
+    public static final JMSDecorator BROKER_DECORATE = new JMSDecorator(
+            "",
+            Tags.SPAN_KIND_BROKER,
+            InternalSpanTypes.MESSAGE_BROKER,
+            SpanNaming.instance().namingSchema().messaging().timeInQueueService(JMS.toString()));
 
-  public JMSDecorator(
-      String resourcePrefix,
-      String spanKind,
-      CharSequence spanType,
-      Supplier<String> serviceNameSupplier) {
-    this.resourcePrefix = resourcePrefix;
+    public JMSDecorator(
+            String resourcePrefix, String spanKind, CharSequence spanType, Supplier<String> serviceNameSupplier) {
+        this.resourcePrefix = resourcePrefix;
 
-    this.queueTempResourceName = UTF8BytesString.create(resourcePrefix + "Temporary Queue");
-    this.topicTempResourceName = UTF8BytesString.create(resourcePrefix + "Temporary Topic");
+        this.queueTempResourceName = UTF8BytesString.create(resourcePrefix + "Temporary Queue");
+        this.topicTempResourceName = UTF8BytesString.create(resourcePrefix + "Temporary Topic");
 
-    this.queueResourceJoiner = QUEUE_JOINER.curry(resourcePrefix);
-    this.topicResourceJoiner = TOPIC_JOINER.curry(resourcePrefix);
+        this.queueResourceJoiner = QUEUE_JOINER.curry(resourcePrefix);
+        this.topicResourceJoiner = TOPIC_JOINER.curry(resourcePrefix);
 
-    this.spanKind = spanKind;
-    this.spanType = spanType;
-    this.serviceNameSupplier = serviceNameSupplier;
-  }
-
-  public static void logJMSException(JMSException ex) {
-    if (log.isDebugEnabled()) {
-      log.debug("JMS exception during instrumentation", ex);
-    }
-  }
-
-  public static String messageTechnology(Message m) {
-    if (null == m) {
-      return "null";
+        this.spanKind = spanKind;
+        this.spanType = spanType;
+        this.serviceNameSupplier = serviceNameSupplier;
     }
 
-    String messageClass = m.getClass().getName();
-
-    if (messageClass.startsWith("com.amazon.sqs")) {
-      return "sqs";
-    } else if (messageClass.startsWith("com.ibm")) {
-      return "ibmmq";
-    } else {
-      return "unknown";
-    }
-  }
-
-  @Override
-  protected String[] instrumentationNames() {
-    return new String[] {"jms"};
-  }
-
-  @Override
-  protected CharSequence spanType() {
-    return spanType;
-  }
-
-  @Override
-  protected String service() {
-    return serviceNameSupplier.get();
-  }
-
-  @Override
-  protected CharSequence component() {
-    return JMS;
-  }
-
-  @Override
-  protected String spanKind() {
-    return spanKind;
-  }
-
-  public void onConsume(AgentSpan span, Message message, CharSequence resourceName) {
-    if (null != resourceName) {
-      span.setResourceName(resourceName);
+    public static void logJMSException(JMSException ex) {
+        if (log.isDebugEnabled()) {
+            log.debug("JMS exception during instrumentation", ex);
+        }
     }
 
-    try {
-      final long produceTime = message.getJMSTimestamp();
-      if (produceTime > 0) {
-        final long consumeTime = TimeUnit.NANOSECONDS.toMillis(span.getStartTime());
-        span.setTag(RECORD_QUEUE_TIME_MS, Math.max(0L, consumeTime - produceTime));
-      }
-    } catch (Exception e) {
-      log.debug("Unable to get jms timestamp", e);
-    }
-  }
+    public static String messageTechnology(Message m) {
+        if (null == m) {
+            return "null";
+        }
 
-  public void onProduce(AgentSpan span, CharSequence resourceName) {
-    if (null != resourceName) {
-      span.setResourceName(resourceName);
-    }
-  }
+        String messageClass = m.getClass().getName();
 
-  public static boolean canInject(Message message) {
-    // JMS->SQS already stores the trace context in 'X-Amzn-Trace-Id' / 'AWSTraceHeader',
-    // so skip storing same context again to avoid SQS limit of 10 attributes per message.
-    return !message.getClass().getName().startsWith("com.amazon.sqs.javamessaging");
-  }
-
-  public void onTimeInQueue(AgentSpan span, CharSequence resourceName, String serviceName) {
-    if (null != resourceName) {
-      span.setResourceName(resourceName);
-    }
-    if (null != serviceName) {
-      span.setServiceName(serviceName, component());
-    }
-  }
-
-  private static final String TIBCO_TMP_PREFIX = "$TMP$";
-
-  /**
-   * Sanitizes destination names to remove Kafka Connect schema-derived suffixes. When Kafka
-   * Connect's IBM MQ connectors are used with schema converters (Protobuf/JSON Schema), union or
-   * optional fields may get index suffixes like _messagebody_0 appended to the queue name.
-   */
-  private static String sanitizeDestinationName(String name) {
-    if (name == null || name.isEmpty()) {
-      return name;
+        if (messageClass.startsWith("com.amazon.sqs")) {
+            return "sqs";
+        } else if (messageClass.startsWith("com.ibm")) {
+            return "ibmmq";
+        } else {
+            return "unknown";
+        }
     }
 
-    int len = name.length();
-
-    // Check if name ends with digits (the schema index suffix)
-    if (!Character.isDigit(name.charAt(len - 1))) {
-      return name;
+    @Override
+    protected String[] instrumentationNames() {
+        return new String[] {"jms"};
     }
 
-    // Find the underscore before the trailing digits
-    int underscoreBeforeDigits = name.lastIndexOf('_');
-    if (underscoreBeforeDigits <= 0) {
-      return name;
+    @Override
+    protected CharSequence spanType() {
+        return spanType;
     }
 
-    // Verify all characters after the underscore are digits
-    for (int i = underscoreBeforeDigits + 1; i < len; i++) {
-      if (!Character.isDigit(name.charAt(i))) {
+    @Override
+    protected String service() {
+        return serviceNameSupplier.get();
+    }
+
+    @Override
+    protected CharSequence component() {
+        return JMS;
+    }
+
+    @Override
+    protected String spanKind() {
+        return spanKind;
+    }
+
+    public void onConsume(AgentSpan span, Message message, CharSequence resourceName) {
+        if (null != resourceName) {
+            span.setResourceName(resourceName);
+        }
+
+        try {
+            final long produceTime = message.getJMSTimestamp();
+            if (produceTime > 0) {
+                final long consumeTime = TimeUnit.NANOSECONDS.toMillis(span.getStartTime());
+                span.setTag(RECORD_QUEUE_TIME_MS, Math.max(0L, consumeTime - produceTime));
+            }
+        } catch (Exception e) {
+            log.debug("Unable to get jms timestamp", e);
+        }
+    }
+
+    public void onProduce(AgentSpan span, CharSequence resourceName) {
+        if (null != resourceName) {
+            span.setResourceName(resourceName);
+        }
+    }
+
+    public static boolean canInject(Message message) {
+        // JMS->SQS already stores the trace context in 'X-Amzn-Trace-Id' / 'AWSTraceHeader',
+        // so skip storing same context again to avoid SQS limit of 10 attributes per message.
+        return !message.getClass().getName().startsWith("com.amazon.sqs.javamessaging");
+    }
+
+    public void onTimeInQueue(AgentSpan span, CharSequence resourceName, String serviceName) {
+        if (null != resourceName) {
+            span.setResourceName(resourceName);
+        }
+        if (null != serviceName) {
+            span.setServiceName(serviceName, component());
+        }
+    }
+
+    private static final String TIBCO_TMP_PREFIX = "$TMP$";
+
+    /**
+     * Sanitizes destination names to remove Kafka Connect schema-derived suffixes. When Kafka
+     * Connect's IBM MQ connectors are used with schema converters (Protobuf/JSON Schema), union or
+     * optional fields may get index suffixes like _messagebody_0 appended to the queue name.
+     */
+    private static String sanitizeDestinationName(String name) {
+        if (name == null || name.isEmpty()) {
+            return name;
+        }
+
+        int len = name.length();
+
+        // Check if name ends with digits (the schema index suffix)
+        if (!Character.isDigit(name.charAt(len - 1))) {
+            return name;
+        }
+
+        // Find the underscore before the trailing digits
+        int underscoreBeforeDigits = name.lastIndexOf('_');
+        if (underscoreBeforeDigits <= 0) {
+            return name;
+        }
+
+        // Verify all characters after the underscore are digits
+        for (int i = underscoreBeforeDigits + 1; i < len; i++) {
+            if (!Character.isDigit(name.charAt(i))) {
+                return name;
+            }
+        }
+
+        // Find the underscore before the suffix word
+        int underscoreBeforeSuffix = name.lastIndexOf('_', underscoreBeforeDigits - 1);
+        if (underscoreBeforeSuffix < 0) {
+            return name;
+        }
+
+        // Check if the suffix word is one of our known Kafka Connect schema suffixes (case insensitive)
+        int suffixStart = underscoreBeforeSuffix + 1;
+        int suffixLen = underscoreBeforeDigits - suffixStart;
+
+        if (isKnownKafkaConnectSuffix(name, suffixStart, suffixLen)) {
+            return name.substring(0, underscoreBeforeSuffix);
+        }
+
         return name;
-      }
     }
 
-    // Find the underscore before the suffix word
-    int underscoreBeforeSuffix = name.lastIndexOf('_', underscoreBeforeDigits - 1);
-    if (underscoreBeforeSuffix < 0) {
-      return name;
+    private static boolean isKnownKafkaConnectSuffix(String name, int start, int len) {
+        return (len == 11 && name.regionMatches(true, start, "messagebody", 0, 11))
+                || (len == 4 && name.regionMatches(true, start, "text", 0, 4))
+                || (len == 5 && name.regionMatches(true, start, "bytes", 0, 5))
+                || (len == 5 && name.regionMatches(true, start, "value", 0, 5))
+                || (len == 3 && name.regionMatches(true, start, "map", 0, 3));
     }
 
-    // Check if the suffix word is one of our known Kafka Connect schema suffixes (case insensitive)
-    int suffixStart = underscoreBeforeSuffix + 1;
-    int suffixLen = underscoreBeforeDigits - suffixStart;
-
-    if (isKnownKafkaConnectSuffix(name, suffixStart, suffixLen)) {
-      return name.substring(0, underscoreBeforeSuffix);
-    }
-
-    return name;
-  }
-
-  private static boolean isKnownKafkaConnectSuffix(String name, int start, int len) {
-    return (len == 11 && name.regionMatches(true, start, "messagebody", 0, 11))
-        || (len == 4 && name.regionMatches(true, start, "text", 0, 4))
-        || (len == 5 && name.regionMatches(true, start, "bytes", 0, 5))
-        || (len == 5 && name.regionMatches(true, start, "value", 0, 5))
-        || (len == 3 && name.regionMatches(true, start, "map", 0, 3));
-  }
-
-  public CharSequence toResourceName(String destinationName, boolean isQueue) {
-    if (null == destinationName) {
-      return isQueue ? queueTempResourceName : topicTempResourceName;
-    }
-    Function<CharSequence, CharSequence> joiner =
-        isQueue ? queueResourceJoiner : topicResourceJoiner;
-    // some systems may have queues and topics with the same name - since we won't know which was
-    // cached first we check the character after the initial prefix to see if it's Q (for Queue) -
-    // if that's what we expect we can use the cached value, otherwise generate the correct name
-    CharSequence resourceName = resourceNameCache.computeIfAbsent(destinationName, joiner);
-    if ((resourceName.charAt(resourcePrefix.length()) == 'Q') == isQueue) {
-      return resourceName;
-    }
-    return joiner.apply(destinationName);
-  }
-
-  public Destination getDestination(final MessageProducer messageProducer) throws JMSException {
-    try {
-      return messageProducer.getDestination(); // >= 1.1
-    } catch (AbstractMethodError ignored) {
-      // <=1.1 getDestination is not available so we need to pay an additional instanceOf
-      if (messageProducer instanceof QueueSender) {
-        return ((QueueSender) messageProducer).getQueue();
-      }
-      return ((TopicPublisher) messageProducer).getTopic();
-    }
-  }
-
-  public String getDestinationName(Destination destination) {
-    String name = null;
-    try {
-      if (destination instanceof Queue) {
-        // WebLogic mixes all JMS Destination interfaces in a single base type which means we can't
-        // rely on instanceof and have to instead check the result of getQueueName vs getTopicName
-        if (!(destination instanceof TemporaryQueue) || isWebLogicDestination(destination)) {
-          name = ((Queue) destination).getQueueName();
+    public CharSequence toResourceName(String destinationName, boolean isQueue) {
+        if (null == destinationName) {
+            return isQueue ? queueTempResourceName : topicTempResourceName;
         }
-      }
-      // check Topic name if Queue name is null because this might be a WebLogic destination
-      if (null == name && destination instanceof Topic) {
-        if (!(destination instanceof TemporaryTopic) || isWebLogicDestination(destination)) {
-          name = ((Topic) destination).getTopicName();
+        Function<CharSequence, CharSequence> joiner = isQueue ? queueResourceJoiner : topicResourceJoiner;
+        // some systems may have queues and topics with the same name - since we won't know which was
+        // cached first we check the character after the initial prefix to see if it's Q (for Queue) -
+        // if that's what we expect we can use the cached value, otherwise generate the correct name
+        CharSequence resourceName = resourceNameCache.computeIfAbsent(destinationName, joiner);
+        if ((resourceName.charAt(resourcePrefix.length()) == 'Q') == isQueue) {
+            return resourceName;
         }
-      }
-    } catch (Exception e) {
-      log.debug("Unable to get jms destination name", e);
+        return joiner.apply(destinationName);
     }
-    if (null != name && !name.startsWith(TIBCO_TMP_PREFIX)) {
-      // Sanitize Kafka Connect schema-derived suffixes from queue/topic names
-      return sanitizeDestinationName(name);
-    }
-    return null;
-  }
 
-  public boolean isQueue(Destination destination) {
-    try {
-      // handle WebLogic by treating everything as a Queue unless it's a Topic with a name
-      return !(destination instanceof Topic) || null == ((Topic) destination).getTopicName();
-    } catch (Exception e) {
-      return true; // assume it's a Queue if we can't check the details
+    public Destination getDestination(final MessageProducer messageProducer) throws JMSException {
+        try {
+            return messageProducer.getDestination(); // >= 1.1
+        } catch (AbstractMethodError ignored) {
+            // <=1.1 getDestination is not available so we need to pay an additional instanceOf
+            if (messageProducer instanceof QueueSender) {
+                return ((QueueSender) messageProducer).getQueue();
+            }
+            return ((TopicPublisher) messageProducer).getTopic();
+        }
     }
-  }
 
-  private static boolean isWebLogicDestination(Destination destination) {
-    return destination.getClass().getName().startsWith("weblogic.jms.common.");
-  }
+    public String getDestinationName(Destination destination) {
+        String name = null;
+        try {
+            if (destination instanceof Queue) {
+                // WebLogic mixes all JMS Destination interfaces in a single base type which means we can't
+                // rely on instanceof and have to instead check the result of getQueueName vs getTopicName
+                if (!(destination instanceof TemporaryQueue) || isWebLogicDestination(destination)) {
+                    name = ((Queue) destination).getQueueName();
+                }
+            }
+            // check Topic name if Queue name is null because this might be a WebLogic destination
+            if (null == name && destination instanceof Topic) {
+                if (!(destination instanceof TemporaryTopic) || isWebLogicDestination(destination)) {
+                    name = ((Topic) destination).getTopicName();
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Unable to get jms destination name", e);
+        }
+        if (null != name && !name.startsWith(TIBCO_TMP_PREFIX)) {
+            // Sanitize Kafka Connect schema-derived suffixes from queue/topic names
+            return sanitizeDestinationName(name);
+        }
+        return null;
+    }
+
+    public boolean isQueue(Destination destination) {
+        try {
+            // handle WebLogic by treating everything as a Queue unless it's a Topic with a name
+            return !(destination instanceof Topic) || null == ((Topic) destination).getTopicName();
+        } catch (Exception e) {
+            return true; // assume it's a Queue if we can't check the details
+        }
+    }
+
+    private static boolean isWebLogicDestination(Destination destination) {
+        return destination.getClass().getName().startsWith("weblogic.jms.common.");
+    }
 }

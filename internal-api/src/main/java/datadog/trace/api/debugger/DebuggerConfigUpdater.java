@@ -1,13 +1,13 @@
 package datadog.trace.api.debugger;
 
 public interface DebuggerConfigUpdater {
-  void updateConfig(DebuggerConfigUpdate update);
+    void updateConfig(DebuggerConfigUpdate update);
 
-  boolean isDynamicInstrumentationEnabled();
+    boolean isDynamicInstrumentationEnabled();
 
-  boolean isExceptionReplayEnabled();
+    boolean isExceptionReplayEnabled();
 
-  boolean isCodeOriginEnabled();
+    boolean isCodeOriginEnabled();
 
-  boolean isDistributedDebuggerEnabled();
+    boolean isDistributedDebuggerEnabled();
 }

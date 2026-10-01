@@ -12,30 +12,25 @@ import javax.annotation.Nonnull;
 import javax.net.ssl.SSLSocket;
 
 public class UsmFilterOutputStream extends FilterOutputStream {
-  private final SSLSocket socket;
+    private final SSLSocket socket;
 
-  /**
-   * Creates an output stream filter built on top of the specified underlying output stream. This
-   * will send back the buffer passed to the `write` method to system-probe.
-   */
-  public UsmFilterOutputStream(OutputStream out, SSLSocket socket) {
-    super(out);
+    /**
+     * Creates an output stream filter built on top of the specified underlying output stream. This
+     * will send back the buffer passed to the `write` method to system-probe.
+     */
+    public UsmFilterOutputStream(OutputStream out, SSLSocket socket) {
+        super(out);
 
-    this.socket = socket;
-  }
+        this.socket = socket;
+    }
 
-  @Override
-  public void write(@Nonnull byte[] b, int off, int len) throws IOException {
-    boolean isIPv6 = this.socket.getLocalAddress() instanceof Inet6Address;
-    UsmConnection connection =
-        new UsmConnection(
-            socket.getLocalAddress(),
-            socket.getLocalPort(),
-            socket.getInetAddress(),
-            socket.getPort(),
-            isIPv6);
-    UsmMessage message = UsmMessageFactory.Supplier.getRequestMessage(connection, b, off, len);
-    UsmExtractor.Supplier.send(message);
-    super.write(b, off, len);
-  }
+    @Override
+    public void write(@Nonnull byte[] b, int off, int len) throws IOException {
+        boolean isIPv6 = this.socket.getLocalAddress() instanceof Inet6Address;
+        UsmConnection connection = new UsmConnection(
+                socket.getLocalAddress(), socket.getLocalPort(), socket.getInetAddress(), socket.getPort(), isIPv6);
+        UsmMessage message = UsmMessageFactory.Supplier.getRequestMessage(connection, b, off, len);
+        UsmExtractor.Supplier.send(message);
+        super.write(b, off, len);
+    }
 }

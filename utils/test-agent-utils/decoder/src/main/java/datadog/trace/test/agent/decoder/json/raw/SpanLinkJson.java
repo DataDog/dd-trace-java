@@ -15,58 +15,57 @@ import java.util.Map;
  * identifier is split into its low and high halves.
  */
 final class SpanLinkJson {
-  // Identifiers are unsigned 64-bit, read as decimal strings and parsed with
-  // Long.parseUnsignedLong for the same reason as SpanJson: Moshi's long adapter rejects values
-  // above Long.MAX_VALUE.
-  @Json(name = "trace_id")
-  String traceId;
+    // Identifiers are unsigned 64-bit, read as decimal strings and parsed with
+    // Long.parseUnsignedLong for the same reason as SpanJson: Moshi's long adapter rejects values
+    // above Long.MAX_VALUE.
+    @Json(name = "trace_id")
+    String traceId;
 
-  // The high-order half of a 128-bit trace identifier. Not modeled by DecodedSpanLink, which
-  // narrows a trace identifier to its low-order half like the rest of the decoder.
-  @Json(name = "trace_id_high")
-  String traceIdHigh;
+    // The high-order half of a 128-bit trace identifier. Not modeled by DecodedSpanLink, which
+    // narrows a trace identifier to its low-order half like the rest of the decoder.
+    @Json(name = "trace_id_high")
+    String traceIdHigh;
 
-  @Json(name = "span_id")
-  String spanId;
+    @Json(name = "span_id")
+    String spanId;
 
-  Integer flags;
+    Integer flags;
 
-  String tracestate;
+    String tracestate;
 
-  Map<String, String> attributes;
+    Map<String, String> attributes;
 
-  DecodedSpanLink toDecodedSpanLink() {
-    if (this.traceId == null || this.spanId == null) {
-      throw new IllegalStateException(
-          "JSON span link missing a required field (trace_id, span_id): " + this);
+    DecodedSpanLink toDecodedSpanLink() {
+        if (this.traceId == null || this.spanId == null) {
+            throw new IllegalStateException("JSON span link missing a required field (trace_id, span_id): " + this);
+        }
+        try {
+            return DecodedSpanLinks.link(
+                    Long.parseUnsignedLong(this.traceId),
+                    Long.parseUnsignedLong(this.spanId),
+                    this.flags == null ? 0 : (byte) this.flags.intValue(),
+                    this.tracestate,
+                    this.attributes);
+        } catch (NumberFormatException e) {
+            throw new IllegalStateException("JSON span link with a malformed identifier: " + this, e);
+        }
     }
-    try {
-      return DecodedSpanLinks.link(
-          Long.parseUnsignedLong(this.traceId),
-          Long.parseUnsignedLong(this.spanId),
-          this.flags == null ? 0 : (byte) this.flags.intValue(),
-          this.tracestate,
-          this.attributes);
-    } catch (NumberFormatException e) {
-      throw new IllegalStateException("JSON span link with a malformed identifier: " + this, e);
-    }
-  }
 
-  @Override
-  public String toString() {
-    return "SpanLinkJson{"
-        + "traceId="
-        + this.traceId
-        + ", traceIdHigh="
-        + this.traceIdHigh
-        + ", spanId="
-        + this.spanId
-        + ", flags="
-        + this.flags
-        + ", tracestate='"
-        + this.tracestate
-        + "', attributes="
-        + this.attributes
-        + '}';
-  }
+    @Override
+    public String toString() {
+        return "SpanLinkJson{"
+                + "traceId="
+                + this.traceId
+                + ", traceIdHigh="
+                + this.traceIdHigh
+                + ", spanId="
+                + this.spanId
+                + ", flags="
+                + this.flags
+                + ", tracestate='"
+                + this.tracestate
+                + "', attributes="
+                + this.attributes
+                + '}';
+    }
 }

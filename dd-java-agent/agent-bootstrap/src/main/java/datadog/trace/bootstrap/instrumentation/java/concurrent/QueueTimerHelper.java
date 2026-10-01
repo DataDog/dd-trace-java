@@ -15,57 +15,55 @@ import java.time.temporal.ChronoUnit;
 
 public class QueueTimerHelper {
 
-  private static final class RateLimiterHolder {
-    // indirection to prevent needing to instantiate the class and its transitive dependencies
-    // in graal native image
-    private static final PerRecordingRateLimiter RATE_LIMITER =
-        new PerRecordingRateLimiter(
-            Duration.of(500, ChronoUnit.MILLIS),
-            10_000, // hard limit on queue events
-            Duration.ofSeconds(
-                ConfigProvider.getInstance()
-                    .getInteger(
-                        ProfilingConfig.PROFILING_UPLOAD_PERIOD,
-                        ProfilingConfig.PROFILING_UPLOAD_PERIOD_DEFAULT)));
-  }
-
-  /** Whether queue timing can safely start. */
-  public static boolean isReady() {
-    // Queue timing is unsupported in native images. JFR must initialise the TSC frequency first.
-    return !Platform.isNativeImage() && InstrumentationBasedProfiling.isJFRReady();
-  }
-
-  public static <T> void startQueuingTimer(
-      ContextStore<T, State> taskContextStore,
-      Class<?> schedulerClass,
-      Class<?> queueClass,
-      int queueLength,
-      T task) {
-    State state = taskContextStore.get(task);
-    startQueuingTimer(state, schedulerClass, queueClass, queueLength, task);
-  }
-
-  public static void startQueuingTimer(
-      State state, Class<?> schedulerClass, Class<?> queueClass, int queueLength, Object task) {
-    // TODO consider queue length based sampling here to reduce overhead
-    if (task != null && state != null && isReady()) {
-      QueueTiming timing =
-          (QueueTiming) AgentTracer.get().getProfilingContext().start(Timer.TimerType.QUEUEING);
-      timing.setTask(task);
-      timing.setScheduler(schedulerClass);
-      timing.setQueue(queueClass);
-      timing.setQueueLength(queueLength);
-      state.setTiming(timing);
+    private static final class RateLimiterHolder {
+        // indirection to prevent needing to instantiate the class and its transitive dependencies
+        // in graal native image
+        private static final PerRecordingRateLimiter RATE_LIMITER = new PerRecordingRateLimiter(
+                Duration.of(500, ChronoUnit.MILLIS),
+                10_000, // hard limit on queue events
+                Duration.ofSeconds(ConfigProvider.getInstance()
+                        .getInteger(
+                                ProfilingConfig.PROFILING_UPLOAD_PERIOD,
+                                ProfilingConfig.PROFILING_UPLOAD_PERIOD_DEFAULT)));
     }
-  }
 
-  public static void stopQueuingTimer(Timing timing) {
-    if (Platform.isNativeImage()) {
-      // explicitly not supported for Graal native image
-      return;
+    /** Whether queue timing can safely start. */
+    public static boolean isReady() {
+        // Queue timing is unsupported in native images. JFR must initialise the TSC frequency first.
+        return !Platform.isNativeImage() && InstrumentationBasedProfiling.isJFRReady();
     }
-    if (timing != null && timing.sample() && RateLimiterHolder.RATE_LIMITER.permit()) {
-      timing.report();
+
+    public static <T> void startQueuingTimer(
+            ContextStore<T, State> taskContextStore,
+            Class<?> schedulerClass,
+            Class<?> queueClass,
+            int queueLength,
+            T task) {
+        State state = taskContextStore.get(task);
+        startQueuingTimer(state, schedulerClass, queueClass, queueLength, task);
     }
-  }
+
+    public static void startQueuingTimer(
+            State state, Class<?> schedulerClass, Class<?> queueClass, int queueLength, Object task) {
+        // TODO consider queue length based sampling here to reduce overhead
+        if (task != null && state != null && isReady()) {
+            QueueTiming timing =
+                    (QueueTiming) AgentTracer.get().getProfilingContext().start(Timer.TimerType.QUEUEING);
+            timing.setTask(task);
+            timing.setScheduler(schedulerClass);
+            timing.setQueue(queueClass);
+            timing.setQueueLength(queueLength);
+            state.setTiming(timing);
+        }
+    }
+
+    public static void stopQueuingTimer(Timing timing) {
+        if (Platform.isNativeImage()) {
+            // explicitly not supported for Graal native image
+            return;
+        }
+        if (timing != null && timing.sample() && RateLimiterHolder.RATE_LIMITER.permit()) {
+            timing.report();
+        }
+    }
 }

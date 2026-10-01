@@ -32,90 +32,88 @@ import java.util.List;
 
 public final class GraphQLInstrumentation extends SimpleInstrumentation {
 
-  public static Instrumentation install(Instrumentation instrumentation) {
-    if (instrumentation == null) {
-      return new GraphQLInstrumentation();
+    public static Instrumentation install(Instrumentation instrumentation) {
+        if (instrumentation == null) {
+            return new GraphQLInstrumentation();
+        }
+        if (instrumentation.getClass() == GraphQLInstrumentation.class) {
+            return instrumentation;
+        }
+        List<Instrumentation> instrumentationList = new ArrayList<>();
+        if (instrumentation instanceof ChainedInstrumentation) {
+            List<Instrumentation> instrumentations = ((ChainedInstrumentation) instrumentation).getInstrumentations();
+            if (instrumentations.stream().anyMatch(v -> v.getClass() == GraphQLInstrumentation.class)) {
+                return instrumentation;
+            }
+            instrumentationList.addAll(instrumentations);
+        } else {
+            instrumentationList.add(instrumentation);
+        }
+        instrumentationList.add(new GraphQLInstrumentation());
+        return new ChainedInstrumentation(instrumentationList);
     }
-    if (instrumentation.getClass() == GraphQLInstrumentation.class) {
-      return instrumentation;
+
+    @Override
+    public State createState() {
+        return new State();
     }
-    List<Instrumentation> instrumentationList = new ArrayList<>();
-    if (instrumentation instanceof ChainedInstrumentation) {
-      List<Instrumentation> instrumentations =
-          ((ChainedInstrumentation) instrumentation).getInstrumentations();
-      if (instrumentations.stream().anyMatch(v -> v.getClass() == GraphQLInstrumentation.class)) {
-        return instrumentation;
-      }
-      instrumentationList.addAll(instrumentations);
-    } else {
-      instrumentationList.add(instrumentation);
+
+    @Override
+    public InstrumentationContext<ExecutionResult> beginExecution(InstrumentationExecutionParameters parameters) {
+        final AgentSpan requestSpan = startSpan(GRAPHQL_JAVA.toString(), GRAPHQL_REQUEST);
+        DECORATE.afterStart(requestSpan);
+
+        State state = parameters.getInstrumentationState();
+        state.setRequestSpan(requestSpan);
+        // parameters.getOperation() is null
+
+        return new ExecutionInstrumentationContext(state);
     }
-    instrumentationList.add(new GraphQLInstrumentation());
-    return new ChainedInstrumentation(instrumentationList);
-  }
 
-  @Override
-  public State createState() {
-    return new State();
-  }
+    @Override
+    public InstrumentationContext<ExecutionResult> beginExecuteOperation(
+            InstrumentationExecuteOperationParameters parameters) {
+        State state = parameters.getInstrumentationState();
+        AgentSpan requestSpan = state.getRequestSpan();
 
-  @Override
-  public InstrumentationContext<ExecutionResult> beginExecution(
-      InstrumentationExecutionParameters parameters) {
-    final AgentSpan requestSpan = startSpan(GRAPHQL_JAVA.toString(), GRAPHQL_REQUEST);
-    DECORATE.afterStart(requestSpan);
+        OperationDefinition operationDefinition =
+                parameters.getExecutionContext().getOperationDefinition();
+        String operationName = operationDefinition.getName();
 
-    State state = parameters.getInstrumentationState();
-    state.setRequestSpan(requestSpan);
-    // parameters.getOperation() is null
+        requestSpan.setTag("graphql.operation.name", operationName);
+        String resourceName = operationName != null ? operationName : state.getQuery();
+        requestSpan.setResourceName(resourceName);
+        DECORATE.onRequest(requestSpan, parameters.getExecutionContext());
+        return SimpleInstrumentationContext.noOp();
+    }
 
-    return new ExecutionInstrumentationContext(state);
-  }
+    @Override
+    public DataFetcher<?> instrumentDataFetcher(
+            final DataFetcher<?> dataFetcher, InstrumentationFieldFetchParameters parameters) {
+        State state = parameters.getInstrumentationState();
+        final AgentSpan requestSpan = state.getRequestSpan();
+        return new InstrumentedDataFetcher(dataFetcher, parameters, requestSpan);
+    }
 
-  @Override
-  public InstrumentationContext<ExecutionResult> beginExecuteOperation(
-      InstrumentationExecuteOperationParameters parameters) {
-    State state = parameters.getInstrumentationState();
-    AgentSpan requestSpan = state.getRequestSpan();
+    @Override
+    public InstrumentationContext<Document> beginParse(InstrumentationExecutionParameters parameters) {
+        State state = parameters.getInstrumentationState();
+        final AgentSpan parsingSpan = startSpan(
+                GRAPHQL_JAVA.toString(), GRAPHQL_PARSING, state.getRequestSpan().spanContext());
+        DECORATE.afterStart(parsingSpan);
+        return new ParsingInstrumentationContext(parsingSpan, state, parameters.getQuery());
+    }
 
-    OperationDefinition operationDefinition =
-        parameters.getExecutionContext().getOperationDefinition();
-    String operationName = operationDefinition.getName();
+    @Override
+    public InstrumentationContext<List<ValidationError>> beginValidation(
+            InstrumentationValidationParameters parameters) {
+        State state = parameters.getInstrumentationState();
 
-    requestSpan.setTag("graphql.operation.name", operationName);
-    String resourceName = operationName != null ? operationName : state.getQuery();
-    requestSpan.setResourceName(resourceName);
-    DECORATE.onRequest(requestSpan, parameters.getExecutionContext());
-    return SimpleInstrumentationContext.noOp();
-  }
-
-  @Override
-  public DataFetcher<?> instrumentDataFetcher(
-      final DataFetcher<?> dataFetcher, InstrumentationFieldFetchParameters parameters) {
-    State state = parameters.getInstrumentationState();
-    final AgentSpan requestSpan = state.getRequestSpan();
-    return new InstrumentedDataFetcher(dataFetcher, parameters, requestSpan);
-  }
-
-  @Override
-  public InstrumentationContext<Document> beginParse(
-      InstrumentationExecutionParameters parameters) {
-    State state = parameters.getInstrumentationState();
-    final AgentSpan parsingSpan =
-        startSpan(GRAPHQL_JAVA.toString(), GRAPHQL_PARSING, state.getRequestSpan().spanContext());
-    DECORATE.afterStart(parsingSpan);
-    return new ParsingInstrumentationContext(parsingSpan, state, parameters.getQuery());
-  }
-
-  @Override
-  public InstrumentationContext<List<ValidationError>> beginValidation(
-      InstrumentationValidationParameters parameters) {
-    State state = parameters.getInstrumentationState();
-
-    final AgentSpan validationSpan =
-        startSpan(
-            GRAPHQL_JAVA.toString(), GRAPHQL_VALIDATION, state.getRequestSpan().spanContext());
-    DECORATE.afterStart(validationSpan);
-    return new ValidationInstrumentationContext(validationSpan);
-  }
+        final AgentSpan validationSpan = startSpan(
+                GRAPHQL_JAVA.toString(),
+                GRAPHQL_VALIDATION,
+                state.getRequestSpan().spanContext());
+        DECORATE.afterStart(validationSpan);
+        return new ValidationInstrumentationContext(validationSpan);
+    }
 }

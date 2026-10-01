@@ -15,19 +15,19 @@ import org.eclipse.jetty.server.Request;
  * reliable point to finish the server span at the last possible moment.
  */
 public class ResetAdvice {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static void stopSpan(@Advice.This final HttpChannel channel) {
-    Request req = channel.getRequest();
-    Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
-    if (!(contextObj instanceof Context)) {
-      return;
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void stopSpan(@Advice.This final HttpChannel channel) {
+        Request req = channel.getRequest();
+        Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+        if (!(contextObj instanceof Context)) {
+            return;
+        }
+        final Context context = (Context) contextObj;
+        final AgentSpan span = spanFromContext(context);
+        if (span != null) {
+            JettyDecorator.OnResponse.onResponse(span, channel);
+            span.finish();
+        }
+        DECORATE.beforeFinish(context);
     }
-    final Context context = (Context) contextObj;
-    final AgentSpan span = spanFromContext(context);
-    if (span != null) {
-      JettyDecorator.OnResponse.onResponse(span, channel);
-      span.finish();
-    }
-    DECORATE.beforeFinish(context);
-  }
 }

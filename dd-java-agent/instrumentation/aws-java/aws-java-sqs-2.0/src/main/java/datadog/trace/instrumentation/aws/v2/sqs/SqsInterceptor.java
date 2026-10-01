@@ -30,72 +30,72 @@ import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
 public class SqsInterceptor implements ExecutionInterceptor {
 
-  public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE =
-      InstanceStore.of(ExecutionAttribute.class)
-          .getOrCreate("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
+    public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE = InstanceStore.of(ExecutionAttribute.class)
+            .getOrCreate("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
 
-  public SqsInterceptor() {}
+    public SqsInterceptor() {}
 
-  @Override
-  public SdkRequest modifyRequest(ModifyRequest context, ExecutionAttributes executionAttributes) {
-    if (context.request() instanceof SendMessageRequest) {
-      SendMessageRequest request = (SendMessageRequest) context.request();
-      Optional<String> optionalQueueUrl = request.getValueForField("QueueUrl", String.class);
-      if (!optionalQueueUrl.isPresent()) {
-        return request;
-      }
+    @Override
+    public SdkRequest modifyRequest(ModifyRequest context, ExecutionAttributes executionAttributes) {
+        if (context.request() instanceof SendMessageRequest) {
+            SendMessageRequest request = (SendMessageRequest) context.request();
+            Optional<String> optionalQueueUrl = request.getValueForField("QueueUrl", String.class);
+            if (!optionalQueueUrl.isPresent()) {
+                return request;
+            }
 
-      Map<String, MessageAttributeValue> messageAttributes =
-          new HashMap<>(request.messageAttributes());
-      if (!messageAttributes.containsKey(DATADOG_KEY)) {
-        Context ctx = getContext(executionAttributes, optionalQueueUrl.get());
-        defaultPropagator().inject(ctx, messageAttributes, SETTER);
-      }
+            Map<String, MessageAttributeValue> messageAttributes = new HashMap<>(request.messageAttributes());
+            if (!messageAttributes.containsKey(DATADOG_KEY)) {
+                Context ctx = getContext(executionAttributes, optionalQueueUrl.get());
+                defaultPropagator().inject(ctx, messageAttributes, SETTER);
+            }
 
-      return request.toBuilder().messageAttributes(messageAttributes).build();
+            return request.toBuilder().messageAttributes(messageAttributes).build();
 
-    } else if (context.request() instanceof SendMessageBatchRequest) {
-      SendMessageBatchRequest request = (SendMessageBatchRequest) context.request();
-      Optional<String> optionalQueueUrl = request.getValueForField("QueueUrl", String.class);
-      if (!optionalQueueUrl.isPresent()) {
-        return request;
-      }
+        } else if (context.request() instanceof SendMessageBatchRequest) {
+            SendMessageBatchRequest request = (SendMessageBatchRequest) context.request();
+            Optional<String> optionalQueueUrl = request.getValueForField("QueueUrl", String.class);
+            if (!optionalQueueUrl.isPresent()) {
+                return request;
+            }
 
-      Context ctx = getContext(executionAttributes, optionalQueueUrl.get());
-      List<SendMessageBatchRequestEntry> entries = new ArrayList<>();
+            Context ctx = getContext(executionAttributes, optionalQueueUrl.get());
+            List<SendMessageBatchRequestEntry> entries = new ArrayList<>();
 
-      for (SendMessageBatchRequestEntry entry : request.entries()) {
-        Map<String, MessageAttributeValue> messageAttributes =
-            new HashMap<>(entry.messageAttributes());
-        if (!messageAttributes.containsKey(DATADOG_KEY)) {
-          defaultPropagator().inject(ctx, messageAttributes, SETTER);
+            for (SendMessageBatchRequestEntry entry : request.entries()) {
+                Map<String, MessageAttributeValue> messageAttributes = new HashMap<>(entry.messageAttributes());
+                if (!messageAttributes.containsKey(DATADOG_KEY)) {
+                    defaultPropagator().inject(ctx, messageAttributes, SETTER);
+                }
+                entries.add(
+                        entry.toBuilder().messageAttributes(messageAttributes).build());
+            }
+
+            return request.toBuilder().entries(entries).build();
+
+        } else if (context.request() instanceof ReceiveMessageRequest) {
+            ReceiveMessageRequest request = (ReceiveMessageRequest) context.request();
+            if (request.messageAttributeNames().size() < 10
+                    && !request.messageAttributeNames().contains(DATADOG_KEY)
+                    && Config.get().isSqsInjectDatadogAttributeEnabled()) {
+                List<String> messageAttributeNames = new ArrayList<>(request.messageAttributeNames());
+                messageAttributeNames.add(DATADOG_KEY);
+                return request.toBuilder()
+                        .messageAttributeNames(messageAttributeNames)
+                        .build();
+            } else {
+                return request;
+            }
+        } else {
+            return context.request();
         }
-        entries.add(entry.toBuilder().messageAttributes(messageAttributes).build());
-      }
-
-      return request.toBuilder().entries(entries).build();
-
-    } else if (context.request() instanceof ReceiveMessageRequest) {
-      ReceiveMessageRequest request = (ReceiveMessageRequest) context.request();
-      if (request.messageAttributeNames().size() < 10
-          && !request.messageAttributeNames().contains(DATADOG_KEY)
-          && Config.get().isSqsInjectDatadogAttributeEnabled()) {
-        List<String> messageAttributeNames = new ArrayList<>(request.messageAttributeNames());
-        messageAttributeNames.add(DATADOG_KEY);
-        return request.toBuilder().messageAttributeNames(messageAttributeNames).build();
-      } else {
-        return request;
-      }
-    } else {
-      return context.request();
     }
-  }
 
-  private Context getContext(ExecutionAttributes executionAttributes, String queueUrl) {
-    Context context = executionAttributes.getAttribute(CONTEXT_ATTRIBUTE);
+    private Context getContext(ExecutionAttributes executionAttributes, String queueUrl) {
+        Context context = executionAttributes.getAttribute(CONTEXT_ATTRIBUTE);
 
-    DataStreamsTags tags = create("sqs", OUTBOUND, urlFileName(queueUrl));
-    DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
-    return context.with(dsmContext);
-  }
+        DataStreamsTags tags = create("sqs", OUTBOUND, urlFileName(queueUrl));
+        DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
+        return context.with(dsmContext);
+    }
 }

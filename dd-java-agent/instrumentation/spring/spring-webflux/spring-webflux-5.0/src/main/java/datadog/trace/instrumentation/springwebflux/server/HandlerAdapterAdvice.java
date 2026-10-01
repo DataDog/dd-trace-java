@@ -22,62 +22,60 @@ import reactor.core.publisher.Mono;
 
 public class HandlerAdapterAdvice {
 
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static ContextScope methodEnter(
-      @Advice.Argument(0) final ServerWebExchange exchange,
-      @Advice.Argument(1) final Object handler) {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ContextScope methodEnter(
+            @Advice.Argument(0) final ServerWebExchange exchange, @Advice.Argument(1) final Object handler) {
 
-    ContextScope scope = null;
-    final AgentSpan span = exchange.getAttribute(AdviceUtils.SPAN_ATTRIBUTE);
-    if (handler != null && span != null) {
-      final String handlerType;
-      final CharSequence operationName;
+        ContextScope scope = null;
+        final AgentSpan span = exchange.getAttribute(AdviceUtils.SPAN_ATTRIBUTE);
+        if (handler != null && span != null) {
+            final String handlerType;
+            final CharSequence operationName;
 
-      if (handler instanceof HandlerMethod) {
-        // Special case for requests mapped with annotations
-        final HandlerMethod handlerMethod = (HandlerMethod) handler;
-        operationName = DECORATE.spanNameForMethod(handlerMethod.getMethod());
-        handlerType = handlerMethod.getMethod().getDeclaringClass().getName();
-      } else {
-        operationName = constructOperationName(handler);
-        handlerType = handler.getClass().getName();
-      }
+            if (handler instanceof HandlerMethod) {
+                // Special case for requests mapped with annotations
+                final HandlerMethod handlerMethod = (HandlerMethod) handler;
+                operationName = DECORATE.spanNameForMethod(handlerMethod.getMethod());
+                handlerType = handlerMethod.getMethod().getDeclaringClass().getName();
+            } else {
+                operationName = constructOperationName(handler);
+                handlerType = handler.getClass().getName();
+            }
 
-      span.setSpanName(operationName);
-      span.setTag("handler.type", handlerType);
+            span.setSpanName(operationName);
+            span.setTag("handler.type", handlerType);
 
-      scope = activateSpan(span);
+            scope = activateSpan(span);
+        }
+
+        final AgentSpan parentSpan = exchange.getAttribute(AdviceUtils.PARENT_SPAN_ATTRIBUTE);
+        final PathPattern bestPattern = exchange.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
+        if (parentSpan != null
+                && bestPattern != null
+                && !bestPattern.getPatternString().equals("/**")) {
+            final HttpMethod method = exchange.getRequest().getMethod();
+            HTTP_RESOURCE_DECORATOR.withRoute(
+                    parentSpan, method != null ? method.name() : null, bestPattern.getPatternString());
+        }
+
+        return scope;
     }
 
-    final AgentSpan parentSpan = exchange.getAttribute(AdviceUtils.PARENT_SPAN_ATTRIBUTE);
-    final PathPattern bestPattern =
-        exchange.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
-    if (parentSpan != null
-        && bestPattern != null
-        && !bestPattern.getPatternString().equals("/**")) {
-      final HttpMethod method = exchange.getRequest().getMethod();
-      HTTP_RESOURCE_DECORATOR.withRoute(
-          parentSpan, method != null ? method.name() : null, bestPattern.getPatternString());
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void methodExit(
+            @Advice.Return(readOnly = false) Mono<HandlerResult> mono,
+            @Advice.Argument(0) final ServerWebExchange exchange,
+            @Advice.Enter final ContextScope scope,
+            @Advice.Thrown final Throwable throwable) {
+        if (scope != null) {
+            if (throwable != null) {
+                DECORATE.onError(scope, throwable);
+            } else if (mono != null) {
+                InstrumentationContext.get(Publisher.class, HandoffContext.class)
+                        .put(mono, HandoffContext.anyThread(spanFromScope(scope)));
+            }
+            scope.close();
+            // span finished in SpanFinishingSubscriber
+        }
     }
-
-    return scope;
-  }
-
-  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void methodExit(
-      @Advice.Return(readOnly = false) Mono<HandlerResult> mono,
-      @Advice.Argument(0) final ServerWebExchange exchange,
-      @Advice.Enter final ContextScope scope,
-      @Advice.Thrown final Throwable throwable) {
-    if (scope != null) {
-      if (throwable != null) {
-        DECORATE.onError(scope, throwable);
-      } else if (mono != null) {
-        InstrumentationContext.get(Publisher.class, HandoffContext.class)
-            .put(mono, HandoffContext.anyThread(spanFromScope(scope)));
-      }
-      scope.close();
-      // span finished in SpanFinishingSubscriber
-    }
-  }
 }

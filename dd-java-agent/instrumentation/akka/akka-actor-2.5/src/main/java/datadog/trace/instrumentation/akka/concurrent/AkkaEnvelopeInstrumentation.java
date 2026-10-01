@@ -15,31 +15,31 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class AkkaEnvelopeInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public AkkaEnvelopeInstrumentation() {
-    super("akka_actor_send", "akka_actor", "akka_concurrent", "java_concurrent");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "akka.dispatch.Envelope";
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("akka.dispatch.Envelope", State.class.getName());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), getClass().getName() + "$ConstructAdvice");
-  }
-
-  public static class ConstructAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void afterInit(@Advice.This Envelope zis) {
-      capture(InstrumentationContext.get(Envelope.class, State.class), zis);
+    public AkkaEnvelopeInstrumentation() {
+        super("akka_actor_send", "akka_actor", "akka_concurrent", "java_concurrent");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "akka.dispatch.Envelope";
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("akka.dispatch.Envelope", State.class.getName());
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor(), getClass().getName() + "$ConstructAdvice");
+    }
+
+    public static class ConstructAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void afterInit(@Advice.This Envelope zis) {
+            capture(InstrumentationContext.get(Envelope.class, State.class), zis);
+        }
+    }
 }

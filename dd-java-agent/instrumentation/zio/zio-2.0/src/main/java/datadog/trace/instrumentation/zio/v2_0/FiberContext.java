@@ -4,33 +4,33 @@ import datadog.context.Context;
 import datadog.context.ContextContinuation;
 
 public class FiberContext {
-  private Context context;
-  private final ContextContinuation continuation;
+    private Context context;
+    private final ContextContinuation continuation;
 
-  private Context originalContext;
+    private Context originalContext;
 
-  public FiberContext() {
-    // record context to use for this coroutine
-    this.context = Context.current();
-    // stop enclosing trace from finishing early
-    this.continuation = this.context.capture();
-  }
-
-  public void onResume() {
-    originalContext = context.swap();
-  }
-
-  public void onSuspend() {
-    if (originalContext != null) {
-      context = originalContext.swap();
-      originalContext = null;
+    public FiberContext() {
+        // record context to use for this coroutine
+        this.context = Context.current();
+        // stop enclosing trace from finishing early
+        this.continuation = this.context.capture();
     }
-  }
 
-  public void onEnd() {
-    if (continuation != null) {
-      // release enclosing trace now the fiber has ended
-      continuation.release();
+    public void onResume() {
+        originalContext = context.swap();
     }
-  }
+
+    public void onSuspend() {
+        if (originalContext != null) {
+            context = originalContext.swap();
+            originalContext = null;
+        }
+    }
+
+    public void onEnd() {
+        if (continuation != null) {
+            // release enclosing trace now the fiber has ended
+            continuation.release();
+        }
+    }
 }

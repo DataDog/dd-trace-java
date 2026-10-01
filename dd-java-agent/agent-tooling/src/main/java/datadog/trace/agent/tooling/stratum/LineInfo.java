@@ -16,87 +16,78 @@ package datadog.trace.agent.tooling.stratum;
  * href="https://jakarta.ee/specifications/debugging/2.0/jdsol-spec-2.0#stratumsection">...</a>
  */
 public class LineInfo {
-  private String fileId;
+    private String fileId;
 
-  final int inputStartLine;
+    final int inputStartLine;
 
-  final int repeatCount;
+    final int repeatCount;
 
-  final int outputStartLine;
+    final int outputStartLine;
 
-  final int outputLineIncrement;
+    final int outputLineIncrement;
 
-  private FileInfo fileInfo;
+    private FileInfo fileInfo;
 
-  public LineInfo(
-      String fileId,
-      int inputStartLine,
-      int repeatCount,
-      int outputStartLine,
-      int outputLineIncrement) {
-    this.fileId = fileId;
-    fileInfo = null;
-    this.inputStartLine = inputStartLine;
-    this.repeatCount = repeatCount;
-    this.outputStartLine = outputStartLine;
-    this.outputLineIncrement = outputLineIncrement;
-  }
+    public LineInfo(String fileId, int inputStartLine, int repeatCount, int outputStartLine, int outputLineIncrement) {
+        this.fileId = fileId;
+        fileInfo = null;
+        this.inputStartLine = inputStartLine;
+        this.repeatCount = repeatCount;
+        this.outputStartLine = outputStartLine;
+        this.outputLineIncrement = outputLineIncrement;
+    }
 
-  public LineInfo(
-      FileInfo fileInfo,
-      int inputStartLine,
-      int repeatCount,
-      int outputStartLine,
-      int outputLineIncrement) {
-    this.fileInfo = fileInfo;
-    this.inputStartLine = inputStartLine;
-    this.repeatCount = repeatCount;
-    this.outputStartLine = outputStartLine;
-    this.outputLineIncrement = outputLineIncrement;
-  }
+    public LineInfo(
+            FileInfo fileInfo, int inputStartLine, int repeatCount, int outputStartLine, int outputLineIncrement) {
+        this.fileInfo = fileInfo;
+        this.inputStartLine = inputStartLine;
+        this.repeatCount = repeatCount;
+        this.outputStartLine = outputStartLine;
+        this.outputLineIncrement = outputLineIncrement;
+    }
 
-  public String getFileId() {
-    return fileId;
-  }
+    public String getFileId() {
+        return fileId;
+    }
 
-  public int getInputStartLine() {
-    return inputStartLine;
-  }
+    public int getInputStartLine() {
+        return inputStartLine;
+    }
 
-  public int getRepeatCount() {
-    return repeatCount;
-  }
+    public int getRepeatCount() {
+        return repeatCount;
+    }
 
-  public int getOutputStartLine() {
-    return outputStartLine;
-  }
+    public int getOutputStartLine() {
+        return outputStartLine;
+    }
 
-  public int getOutputLineIncrement() {
-    return outputLineIncrement;
-  }
+    public int getOutputLineIncrement() {
+        return outputLineIncrement;
+    }
 
-  public FileInfo getFileInfo() {
-    return fileInfo;
-  }
+    public FileInfo getFileInfo() {
+        return fileInfo;
+    }
 
-  public void setFileInfo(final FileInfo fileInfo) {
-    this.fileInfo = fileInfo;
-  }
+    public void setFileInfo(final FileInfo fileInfo) {
+        this.fileInfo = fileInfo;
+    }
 
-  @Override
-  public String toString() {
-    return "LineInfo [fileId="
-        + fileId
-        + ", inputStartLine="
-        + inputStartLine
-        + ", repeatCount="
-        + repeatCount
-        + ", outputStartLine="
-        + outputStartLine
-        + ", outputLineIncrement="
-        + outputLineIncrement
-        + ", fileInfo="
-        + fileInfo
-        + "]\n";
-  }
+    @Override
+    public String toString() {
+        return "LineInfo [fileId="
+                + fileId
+                + ", inputStartLine="
+                + inputStartLine
+                + ", repeatCount="
+                + repeatCount
+                + ", outputStartLine="
+                + outputStartLine
+                + ", outputLineIncrement="
+                + outputLineIncrement
+                + ", fileInfo="
+                + fileInfo
+                + "]\n";
+    }
 }

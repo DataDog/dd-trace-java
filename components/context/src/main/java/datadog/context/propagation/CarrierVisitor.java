@@ -16,11 +16,11 @@ import java.util.function.BiConsumer;
  */
 @FunctionalInterface
 public interface CarrierVisitor<C> {
-  /**
-   * Iterates over the carrier content and calls the visitor callback for every key/value found.
-   *
-   * @param carrier the carrier to iterate over.
-   * @param visitor the callback to call for each carrier key/value pair found.
-   */
-  void forEachKeyValue(C carrier, BiConsumer<String, String> visitor);
+    /**
+     * Iterates over the carrier content and calls the visitor callback for every key/value found.
+     *
+     * @param carrier the carrier to iterate over.
+     * @param visitor the callback to call for each carrier key/value pair found.
+     */
+    void forEachKeyValue(C carrier, BiConsumer<String, String> visitor);
 }

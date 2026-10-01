@@ -7,14 +7,13 @@ import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
 import datadog.trace.core.DDSpanContext;
 
 public class IntegrationAdder extends TagsPostProcessor {
-  @Override
-  public void processTags(
-      TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
-    final CharSequence instrumentationName = spanContext.getIntegrationName();
-    if (instrumentationName != null) {
-      unsafeTags.set(DD_INTEGRATION, instrumentationName);
-    } else {
-      unsafeTags.remove(DD_INTEGRATION);
+    @Override
+    public void processTags(TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+        final CharSequence instrumentationName = spanContext.getIntegrationName();
+        if (instrumentationName != null) {
+            unsafeTags.set(DD_INTEGRATION, instrumentationName);
+        } else {
+            unsafeTags.remove(DD_INTEGRATION);
+        }
     }
-  }
 }

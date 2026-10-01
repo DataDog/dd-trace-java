@@ -8,20 +8,20 @@ import org.testng.annotations.Test;
 
 public class TestSucceedDataProvider {
 
-  private final int param;
+    private final int param;
 
-  @Factory(dataProvider = "dataMethod")
-  public TestSucceedDataProvider(int param) {
-    this.param = param;
-  }
+    @Factory(dataProvider = "dataMethod")
+    public TestSucceedDataProvider(int param) {
+        this.param = param;
+    }
 
-  @DataProvider
-  public static Object[][] dataMethod() {
-    return new Object[][] {{0}};
-  }
+    @DataProvider
+    public static Object[][] dataMethod() {
+        return new Object[][] {{0}};
+    }
 
-  @Test
-  public void testMethod() {
-    assertEquals(param, 0);
-  }
+    @Test
+    public void testMethod() {
+        assertEquals(param, 0);
+    }
 }

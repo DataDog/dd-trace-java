@@ -11,32 +11,32 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 
 @AutoService(InstrumenterModule.class)
 public class ContextParseInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public ContextParseInstrumentation() {
-    super("ratpack");
-  }
+    public ContextParseInstrumentation() {
+        super("ratpack");
+    }
 
-  // so it doesn't apply to ratpack < 1.5
-  private static final Reference FILE_IO = new Reference.Builder("ratpack.file.FileIo").build();
+    // so it doesn't apply to ratpack < 1.5
+    private static final Reference FILE_IO = new Reference.Builder("ratpack.file.FileIo").build();
 
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {FILE_IO};
-  }
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return new Reference[] {FILE_IO};
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "ratpack.handling.internal.DefaultContext";
-  }
+    @Override
+    public String instrumentedType() {
+        return "ratpack.handling.internal.DefaultContext";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("parse")
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("ratpack.http.TypedData")))
-            .and(takesArgument(1, named("ratpack.parse.Parse"))),
-        packageName + ".ContextParseAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("parse")
+                        .and(takesArguments(2))
+                        .and(takesArgument(0, named("ratpack.http.TypedData")))
+                        .and(takesArgument(1, named("ratpack.parse.Parse"))),
+                packageName + ".ContextParseAdvice");
+    }
 }

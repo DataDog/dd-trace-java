@@ -16,20 +16,19 @@ import org.eclipse.jetty.server.Request;
  * when it is actually set.
  */
 public class SetContextPathAdvice {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static void updateContextPath(
-      @Advice.This final Request req, @Advice.Argument(0) final String contextPath) {
-    if (contextPath != null) {
-      Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
-      // Don't want to update while being dispatched to new servlet
-      if (contextObj instanceof Context && req.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE) == null) {
-        Context context = (Context) contextObj;
-        AgentSpan span = spanFromContext(context);
-        if (span != null) {
-          span.setTag(SERVLET_CONTEXT, contextPath);
-          req.setAttribute(DD_CONTEXT_PATH_ATTRIBUTE, contextPath);
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void updateContextPath(@Advice.This final Request req, @Advice.Argument(0) final String contextPath) {
+        if (contextPath != null) {
+            Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+            // Don't want to update while being dispatched to new servlet
+            if (contextObj instanceof Context && req.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE) == null) {
+                Context context = (Context) contextObj;
+                AgentSpan span = spanFromContext(context);
+                if (span != null) {
+                    span.setTag(SERVLET_CONTEXT, contextPath);
+                    req.setAttribute(DD_CONTEXT_PATH_ATTRIBUTE, contextPath);
+                }
+            }
         }
-      }
     }
-  }
 }

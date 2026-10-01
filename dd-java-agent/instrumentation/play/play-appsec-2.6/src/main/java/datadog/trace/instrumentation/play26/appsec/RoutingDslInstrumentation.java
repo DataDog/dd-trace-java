@@ -20,68 +20,68 @@ import play.routing.RoutingDsl;
  */
 @AutoService(InstrumenterModule.class)
 public class RoutingDslInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public RoutingDslInstrumentation() {
-    super("play");
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "play26Only";
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "play.routing.RoutingDsl$Route";
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {
-      new Reference.Builder("play.routing.RoutingDsl$PathPatternMatcher")
-          .withMethod(
-              new String[0],
-              Reference.EXPECTS_NON_STATIC | Reference.EXPECTS_PUBLIC,
-              "routeTo",
-              "Lplay/routing/RoutingDsl;",
-              "Ljava/util/function/Supplier;")
-          .build(),
-      MuzzleReferences.PLAY_26_ONLY[0],
-      MuzzleReferences.PLAY_26_ONLY[1],
-    };
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ArgumentCaptureWrappers",
-      packageName + ".ArgumentCaptureWrappers$ArgumentCaptureFunction",
-      packageName + ".ArgumentCaptureWrappers$ArgumentCaptureBiFunction",
-      packageName + ".ArgumentCaptureWrappers$ArgumentCaptureFunction3",
-      "datadog.trace.instrumentation.play.appsec.PathExtractionHelpers",
-    };
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor()
-            .and(takesArguments(5))
-            .and(takesArgument(3, Object.class))
-            .and(takesArgument(4, java.lang.reflect.Method.class)),
-        RoutingDslInstrumentation.class.getName() + "$RouteConstructorAdvice");
-  }
-
-  static class RouteConstructorAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    static void before(@Advice.Argument(value = 3, readOnly = false) Object action) {
-      if (action instanceof Function) {
-        action = new ArgumentCaptureWrappers.ArgumentCaptureFunction<>((Function) action);
-      } else if (action instanceof BiFunction) {
-        action = new ArgumentCaptureWrappers.ArgumentCaptureBiFunction<>((BiFunction) action);
-      } else if (action instanceof F.Function3) {
-        action = new ArgumentCaptureWrappers.ArgumentCaptureFunction3<>((F.Function3) action);
-      }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public RoutingDslInstrumentation() {
+        super("play");
     }
-  }
+
+    @Override
+    public String muzzleDirective() {
+        return "play26Only";
+    }
+
+    @Override
+    public String instrumentedType() {
+        return "play.routing.RoutingDsl$Route";
+    }
+
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return new Reference[] {
+            new Reference.Builder("play.routing.RoutingDsl$PathPatternMatcher")
+                    .withMethod(
+                            new String[0],
+                            Reference.EXPECTS_NON_STATIC | Reference.EXPECTS_PUBLIC,
+                            "routeTo",
+                            "Lplay/routing/RoutingDsl;",
+                            "Ljava/util/function/Supplier;")
+                    .build(),
+            MuzzleReferences.PLAY_26_ONLY[0],
+            MuzzleReferences.PLAY_26_ONLY[1],
+        };
+    }
+
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".ArgumentCaptureWrappers",
+            packageName + ".ArgumentCaptureWrappers$ArgumentCaptureFunction",
+            packageName + ".ArgumentCaptureWrappers$ArgumentCaptureBiFunction",
+            packageName + ".ArgumentCaptureWrappers$ArgumentCaptureFunction3",
+            "datadog.trace.instrumentation.play.appsec.PathExtractionHelpers",
+        };
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isConstructor()
+                        .and(takesArguments(5))
+                        .and(takesArgument(3, Object.class))
+                        .and(takesArgument(4, java.lang.reflect.Method.class)),
+                RoutingDslInstrumentation.class.getName() + "$RouteConstructorAdvice");
+    }
+
+    static class RouteConstructorAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        static void before(@Advice.Argument(value = 3, readOnly = false) Object action) {
+            if (action instanceof Function) {
+                action = new ArgumentCaptureWrappers.ArgumentCaptureFunction<>((Function) action);
+            } else if (action instanceof BiFunction) {
+                action = new ArgumentCaptureWrappers.ArgumentCaptureBiFunction<>((BiFunction) action);
+            } else if (action instanceof F.Function3) {
+                action = new ArgumentCaptureWrappers.ArgumentCaptureFunction3<>((F.Function3) action);
+            }
+        }
+    }
 }

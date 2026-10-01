@@ -28,306 +28,251 @@ import org.tabletest.junit.TableTest;
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class LambdaHandlerTest extends DDCoreJavaSpecification {
 
-  static class TestObject {
-    public String field1;
-    public boolean field2;
+    static class TestObject {
+        public String field1;
+        public boolean field2;
 
-    TestObject() {
-      this.field1 = "toto";
-      this.field2 = true;
+        TestObject() {
+            this.field1 = "toto";
+            this.field2 = true;
+        }
+
+        @Override
+        public String toString() {
+            return field1 + " / " + field2 + "}";
+        }
     }
 
-    @Override
-    public String toString() {
-      return field1 + " / " + field2 + "}";
+    @Test
+    void testStartInvocationSuccess() {
+        CoreTracer ct = tracerBuilder().build();
+
+        JavaTestHttpServer server = JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.post(
+                "/lambda/start-invocation",
+                api -> api.getResponse()
+                        .status(200)
+                        .addHeader("x-datadog-trace-id", "1234")
+                        .addHeader("x-datadog-sampling-priority", "2")
+                        .send())));
+        LambdaHandler.setExtensionBaseUrl(server.getAddress().toString());
+
+        AgentSpanContext objTest = LambdaHandler.notifyStartInvocation(new TestObject(), "lambda-request-123");
+
+        assertEquals("1234", objTest.getTraceId().toString());
+        assertEquals(2, objTest.getSamplingPriority());
+        assertEquals("lambda-request-123", server.getLastRequest().getHeader("lambda-runtime-aws-request-id"));
+
+        server.close();
+        ct.close();
     }
-  }
 
-  @Test
-  void testStartInvocationSuccess() {
-    CoreTracer ct = tracerBuilder().build();
+    @Test
+    void testStartInvocationWith128BitTraceId() {
+        CoreTracer ct = tracerBuilder().build();
 
-    JavaTestHttpServer server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.post(
-                            "/lambda/start-invocation",
-                            api ->
-                                api.getResponse()
-                                    .status(200)
-                                    .addHeader("x-datadog-trace-id", "1234")
-                                    .addHeader("x-datadog-sampling-priority", "2")
-                                    .send())));
-    LambdaHandler.setExtensionBaseUrl(server.getAddress().toString());
+        JavaTestHttpServer server = JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.post(
+                "/lambda/start-invocation",
+                api -> api.getResponse()
+                        .status(200)
+                        .addHeader("x-datadog-trace-id", "5744042798732701615")
+                        .addHeader("x-datadog-sampling-priority", "2")
+                        .addHeader("x-datadog-tags", "_dd.p.tid=1914fe7789eb32be")
+                        .send())));
+        LambdaHandler.setExtensionBaseUrl(server.getAddress().toString());
 
-    AgentSpanContext objTest =
-        LambdaHandler.notifyStartInvocation(new TestObject(), "lambda-request-123");
+        AgentSpanContext objTest = LambdaHandler.notifyStartInvocation(new TestObject(), "lambda-request-123");
 
-    assertEquals("1234", objTest.getTraceId().toString());
-    assertEquals(2, objTest.getSamplingPriority());
-    assertEquals(
-        "lambda-request-123", server.getLastRequest().getHeader("lambda-runtime-aws-request-id"));
+        assertEquals("1914fe7789eb32be4fb6f07e011a6faf", objTest.getTraceId().toHexString());
+        assertEquals(2, objTest.getSamplingPriority());
+        assertEquals("lambda-request-123", server.getLastRequest().getHeader("lambda-runtime-aws-request-id"));
 
-    server.close();
-    ct.close();
-  }
+        server.close();
+        ct.close();
+    }
 
-  @Test
-  void testStartInvocationWith128BitTraceId() {
-    CoreTracer ct = tracerBuilder().build();
+    @Test
+    void testStartInvocationFailure() {
+        CoreTracer ct = tracerBuilder().build();
 
-    JavaTestHttpServer server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.post(
-                            "/lambda/start-invocation",
-                            api ->
-                                api.getResponse()
-                                    .status(200)
-                                    .addHeader("x-datadog-trace-id", "5744042798732701615")
-                                    .addHeader("x-datadog-sampling-priority", "2")
-                                    .addHeader("x-datadog-tags", "_dd.p.tid=1914fe7789eb32be")
-                                    .send())));
-    LambdaHandler.setExtensionBaseUrl(server.getAddress().toString());
+        JavaTestHttpServer server = JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.post(
+                "/lambda/start-invocation", api -> api.getResponse().status(500).send())));
+        LambdaHandler.setExtensionBaseUrl(server.getAddress().toString());
 
-    AgentSpanContext objTest =
-        LambdaHandler.notifyStartInvocation(new TestObject(), "lambda-request-123");
+        AgentSpanContext objTest = LambdaHandler.notifyStartInvocation(new TestObject(), "my-lambda-request");
 
-    assertEquals("1914fe7789eb32be4fb6f07e011a6faf", objTest.getTraceId().toHexString());
-    assertEquals(2, objTest.getSamplingPriority());
-    assertEquals(
-        "lambda-request-123", server.getLastRequest().getHeader("lambda-runtime-aws-request-id"));
+        assertNull(objTest);
+        assertEquals("my-lambda-request", server.getLastRequest().getHeader("lambda-runtime-aws-request-id"));
 
-    server.close();
-    ct.close();
-  }
+        server.close();
+        ct.close();
+    }
 
-  @Test
-  void testStartInvocationFailure() {
-    CoreTracer ct = tracerBuilder().build();
+    @TableTest(
+            value = {
+      "scenario                     | expected | eHeaderValue | tIdHeaderValue | sIdHeaderValue | sPIdHeaderValue | lambdaResult | boolValue | lambdaReqIdHeaderValue",
+      "error with non-string result | true     | 'true'       | '1234'         | '5678'         | 2               |              | true      | 'request123'          ",
+      "success with string result   | true     |              | '1234'         | '5678'         | 2               | '12345 '     | false     | 'request456'          "
+    })
+    void testEndInvocationSuccess(
+            boolean expected,
+            String eHeaderValue,
+            String tIdHeaderValue,
+            String sIdHeaderValue,
+            String sPIdHeaderValue,
+            Object lambdaResult,
+            boolean boolValue,
+            String lambdaReqIdHeaderValue) {
+        JavaTestHttpServer server = JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.post(
+                "/lambda/end-invocation", api -> api.getResponse().status(200).send())));
+        LambdaHandler.setExtensionBaseUrl(server.getAddress().toString());
 
-    JavaTestHttpServer server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.post(
-                            "/lambda/start-invocation",
-                            api -> api.getResponse().status(500).send())));
-    LambdaHandler.setExtensionBaseUrl(server.getAddress().toString());
+        DDSpan span = mock(DDSpan.class);
+        when(span.getTraceId()).thenReturn(DDTraceId.from("1234"));
+        when(span.getSpanId()).thenReturn(DDSpanId.from("5678"));
+        when(span.getSamplingPriority()).thenReturn(2);
 
-    AgentSpanContext objTest =
-        LambdaHandler.notifyStartInvocation(new TestObject(), "my-lambda-request");
+        boolean result = LambdaHandler.notifyEndInvocation(span, lambdaResult, boolValue, lambdaReqIdHeaderValue);
 
-    assertNull(objTest);
-    assertEquals(
-        "my-lambda-request", server.getLastRequest().getHeader("lambda-runtime-aws-request-id"));
+        assertEquals(eHeaderValue, server.getLastRequest().getHeader("x-datadog-invocation-error"));
+        assertEquals(tIdHeaderValue, server.getLastRequest().getHeader("x-datadog-trace-id"));
+        assertEquals(sIdHeaderValue, server.getLastRequest().getHeader("x-datadog-span-id"));
+        assertEquals(sPIdHeaderValue, server.getLastRequest().getHeader("x-datadog-sampling-priority"));
+        assertEquals(lambdaReqIdHeaderValue, server.getLastRequest().getHeader("lambda-runtime-aws-request-id"));
+        assertEquals(expected, result);
 
-    server.close();
-    ct.close();
-  }
+        server.close();
+    }
 
-  @TableTest(
-      value = {
-    "scenario                     | expected | eHeaderValue | tIdHeaderValue | sIdHeaderValue | sPIdHeaderValue | lambdaResult | boolValue | lambdaReqIdHeaderValue",
-    "error with non-string result | true     | 'true'       | '1234'         | '5678'         | 2               |              | true      | 'request123'          ",
-    "success with string result   | true     |              | '1234'         | '5678'         | 2               | '12345 '     | false     | 'request456'          "
-  })
-  void testEndInvocationSuccess(
-      boolean expected,
-      String eHeaderValue,
-      String tIdHeaderValue,
-      String sIdHeaderValue,
-      String sPIdHeaderValue,
-      Object lambdaResult,
-      boolean boolValue,
-      String lambdaReqIdHeaderValue) {
-    JavaTestHttpServer server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.post(
-                            "/lambda/end-invocation",
-                            api -> api.getResponse().status(200).send())));
-    LambdaHandler.setExtensionBaseUrl(server.getAddress().toString());
+    @TableTest(
+            value = {
+      "scenario                     | expected | headerValue | lambdaResult | boolValue | lambdaReqIdHeaderValue",
+      "error with non-string result | false    | 'true'      |              | true      | 'request123'          ",
+      "success with string result   | false    |             | '12345'      | false     | 'request456'          "
+    })
+    void testEndInvocationFailure(
+            boolean expected,
+            String headerValue,
+            Object lambdaResult,
+            boolean boolValue,
+            String lambdaReqIdHeaderValue) {
+        JavaTestHttpServer server = JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.post(
+                "/lambda/end-invocation", api -> api.getResponse().status(500).send())));
+        LambdaHandler.setExtensionBaseUrl(server.getAddress().toString());
 
-    DDSpan span = mock(DDSpan.class);
-    when(span.getTraceId()).thenReturn(DDTraceId.from("1234"));
-    when(span.getSpanId()).thenReturn(DDSpanId.from("5678"));
-    when(span.getSamplingPriority()).thenReturn(2);
+        DDSpan span = mock(DDSpan.class);
+        when(span.getTraceId()).thenReturn(DDTraceId.from("1234"));
+        when(span.getSpanId()).thenReturn(DDSpanId.from("5678"));
+        when(span.getSamplingPriority()).thenReturn(2);
 
-    boolean result =
-        LambdaHandler.notifyEndInvocation(span, lambdaResult, boolValue, lambdaReqIdHeaderValue);
+        boolean result = LambdaHandler.notifyEndInvocation(span, lambdaResult, boolValue, lambdaReqIdHeaderValue);
 
-    assertEquals(eHeaderValue, server.getLastRequest().getHeader("x-datadog-invocation-error"));
-    assertEquals(tIdHeaderValue, server.getLastRequest().getHeader("x-datadog-trace-id"));
-    assertEquals(sIdHeaderValue, server.getLastRequest().getHeader("x-datadog-span-id"));
-    assertEquals(sPIdHeaderValue, server.getLastRequest().getHeader("x-datadog-sampling-priority"));
-    assertEquals(
-        lambdaReqIdHeaderValue, server.getLastRequest().getHeader("lambda-runtime-aws-request-id"));
-    assertEquals(expected, result);
+        assertEquals(expected, result);
+        assertEquals(headerValue, server.getLastRequest().getHeader("x-datadog-invocation-error"));
+        assertEquals(lambdaReqIdHeaderValue, server.getLastRequest().getHeader("lambda-runtime-aws-request-id"));
 
-    server.close();
-  }
+        server.close();
+    }
 
-  @TableTest(
-      value = {
-    "scenario                     | expected | headerValue | lambdaResult | boolValue | lambdaReqIdHeaderValue",
-    "error with non-string result | false    | 'true'      |              | true      | 'request123'          ",
-    "success with string result   | false    |             | '12345'      | false     | 'request456'          "
-  })
-  void testEndInvocationFailure(
-      boolean expected,
-      String headerValue,
-      Object lambdaResult,
-      boolean boolValue,
-      String lambdaReqIdHeaderValue) {
-    JavaTestHttpServer server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.post(
-                            "/lambda/end-invocation",
-                            api -> api.getResponse().status(500).send())));
-    LambdaHandler.setExtensionBaseUrl(server.getAddress().toString());
+    @Test
+    void testEndInvocationSuccessWithErrorMetadata() {
+        JavaTestHttpServer server = JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.post(
+                "/lambda/end-invocation", api -> api.getResponse().status(200).send())));
+        LambdaHandler.setExtensionBaseUrl(server.getAddress().toString());
 
-    DDSpan span = mock(DDSpan.class);
-    when(span.getTraceId()).thenReturn(DDTraceId.from("1234"));
-    when(span.getSpanId()).thenReturn(DDSpanId.from("5678"));
-    when(span.getSamplingPriority()).thenReturn(2);
+        DDSpan span = mock(DDSpan.class);
+        when(span.getTraceId()).thenReturn(DDTraceId.from("1234"));
+        when(span.getSpanId()).thenReturn(DDSpanId.from("5678"));
+        when(span.getSamplingPriority()).thenReturn(2);
+        when(span.getTag(DDTags.ERROR_MSG)).thenReturn("custom error message");
+        when(span.getTag(DDTags.ERROR_TYPE)).thenReturn("java.lang.Throwable");
+        when(span.getTag(DDTags.ERROR_STACK)).thenReturn("errorStack\n \ttest");
 
-    boolean result =
-        LambdaHandler.notifyEndInvocation(span, lambdaResult, boolValue, lambdaReqIdHeaderValue);
+        LambdaHandler.notifyEndInvocation(span, new Object(), true, "lambda-request-123");
 
-    assertEquals(expected, result);
-    assertEquals(headerValue, server.getLastRequest().getHeader("x-datadog-invocation-error"));
-    assertEquals(
-        lambdaReqIdHeaderValue, server.getLastRequest().getHeader("lambda-runtime-aws-request-id"));
+        assertEquals("true", server.getLastRequest().getHeader("x-datadog-invocation-error"));
+        assertEquals("custom error message", server.getLastRequest().getHeader("x-datadog-invocation-error-msg"));
+        assertEquals("java.lang.Throwable", server.getLastRequest().getHeader("x-datadog-invocation-error-type"));
+        assertEquals("ZXJyb3JTdGFjawogCXRlc3Q=", server.getLastRequest().getHeader("x-datadog-invocation-error-stack"));
+        assertEquals("lambda-request-123", server.getLastRequest().getHeader("lambda-runtime-aws-request-id"));
 
-    server.close();
-  }
+        server.close();
+    }
 
-  @Test
-  void testEndInvocationSuccessWithErrorMetadata() {
-    JavaTestHttpServer server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.post(
-                            "/lambda/end-invocation",
-                            api -> api.getResponse().status(200).send())));
-    LambdaHandler.setExtensionBaseUrl(server.getAddress().toString());
+    @Test
+    void testMoshiToJsonSQSEvent() {
+        SQSEvent myEvent = new SQSEvent();
+        List<SQSEvent.SQSMessage> records = new ArrayList<>();
+        SQSEvent.SQSMessage message = new SQSEvent.SQSMessage();
+        message.setMessageId("myId");
+        message.setAwsRegion("myRegion");
+        records.add(message);
+        myEvent.setRecords(records);
 
-    DDSpan span = mock(DDSpan.class);
-    when(span.getTraceId()).thenReturn(DDTraceId.from("1234"));
-    when(span.getSpanId()).thenReturn(DDSpanId.from("5678"));
-    when(span.getSamplingPriority()).thenReturn(2);
-    when(span.getTag(DDTags.ERROR_MSG)).thenReturn("custom error message");
-    when(span.getTag(DDTags.ERROR_TYPE)).thenReturn("java.lang.Throwable");
-    when(span.getTag(DDTags.ERROR_STACK)).thenReturn("errorStack\n \ttest");
+        String result = LambdaHandler.writeValueAsString(myEvent);
 
-    LambdaHandler.notifyEndInvocation(span, new Object(), true, "lambda-request-123");
+        assertEquals("{\"records\":[{\"awsRegion\":\"myRegion\",\"messageId\":\"myId\"}]}", result);
+    }
 
-    assertEquals("true", server.getLastRequest().getHeader("x-datadog-invocation-error"));
-    assertEquals(
-        "custom error message",
-        server.getLastRequest().getHeader("x-datadog-invocation-error-msg"));
-    assertEquals(
-        "java.lang.Throwable",
-        server.getLastRequest().getHeader("x-datadog-invocation-error-type"));
-    assertEquals(
-        "ZXJyb3JTdGFjawogCXRlc3Q=",
-        server.getLastRequest().getHeader("x-datadog-invocation-error-stack"));
-    assertEquals(
-        "lambda-request-123", server.getLastRequest().getHeader("lambda-runtime-aws-request-id"));
+    @Test
+    void testMoshiToJsonS3Event() {
+        List<S3EventNotification.S3EventNotificationRecord> list = new ArrayList<>();
+        S3EventNotification.S3EventNotificationRecord item0 = new S3EventNotification.S3EventNotificationRecord(
+                "region", "eventName", "mySource", null, "3.4", null, null, null, null);
+        list.add(item0);
+        S3Event myEvent = new S3Event(list);
 
-    server.close();
-  }
+        String result = LambdaHandler.writeValueAsString(myEvent);
 
-  @Test
-  void testMoshiToJsonSQSEvent() {
-    SQSEvent myEvent = new SQSEvent();
-    List<SQSEvent.SQSMessage> records = new ArrayList<>();
-    SQSEvent.SQSMessage message = new SQSEvent.SQSMessage();
-    message.setMessageId("myId");
-    message.setAwsRegion("myRegion");
-    records.add(message);
-    myEvent.setRecords(records);
+        assertEquals(
+                "{\"records\":[{\"awsRegion\":\"region\",\"eventName\":\"eventName\",\"eventSource\":\"mySource\",\"eventVersion\":\"3.4\"}]}",
+                result);
+    }
 
-    String result = LambdaHandler.writeValueAsString(myEvent);
+    @Test
+    void testMoshiToJsonSNSEvent() {
+        SNSEvent myEvent = new SNSEvent();
+        List<SNSEvent.SNSRecord> records = new ArrayList<>();
+        SNSEvent.SNSRecord message = new SNSEvent.SNSRecord();
+        message.setEventSource("mySource");
+        message.setEventVersion("myVersion");
+        records.add(message);
+        myEvent.setRecords(records);
 
-    assertEquals("{\"records\":[{\"awsRegion\":\"myRegion\",\"messageId\":\"myId\"}]}", result);
-  }
+        String result = LambdaHandler.writeValueAsString(myEvent);
 
-  @Test
-  void testMoshiToJsonS3Event() {
-    List<S3EventNotification.S3EventNotificationRecord> list = new ArrayList<>();
-    S3EventNotification.S3EventNotificationRecord item0 =
-        new S3EventNotification.S3EventNotificationRecord(
-            "region", "eventName", "mySource", null, "3.4", null, null, null, null);
-    list.add(item0);
-    S3Event myEvent = new S3Event(list);
+        assertEquals("{\"records\":[{\"eventSource\":\"mySource\",\"eventVersion\":\"myVersion\"}]}", result);
+    }
 
-    String result = LambdaHandler.writeValueAsString(myEvent);
+    @Test
+    void testMoshiToJsonAPIGatewayProxyRequestEvent() {
+        APIGatewayProxyRequestEvent myEvent = new APIGatewayProxyRequestEvent();
+        myEvent.setBody("bababango");
+        myEvent.setHttpMethod("POST");
 
-    assertEquals(
-        "{\"records\":[{\"awsRegion\":\"region\",\"eventName\":\"eventName\",\"eventSource\":\"mySource\",\"eventVersion\":\"3.4\"}]}",
-        result);
-  }
+        String result = LambdaHandler.writeValueAsString(myEvent);
 
-  @Test
-  void testMoshiToJsonSNSEvent() {
-    SNSEvent myEvent = new SNSEvent();
-    List<SNSEvent.SNSRecord> records = new ArrayList<>();
-    SNSEvent.SNSRecord message = new SNSEvent.SNSRecord();
-    message.setEventSource("mySource");
-    message.setEventVersion("myVersion");
-    records.add(message);
-    myEvent.setRecords(records);
+        assertEquals("{\"body\":\"bababango\",\"httpMethod\":\"POST\"}", result);
+    }
 
-    String result = LambdaHandler.writeValueAsString(myEvent);
+    @Test
+    void testMoshiToJsonInputStream() {
+        String body = "{\"body\":\"bababango\",\"httpMethod\":\"POST\"}";
+        ByteArrayInputStream myEvent = new ByteArrayInputStream(body.getBytes());
 
-    assertEquals(
-        "{\"records\":[{\"eventSource\":\"mySource\",\"eventVersion\":\"myVersion\"}]}", result);
-  }
+        String result = LambdaHandler.writeValueAsString(myEvent);
 
-  @Test
-  void testMoshiToJsonAPIGatewayProxyRequestEvent() {
-    APIGatewayProxyRequestEvent myEvent = new APIGatewayProxyRequestEvent();
-    myEvent.setBody("bababango");
-    myEvent.setHttpMethod("POST");
+        assertEquals(body, result);
+    }
 
-    String result = LambdaHandler.writeValueAsString(myEvent);
+    @Test
+    void testMoshiToJsonOutputStream() {
+        String body = "{\"body\":\"bababango\",\"statusCode\":\"200\"}";
+        ByteArrayOutputStream myEvent = new ByteArrayOutputStream();
+        byte[] bodyBytes = body.getBytes();
+        myEvent.write(bodyBytes, 0, bodyBytes.length);
 
-    assertEquals("{\"body\":\"bababango\",\"httpMethod\":\"POST\"}", result);
-  }
+        String result = LambdaHandler.writeValueAsString(myEvent);
 
-  @Test
-  void testMoshiToJsonInputStream() {
-    String body = "{\"body\":\"bababango\",\"httpMethod\":\"POST\"}";
-    ByteArrayInputStream myEvent = new ByteArrayInputStream(body.getBytes());
-
-    String result = LambdaHandler.writeValueAsString(myEvent);
-
-    assertEquals(body, result);
-  }
-
-  @Test
-  void testMoshiToJsonOutputStream() {
-    String body = "{\"body\":\"bababango\",\"statusCode\":\"200\"}";
-    ByteArrayOutputStream myEvent = new ByteArrayOutputStream();
-    byte[] bodyBytes = body.getBytes();
-    myEvent.write(bodyBytes, 0, bodyBytes.length);
-
-    String result = LambdaHandler.writeValueAsString(myEvent);
-
-    assertEquals(body, result);
-  }
+        assertEquals(body, result);
+    }
 }

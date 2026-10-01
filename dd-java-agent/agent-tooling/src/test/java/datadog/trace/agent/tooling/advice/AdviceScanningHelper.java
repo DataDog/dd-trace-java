@@ -9,51 +9,51 @@ import java.util.Collection;
 import net.bytebuddy.pool.TypePool;
 
 final class AdviceScanningHelper {
-  static final class Dependency {
-    static String field;
+    static final class Dependency {
+        static String field;
 
-    Dependency() {}
+        Dependency() {}
 
-    String method(String value) {
-      return value;
+        String method(String value) {
+            return value;
+        }
     }
-  }
 
-  static final class MuzzleHelper {
-    static Collection<? extends Reference> compileReferences() {
-      return singletonList(new Reference.Builder("library.Type").build());
+    static final class MuzzleHelper {
+        static Collection<? extends Reference> compileReferences() {
+            return singletonList(new Reference.Builder("library.Type").build());
+        }
     }
-  }
 
-  static final class MuzzleReferenceProvider implements ReferenceProvider {
-    @Override
-    public Iterable<Reference> buildReferences(TypePool typePool) {
-      return emptyList();
+    static final class MuzzleReferenceProvider implements ReferenceProvider {
+        @Override
+        public Iterable<Reference> buildReferences(TypePool typePool) {
+            return emptyList();
+        }
     }
-  }
 
-  static Class<?>[] muzzleHelpers() {
-    return new Class<?>[] {MuzzleHelper.class, MuzzleReferenceProvider.class};
-  }
-
-  static final class DiagnosticPrinter {
-    static Class<?> dependency() {
-      return DiagnosticDependency.class;
+    static Class<?>[] muzzleHelpers() {
+        return new Class<?>[] {MuzzleHelper.class, MuzzleReferenceProvider.class};
     }
-  }
 
-  static final class DiagnosticDependency {
-    static Class<?> dependency() {
-      return DiagnosticPrinter.class;
+    static final class DiagnosticPrinter {
+        static Class<?> dependency() {
+            return DiagnosticDependency.class;
+        }
     }
-  }
 
-  static Class<?> localClass() {
-    class Local {}
-    return Local.class;
-  }
+    static final class DiagnosticDependency {
+        static Class<?> dependency() {
+            return DiagnosticPrinter.class;
+        }
+    }
 
-  static Class<?> anonymousClass() {
-    return new Object() {}.getClass();
-  }
+    static Class<?> localClass() {
+        class Local {}
+        return Local.class;
+    }
+
+    static Class<?> anonymousClass() {
+        return new Object() {}.getClass();
+    }
 }

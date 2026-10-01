@@ -12,32 +12,32 @@ import io.undertow.server.ExchangeCompletionListener;
 import io.undertow.server.HttpServerExchange;
 
 public class ExchangeEndSpanListener implements ExchangeCompletionListener {
-  public static final ExchangeEndSpanListener INSTANCE = new ExchangeEndSpanListener();
+    public static final ExchangeEndSpanListener INSTANCE = new ExchangeEndSpanListener();
 
-  private ExchangeEndSpanListener() {}
+    private ExchangeEndSpanListener() {}
 
-  @Override
-  public void exchangeEvent(HttpServerExchange exchange, NextListener nextListener) {
-    ContextContinuation continuation = exchange.getAttachment(DATADOG_UNDERTOW_CONTINUATION);
-    if (continuation == null) {
-      return;
+    @Override
+    public void exchangeEvent(HttpServerExchange exchange, NextListener nextListener) {
+        ContextContinuation continuation = exchange.getAttachment(DATADOG_UNDERTOW_CONTINUATION);
+        if (continuation == null) {
+            return;
+        }
+
+        Context context = continuation.context();
+        AgentSpan span = fromContext(context);
+        if (span != null) {
+            Throwable throwable = exchange.getAttachment(DefaultResponseListener.EXCEPTION);
+            if (throwable != null) {
+                DECORATE.onError(span, throwable);
+            }
+            DECORATE.onResponse(span, exchange);
+            DECORATE.beforeFinish(context);
+            span.finish();
+        } else {
+            DECORATE.beforeFinish(context);
+        }
+
+        continuation.release();
+        nextListener.proceed();
     }
-
-    Context context = continuation.context();
-    AgentSpan span = fromContext(context);
-    if (span != null) {
-      Throwable throwable = exchange.getAttachment(DefaultResponseListener.EXCEPTION);
-      if (throwable != null) {
-        DECORATE.onError(span, throwable);
-      }
-      DECORATE.onResponse(span, exchange);
-      DECORATE.beforeFinish(context);
-      span.finish();
-    } else {
-      DECORATE.beforeFinish(context);
-    }
-
-    continuation.release();
-    nextListener.proceed();
-  }
 }

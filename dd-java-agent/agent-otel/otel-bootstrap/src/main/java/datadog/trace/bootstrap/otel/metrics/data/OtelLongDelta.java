@@ -5,21 +5,21 @@ import datadog.trace.bootstrap.otlp.metrics.OtlpLongPoint;
 
 /** Reports the delta value since the last reset. */
 final class OtelLongDelta extends OtelAggregator {
-  private volatile long value;
-  private long lastValue;
+    private volatile long value;
+    private long lastValue;
 
-  @Override
-  void doRecordLong(long value) {
-    this.value = value;
-  }
-
-  @Override
-  OtlpDataPoint doCollect(boolean reset) {
-    long collectedValue = value;
-    long delta = collectedValue - lastValue;
-    if (reset) {
-      lastValue = collectedValue;
+    @Override
+    void doRecordLong(long value) {
+        this.value = value;
     }
-    return new OtlpLongPoint(delta);
-  }
+
+    @Override
+    OtlpDataPoint doCollect(boolean reset) {
+        long collectedValue = value;
+        long delta = collectedValue - lastValue;
+        if (reset) {
+            lastValue = collectedValue;
+        }
+        return new OtlpLongPoint(delta);
+    }
 }

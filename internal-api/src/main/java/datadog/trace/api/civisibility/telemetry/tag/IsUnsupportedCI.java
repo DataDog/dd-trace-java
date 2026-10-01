@@ -8,10 +8,10 @@ import datadog.trace.api.civisibility.telemetry.TagValue;
  * datadog.trace.civisibility.ci.CIProviderInfo} implementations for list of supported providers).
  */
 public enum IsUnsupportedCI implements TagValue {
-  TRUE;
+    TRUE;
 
-  @Override
-  public String asString() {
-    return "is_unsupported_ci:true";
-  }
+    @Override
+    public String asString() {
+        return "is_unsupported_ci:true";
+    }
 }

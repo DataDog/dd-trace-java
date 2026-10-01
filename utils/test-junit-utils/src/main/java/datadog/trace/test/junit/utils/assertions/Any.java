@@ -11,20 +11,20 @@ import java.util.Optional;
  * @param <T> the type of the value being matched
  */
 public class Any<T> implements Matcher<T> {
-  Any() {}
+    Any() {}
 
-  @Override
-  public Optional<T> expected() {
-    return Optional.empty();
-  }
+    @Override
+    public Optional<T> expected() {
+        return Optional.empty();
+    }
 
-  @Override
-  public String failureReason() {
-    return "";
-  }
+    @Override
+    public String failureReason() {
+        return "";
+    }
 
-  @Override
-  public boolean test(T t) {
-    return true;
-  }
+    @Override
+    public boolean test(T t) {
+        return true;
+    }
 }

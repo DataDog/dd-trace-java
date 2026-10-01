@@ -21,26 +21,26 @@ import org.openjdk.jmh.annotations.Warmup;
 @State(Scope.Benchmark)
 public class OverheadControllerBenchmark {
 
-  private OverheadController overheadController;
+    private OverheadController overheadController;
 
-  @Setup(Level.Trial)
-  public void setup() {
-    System.setProperty("dd.iast.request-sampling", "100");
-    System.setProperty("dd.iast.max-context-operations", "100000");
-    overheadController = OverheadController.build(Config.get(), null);
-  }
-
-  @Benchmark
-  public void acquireReleaseRequestNoSampling() {
-    if (overheadController.acquireRequest()) {
-      overheadController.releaseRequest();
-    } else {
-      throw new IllegalStateException();
+    @Setup(Level.Trial)
+    public void setup() {
+        System.setProperty("dd.iast.request-sampling", "100");
+        System.setProperty("dd.iast.max-context-operations", "100000");
+        overheadController = OverheadController.build(Config.get(), null);
     }
-  }
 
-  @Benchmark
-  public void consumeQuota() {
-    overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, null);
-  }
+    @Benchmark
+    public void acquireReleaseRequestNoSampling() {
+        if (overheadController.acquireRequest()) {
+            overheadController.releaseRequest();
+        } else {
+            throw new IllegalStateException();
+        }
+    }
+
+    @Benchmark
+    public void consumeQuota() {
+        overheadController.consumeQuota(Operations.REPORT_VULNERABILITY, null);
+    }
 }

@@ -15,45 +15,43 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 final class OtelObservableCallback extends OtelObservable
-    implements ObservableDoubleCounter,
-        ObservableLongCounter,
-        ObservableDoubleGauge,
-        ObservableLongGauge,
-        ObservableDoubleUpDownCounter,
-        ObservableLongUpDownCounter,
-        BatchCallback {
+        implements ObservableDoubleCounter,
+                ObservableLongCounter,
+                ObservableDoubleGauge,
+                ObservableLongGauge,
+                ObservableDoubleUpDownCounter,
+                ObservableLongUpDownCounter,
+                BatchCallback {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(OtelObservableCallback.class);
-  private static final RatelimitedLogger RATELIMITED_LOGGER =
-      new RatelimitedLogger(LOGGER, 5, TimeUnit.MINUTES);
+    private static final Logger LOGGER = LoggerFactory.getLogger(OtelObservableCallback.class);
+    private static final RatelimitedLogger RATELIMITED_LOGGER = new RatelimitedLogger(LOGGER, 5, TimeUnit.MINUTES);
 
-  private final OtelMeter meter;
-  private final Runnable callback;
-  private final List<OtelObservableMeasurement> measurements;
+    private final OtelMeter meter;
+    private final Runnable callback;
+    private final List<OtelObservableMeasurement> measurements;
 
-  OtelObservableCallback(
-      OtelMeter meter, Runnable callback, List<OtelObservableMeasurement> measurements) {
-    this.meter = meter;
-    this.callback = callback;
-    this.measurements = measurements;
-  }
-
-  @Override
-  public void observeMeasurements() {
-    measurements.forEach(OtelObservableMeasurement::activate);
-    try {
-      callback.run();
-    } catch (Throwable e) {
-      RATELIMITED_LOGGER.warn("An exception occurred invoking callback for {}.", measurements, e);
-    } finally {
-      measurements.forEach(OtelObservableMeasurement::passivate);
+    OtelObservableCallback(OtelMeter meter, Runnable callback, List<OtelObservableMeasurement> measurements) {
+        this.meter = meter;
+        this.callback = callback;
+        this.measurements = measurements;
     }
-  }
 
-  @Override
-  public void close() {
-    if (!meter.unregisterObservableCallback(this)) {
-      RATELIMITED_LOGGER.warn("Callback for {} has called close() multiple times.", measurements);
+    @Override
+    public void observeMeasurements() {
+        measurements.forEach(OtelObservableMeasurement::activate);
+        try {
+            callback.run();
+        } catch (Throwable e) {
+            RATELIMITED_LOGGER.warn("An exception occurred invoking callback for {}.", measurements, e);
+        } finally {
+            measurements.forEach(OtelObservableMeasurement::passivate);
+        }
     }
-  }
+
+    @Override
+    public void close() {
+        if (!meter.unregisterObservableCallback(this)) {
+            RATELIMITED_LOGGER.warn("Callback for {} has called close() multiple times.", measurements);
+        }
+    }
 }

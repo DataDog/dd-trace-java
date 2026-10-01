@@ -20,132 +20,114 @@ import net.bytebuddy.utility.OpenedClassReader;
 
 /** Attempts a minimal parse of just the named elements we need for matching. */
 final class OutlineTypeParser implements TypeParser {
-  private static final boolean visitorClassParsing =
-      InstrumenterConfig.get().isVisitorClassParsing();
+    private static final boolean visitorClassParsing = InstrumenterConfig.get().isVisitorClassParsing();
 
-  @Override
-  public TypeDescription parse(byte[] bytecode) {
-    if (visitorClassParsing) {
-      ClassReader classReader = OpenedClassReader.of(bytecode);
-      OutlineTypeExtractor typeExtractor = new OutlineTypeExtractor();
-      classReader.accept(typeExtractor, SKIP_CODE | SKIP_DEBUG);
-      return typeExtractor.typeOutline;
-    } else {
-      return new TypeOutline(ClassFile.outline(bytecode));
-    }
-  }
-
-  @Override
-  public TypeDescription parse(Class<?> loadedType) {
-    Class<?> superClass = loadedType.getSuperclass();
-
-    TypeOutline typeOutline =
-        new TypeOutline(
-            loadedType.getModifiers(),
-            loadedType.getName(),
-            null != superClass ? superClass.getName() : null,
-            extractTypeNames(loadedType.getInterfaces()));
-
-    for (Annotation a : loadedType.getDeclaredAnnotations()) {
-      typeOutline.declare(annotationOutline(Type.getInternalName(a.annotationType())));
-    }
-
-    for (Field field : loadedType.getDeclaredFields()) {
-      FieldOutline fieldOutline =
-          new FieldOutline(
-              typeOutline,
-              field.getModifiers(),
-              field.getName(),
-              Type.getDescriptor(field.getType()));
-      for (Annotation a : field.getDeclaredAnnotations()) {
-        fieldOutline.declare(annotationOutline(Type.getInternalName(a.annotationType())));
-      }
-      typeOutline.declare(fieldOutline);
-    }
-
-    for (Method method : loadedType.getDeclaredMethods()) {
-      MethodOutline methodOutline =
-          new MethodOutline(
-              typeOutline,
-              method.getModifiers(),
-              method.getName(),
-              Type.getMethodDescriptor(method));
-      for (Annotation a : method.getDeclaredAnnotations()) {
-        methodOutline.declare(annotationOutline(Type.getInternalName(a.annotationType())));
-      }
-      typeOutline.declare(methodOutline);
-    }
-
-    return typeOutline;
-  }
-
-  private static String[] extractTypeNames(Class[] types) {
-    String[] typeNames = new String[types.length];
-    for (int i = 0; i < types.length; i++) {
-      typeNames[i] = types[i].getName();
-    }
-    return typeNames;
-  }
-
-  static final class OutlineTypeExtractor extends ClassVisitor {
-
-    TypeOutline typeOutline;
-    FieldOutline fieldOutline;
-    MethodOutline methodOutline;
-
-    OutlineTypeExtractor() {
-      super(OpenedClassReader.ASM_API);
+    @Override
+    public TypeDescription parse(byte[] bytecode) {
+        if (visitorClassParsing) {
+            ClassReader classReader = OpenedClassReader.of(bytecode);
+            OutlineTypeExtractor typeExtractor = new OutlineTypeExtractor();
+            classReader.accept(typeExtractor, SKIP_CODE | SKIP_DEBUG);
+            return typeExtractor.typeOutline;
+        } else {
+            return new TypeOutline(ClassFile.outline(bytecode));
+        }
     }
 
     @Override
-    public void visit(
-        int version,
-        int access,
-        String name,
-        String signature,
-        String superName,
-        String[] interfaces) {
-      typeOutline = new TypeOutline(access, name, superName, interfaces);
+    public TypeDescription parse(Class<?> loadedType) {
+        Class<?> superClass = loadedType.getSuperclass();
+
+        TypeOutline typeOutline = new TypeOutline(
+                loadedType.getModifiers(),
+                loadedType.getName(),
+                null != superClass ? superClass.getName() : null,
+                extractTypeNames(loadedType.getInterfaces()));
+
+        for (Annotation a : loadedType.getDeclaredAnnotations()) {
+            typeOutline.declare(annotationOutline(Type.getInternalName(a.annotationType())));
+        }
+
+        for (Field field : loadedType.getDeclaredFields()) {
+            FieldOutline fieldOutline = new FieldOutline(
+                    typeOutline, field.getModifiers(), field.getName(), Type.getDescriptor(field.getType()));
+            for (Annotation a : field.getDeclaredAnnotations()) {
+                fieldOutline.declare(annotationOutline(Type.getInternalName(a.annotationType())));
+            }
+            typeOutline.declare(fieldOutline);
+        }
+
+        for (Method method : loadedType.getDeclaredMethods()) {
+            MethodOutline methodOutline = new MethodOutline(
+                    typeOutline, method.getModifiers(), method.getName(), Type.getMethodDescriptor(method));
+            for (Annotation a : method.getDeclaredAnnotations()) {
+                methodOutline.declare(annotationOutline(Type.getInternalName(a.annotationType())));
+            }
+            typeOutline.declare(methodOutline);
+        }
+
+        return typeOutline;
     }
 
-    @Override
-    public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
-      typeOutline.declare(annotationOutline(descriptor));
-      return null;
+    private static String[] extractTypeNames(Class[] types) {
+        String[] typeNames = new String[types.length];
+        for (int i = 0; i < types.length; i++) {
+            typeNames[i] = types[i].getName();
+        }
+        return typeNames;
     }
 
-    @Override
-    public FieldVisitor visitField(
-        int access, String name, String descriptor, String signature, Object value) {
-      fieldOutline = new FieldOutline(typeOutline, access, name, descriptor);
-      typeOutline.declare(fieldOutline);
-      return fieldAnnotationExtractor;
-    }
+    static final class OutlineTypeExtractor extends ClassVisitor {
 
-    @Override
-    public MethodVisitor visitMethod(
-        int access, String name, String descriptor, String signature, String[] exceptions) {
-      methodOutline = new MethodOutline(typeOutline, access, name, descriptor);
-      typeOutline.declare(methodOutline);
-      return methodAnnotationExtractor;
-    }
+        TypeOutline typeOutline;
+        FieldOutline fieldOutline;
+        MethodOutline methodOutline;
 
-    private final FieldVisitor fieldAnnotationExtractor =
-        new FieldVisitor(OpenedClassReader.ASM_API) {
-          @Override
-          public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
-            fieldOutline.declare(annotationOutline(descriptor));
+        OutlineTypeExtractor() {
+            super(OpenedClassReader.ASM_API);
+        }
+
+        @Override
+        public void visit(
+                int version, int access, String name, String signature, String superName, String[] interfaces) {
+            typeOutline = new TypeOutline(access, name, superName, interfaces);
+        }
+
+        @Override
+        public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
+            typeOutline.declare(annotationOutline(descriptor));
             return null;
-          }
+        }
+
+        @Override
+        public FieldVisitor visitField(int access, String name, String descriptor, String signature, Object value) {
+            fieldOutline = new FieldOutline(typeOutline, access, name, descriptor);
+            typeOutline.declare(fieldOutline);
+            return fieldAnnotationExtractor;
+        }
+
+        @Override
+        public MethodVisitor visitMethod(
+                int access, String name, String descriptor, String signature, String[] exceptions) {
+            methodOutline = new MethodOutline(typeOutline, access, name, descriptor);
+            typeOutline.declare(methodOutline);
+            return methodAnnotationExtractor;
+        }
+
+        private final FieldVisitor fieldAnnotationExtractor = new FieldVisitor(OpenedClassReader.ASM_API) {
+            @Override
+            public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
+                fieldOutline.declare(annotationOutline(descriptor));
+                return null;
+            }
         };
 
-    private final MethodVisitor methodAnnotationExtractor =
-        new MethodVisitor(OpenedClassReader.ASM_API) {
-          @Override
-          public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
-            methodOutline.declare(annotationOutline(descriptor));
-            return null;
-          }
+        private final MethodVisitor methodAnnotationExtractor = new MethodVisitor(OpenedClassReader.ASM_API) {
+            @Override
+            public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
+                methodOutline.declare(annotationOutline(descriptor));
+                return null;
+            }
         };
-  }
+    }
 }

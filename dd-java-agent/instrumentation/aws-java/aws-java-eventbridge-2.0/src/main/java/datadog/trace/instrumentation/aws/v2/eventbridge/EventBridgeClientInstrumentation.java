@@ -12,32 +12,32 @@ import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 
 @AutoService(InstrumenterModule.class)
 public final class EventBridgeClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public EventBridgeClientInstrumentation() {
-    super("eventbridge");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "software.amazon.awssdk.core.client.builder.SdkDefaultClientBuilder";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("resolveExecutionInterceptors")),
-        EventBridgeClientInstrumentation.class.getName() + "$AwsEventBridgeBuilderAdvice");
-  }
-
-  public static class AwsEventBridgeBuilderAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void addHandler(@Advice.Return final List<ExecutionInterceptor> interceptors) {
-      for (ExecutionInterceptor interceptor : interceptors) {
-        if (interceptor instanceof EventBridgeInterceptor) {
-          return; // list already has our interceptor, return to builder
-        }
-      }
-      interceptors.add(new EventBridgeInterceptor());
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public EventBridgeClientInstrumentation() {
+        super("eventbridge");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "software.amazon.awssdk.core.client.builder.SdkDefaultClientBuilder";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("resolveExecutionInterceptors")),
+                EventBridgeClientInstrumentation.class.getName() + "$AwsEventBridgeBuilderAdvice");
+    }
+
+    public static class AwsEventBridgeBuilderAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void addHandler(@Advice.Return final List<ExecutionInterceptor> interceptors) {
+            for (ExecutionInterceptor interceptor : interceptors) {
+                if (interceptor instanceof EventBridgeInterceptor) {
+                    return; // list already has our interceptor, return to builder
+                }
+            }
+            interceptors.add(new EventBridgeInterceptor());
+        }
+    }
 }

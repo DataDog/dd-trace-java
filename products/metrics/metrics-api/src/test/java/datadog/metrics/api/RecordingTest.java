@@ -6,32 +6,32 @@ import org.junit.jupiter.api.Test;
 
 class RecordingTest {
 
-  @Test
-  void closeDelegatesToStop() {
-    StoppableRecording recording = new StoppableRecording();
+    @Test
+    void closeDelegatesToStop() {
+        StoppableRecording recording = new StoppableRecording();
 
-    recording.close();
+        recording.close();
 
-    assertTrue(recording.stopped);
-  }
-
-  private static final class StoppableRecording extends Recording {
-    boolean stopped;
-
-    @Override
-    public Recording start() {
-      return this;
+        assertTrue(recording.stopped);
     }
 
-    @Override
-    public void reset() {}
+    private static final class StoppableRecording extends Recording {
+        boolean stopped;
 
-    @Override
-    public void stop() {
-      stopped = true;
+        @Override
+        public Recording start() {
+            return this;
+        }
+
+        @Override
+        public void reset() {}
+
+        @Override
+        public void stop() {
+            stopped = true;
+        }
+
+        @Override
+        public void flush() {}
     }
-
-    @Override
-    public void flush() {}
-  }
 }

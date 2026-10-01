@@ -20,113 +20,102 @@ import net.bytebuddy.utility.OpenedClassReader;
 
 public class UnwrappingVisitor implements AsmVisitorWrapper {
 
-  private final Map<String, String> classNameToDelegateFieldNames;
+    private final Map<String, String> classNameToDelegateFieldNames;
 
-  public UnwrappingVisitor(String... classAndDelegateFieldNames) {
-    assert classAndDelegateFieldNames.length % 2 == 0;
-    classNameToDelegateFieldNames = new HashMap<>(classAndDelegateFieldNames.length);
-    for (int i = 0; i < classAndDelegateFieldNames.length; i += 2) {
-      classNameToDelegateFieldNames.put(
-          classAndDelegateFieldNames[i], classAndDelegateFieldNames[i + 1]);
-    }
-  }
-
-  @Override
-  public int mergeWriter(int flags) {
-    return flags;
-  }
-
-  @Override
-  public int mergeReader(int flags) {
-    return flags;
-  }
-
-  @Override
-  public ClassVisitor wrap(
-      TypeDescription instrumentedType,
-      ClassVisitor classVisitor,
-      Implementation.Context implementationContext,
-      TypePool typePool,
-      FieldList<FieldDescription.InDefinedShape> fields,
-      MethodList<?> methods,
-      int writerFlags,
-      int readerFlags) {
-    String fieldName = classNameToDelegateFieldNames.get(instrumentedType.getName());
-    return fieldName == null
-        ? classVisitor
-        : new ImplementTaskWrapperClassVisitor(
-            classVisitor, instrumentedType.getInternalName(), fieldName);
-  }
-
-  static class ImplementTaskWrapperClassVisitor extends ClassVisitor {
-
-    private static final String TASK_WRAPPER =
-        "datadog/trace/bootstrap/instrumentation/api/TaskWrapper";
-
-    private final String className;
-    private final String fieldName;
-    private boolean modify = false;
-    private String descriptor;
-
-    protected ImplementTaskWrapperClassVisitor(
-        ClassVisitor classVisitor, String className, String fieldName) {
-      super(OpenedClassReader.ASM_API, classVisitor);
-      this.className = className;
-      this.fieldName = fieldName;
-    }
-
-    @Override
-    public void visit(
-        int version,
-        int access,
-        String name,
-        String signature,
-        String superName,
-        String[] interfaces) {
-      if (!arrayContains(interfaces, TASK_WRAPPER)) {
-        interfaces = appendToArray(interfaces, TASK_WRAPPER);
-        if (signature != null) {
-          signature += 'L' + TASK_WRAPPER + ';';
+    public UnwrappingVisitor(String... classAndDelegateFieldNames) {
+        assert classAndDelegateFieldNames.length % 2 == 0;
+        classNameToDelegateFieldNames = new HashMap<>(classAndDelegateFieldNames.length);
+        for (int i = 0; i < classAndDelegateFieldNames.length; i += 2) {
+            classNameToDelegateFieldNames.put(classAndDelegateFieldNames[i], classAndDelegateFieldNames[i + 1]);
         }
-        modify = true;
-      }
-      super.visit(version, access, name, signature, superName, interfaces);
     }
 
     @Override
-    public FieldVisitor visitField(
-        int access, String name, String descriptor, String signature, Object value) {
-      if (fieldName.equals(name)) {
-        this.descriptor = descriptor;
-      }
-      return super.visitField(access, name, descriptor, signature, value);
+    public int mergeWriter(int flags) {
+        return flags;
     }
 
     @Override
-    public void visitEnd() {
-      if (modify) {
-        addUnwrap();
-      }
+    public int mergeReader(int flags) {
+        return flags;
     }
 
-    private void addUnwrap() {
-      MethodVisitor mv =
-          cv.visitMethod(Opcodes.ACC_PUBLIC, "$$DD$$__unwrap", "()Ljava/lang/Object;", null, null);
-      mv.visitCode();
-      if (descriptor != null) {
-        // we found the field so can return it
-        mv.visitVarInsn(Opcodes.ALOAD, 0);
-        mv.visitFieldInsn(Opcodes.GETFIELD, className, fieldName, descriptor);
-        mv.visitInsn(Opcodes.ARETURN);
-        mv.visitMaxs(1, 1);
-      } else {
-        // we've added the interface but haven't found the field we wanted to unwrap,
-        // so we have to generate the method, so just return null
-        mv.visitInsn(Opcodes.ACONST_NULL);
-        mv.visitInsn(Opcodes.ARETURN);
-        mv.visitMaxs(1, 1);
-      }
-      mv.visitEnd();
+    @Override
+    public ClassVisitor wrap(
+            TypeDescription instrumentedType,
+            ClassVisitor classVisitor,
+            Implementation.Context implementationContext,
+            TypePool typePool,
+            FieldList<FieldDescription.InDefinedShape> fields,
+            MethodList<?> methods,
+            int writerFlags,
+            int readerFlags) {
+        String fieldName = classNameToDelegateFieldNames.get(instrumentedType.getName());
+        return fieldName == null
+                ? classVisitor
+                : new ImplementTaskWrapperClassVisitor(classVisitor, instrumentedType.getInternalName(), fieldName);
     }
-  }
+
+    static class ImplementTaskWrapperClassVisitor extends ClassVisitor {
+
+        private static final String TASK_WRAPPER = "datadog/trace/bootstrap/instrumentation/api/TaskWrapper";
+
+        private final String className;
+        private final String fieldName;
+        private boolean modify = false;
+        private String descriptor;
+
+        protected ImplementTaskWrapperClassVisitor(ClassVisitor classVisitor, String className, String fieldName) {
+            super(OpenedClassReader.ASM_API, classVisitor);
+            this.className = className;
+            this.fieldName = fieldName;
+        }
+
+        @Override
+        public void visit(
+                int version, int access, String name, String signature, String superName, String[] interfaces) {
+            if (!arrayContains(interfaces, TASK_WRAPPER)) {
+                interfaces = appendToArray(interfaces, TASK_WRAPPER);
+                if (signature != null) {
+                    signature += 'L' + TASK_WRAPPER + ';';
+                }
+                modify = true;
+            }
+            super.visit(version, access, name, signature, superName, interfaces);
+        }
+
+        @Override
+        public FieldVisitor visitField(int access, String name, String descriptor, String signature, Object value) {
+            if (fieldName.equals(name)) {
+                this.descriptor = descriptor;
+            }
+            return super.visitField(access, name, descriptor, signature, value);
+        }
+
+        @Override
+        public void visitEnd() {
+            if (modify) {
+                addUnwrap();
+            }
+        }
+
+        private void addUnwrap() {
+            MethodVisitor mv = cv.visitMethod(Opcodes.ACC_PUBLIC, "$$DD$$__unwrap", "()Ljava/lang/Object;", null, null);
+            mv.visitCode();
+            if (descriptor != null) {
+                // we found the field so can return it
+                mv.visitVarInsn(Opcodes.ALOAD, 0);
+                mv.visitFieldInsn(Opcodes.GETFIELD, className, fieldName, descriptor);
+                mv.visitInsn(Opcodes.ARETURN);
+                mv.visitMaxs(1, 1);
+            } else {
+                // we've added the interface but haven't found the field we wanted to unwrap,
+                // so we have to generate the method, so just return null
+                mv.visitInsn(Opcodes.ACONST_NULL);
+                mv.visitInsn(Opcodes.ARETURN);
+                mv.visitMaxs(1, 1);
+            }
+            mv.visitEnd();
+        }
+    }
 }

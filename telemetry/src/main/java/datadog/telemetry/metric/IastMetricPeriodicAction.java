@@ -6,9 +6,9 @@ import javax.annotation.Nonnull;
 
 public class IastMetricPeriodicAction extends MetricPeriodicAction {
 
-  @Override
-  @Nonnull
-  public MetricCollector collector() {
-    return IastMetricCollector.get();
-  }
+    @Override
+    @Nonnull
+    public MetricCollector collector() {
+        return IastMetricCollector.get();
+    }
 }

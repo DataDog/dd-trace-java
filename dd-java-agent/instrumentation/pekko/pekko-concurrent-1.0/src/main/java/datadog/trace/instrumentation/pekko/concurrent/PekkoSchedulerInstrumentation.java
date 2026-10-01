@@ -19,42 +19,42 @@ import net.bytebuddy.asm.Advice;
 /** Active span capturing and continuation for Pekko's async scheduled tasks. */
 @AutoService(InstrumenterModule.class)
 public class PekkoSchedulerInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public PekkoSchedulerInstrumentation() {
-    super("java_concurrent", "pekko_concurrent", "pekko_scheduler");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return InstrumenterConfig.get().isPekkoSchedulerEnabled();
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(Runnable.class.getName(), State.class.getName());
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.apache.pekko.actor.LightArrayRevolverScheduler";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(nameEndsWith("schedule"))
-            .and(takesArgument(0, named("scala.concurrent.ExecutionContext")))
-            .and(takesArgument(1, Runnable.class))
-            .and(takesArgument(2, named("scala.concurrent.duration.FiniteDuration"))),
-        getClass().getName() + "$Schedule");
-  }
-
-  public static final class Schedule {
-    @Advice.OnMethodEnter
-    public static void schedule(@Advice.Argument(1) Runnable runnable) {
-      capture(InstrumentationContext.get(Runnable.class, State.class), runnable);
+    public PekkoSchedulerInstrumentation() {
+        super("java_concurrent", "pekko_concurrent", "pekko_scheduler");
     }
-  }
+
+    @Override
+    protected boolean defaultEnabled() {
+        return InstrumenterConfig.get().isPekkoSchedulerEnabled();
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap(Runnable.class.getName(), State.class.getName());
+    }
+
+    @Override
+    public String instrumentedType() {
+        return "org.apache.pekko.actor.LightArrayRevolverScheduler";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(nameEndsWith("schedule"))
+                        .and(takesArgument(0, named("scala.concurrent.ExecutionContext")))
+                        .and(takesArgument(1, Runnable.class))
+                        .and(takesArgument(2, named("scala.concurrent.duration.FiniteDuration"))),
+                getClass().getName() + "$Schedule");
+    }
+
+    public static final class Schedule {
+        @Advice.OnMethodEnter
+        public static void schedule(@Advice.Argument(1) Runnable runnable) {
+            capture(InstrumentationContext.get(Runnable.class, State.class), runnable);
+        }
+    }
 }

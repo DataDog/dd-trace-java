@@ -9,32 +9,32 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class InternalTypesClassLoaderInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  private static final String INTERNAL_TYPES_CLASSLOADER_NAME =
-      "org.drools.wiring.dynamic.DynamicProjectClassLoader$DefaultInternalTypesClassLoader";
+    private static final String INTERNAL_TYPES_CLASSLOADER_NAME =
+            "org.drools.wiring.dynamic.DynamicProjectClassLoader$DefaultInternalTypesClassLoader";
 
-  public InternalTypesClassLoaderInstrumentation() {
-    super("drools-test");
-  }
+    public InternalTypesClassLoaderInstrumentation() {
+        super("drools-test");
+    }
 
-  @Override
-  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return new ElementMatcher.Junction.ForNonNullValues<ClassLoader>() {
-      @Override
-      protected boolean doMatch(ClassLoader loader) {
-        return INTERNAL_TYPES_CLASSLOADER_NAME.equals(loader.getClass().getName());
-      }
-    };
-  }
+    @Override
+    public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+        return new ElementMatcher.Junction.ForNonNullValues<ClassLoader>() {
+            @Override
+            protected boolean doMatch(ClassLoader loader) {
+                return INTERNAL_TYPES_CLASSLOADER_NAME.equals(loader.getClass().getName());
+            }
+        };
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "example.GeneratedFact";
-  }
+    @Override
+    public String instrumentedType() {
+        return "example.GeneratedFact";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), "test.ConstructorAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor(), "test.ConstructorAdvice");
+    }
 }

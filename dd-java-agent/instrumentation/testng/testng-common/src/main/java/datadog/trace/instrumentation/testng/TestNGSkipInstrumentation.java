@@ -19,63 +19,61 @@ import org.testng.annotations.DataProvider;
 
 @AutoService(InstrumenterModule.class)
 public class TestNGSkipInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-  public TestNGSkipInstrumentation() {
-    super("testng", "testng-itr");
-  }
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+    public TestNGSkipInstrumentation() {
+        super("testng", "testng-itr");
+    }
 
-  @Override
-  public boolean isEnabled() {
-    return super.isEnabled()
-        && (Config.get().isCiVisibilityTestSkippingEnabled()
-            || Config.get().isCiVisibilityTestManagementEnabled());
-  }
+    @Override
+    public boolean isEnabled() {
+        return super.isEnabled()
+                && (Config.get().isCiVisibilityTestSkippingEnabled()
+                        || Config.get().isCiVisibilityTestManagementEnabled());
+    }
 
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "org.testng.internal.MethodInvocationHelper",
-      "org.testng.internal.invokers.MethodInvocationHelper"
-    };
-  }
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            "org.testng.internal.MethodInvocationHelper", "org.testng.internal.invokers.MethodInvocationHelper"
+        };
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("invokeMethod")
-            .and(takesArguments(3))
-            .and(takesArgument(0, Method.class))
-            .and(takesArgument(1, Object.class))
-            .and(takesArgument(2, Object[].class)),
-        TestNGSkipInstrumentation.class.getName() + "$InvokeMethodAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("invokeMethod")
+                        .and(takesArguments(3))
+                        .and(takesArgument(0, Method.class))
+                        .and(takesArgument(1, Object.class))
+                        .and(takesArgument(2, Object[].class)),
+                TestNGSkipInstrumentation.class.getName() + "$InvokeMethodAdvice");
+    }
 
-  public static class InvokeMethodAdvice {
-    @Advice.OnMethodEnter
-    public static void invokeMethod(
-        @Advice.Argument(0) final Method method,
-        @Advice.Argument(1) final Object instance,
-        @Advice.Argument(2) final Object[] parameters) {
-      TestIdentifier testIdentifier = TestNGUtils.toTestIdentifier(method, instance, parameters);
-      SkipReason skipReason =
-          TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skipReason(testIdentifier);
-      if (skipReason == null) {
-        return;
-      }
+    public static class InvokeMethodAdvice {
+        @Advice.OnMethodEnter
+        public static void invokeMethod(
+                @Advice.Argument(0) final Method method,
+                @Advice.Argument(1) final Object instance,
+                @Advice.Argument(2) final Object[] parameters) {
+            TestIdentifier testIdentifier = TestNGUtils.toTestIdentifier(method, instance, parameters);
+            SkipReason skipReason = TestEventsHandlerHolder.TEST_EVENTS_HANDLER.skipReason(testIdentifier);
+            if (skipReason == null) {
+                return;
+            }
 
-      if (skipReason == SkipReason.ITR) {
-        List<String> groups = TestNGUtils.getGroups(method);
-        if (groups.contains(CIConstants.Tags.ITR_UNSKIPPABLE_TAG)) {
-          return;
+            if (skipReason == SkipReason.ITR) {
+                List<String> groups = TestNGUtils.getGroups(method);
+                if (groups.contains(CIConstants.Tags.ITR_UNSKIPPABLE_TAG)) {
+                    return;
+                }
+            }
+
+            throw new SkipException(skipReason.getDescription());
         }
-      }
 
-      throw new SkipException(skipReason.getDescription());
+        // TestNG 6.4 and above
+        public static void muzzleCheck(final DataProvider dataProvider) {
+            dataProvider.name();
+        }
     }
-
-    // TestNG 6.4 and above
-    public static void muzzleCheck(final DataProvider dataProvider) {
-      dataProvider.name();
-    }
-  }
 }

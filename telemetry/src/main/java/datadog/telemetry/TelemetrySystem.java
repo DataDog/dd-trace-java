@@ -37,144 +37,135 @@ import org.slf4j.LoggerFactory;
 
 public class TelemetrySystem {
 
-  private static final long TELEMETRY_STOP_WAIT_MILLIS = 5000L;
-  private static final Logger log = LoggerFactory.getLogger(TelemetrySystem.class);
+    private static final long TELEMETRY_STOP_WAIT_MILLIS = 5000L;
+    private static final Logger log = LoggerFactory.getLogger(TelemetrySystem.class);
 
-  private static volatile Thread TELEMETRY_THREAD;
-  private static volatile DependencyService DEPENDENCY_SERVICE;
+    private static volatile Thread TELEMETRY_THREAD;
+    private static volatile DependencyService DEPENDENCY_SERVICE;
 
-  static DependencyService createDependencyService(Instrumentation instrumentation) {
-    if (instrumentation != null && Config.get().isTelemetryDependencyServiceEnabled()) {
-      DependencyService dependencyService = new DependencyService();
-      dependencyService.installOn(instrumentation);
-      dependencyService.schedulePeriodicResolution();
-      return dependencyService;
-    }
-    return null;
-  }
-
-  static Thread createTelemetryRunnable(
-      TelemetryService telemetryService,
-      DependencyService dependencyService,
-      boolean telemetryMetricsEnabled) {
-    DEPENDENCY_SERVICE = dependencyService;
-    List<TelemetryPeriodicAction> actions = new ArrayList<>();
-    if (telemetryMetricsEnabled) {
-      actions.add(new CoreMetricsPeriodicAction());
-      actions.add(new OtelEnvMetricPeriodicAction());
-      if (InstrumenterConfig.get().getTraceExtensionsPath() != null) {
-        actions.add(new OtelSpiMetricPeriodicAction());
-      }
-      actions.add(new ConfigInversionMetricPeriodicAction());
-      actions.add(new IntegrationPeriodicAction());
-      actions.add(new WafMetricPeriodicAction());
-      actions.add(new OtlpTelemetryPeriodicAction());
-      actions.add(new DebuggerMetricPeriodicAction());
-      if (Verbosity.OFF != Config.get().getIastTelemetryVerbosity()) {
-        actions.add(new IastMetricPeriodicAction());
-      }
-      if (Config.get().isCiVisibilityEnabled() && Config.get().isCiVisibilityTelemetryEnabled()) {
-        actions.add(new CiVisibilityMetricPeriodicAction());
-      }
-      if (Config.get().isLlmObsEnabled()) {
-        actions.add(new LLMObsMetricPeriodicAction());
-      }
-    }
-    if (null != dependencyService) {
-      if (Config.get().isAppSecScaEnabled()) {
-        // ScaReachabilityPeriodicAction takes over all dep reporting when SCA is enabled:
-        // it merges DependencyService drains with CVE registry state into one entry per dep.
-        // DependencyPeriodicAction is skipped to avoid duplicate app-dependencies-loaded entries.
-        actions.add(new ScaReachabilityPeriodicAction(dependencyService));
-      } else {
-        actions.add(new DependencyPeriodicAction(dependencyService));
-      }
-    }
-    if (Config.get().isTelemetryLogCollectionEnabled()) {
-      actions.add(new LogPeriodicAction());
-      log.debug("Telemetry log collection enabled");
-    }
-    if (InstrumenterConfig.get().isRumEnabled()) {
-      RumInjector.enableTelemetry();
-      actions.add(new RumPeriodicAction(RumInjector.getTelemetryCollector()));
-    }
-    actions.add(new ProductChangeAction());
-    if (Config.get().isApiSecurityEndpointCollectionEnabled()) {
-      actions.add(new EndpointPeriodicAction());
+    static DependencyService createDependencyService(Instrumentation instrumentation) {
+        if (instrumentation != null && Config.get().isTelemetryDependencyServiceEnabled()) {
+            DependencyService dependencyService = new DependencyService();
+            dependencyService.installOn(instrumentation);
+            dependencyService.schedulePeriodicResolution();
+            return dependencyService;
+        }
+        return null;
     }
 
-    TelemetryRunnable telemetryRunnable = new TelemetryRunnable(telemetryService, actions);
-    return AgentThreadFactory.newAgentThread(
-        AgentThreadFactory.AgentThread.TELEMETRY, telemetryRunnable);
-  }
+    static Thread createTelemetryRunnable(
+            TelemetryService telemetryService, DependencyService dependencyService, boolean telemetryMetricsEnabled) {
+        DEPENDENCY_SERVICE = dependencyService;
+        List<TelemetryPeriodicAction> actions = new ArrayList<>();
+        if (telemetryMetricsEnabled) {
+            actions.add(new CoreMetricsPeriodicAction());
+            actions.add(new OtelEnvMetricPeriodicAction());
+            if (InstrumenterConfig.get().getTraceExtensionsPath() != null) {
+                actions.add(new OtelSpiMetricPeriodicAction());
+            }
+            actions.add(new ConfigInversionMetricPeriodicAction());
+            actions.add(new IntegrationPeriodicAction());
+            actions.add(new WafMetricPeriodicAction());
+            actions.add(new OtlpTelemetryPeriodicAction());
+            actions.add(new DebuggerMetricPeriodicAction());
+            if (Verbosity.OFF != Config.get().getIastTelemetryVerbosity()) {
+                actions.add(new IastMetricPeriodicAction());
+            }
+            if (Config.get().isCiVisibilityEnabled() && Config.get().isCiVisibilityTelemetryEnabled()) {
+                actions.add(new CiVisibilityMetricPeriodicAction());
+            }
+            if (Config.get().isLlmObsEnabled()) {
+                actions.add(new LLMObsMetricPeriodicAction());
+            }
+        }
+        if (null != dependencyService) {
+            if (Config.get().isAppSecScaEnabled()) {
+                // ScaReachabilityPeriodicAction takes over all dep reporting when SCA is enabled:
+                // it merges DependencyService drains with CVE registry state into one entry per dep.
+                // DependencyPeriodicAction is skipped to avoid duplicate app-dependencies-loaded entries.
+                actions.add(new ScaReachabilityPeriodicAction(dependencyService));
+            } else {
+                actions.add(new DependencyPeriodicAction(dependencyService));
+            }
+        }
+        if (Config.get().isTelemetryLogCollectionEnabled()) {
+            actions.add(new LogPeriodicAction());
+            log.debug("Telemetry log collection enabled");
+        }
+        if (InstrumenterConfig.get().isRumEnabled()) {
+            RumInjector.enableTelemetry();
+            actions.add(new RumPeriodicAction(RumInjector.getTelemetryCollector()));
+        }
+        actions.add(new ProductChangeAction());
+        if (Config.get().isApiSecurityEndpointCollectionEnabled()) {
+            actions.add(new EndpointPeriodicAction());
+        }
 
-  /** Called by reflection (see Agent.startTelemetry) */
-  public static void startTelemetry(
-      Instrumentation instrumentation, SharedCommunicationObjects sco) {
-    Config config = Config.get();
-    boolean debug = config.isTelemetryDebugRequestsEnabled();
-    boolean telemetryMetricsEnabled = config.isTelemetryMetricsEnabled();
-
-    // CI Visibility bazel mode writes telemetry to files instead of the network
-    if (config.isCiVisibilityEnabled() && BazelMode.get().isPayloadFilesEnabled()) {
-      String telemetryDir = BazelMode.get().getTelemetryPayloadsDir();
-      log.info("[bazel mode] Writing telemetry payloads to {}", telemetryDir);
-      DependencyService dependencyService = createDependencyService(instrumentation);
-      TelemetryService telemetryService =
-          TelemetryService.buildFileBased(new FileBasedTelemetryClient(telemetryDir), debug);
-      TELEMETRY_THREAD =
-          createTelemetryRunnable(telemetryService, dependencyService, telemetryMetricsEnabled);
-      TELEMETRY_THREAD.start();
-      return;
+        TelemetryRunnable telemetryRunnable = new TelemetryRunnable(telemetryService, actions);
+        return AgentThreadFactory.newAgentThread(AgentThreadFactory.AgentThread.TELEMETRY, telemetryRunnable);
     }
 
-    sco.createRemaining(config);
-    DependencyService dependencyService = createDependencyService(instrumentation);
-    DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery = sco.featuresDiscovery(config);
+    /** Called by reflection (see Agent.startTelemetry) */
+    public static void startTelemetry(Instrumentation instrumentation, SharedCommunicationObjects sco) {
+        Config config = Config.get();
+        boolean debug = config.isTelemetryDebugRequestsEnabled();
+        boolean telemetryMetricsEnabled = config.isTelemetryMetricsEnabled();
 
-    HttpRetryPolicy.Factory httpRetryPolicy =
-        config.isCiVisibilityEnabled()
-            ? new HttpRetryPolicy.Factory(2, 100, 2.0, true)
-            : HttpRetryPolicy.Factory.NEVER_RETRY;
+        // CI Visibility bazel mode writes telemetry to files instead of the network
+        if (config.isCiVisibilityEnabled() && BazelMode.get().isPayloadFilesEnabled()) {
+            String telemetryDir = BazelMode.get().getTelemetryPayloadsDir();
+            log.info("[bazel mode] Writing telemetry payloads to {}", telemetryDir);
+            DependencyService dependencyService = createDependencyService(instrumentation);
+            TelemetryService telemetryService =
+                    TelemetryService.buildFileBased(new FileBasedTelemetryClient(telemetryDir), debug);
+            TELEMETRY_THREAD = createTelemetryRunnable(telemetryService, dependencyService, telemetryMetricsEnabled);
+            TELEMETRY_THREAD.start();
+            return;
+        }
 
-    TelemetryClient agentClient =
-        TelemetryClient.buildAgentClient(sco.agentHttpClient, sco.agentUrl, httpRetryPolicy);
-    TelemetryClient intakeClient = TelemetryClient.buildIntakeClient(config, httpRetryPolicy);
+        sco.createRemaining(config);
+        DependencyService dependencyService = createDependencyService(instrumentation);
+        DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery = sco.featuresDiscovery(config);
 
-    boolean useIntakeClientByDefault =
-        config.isCiVisibilityEnabled() && config.isCiVisibilityAgentlessEnabled();
-    TelemetryService telemetryService =
-        TelemetryService.build(
-            ddAgentFeaturesDiscovery, agentClient, intakeClient, useIntakeClientByDefault, debug);
+        HttpRetryPolicy.Factory httpRetryPolicy = config.isCiVisibilityEnabled()
+                ? new HttpRetryPolicy.Factory(2, 100, 2.0, true)
+                : HttpRetryPolicy.Factory.NEVER_RETRY;
 
-    TELEMETRY_THREAD =
-        createTelemetryRunnable(telemetryService, dependencyService, telemetryMetricsEnabled);
-    TELEMETRY_THREAD.start();
-  }
+        TelemetryClient agentClient =
+                TelemetryClient.buildAgentClient(sco.agentHttpClient, sco.agentUrl, httpRetryPolicy);
+        TelemetryClient intakeClient = TelemetryClient.buildIntakeClient(config, httpRetryPolicy);
 
-  /** Called by reflection (see Agent.stopTelemetry) */
-  public static void stop() {
-    DependencyService dependencyService = DEPENDENCY_SERVICE;
-    if (dependencyService != null) {
-      dependencyService.stop();
+        boolean useIntakeClientByDefault = config.isCiVisibilityEnabled() && config.isCiVisibilityAgentlessEnabled();
+        TelemetryService telemetryService = TelemetryService.build(
+                ddAgentFeaturesDiscovery, agentClient, intakeClient, useIntakeClientByDefault, debug);
+
+        TELEMETRY_THREAD = createTelemetryRunnable(telemetryService, dependencyService, telemetryMetricsEnabled);
+        TELEMETRY_THREAD.start();
     }
 
-    Thread telemetryThread = TELEMETRY_THREAD;
-    if (telemetryThread != null) {
-      telemetryThread.interrupt();
-      try {
-        telemetryThread.join(TELEMETRY_STOP_WAIT_MILLIS);
-      } catch (InterruptedException e) {
-        log.warn("Telemetry thread join was interrupted");
-      }
-      if (telemetryThread.isAlive()) {
-        log.warn("Telemetry thread join was not completed");
-      }
-    }
-  }
+    /** Called by reflection (see Agent.stopTelemetry) */
+    public static void stop() {
+        DependencyService dependencyService = DEPENDENCY_SERVICE;
+        if (dependencyService != null) {
+            dependencyService.stop();
+        }
 
-  @VisibleForTesting
-  static Thread getTelemetryThread() {
-    return TELEMETRY_THREAD;
-  }
+        Thread telemetryThread = TELEMETRY_THREAD;
+        if (telemetryThread != null) {
+            telemetryThread.interrupt();
+            try {
+                telemetryThread.join(TELEMETRY_STOP_WAIT_MILLIS);
+            } catch (InterruptedException e) {
+                log.warn("Telemetry thread join was interrupted");
+            }
+            if (telemetryThread.isAlive()) {
+                log.warn("Telemetry thread join was not completed");
+            }
+        }
+    }
+
+    @VisibleForTesting
+    static Thread getTelemetryThread() {
+        return TELEMETRY_THREAD;
+    }
 }

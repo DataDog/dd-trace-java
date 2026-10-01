@@ -15,34 +15,34 @@ import okhttp3.Request;
 import okhttp3.Response;
 
 public class TracingInterceptor implements Interceptor {
-  @Override
-  public Response intercept(final Chain chain) throws IOException {
-    if (DECORATE.isAgentRequest(chain.request())) {
-      return chain.proceed(chain.request());
+    @Override
+    public Response intercept(final Chain chain) throws IOException {
+        if (DECORATE.isAgentRequest(chain.request())) {
+            return chain.proceed(chain.request());
+        }
+
+        final AgentSpan span = startSpan("okhttp", OKHTTP_REQUEST);
+
+        try (final ContextScope scope = activateSpan(span)) {
+            DECORATE.afterStart(span);
+            DECORATE.onRequest(span, chain.request());
+
+            final Request.Builder requestBuilder = chain.request().newBuilder();
+            DECORATE.injectContext(current(), requestBuilder, SETTER);
+
+            final Response response;
+            try {
+                response = chain.proceed(requestBuilder.build());
+            } catch (final Exception e) {
+                DECORATE.onError(span, e);
+                throw e;
+            }
+
+            DECORATE.onResponse(span, response);
+            DECORATE.beforeFinish(span);
+            return response;
+        } finally {
+            span.finish();
+        }
     }
-
-    final AgentSpan span = startSpan("okhttp", OKHTTP_REQUEST);
-
-    try (final ContextScope scope = activateSpan(span)) {
-      DECORATE.afterStart(span);
-      DECORATE.onRequest(span, chain.request());
-
-      final Request.Builder requestBuilder = chain.request().newBuilder();
-      DECORATE.injectContext(current(), requestBuilder, SETTER);
-
-      final Response response;
-      try {
-        response = chain.proceed(requestBuilder.build());
-      } catch (final Exception e) {
-        DECORATE.onError(span, e);
-        throw e;
-      }
-
-      DECORATE.onResponse(span, response);
-      DECORATE.beforeFinish(span);
-      return response;
-    } finally {
-      span.finish();
-    }
-  }
 }

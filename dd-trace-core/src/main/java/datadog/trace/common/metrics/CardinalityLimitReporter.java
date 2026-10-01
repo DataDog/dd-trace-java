@@ -28,78 +28,76 @@ import org.slf4j.LoggerFactory;
  */
 final class CardinalityLimitReporter {
 
-  private static final Logger log = LoggerFactory.getLogger(CardinalityLimitReporter.class);
+    private static final Logger log = LoggerFactory.getLogger(CardinalityLimitReporter.class);
 
-  // Distinct blocked tag names in a window: 9 property fields + the configured peer tags + up to
-  // AdditionalTagsSchema.MAX_ADDITIONAL_TAG_KEYS + base.service, with headroom for the brief
-  // overlap
-  // of old and new peer names across a schema rebuild. Fixed capacity; the table chains on overflow
-  // rather than dropping, so an underestimate only adds chain depth on this cold path.
-  private static final int TAG_CAPACITY = 64;
+    // Distinct blocked tag names in a window: 9 property fields + the configured peer tags + up to
+    // AdditionalTagsSchema.MAX_ADDITIONAL_TAG_KEYS + base.service, with headroom for the brief
+    // overlap
+    // of old and new peer names across a schema rebuild. Fixed capacity; the table chains on overflow
+    // rather than dropping, so an underestimate only adds chain depth on this cold path.
+    private static final int TAG_CAPACITY = 64;
 
-  // Rough width of one "<tag>=<count>, " entry, used to pre-size the summary builder. Cold path, so
-  // an over-estimate just avoids a resize rather than mattering for footprint.
-  private static final int APPROX_CHARS_PER_ENTRY = 32;
+    // Rough width of one "<tag>=<count>, " entry, used to pre-size the summary builder. Cold path, so
+    // an over-estimate just avoids a resize rather than mattering for footprint.
+    private static final int APPROX_CHARS_PER_ENTRY = 32;
 
-  private final RatelimitedLogger rlLog;
-  // Tag name -> blocked count accumulated since the last emitted summary.
-  private final Hashtable.D1<String, TagBlockEntry> blockedByTag = new Hashtable.D1<>(TAG_CAPACITY);
+    private final RatelimitedLogger rlLog;
+    // Tag name -> blocked count accumulated since the last emitted summary.
+    private final Hashtable.D1<String, TagBlockEntry> blockedByTag = new Hashtable.D1<>(TAG_CAPACITY);
 
-  CardinalityLimitReporter() {
-    this(new RatelimitedLogger(log, 5, MINUTES));
-  }
-
-  CardinalityLimitReporter(RatelimitedLogger rlLog) {
-    this.rlLog = rlLog;
-  }
-
-  /** Records {@code count} values blocked for {@code tag} in the current reporting cycle. */
-  void record(String tag, long count) {
-    if (count > 0) {
-      blockedByTag.getOrCreate(tag, TagBlockEntry::new).count += count;
+    CardinalityLimitReporter() {
+        this(new RatelimitedLogger(log, 5, MINUTES));
     }
-  }
 
-  /**
-   * Emits one rate-limited summary of everything blocked since the last emitted line. While the
-   * rate limiter suppresses, counts keep accumulating; they are cleared only once a line is
-   * actually logged (keyed off {@link RatelimitedLogger#warn}'s return), so each summary reflects
-   * the whole period and nothing is dropped in between.
-   */
-  void reportIfDue() {
-    if (blockedByTag.size() == 0) {
-      return;
+    CardinalityLimitReporter(RatelimitedLogger rlLog) {
+        this.rlLog = rlLog;
     }
-    if (rlLog.warn(
-        "Metric tag cardinality limits reached; excess values reported as tracer_blocked_value."
-            + " Blocked value counts by tag: {}",
-        summarize())) {
-      blockedByTag.clear();
-    }
-  }
 
-  private String summarize() {
-    StringBuilder builder = new StringBuilder(blockedByTag.size() * APPROX_CHARS_PER_ENTRY);
-    // Non-capturing: the builder is threaded through as forEach's context argument.
-    blockedByTag.forEach(
-        builder,
-        (into, entry) -> {
-          if (into.length() > 0) {
-            into.append(", ");
-          }
-          into.append(entry.key()).append('=').append(entry.count);
+    /** Records {@code count} values blocked for {@code tag} in the current reporting cycle. */
+    void record(String tag, long count) {
+        if (count > 0) {
+            blockedByTag.getOrCreate(tag, TagBlockEntry::new).count += count;
+        }
+    }
+
+    /**
+     * Emits one rate-limited summary of everything blocked since the last emitted line. While the
+     * rate limiter suppresses, counts keep accumulating; they are cleared only once a line is
+     * actually logged (keyed off {@link RatelimitedLogger#warn}'s return), so each summary reflects
+     * the whole period and nothing is dropped in between.
+     */
+    void reportIfDue() {
+        if (blockedByTag.size() == 0) {
+            return;
+        }
+        if (rlLog.warn(
+                "Metric tag cardinality limits reached; excess values reported as tracer_blocked_value."
+                        + " Blocked value counts by tag: {}",
+                summarize())) {
+            blockedByTag.clear();
+        }
+    }
+
+    private String summarize() {
+        StringBuilder builder = new StringBuilder(blockedByTag.size() * APPROX_CHARS_PER_ENTRY);
+        // Non-capturing: the builder is threaded through as forEach's context argument.
+        blockedByTag.forEach(builder, (into, entry) -> {
+            if (into.length() > 0) {
+                into.append(", ");
+            }
+            into.append(entry.key()).append('=').append(entry.count);
         });
-    return builder.toString();
-  }
-
-  /**
-   * Single-key counter entry: the tag name (via {@link #key()}) plus its in-place-mutated count.
-   */
-  private static final class TagBlockEntry extends Hashtable.D1.Entry<String> {
-    long count;
-
-    TagBlockEntry(String tag) {
-      super(tag);
+        return builder.toString();
     }
-  }
+
+    /**
+     * Single-key counter entry: the tag name (via {@link #key()}) plus its in-place-mutated count.
+     */
+    private static final class TagBlockEntry extends Hashtable.D1.Entry<String> {
+        long count;
+
+        TagBlockEntry(String tag) {
+            super(tag);
+        }
+    }
 }

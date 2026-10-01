@@ -10,14 +10,14 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 public class TestFailedParameterized {
 
-  static List<Arguments> parameters() {
-    return Arrays.asList(() -> new Object[] {0, 0, 42}, () -> new Object[] {1, 1, 42});
-  }
+    static List<Arguments> parameters() {
+        return Arrays.asList(() -> new Object[] {0, 0, 42}, () -> new Object[] {1, 1, 42});
+    }
 
-  @ParameterizedTest
-  @MethodSource("parameters")
-  public void test_failed_parameterized(final int first, final int second, final int expectedSum) {
-    final int actualSum = first + second;
-    assertEquals(expectedSum, actualSum);
-  }
+    @ParameterizedTest
+    @MethodSource("parameters")
+    public void test_failed_parameterized(final int first, final int second, final int expectedSum) {
+        final int actualSum = first + second;
+        assertEquals(expectedSum, actualSum);
+    }
 }

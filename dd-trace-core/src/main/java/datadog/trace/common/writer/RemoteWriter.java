@@ -28,151 +28,150 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class RemoteWriter implements Writer {
 
-  private static final Logger log = LoggerFactory.getLogger(RemoteWriter.class);
+    private static final Logger log = LoggerFactory.getLogger(RemoteWriter.class);
 
-  private final RatelimitedLogger rlLog = new RatelimitedLogger(log, 1, MINUTES);
+    private final RatelimitedLogger rlLog = new RatelimitedLogger(log, 1, MINUTES);
 
-  protected final TraceProcessingWorker traceProcessingWorker;
-  private final PayloadDispatcher dispatcher;
-  private final boolean alwaysFlush;
-  private final int flushTimeout;
-  private final TimeUnit flushTimeoutUnit;
+    protected final TraceProcessingWorker traceProcessingWorker;
+    private final PayloadDispatcher dispatcher;
+    private final boolean alwaysFlush;
+    private final int flushTimeout;
+    private final TimeUnit flushTimeoutUnit;
 
-  private volatile boolean closed;
-  public final HealthMetrics healthMetrics;
+    private volatile boolean closed;
+    public final HealthMetrics healthMetrics;
 
-  protected RemoteWriter(
-      final TraceProcessingWorker traceProcessingWorker,
-      final PayloadDispatcher dispatcher,
-      final HealthMetrics healthMetrics,
-      final int flushTimeout,
-      final TimeUnit flushTimeoutUnit,
-      final boolean alwaysFlush) {
-    this.traceProcessingWorker = traceProcessingWorker;
-    this.dispatcher = dispatcher;
-    this.healthMetrics = healthMetrics;
-    this.flushTimeout = flushTimeout;
-    this.flushTimeoutUnit = flushTimeoutUnit;
-    this.alwaysFlush = alwaysFlush;
-  }
+    protected RemoteWriter(
+            final TraceProcessingWorker traceProcessingWorker,
+            final PayloadDispatcher dispatcher,
+            final HealthMetrics healthMetrics,
+            final int flushTimeout,
+            final TimeUnit flushTimeoutUnit,
+            final boolean alwaysFlush) {
+        this.traceProcessingWorker = traceProcessingWorker;
+        this.dispatcher = dispatcher;
+        this.healthMetrics = healthMetrics;
+        this.flushTimeout = flushTimeout;
+        this.flushTimeoutUnit = flushTimeoutUnit;
+        this.alwaysFlush = alwaysFlush;
+    }
 
-  protected RemoteWriter(
-      final TraceProcessingWorker traceProcessingWorker,
-      final PayloadDispatcher dispatcher,
-      final HealthMetrics healthMetrics,
-      final boolean alwaysFlush) {
-    // Default constructor with 1 second of flush timeout. Used by the DDAgentWriter.
-    this(traceProcessingWorker, dispatcher, healthMetrics, 1, TimeUnit.SECONDS, alwaysFlush);
-  }
+    protected RemoteWriter(
+            final TraceProcessingWorker traceProcessingWorker,
+            final PayloadDispatcher dispatcher,
+            final HealthMetrics healthMetrics,
+            final boolean alwaysFlush) {
+        // Default constructor with 1 second of flush timeout. Used by the DDAgentWriter.
+        this(traceProcessingWorker, dispatcher, healthMetrics, 1, TimeUnit.SECONDS, alwaysFlush);
+    }
 
-  @Override
-  public void write(final List<DDSpan> trace) {
-    if (closed) {
-      // We can't add events after shutdown otherwise it will never complete shutting down.
-      log.debug("Dropped due to shutdown: {}", trace);
-      handleDroppedTrace(trace);
-    } else {
-      if (trace.isEmpty()) {
-        log.debug("Dropped an empty trace.");
-        handleDroppedTrace(trace);
-      } else {
-        final DDSpan root = trace.get(0);
-        final int samplingPriority = root.samplingPriority();
-        switch (traceProcessingWorker.publish(root, samplingPriority, trace)) {
-          case ENQUEUED_FOR_SERIALIZATION:
-            log.debug("Enqueued for serialization: {}", trace);
-            healthMetrics.onPublish(trace, samplingPriority);
-            break;
-          case ENQUEUED_FOR_SINGLE_SPAN_SAMPLING:
-            log.debug("Enqueued for single span sampling: {}", trace);
-            break;
-          case DROPPED_BY_POLICY:
-            log.debug("Dropped by the policy: {}", trace);
+    @Override
+    public void write(final List<DDSpan> trace) {
+        if (closed) {
+            // We can't add events after shutdown otherwise it will never complete shutting down.
+            log.debug("Dropped due to shutdown: {}", trace);
             handleDroppedTrace(trace);
-            break;
-          case DROPPED_BUFFER_OVERFLOW:
-            if (log.isDebugEnabled()) {
-              log.debug("Dropped due to a buffer overflow: {}", trace);
+        } else {
+            if (trace.isEmpty()) {
+                log.debug("Dropped an empty trace.");
+                handleDroppedTrace(trace);
             } else {
-              rlLog.warn(
-                  "Dropped a kept trace due to a buffer overflow: [{} spans]."
-                      + " Traces are being produced faster than they can be sent to the agent.",
-                  trace.size());
+                final DDSpan root = trace.get(0);
+                final int samplingPriority = root.samplingPriority();
+                switch (traceProcessingWorker.publish(root, samplingPriority, trace)) {
+                    case ENQUEUED_FOR_SERIALIZATION:
+                        log.debug("Enqueued for serialization: {}", trace);
+                        healthMetrics.onPublish(trace, samplingPriority);
+                        break;
+                    case ENQUEUED_FOR_SINGLE_SPAN_SAMPLING:
+                        log.debug("Enqueued for single span sampling: {}", trace);
+                        break;
+                    case DROPPED_BY_POLICY:
+                        log.debug("Dropped by the policy: {}", trace);
+                        handleDroppedTrace(trace);
+                        break;
+                    case DROPPED_BUFFER_OVERFLOW:
+                        if (log.isDebugEnabled()) {
+                            log.debug("Dropped due to a buffer overflow: {}", trace);
+                        } else {
+                            rlLog.warn(
+                                    "Dropped a kept trace due to a buffer overflow: [{} spans]."
+                                            + " Traces are being produced faster than they can be sent to the agent.",
+                                    trace.size());
+                        }
+                        handleDroppedTrace(trace);
+                        break;
+                    case DROPPED_BUFFER_OVERFLOW_SAMPLED_OUT:
+                        // Only sampled-out traces were lost, so this is not worth alarming the user over.
+                        log.debug("Dropped a sampled-out trace due to a buffer overflow: {}", trace);
+                        handleDroppedTrace(trace);
+                        break;
+                    case DROPPED_BUFFER_OVERFLOW_SINGLE_SPAN:
+                        if (log.isDebugEnabled()) {
+                            log.debug("Dropped a single span sampling candidate due to a buffer overflow: {}", trace);
+                        } else {
+                            rlLog.warn(
+                                    "Dropped a single span sampling candidate due to a buffer overflow: [{} spans]."
+                                            + " Traces are being produced faster than they can be sent to the agent.",
+                                    trace.size());
+                        }
+                        handleDroppedTrace(trace);
+                        break;
+                }
             }
-            handleDroppedTrace(trace);
-            break;
-          case DROPPED_BUFFER_OVERFLOW_SAMPLED_OUT:
-            // Only sampled-out traces were lost, so this is not worth alarming the user over.
-            log.debug("Dropped a sampled-out trace due to a buffer overflow: {}", trace);
-            handleDroppedTrace(trace);
-            break;
-          case DROPPED_BUFFER_OVERFLOW_SINGLE_SPAN:
-            if (log.isDebugEnabled()) {
-              log.debug(
-                  "Dropped a single span sampling candidate due to a buffer overflow: {}", trace);
-            } else {
-              rlLog.warn(
-                  "Dropped a single span sampling candidate due to a buffer overflow: [{} spans]."
-                      + " Traces are being produced faster than they can be sent to the agent.",
-                  trace.size());
-            }
-            handleDroppedTrace(trace);
-            break;
         }
-      }
+        if (alwaysFlush) {
+            flush();
+        }
     }
-    if (alwaysFlush) {
-      flush();
+
+    private void handleDroppedTrace(final List<DDSpan> trace) {
+        int samplingPriority = trace.isEmpty() ? UNSET : trace.get(0).samplingPriority();
+        healthMetrics.onFailedPublish(samplingPriority, trace.size());
+        incrementDropCounts(trace.size());
     }
-  }
 
-  private void handleDroppedTrace(final List<DDSpan> trace) {
-    int samplingPriority = trace.isEmpty() ? UNSET : trace.get(0).samplingPriority();
-    healthMetrics.onFailedPublish(samplingPriority, trace.size());
-    incrementDropCounts(trace.size());
-  }
-
-  // Exposing some statistics for consumption by monitors
-  public final long getCapacity() {
-    return traceProcessingWorker.getCapacity();
-  }
-
-  @Override
-  public boolean flush() {
-    if (!closed) {
-      if (traceProcessingWorker.flush(flushTimeout, flushTimeoutUnit)) {
-        healthMetrics.onFlush(false);
-        return true;
-      }
+    // Exposing some statistics for consumption by monitors
+    public final long getCapacity() {
+        return traceProcessingWorker.getCapacity();
     }
-    return false;
-  }
 
-  @Override
-  public void start() {
-    if (!closed) {
-      traceProcessingWorker.start();
-      healthMetrics.start();
-      healthMetrics.onStart((int) getCapacity());
+    @Override
+    public boolean flush() {
+        if (!closed) {
+            if (traceProcessingWorker.flush(flushTimeout, flushTimeoutUnit)) {
+                healthMetrics.onFlush(false);
+                return true;
+            }
+        }
+        return false;
     }
-  }
 
-  @Override
-  public void close() {
-    final boolean flushed = flush();
-    closed = true;
-    traceProcessingWorker.close();
-    healthMetrics.onShutdown(flushed);
-    healthMetrics.close();
-  }
+    @Override
+    public void start() {
+        if (!closed) {
+            traceProcessingWorker.start();
+            healthMetrics.start();
+            healthMetrics.onStart((int) getCapacity());
+        }
+    }
 
-  @Override
-  public void incrementDropCounts(int spanCount) {
-    dispatcher.onDroppedTrace(spanCount);
-  }
+    @Override
+    public void close() {
+        final boolean flushed = flush();
+        closed = true;
+        traceProcessingWorker.close();
+        healthMetrics.onShutdown(flushed);
+        healthMetrics.close();
+    }
 
-  // used by tests
-  public Collection<RemoteApi> getApis() {
-    return dispatcher.getApis();
-  }
+    @Override
+    public void incrementDropCounts(int spanCount) {
+        dispatcher.onDroppedTrace(spanCount);
+    }
+
+    // used by tests
+    public Collection<RemoteApi> getApis() {
+        return dispatcher.getApis();
+    }
 }

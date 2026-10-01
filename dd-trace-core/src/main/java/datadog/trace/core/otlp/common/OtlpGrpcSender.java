@@ -17,65 +17,63 @@ import org.slf4j.LoggerFactory;
 
 /** Sends chunks of OTLP data over GRPC. */
 public final class OtlpGrpcSender implements OtlpSender {
-  private static final Logger LOGGER = LoggerFactory.getLogger(OtlpGrpcSender.class);
-  private static final RatelimitedLogger RATELIMITED_LOGGER =
-      new RatelimitedLogger(LOGGER, 5, TimeUnit.MINUTES);
+    private static final Logger LOGGER = LoggerFactory.getLogger(OtlpGrpcSender.class);
+    private static final RatelimitedLogger RATELIMITED_LOGGER = new RatelimitedLogger(LOGGER, 5, TimeUnit.MINUTES);
 
-  private final HttpRetryPolicy.Factory retryPolicy =
-      new HttpRetryPolicy.Factory(5, 100, 2.0, true);
+    private final HttpRetryPolicy.Factory retryPolicy = new HttpRetryPolicy.Factory(5, 100, 2.0, true);
 
-  private final HttpUrl url;
-  private final Map<String, String> headers;
-  private final boolean gzip;
+    private final HttpUrl url;
+    private final Map<String, String> headers;
+    private final boolean gzip;
 
-  private final OkHttpClient client;
+    private final OkHttpClient client;
 
-  public OtlpGrpcSender(
-      String endpoint,
-      String signalPath,
-      Map<String, String> headers,
-      int timeoutMillis,
-      Compression compression) {
+    public OtlpGrpcSender(
+            String endpoint,
+            String signalPath,
+            Map<String, String> headers,
+            int timeoutMillis,
+            Compression compression) {
 
-    String unixDomainSocketPath;
-    if (endpoint.startsWith("unix://")) {
-      unixDomainSocketPath = endpoint.substring(7);
-      this.url = HttpUrl.get("http://localhost:4317" + signalPath);
-    } else {
-      unixDomainSocketPath = null;
-      this.url = HttpUrl.get(endpoint + signalPath); // GRPC endpoint does not include signal path
+        String unixDomainSocketPath;
+        if (endpoint.startsWith("unix://")) {
+            unixDomainSocketPath = endpoint.substring(7);
+            this.url = HttpUrl.get("http://localhost:4317" + signalPath);
+        } else {
+            unixDomainSocketPath = null;
+            this.url = HttpUrl.get(endpoint + signalPath); // GRPC endpoint does not include signal path
+        }
+
+        this.headers = headers;
+        this.gzip = compression == Compression.GZIP;
+
+        this.client = buildHttp2Client(isPlainHttp(url), unixDomainSocketPath, null, timeoutMillis);
     }
 
-    this.headers = headers;
-    this.gzip = compression == Compression.GZIP;
-
-    this.client = buildHttp2Client(isPlainHttp(url), unixDomainSocketPath, null, timeoutMillis);
-  }
-
-  @Override
-  public RemoteApi.Response send(OtlpPayload payload) {
-    return OtlpSenderSupport.send(client, retryPolicy, makeRequest(payload), RATELIMITED_LOGGER);
-  }
-
-  @Override
-  public void shutdown() {
-    client.connectionPool().evictAll();
-  }
-
-  // only used by tests
-  public HttpUrl url() {
-    return url;
-  }
-
-  private Request makeRequest(OtlpPayload payload) {
-    Request.Builder requestBuilder = new Request.Builder().url(url);
-    if (gzip) {
-      requestBuilder.header("grpc-encoding", "gzip");
+    @Override
+    public RemoteApi.Response send(OtlpPayload payload) {
+        return OtlpSenderSupport.send(client, retryPolicy, makeRequest(payload), RATELIMITED_LOGGER);
     }
 
-    // add configured headers to the request
-    headers.forEach(requestBuilder::addHeader);
+    @Override
+    public void shutdown() {
+        client.connectionPool().evictAll();
+    }
 
-    return requestBuilder.post(new OtlpGrpcRequestBody(payload, gzip)).build();
-  }
+    // only used by tests
+    public HttpUrl url() {
+        return url;
+    }
+
+    private Request makeRequest(OtlpPayload payload) {
+        Request.Builder requestBuilder = new Request.Builder().url(url);
+        if (gzip) {
+            requestBuilder.header("grpc-encoding", "gzip");
+        }
+
+        // add configured headers to the request
+        headers.forEach(requestBuilder::addHeader);
+
+        return requestBuilder.post(new OtlpGrpcRequestBody(payload, gzip)).build();
+    }
 }

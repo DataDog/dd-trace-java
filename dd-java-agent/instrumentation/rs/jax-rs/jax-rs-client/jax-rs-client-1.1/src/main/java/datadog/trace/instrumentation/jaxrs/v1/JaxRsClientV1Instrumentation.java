@@ -31,73 +31,72 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class JaxRsClientV1Instrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public JaxRsClientV1Instrumentation() {
-    super("jax-rs", "jaxrs", "jax-rs-client");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "com.sun.jersey.api.client.ClientHandler";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvices(
-        named("handle")
-            .and(takesArgument(0, extendsClass(named("com.sun.jersey.api.client.ClientRequest"))))
-            .and(returns(extendsClass(named("com.sun.jersey.api.client.ClientResponse")))),
-        JaxRsClientV1Instrumentation.class.getName() + "$HandleAdvice",
-        JaxRsClientV1Instrumentation.class.getName() + "$HandleContextPropagationAdvice");
-  }
-
-  public static class HandleAdvice {
-
-    @Advice.OnMethodEnter
-    public static ContextScope onEnter(
-        @Advice.Argument(value = 0) final ClientRequest request,
-        @Advice.This final ClientHandler thisObj) {
-
-      // WARNING: this might be a chain...so we only have to trace the first in the chain.
-      final boolean isRootClientHandler = null == request.getProperties().get(DD_CONTEXT_ATTRIBUTE);
-      if (isRootClientHandler) {
-        final AgentSpan span = startSpan(JAX_RS_CLIENT.toString(), JAX_RS_CLIENT_CALL);
-        DECORATE.afterStart(span);
-        DECORATE.onRequest(span, request);
-        request.getProperties().put(DD_CONTEXT_ATTRIBUTE, span);
-        return activateSpan(span);
-      }
-      return null;
+    public JaxRsClientV1Instrumentation() {
+        super("jax-rs", "jaxrs", "jax-rs-client");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void onExit(
-        @Advice.Enter final ContextScope scope,
-        @Advice.Return final ClientResponse response,
-        @Advice.Thrown final Throwable throwable) {
-      if (scope == null) {
-        return;
-      }
-      final AgentSpan span = spanFromScope(scope);
-      DECORATE.onResponse(span, response);
-      DECORATE.onError(span, throwable);
-      DECORATE.beforeFinish(span);
-      scope.close();
-      span.finish();
+    @Override
+    public String hierarchyMarkerType() {
+        return "com.sun.jersey.api.client.ClientHandler";
     }
-  }
 
-  @AppliesOn(CONTEXT_TRACKING)
-  public static class HandleContextPropagationAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(@Advice.Argument(0) final ClientRequest request) {
-      DECORATE.injectContext(currentContext(), request.getHeaders(), SETTER);
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvices(
+                named("handle")
+                        .and(takesArgument(0, extendsClass(named("com.sun.jersey.api.client.ClientRequest"))))
+                        .and(returns(extendsClass(named("com.sun.jersey.api.client.ClientResponse")))),
+                JaxRsClientV1Instrumentation.class.getName() + "$HandleAdvice",
+                JaxRsClientV1Instrumentation.class.getName() + "$HandleContextPropagationAdvice");
+    }
+
+    public static class HandleAdvice {
+
+        @Advice.OnMethodEnter
+        public static ContextScope onEnter(
+                @Advice.Argument(value = 0) final ClientRequest request, @Advice.This final ClientHandler thisObj) {
+
+            // WARNING: this might be a chain...so we only have to trace the first in the chain.
+            final boolean isRootClientHandler = null == request.getProperties().get(DD_CONTEXT_ATTRIBUTE);
+            if (isRootClientHandler) {
+                final AgentSpan span = startSpan(JAX_RS_CLIENT.toString(), JAX_RS_CLIENT_CALL);
+                DECORATE.afterStart(span);
+                DECORATE.onRequest(span, request);
+                request.getProperties().put(DD_CONTEXT_ATTRIBUTE, span);
+                return activateSpan(span);
+            }
+            return null;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void onExit(
+                @Advice.Enter final ContextScope scope,
+                @Advice.Return final ClientResponse response,
+                @Advice.Thrown final Throwable throwable) {
+            if (scope == null) {
+                return;
+            }
+            final AgentSpan span = spanFromScope(scope);
+            DECORATE.onResponse(span, response);
+            DECORATE.onError(span, throwable);
+            DECORATE.beforeFinish(span);
+            scope.close();
+            span.finish();
+        }
+    }
+
+    @AppliesOn(CONTEXT_TRACKING)
+    public static class HandleContextPropagationAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter(@Advice.Argument(0) final ClientRequest request) {
+            DECORATE.injectContext(currentContext(), request.getHeaders(), SETTER);
+        }
+    }
 }

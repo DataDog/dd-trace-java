@@ -15,48 +15,45 @@ import java.util.Map;
 import java.util.Set;
 
 public class CollectionExpressionHelper {
-  public static void checkSupportedMap(MapValue map, Expression<?> expression) {
-    Map<?, ?> mapHolder = (Map<?, ?>) map.getMapHolder();
-    if (!WellKnownClasses.isSafe(mapHolder)) {
-      throw new EvaluationException(
-          "Unsupported Map class: " + mapHolder.getClass().getTypeName(), print(expression));
+    public static void checkSupportedMap(MapValue map, Expression<?> expression) {
+        Map<?, ?> mapHolder = (Map<?, ?>) map.getMapHolder();
+        if (!WellKnownClasses.isSafe(mapHolder)) {
+            throw new EvaluationException(
+                    "Unsupported Map class: " + mapHolder.getClass().getTypeName(), print(expression));
+        }
     }
-  }
 
-  public static void checkSupportedList(ListValue collection, Expression<?> expression) {
-    Object holder = collection.getValue();
-    if (holder instanceof List) {
-      if (!WellKnownClasses.isSafe((List<?>) holder)) {
-        throw new EvaluationException(
-            "Unsupported List class: " + holder.getClass().getTypeName(), print(expression));
-      }
+    public static void checkSupportedList(ListValue collection, Expression<?> expression) {
+        Object holder = collection.getValue();
+        if (holder instanceof List) {
+            if (!WellKnownClasses.isSafe((List<?>) holder)) {
+                throw new EvaluationException(
+                        "Unsupported List class: " + holder.getClass().getTypeName(), print(expression));
+            }
+        }
     }
-  }
 
-  public static Value<?> evaluateTargetCollection(
-      ValueExpression<?> collectionTarget, Expression<?> expression, EvalContext evalContext) {
-    if (collectionTarget == null) {
-      throw new EvaluationException(
-          "Cannot evaluate the expression for null value", print(expression));
+    public static Value<?> evaluateTargetCollection(
+            ValueExpression<?> collectionTarget, Expression<?> expression, EvalContext evalContext) {
+        if (collectionTarget == null) {
+            throw new EvaluationException("Cannot evaluate the expression for null value", print(expression));
+        }
+        Value<?> value = collectionTarget.evaluate(evalContext);
+        if (value.isUndefined()) {
+            throw new EvaluationException("Cannot evaluate the expression for undefined value", print(expression));
+        }
+        if (value.isNull()) {
+            throw new EvaluationException("Cannot evaluate the expression for null value", print(expression));
+        }
+        return value;
     }
-    Value<?> value = collectionTarget.evaluate(evalContext);
-    if (value.isUndefined()) {
-      throw new EvaluationException(
-          "Cannot evaluate the expression for undefined value", print(expression));
-    }
-    if (value.isNull()) {
-      throw new EvaluationException(
-          "Cannot evaluate the expression for null value", print(expression));
-    }
-    return value;
-  }
 
-  public static Set<?> checkSupportedSet(SetValue set, Expression<?> expression) {
-    Set<?> setHolder = (Set<?>) set.getSetHolder();
-    if (!WellKnownClasses.isSafe(setHolder)) {
-      throw new EvaluationException(
-          "Unsupported Set class: " + setHolder.getClass().getTypeName(), print(expression));
+    public static Set<?> checkSupportedSet(SetValue set, Expression<?> expression) {
+        Set<?> setHolder = (Set<?>) set.getSetHolder();
+        if (!WellKnownClasses.isSafe(setHolder)) {
+            throw new EvaluationException(
+                    "Unsupported Set class: " + setHolder.getClass().getTypeName(), print(expression));
+        }
+        return setHolder;
     }
-    return setHolder;
-  }
 }

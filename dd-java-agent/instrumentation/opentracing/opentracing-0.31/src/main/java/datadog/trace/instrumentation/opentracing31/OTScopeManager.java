@@ -13,93 +13,90 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class OTScopeManager implements ScopeManager {
-  static final Logger log = LoggerFactory.getLogger(OTScopeManager.class);
+    static final Logger log = LoggerFactory.getLogger(OTScopeManager.class);
 
-  private final TypeConverter converter;
-  private final AgentTracer.TracerAPI tracer;
-
-  public OTScopeManager(final AgentTracer.TracerAPI tracer, final TypeConverter converter) {
-    this.tracer = tracer;
-    this.converter = converter;
-  }
-
-  @Override
-  public Scope activate(final Span span, final boolean finishSpanOnClose) {
-    if (null == span) {
-      return null;
-    }
-
-    final AgentSpan agentSpan = converter.toAgentSpan(span);
-    final ContextScope agentScope = tracer.activateManualSpan(agentSpan);
-
-    return converter.toScope(agentScope, finishSpanOnClose);
-  }
-
-  @Deprecated
-  @Override
-  public Scope active() {
-    AgentSpan agentSpan = tracer.activeSpan();
-    if (null == agentSpan) {
-      return null;
-    }
-    // WARNING... Making an assumption about finishSpanOnClose
-    return new OTScope(new FakeScope(agentSpan), false, converter);
-  }
-
-  static class OTScope implements Scope, TraceScope {
-    private final ContextScope delegate;
-    private final boolean finishSpanOnClose;
     private final TypeConverter converter;
+    private final AgentTracer.TracerAPI tracer;
 
-    OTScope(
-        final ContextScope delegate,
-        final boolean finishSpanOnClose,
-        final TypeConverter converter) {
-      this.delegate = delegate;
-      this.finishSpanOnClose = finishSpanOnClose;
-      this.converter = converter;
+    public OTScopeManager(final AgentTracer.TracerAPI tracer, final TypeConverter converter) {
+        this.tracer = tracer;
+        this.converter = converter;
     }
 
     @Override
-    public void close() {
-      delegate.close();
+    public Scope activate(final Span span, final boolean finishSpanOnClose) {
+        if (null == span) {
+            return null;
+        }
 
-      if (finishSpanOnClose) {
-        AgentSpan.fromScope(delegate).finish();
-      }
+        final AgentSpan agentSpan = converter.toAgentSpan(span);
+        final ContextScope agentScope = tracer.activateManualSpan(agentSpan);
+
+        return converter.toScope(agentScope, finishSpanOnClose);
     }
 
+    @Deprecated
     @Override
-    public Span span() {
-      return converter.toSpan(AgentSpan.fromScope(delegate));
+    public Scope active() {
+        AgentSpan agentSpan = tracer.activeSpan();
+        if (null == agentSpan) {
+            return null;
+        }
+        // WARNING... Making an assumption about finishSpanOnClose
+        return new OTScope(new FakeScope(agentSpan), false, converter);
     }
 
-    public boolean isFinishSpanOnClose() {
-      return finishSpanOnClose;
-    }
-  }
+    static class OTScope implements Scope, TraceScope {
+        private final ContextScope delegate;
+        private final boolean finishSpanOnClose;
+        private final TypeConverter converter;
 
-  private final class FakeScope implements ContextScope {
-    private final AgentSpan agentSpan;
+        OTScope(final ContextScope delegate, final boolean finishSpanOnClose, final TypeConverter converter) {
+            this.delegate = delegate;
+            this.finishSpanOnClose = finishSpanOnClose;
+            this.converter = converter;
+        }
 
-    FakeScope(AgentSpan agentSpan) {
-      this.agentSpan = agentSpan;
+        @Override
+        public void close() {
+            delegate.close();
+
+            if (finishSpanOnClose) {
+                AgentSpan.fromScope(delegate).finish();
+            }
+        }
+
+        @Override
+        public Span span() {
+            return converter.toSpan(AgentSpan.fromScope(delegate));
+        }
+
+        public boolean isFinishSpanOnClose() {
+            return finishSpanOnClose;
+        }
     }
 
-    @Override
-    public Context context() {
-      return agentSpan;
-    }
+    private final class FakeScope implements ContextScope {
+        private final AgentSpan agentSpan;
 
-    @Override
-    public void close() {
-      if (agentSpan == tracer.activeSpan()) {
-        tracer.closeActive();
-      } else if (Config.get().isScopeStrictMode()) {
-        throw new RuntimeException("Tried to close " + agentSpan + " scope when not on top");
-      } else {
-        log.warn("Tried to close {} scope when not on top", agentSpan);
-      }
+        FakeScope(AgentSpan agentSpan) {
+            this.agentSpan = agentSpan;
+        }
+
+        @Override
+        public Context context() {
+            return agentSpan;
+        }
+
+        @Override
+        public void close() {
+            if (agentSpan == tracer.activeSpan()) {
+                tracer.closeActive();
+            } else if (Config.get().isScopeStrictMode()) {
+                throw new RuntimeException("Tried to close " + agentSpan + " scope when not on top");
+            } else {
+                log.warn("Tried to close {} scope when not on top", agentSpan);
+            }
+        }
     }
-  }
 }

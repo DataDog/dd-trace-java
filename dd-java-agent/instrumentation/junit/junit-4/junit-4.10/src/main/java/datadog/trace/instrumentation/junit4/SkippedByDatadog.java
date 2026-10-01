@@ -5,19 +5,19 @@ import org.junit.Ignore;
 
 public final class SkippedByDatadog implements Ignore {
 
-  private final String description;
+    private final String description;
 
-  public SkippedByDatadog(String description) {
-    this.description = description;
-  }
+    public SkippedByDatadog(String description) {
+        this.description = description;
+    }
 
-  @Override
-  public String value() {
-    return description;
-  }
+    @Override
+    public String value() {
+        return description;
+    }
 
-  @Override
-  public Class<? extends Annotation> annotationType() {
-    return Ignore.class;
-  }
+    @Override
+    public Class<? extends Annotation> annotationType() {
+        return Ignore.class;
+    }
 }

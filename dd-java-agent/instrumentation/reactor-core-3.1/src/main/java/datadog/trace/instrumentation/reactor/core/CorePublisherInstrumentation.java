@@ -21,53 +21,48 @@ import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import reactor.core.CoreSubscriber;
 
-public class CorePublisherInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+public class CorePublisherInstrumentation implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String hierarchyMarkerType() {
-    return "reactor.core.CoreSubscriber";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("reactor.core.CorePublisher")) // from 3.1.7
-        .or(
-            hasSuperType(
-                namedOneOf(
-                    "reactor.core.publisher.Mono", "reactor.core.publisher.Flux"))); // < 3.1.7
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("subscribe")
-            .and(not(isStatic()))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("reactor.core.CoreSubscriber"))),
-        getClass().getName() + "$PropagateContextSpanOnSubscribe");
-  }
-
-  public static class PropagateContextSpanOnSubscribe {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope before(
-        @Advice.This final Publisher<?> self,
-        @Advice.Argument(0) final CoreSubscriber<?> subscriber) {
-      // Hands the explicit context recorded for a context-writing subscriber to the publisher store
-      // (for the reactive-streams hand-off) and attaches it. The subscriber wrapping for
-      // context-reading operators lives in ContextReadingPublisherInstrumentation.
-      return ReactorContextBridge.captureOnSubscribe(
-          self,
-          subscriber,
-          InstrumentationContext.get(Publisher.class, HandoffContext.class),
-          InstrumentationContext.get(Subscriber.class, Context.class));
+    @Override
+    public String hierarchyMarkerType() {
+        return "reactor.core.CoreSubscriber";
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void after(@Advice.Enter final ContextScope scope) {
-      if (scope != null) {
-        scope.close();
-      }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named("reactor.core.CorePublisher")) // from 3.1.7
+                .or(hasSuperType(namedOneOf("reactor.core.publisher.Mono", "reactor.core.publisher.Flux"))); // < 3.1.7
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("subscribe")
+                        .and(not(isStatic()))
+                        .and(takesArguments(1))
+                        .and(takesArgument(0, named("reactor.core.CoreSubscriber"))),
+                getClass().getName() + "$PropagateContextSpanOnSubscribe");
+    }
+
+    public static class PropagateContextSpanOnSubscribe {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope before(
+                @Advice.This final Publisher<?> self, @Advice.Argument(0) final CoreSubscriber<?> subscriber) {
+            // Hands the explicit context recorded for a context-writing subscriber to the publisher store
+            // (for the reactive-streams hand-off) and attaches it. The subscriber wrapping for
+            // context-reading operators lives in ContextReadingPublisherInstrumentation.
+            return ReactorContextBridge.captureOnSubscribe(
+                    self,
+                    subscriber,
+                    InstrumentationContext.get(Publisher.class, HandoffContext.class),
+                    InstrumentationContext.get(Subscriber.class, Context.class));
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void after(@Advice.Enter final ContextScope scope) {
+            if (scope != null) {
+                scope.close();
+            }
+        }
+    }
 }

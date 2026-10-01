@@ -5,9 +5,9 @@ import datadog.trace.api.telemetry.OtelEnvMetricCollectorImpl;
 import javax.annotation.Nonnull;
 
 public class OtelEnvMetricPeriodicAction extends MetricPeriodicAction {
-  @Override
-  @Nonnull
-  public MetricCollector collector() {
-    return OtelEnvMetricCollectorImpl.getInstance();
-  }
+    @Override
+    @Nonnull
+    public MetricCollector collector() {
+        return OtelEnvMetricCollectorImpl.getInstance();
+    }
 }

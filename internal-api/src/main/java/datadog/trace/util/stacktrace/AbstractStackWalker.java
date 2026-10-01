@@ -5,21 +5,21 @@ import java.util.stream.Stream;
 
 public abstract class AbstractStackWalker implements StackWalker {
 
-  @Override
-  public <T> T walk(Function<Stream<StackTraceElement>, T> consumer) {
-    return doGetStack(input -> consumer.apply(doFilterStack(input)));
-  }
+    @Override
+    public <T> T walk(Function<Stream<StackTraceElement>, T> consumer) {
+        return doGetStack(input -> consumer.apply(doFilterStack(input)));
+    }
 
-  final Stream<StackTraceElement> doFilterStack(Stream<StackTraceElement> stream) {
-    return stream.filter(AbstractStackWalker::isNotDatadogTraceStackElement);
-  }
+    final Stream<StackTraceElement> doFilterStack(Stream<StackTraceElement> stream) {
+        return stream.filter(AbstractStackWalker::isNotDatadogTraceStackElement);
+    }
 
-  abstract <T> T doGetStack(Function<Stream<StackTraceElement>, T> consumer);
+    abstract <T> T doGetStack(Function<Stream<StackTraceElement>, T> consumer);
 
-  public static boolean isNotDatadogTraceStackElement(final StackTraceElement el) {
-    final String clazz = el.getClassName();
-    return !clazz.startsWith("datadog.trace.")
-        && !clazz.startsWith("com.datadog.iast.")
-        && !clazz.startsWith("com.datadog.appsec.");
-  }
+    public static boolean isNotDatadogTraceStackElement(final StackTraceElement el) {
+        final String clazz = el.getClassName();
+        return !clazz.startsWith("datadog.trace.")
+                && !clazz.startsWith("com.datadog.iast.")
+                && !clazz.startsWith("com.datadog.appsec.");
+    }
 }

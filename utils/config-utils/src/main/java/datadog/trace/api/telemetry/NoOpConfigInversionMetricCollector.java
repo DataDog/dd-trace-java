@@ -8,20 +8,18 @@ import org.slf4j.LoggerFactory;
  * is not registered during build tasks like instrumentJava.
  */
 public final class NoOpConfigInversionMetricCollector implements ConfigInversionMetricCollector {
-  private static final NoOpConfigInversionMetricCollector INSTANCE =
-      new NoOpConfigInversionMetricCollector();
+    private static final NoOpConfigInversionMetricCollector INSTANCE = new NoOpConfigInversionMetricCollector();
 
-  private static final Logger log =
-      LoggerFactory.getLogger(NoOpConfigInversionMetricCollector.class);
+    private static final Logger log = LoggerFactory.getLogger(NoOpConfigInversionMetricCollector.class);
 
-  private NoOpConfigInversionMetricCollector() {}
+    private NoOpConfigInversionMetricCollector() {}
 
-  public static NoOpConfigInversionMetricCollector getInstance() {
-    return INSTANCE;
-  }
+    public static NoOpConfigInversionMetricCollector getInstance() {
+        return INSTANCE;
+    }
 
-  @Override
-  public void setUndocumentedEnvVarMetric(String configName) {
-    log.debug("Environment variable {} is undocumented", configName);
-  }
+    @Override
+    public void setUndocumentedEnvVarMetric(String configName) {
+        log.debug("Environment variable {} is undocumented", configName);
+    }
 }

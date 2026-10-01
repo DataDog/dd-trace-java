@@ -7,25 +7,24 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 public abstract class MessagingClientDecorator extends ClientDecorator {
 
-  protected final boolean endToEndDurationsEnabled;
+    protected final boolean endToEndDurationsEnabled;
 
-  protected MessagingClientDecorator() {
-    final Config config = Config.get();
-    final String[] instrumentationNames = instrumentationNames();
-    this.endToEndDurationsEnabled =
-        instrumentationNames.length > 0
-            && config.isEndToEndDurationEnabled(endToEndDurationsDefault(), instrumentationNames);
-  }
-
-  protected boolean endToEndDurationsDefault() {
-    return false;
-  }
-
-  @Override
-  protected void doAfterStart(final AgentSpan span) {
-    if (endToEndDurationsEnabled) {
-      span.beginEndToEnd();
+    protected MessagingClientDecorator() {
+        final Config config = Config.get();
+        final String[] instrumentationNames = instrumentationNames();
+        this.endToEndDurationsEnabled = instrumentationNames.length > 0
+                && config.isEndToEndDurationEnabled(endToEndDurationsDefault(), instrumentationNames);
     }
-    super.doAfterStart(span);
-  }
+
+    protected boolean endToEndDurationsDefault() {
+        return false;
+    }
+
+    @Override
+    protected void doAfterStart(final AgentSpan span) {
+        if (endToEndDurationsEnabled) {
+            span.beginEndToEnd();
+        }
+        super.doAfterStart(span);
+    }
 }

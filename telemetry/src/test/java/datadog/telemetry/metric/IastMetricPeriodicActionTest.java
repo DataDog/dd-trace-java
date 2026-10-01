@@ -22,70 +22,70 @@ import org.mockito.ArgumentCaptor;
 
 class IastMetricPeriodicActionTest {
 
-  private static final IastMetricCollector ORIGINAL_COLLECTOR = IastMetricCollector.get();
+    private static final IastMetricCollector ORIGINAL_COLLECTOR = IastMetricCollector.get();
 
-  private final IastMetricPeriodicAction action = new IastMetricPeriodicAction();
-  private final TelemetryService telemetryService = mock(TelemetryService.class);
+    private final IastMetricPeriodicAction action = new IastMetricPeriodicAction();
+    private final TelemetryService telemetryService = mock(TelemetryService.class);
 
-  @BeforeEach
-  void setUp() {
-    IastMetricCollector.register(new IastMetricCollector());
-  }
+    @BeforeEach
+    void setUp() {
+        IastMetricCollector.register(new IastMetricCollector());
+    }
 
-  @AfterEach
-  void tearDown() {
-    IastMetricCollector.register(ORIGINAL_COLLECTOR);
-  }
+    @AfterEach
+    void tearDown() {
+        IastMetricCollector.register(ORIGINAL_COLLECTOR);
+    }
 
-  @Test
-  void testMetric() {
-    IastMetric iastMetric = IastMetric.EXECUTED_TAINTED;
-    int value = 23;
+    @Test
+    void testMetric() {
+        IastMetric iastMetric = IastMetric.EXECUTED_TAINTED;
+        int value = 23;
 
-    IastMetricCollector.add(iastMetric, value);
-    IastMetricCollector.get().prepareMetrics();
-    action.doIteration(telemetryService);
+        IastMetricCollector.add(iastMetric, value);
+        IastMetricCollector.get().prepareMetrics();
+        action.doIteration(telemetryService);
 
-    ArgumentCaptor<Metric> captor = forClass(Metric.class);
-    verify(telemetryService, times(1)).addMetric(captor.capture());
-    verifyNoMoreInteractions(telemetryService);
+        ArgumentCaptor<Metric> captor = forClass(Metric.class);
+        verify(telemetryService, times(1)).addMetric(captor.capture());
+        verifyNoMoreInteractions(telemetryService);
 
-    assertMetric(captor.getValue(), iastMetric, value, Collections.emptyList());
-  }
+        assertMetric(captor.getValue(), iastMetric, value, Collections.emptyList());
+    }
 
-  @Test
-  void testTaggedMetric() {
-    IastMetric iastMetric = IastMetric.INSTRUMENTED_SOURCE;
-    byte tag = SourceTypes.REQUEST_PARAMETER_VALUE;
-    String tagString = SourceTypes.toString(tag);
-    int value = 23;
+    @Test
+    void testTaggedMetric() {
+        IastMetric iastMetric = IastMetric.INSTRUMENTED_SOURCE;
+        byte tag = SourceTypes.REQUEST_PARAMETER_VALUE;
+        String tagString = SourceTypes.toString(tag);
+        int value = 23;
 
-    IastMetricCollector.add(iastMetric, tag, value);
-    IastMetricCollector.get().prepareMetrics();
-    action.doIteration(telemetryService);
+        IastMetricCollector.add(iastMetric, tag, value);
+        IastMetricCollector.get().prepareMetrics();
+        action.doIteration(telemetryService);
 
-    ArgumentCaptor<Metric> captor = forClass(Metric.class);
-    verify(telemetryService, times(1)).addMetric(captor.capture());
-    verifyNoMoreInteractions(telemetryService);
+        ArgumentCaptor<Metric> captor = forClass(Metric.class);
+        verify(telemetryService, times(1)).addMetric(captor.capture());
+        verifyNoMoreInteractions(telemetryService);
 
-    assertMetric(
-        captor.getValue(),
-        iastMetric,
-        value,
-        Arrays.asList(iastMetric.getTag().getName() + ":" + tagString));
-  }
+        assertMetric(
+                captor.getValue(),
+                iastMetric,
+                value,
+                Arrays.asList(iastMetric.getTag().getName() + ":" + tagString));
+    }
 
-  @Test
-  void testWithNoMetrics() {
-    action.doIteration(telemetryService);
+    @Test
+    void testWithNoMetrics() {
+        action.doIteration(telemetryService);
 
-    verifyNoMoreInteractions(telemetryService);
-  }
+        verifyNoMoreInteractions(telemetryService);
+    }
 
-  private void assertMetric(Metric metric, IastMetric iastMetric, long value, List<String> tags) {
-    assertEquals("iast", metric.getNamespace());
-    assertEquals(iastMetric.getName(), metric.getMetric());
-    assertEquals(tags, metric.getTags());
-    assertEquals(value, metric.getPoints().get(0).get(1).longValue());
-  }
+    private void assertMetric(Metric metric, IastMetric iastMetric, long value, List<String> tags) {
+        assertEquals("iast", metric.getNamespace());
+        assertEquals(iastMetric.getName(), metric.getMetric());
+        assertEquals(tags, metric.getTags());
+        assertEquals(value, metric.getPoints().get(0).get(1).longValue());
+    }
 }

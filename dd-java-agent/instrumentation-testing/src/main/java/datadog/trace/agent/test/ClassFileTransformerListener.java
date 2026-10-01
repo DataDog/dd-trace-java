@@ -15,64 +15,56 @@ import net.bytebuddy.utility.nullability.MaybeNull;
 
 public class ClassFileTransformerListener implements AgentBuilder.Listener {
 
-  final Set<String> transformedClassesNames = Sets.newConcurrentHashSet();
-  final Set<TypeDescription> transformedClassesTypes = Sets.newConcurrentHashSet();
+    final Set<String> transformedClassesNames = Sets.newConcurrentHashSet();
+    final Set<TypeDescription> transformedClassesTypes = Sets.newConcurrentHashSet();
 
-  @Override
-  public void onTransformation(
-      TypeDescription typeDescription,
-      @MaybeNull ClassLoader classLoader,
-      @MaybeNull JavaModule module,
-      boolean loaded,
-      DynamicType dynamicType) {
-    this.transformedClassesNames.add(typeDescription.getActualName());
-    this.transformedClassesTypes.add(typeDescription);
-  }
-
-  @SuppressForbidden // Allows System.out.println
-  @Override
-  public void onError(
-      String typeName,
-      ClassLoader classLoader,
-      JavaModule module,
-      boolean loaded,
-      Throwable throwable) {
-    // Incorrect* classes assert on incorrect api usage. Error expected.
-    if (typeName.startsWith("context.FieldInjectionTestInstrumentation$Incorrect")
-        && throwable.getMessage().startsWith("Incorrect Context Api Usage detected.")) {
-      return;
+    @Override
+    public void onTransformation(
+            TypeDescription typeDescription,
+            @MaybeNull ClassLoader classLoader,
+            @MaybeNull JavaModule module,
+            boolean loaded,
+            DynamicType dynamicType) {
+        this.transformedClassesNames.add(typeDescription.getActualName());
+        this.transformedClassesTypes.add(typeDescription);
     }
 
-    InstrumentationErrors.recordError(throwable);
-    System.out.println(
-        "Unexpected instrumentation error when instrumenting " + typeName + " on " + classLoader);
-    throwable.printStackTrace();
-  }
+    @SuppressForbidden // Allows System.out.println
+    @Override
+    public void onError(
+            String typeName, ClassLoader classLoader, JavaModule module, boolean loaded, Throwable throwable) {
+        // Incorrect* classes assert on incorrect api usage. Error expected.
+        if (typeName.startsWith("context.FieldInjectionTestInstrumentation$Incorrect")
+                && throwable.getMessage().startsWith("Incorrect Context Api Usage detected.")) {
+            return;
+        }
 
-  @Override
-  public void onDiscovery(
-      String typeName, ClassLoader classLoader, JavaModule module, boolean loaded) {
-    // Nothing special to do
-  }
+        InstrumentationErrors.recordError(throwable);
+        System.out.println("Unexpected instrumentation error when instrumenting " + typeName + " on " + classLoader);
+        throwable.printStackTrace();
+    }
 
-  @Override
-  public void onIgnored(
-      TypeDescription typeDescription, ClassLoader classLoader, JavaModule module, boolean loaded) {
-    // Nothing special to do
-  }
+    @Override
+    public void onDiscovery(String typeName, ClassLoader classLoader, JavaModule module, boolean loaded) {
+        // Nothing special to do
+    }
 
-  @Override
-  public void onComplete(
-      String typeName, ClassLoader classLoader, JavaModule module, boolean loaded) {
-    // Nothing special to do
-  }
+    @Override
+    public void onIgnored(TypeDescription typeDescription, ClassLoader classLoader, JavaModule module, boolean loaded) {
+        // Nothing special to do
+    }
 
-  public void verify() {
-    // Check effectively transformed classes that should have been ignored
-    assertTrue(
-        this.transformedClassesTypes.stream()
-            .map(TypeDescription::getActualName)
-            .noneMatch(GlobalIgnores::isAdditionallyIgnored),
-        "Transformed classes match global libraries ignore matcher");
-  }
+    @Override
+    public void onComplete(String typeName, ClassLoader classLoader, JavaModule module, boolean loaded) {
+        // Nothing special to do
+    }
+
+    public void verify() {
+        // Check effectively transformed classes that should have been ignored
+        assertTrue(
+                this.transformedClassesTypes.stream()
+                        .map(TypeDescription::getActualName)
+                        .noneMatch(GlobalIgnores::isAdditionallyIgnored),
+                "Transformed classes match global libraries ignore matcher");
+    }
 }

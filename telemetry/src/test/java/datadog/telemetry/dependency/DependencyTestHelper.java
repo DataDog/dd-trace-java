@@ -6,15 +6,14 @@ import java.io.File;
 
 class DependencyTestHelper {
 
-  private DependencyTestHelper() {}
+    private DependencyTestHelper() {}
 
-  static File getJar(String jarName) {
-    String path =
-        ClassLoader.getSystemClassLoader()
-            .getResource("datadog/telemetry/dependencies/" + jarName)
-            .getPath();
-    File jarFile = new File(path);
-    assertTrue(jarFile.isFile());
-    return jarFile;
-  }
+    static File getJar(String jarName) {
+        String path = ClassLoader.getSystemClassLoader()
+                .getResource("datadog/telemetry/dependencies/" + jarName)
+                .getPath();
+        File jarFile = new File(path);
+        assertTrue(jarFile.isFile());
+        return jarFile;
+    }
 }

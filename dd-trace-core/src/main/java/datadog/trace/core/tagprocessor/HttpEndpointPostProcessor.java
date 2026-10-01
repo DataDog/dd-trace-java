@@ -31,46 +31,44 @@ import org.slf4j.LoggerFactory;
  * </ul>
  */
 public class HttpEndpointPostProcessor extends TagsPostProcessor {
-  private static final Logger log = LoggerFactory.getLogger(HttpEndpointPostProcessor.class);
+    private static final Logger log = LoggerFactory.getLogger(HttpEndpointPostProcessor.class);
 
-  private final EndpointResolver endpointResolver;
+    private final EndpointResolver endpointResolver;
 
-  /** Creates a new HttpEndpointPostProcessor using the global config. */
-  public HttpEndpointPostProcessor() {
-    this(
-        new EndpointResolver(
-            datadog.trace.api.Config.get().isTraceResourceRenamingEnabled(),
-            datadog.trace.api.Config.get().isTraceResourceRenamingAlwaysSimplifiedEndpoint()));
-  }
-
-  /**
-   * Creates a new HttpEndpointPostProcessor with the given endpoint resolver.
-   *
-   * @param endpointResolver the resolver to use for endpoint inference
-   */
-  @VisibleForTesting
-  HttpEndpointPostProcessor(EndpointResolver endpointResolver) {
-    this.endpointResolver = endpointResolver;
-  }
-
-  @Override
-  public void processTags(
-      TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
-    if (!endpointResolver.isEnabled()) {
-      log.debug("EndpointResolver is not enabled, skipping HTTP endpoint post processing");
-      return;
+    /** Creates a new HttpEndpointPostProcessor using the global config. */
+    public HttpEndpointPostProcessor() {
+        this(new EndpointResolver(
+                datadog.trace.api.Config.get().isTraceResourceRenamingEnabled(),
+                datadog.trace.api.Config.get().isTraceResourceRenamingAlwaysSimplifiedEndpoint()));
     }
 
-    if (unsafeTags.getObject(HTTP_METHOD) == null) {
-      return;
+    /**
+     * Creates a new HttpEndpointPostProcessor with the given endpoint resolver.
+     *
+     * @param endpointResolver the resolver to use for endpoint inference
+     */
+    @VisibleForTesting
+    HttpEndpointPostProcessor(EndpointResolver endpointResolver) {
+        this.endpointResolver = endpointResolver;
     }
 
-    try {
-      String httpRoute = unsafeTags.getString(HTTP_ROUTE);
-      String httpUrl = unsafeTags.getString(HTTP_URL);
-      endpointResolver.resolveEndpoint(unsafeTags, httpRoute, httpUrl);
-    } catch (Throwable t) {
-      log.debug("Error processing HTTP endpoint for span {}", spanContext.getSpanId(), t);
+    @Override
+    public void processTags(TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+        if (!endpointResolver.isEnabled()) {
+            log.debug("EndpointResolver is not enabled, skipping HTTP endpoint post processing");
+            return;
+        }
+
+        if (unsafeTags.getObject(HTTP_METHOD) == null) {
+            return;
+        }
+
+        try {
+            String httpRoute = unsafeTags.getString(HTTP_ROUTE);
+            String httpUrl = unsafeTags.getString(HTTP_URL);
+            endpointResolver.resolveEndpoint(unsafeTags, httpRoute, httpUrl);
+        } catch (Throwable t) {
+            log.debug("Error processing HTTP endpoint for span {}", spanContext.getSpanId(), t);
+        }
     }
-  }
 }

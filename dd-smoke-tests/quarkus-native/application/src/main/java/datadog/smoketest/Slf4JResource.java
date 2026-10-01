@@ -13,13 +13,13 @@ import org.slf4j.LoggerFactory;
 
 @Path("/hello-slf4j")
 public class Slf4JResource {
-  Logger log = LoggerFactory.getLogger(Slf4JResource.class);
+    Logger log = LoggerFactory.getLogger(Slf4JResource.class);
 
-  @GET
-  @Produces(MediaType.TEXT_PLAIN)
-  public String hello(@DefaultValue("0") @QueryParam("id") int id) {
-    Tracer tracer = GlobalTracer.get();
-    log.debug("TT|" + tracer.getTraceId() + "|TS|" + tracer.getSpanId());
-    return "Hello " + id + "!";
-  }
+    @GET
+    @Produces(MediaType.TEXT_PLAIN)
+    public String hello(@DefaultValue("0") @QueryParam("id") int id) {
+        Tracer tracer = GlobalTracer.get();
+        log.debug("TT|" + tracer.getTraceId() + "|TS|" + tracer.getSpanId());
+        return "Hello " + id + "!";
+    }
 }

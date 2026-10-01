@@ -23,46 +23,46 @@ import org.junit.jupiter.api.Test;
 
 class AppSecInterceptorTest {
 
-  private final AgentTracer.TracerAPI originalTracer = AgentTracer.get();
+    private final AgentTracer.TracerAPI originalTracer = AgentTracer.get();
 
-  private Interceptor.Chain chain;
-  private Request request;
-  private final AppSecInterceptor interceptor = new AppSecInterceptor();
+    private Interceptor.Chain chain;
+    private Request request;
+    private final AppSecInterceptor interceptor = new AppSecInterceptor();
 
-  @BeforeEach
-  void setup() {
-    request = new Request.Builder().url("http://example.com").build();
+    @BeforeEach
+    void setup() {
+        request = new Request.Builder().url("http://example.com").build();
 
-    final RequestContext requestContext = mock(RequestContext.class);
+        final RequestContext requestContext = mock(RequestContext.class);
 
-    final AgentSpan span = mock(AgentSpan.class);
-    when(span.getRequestContext()).thenReturn(requestContext);
-    when(span.getSpanId()).thenReturn(1L);
-    when(span.getTag(Tags.HTTP_URL)).thenReturn("http://example.com");
+        final AgentSpan span = mock(AgentSpan.class);
+        when(span.getRequestContext()).thenReturn(requestContext);
+        when(span.getSpanId()).thenReturn(1L);
+        when(span.getTag(Tags.HTTP_URL)).thenReturn("http://example.com");
 
-    final AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
-    when(tracer.activeSpan()).thenReturn(span);
-    when(tracer.getCallbackProvider(any(RequestContextSlot.class)))
-        .thenReturn(CallbackProvider.CallbackProviderNoop.INSTANCE);
-    AgentTracer.forceRegister(tracer);
+        final AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
+        when(tracer.activeSpan()).thenReturn(span);
+        when(tracer.getCallbackProvider(any(RequestContextSlot.class)))
+                .thenReturn(CallbackProvider.CallbackProviderNoop.INSTANCE);
+        AgentTracer.forceRegister(tracer);
 
-    chain = mock(Interceptor.Chain.class);
-    when(chain.request()).thenReturn(request);
-  }
+        chain = mock(Interceptor.Chain.class);
+        when(chain.request()).thenReturn(request);
+    }
 
-  @AfterEach
-  void tearDown() {
-    AgentTracer.forceRegister(originalTracer);
-  }
+    @AfterEach
+    void tearDown() {
+        AgentTracer.forceRegister(originalTracer);
+    }
 
-  @Test
-  void ioExceptionFromProceedPropagatesWithoutRetry() throws IOException {
-    final IOException failure = new IOException("boom");
-    when(chain.proceed(request)).thenThrow(failure);
+    @Test
+    void ioExceptionFromProceedPropagatesWithoutRetry() throws IOException {
+        final IOException failure = new IOException("boom");
+        when(chain.proceed(request)).thenThrow(failure);
 
-    final IOException thrown = assertThrows(IOException.class, () -> interceptor.intercept(chain));
+        final IOException thrown = assertThrows(IOException.class, () -> interceptor.intercept(chain));
 
-    assertSame(failure, thrown);
-    verify(chain, times(1)).proceed(request);
-  }
+        assertSame(failure, thrown);
+        verify(chain, times(1)).proceed(request);
+    }
 }

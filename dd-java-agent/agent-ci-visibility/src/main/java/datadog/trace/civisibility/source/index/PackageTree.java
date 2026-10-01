@@ -31,123 +31,122 @@ import java.util.Map;
  */
 public class PackageTree {
 
-  private final Node root = new Node(null, "");
+    private final Node root = new Node(null, "");
 
-  private final int rootPackagesLimit;
+    private final int rootPackagesLimit;
 
-  public PackageTree(Config config) {
-    rootPackagesLimit = config.getCiVisibilityCoverageRootPackagesLimit();
-  }
-
-  void add(Path packagePath) {
-    if (packagePath.toString().isEmpty()) {
-      return;
-    }
-    root.add(packagePath.iterator());
-  }
-
-  List<String> asList() {
-    truncateIfNeeded(root);
-
-    List<String> childrenPackages = new ArrayList<>(rootPackagesLimit);
-    for (Node child : root.children.values()) {
-      child.stringify(childrenPackages, "");
-    }
-    return childrenPackages;
-  }
-
-  private void truncateIfNeeded(Node root) {
-    Deque<List<Node>> nodesByDepth = new ArrayDeque<>();
-
-    List<Node> current = Collections.singletonList(root);
-    while (!current.isEmpty()) {
-      List<Node> next = new ArrayList<>();
-      for (Node treeNode : current) {
-        next.addAll(treeNode.children.values());
-      }
-      nodesByDepth.push(current);
-      current = next;
+    public PackageTree(Config config) {
+        rootPackagesLimit = config.getCiVisibilityCoverageRootPackagesLimit();
     }
 
-    // start truncating with the deepest nodes
-    // (i.e. most specific packages names)
-    while (!nodesByDepth.isEmpty()) {
-      List<Node> nodes = nodesByDepth.pop();
-      // sorting the nodes now as leafChildren counts might have changed
-      // if their children were truncated
-      nodes.sort(Comparator.comparingInt(node -> -node.leafChildren));
-
-      for (Node node : nodes) {
-        if (root.leafChildren <= rootPackagesLimit) {
-          // stop as soon as we have truncated enough, even if it's mid-level
-          return;
-        } else {
-          node.truncate();
+    void add(Path packagePath) {
+        if (packagePath.toString().isEmpty()) {
+            return;
         }
-      }
-    }
-  }
-
-  private static final class Node {
-    private final Node parent;
-    private final String name;
-    private Map<String, Node> children = new HashMap<>();
-    private int leafChildren;
-    private boolean leaf;
-
-    private Node(Node parent, String name) {
-      this.parent = parent;
-      this.name = name;
+        root.add(packagePath.iterator());
     }
 
-    private int add(Iterator<Path> iterator) {
-      if (leaf) {
-        return 0;
+    List<String> asList() {
+        truncateIfNeeded(root);
 
-      } else if (!iterator.hasNext()) {
-        leaf = true;
-        if (leafChildren == 0) {
-          return ++leafChildren;
-        } else {
-          // what used to be a non-leaf is now a leaf,
-          // truncating children
-          int delta = 1 - leafChildren;
-          children = Collections.emptyMap();
-          leafChildren = 1;
-          return delta;
+        List<String> childrenPackages = new ArrayList<>(rootPackagesLimit);
+        for (Node child : root.children.values()) {
+            child.stringify(childrenPackages, "");
+        }
+        return childrenPackages;
+    }
+
+    private void truncateIfNeeded(Node root) {
+        Deque<List<Node>> nodesByDepth = new ArrayDeque<>();
+
+        List<Node> current = Collections.singletonList(root);
+        while (!current.isEmpty()) {
+            List<Node> next = new ArrayList<>();
+            for (Node treeNode : current) {
+                next.addAll(treeNode.children.values());
+            }
+            nodesByDepth.push(current);
+            current = next;
         }
 
-      } else {
-        Path element = iterator.next();
-        Node child =
-            children.computeIfAbsent(element.toString(), nodeName -> new Node(this, nodeName));
-        int delta = child.add(iterator);
-        leafChildren += delta;
-        return delta;
-      }
-    }
+        // start truncating with the deepest nodes
+        // (i.e. most specific packages names)
+        while (!nodesByDepth.isEmpty()) {
+            List<Node> nodes = nodesByDepth.pop();
+            // sorting the nodes now as leafChildren counts might have changed
+            // if their children were truncated
+            nodes.sort(Comparator.comparingInt(node -> -node.leafChildren));
 
-    private void truncate() {
-      children = Collections.emptyMap();
-      leaf = true;
-
-      int delta = leafChildren - 1;
-      Node current = this;
-      while (current != null) {
-        current.leafChildren -= delta;
-        current = current.parent;
-      }
-    }
-
-    private void stringify(List<String> childrenPackages, String currentPath) {
-      currentPath += name + ".";
-      if (leaf) {
-        childrenPackages.add(currentPath + "*");
-      } else {
-        for (Node child : children.values()) {
-          child.stringify(childrenPackages, currentPath);
+            for (Node node : nodes) {
+                if (root.leafChildren <= rootPackagesLimit) {
+                    // stop as soon as we have truncated enough, even if it's mid-level
+                    return;
+                } else {
+                    node.truncate();
+                }
+            }
         }
-      }
     }
-  }
+
+    private static final class Node {
+        private final Node parent;
+        private final String name;
+        private Map<String, Node> children = new HashMap<>();
+        private int leafChildren;
+        private boolean leaf;
+
+        private Node(Node parent, String name) {
+            this.parent = parent;
+            this.name = name;
+        }
+
+        private int add(Iterator<Path> iterator) {
+            if (leaf) {
+                return 0;
+
+            } else if (!iterator.hasNext()) {
+                leaf = true;
+                if (leafChildren == 0) {
+                    return ++leafChildren;
+                } else {
+                    // what used to be a non-leaf is now a leaf,
+                    // truncating children
+                    int delta = 1 - leafChildren;
+                    children = Collections.emptyMap();
+                    leafChildren = 1;
+                    return delta;
+                }
+
+            } else {
+                Path element = iterator.next();
+                Node child = children.computeIfAbsent(element.toString(), nodeName -> new Node(this, nodeName));
+                int delta = child.add(iterator);
+                leafChildren += delta;
+                return delta;
+            }
+        }
+
+        private void truncate() {
+            children = Collections.emptyMap();
+            leaf = true;
+
+            int delta = leafChildren - 1;
+            Node current = this;
+            while (current != null) {
+                current.leafChildren -= delta;
+                current = current.parent;
+            }
+        }
+
+        private void stringify(List<String> childrenPackages, String currentPath) {
+            currentPath += name + ".";
+            if (leaf) {
+                childrenPackages.add(currentPath + "*");
+            } else {
+                for (Node child : children.values()) {
+                    child.stringify(childrenPackages, currentPath);
+                }
+            }
+        }
+    }
 }

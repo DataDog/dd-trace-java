@@ -25,71 +25,68 @@ import org.mockito.MockedStatic;
 
 class OtlpSenderSupportTest {
 
-  private final OkHttpClient client = mock(OkHttpClient.class);
-  private final HttpRetryPolicy.Factory retryPolicy = HttpRetryPolicy.Factory.NEVER_RETRY;
-  private final Request request =
-      new Request.Builder().url("http://localhost:4318/v1/traces").build();
-  private final RatelimitedLogger ratelimitedLogger = mock(RatelimitedLogger.class);
+    private final OkHttpClient client = mock(OkHttpClient.class);
+    private final HttpRetryPolicy.Factory retryPolicy = HttpRetryPolicy.Factory.NEVER_RETRY;
+    private final Request request =
+            new Request.Builder().url("http://localhost:4318/v1/traces").build();
+    private final RatelimitedLogger ratelimitedLogger = mock(RatelimitedLogger.class);
 
-  @Test
-  void successfulResponseIsReturnedWithoutLogging() throws IOException {
-    Response response = responseWithCode(200);
-    try (MockedStatic<OkHttpUtils> okHttpUtils = mockStatic(OkHttpUtils.class)) {
-      okHttpUtils
-          .when(() -> OkHttpUtils.sendWithRetries(client, retryPolicy, request))
-          .thenReturn(response);
+    @Test
+    void successfulResponseIsReturnedWithoutLogging() throws IOException {
+        Response response = responseWithCode(200);
+        try (MockedStatic<OkHttpUtils> okHttpUtils = mockStatic(OkHttpUtils.class)) {
+            okHttpUtils
+                    .when(() -> OkHttpUtils.sendWithRetries(client, retryPolicy, request))
+                    .thenReturn(response);
 
-      RemoteApi.Response result =
-          OtlpSenderSupport.send(client, retryPolicy, request, ratelimitedLogger);
+            RemoteApi.Response result = OtlpSenderSupport.send(client, retryPolicy, request, ratelimitedLogger);
 
-      assertTrue(result.success());
-      assertEquals(200, result.status().getAsInt());
-      verify(ratelimitedLogger, never()).warn(any(String.class), any());
+            assertTrue(result.success());
+            assertEquals(200, result.status().getAsInt());
+            verify(ratelimitedLogger, never()).warn(any(String.class), any());
+        }
     }
-  }
 
-  @Test
-  void unsuccessfulResponseIsReturnedAndLogged() throws IOException {
-    Response response = responseWithCode(500);
-    try (MockedStatic<OkHttpUtils> okHttpUtils = mockStatic(OkHttpUtils.class)) {
-      okHttpUtils
-          .when(() -> OkHttpUtils.sendWithRetries(client, retryPolicy, request))
-          .thenReturn(response);
+    @Test
+    void unsuccessfulResponseIsReturnedAndLogged() throws IOException {
+        Response response = responseWithCode(500);
+        try (MockedStatic<OkHttpUtils> okHttpUtils = mockStatic(OkHttpUtils.class)) {
+            okHttpUtils
+                    .when(() -> OkHttpUtils.sendWithRetries(client, retryPolicy, request))
+                    .thenReturn(response);
 
-      RemoteApi.Response result =
-          OtlpSenderSupport.send(client, retryPolicy, request, ratelimitedLogger);
+            RemoteApi.Response result = OtlpSenderSupport.send(client, retryPolicy, request, ratelimitedLogger);
 
-      assertFalse(result.success());
-      assertEquals(500, result.status().getAsInt());
-      verify(ratelimitedLogger).warn(any(String.class), any(), any(), any());
+            assertFalse(result.success());
+            assertEquals(500, result.status().getAsInt());
+            verify(ratelimitedLogger).warn(any(String.class), any(), any(), any());
+        }
     }
-  }
 
-  @Test
-  void ioExceptionIsReturnedAsFailureAndLogged() throws IOException {
-    IOException exception = new IOException("boom");
-    try (MockedStatic<OkHttpUtils> okHttpUtils = mockStatic(OkHttpUtils.class)) {
-      okHttpUtils
-          .when(() -> OkHttpUtils.sendWithRetries(client, retryPolicy, request))
-          .thenThrow(exception);
+    @Test
+    void ioExceptionIsReturnedAsFailureAndLogged() throws IOException {
+        IOException exception = new IOException("boom");
+        try (MockedStatic<OkHttpUtils> okHttpUtils = mockStatic(OkHttpUtils.class)) {
+            okHttpUtils
+                    .when(() -> OkHttpUtils.sendWithRetries(client, retryPolicy, request))
+                    .thenThrow(exception);
 
-      RemoteApi.Response result =
-          OtlpSenderSupport.send(client, retryPolicy, request, ratelimitedLogger);
+            RemoteApi.Response result = OtlpSenderSupport.send(client, retryPolicy, request, ratelimitedLogger);
 
-      assertFalse(result.success());
-      assertTrue(result.exception().isPresent());
-      assertEquals(exception, result.exception().get());
-      verify(ratelimitedLogger).warn(any(String.class), any(), any());
+            assertFalse(result.success());
+            assertTrue(result.exception().isPresent());
+            assertEquals(exception, result.exception().get());
+            verify(ratelimitedLogger).warn(any(String.class), any(), any());
+        }
     }
-  }
 
-  private Response responseWithCode(int code) {
-    return new Response.Builder()
-        .request(request)
-        .protocol(Protocol.HTTP_1_1)
-        .code(code)
-        .message(code == 200 ? "OK" : "Server Error")
-        .body(ResponseBody.create(MediaType.get("text/plain"), ""))
-        .build();
-  }
+    private Response responseWithCode(int code) {
+        return new Response.Builder()
+                .request(request)
+                .protocol(Protocol.HTTP_1_1)
+                .code(code)
+                .message(code == 200 ? "OK" : "Server Error")
+                .body(ResponseBody.create(MediaType.get("text/plain"), ""))
+                .build();
+    }
 }

@@ -8,5 +8,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface FruitRepository extends PagingAndSortingRepository<Fruit, Long> {
-  Optional<Fruit> findByName(@Nonnull final String name);
+    Optional<Fruit> findByName(@Nonnull final String name);
 }

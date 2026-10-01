@@ -17,33 +17,32 @@ import org.junit.jupiter.params.provider.MethodSource;
 @Disabled("Ignore reason in class")
 public class TestSkippedClass {
 
-  @Test
-  public void test_case_skipped() {}
+    @Test
+    public void test_case_skipped() {}
 
-  @org.junit.jupiter.api.TestFactory
-  public Iterable<DynamicTest> test_factory_skipped() {
-    return Arrays.asList(
-        DynamicTest.dynamicTest("dynamic_test_succeed", () -> assertEquals(0, 0)),
-        DynamicTest.dynamicTest("dynamic_test_succeed", () -> assertEquals(2, 1 + 1)));
-  }
+    @org.junit.jupiter.api.TestFactory
+    public Iterable<DynamicTest> test_factory_skipped() {
+        return Arrays.asList(
+                DynamicTest.dynamicTest("dynamic_test_succeed", () -> assertEquals(0, 0)),
+                DynamicTest.dynamicTest("dynamic_test_succeed", () -> assertEquals(2, 1 + 1)));
+    }
 
-  @ParameterizedTest
-  @MethodSource("parameters")
-  public void test_parameterized_skipped(
-      final int first, final int second, final int expectedSum, final String message) {
-    final int actualSum = first + second;
-    assertEquals(expectedSum, actualSum);
-    assertNotNull(message);
-  }
+    @ParameterizedTest
+    @MethodSource("parameters")
+    public void test_parameterized_skipped(
+            final int first, final int second, final int expectedSum, final String message) {
+        final int actualSum = first + second;
+        assertEquals(expectedSum, actualSum);
+        assertNotNull(message);
+    }
 
-  static List<Arguments> parameters() {
-    return Arrays.asList(
-        () -> new Object[] {0, 0, "0", "some:\"parameter\""},
-        () -> new Object[] {1, 1, 2, "some:\"parameter\""});
-  }
+    static List<Arguments> parameters() {
+        return Arrays.asList(() -> new Object[] {0, 0, "0", "some:\"parameter\""}, () ->
+                new Object[] {1, 1, 2, "some:\"parameter\""});
+    }
 
-  @RepeatedTest(2)
-  public void test_repeated_skipped() {
-    assertTrue(true);
-  }
+    @RepeatedTest(2)
+    public void test_repeated_skipped() {
+        assertTrue(true);
+    }
 }

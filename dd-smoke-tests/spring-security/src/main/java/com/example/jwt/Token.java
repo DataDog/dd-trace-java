@@ -5,19 +5,19 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 public class Token {
-  Jwt token;
-  Collection<GrantedAuthority> authorities;
+    Jwt token;
+    Collection<GrantedAuthority> authorities;
 
-  public Token(Jwt token, Collection<GrantedAuthority> authorities) {
-    this.token = token;
-    this.authorities = authorities;
-  }
+    public Token(Jwt token, Collection<GrantedAuthority> authorities) {
+        this.token = token;
+        this.authorities = authorities;
+    }
 
-  public Jwt token() {
-    return token;
-  }
+    public Jwt token() {
+        return token;
+    }
 
-  public Collection<GrantedAuthority> authorities() {
-    return authorities;
-  }
+    public Collection<GrantedAuthority> authorities() {
+        return authorities;
+    }
 }

@@ -13,42 +13,41 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class DisableTracingActorInitInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public DisableTracingActorInitInstrumentation() {
-    super("akka_concurrent");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "akka.actor.ActorSystem$";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("apply"),
-        DisableTracingActorInitInstrumentation.class.getName() + "$BlockPropagation");
-  }
-
-  /**
-   * This instrumentation was added to ensure that the play 2.3 test doesn't hang on the first
-   * request. (Without this it propagates the trace into the lazy akka initialization.)
-   */
-  public static class BlockPropagation {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope enter() {
-      return activateSpan(noopSpan());
+    public DisableTracingActorInitInstrumentation() {
+        super("akka_concurrent");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(@Advice.Enter final ContextScope scope) {
-      scope.close();
+    @Override
+    public String instrumentedType() {
+        return "akka.actor.ActorSystem$";
     }
 
-    public static void muzzleCheck(final ActorSystem$ actorSystem) {
-      actorSystem.apply();
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("apply"), DisableTracingActorInitInstrumentation.class.getName() + "$BlockPropagation");
     }
-  }
+
+    /**
+     * This instrumentation was added to ensure that the play 2.3 test doesn't hang on the first
+     * request. (Without this it propagates the trace into the lazy akka initialization.)
+     */
+    public static class BlockPropagation {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope enter() {
+            return activateSpan(noopSpan());
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void exit(@Advice.Enter final ContextScope scope) {
+            scope.close();
+        }
+
+        public static void muzzleCheck(final ActorSystem$ actorSystem) {
+            actorSystem.apply();
+        }
+    }
 }

@@ -54,795 +54,760 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST_CARRIER>
-    extends ServerDecorator {
+public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST_CARRIER> extends ServerDecorator {
 
-  private static final Logger log = LoggerFactory.getLogger(HttpServerDecorator.class);
+    private static final Logger log = LoggerFactory.getLogger(HttpServerDecorator.class);
 
-  public static final String DD_CONTEXT_ATTRIBUTE = "datadog.context";
-  public static final String DD_DISPATCH_SPAN_ATTRIBUTE = "datadog.span.dispatch";
-  public static final String DD_RUM_INJECTED = "datadog.rum.injected";
-  public static final String DD_FIN_DISP_LIST_SPAN_ATTRIBUTE =
-      "datadog.span.finish_dispatch_listener";
-  public static final String DD_RESPONSE_ATTRIBUTE = "datadog.response";
-  public static final String DD_IGNORE_COMMIT_ATTRIBUTE = "datadog.commit.ignore";
+    public static final String DD_CONTEXT_ATTRIBUTE = "datadog.context";
+    public static final String DD_DISPATCH_SPAN_ATTRIBUTE = "datadog.span.dispatch";
+    public static final String DD_RUM_INJECTED = "datadog.rum.injected";
+    public static final String DD_FIN_DISP_LIST_SPAN_ATTRIBUTE = "datadog.span.finish_dispatch_listener";
+    public static final String DD_RESPONSE_ATTRIBUTE = "datadog.response";
+    public static final String DD_IGNORE_COMMIT_ATTRIBUTE = "datadog.commit.ignore";
 
-  private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
-  protected static final UTF8BytesString NOT_FOUND_RESOURCE_NAME = UTF8BytesString.create("404");
-  protected static final boolean SHOULD_SET_404_RESOURCE_NAME =
-      Config.get().isRuleEnabled("URLAsResourceNameRule")
-          && Config.get().isRuleEnabled("Status404Rule")
-          && Config.get().isRuleEnabled("Status404Decorator");
-  private static final boolean SHOULD_SET_URL_RESOURCE_NAME =
-      Config.get().isRuleEnabled("URLAsResourceNameRule");
+    private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
+    protected static final UTF8BytesString NOT_FOUND_RESOURCE_NAME = UTF8BytesString.create("404");
+    protected static final boolean SHOULD_SET_404_RESOURCE_NAME = Config.get().isRuleEnabled("URLAsResourceNameRule")
+            && Config.get().isRuleEnabled("Status404Rule")
+            && Config.get().isRuleEnabled("Status404Decorator");
+    private static final boolean SHOULD_SET_URL_RESOURCE_NAME = Config.get().isRuleEnabled("URLAsResourceNameRule");
 
-  private static final BitSet SERVER_ERROR_STATUSES = Config.get().getHttpServerErrorStatuses();
-  private static final String DEFAULT_INSTRUMENTATION_NAME = "http-server";
+    private static final BitSet SERVER_ERROR_STATUSES = Config.get().getHttpServerErrorStatuses();
+    private static final String DEFAULT_INSTRUMENTATION_NAME = "http-server";
 
-  private final boolean traceClientIpResolverEnabled =
-      Config.get().isTraceClientIpResolverEnabled();
+    private final boolean traceClientIpResolverEnabled = Config.get().isTraceClientIpResolverEnabled();
 
-  private final String primaryInstrumentationName;
+    private final String primaryInstrumentationName;
 
-  protected HttpServerDecorator() {
-    String[] instrumentationNames = instrumentationNames();
-    this.primaryInstrumentationName =
-        instrumentationNames != null && instrumentationNames.length > 0
-            ? instrumentationNames[0]
-            : DEFAULT_INSTRUMENTATION_NAME;
-  }
-
-  protected final String primaryInstrumentationName() {
-    return primaryInstrumentationName;
-  }
-
-  protected abstract AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter();
-
-  protected abstract AgentPropagation.ContextVisitor<RESPONSE> responseGetter();
-
-  public abstract CharSequence spanName();
-
-  protected abstract String method(REQUEST request);
-
-  protected abstract URIDataAdapter url(REQUEST request);
-
-  protected abstract String peerHostIP(CONNECTION connection);
-
-  protected abstract int peerPort(CONNECTION connection);
-
-  protected abstract int status(RESPONSE response);
-
-  protected String getRequestHeader(REQUEST request, String key) {
-    // This method was not marked as abstract in order to avoid changing all server instrumentation
-    // at once.
-    // Instead, only ones required (by DSM specifically) have it implemented.
-    // This can change in the future.
-    return null;
-  }
-
-  protected String requestedSessionId(REQUEST request) {
-    return null;
-  }
-
-  public CharSequence operationName() {
-    return SpanNaming.instance()
-        .namingSchema()
-        .server()
-        .operationForComponent(component().toString());
-  }
-
-  @Override
-  protected CharSequence spanType() {
-    return InternalSpanTypes.HTTP_SERVER;
-  }
-
-  @Override
-  protected boolean traceAnalyticsDefault() {
-    return Config.get().isTraceAnalyticsEnabled();
-  }
-
-  // Extract this to allow for easier testing
-  protected AgentTracer.TracerAPI tracer() {
-    return AgentTracer.get();
-  }
-
-  /**
-   * Extracts context from an upstream service.
-   *
-   * @param carrier The request carrier to get the context from.
-   * @return The extracted context, {@code Context#root()} if no valid context to extract.
-   */
-  public Context extract(REQUEST_CARRIER carrier) {
-    AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
-    if (null == carrier || null == getter) {
-      return root();
+    protected HttpServerDecorator() {
+        String[] instrumentationNames = instrumentationNames();
+        this.primaryInstrumentationName = instrumentationNames != null && instrumentationNames.length > 0
+                ? instrumentationNames[0]
+                : DEFAULT_INSTRUMENTATION_NAME;
     }
-    return Propagators.defaultPropagator().extract(root(), carrier, getter);
-  }
 
-  /**
-   * Starts a span.
-   *
-   * @param carrier The request carrier.
-   * @param parentContext The parent context of the span to create.
-   * @return A new context bundling the span, child of the given parent context.
-   */
-  public Context startSpan(REQUEST_CARRIER carrier, @Nonnull Context parentContext) {
-    String instrumentationName = component().toString();
-    AgentSpanContext extracted = getExtractedSpanContext(parentContext);
-    // Call IG callbacks
-    extracted = callIGCallbackStart(extracted);
-    // Create gateway inferred span if needed
-    extracted = startInferredProxySpan(parentContext, extracted);
-    AgentSpan span =
-        tracer().startSpan(instrumentationName, spanName(), extracted).setMeasured(true);
-    // Register service-entry span with inferred proxy span (if present) so that premature
-    // finish calls from child spans (e.g., Spring MVC handler) are deferred until the
-    // service-entry span finishes (after the response status is known).
-    registerServiceEntrySpanInInferredProxy(parentContext, span);
-    // Reset service name inherited from inferred proxy parent: the inferred span uses the
-    // gateway domain name as service name, but the service-entry span should identify
-    // the application (configured DD_SERVICE), not the upstream gateway.
-    resetServiceNameIfUnderInferredProxy(parentContext, span);
-    // Apply RequestBlockingAction if any
-    Flow<Void> flow = callIGCallbackRequestHeaders(span, carrier);
-    if (flow.getAction() instanceof RequestBlockingAction) {
-      span.setRequestBlockingAction((RequestBlockingAction) flow.getAction());
+    protected final String primaryInstrumentationName() {
+        return primaryInstrumentationName;
     }
-    // Tag Datadog scan/test markers unconditionally so the API endpoint reducer
-    // can distinguish scan/test traffic from real user traffic.
-    tagSecurityTestingHeaders(span, carrier);
-    // DSM Checkpoint
-    tracer().getDataStreamsMonitoring().setCheckpoint(span, forHttpServer());
-    return parentContext.with(span);
-  }
 
-  protected void tagSecurityTestingHeaders(AgentSpan span, REQUEST_CARRIER carrier) {
-    AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
-    if (carrier == null || getter == null) {
-      return;
+    protected abstract AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter();
+
+    protected abstract AgentPropagation.ContextVisitor<RESPONSE> responseGetter();
+
+    public abstract CharSequence spanName();
+
+    protected abstract String method(REQUEST request);
+
+    protected abstract URIDataAdapter url(REQUEST request);
+
+    protected abstract String peerHostIP(CONNECTION connection);
+
+    protected abstract int peerPort(CONNECTION connection);
+
+    protected abstract int status(RESPONSE response);
+
+    protected String getRequestHeader(REQUEST request, String key) {
+        // This method was not marked as abstract in order to avoid changing all server instrumentation
+        // at once.
+        // Instead, only ones required (by DSM specifically) have it implemented.
+        // This can change in the future.
+        return null;
     }
-    getter.forEachKey(carrier, new SecurityTestingHeaderTagClassifier(span));
-  }
 
-  protected AgentSpanContext startInferredProxySpan(Context context, AgentSpanContext extracted) {
-    InferredProxySpan span;
-    if (!Config.get().isInferredProxyPropagationEnabled()
-        || (span = InferredProxySpan.fromContext(context)) == null) {
-      return extracted;
+    protected String requestedSessionId(REQUEST request) {
+        return null;
     }
-    return span.start(extracted);
-  }
 
-  private void registerServiceEntrySpanInInferredProxy(
-      Context parentContext, AgentSpan serviceEntrySpan) {
-    InferredProxySpan inferredProxy = InferredProxySpan.fromContext(parentContext);
-    if (inferredProxy != null) {
-      inferredProxy.registerServiceEntrySpan(serviceEntrySpan);
+    public CharSequence operationName() {
+        return SpanNaming.instance()
+                .namingSchema()
+                .server()
+                .operationForComponent(component().toString());
     }
-  }
 
-  private void resetServiceNameIfUnderInferredProxy(Context parentContext, AgentSpan span) {
-    if (InferredProxySpan.fromContext(parentContext) != null) {
-      span.setServiceName(Config.get().getServiceName());
+    @Override
+    protected CharSequence spanType() {
+        return InternalSpanTypes.HTTP_SERVER;
     }
-  }
 
-  private final DataStreamsTransactionTracker.TransactionSourceReader
-      DSM_TRANSACTION_SOURCE_READER =
-          (source, headerName) -> {
-            try {
-              return getRequestHeader((REQUEST) source, headerName);
-            } catch (Throwable ignored) {
-              return null;
-            }
-          };
-
-  public final void onRequest(
-      final AgentSpan span,
-      final CONNECTION connection,
-      final REQUEST request,
-      final Context parentContext) {
-    try {
-      doOnRequest(span, connection, request, parentContext);
-    } catch (BlockingException e) {
-      throw e;
-    } catch (Throwable t) {
-      log.debug("Failed to decorate span on request", t);
+    @Override
+    protected boolean traceAnalyticsDefault() {
+        return Config.get().isTraceAnalyticsEnabled();
     }
-  }
 
-  protected void doOnRequest(
-      final AgentSpan span,
-      final CONNECTION connection,
-      final REQUEST request,
-      final Context parentContext) {
-    Config config = Config.get();
+    // Extract this to allow for easier testing
+    protected AgentTracer.TracerAPI tracer() {
+        return AgentTracer.get();
+    }
 
-    if (APPSEC_ACTIVE) {
-      RequestContext requestContext = span.getRequestContext();
-      if (requestContext != null) {
-        BlockResponseFunction brf = createBlockResponseFunction(request, connection);
-        if (brf != null) {
-          requestContext.setBlockResponseFunction(brf);
+    /**
+     * Extracts context from an upstream service.
+     *
+     * @param carrier The request carrier to get the context from.
+     * @return The extracted context, {@code Context#root()} if no valid context to extract.
+     */
+    public Context extract(REQUEST_CARRIER carrier) {
+        AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
+        if (null == carrier || null == getter) {
+            return root();
         }
-      }
-      Flow<Void> flow = callIGCallbackRequestSessionId(span, request);
-      Flow.Action action = flow.getAction();
-      if (action instanceof RequestBlockingAction) {
-        span.setRequestBlockingAction((RequestBlockingAction) flow.getAction());
-      }
+        return Propagators.defaultPropagator().extract(root(), carrier, getter);
     }
 
-    AgentSpanContext.Extracted extracted = getExtractedSpanContext(parentContext);
-    // Whether to attach IP tags to all requests or not.
-    // This should be enabled if:
-    //   - DD_TRACE_CLIENT_IP_ENABLED=true, or
-    //   - DD_APPSEC_ENABLED=true (or AppSec enabled at runtime)
-    // This applies to tags:
-    //   - http.client_ip (IP resolved from proxy tags)
-    //   - network.client.ip (peer IP)
-    //   - tags with proxy header values
-    // For backwards compatibility, it does not apply to:
-    //   - peer.ipv4
-    //   - peer.ipv6
-    final boolean shouldTagIps =
-        config.isClientIpEnabled() || traceClientIpResolverEnabled && APPSEC_ACTIVE;
-    // Whether to stash IP data for later tagging or not.
-    // AI Guard requires client IP tags on the local root span when an ai_guard span is created.
-    // Resolve the IPs eagerly but do not tag the span yet; stash them on the request context so
-    // AIGuardInternal can apply them lazily, only on requests that actually create an ai_guard
-    // span.
-    final boolean shouldStashIps =
-        !shouldTagIps && traceClientIpResolverEnabled && config.isAiGuardEnabled();
-    // Whether to resolve client IP based on proxy headers or no.
-    final boolean shouldResolveIp = shouldTagIps || shouldStashIps;
-
-    if (extracted != null) {
-      if (shouldTagIps) {
-        String forwarded = extracted.getForwarded();
-        if (forwarded != null) {
-          span.setTag(Tags.HTTP_FORWARDED, forwarded);
-        }
-        String forwardedProto = extracted.getXForwardedProto();
-        if (forwardedProto != null) {
-          span.setTag(Tags.HTTP_FORWARDED_PROTO, forwardedProto);
-        }
-        String forwardedHost = extracted.getXForwardedHost();
-        if (forwardedHost != null) {
-          span.setTag(Tags.HTTP_FORWARDED_HOST, forwardedHost);
-        }
-        String forwardedIp = extracted.getXForwardedFor();
-        if (forwardedIp != null) {
-          span.setTag(Tags.HTTP_FORWARDED_IP, forwardedIp);
-        }
-        String forwardedPort = extracted.getXForwardedPort();
-        if (forwardedPort != null) {
-          span.setTag(Tags.HTTP_FORWARDED_PORT, forwardedPort);
-        }
-      }
-      String userAgent = extracted.getUserAgent();
-      if (userAgent != null) {
-        span.setTag(Tags.HTTP_USER_AGENT, userAgent);
-      }
-    }
-
-    if (request != null) {
-      String method = method(request);
-      span.setTag(Tags.HTTP_METHOD, method);
-
-      // Copy of HttpClientDecorator url handling
-      try {
-        final URIDataAdapter url = url(request);
-        if (url != null) {
-          boolean supportsRaw = url.supportsRaw();
-          boolean encoded = supportsRaw && config.isHttpServerRawResource();
-          boolean valid = url.isValid();
-          String path = encoded ? url.rawPath() : url.path();
-          if (valid) {
-            span.setTag(
-                Tags.HTTP_URL, URIUtils.lazyValidURL(url.scheme(), url.host(), url.port(), path));
-          } else if (supportsRaw) {
-            span.setTag(Tags.HTTP_URL, URIUtils.lazyInvalidUrl(url.raw()));
-          }
-          if (extracted != null && extracted.getXForwardedHost() != null) {
-            span.setTag(Tags.HTTP_HOSTNAME, extracted.getXForwardedHost());
-          } else if (url.host() != null) {
-            span.setTag(Tags.HTTP_HOSTNAME, url.host());
-          }
-
-          if (valid && config.isHttpServerTagQueryString()) {
-            String query =
-                supportsRaw && config.isHttpServerRawQueryString() ? url.rawQuery() : url.query();
-            span.setTag(DDTags.HTTP_QUERY, query);
-            span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
-          }
-          Flow<Void> flow = callIGCallbackURI(span, url, method);
-          if (flow.getAction() instanceof RequestBlockingAction) {
+    /**
+     * Starts a span.
+     *
+     * @param carrier The request carrier.
+     * @param parentContext The parent context of the span to create.
+     * @return A new context bundling the span, child of the given parent context.
+     */
+    public Context startSpan(REQUEST_CARRIER carrier, @Nonnull Context parentContext) {
+        String instrumentationName = component().toString();
+        AgentSpanContext extracted = getExtractedSpanContext(parentContext);
+        // Call IG callbacks
+        extracted = callIGCallbackStart(extracted);
+        // Create gateway inferred span if needed
+        extracted = startInferredProxySpan(parentContext, extracted);
+        AgentSpan span =
+                tracer().startSpan(instrumentationName, spanName(), extracted).setMeasured(true);
+        // Register service-entry span with inferred proxy span (if present) so that premature
+        // finish calls from child spans (e.g., Spring MVC handler) are deferred until the
+        // service-entry span finishes (after the response status is known).
+        registerServiceEntrySpanInInferredProxy(parentContext, span);
+        // Reset service name inherited from inferred proxy parent: the inferred span uses the
+        // gateway domain name as service name, but the service-entry span should identify
+        // the application (configured DD_SERVICE), not the upstream gateway.
+        resetServiceNameIfUnderInferredProxy(parentContext, span);
+        // Apply RequestBlockingAction if any
+        Flow<Void> flow = callIGCallbackRequestHeaders(span, carrier);
+        if (flow.getAction() instanceof RequestBlockingAction) {
             span.setRequestBlockingAction((RequestBlockingAction) flow.getAction());
-          }
-          if (valid && SHOULD_SET_URL_RESOURCE_NAME) {
-            HTTP_RESOURCE_DECORATOR.withServerPath(span, method, path, encoded);
-          }
-        } else if (SHOULD_SET_URL_RESOURCE_NAME) {
-          span.setResourceName(DEFAULT_RESOURCE_NAME);
         }
-      } catch (final Exception e) {
-        log.debug("Error tagging url", e);
-      }
+        // Tag Datadog scan/test markers unconditionally so the API endpoint reducer
+        // can distinguish scan/test traffic from real user traffic.
+        tagSecurityTestingHeaders(span, carrier);
+        // DSM Checkpoint
+        tracer().getDataStreamsMonitoring().setCheckpoint(span, forHttpServer());
+        return parentContext.with(span);
     }
 
-    String peerIp = null;
-    int peerPort = UNSET_PORT;
-    if (connection != null) {
-      peerIp = peerHostIP(connection);
-      peerPort = peerPort(connection);
-    }
-
-    String inferredAddressStr = null;
-    if (shouldResolveIp && extracted != null) {
-      InetAddress inferredAddress = ClientIpAddressResolver.resolve(extracted, span);
-      // the peer address should be used if:
-      // 1. the headers yield nothing, regardless of whether it is public or not
-      // 2. it is public and the headers yield a private address
-      if (peerIp != null) {
-        if (inferredAddress == null) {
-          inferredAddress = ClientIpAddressResolver.parseIpAddress(peerIp);
-        } else if (ClientIpAddressResolver.isIpAddrPrivate(inferredAddress)) {
-          InetAddress peerAddress = ClientIpAddressResolver.parseIpAddress(peerIp);
-          if (!ClientIpAddressResolver.isIpAddrPrivate(peerAddress)) {
-            inferredAddress = peerAddress;
-          }
+    protected void tagSecurityTestingHeaders(AgentSpan span, REQUEST_CARRIER carrier) {
+        AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
+        if (carrier == null || getter == null) {
+            return;
         }
-      }
-      if (inferredAddress != null) {
-        inferredAddressStr = inferredAddress.getHostAddress();
-        if (shouldTagIps) {
-          span.setTag(Tags.HTTP_CLIENT_IP, inferredAddressStr);
+        getter.forEachKey(carrier, new SecurityTestingHeaderTagClassifier(span));
+    }
+
+    protected AgentSpanContext startInferredProxySpan(Context context, AgentSpanContext extracted) {
+        InferredProxySpan span;
+        if (!Config.get().isInferredProxyPropagationEnabled()
+                || (span = InferredProxySpan.fromContext(context)) == null) {
+            return extracted;
         }
-      }
-    } else if (shouldTagIps && span.getLocalRootSpan() != span) {
-      // in this case extracted == null
-      // If there is no extracted we can't do anything but use the peer addr.
-      // Additionally, extracted == null arises on subspans for which the resolution
-      // likely already happened on the top span, so we don't need to do the resolution
-      // again. Instead, copy from the top span, should it exist
-      AgentSpan localRootSpan = span.getLocalRootSpan();
-      Object clientIp = localRootSpan.getTag(Tags.HTTP_CLIENT_IP);
-      if (clientIp != null) {
-        span.setTag(Tags.HTTP_CLIENT_IP, clientIp);
-      }
+        return span.start(extracted);
     }
 
-    if (peerIp != null) {
-      if (peerIp.indexOf(':') > 0) {
-        span.setTag(Tags.PEER_HOST_IPV6, peerIp);
-      } else {
-        span.setTag(Tags.PEER_HOST_IPV4, peerIp);
-      }
-      if (shouldTagIps) {
-        span.setTag(Tags.NETWORK_CLIENT_IP, peerIp);
-      }
-    }
-    if (shouldStashIps && (peerIp != null || inferredAddressStr != null)) {
-      RequestContext requestContext = span.getRequestContext();
-      if (requestContext != null && requestContext.getClientIpAddressData() == null) {
-        requestContext.setClientIpAddressData(new ClientIpAddressData(peerIp, inferredAddressStr));
-      }
-    }
-    setPeerPort(span, peerPort);
-    Flow<Void> flow = callIGCallbackAddressAndPort(span, peerIp, peerPort, inferredAddressStr);
-    if (flow.getAction() instanceof RequestBlockingAction) {
-      span.setRequestBlockingAction((RequestBlockingAction) flow.getAction());
-    }
-
-    AgentTracer.get()
-        .getDataStreamsMonitoring()
-        .trackTransaction(
-            span,
-            DataStreamsTransactionExtractor.Type.HTTP_IN_HEADERS,
-            request,
-            DSM_TRANSACTION_SOURCE_READER);
-  }
-
-  protected static AgentSpanContext.Extracted getExtractedSpanContext(Context parentContext) {
-    AgentSpan extractedSpan = fromContext(parentContext);
-    if (extractedSpan != null) {
-      AgentSpanContext extractedSpanContext = extractedSpan.spanContext();
-      if (extractedSpanContext instanceof AgentSpanContext.Extracted) {
-        return (AgentSpanContext.Extracted) extractedSpanContext;
-      } else {
-        log.warn("Expected AgentSpanContext.Extracted but found {}", extractedSpanContext);
-      }
-    }
-    return null;
-  }
-
-  protected BlockResponseFunction createBlockResponseFunction(
-      REQUEST request, CONNECTION connection) {
-    return null;
-  }
-
-  public final void onResponseStatus(final AgentSpan span, final int status) {
-    try {
-      doOnResponseStatus(span, status);
-    } catch (BlockingException e) {
-      throw e;
-    } catch (Throwable t) {
-      log.debug("Failed to decorate span on response status", t);
-    }
-  }
-
-  protected void doOnResponseStatus(final AgentSpan span, final int status) {
-    if (status > UNSET_STATUS) {
-      span.setHttpStatusCode(status);
-      // explicitly set here because some other decorators might already set an error without
-      // looking at the status code
-      // XXX: the logic is questionable: span.error becomes equivalent to status 5xx,
-      // even if the server chooses not to respond with 5xx to an error.
-      // Anyway, we def don't want it applied to blocked requests
-      if (!BlockingException.class.getName().equals(span.getTag("error.type"))) {
-        span.setError(SERVER_ERROR_STATUSES.get(status), ErrorPriorities.HTTP_SERVER_DECORATOR);
-      }
-    }
-
-    if (SHOULD_SET_404_RESOURCE_NAME && status == 404) {
-      span.setResourceName(NOT_FOUND_RESOURCE_NAME, ResourceNamePriorities.HTTP_404);
-    }
-  }
-
-  /**
-   * Whether AppSec should NOT be called during onResponse() for analysis of the status code and
-   * headers.
-   *
-   * <p>{@link #onResponse(AgentSpan, Object)} is usually called too late for AppSec to be able to
-   * alter the response, so for those modules where we support blocking on response this is <code>
-   * true</code> and AppSec has its own (earlier) hook point for processing the response (just
-   * before commit).
-   *
-   * @return whether AppSec analysis of the response is run separately from onResponse
-   */
-  protected boolean isAppSecOnResponseSeparate() {
-    return false;
-  }
-
-  public final void onResponse(final AgentSpan span, final RESPONSE response) {
-    try {
-      doOnResponse(span, response);
-    } catch (BlockingException e) {
-      throw e;
-    } catch (Throwable t) {
-      log.debug("Failed to decorate span on response", t);
-    }
-  }
-
-  protected void doOnResponse(final AgentSpan span, final RESPONSE response) {
-    if (response != null) {
-      final int status = status(response);
-      doOnResponseStatus(span, status);
-
-      AgentPropagation.ContextVisitor<RESPONSE> getter = responseGetter();
-      if (getter != null) {
-        ResponseHeaderTagClassifier tagger =
-            ResponseHeaderTagClassifier.create(span, traceConfig(span).getResponseHeaderTags());
-        if (tagger != null) {
-          getter.forEachKey(response, tagger);
+    private void registerServiceEntrySpanInInferredProxy(Context parentContext, AgentSpan serviceEntrySpan) {
+        InferredProxySpan inferredProxy = InferredProxySpan.fromContext(parentContext);
+        if (inferredProxy != null) {
+            inferredProxy.registerServiceEntrySpan(serviceEntrySpan);
         }
-      }
-
-      if (!isAppSecOnResponseSeparate()) {
-        callIGCallbackResponseAndHeaders(span, response, status);
-      }
-    }
-  }
-
-  private AgentSpanContext callIGCallbackStart(@Nullable final AgentSpanContext extracted) {
-    AgentTracer.TracerAPI tracer = tracer();
-    Supplier<Flow<Object>> startedCbAppSec =
-        tracer.getCallbackProvider(RequestContextSlot.APPSEC).getCallback(EVENTS.requestStarted());
-    Supplier<Flow<Object>> startedCbIast =
-        tracer.getCallbackProvider(RequestContextSlot.IAST).getCallback(EVENTS.requestStarted());
-
-    if (startedCbAppSec == null && startedCbIast == null) {
-      return extracted;
     }
 
-    TagContext tagContext = null;
-    if (extracted == null) {
-      tagContext = new TagContext();
-    } else if (extracted instanceof TagContext) {
-      tagContext = (TagContext) extracted;
+    private void resetServiceNameIfUnderInferredProxy(Context parentContext, AgentSpan span) {
+        if (InferredProxySpan.fromContext(parentContext) != null) {
+            span.setServiceName(Config.get().getServiceName());
+        }
     }
 
-    if (tagContext != null) {
-      if (startedCbAppSec != null) {
-        tagContext.withRequestContextDataAppSec(startedCbAppSec.get().getResult());
-      }
-      if (startedCbIast != null) {
-        tagContext.withRequestContextDataIast(startedCbIast.get().getResult());
-      }
-      return tagContext;
+    private final DataStreamsTransactionTracker.TransactionSourceReader DSM_TRANSACTION_SOURCE_READER =
+            (source, headerName) -> {
+                try {
+                    return getRequestHeader((REQUEST) source, headerName);
+                } catch (Throwable ignored) {
+                    return null;
+                }
+            };
+
+    public final void onRequest(
+            final AgentSpan span, final CONNECTION connection, final REQUEST request, final Context parentContext) {
+        try {
+            doOnRequest(span, connection, request, parentContext);
+        } catch (BlockingException e) {
+            throw e;
+        } catch (Throwable t) {
+            log.debug("Failed to decorate span on request", t);
+        }
     }
 
-    return extracted;
-  }
+    protected void doOnRequest(
+            final AgentSpan span, final CONNECTION connection, final REQUEST request, final Context parentContext) {
+        Config config = Config.get();
 
-  @Override
-  protected void doOnError(
-      @Nonnull final AgentSpan span, @Nonnull final Throwable throwable, byte errorPriority) {
-    if (throwable != null) {
-      span.addThrowable(
-          throwable instanceof ExecutionException ? throwable.getCause() : throwable,
-          ErrorPriorities.HTTP_SERVER_DECORATOR);
+        if (APPSEC_ACTIVE) {
+            RequestContext requestContext = span.getRequestContext();
+            if (requestContext != null) {
+                BlockResponseFunction brf = createBlockResponseFunction(request, connection);
+                if (brf != null) {
+                    requestContext.setBlockResponseFunction(brf);
+                }
+            }
+            Flow<Void> flow = callIGCallbackRequestSessionId(span, request);
+            Flow.Action action = flow.getAction();
+            if (action instanceof RequestBlockingAction) {
+                span.setRequestBlockingAction((RequestBlockingAction) flow.getAction());
+            }
+        }
+
+        AgentSpanContext.Extracted extracted = getExtractedSpanContext(parentContext);
+        // Whether to attach IP tags to all requests or not.
+        // This should be enabled if:
+        //   - DD_TRACE_CLIENT_IP_ENABLED=true, or
+        //   - DD_APPSEC_ENABLED=true (or AppSec enabled at runtime)
+        // This applies to tags:
+        //   - http.client_ip (IP resolved from proxy tags)
+        //   - network.client.ip (peer IP)
+        //   - tags with proxy header values
+        // For backwards compatibility, it does not apply to:
+        //   - peer.ipv4
+        //   - peer.ipv6
+        final boolean shouldTagIps = config.isClientIpEnabled() || traceClientIpResolverEnabled && APPSEC_ACTIVE;
+        // Whether to stash IP data for later tagging or not.
+        // AI Guard requires client IP tags on the local root span when an ai_guard span is created.
+        // Resolve the IPs eagerly but do not tag the span yet; stash them on the request context so
+        // AIGuardInternal can apply them lazily, only on requests that actually create an ai_guard
+        // span.
+        final boolean shouldStashIps = !shouldTagIps && traceClientIpResolverEnabled && config.isAiGuardEnabled();
+        // Whether to resolve client IP based on proxy headers or no.
+        final boolean shouldResolveIp = shouldTagIps || shouldStashIps;
+
+        if (extracted != null) {
+            if (shouldTagIps) {
+                String forwarded = extracted.getForwarded();
+                if (forwarded != null) {
+                    span.setTag(Tags.HTTP_FORWARDED, forwarded);
+                }
+                String forwardedProto = extracted.getXForwardedProto();
+                if (forwardedProto != null) {
+                    span.setTag(Tags.HTTP_FORWARDED_PROTO, forwardedProto);
+                }
+                String forwardedHost = extracted.getXForwardedHost();
+                if (forwardedHost != null) {
+                    span.setTag(Tags.HTTP_FORWARDED_HOST, forwardedHost);
+                }
+                String forwardedIp = extracted.getXForwardedFor();
+                if (forwardedIp != null) {
+                    span.setTag(Tags.HTTP_FORWARDED_IP, forwardedIp);
+                }
+                String forwardedPort = extracted.getXForwardedPort();
+                if (forwardedPort != null) {
+                    span.setTag(Tags.HTTP_FORWARDED_PORT, forwardedPort);
+                }
+            }
+            String userAgent = extracted.getUserAgent();
+            if (userAgent != null) {
+                span.setTag(Tags.HTTP_USER_AGENT, userAgent);
+            }
+        }
+
+        if (request != null) {
+            String method = method(request);
+            span.setTag(Tags.HTTP_METHOD, method);
+
+            // Copy of HttpClientDecorator url handling
+            try {
+                final URIDataAdapter url = url(request);
+                if (url != null) {
+                    boolean supportsRaw = url.supportsRaw();
+                    boolean encoded = supportsRaw && config.isHttpServerRawResource();
+                    boolean valid = url.isValid();
+                    String path = encoded ? url.rawPath() : url.path();
+                    if (valid) {
+                        span.setTag(Tags.HTTP_URL, URIUtils.lazyValidURL(url.scheme(), url.host(), url.port(), path));
+                    } else if (supportsRaw) {
+                        span.setTag(Tags.HTTP_URL, URIUtils.lazyInvalidUrl(url.raw()));
+                    }
+                    if (extracted != null && extracted.getXForwardedHost() != null) {
+                        span.setTag(Tags.HTTP_HOSTNAME, extracted.getXForwardedHost());
+                    } else if (url.host() != null) {
+                        span.setTag(Tags.HTTP_HOSTNAME, url.host());
+                    }
+
+                    if (valid && config.isHttpServerTagQueryString()) {
+                        String query =
+                                supportsRaw && config.isHttpServerRawQueryString() ? url.rawQuery() : url.query();
+                        span.setTag(DDTags.HTTP_QUERY, query);
+                        span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
+                    }
+                    Flow<Void> flow = callIGCallbackURI(span, url, method);
+                    if (flow.getAction() instanceof RequestBlockingAction) {
+                        span.setRequestBlockingAction((RequestBlockingAction) flow.getAction());
+                    }
+                    if (valid && SHOULD_SET_URL_RESOURCE_NAME) {
+                        HTTP_RESOURCE_DECORATOR.withServerPath(span, method, path, encoded);
+                    }
+                } else if (SHOULD_SET_URL_RESOURCE_NAME) {
+                    span.setResourceName(DEFAULT_RESOURCE_NAME);
+                }
+            } catch (final Exception e) {
+                log.debug("Error tagging url", e);
+            }
+        }
+
+        String peerIp = null;
+        int peerPort = UNSET_PORT;
+        if (connection != null) {
+            peerIp = peerHostIP(connection);
+            peerPort = peerPort(connection);
+        }
+
+        String inferredAddressStr = null;
+        if (shouldResolveIp && extracted != null) {
+            InetAddress inferredAddress = ClientIpAddressResolver.resolve(extracted, span);
+            // the peer address should be used if:
+            // 1. the headers yield nothing, regardless of whether it is public or not
+            // 2. it is public and the headers yield a private address
+            if (peerIp != null) {
+                if (inferredAddress == null) {
+                    inferredAddress = ClientIpAddressResolver.parseIpAddress(peerIp);
+                } else if (ClientIpAddressResolver.isIpAddrPrivate(inferredAddress)) {
+                    InetAddress peerAddress = ClientIpAddressResolver.parseIpAddress(peerIp);
+                    if (!ClientIpAddressResolver.isIpAddrPrivate(peerAddress)) {
+                        inferredAddress = peerAddress;
+                    }
+                }
+            }
+            if (inferredAddress != null) {
+                inferredAddressStr = inferredAddress.getHostAddress();
+                if (shouldTagIps) {
+                    span.setTag(Tags.HTTP_CLIENT_IP, inferredAddressStr);
+                }
+            }
+        } else if (shouldTagIps && span.getLocalRootSpan() != span) {
+            // in this case extracted == null
+            // If there is no extracted we can't do anything but use the peer addr.
+            // Additionally, extracted == null arises on subspans for which the resolution
+            // likely already happened on the top span, so we don't need to do the resolution
+            // again. Instead, copy from the top span, should it exist
+            AgentSpan localRootSpan = span.getLocalRootSpan();
+            Object clientIp = localRootSpan.getTag(Tags.HTTP_CLIENT_IP);
+            if (clientIp != null) {
+                span.setTag(Tags.HTTP_CLIENT_IP, clientIp);
+            }
+        }
+
+        if (peerIp != null) {
+            if (peerIp.indexOf(':') > 0) {
+                span.setTag(Tags.PEER_HOST_IPV6, peerIp);
+            } else {
+                span.setTag(Tags.PEER_HOST_IPV4, peerIp);
+            }
+            if (shouldTagIps) {
+                span.setTag(Tags.NETWORK_CLIENT_IP, peerIp);
+            }
+        }
+        if (shouldStashIps && (peerIp != null || inferredAddressStr != null)) {
+            RequestContext requestContext = span.getRequestContext();
+            if (requestContext != null && requestContext.getClientIpAddressData() == null) {
+                requestContext.setClientIpAddressData(new ClientIpAddressData(peerIp, inferredAddressStr));
+            }
+        }
+        setPeerPort(span, peerPort);
+        Flow<Void> flow = callIGCallbackAddressAndPort(span, peerIp, peerPort, inferredAddressStr);
+        if (flow.getAction() instanceof RequestBlockingAction) {
+            span.setRequestBlockingAction((RequestBlockingAction) flow.getAction());
+        }
+
+        AgentTracer.get()
+                .getDataStreamsMonitoring()
+                .trackTransaction(
+                        span,
+                        DataStreamsTransactionExtractor.Type.HTTP_IN_HEADERS,
+                        request,
+                        DSM_TRANSACTION_SOURCE_READER);
     }
-  }
 
-  private Flow<Void> callIGCallbackRequestHeaders(AgentSpan span, REQUEST_CARRIER carrier) {
-    CallbackProvider cbp = tracer().getUniversalCallbackProvider();
-    RequestContext requestContext = span.getRequestContext();
-    AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
-    if (requestContext == null || getter == null) {
-      return Flow.ResultFlow.empty();
-    }
-    if (cbp != null) {
-      IGKeyClassifier igKeyClassifier =
-          IGKeyClassifier.create(
-              requestContext,
-              cbp.getCallback(EVENTS.requestHeader()),
-              cbp.getCallback(EVENTS.requestHeaderDone()));
-      if (null != igKeyClassifier) {
-        getter.forEachKey(carrier, igKeyClassifier);
-        return igKeyClassifier.done();
-      }
-    }
-    return Flow.ResultFlow.empty();
-  }
-
-  @SuppressWarnings("UnusedReturnValue")
-  private Flow<Void> callIGCallbackRequestSessionId(final AgentSpan span, final REQUEST request) {
-    final String sessionId = requestedSessionId(request);
-    if (sessionId == null) {
-      return Flow.ResultFlow.empty();
-    }
-    final CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
-    final RequestContext requestContext = span.getRequestContext();
-    if (cbp == null || requestContext == null) {
-      return Flow.ResultFlow.empty();
-    }
-    final BiFunction<RequestContext, String, Flow<Void>> addrCallback =
-        cbp.getCallback(EVENTS.requestSession());
-    if (addrCallback == null) {
-      return Flow.ResultFlow.empty();
-    }
-    return addrCallback.apply(requestContext, sessionId);
-  }
-
-  private Flow<Void> callIGCallbackResponseAndHeaders(
-      AgentSpan span, RESPONSE carrier, int status) {
-    return callIGCallbackResponseAndHeaders(span, carrier, status, responseGetter());
-  }
-
-  public <RESP> Flow<Void> callIGCallbackResponseAndHeaders(
-      AgentSpan span,
-      RESP carrier,
-      int status,
-      AgentPropagation.ContextVisitor<RESP> contextVisitor) {
-    CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
-    RequestContext requestContext = span.getRequestContext();
-    if (cbp == null || requestContext == null) {
-      return Flow.ResultFlow.empty();
-    }
-
-    BiFunction<RequestContext, Integer, Flow<Void>> addrCallback =
-        cbp.getCallback(EVENTS.responseStarted());
-    if (null != addrCallback) {
-      addrCallback.apply(requestContext, status);
-    }
-    if (contextVisitor == null) {
-      return Flow.ResultFlow.empty();
-    }
-    IGKeyClassifier igKeyClassifier =
-        IGKeyClassifier.create(
-            requestContext,
-            cbp.getCallback(EVENTS.responseHeader()),
-            cbp.getCallback(EVENTS.responseHeaderDone()));
-    if (null != igKeyClassifier) {
-      contextVisitor.forEachKey(carrier, igKeyClassifier);
-      return igKeyClassifier.done();
-    }
-    return Flow.ResultFlow.empty();
-  }
-
-  private Flow<Void> callIGCallbackURI(
-      @Nonnull final AgentSpan span, @Nonnull final URIDataAdapter url, final String method) {
-    // TODO:appsec there must be some better way to do this?
-    CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
-    RequestContext requestContext = span.getRequestContext();
-    if (requestContext == null || cbp == null) {
-      return Flow.ResultFlow.empty();
-    }
-
-    TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> callback =
-        cbp.getCallback(EVENTS.requestMethodUriRaw());
-    if (callback != null) {
-      return callback.apply(requestContext, method, url);
-    }
-    return Flow.ResultFlow.empty();
-  }
-
-  @Override
-  protected void doBeforeFinish(@Nonnull Context context) {
-    AgentSpan span = fromContext(context);
-    if (span != null) {
-      onRequestEndForInstrumentationGateway(span);
-    }
-
-    // Close Serverless Gateway Inferred Span if any
-    finishInferredProxySpan(context);
-
-    super.doBeforeFinish(context);
-  }
-
-  protected void finishInferredProxySpan(Context context) {
-    InferredProxySpan inferredProxySpan;
-    if ((inferredProxySpan = InferredProxySpan.fromContext(context)) != null) {
-      inferredProxySpan.finish(AgentSpan.fromContext(context));
-    }
-  }
-
-  private void onRequestEndForInstrumentationGateway(@Nonnull final AgentSpan span) {
-    AgentSpan localRoot = span.getLocalRootSpan();
-
-    // Check if the local root is an inferred proxy span
-    boolean hasInferredProxyParent =
-        localRoot != span && localRoot.getTag("_dd.inferred_span") != null;
-
-    // Only proceed if this is the root span OR if we have an inferred proxy parent
-    if (localRoot != span && !hasInferredProxyParent) {
-      return;
-    }
-
-    CallbackProvider cbp = tracer().getUniversalCallbackProvider();
-    RequestContext requestContext = span.getRequestContext();
-    if (cbp != null && requestContext != null) {
-      BiFunction<RequestContext, IGSpanInfo, Flow<Void>> callback =
-          cbp.getCallback(EVENTS.requestEnded());
-      if (callback != null) {
-        callback.apply(requestContext, span);
-      }
-    }
-  }
-
-  private Flow<Void> callIGCallbackAddressAndPort(
-      @Nonnull final AgentSpan span,
-      final String ip,
-      final int port,
-      final String inferredClientIp) {
-    CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
-    if (cbp == null || (ip == null && inferredClientIp == null && port == UNSET_PORT)) {
-      return Flow.ResultFlow.empty();
-    }
-    RequestContext ctx = span.getRequestContext();
-    if (ctx == null) {
-      return Flow.ResultFlow.empty();
-    }
-
-    if (inferredClientIp != null) {
-      BiFunction<RequestContext, String, Flow<Void>> inferredAddrCallback =
-          cbp.getCallback(EVENTS.requestInferredClientAddress());
-      if (inferredAddrCallback != null) {
-        inferredAddrCallback.apply(ctx, inferredClientIp);
-      }
-    }
-
-    if (ip != null || port != UNSET_PORT) {
-      TriFunction<RequestContext, String, Integer, Flow<Void>> addrCallback =
-          cbp.getCallback(EVENTS.requestClientSocketAddress());
-      if (addrCallback != null) {
-        return addrCallback.apply(ctx, ip != null ? ip : "0.0.0.0", port);
-      }
-    }
-    return Flow.ResultFlow.empty();
-  }
-
-  /** This passes the headers through to the InstrumentationGateway */
-  protected static final class IGKeyClassifier implements AgentPropagation.KeyClassifier {
-
-    public static IGKeyClassifier create(
-        RequestContext requestContext,
-        TriConsumer<RequestContext, String, String> headerCallback,
-        Function<RequestContext, Flow<Void>> doneCallback) {
-      if (null == requestContext || null == headerCallback) {
+    protected static AgentSpanContext.Extracted getExtractedSpanContext(Context parentContext) {
+        AgentSpan extractedSpan = fromContext(parentContext);
+        if (extractedSpan != null) {
+            AgentSpanContext extractedSpanContext = extractedSpan.spanContext();
+            if (extractedSpanContext instanceof AgentSpanContext.Extracted) {
+                return (AgentSpanContext.Extracted) extractedSpanContext;
+            } else {
+                log.warn("Expected AgentSpanContext.Extracted but found {}", extractedSpanContext);
+            }
+        }
         return null;
-      }
-      return new IGKeyClassifier(requestContext, headerCallback, doneCallback);
     }
 
-    private final RequestContext requestContext;
-    private final TriConsumer<RequestContext, String, String> headerCallback;
-    private final Function<RequestContext, Flow<Void>> doneCallback;
-
-    private IGKeyClassifier(
-        RequestContext requestContext,
-        TriConsumer<RequestContext, String, String> headerCallback,
-        Function<RequestContext, Flow<Void>> doneCallback) {
-      this.requestContext = requestContext;
-      this.headerCallback = headerCallback;
-      this.doneCallback = doneCallback;
-    }
-
-    @Override
-    public boolean accept(String key, String value) {
-      headerCallback.accept(requestContext, key, value);
-      return true;
-    }
-
-    public Flow<Void> done() {
-      if (null != doneCallback) {
-        return doneCallback.apply(requestContext);
-      }
-      return Flow.ResultFlow.empty();
-    }
-  }
-
-  private static final class SecurityTestingHeaderTagClassifier
-      implements AgentPropagation.KeyClassifier {
-    private static final String HEADER_ENDPOINT_SCAN = "x-datadog-endpoint-scan";
-    private static final String HEADER_SECURITY_TEST = "x-datadog-security-test";
-
-    private final AgentSpan span;
-    private boolean endpointScanSeen;
-    private boolean securityTestSeen;
-
-    SecurityTestingHeaderTagClassifier(AgentSpan span) {
-      this.span = span;
-    }
-
-    @Override
-    public boolean accept(String key, String value) {
-      if (key == null || value == null) {
-        return true;
-      }
-      if (!endpointScanSeen && HEADER_ENDPOINT_SCAN.equalsIgnoreCase(key)) {
-        span.setTag(Tags.HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN, value);
-        endpointScanSeen = true;
-      } else if (!securityTestSeen && HEADER_SECURITY_TEST.equalsIgnoreCase(key)) {
-        span.setTag(Tags.HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST, value);
-        securityTestSeen = true;
-      }
-      // Stop iteration once both markers found, capping work on pathological header counts.
-      return !(endpointScanSeen && securityTestSeen);
-    }
-  }
-
-  private static final class ResponseHeaderTagClassifier implements AgentPropagation.KeyClassifier {
-    static ResponseHeaderTagClassifier create(AgentSpan span, Map<String, String> headerTags) {
-      if (span == null || headerTags == null || headerTags.isEmpty()) {
+    protected BlockResponseFunction createBlockResponseFunction(REQUEST request, CONNECTION connection) {
         return null;
-      }
-      return new ResponseHeaderTagClassifier(span, headerTags);
     }
 
-    private final AgentSpan span;
-    private final Map<String, String> headerTags;
-    private final String wildcardHeaderPrefix;
+    public final void onResponseStatus(final AgentSpan span, final int status) {
+        try {
+            doOnResponseStatus(span, status);
+        } catch (BlockingException e) {
+            throw e;
+        } catch (Throwable t) {
+            log.debug("Failed to decorate span on response status", t);
+        }
+    }
 
-    public ResponseHeaderTagClassifier(AgentSpan span, Map<String, String> headerTags) {
-      this.span = span;
-      this.headerTags = headerTags;
-      this.wildcardHeaderPrefix = this.headerTags.get("*");
+    protected void doOnResponseStatus(final AgentSpan span, final int status) {
+        if (status > UNSET_STATUS) {
+            span.setHttpStatusCode(status);
+            // explicitly set here because some other decorators might already set an error without
+            // looking at the status code
+            // XXX: the logic is questionable: span.error becomes equivalent to status 5xx,
+            // even if the server chooses not to respond with 5xx to an error.
+            // Anyway, we def don't want it applied to blocked requests
+            if (!BlockingException.class.getName().equals(span.getTag("error.type"))) {
+                span.setError(SERVER_ERROR_STATUSES.get(status), ErrorPriorities.HTTP_SERVER_DECORATOR);
+            }
+        }
+
+        if (SHOULD_SET_404_RESOURCE_NAME && status == 404) {
+            span.setResourceName(NOT_FOUND_RESOURCE_NAME, ResourceNamePriorities.HTTP_404);
+        }
+    }
+
+    /**
+     * Whether AppSec should NOT be called during onResponse() for analysis of the status code and
+     * headers.
+     *
+     * <p>{@link #onResponse(AgentSpan, Object)} is usually called too late for AppSec to be able to
+     * alter the response, so for those modules where we support blocking on response this is <code>
+     * true</code> and AppSec has its own (earlier) hook point for processing the response (just
+     * before commit).
+     *
+     * @return whether AppSec analysis of the response is run separately from onResponse
+     */
+    protected boolean isAppSecOnResponseSeparate() {
+        return false;
+    }
+
+    public final void onResponse(final AgentSpan span, final RESPONSE response) {
+        try {
+            doOnResponse(span, response);
+        } catch (BlockingException e) {
+            throw e;
+        } catch (Throwable t) {
+            log.debug("Failed to decorate span on response", t);
+        }
+    }
+
+    protected void doOnResponse(final AgentSpan span, final RESPONSE response) {
+        if (response != null) {
+            final int status = status(response);
+            doOnResponseStatus(span, status);
+
+            AgentPropagation.ContextVisitor<RESPONSE> getter = responseGetter();
+            if (getter != null) {
+                ResponseHeaderTagClassifier tagger = ResponseHeaderTagClassifier.create(
+                        span, traceConfig(span).getResponseHeaderTags());
+                if (tagger != null) {
+                    getter.forEachKey(response, tagger);
+                }
+            }
+
+            if (!isAppSecOnResponseSeparate()) {
+                callIGCallbackResponseAndHeaders(span, response, status);
+            }
+        }
+    }
+
+    private AgentSpanContext callIGCallbackStart(@Nullable final AgentSpanContext extracted) {
+        AgentTracer.TracerAPI tracer = tracer();
+        Supplier<Flow<Object>> startedCbAppSec =
+                tracer.getCallbackProvider(RequestContextSlot.APPSEC).getCallback(EVENTS.requestStarted());
+        Supplier<Flow<Object>> startedCbIast =
+                tracer.getCallbackProvider(RequestContextSlot.IAST).getCallback(EVENTS.requestStarted());
+
+        if (startedCbAppSec == null && startedCbIast == null) {
+            return extracted;
+        }
+
+        TagContext tagContext = null;
+        if (extracted == null) {
+            tagContext = new TagContext();
+        } else if (extracted instanceof TagContext) {
+            tagContext = (TagContext) extracted;
+        }
+
+        if (tagContext != null) {
+            if (startedCbAppSec != null) {
+                tagContext.withRequestContextDataAppSec(startedCbAppSec.get().getResult());
+            }
+            if (startedCbIast != null) {
+                tagContext.withRequestContextDataIast(startedCbIast.get().getResult());
+            }
+            return tagContext;
+        }
+
+        return extracted;
     }
 
     @Override
-    public boolean accept(String key, String value) {
-      if (wildcardHeaderPrefix != null) {
-        span.setTag((wildcardHeaderPrefix + key).toLowerCase(Locale.ROOT), value);
-      }
-      String mappedKey = headerTags.get(key.toLowerCase(Locale.ROOT));
-      if (mappedKey != null) {
-        span.setTag(mappedKey, value);
-      }
-      return true;
+    protected void doOnError(@Nonnull final AgentSpan span, @Nonnull final Throwable throwable, byte errorPriority) {
+        if (throwable != null) {
+            span.addThrowable(
+                    throwable instanceof ExecutionException ? throwable.getCause() : throwable,
+                    ErrorPriorities.HTTP_SERVER_DECORATOR);
+        }
     }
-  }
+
+    private Flow<Void> callIGCallbackRequestHeaders(AgentSpan span, REQUEST_CARRIER carrier) {
+        CallbackProvider cbp = tracer().getUniversalCallbackProvider();
+        RequestContext requestContext = span.getRequestContext();
+        AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
+        if (requestContext == null || getter == null) {
+            return Flow.ResultFlow.empty();
+        }
+        if (cbp != null) {
+            IGKeyClassifier igKeyClassifier = IGKeyClassifier.create(
+                    requestContext,
+                    cbp.getCallback(EVENTS.requestHeader()),
+                    cbp.getCallback(EVENTS.requestHeaderDone()));
+            if (null != igKeyClassifier) {
+                getter.forEachKey(carrier, igKeyClassifier);
+                return igKeyClassifier.done();
+            }
+        }
+        return Flow.ResultFlow.empty();
+    }
+
+    @SuppressWarnings("UnusedReturnValue")
+    private Flow<Void> callIGCallbackRequestSessionId(final AgentSpan span, final REQUEST request) {
+        final String sessionId = requestedSessionId(request);
+        if (sessionId == null) {
+            return Flow.ResultFlow.empty();
+        }
+        final CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
+        final RequestContext requestContext = span.getRequestContext();
+        if (cbp == null || requestContext == null) {
+            return Flow.ResultFlow.empty();
+        }
+        final BiFunction<RequestContext, String, Flow<Void>> addrCallback = cbp.getCallback(EVENTS.requestSession());
+        if (addrCallback == null) {
+            return Flow.ResultFlow.empty();
+        }
+        return addrCallback.apply(requestContext, sessionId);
+    }
+
+    private Flow<Void> callIGCallbackResponseAndHeaders(AgentSpan span, RESPONSE carrier, int status) {
+        return callIGCallbackResponseAndHeaders(span, carrier, status, responseGetter());
+    }
+
+    public <RESP> Flow<Void> callIGCallbackResponseAndHeaders(
+            AgentSpan span, RESP carrier, int status, AgentPropagation.ContextVisitor<RESP> contextVisitor) {
+        CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
+        RequestContext requestContext = span.getRequestContext();
+        if (cbp == null || requestContext == null) {
+            return Flow.ResultFlow.empty();
+        }
+
+        BiFunction<RequestContext, Integer, Flow<Void>> addrCallback = cbp.getCallback(EVENTS.responseStarted());
+        if (null != addrCallback) {
+            addrCallback.apply(requestContext, status);
+        }
+        if (contextVisitor == null) {
+            return Flow.ResultFlow.empty();
+        }
+        IGKeyClassifier igKeyClassifier = IGKeyClassifier.create(
+                requestContext, cbp.getCallback(EVENTS.responseHeader()), cbp.getCallback(EVENTS.responseHeaderDone()));
+        if (null != igKeyClassifier) {
+            contextVisitor.forEachKey(carrier, igKeyClassifier);
+            return igKeyClassifier.done();
+        }
+        return Flow.ResultFlow.empty();
+    }
+
+    private Flow<Void> callIGCallbackURI(
+            @Nonnull final AgentSpan span, @Nonnull final URIDataAdapter url, final String method) {
+        // TODO:appsec there must be some better way to do this?
+        CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
+        RequestContext requestContext = span.getRequestContext();
+        if (requestContext == null || cbp == null) {
+            return Flow.ResultFlow.empty();
+        }
+
+        TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> callback =
+                cbp.getCallback(EVENTS.requestMethodUriRaw());
+        if (callback != null) {
+            return callback.apply(requestContext, method, url);
+        }
+        return Flow.ResultFlow.empty();
+    }
+
+    @Override
+    protected void doBeforeFinish(@Nonnull Context context) {
+        AgentSpan span = fromContext(context);
+        if (span != null) {
+            onRequestEndForInstrumentationGateway(span);
+        }
+
+        // Close Serverless Gateway Inferred Span if any
+        finishInferredProxySpan(context);
+
+        super.doBeforeFinish(context);
+    }
+
+    protected void finishInferredProxySpan(Context context) {
+        InferredProxySpan inferredProxySpan;
+        if ((inferredProxySpan = InferredProxySpan.fromContext(context)) != null) {
+            inferredProxySpan.finish(AgentSpan.fromContext(context));
+        }
+    }
+
+    private void onRequestEndForInstrumentationGateway(@Nonnull final AgentSpan span) {
+        AgentSpan localRoot = span.getLocalRootSpan();
+
+        // Check if the local root is an inferred proxy span
+        boolean hasInferredProxyParent = localRoot != span && localRoot.getTag("_dd.inferred_span") != null;
+
+        // Only proceed if this is the root span OR if we have an inferred proxy parent
+        if (localRoot != span && !hasInferredProxyParent) {
+            return;
+        }
+
+        CallbackProvider cbp = tracer().getUniversalCallbackProvider();
+        RequestContext requestContext = span.getRequestContext();
+        if (cbp != null && requestContext != null) {
+            BiFunction<RequestContext, IGSpanInfo, Flow<Void>> callback = cbp.getCallback(EVENTS.requestEnded());
+            if (callback != null) {
+                callback.apply(requestContext, span);
+            }
+        }
+    }
+
+    private Flow<Void> callIGCallbackAddressAndPort(
+            @Nonnull final AgentSpan span, final String ip, final int port, final String inferredClientIp) {
+        CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
+        if (cbp == null || (ip == null && inferredClientIp == null && port == UNSET_PORT)) {
+            return Flow.ResultFlow.empty();
+        }
+        RequestContext ctx = span.getRequestContext();
+        if (ctx == null) {
+            return Flow.ResultFlow.empty();
+        }
+
+        if (inferredClientIp != null) {
+            BiFunction<RequestContext, String, Flow<Void>> inferredAddrCallback =
+                    cbp.getCallback(EVENTS.requestInferredClientAddress());
+            if (inferredAddrCallback != null) {
+                inferredAddrCallback.apply(ctx, inferredClientIp);
+            }
+        }
+
+        if (ip != null || port != UNSET_PORT) {
+            TriFunction<RequestContext, String, Integer, Flow<Void>> addrCallback =
+                    cbp.getCallback(EVENTS.requestClientSocketAddress());
+            if (addrCallback != null) {
+                return addrCallback.apply(ctx, ip != null ? ip : "0.0.0.0", port);
+            }
+        }
+        return Flow.ResultFlow.empty();
+    }
+
+    /** This passes the headers through to the InstrumentationGateway */
+    protected static final class IGKeyClassifier implements AgentPropagation.KeyClassifier {
+
+        public static IGKeyClassifier create(
+                RequestContext requestContext,
+                TriConsumer<RequestContext, String, String> headerCallback,
+                Function<RequestContext, Flow<Void>> doneCallback) {
+            if (null == requestContext || null == headerCallback) {
+                return null;
+            }
+            return new IGKeyClassifier(requestContext, headerCallback, doneCallback);
+        }
+
+        private final RequestContext requestContext;
+        private final TriConsumer<RequestContext, String, String> headerCallback;
+        private final Function<RequestContext, Flow<Void>> doneCallback;
+
+        private IGKeyClassifier(
+                RequestContext requestContext,
+                TriConsumer<RequestContext, String, String> headerCallback,
+                Function<RequestContext, Flow<Void>> doneCallback) {
+            this.requestContext = requestContext;
+            this.headerCallback = headerCallback;
+            this.doneCallback = doneCallback;
+        }
+
+        @Override
+        public boolean accept(String key, String value) {
+            headerCallback.accept(requestContext, key, value);
+            return true;
+        }
+
+        public Flow<Void> done() {
+            if (null != doneCallback) {
+                return doneCallback.apply(requestContext);
+            }
+            return Flow.ResultFlow.empty();
+        }
+    }
+
+    private static final class SecurityTestingHeaderTagClassifier implements AgentPropagation.KeyClassifier {
+        private static final String HEADER_ENDPOINT_SCAN = "x-datadog-endpoint-scan";
+        private static final String HEADER_SECURITY_TEST = "x-datadog-security-test";
+
+        private final AgentSpan span;
+        private boolean endpointScanSeen;
+        private boolean securityTestSeen;
+
+        SecurityTestingHeaderTagClassifier(AgentSpan span) {
+            this.span = span;
+        }
+
+        @Override
+        public boolean accept(String key, String value) {
+            if (key == null || value == null) {
+                return true;
+            }
+            if (!endpointScanSeen && HEADER_ENDPOINT_SCAN.equalsIgnoreCase(key)) {
+                span.setTag(Tags.HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN, value);
+                endpointScanSeen = true;
+            } else if (!securityTestSeen && HEADER_SECURITY_TEST.equalsIgnoreCase(key)) {
+                span.setTag(Tags.HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST, value);
+                securityTestSeen = true;
+            }
+            // Stop iteration once both markers found, capping work on pathological header counts.
+            return !(endpointScanSeen && securityTestSeen);
+        }
+    }
+
+    private static final class ResponseHeaderTagClassifier implements AgentPropagation.KeyClassifier {
+        static ResponseHeaderTagClassifier create(AgentSpan span, Map<String, String> headerTags) {
+            if (span == null || headerTags == null || headerTags.isEmpty()) {
+                return null;
+            }
+            return new ResponseHeaderTagClassifier(span, headerTags);
+        }
+
+        private final AgentSpan span;
+        private final Map<String, String> headerTags;
+        private final String wildcardHeaderPrefix;
+
+        public ResponseHeaderTagClassifier(AgentSpan span, Map<String, String> headerTags) {
+            this.span = span;
+            this.headerTags = headerTags;
+            this.wildcardHeaderPrefix = this.headerTags.get("*");
+        }
+
+        @Override
+        public boolean accept(String key, String value) {
+            if (wildcardHeaderPrefix != null) {
+                span.setTag((wildcardHeaderPrefix + key).toLowerCase(Locale.ROOT), value);
+            }
+            String mappedKey = headerTags.get(key.toLowerCase(Locale.ROOT));
+            if (mappedKey != null) {
+                span.setTag(mappedKey, value);
+            }
+            return true;
+        }
+    }
 }

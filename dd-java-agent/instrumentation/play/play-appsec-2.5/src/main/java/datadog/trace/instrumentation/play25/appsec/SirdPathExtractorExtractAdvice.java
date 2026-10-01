@@ -15,23 +15,21 @@ import scala.collection.immutable.List;
  */
 @RequiresRequestContext(RequestContextSlot.APPSEC)
 public class SirdPathExtractorExtractAdvice {
-  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  static void after(
-      @Advice.Return scala.Option<List<String>> ret,
-      @ActiveRequestContext RequestContext reqCtx,
-      @Advice.Thrown(readOnly = false) Throwable t) {
-    if (ret.isEmpty() || t != null) {
-      return;
-    }
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    static void after(
+            @Advice.Return scala.Option<List<String>> ret,
+            @ActiveRequestContext RequestContext reqCtx,
+            @Advice.Thrown(readOnly = false) Throwable t) {
+        if (ret.isEmpty() || t != null) {
+            return;
+        }
 
-    Map<String, Object> conv = new HashMap<>();
-    List<String> stringList = ret.get();
-    for (int i = 0; i < stringList.size(); i++) {
-      conv.put(Integer.toString(i), stringList.apply(i));
-    }
+        Map<String, Object> conv = new HashMap<>();
+        List<String> stringList = ret.get();
+        for (int i = 0; i < stringList.size(); i++) {
+            conv.put(Integer.toString(i), stringList.apply(i));
+        }
 
-    t =
-        PathExtractionHelpers.callRequestPathParamsCallback(
-            reqCtx, conv, "sird.PathExtractor#extract");
-  }
+        t = PathExtractionHelpers.callRequestPathParamsCallback(reqCtx, conv, "sird.PathExtractor#extract");
+    }
 }

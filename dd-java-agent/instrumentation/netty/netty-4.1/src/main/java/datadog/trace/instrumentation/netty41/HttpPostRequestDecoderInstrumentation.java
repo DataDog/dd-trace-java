@@ -27,129 +27,124 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-  public HttpPostRequestDecoderInstrumentation() {
-    super(
-        NettyChannelPipelineInstrumentation.INSTRUMENTATION_NAME,
-        NettyChannelPipelineInstrumentation.ADDITIONAL_INSTRUMENTATION_NAMES);
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "io.netty.handler.codec.http.multipart.HttpPostMultipartRequestDecoder",
-      "io.netty.handler.codec.http.multipart.HttpPostStandardRequestDecoder",
-    };
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {
-      new Reference.Builder("io.netty.handler.codec.http.multipart.HttpPostMultipartRequestDecoder")
-          .withField(
-              new String[0],
-              Reference.EXPECTS_NON_STATIC,
-              "currentStatus",
-              "Lio/netty/handler/codec/http/multipart/HttpPostRequestDecoder$MultiPartStatus;")
-          .withField(new String[0], Reference.EXPECTS_NON_STATIC, "isLastChunk", "Z")
-          .build(),
-      new Reference.Builder("io.netty.handler.codec.http.multipart.HttpPostStandardRequestDecoder")
-          .withField(
-              new String[0],
-              Reference.EXPECTS_NON_STATIC,
-              "currentStatus",
-              "Lio/netty/handler/codec/http/multipart/HttpPostRequestDecoder$MultiPartStatus;")
-          .withField(new String[0], Reference.EXPECTS_NON_STATIC, "isLastChunk", "Z")
-          .build()
-    };
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("parseBody").and(takesArguments(0)).and(isPrivate()),
-        getClass().getName() + "$ParseBodyAdvice");
-  }
-
-  @RequiresRequestContext(RequestContextSlot.APPSEC)
-  static class ParseBodyAdvice {
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    static void after(
-        @Advice.This InterfaceHttpPostRequestDecoder thiz,
-        @Advice.FieldValue("currentStatus") Enum currentStatus,
-        @Advice.FieldValue("isLastChunk") boolean isLastChunk,
-        @ActiveRequestContext RequestContext requestContext,
-        @Advice.Thrown(readOnly = false) Throwable thr) {
-      String statusName = currentStatus.name();
-      if (!statusName.equals("EPILOGUE")) {
-        // For multipart decoders, the PREEPILOGUE→EPILOGUE transition requires a second
-        // parseBody() call that never comes when the full request arrives in one shot.
-        // Fire on PREEPILOGUE + isLastChunk to handle that case.
-        if (!statusName.equals("PREEPILOGUE") || !isLastChunk) {
-          return;
-        }
-      }
-
-      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-      BiFunction<RequestContext, Object, Flow<Void>> callback =
-          cbp.getCallback(EVENTS.requestBodyProcessed());
-
-      BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb =
-          cbp.getCallback(EVENTS.requestFilesFilenames());
-
-      BiFunction<RequestContext, List<String>, Flow<Void>> contentCb =
-          cbp.getCallback(EVENTS.requestFilesContent());
-
-      if (callback == null && filenamesCb == null && contentCb == null) {
-        return;
-      }
-
-      Map<String, List<String>> attributes = callback != null ? new LinkedHashMap<>() : null;
-      List<String> filenames = filenamesCb != null ? new ArrayList<>() : null;
-      List<String> filesContent = contentCb != null ? new ArrayList<>() : null;
-
-      RuntimeException exc =
-          NettyMultipartHelper.collectBodyData(
-              thiz.getBodyHttpDatas(), attributes, filenames, filesContent);
-
-      if (callback != null) {
-        // effectivelyBlocked() is intentionally absent: tryCommitBlockingResponse finishes
-        // the span synchronously in this Netty path; calling it on a finished span throws.
-        Throwable block =
-            NettyMultipartHelper.tryBlock(
-                requestContext,
-                callback.apply(requestContext, attributes),
-                "Blocked request (multipart/urlencoded post data)");
-        if (block != null) {
-          thr = block;
-        }
-      }
-
-      if (filenames != null && !filenames.isEmpty()) {
-        Flow<Void> filenamesFlow = filenamesCb.apply(requestContext, filenames);
-        if (thr == null) {
-          thr =
-              NettyMultipartHelper.tryBlock(
-                  requestContext, filenamesFlow, "Blocked request (multipart file upload)");
-        }
-      }
-
-      if (thr == null && filesContent != null && !filesContent.isEmpty()) {
-        thr =
-            NettyMultipartHelper.tryBlock(
-                requestContext,
-                contentCb.apply(requestContext, filesContent),
-                "Blocked request (multipart file upload content)");
-      }
-
-      if (exc != null) {
-        // for it to be logged
-        throw exc;
-      }
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+    public HttpPostRequestDecoderInstrumentation() {
+        super(
+                NettyChannelPipelineInstrumentation.INSTRUMENTATION_NAME,
+                NettyChannelPipelineInstrumentation.ADDITIONAL_INSTRUMENTATION_NAMES);
     }
 
-    Object muzzle() {
-      return EmptyHttpHeaders.class;
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            "io.netty.handler.codec.http.multipart.HttpPostMultipartRequestDecoder",
+            "io.netty.handler.codec.http.multipart.HttpPostStandardRequestDecoder",
+        };
     }
-  }
+
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return new Reference[] {
+            new Reference.Builder("io.netty.handler.codec.http.multipart.HttpPostMultipartRequestDecoder")
+                    .withField(
+                            new String[0],
+                            Reference.EXPECTS_NON_STATIC,
+                            "currentStatus",
+                            "Lio/netty/handler/codec/http/multipart/HttpPostRequestDecoder$MultiPartStatus;")
+                    .withField(new String[0], Reference.EXPECTS_NON_STATIC, "isLastChunk", "Z")
+                    .build(),
+            new Reference.Builder("io.netty.handler.codec.http.multipart.HttpPostStandardRequestDecoder")
+                    .withField(
+                            new String[0],
+                            Reference.EXPECTS_NON_STATIC,
+                            "currentStatus",
+                            "Lio/netty/handler/codec/http/multipart/HttpPostRequestDecoder$MultiPartStatus;")
+                    .withField(new String[0], Reference.EXPECTS_NON_STATIC, "isLastChunk", "Z")
+                    .build()
+        };
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("parseBody").and(takesArguments(0)).and(isPrivate()),
+                getClass().getName() + "$ParseBodyAdvice");
+    }
+
+    @RequiresRequestContext(RequestContextSlot.APPSEC)
+    static class ParseBodyAdvice {
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        static void after(
+                @Advice.This InterfaceHttpPostRequestDecoder thiz,
+                @Advice.FieldValue("currentStatus") Enum currentStatus,
+                @Advice.FieldValue("isLastChunk") boolean isLastChunk,
+                @ActiveRequestContext RequestContext requestContext,
+                @Advice.Thrown(readOnly = false) Throwable thr) {
+            String statusName = currentStatus.name();
+            if (!statusName.equals("EPILOGUE")) {
+                // For multipart decoders, the PREEPILOGUE→EPILOGUE transition requires a second
+                // parseBody() call that never comes when the full request arrives in one shot.
+                // Fire on PREEPILOGUE + isLastChunk to handle that case.
+                if (!statusName.equals("PREEPILOGUE") || !isLastChunk) {
+                    return;
+                }
+            }
+
+            CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+            BiFunction<RequestContext, Object, Flow<Void>> callback = cbp.getCallback(EVENTS.requestBodyProcessed());
+
+            BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb =
+                    cbp.getCallback(EVENTS.requestFilesFilenames());
+
+            BiFunction<RequestContext, List<String>, Flow<Void>> contentCb =
+                    cbp.getCallback(EVENTS.requestFilesContent());
+
+            if (callback == null && filenamesCb == null && contentCb == null) {
+                return;
+            }
+
+            Map<String, List<String>> attributes = callback != null ? new LinkedHashMap<>() : null;
+            List<String> filenames = filenamesCb != null ? new ArrayList<>() : null;
+            List<String> filesContent = contentCb != null ? new ArrayList<>() : null;
+
+            RuntimeException exc =
+                    NettyMultipartHelper.collectBodyData(thiz.getBodyHttpDatas(), attributes, filenames, filesContent);
+
+            if (callback != null) {
+                // effectivelyBlocked() is intentionally absent: tryCommitBlockingResponse finishes
+                // the span synchronously in this Netty path; calling it on a finished span throws.
+                Throwable block = NettyMultipartHelper.tryBlock(
+                        requestContext,
+                        callback.apply(requestContext, attributes),
+                        "Blocked request (multipart/urlencoded post data)");
+                if (block != null) {
+                    thr = block;
+                }
+            }
+
+            if (filenames != null && !filenames.isEmpty()) {
+                Flow<Void> filenamesFlow = filenamesCb.apply(requestContext, filenames);
+                if (thr == null) {
+                    thr = NettyMultipartHelper.tryBlock(
+                            requestContext, filenamesFlow, "Blocked request (multipart file upload)");
+                }
+            }
+
+            if (thr == null && filesContent != null && !filesContent.isEmpty()) {
+                thr = NettyMultipartHelper.tryBlock(
+                        requestContext,
+                        contentCb.apply(requestContext, filesContent),
+                        "Blocked request (multipart file upload content)");
+            }
+
+            if (exc != null) {
+                // for it to be logged
+                throw exc;
+            }
+        }
+
+        Object muzzle() {
+            return EmptyHttpHeaders.class;
+        }
+    }
 }

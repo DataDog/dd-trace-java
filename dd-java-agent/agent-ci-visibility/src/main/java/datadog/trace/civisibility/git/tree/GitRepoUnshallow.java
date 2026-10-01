@@ -9,41 +9,40 @@ import org.slf4j.LoggerFactory;
 
 public class GitRepoUnshallow {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(GitRepoUnshallow.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(GitRepoUnshallow.class);
 
-  private final Config config;
-  private final GitClient gitClient;
+    private final Config config;
+    private final GitClient gitClient;
 
-  public GitRepoUnshallow(Config config, GitClient gitClient) {
-    this.config = config;
-    this.gitClient = gitClient;
-  }
-
-  public synchronized boolean unshallow()
-      throws IOException, InterruptedException, TimeoutException {
-    if (!config.isCiVisibilityGitUnshallowEnabled() || !gitClient.isShallow()) {
-      return false;
+    public GitRepoUnshallow(Config config, GitClient gitClient) {
+        this.config = config;
+        this.gitClient = gitClient;
     }
 
-    long unshallowStart = System.currentTimeMillis();
-    try {
-      gitClient.unshallow(GitClient.HEAD);
-    } catch (ShellCommandExecutor.ShellCommandFailedException e) {
-      LOGGER.debug(
-          "Could not unshallow using HEAD - assuming HEAD points to a local commit that does not exist in the remote repo",
-          e);
-    }
+    public synchronized boolean unshallow() throws IOException, InterruptedException, TimeoutException {
+        if (!config.isCiVisibilityGitUnshallowEnabled() || !gitClient.isShallow()) {
+            return false;
+        }
 
-    try {
-      String upstreamBranch = gitClient.getUpstreamBranchSha();
-      gitClient.unshallow(upstreamBranch);
-    } catch (ShellCommandExecutor.ShellCommandFailedException e) {
-      LOGGER.debug(
-          "Could not unshallow using upstream branch - assuming currently checked out local branch does not track any remote branch",
-          e);
-      gitClient.unshallow(null);
+        long unshallowStart = System.currentTimeMillis();
+        try {
+            gitClient.unshallow(GitClient.HEAD);
+        } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+            LOGGER.debug(
+                    "Could not unshallow using HEAD - assuming HEAD points to a local commit that does not exist in the remote repo",
+                    e);
+        }
+
+        try {
+            String upstreamBranch = gitClient.getUpstreamBranchSha();
+            gitClient.unshallow(upstreamBranch);
+        } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+            LOGGER.debug(
+                    "Could not unshallow using upstream branch - assuming currently checked out local branch does not track any remote branch",
+                    e);
+            gitClient.unshallow(null);
+        }
+        LOGGER.debug("Repository unshallowing took {} ms", System.currentTimeMillis() - unshallowStart);
+        return true;
     }
-    LOGGER.debug("Repository unshallowing took {} ms", System.currentTimeMillis() - unshallowStart);
-    return true;
-  }
 }

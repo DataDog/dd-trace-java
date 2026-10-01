@@ -21,88 +21,86 @@ import org.testng.annotations.DataProvider;
 
 @AutoService(InstrumenterModule.class)
 public class TestNGClassListenerInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  private final String commonPackageName = Strings.getPackageName(TestNGUtils.class.getName());
+    private final String commonPackageName = Strings.getPackageName(TestNGUtils.class.getName());
 
-  public TestNGClassListenerInstrumentation() {
-    super("ci-visibility", "testng", "testng-6");
-  }
-
-  @Override
-  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    // do not apply to TestNG 7.x and above
-    // since those versions are handled by a different instrumentation
-    return not(hasClassNamed("org.testng.annotations.CustomAttribute"));
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.testng.internal.TestMethodWorker";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("invokeBeforeClassMethods")
-            .and(takesArgument(0, named("org.testng.ITestClass")))
-            .and(takesArgument(1, named("org.testng.IMethodInstance"))),
-        TestNGClassListenerInstrumentation.class.getName() + "$InvokeBeforeClassAdvice");
-
-    transformer.applyAdvice(
-        named("invokeAfterClassMethods")
-            .and(takesArgument(0, named("org.testng.ITestClass")))
-            .and(takesArgument(1, named("org.testng.IMethodInstance"))),
-        TestNGClassListenerInstrumentation.class.getName() + "$InvokeAfterClassAdvice");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      commonPackageName + ".TestNGUtils", commonPackageName + ".TestNGClassListener"
-    };
-  }
-
-  @Override
-  public int order() {
-    // Depends on datadog.trace.instrumentation.testng.TestNGInstrumentation,
-    // as it needs datadog.trace.instrumentation.testng.TestEventsHandlerHolder.start to be called;
-    return TestNGInstrumentation.ORDER - 1;
-  }
-
-  public static class InvokeBeforeClassAdvice {
-    @SuppressWarnings("bytebuddy-exception-suppression")
-    @Advice.OnMethodEnter
-    public static void invokeBeforeClass(
-        @Advice.FieldValue("m_testContext") final ITestContext testContext,
-        @Advice.Argument(0) final ITestClass testClass) {
-
-      boolean parallelized = TestNGUtils.isParallelized(testClass);
-      TestNGClassListener listener = TestNGUtils.getTestNGClassListener(testContext);
-      listener.invokeBeforeClass(testClass, parallelized);
+    public TestNGClassListenerInstrumentation() {
+        super("ci-visibility", "testng", "testng-6");
     }
 
-    // TestNG 6.4 and above
-    public static String muzzleCheck(final DataProvider dataProvider) {
-      return dataProvider.name();
-    }
-  }
-
-  public static class InvokeAfterClassAdvice {
-    @SuppressWarnings("bytebuddy-exception-suppression")
-    @Advice.OnMethodExit
-    public static void invokeAfterClass(
-        @Advice.FieldValue("m_testContext") final ITestContext testContext,
-        @Advice.Argument(0) final ITestClass testClass,
-        @Advice.Argument(1) final IMethodInstance methodInstance) {
-
-      TestNGClassListener listener = TestNGUtils.getTestNGClassListener(testContext);
-      listener.invokeAfterClass(testClass, methodInstance);
+    @Override
+    public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+        // do not apply to TestNG 7.x and above
+        // since those versions are handled by a different instrumentation
+        return not(hasClassNamed("org.testng.annotations.CustomAttribute"));
     }
 
-    // TestNG 6.4 and above
-    public static String muzzleCheck(final DataProvider dataProvider) {
-      return dataProvider.name();
+    @Override
+    public String instrumentedType() {
+        return "org.testng.internal.TestMethodWorker";
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("invokeBeforeClassMethods")
+                        .and(takesArgument(0, named("org.testng.ITestClass")))
+                        .and(takesArgument(1, named("org.testng.IMethodInstance"))),
+                TestNGClassListenerInstrumentation.class.getName() + "$InvokeBeforeClassAdvice");
+
+        transformer.applyAdvice(
+                named("invokeAfterClassMethods")
+                        .and(takesArgument(0, named("org.testng.ITestClass")))
+                        .and(takesArgument(1, named("org.testng.IMethodInstance"))),
+                TestNGClassListenerInstrumentation.class.getName() + "$InvokeAfterClassAdvice");
+    }
+
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {commonPackageName + ".TestNGUtils", commonPackageName + ".TestNGClassListener"};
+    }
+
+    @Override
+    public int order() {
+        // Depends on datadog.trace.instrumentation.testng.TestNGInstrumentation,
+        // as it needs datadog.trace.instrumentation.testng.TestEventsHandlerHolder.start to be called;
+        return TestNGInstrumentation.ORDER - 1;
+    }
+
+    public static class InvokeBeforeClassAdvice {
+        @SuppressWarnings("bytebuddy-exception-suppression")
+        @Advice.OnMethodEnter
+        public static void invokeBeforeClass(
+                @Advice.FieldValue("m_testContext") final ITestContext testContext,
+                @Advice.Argument(0) final ITestClass testClass) {
+
+            boolean parallelized = TestNGUtils.isParallelized(testClass);
+            TestNGClassListener listener = TestNGUtils.getTestNGClassListener(testContext);
+            listener.invokeBeforeClass(testClass, parallelized);
+        }
+
+        // TestNG 6.4 and above
+        public static String muzzleCheck(final DataProvider dataProvider) {
+            return dataProvider.name();
+        }
+    }
+
+    public static class InvokeAfterClassAdvice {
+        @SuppressWarnings("bytebuddy-exception-suppression")
+        @Advice.OnMethodExit
+        public static void invokeAfterClass(
+                @Advice.FieldValue("m_testContext") final ITestContext testContext,
+                @Advice.Argument(0) final ITestClass testClass,
+                @Advice.Argument(1) final IMethodInstance methodInstance) {
+
+            TestNGClassListener listener = TestNGUtils.getTestNGClassListener(testContext);
+            listener.invokeAfterClass(testClass, methodInstance);
+        }
+
+        // TestNG 6.4 and above
+        public static String muzzleCheck(final DataProvider dataProvider) {
+            return dataProvider.name();
+        }
+    }
 }

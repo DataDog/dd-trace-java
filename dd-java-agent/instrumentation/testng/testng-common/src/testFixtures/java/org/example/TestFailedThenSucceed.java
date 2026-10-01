@@ -6,10 +6,10 @@ import org.testng.annotations.Test;
 
 public class TestFailedThenSucceed {
 
-  private int retry;
+    private int retry;
 
-  @Test
-  public void test_failed() {
-    assertTrue(++retry >= 3);
-  }
+    @Test
+    public void test_failed() {
+        assertTrue(++retry >= 3);
+    }
 }

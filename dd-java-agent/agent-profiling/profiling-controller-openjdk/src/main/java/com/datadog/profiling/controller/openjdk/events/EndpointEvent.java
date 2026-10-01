@@ -17,29 +17,29 @@ import jdk.jfr.StackTrace;
 @StackTrace(false)
 public class EndpointEvent extends Event implements EndpointTracker {
 
-  private static final long TEN_MILLISECONDS = TimeUnit.MILLISECONDS.toNanos(10);
+    private static final long TEN_MILLISECONDS = TimeUnit.MILLISECONDS.toNanos(10);
 
-  @Label("Endpoint")
-  private String endpoint = "unknown";
+    @Label("Endpoint")
+    private String endpoint = "unknown";
 
-  @Label("Operation")
-  private String operation = "unknown";
+    @Label("Operation")
+    private String operation = "unknown";
 
-  @Label("Local Root Span Id")
-  private final long localRootSpanId;
+    @Label("Local Root Span Id")
+    private final long localRootSpanId;
 
-  public EndpointEvent(long rootSpanId) {
-    this.localRootSpanId = rootSpanId;
-    begin();
-  }
-
-  @Override
-  public void endpointWritten(AgentSpan span) {
-    if (span.getDurationNano() >= TEN_MILLISECONDS && shouldCommit()) {
-      end();
-      this.endpoint = span.getResourceName().toString();
-      this.operation = span.getOperationName().toString();
-      commit();
+    public EndpointEvent(long rootSpanId) {
+        this.localRootSpanId = rootSpanId;
+        begin();
     }
-  }
+
+    @Override
+    public void endpointWritten(AgentSpan span) {
+        if (span.getDurationNano() >= TEN_MILLISECONDS && shouldCommit()) {
+            end();
+            this.endpoint = span.getResourceName().toString();
+            this.operation = span.getOperationName().toString();
+            commit();
+        }
+    }
 }

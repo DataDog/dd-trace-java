@@ -25,96 +25,95 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class HttpUrlConnectionInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap,
-        Instrumenter.ForKnownTypes,
-        Instrumenter.ForConfiguredType,
-        Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForBootstrap,
+                Instrumenter.ForKnownTypes,
+                Instrumenter.ForConfiguredType,
+                Instrumenter.HasMethodAdvice {
 
-  public HttpUrlConnectionInstrumentation() {
-    super("httpurlconnection");
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    // we deliberately exclude various subclasses that are simple delegators
-    return new String[] {
-      "sun.net.www.protocol.http.HttpURLConnection",
-      "java.net.HttpURLConnection",
-      "weblogic.net.http.HttpURLConnection"
-    };
-  }
-
-  @Override
-  public String configuredMatchingType() {
-    // this won't match any class unless the property is set
-    return InstrumenterConfig.get().getHttpURLConnectionClassName();
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("java.net.HttpURLConnection", HttpUrlState.class.getName());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(isPublic()).and(namedOneOf("connect", "getOutputStream", "getInputStream")),
-        HttpUrlConnectionInstrumentation.class.getName() + "$HttpUrlConnectionAdvice");
-    transformer.applyAdvice(
-        isMethod().and(isProtected()).and(named("plainConnect")),
-        HttpUrlConnectionInstrumentation.class.getName() + "$HttpUrlConnectionAdvice");
-  }
-
-  public static class HttpUrlConnectionAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static HttpUrlState methodEnter(
-        @Advice.This final HttpURLConnection thiz,
-        @Advice.FieldValue("connected") final boolean connected) {
-
-      final ContextStore<HttpURLConnection, HttpUrlState> contextStore =
-          InstrumentationContext.get(HttpURLConnection.class, HttpUrlState.class);
-      final HttpUrlState state = contextStore.getOrCreate(thiz, HttpUrlState.FACTORY);
-
-      synchronized (state) {
-        final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpURLConnection.class);
-        if (callDepth > 0) {
-          return null;
-        }
-
-        if (!state.hasSpan() && !state.isFinished()) {
-          final AgentSpan span = state.start(thiz);
-          if (!connected) {
-            DECORATE.injectContext(currentContext().with(span), thiz, SETTER);
-          }
-        }
-        return state;
-      }
+    public HttpUrlConnectionInstrumentation() {
+        super("httpurlconnection");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit(
-        @Advice.Enter final HttpUrlState state,
-        @Advice.This final HttpURLConnection thiz,
-        @Advice.FieldValue("responseCode") final int responseCode,
-        @Advice.Thrown final Throwable throwable,
-        @Advice.Origin("#m") final String methodName) {
-
-      if (state == null) {
-        return;
-      }
-
-      synchronized (state) {
-        if (state.hasSpan() && !state.isFinished()) {
-          if (throwable != null) {
-            state.finishSpan(thiz, responseCode, throwable);
-          } else if ("getInputStream".equals(methodName)) {
-            state.finishSpan(thiz, responseCode);
-          }
-        }
-      }
-
-      CallDepthThreadLocalMap.reset(HttpURLConnection.class);
+    @Override
+    public String[] knownMatchingTypes() {
+        // we deliberately exclude various subclasses that are simple delegators
+        return new String[] {
+            "sun.net.www.protocol.http.HttpURLConnection",
+            "java.net.HttpURLConnection",
+            "weblogic.net.http.HttpURLConnection"
+        };
     }
-  }
+
+    @Override
+    public String configuredMatchingType() {
+        // this won't match any class unless the property is set
+        return InstrumenterConfig.get().getHttpURLConnectionClassName();
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("java.net.HttpURLConnection", HttpUrlState.class.getName());
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(isPublic()).and(namedOneOf("connect", "getOutputStream", "getInputStream")),
+                HttpUrlConnectionInstrumentation.class.getName() + "$HttpUrlConnectionAdvice");
+        transformer.applyAdvice(
+                isMethod().and(isProtected()).and(named("plainConnect")),
+                HttpUrlConnectionInstrumentation.class.getName() + "$HttpUrlConnectionAdvice");
+    }
+
+    public static class HttpUrlConnectionAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static HttpUrlState methodEnter(
+                @Advice.This final HttpURLConnection thiz, @Advice.FieldValue("connected") final boolean connected) {
+
+            final ContextStore<HttpURLConnection, HttpUrlState> contextStore =
+                    InstrumentationContext.get(HttpURLConnection.class, HttpUrlState.class);
+            final HttpUrlState state = contextStore.getOrCreate(thiz, HttpUrlState.FACTORY);
+
+            synchronized (state) {
+                final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpURLConnection.class);
+                if (callDepth > 0) {
+                    return null;
+                }
+
+                if (!state.hasSpan() && !state.isFinished()) {
+                    final AgentSpan span = state.start(thiz);
+                    if (!connected) {
+                        DECORATE.injectContext(currentContext().with(span), thiz, SETTER);
+                    }
+                }
+                return state;
+            }
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void methodExit(
+                @Advice.Enter final HttpUrlState state,
+                @Advice.This final HttpURLConnection thiz,
+                @Advice.FieldValue("responseCode") final int responseCode,
+                @Advice.Thrown final Throwable throwable,
+                @Advice.Origin("#m") final String methodName) {
+
+            if (state == null) {
+                return;
+            }
+
+            synchronized (state) {
+                if (state.hasSpan() && !state.isFinished()) {
+                    if (throwable != null) {
+                        state.finishSpan(thiz, responseCode, throwable);
+                    } else if ("getInputStream".equals(methodName)) {
+                        state.finishSpan(thiz, responseCode);
+                    }
+                }
+            }
+
+            CallDepthThreadLocalMap.reset(HttpURLConnection.class);
+        }
+    }
 }

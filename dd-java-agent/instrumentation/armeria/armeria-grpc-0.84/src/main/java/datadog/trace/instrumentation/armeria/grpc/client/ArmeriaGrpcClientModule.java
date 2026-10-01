@@ -13,38 +13,37 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class ArmeriaGrpcClientModule extends InstrumenterModule.Tracing {
-  public ArmeriaGrpcClientModule() {
-    super("armeria-grpc-client", "armeria-grpc", "armeria", "grpc-client", "grpc");
-  }
+    public ArmeriaGrpcClientModule() {
+        super("armeria-grpc-client", "armeria-grpc", "armeria", "grpc-client", "grpc");
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    Map<String, String> contextStore = new HashMap<>();
-    contextStore.put("io.grpc.ClientCall", AgentSpan.class.getName());
-    contextStore.put(
-        "com.linecorp.armeria.common.grpc.protocol.ArmeriaMessageDeframer", "io.grpc.ClientCall");
-    return contextStore;
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        Map<String, String> contextStore = new HashMap<>();
+        contextStore.put("io.grpc.ClientCall", AgentSpan.class.getName());
+        contextStore.put("com.linecorp.armeria.common.grpc.protocol.ArmeriaMessageDeframer", "io.grpc.ClientCall");
+        return contextStore;
+    }
 
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {
-      new Reference(
-          new String[0],
-          1,
-          "com.linecorp.armeria.common.grpc.protocol.ArmeriaMessageDeframer",
-          null,
-          new String[0],
-          new Reference.Field[0],
-          new Reference.Method[0])
-    };
-  }
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return new Reference[] {
+            new Reference(
+                    new String[0],
+                    1,
+                    "com.linecorp.armeria.common.grpc.protocol.ArmeriaMessageDeframer",
+                    null,
+                    new String[0],
+                    new Reference.Field[0],
+                    new Reference.Method[0])
+        };
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return asList(
-        new ArmeriaMessageDeframerInstrumentation(),
-        new ArmeriaMessageDeframerInstrumentation(),
-        new ClientCallImplInstrumentation());
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return asList(
+                new ArmeriaMessageDeframerInstrumentation(),
+                new ArmeriaMessageDeframerInstrumentation(),
+                new ClientCallImplInstrumentation());
+    }
 }

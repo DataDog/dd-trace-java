@@ -10,34 +10,34 @@ import org.junit.runner.notification.RunNotifier;
 
 public class FailureSuppressingNotifier extends RunNotifier {
 
-  private final TestExecutionPolicy executionPolicy;
+    private final TestExecutionPolicy executionPolicy;
 
-  public FailureSuppressingNotifier(TestExecutionPolicy executionPolicy, RunNotifier notifier) {
-    this.executionPolicy = executionPolicy;
+    public FailureSuppressingNotifier(TestExecutionPolicy executionPolicy, RunNotifier notifier) {
+        this.executionPolicy = executionPolicy;
 
-    List<RunListener> listeners = JUnit4Utils.runListenersFromRunNotifier(notifier);
-    for (RunListener listener : listeners) {
-      addListener(listener);
-    }
-  }
-
-  @Override
-  public void fireTestFailure(Failure failure) {
-    if (!executionPolicy.suppressFailures()) {
-      super.fireTestFailure(failure);
-      return;
+        List<RunListener> listeners = JUnit4Utils.runListenersFromRunNotifier(notifier);
+        for (RunListener listener : listeners) {
+            addListener(listener);
+        }
     }
 
-    List<RunListener> listeners = JUnit4Utils.runListenersFromRunNotifier(this);
-    for (RunListener listener : listeners) {
-      TracingListener tracingListener = JUnit4Utils.toTracingListener(listener);
-      if (tracingListener != null) {
-        tracingListener.testFailure(failure);
-      } else {
-        // Converting failure into assumption failure,
-        // so that the build does not fail.
-        listener.testAssumptionFailure(failure);
-      }
+    @Override
+    public void fireTestFailure(Failure failure) {
+        if (!executionPolicy.suppressFailures()) {
+            super.fireTestFailure(failure);
+            return;
+        }
+
+        List<RunListener> listeners = JUnit4Utils.runListenersFromRunNotifier(this);
+        for (RunListener listener : listeners) {
+            TracingListener tracingListener = JUnit4Utils.toTracingListener(listener);
+            if (tracingListener != null) {
+                tracingListener.testFailure(failure);
+            } else {
+                // Converting failure into assumption failure,
+                // so that the build does not fail.
+                listener.testAssumptionFailure(failure);
+            }
+        }
     }
-  }
 }

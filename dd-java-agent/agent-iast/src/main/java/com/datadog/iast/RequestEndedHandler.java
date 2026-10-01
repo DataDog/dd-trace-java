@@ -17,41 +17,41 @@ import javax.annotation.Nonnull;
 
 public class RequestEndedHandler implements BiFunction<RequestContext, IGSpanInfo, Flow<Void>> {
 
-  private final OverheadController overheadController;
-  private final IastContext.Provider contextProvider;
+    private final OverheadController overheadController;
+    private final IastContext.Provider contextProvider;
 
-  public RequestEndedHandler(@Nonnull final Dependencies dependencies) {
-    this.overheadController = dependencies.getOverheadController();
-    this.contextProvider = dependencies.contextProvider;
-  }
-
-  @Override
-  public Flow<Void> apply(final RequestContext requestContext, final IGSpanInfo igSpanInfo) {
-    final TraceSegment traceSegment = requestContext.getTraceSegment();
-    final IastContext iastCtx = requestContext.getData(RequestContextSlot.IAST);
-    if (iastCtx != null) {
-      for (HttpRequestEndModule module : requestEndModules()) {
-        if (module != null) {
-          module.onRequestEnd(iastCtx, igSpanInfo);
-        }
-      }
-      try {
-        ANALYZED.setTagTop(traceSegment);
-        contextProvider.releaseRequestContext(iastCtx);
-      } finally {
-        overheadController.releaseRequest();
-      }
-    } else {
-      SKIPPED.setTagTop(traceSegment);
+    public RequestEndedHandler(@Nonnull final Dependencies dependencies) {
+        this.overheadController = dependencies.getOverheadController();
+        this.contextProvider = dependencies.contextProvider;
     }
-    return Flow.ResultFlow.empty();
-  }
 
-  private HttpRequestEndModule[] requestEndModules() {
-    return new HttpRequestEndModule[] {
-      InstrumentationBridge.HSTS_MISSING_HEADER_MODULE,
-      InstrumentationBridge.X_CONTENT_TYPE_HEADER_MODULE,
-      InstrumentationBridge.INSECURE_AUTH_PROTOCOL
-    };
-  }
+    @Override
+    public Flow<Void> apply(final RequestContext requestContext, final IGSpanInfo igSpanInfo) {
+        final TraceSegment traceSegment = requestContext.getTraceSegment();
+        final IastContext iastCtx = requestContext.getData(RequestContextSlot.IAST);
+        if (iastCtx != null) {
+            for (HttpRequestEndModule module : requestEndModules()) {
+                if (module != null) {
+                    module.onRequestEnd(iastCtx, igSpanInfo);
+                }
+            }
+            try {
+                ANALYZED.setTagTop(traceSegment);
+                contextProvider.releaseRequestContext(iastCtx);
+            } finally {
+                overheadController.releaseRequest();
+            }
+        } else {
+            SKIPPED.setTagTop(traceSegment);
+        }
+        return Flow.ResultFlow.empty();
+    }
+
+    private HttpRequestEndModule[] requestEndModules() {
+        return new HttpRequestEndModule[] {
+            InstrumentationBridge.HSTS_MISSING_HEADER_MODULE,
+            InstrumentationBridge.X_CONTENT_TYPE_HEADER_MODULE,
+            InstrumentationBridge.INSECURE_AUTH_PROTOCOL
+        };
+    }
 }

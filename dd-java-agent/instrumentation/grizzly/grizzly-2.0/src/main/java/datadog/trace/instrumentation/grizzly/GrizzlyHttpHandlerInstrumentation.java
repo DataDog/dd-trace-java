@@ -20,109 +20,105 @@ import net.bytebuddy.asm.Advice;
 import org.glassfish.grizzly.http.server.Request;
 import org.glassfish.grizzly.http.server.Response;
 
-public class GrizzlyHttpHandlerInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+public class GrizzlyHttpHandlerInstrumentation implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String instrumentedType() {
-    return "org.glassfish.grizzly.http.server.HttpHandler";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvices(
-        isMethod()
-            .and(named("doHandle"))
-            .and(takesArgument(0, named("org.glassfish.grizzly.http.server.Request")))
-            .and(takesArgument(1, named("org.glassfish.grizzly.http.server.Response"))),
-        GrizzlyHttpHandlerInstrumentation.class.getName() + "$ContextTrackingAdvice",
-        GrizzlyHttpHandlerInstrumentation.class.getName() + "$HandleAdvice");
-  }
-
-  @AppliesOn(CONTEXT_TRACKING)
-  public static class ContextTrackingAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(
-        @Advice.Local("parentScope") ContextScope parentScope,
-        @Advice.Argument(0) final Request request) {
-      if (request.getAttribute(DD_CONTEXT_ATTRIBUTE) != null) {
-        return; // re-entry: HandleAdvice will return false (no-op)
-      }
-      Context parentContext = DECORATE.extract(request);
-      parentScope = parentContext.attach();
+    @Override
+    public String instrumentedType() {
+        return "org.glassfish.grizzly.http.server.HttpHandler";
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void closeScope(@Advice.Local("parentScope") ContextScope parentScope) {
-      if (parentScope != null) {
-        parentScope.close();
-      }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvices(
+                isMethod()
+                        .and(named("doHandle"))
+                        .and(takesArgument(0, named("org.glassfish.grizzly.http.server.Request")))
+                        .and(takesArgument(1, named("org.glassfish.grizzly.http.server.Response"))),
+                GrizzlyHttpHandlerInstrumentation.class.getName() + "$ContextTrackingAdvice",
+                GrizzlyHttpHandlerInstrumentation.class.getName() + "$HandleAdvice");
     }
-  }
 
-  public static class HandleAdvice {
+    @AppliesOn(CONTEXT_TRACKING)
+    public static class ContextTrackingAdvice {
 
-    @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
-    public static boolean /* skip body */ methodEnter(
-        @Advice.Local("contextScope") ContextScope scope,
-        @Advice.Argument(0) final Request request,
-        @Advice.Argument(1) final Response response) {
-      if (request.getAttribute(DD_CONTEXT_ATTRIBUTE) != null) {
-        return false;
-      }
-
-      final Context parentContext =
-          currentContext(); // parent context attached by ContextTrackingAdvice
-      final Context context = DECORATE.startSpan(request, parentContext);
-      final AgentSpan span = spanFromContext(context);
-      DECORATE.afterStart(span);
-      DECORATE.onRequest(span, request, request, parentContext);
-
-      scope = context.attach();
-
-      request.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
-      request.setAttribute(
-          CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
-      request.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
-
-      Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
-      if (rba != null) {
-        boolean success = GrizzlyBlockingHelper.block(request, response, rba, context);
-        if (success) {
-          return true; /* skip body */
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter(
+                @Advice.Local("parentScope") ContextScope parentScope, @Advice.Argument(0) final Request request) {
+            if (request.getAttribute(DD_CONTEXT_ATTRIBUTE) != null) {
+                return; // re-entry: HandleAdvice will return false (no-op)
+            }
+            Context parentContext = DECORATE.extract(request);
+            parentScope = parentContext.attach();
         }
-      }
 
-      request.addAfterServiceListener(SpanClosingListener.LISTENER);
-
-      return false;
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void closeScope(@Advice.Local("parentScope") ContextScope parentScope) {
+            if (parentScope != null) {
+                parentScope.close();
+            }
+        }
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit(
-        @Advice.Enter boolean skippedBody,
-        @Advice.Return(readOnly = false) boolean retVal,
-        @Advice.Local("contextScope") ContextScope scope,
-        @Advice.Thrown final Throwable throwable) {
-      if (scope == null) {
-        return;
-      }
+    public static class HandleAdvice {
 
-      if (throwable != null) {
-        final AgentSpan span = spanFromContext(scope.context());
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-        scope.close();
-        span.finish();
-      } else {
-        scope.close();
-      }
-      // span finished by SpanClosingListener
+        @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
+        public static boolean /* skip body */ methodEnter(
+                @Advice.Local("contextScope") ContextScope scope,
+                @Advice.Argument(0) final Request request,
+                @Advice.Argument(1) final Response response) {
+            if (request.getAttribute(DD_CONTEXT_ATTRIBUTE) != null) {
+                return false;
+            }
 
-      if (skippedBody) {
-        retVal = true; // return true to avoid suspending the request
-      }
+            final Context parentContext = currentContext(); // parent context attached by ContextTrackingAdvice
+            final Context context = DECORATE.startSpan(request, parentContext);
+            final AgentSpan span = spanFromContext(context);
+            DECORATE.afterStart(span);
+            DECORATE.onRequest(span, request, request, parentContext);
+
+            scope = context.attach();
+
+            request.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
+            request.setAttribute(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
+            request.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
+
+            Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
+            if (rba != null) {
+                boolean success = GrizzlyBlockingHelper.block(request, response, rba, context);
+                if (success) {
+                    return true; /* skip body */
+                }
+            }
+
+            request.addAfterServiceListener(SpanClosingListener.LISTENER);
+
+            return false;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void methodExit(
+                @Advice.Enter boolean skippedBody,
+                @Advice.Return(readOnly = false) boolean retVal,
+                @Advice.Local("contextScope") ContextScope scope,
+                @Advice.Thrown final Throwable throwable) {
+            if (scope == null) {
+                return;
+            }
+
+            if (throwable != null) {
+                final AgentSpan span = spanFromContext(scope.context());
+                DECORATE.onError(span, throwable);
+                DECORATE.beforeFinish(span);
+                scope.close();
+                span.finish();
+            } else {
+                scope.close();
+            }
+            // span finished by SpanClosingListener
+
+            if (skippedBody) {
+                retVal = true; // return true to avoid suspending the request
+            }
+        }
     }
-  }
 }

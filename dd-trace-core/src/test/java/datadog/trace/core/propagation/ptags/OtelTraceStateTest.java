@@ -12,115 +12,112 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 class OtelTraceStateTest {
-  private static final long DROP_PRECISION_BOUNDARY_TRACE_ID = 5401449561355763072L;
-  private static final double DROP_PRECISION_BOUNDARY_RATE = 0.05;
-  private static final String DROP_PRECISION_BOUNDARY_RANDOM_VALUE = "f333333333332f";
-  private static final String DROP_PRECISION_BOUNDARY_THRESHOLD = "f333333333333";
+    private static final long DROP_PRECISION_BOUNDARY_TRACE_ID = 5401449561355763072L;
+    private static final double DROP_PRECISION_BOUNDARY_RATE = 0.05;
+    private static final String DROP_PRECISION_BOUNDARY_RANDOM_VALUE = "f333333333332f";
+    private static final String DROP_PRECISION_BOUNDARY_THRESHOLD = "f333333333333";
 
-  @Test
-  void convertsDatadogProbabilityDecision() {
-    OtelTraceState state =
-        OtelTraceState.fromProbabilityDecision(0xfff972474538efffL, 0.1, SAMPLER_KEEP);
+    @Test
+    void convertsDatadogProbabilityDecision() {
+        OtelTraceState state = OtelTraceState.fromProbabilityDecision(0xfff972474538efffL, 0.1, SAMPLER_KEEP);
 
-    assertFalse(state.isMaterialized());
-    assertEquals("rv:ef284ace7a91e1;th:e6666666666668", state.toString());
-    assertTrue(state.isMaterialized());
-    assertTrue(state.isConsistentWith(true));
-  }
+        assertFalse(state.isMaterialized());
+        assertEquals("rv:ef284ace7a91e1;th:e6666666666668", state.toString());
+        assertTrue(state.isMaterialized());
+        assertTrue(state.isConsistentWith(true));
+    }
 
-  @Test
-  void serializesThresholds() {
-    assertThreshold(0.01, "fd70a3d70a3d7");
-    assertThreshold(0.1, "e6666666666668");
-    assertThreshold(0.2, "ccccccccccccd");
-    assertThreshold(0.5, "8");
-    assertThreshold(0.99, "028f5c28f5c29");
-    assertThreshold(1.0, "0");
-  }
+    @Test
+    void serializesThresholds() {
+        assertThreshold(0.01, "fd70a3d70a3d7");
+        assertThreshold(0.1, "e6666666666668");
+        assertThreshold(0.2, "ccccccccccccd");
+        assertThreshold(0.5, "8");
+        assertThreshold(0.99, "028f5c28f5c29");
+        assertThreshold(1.0, "0");
+    }
 
-  @Test
-  void rateZeroUsesLargestWireThresholdAndRemainsDropConsistent() {
-    OtelTraceState state = OtelTraceState.fromProbabilityDecision(0L, 0.0, SAMPLER_DROP);
+    @Test
+    void rateZeroUsesLargestWireThresholdAndRemainsDropConsistent() {
+        OtelTraceState state = OtelTraceState.fromProbabilityDecision(0L, 0.0, SAMPLER_DROP);
 
-    assertEquals("rv:fffffffffffffe;th:ffffffffffffff", state.toString());
-    assertTrue(state.isConsistentWith(false));
-  }
+        assertEquals("rv:fffffffffffffe;th:ffffffffffffff", state.toString());
+        assertTrue(state.isConsistentWith(false));
+    }
 
-  @Test
-  void rateAboveOneSaturatesToAlwaysSampleThreshold() {
-    OtelTraceState state = OtelTraceState.fromProbabilityDecision(1L, 1.5, SAMPLER_KEEP);
+    @Test
+    void rateAboveOneSaturatesToAlwaysSampleThreshold() {
+        OtelTraceState state = OtelTraceState.fromProbabilityDecision(1L, 1.5, SAMPLER_KEEP);
 
-    assertEquals("rv:f0948a54d43b8e;th:0", state.toString());
-    assertTrue(state.isConsistentWith(true));
-  }
+        assertEquals("rv:f0948a54d43b8e;th:0", state.toString());
+        assertTrue(state.isConsistentWith(true));
+    }
 
-  @Test
-  void correctsOnlySerializedRandomValueAtKeepBoundary() {
-    OtelTraceState state =
-        OtelTraceState.fromProbabilityDecision(0x03a93ee8b1999f00L, 0.1, SAMPLER_KEEP);
+    @Test
+    void correctsOnlySerializedRandomValueAtKeepBoundary() {
+        OtelTraceState state = OtelTraceState.fromProbabilityDecision(0x03a93ee8b1999f00L, 0.1, SAMPLER_KEEP);
 
-    assertEquals("rv:e6666666666668;th:e6666666666668", state.toString());
-    assertTrue(state.isConsistentWith(true));
-  }
+        assertEquals("rv:e6666666666668;th:e6666666666668", state.toString());
+        assertTrue(state.isConsistentWith(true));
+    }
 
-  @Test
-  void correctsOnlySerializedRandomValueAtDropBoundary() {
-    OtelTraceState state =
-        OtelTraceState.fromProbabilityDecision(
-            DROP_PRECISION_BOUNDARY_TRACE_ID, DROP_PRECISION_BOUNDARY_RATE, SAMPLER_DROP);
+    @Test
+    void correctsOnlySerializedRandomValueAtDropBoundary() {
+        OtelTraceState state = OtelTraceState.fromProbabilityDecision(
+                DROP_PRECISION_BOUNDARY_TRACE_ID, DROP_PRECISION_BOUNDARY_RATE, SAMPLER_DROP);
 
-    assertEquals(
-        "rv:" + DROP_PRECISION_BOUNDARY_RANDOM_VALUE + ";th:" + DROP_PRECISION_BOUNDARY_THRESHOLD,
-        state.toString());
-    assertTrue(state.isConsistentWith(false));
-  }
+        assertEquals(
+                "rv:" + DROP_PRECISION_BOUNDARY_RANDOM_VALUE + ";th:" + DROP_PRECISION_BOUNDARY_THRESHOLD,
+                state.toString());
+        assertTrue(state.isConsistentWith(false));
+    }
 
-  @Test
-  void removesLocalRandomnessForNonProbabilityDecision() {
-    OtelTraceState state = OtelTraceState.fromProbabilityDecision(1L, 1.0, SAMPLER_KEEP);
+    @Test
+    void removesLocalRandomnessForNonProbabilityDecision() {
+        OtelTraceState state = OtelTraceState.fromProbabilityDecision(1L, 1.0, SAMPLER_KEEP);
 
-    assertNull(state.forNonProbabilityDecision());
-  }
+        assertNull(state.forNonProbabilityDecision());
+    }
 
-  @Test
-  void retainsInheritedRandomnessAndUnknownFieldsWithoutThreshold() {
-    OtelTraceState state = OtelTraceState.parse("rv:0123456789abcd;th:8;x:value", 0);
+    @Test
+    void retainsInheritedRandomnessAndUnknownFieldsWithoutThreshold() {
+        OtelTraceState state = OtelTraceState.parse("rv:0123456789abcd;th:8;x:value", 0);
 
-    OtelTraceState transformed = state.forNonProbabilityDecision();
+        OtelTraceState transformed = state.forNonProbabilityDecision();
 
-    assertEquals("rv:0123456789abcd;x:value", transformed.toString());
-    assertTrue(transformed.isConsistentWith(false));
-  }
+        assertEquals("rv:0123456789abcd;x:value", transformed.toString());
+        assertTrue(transformed.isConsistentWith(false));
+    }
 
-  @Test
-  void forNonProbabilityDecisionReturnsSameInstanceWhenAlreadyNonProbability() {
-    OtelTraceState state = OtelTraceState.parse("rv:0123456789abcd;x:value", 0);
+    @Test
+    void forNonProbabilityDecisionReturnsSameInstanceWhenAlreadyNonProbability() {
+        OtelTraceState state = OtelTraceState.parse("rv:0123456789abcd;x:value", 0);
 
-    assertSame(state, state.forNonProbabilityDecision());
-  }
+        assertSame(state, state.forNonProbabilityDecision());
+    }
 
-  @Test
-  void forNonProbabilityDecisionReturnsSameInstanceForUnknownFieldsOnly() {
-    OtelTraceState state = OtelTraceState.parse("x:value", 0);
+    @Test
+    void forNonProbabilityDecisionReturnsSameInstanceForUnknownFieldsOnly() {
+        OtelTraceState state = OtelTraceState.parse("x:value", 0);
 
-    assertSame(state, state.forNonProbabilityDecision());
-  }
+        assertSame(state, state.forNonProbabilityDecision());
+    }
 
-  @Test
-  void forNonProbabilityDecisionStillDropsUninheritedRandomValue() {
-    OtelTraceState state =
-        OtelTraceState.fromProbabilityDecision(1L, 0.1, SAMPLER_KEEP).withoutThreshold();
+    @Test
+    void forNonProbabilityDecisionStillDropsUninheritedRandomValue() {
+        OtelTraceState state =
+                OtelTraceState.fromProbabilityDecision(1L, 0.1, SAMPLER_KEEP).withoutThreshold();
 
-    OtelTraceState transformed = state.forNonProbabilityDecision();
+        OtelTraceState transformed = state.forNonProbabilityDecision();
 
-    assertNotSame(state, transformed);
-    assertNull(transformed);
-  }
+        assertNotSame(state, transformed);
+        assertNull(transformed);
+    }
 
-  private static void assertThreshold(double rate, String expectedThreshold) {
-    int samplingPriority = rate > 0.0 ? SAMPLER_KEEP : SAMPLER_DROP;
-    OtelTraceState state = OtelTraceState.fromProbabilityDecision(1L, rate, samplingPriority);
-    String value = state.toString();
-    assertEquals(expectedThreshold, value.substring(value.indexOf(";th:") + 4));
-  }
+    private static void assertThreshold(double rate, String expectedThreshold) {
+        int samplingPriority = rate > 0.0 ? SAMPLER_KEEP : SAMPLER_DROP;
+        OtelTraceState state = OtelTraceState.fromProbabilityDecision(1L, rate, samplingPriority);
+        String value = state.toString();
+        assertEquals(expectedThreshold, value.substring(value.indexOf(";th:") + 4));
+    }
 }

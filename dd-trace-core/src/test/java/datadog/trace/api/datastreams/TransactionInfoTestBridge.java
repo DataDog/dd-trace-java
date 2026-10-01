@@ -5,7 +5,7 @@ package datadog.trace.api.datastreams;
  * TransactionInfo}
  */
 public class TransactionInfoTestBridge {
-  public static void resetCache() {
-    TransactionInfo.resetCache();
-  }
+    public static void resetCache() {
+        TransactionInfo.resetCache();
+    }
 }

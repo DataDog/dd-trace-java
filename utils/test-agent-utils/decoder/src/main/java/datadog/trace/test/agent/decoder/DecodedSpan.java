@@ -4,41 +4,41 @@ import java.util.List;
 import java.util.Map;
 
 public interface DecodedSpan {
-  String getService();
+    String getService();
 
-  String getName();
+    String getName();
 
-  String getResource();
+    String getResource();
 
-  /**
-   * Returns the span 64-bit trace identifier, dropping high-order bits if present.
-   *
-   * @return The span 64-bit trace identifier.
-   */
-  long getTraceId();
+    /**
+     * Returns the span 64-bit trace identifier, dropping high-order bits if present.
+     *
+     * @return The span 64-bit trace identifier.
+     */
+    long getTraceId();
 
-  long getSpanId();
+    long getSpanId();
 
-  long getParentId();
+    long getParentId();
 
-  long getStart();
+    long getStart();
 
-  long getDuration();
+    long getDuration();
 
-  int getError();
+    int getError();
 
-  Map<String, String> getMeta();
+    Map<String, String> getMeta();
 
-  Map<String, Object> getMetaStruct();
+    Map<String, Object> getMetaStruct();
 
-  Map<String, Number> getMetrics();
+    Map<String, Number> getMetrics();
 
-  String getType();
+    String getType();
 
-  /**
-   * Returns the links.
-   *
-   * @return The span links, empty when the span carries none.
-   */
-  List<DecodedSpanLink> getLinks();
+    /**
+     * Returns the links.
+     *
+     * @return The span links, empty when the span carries none.
+     */
+    List<DecodedSpanLink> getLinks();
 }

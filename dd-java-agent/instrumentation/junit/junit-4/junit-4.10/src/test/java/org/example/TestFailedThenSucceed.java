@@ -11,30 +11,30 @@ import org.junit.Test;
 
 public class TestFailedThenSucceed {
 
-  public static int TEST_EXECUTIONS_COUNT = 0;
+    public static int TEST_EXECUTIONS_COUNT = 0;
 
-  @Before
-  public void setUp() {
-    AgentTracer.TracerAPI agentTracer = AgentTracer.get();
-    AgentSpan span = agentTracer.buildSpan("junit-manual", "set-up").start();
-    try (ContextScope scope = agentTracer.activateManualSpan(span)) {
-      // tracing setup to verify that it is executed for every retry
+    @Before
+    public void setUp() {
+        AgentTracer.TracerAPI agentTracer = AgentTracer.get();
+        AgentSpan span = agentTracer.buildSpan("junit-manual", "set-up").start();
+        try (ContextScope scope = agentTracer.activateManualSpan(span)) {
+            // tracing setup to verify that it is executed for every retry
+        }
+        span.finish();
     }
-    span.finish();
-  }
 
-  @Test
-  public void test_failed_then_succeed() {
-    assertTrue(++TEST_EXECUTIONS_COUNT > 3);
-  }
-
-  @After
-  public void tearDown() {
-    AgentTracer.TracerAPI agentTracer = AgentTracer.get();
-    AgentSpan span = agentTracer.buildSpan("junit-manual", "tear-down").start();
-    try (ContextScope scope = agentTracer.activateManualSpan(span)) {
-      // tracing teardown to verify that it is executed for every retry
+    @Test
+    public void test_failed_then_succeed() {
+        assertTrue(++TEST_EXECUTIONS_COUNT > 3);
     }
-    span.finish();
-  }
+
+    @After
+    public void tearDown() {
+        AgentTracer.TracerAPI agentTracer = AgentTracer.get();
+        AgentSpan span = agentTracer.buildSpan("junit-manual", "tear-down").start();
+        try (ContextScope scope = agentTracer.activateManualSpan(span)) {
+            // tracing teardown to verify that it is executed for every retry
+        }
+        span.finish();
+    }
 }

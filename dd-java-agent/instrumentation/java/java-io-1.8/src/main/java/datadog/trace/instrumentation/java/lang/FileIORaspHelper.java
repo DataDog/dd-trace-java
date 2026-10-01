@@ -22,137 +22,137 @@ import org.slf4j.LoggerFactory;
 
 public class FileIORaspHelper {
 
-  public static FileIORaspHelper INSTANCE = new FileIORaspHelper();
+    public static FileIORaspHelper INSTANCE = new FileIORaspHelper();
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(FileIORaspHelper.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(FileIORaspHelper.class);
 
-  private FileIORaspHelper() {
-    // prevent instantiation
-  }
-
-  public void beforeFileLoaded(@Nullable final String parent, @Nonnull final String child) {
-    try {
-      if (parent == null) {
-        beforeFileLoaded(child);
-        return;
-      }
-      String s = parent + FileSystems.getDefault().getSeparator() + child;
-      beforeFileLoaded(s);
-    } catch (final BlockingException e) {
-      // re-throw blocking exceptions
-      throw e;
-    } catch (final Throwable e) {
-      // suppress anything else
-      LOGGER.debug("Exception during LFI rasp callback", e);
+    private FileIORaspHelper() {
+        // prevent instantiation
     }
-  }
 
-  public void beforeFileLoaded(@Nonnull final String first, @Nonnull final String[] more) {
-    try {
-      String separator = FileSystems.getDefault().getSeparator();
-      String s = first;
-      if (more.length > 0) {
-        s += separator + String.join(separator, more);
-      }
-      beforeFileLoaded(s);
-    } catch (final BlockingException e) {
-      // re-throw blocking exceptions
-      throw e;
-    } catch (final Throwable e) {
-      // suppress anything else
-      LOGGER.debug("Exception during LFI rasp callback", e);
-    }
-  }
-
-  public void beforeFileLoaded(@Nonnull final URI uri) {
-    try {
-      beforeFileLoaded(uri.toString());
-    } catch (final BlockingException e) {
-      // re-throw blocking exceptions
-      throw e;
-    } catch (final Throwable e) {
-      // suppress anything else
-      LOGGER.debug("Exception during LFI rasp callback", e);
-    }
-  }
-
-  public void beforeFileLoaded(@Nullable final File parent, @Nonnull final String child) {
-    try {
-      if (parent == null) {
-        beforeFileLoaded(child);
-        return;
-      }
-      String s = parent + FileSystems.getDefault().getSeparator() + child;
-      beforeFileLoaded(s);
-    } catch (final BlockingException e) {
-      // re-throw blocking exceptions
-      throw e;
-    } catch (final Throwable e) {
-      // suppress anything else
-      LOGGER.debug("Exception during LFI rasp callback", e);
-    }
-  }
-
-  public void beforeFileLoaded(@Nonnull final String path) {
-    invokeRaspCallback(EVENTS.fileLoaded(), path);
-  }
-
-  public void beforeFileWritten(@Nonnull final String path) {
-    invokeRaspCallback(EVENTS.fileWritten(), path);
-  }
-
-  /**
-   * Fires {@link #beforeFileLoaded} for read modes ("r"), and both {@link #beforeFileLoaded} and
-   * {@link #beforeFileWritten} for write modes ("rw", "rws", "rwd").
-   */
-  public void beforeRandomAccessFileOpened(@Nonnull final String path, @Nonnull final String mode) {
-    // "r" = read only; "rw", "rws", "rwd" = read + write
-    beforeFileLoaded(path);
-    if (mode.length() > 1) {
-      beforeFileWritten(path);
-    }
-  }
-
-  private void invokeRaspCallback(
-      EventType<BiFunction<RequestContext, String, Flow<Void>>> eventType,
-      @Nonnull final String path) {
-    if (!Config.get().isAppSecRaspEnabled()) {
-      return;
-    }
-    try {
-      final BiFunction<RequestContext, String, Flow<Void>> callback =
-          AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC).getCallback(eventType);
-
-      if (callback == null) {
-        return;
-      }
-
-      final AgentSpan span = AgentTracer.get().activeSpan();
-      if (span == null) {
-        return;
-      }
-
-      final RequestContext ctx = span.getRequestContext();
-      if (ctx == null) {
-        return;
-      }
-
-      Flow<Void> flow = callback.apply(ctx, path);
-      Flow.Action action = flow.getAction();
-      if (action instanceof Flow.Action.RequestBlockingAction) {
-        BlockResponseFunction brf = ctx.getBlockResponseFunction();
-        if (brf != null) {
-          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-          brf.tryCommitBlockingResponse(ctx.getTraceSegment(), rba);
+    public void beforeFileLoaded(@Nullable final String parent, @Nonnull final String child) {
+        try {
+            if (parent == null) {
+                beforeFileLoaded(child);
+                return;
+            }
+            String s = parent + FileSystems.getDefault().getSeparator() + child;
+            beforeFileLoaded(s);
+        } catch (final BlockingException e) {
+            // re-throw blocking exceptions
+            throw e;
+        } catch (final Throwable e) {
+            // suppress anything else
+            LOGGER.debug("Exception during LFI rasp callback", e);
         }
-        throw new BlockingException("Blocked request (for LFI attempt)");
-      }
-    } catch (final BlockingException e) {
-      // re-throw blocking exceptions
-      throw e;
-    } catch (final Throwable e) {
-      // suppress anything else
-      LOGGER.debug("Exception during LFI rasp callback", e);
     }
-  }
+
+    public void beforeFileLoaded(@Nonnull final String first, @Nonnull final String[] more) {
+        try {
+            String separator = FileSystems.getDefault().getSeparator();
+            String s = first;
+            if (more.length > 0) {
+                s += separator + String.join(separator, more);
+            }
+            beforeFileLoaded(s);
+        } catch (final BlockingException e) {
+            // re-throw blocking exceptions
+            throw e;
+        } catch (final Throwable e) {
+            // suppress anything else
+            LOGGER.debug("Exception during LFI rasp callback", e);
+        }
+    }
+
+    public void beforeFileLoaded(@Nonnull final URI uri) {
+        try {
+            beforeFileLoaded(uri.toString());
+        } catch (final BlockingException e) {
+            // re-throw blocking exceptions
+            throw e;
+        } catch (final Throwable e) {
+            // suppress anything else
+            LOGGER.debug("Exception during LFI rasp callback", e);
+        }
+    }
+
+    public void beforeFileLoaded(@Nullable final File parent, @Nonnull final String child) {
+        try {
+            if (parent == null) {
+                beforeFileLoaded(child);
+                return;
+            }
+            String s = parent + FileSystems.getDefault().getSeparator() + child;
+            beforeFileLoaded(s);
+        } catch (final BlockingException e) {
+            // re-throw blocking exceptions
+            throw e;
+        } catch (final Throwable e) {
+            // suppress anything else
+            LOGGER.debug("Exception during LFI rasp callback", e);
+        }
+    }
+
+    public void beforeFileLoaded(@Nonnull final String path) {
+        invokeRaspCallback(EVENTS.fileLoaded(), path);
+    }
+
+    public void beforeFileWritten(@Nonnull final String path) {
+        invokeRaspCallback(EVENTS.fileWritten(), path);
+    }
+
+    /**
+     * Fires {@link #beforeFileLoaded} for read modes ("r"), and both {@link #beforeFileLoaded} and
+     * {@link #beforeFileWritten} for write modes ("rw", "rws", "rwd").
+     */
+    public void beforeRandomAccessFileOpened(@Nonnull final String path, @Nonnull final String mode) {
+        // "r" = read only; "rw", "rws", "rwd" = read + write
+        beforeFileLoaded(path);
+        if (mode.length() > 1) {
+            beforeFileWritten(path);
+        }
+    }
+
+    private void invokeRaspCallback(
+            EventType<BiFunction<RequestContext, String, Flow<Void>>> eventType, @Nonnull final String path) {
+        if (!Config.get().isAppSecRaspEnabled()) {
+            return;
+        }
+        try {
+            final BiFunction<RequestContext, String, Flow<Void>> callback = AgentTracer.get()
+                    .getCallbackProvider(RequestContextSlot.APPSEC)
+                    .getCallback(eventType);
+
+            if (callback == null) {
+                return;
+            }
+
+            final AgentSpan span = AgentTracer.get().activeSpan();
+            if (span == null) {
+                return;
+            }
+
+            final RequestContext ctx = span.getRequestContext();
+            if (ctx == null) {
+                return;
+            }
+
+            Flow<Void> flow = callback.apply(ctx, path);
+            Flow.Action action = flow.getAction();
+            if (action instanceof Flow.Action.RequestBlockingAction) {
+                BlockResponseFunction brf = ctx.getBlockResponseFunction();
+                if (brf != null) {
+                    Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+                    brf.tryCommitBlockingResponse(ctx.getTraceSegment(), rba);
+                }
+                throw new BlockingException("Blocked request (for LFI attempt)");
+            }
+        } catch (final BlockingException e) {
+            // re-throw blocking exceptions
+            throw e;
+        } catch (final Throwable e) {
+            // suppress anything else
+            LOGGER.debug("Exception during LFI rasp callback", e);
+        }
+    }
 }

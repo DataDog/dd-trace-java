@@ -14,27 +14,26 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableSchedulerLock(defaultLockAtMostFor = "1000")
 public class ShedlockConfig {
 
-  @Bean
-  public ShedLockedTask schedLockedTask() {
-    return new ShedLockedTask();
-  }
+    @Bean
+    public ShedLockedTask schedLockedTask() {
+        return new ShedLockedTask();
+    }
 
-  @Bean
-  public DataSource dataSource() {
-    DataSourceBuilder dataSourceBuilder = DataSourceBuilder.create();
-    dataSourceBuilder.driverClassName("org.h2.Driver");
-    dataSourceBuilder.url("jdbc:h2:mem:test");
-    dataSourceBuilder.username("SA");
-    dataSourceBuilder.password("");
-    return dataSourceBuilder.build();
-  }
+    @Bean
+    public DataSource dataSource() {
+        DataSourceBuilder dataSourceBuilder = DataSourceBuilder.create();
+        dataSourceBuilder.driverClassName("org.h2.Driver");
+        dataSourceBuilder.url("jdbc:h2:mem:test");
+        dataSourceBuilder.username("SA");
+        dataSourceBuilder.password("");
+        return dataSourceBuilder.build();
+    }
 
-  @Bean
-  LockProvider lockProvider(@Autowired DataSource dataSource) {
-    return new JdbcTemplateLockProvider(
-        JdbcTemplateLockProvider.Configuration.builder()
-            .withJdbcTemplate(new JdbcTemplate(dataSource))
-            .usingDbTime()
-            .build());
-  }
+    @Bean
+    LockProvider lockProvider(@Autowired DataSource dataSource) {
+        return new JdbcTemplateLockProvider(JdbcTemplateLockProvider.Configuration.builder()
+                .withJdbcTemplate(new JdbcTemplate(dataSource))
+                .usingDbTime()
+                .build());
+    }
 }

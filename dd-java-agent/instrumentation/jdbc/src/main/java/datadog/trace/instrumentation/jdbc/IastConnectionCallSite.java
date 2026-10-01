@@ -17,55 +17,47 @@ import javax.annotation.Nonnull;
 
 @Sink(VulnerabilityTypes.SQL_INJECTION)
 @CallSite(
-    spi = IastCallSites.class,
-    helpers = {JDBCDecorator.class})
+        spi = IastCallSites.class,
+        helpers = {JDBCDecorator.class})
 public class IastConnectionCallSite {
 
-  private static ContextStore<Connection, JDBCConnectionContext> CONNECTION_CONTEXT_STORE = null;
+    private static ContextStore<Connection, JDBCConnectionContext> CONNECTION_CONTEXT_STORE = null;
 
-  @SuppressWarnings("unchecked")
-  @Nonnull
-  public static DBInfo getDBInfo(final Connection connection) {
-    if (CONNECTION_CONTEXT_STORE == null) {
-      final int storeId =
-          getContextStoreId(Connection.class.getName(), JDBCConnectionContext.class.getName());
-      final ContextStore<?, ?> store = getContextStore(storeId);
-      CONNECTION_CONTEXT_STORE = (ContextStore<Connection, JDBCConnectionContext>) store;
+    @SuppressWarnings("unchecked")
+    @Nonnull
+    public static DBInfo getDBInfo(final Connection connection) {
+        if (CONNECTION_CONTEXT_STORE == null) {
+            final int storeId = getContextStoreId(Connection.class.getName(), JDBCConnectionContext.class.getName());
+            final ContextStore<?, ?> store = getContextStore(storeId);
+            CONNECTION_CONTEXT_STORE = (ContextStore<Connection, JDBCConnectionContext>) store;
+        }
+        if (CONNECTION_CONTEXT_STORE == null) {
+            return JDBCDecorator.parseDBInfoFromConnection(connection);
+        } else {
+            return JDBCDecorator.parseConnectionContext(connection, CONNECTION_CONTEXT_STORE)
+                    .getDbInfo();
+        }
     }
-    if (CONNECTION_CONTEXT_STORE == null) {
-      return JDBCDecorator.parseDBInfoFromConnection(connection);
-    } else {
-      return JDBCDecorator.parseConnectionContext(connection, CONNECTION_CONTEXT_STORE).getDbInfo();
-    }
-  }
 
-  @CallSite.Before(
-      "java.sql.PreparedStatement java.sql.Connection.prepareStatement(java.lang.String)")
-  @CallSite.Before(
-      "java.sql.PreparedStatement java.sql.Connection.prepareStatement(java.lang.String, int, int)")
-  @CallSite.Before(
-      "java.sql.PreparedStatement java.sql.Connection.prepareStatement(java.lang.String, int, int, int)")
-  @CallSite.Before(
-      "java.sql.PreparedStatement java.sql.Connection.prepareStatement(java.lang.String, int)")
-  @CallSite.Before(
-      "java.sql.PreparedStatement java.sql.Connection.prepareStatement(java.lang.String, int[])")
-  @CallSite.Before(
-      "java.sql.PreparedStatement java.sql.Connection.prepareStatement(java.lang.String, java.lang.String[])")
-  @CallSite.Before("java.sql.CallableStatement java.sql.Connection.prepareCall(java.lang.String)")
-  @CallSite.Before(
-      "java.sql.CallableStatement java.sql.Connection.prepareCall(java.lang.String, int, int)")
-  @CallSite.Before(
-      "java.sql.CallableStatement java.sql.Connection.prepareCall(java.lang.String, int, int, int)")
-  public static void beforePrepare(
-      @CallSite.This final Connection conn, @CallSite.Argument(0) final String sql) {
-    final SqlInjectionModule module = InstrumentationBridge.SQL_INJECTION;
-    if (module != null) {
-      try {
-        final DBInfo dbInfo = getDBInfo(conn);
-        module.onJdbcQuery(sql, dbInfo.getType());
-      } catch (final Throwable e) {
-        module.onUnexpectedException("beforePrepare threw", e);
-      }
+    @CallSite.Before("java.sql.PreparedStatement java.sql.Connection.prepareStatement(java.lang.String)")
+    @CallSite.Before("java.sql.PreparedStatement java.sql.Connection.prepareStatement(java.lang.String, int, int)")
+    @CallSite.Before("java.sql.PreparedStatement java.sql.Connection.prepareStatement(java.lang.String, int, int, int)")
+    @CallSite.Before("java.sql.PreparedStatement java.sql.Connection.prepareStatement(java.lang.String, int)")
+    @CallSite.Before("java.sql.PreparedStatement java.sql.Connection.prepareStatement(java.lang.String, int[])")
+    @CallSite.Before(
+            "java.sql.PreparedStatement java.sql.Connection.prepareStatement(java.lang.String, java.lang.String[])")
+    @CallSite.Before("java.sql.CallableStatement java.sql.Connection.prepareCall(java.lang.String)")
+    @CallSite.Before("java.sql.CallableStatement java.sql.Connection.prepareCall(java.lang.String, int, int)")
+    @CallSite.Before("java.sql.CallableStatement java.sql.Connection.prepareCall(java.lang.String, int, int, int)")
+    public static void beforePrepare(@CallSite.This final Connection conn, @CallSite.Argument(0) final String sql) {
+        final SqlInjectionModule module = InstrumentationBridge.SQL_INJECTION;
+        if (module != null) {
+            try {
+                final DBInfo dbInfo = getDBInfo(conn);
+                module.onJdbcQuery(sql, dbInfo.getType());
+            } catch (final Throwable e) {
+                module.onUnexpectedException("beforePrepare threw", e);
+            }
+        }
     }
-  }
 }

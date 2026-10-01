@@ -55,110 +55,104 @@ import org.slf4j.LoggerFactory;
  */
 public class CiVisibilityServices {
 
-  private static final Logger logger = LoggerFactory.getLogger(CiVisibilityServices.class);
+    private static final Logger logger = LoggerFactory.getLogger(CiVisibilityServices.class);
 
-  private static final String GIT_FOLDER_NAME = ".git";
+    private static final String GIT_FOLDER_NAME = ".git";
 
-  final ProcessHierarchy processHierarchy;
-  final Config config;
-  final CiVisibilityMetricCollector metricCollector;
-  final BackendApi backendApi;
-  final BackendApi ciIntake;
-  final JvmInfoFactory jvmInfoFactory;
-  final CiEnvironment environment;
-  final CIProviderInfoFactory ciProviderInfoFactory;
-  final GitClient.Factory gitClientFactory;
-  final GitInfoProvider gitInfoProvider;
-  final LinesResolver linesResolver;
-  final RepoIndexProvider.Factory repoIndexProviderFactory;
-  @Nullable final SignalClient.Factory signalClientFactory;
+    final ProcessHierarchy processHierarchy;
+    final Config config;
+    final CiVisibilityMetricCollector metricCollector;
+    final BackendApi backendApi;
+    final BackendApi ciIntake;
+    final JvmInfoFactory jvmInfoFactory;
+    final CiEnvironment environment;
+    final CIProviderInfoFactory ciProviderInfoFactory;
+    final GitClient.Factory gitClientFactory;
+    final GitInfoProvider gitInfoProvider;
+    final LinesResolver linesResolver;
+    final RepoIndexProvider.Factory repoIndexProviderFactory;
 
-  CiVisibilityServices(
-      Config config,
-      CiVisibilityMetricCollector metricCollector,
-      SharedCommunicationObjects sco,
-      GitInfoProvider gitInfoProvider) {
-    this.processHierarchy = new ProcessHierarchy();
-    this.config = config;
-    this.metricCollector = metricCollector;
-    this.backendApi = new BackendApiFactory(config, sco).createBackendApi(Intake.API);
-    this.ciIntake = new BackendApiFactory(config, sco).createBackendApi(Intake.CI_INTAKE);
-    this.jvmInfoFactory = new CachingJvmInfoFactory(config, new JvmInfoFactoryImpl());
+    @Nullable
+    final SignalClient.Factory signalClientFactory;
 
-    if (BazelMode.get().isPayloadFilesEnabled()) {
-      // git commands should not be executed in payload files mode
-      logger.info("[bazel mode] Payload-in-files mode detected. Disabling git commands");
-      this.gitClientFactory = r -> NoOpGitClient.INSTANCE;
-    } else {
-      this.gitClientFactory = buildGitClientFactory(config, metricCollector);
+    CiVisibilityServices(
+            Config config,
+            CiVisibilityMetricCollector metricCollector,
+            SharedCommunicationObjects sco,
+            GitInfoProvider gitInfoProvider) {
+        this.processHierarchy = new ProcessHierarchy();
+        this.config = config;
+        this.metricCollector = metricCollector;
+        this.backendApi = new BackendApiFactory(config, sco).createBackendApi(Intake.API);
+        this.ciIntake = new BackendApiFactory(config, sco).createBackendApi(Intake.CI_INTAKE);
+        this.jvmInfoFactory = new CachingJvmInfoFactory(config, new JvmInfoFactoryImpl());
+
+        if (BazelMode.get().isPayloadFilesEnabled()) {
+            // git commands should not be executed in payload files mode
+            logger.info("[bazel mode] Payload-in-files mode detected. Disabling git commands");
+            this.gitClientFactory = r -> NoOpGitClient.INSTANCE;
+        } else {
+            this.gitClientFactory = buildGitClientFactory(config, metricCollector);
+        }
+
+        this.environment = buildCiEnvironment();
+        this.ciProviderInfoFactory = new CIProviderInfoFactory(config, environment);
+        this.linesResolver = new BestEffortLinesResolver(new CompilerAidedLinesResolver(), new ByteCodeLinesResolver());
+
+        this.gitInfoProvider = gitInfoProvider;
+        gitInfoProvider.registerGitInfoBuilder(new CIProviderGitInfoBuilder(config, environment));
+        gitInfoProvider.registerGitInfoBuilder(new CILocalGitInfoBuilder(gitClientFactory, GIT_FOLDER_NAME));
+        gitInfoProvider.registerGitInfoBuilder(new GitClientGitInfoBuilder(config, gitClientFactory));
+
+        if (processHierarchy.isChild()) {
+            InetSocketAddress signalServerAddress = processHierarchy.getSignalServerAddress();
+            this.signalClientFactory = new SignalClient.Factory(signalServerAddress, config);
+
+            RepoIndexProvider indexFetcher = new RepoIndexFetcher(signalClientFactory);
+            this.repoIndexProviderFactory = (repoRoot) -> indexFetcher;
+
+        } else {
+            this.signalClientFactory = null;
+
+            FileSystem fileSystem = FileSystems.getDefault();
+            PackageResolver packageResolver = new PackageResolverImpl(fileSystem);
+            ResourceResolver resourceResolver =
+                    new ConventionBasedResourceResolver(fileSystem, config.getCiVisibilityResourceFolderNames());
+            this.repoIndexProviderFactory =
+                    new CachingRepoIndexBuilderFactory(config, packageResolver, resourceResolver, fileSystem);
+        }
     }
 
-    this.environment = buildCiEnvironment();
-    this.ciProviderInfoFactory = new CIProviderInfoFactory(config, environment);
-    this.linesResolver =
-        new BestEffortLinesResolver(new CompilerAidedLinesResolver(), new ByteCodeLinesResolver());
+    private static GitClient.Factory buildGitClientFactory(Config config, CiVisibilityMetricCollector metricCollector) {
+        if (!config.isCiVisibilityGitClientEnabled()) {
+            return r -> NoOpGitClient.INSTANCE;
+        }
+        try {
+            ShellCommandExecutor shellCommandExecutor =
+                    new ShellCommandExecutor(new File("."), config.getCiVisibilityGitCommandTimeoutMillis());
+            String gitVersion = shellCommandExecutor.executeCommand(IOUtils::readFully, "git", "version");
+            logger.debug("Detected git executable version {}", gitVersion);
+            return new ShellGitClient.Factory(config, metricCollector);
 
-    this.gitInfoProvider = gitInfoProvider;
-    gitInfoProvider.registerGitInfoBuilder(new CIProviderGitInfoBuilder(config, environment));
-    gitInfoProvider.registerGitInfoBuilder(
-        new CILocalGitInfoBuilder(gitClientFactory, GIT_FOLDER_NAME));
-    gitInfoProvider.registerGitInfoBuilder(new GitClientGitInfoBuilder(config, gitClientFactory));
-
-    if (processHierarchy.isChild()) {
-      InetSocketAddress signalServerAddress = processHierarchy.getSignalServerAddress();
-      this.signalClientFactory = new SignalClient.Factory(signalServerAddress, config);
-
-      RepoIndexProvider indexFetcher = new RepoIndexFetcher(signalClientFactory);
-      this.repoIndexProviderFactory = (repoRoot) -> indexFetcher;
-
-    } else {
-      this.signalClientFactory = null;
-
-      FileSystem fileSystem = FileSystems.getDefault();
-      PackageResolver packageResolver = new PackageResolverImpl(fileSystem);
-      ResourceResolver resourceResolver =
-          new ConventionBasedResourceResolver(
-              fileSystem, config.getCiVisibilityResourceFolderNames());
-      this.repoIndexProviderFactory =
-          new CachingRepoIndexBuilderFactory(config, packageResolver, resourceResolver, fileSystem);
+        } catch (Exception e) {
+            metricCollector.add(
+                    CiVisibilityCountMetric.GIT_COMMAND_ERRORS, 1, Command.OTHER, ShellCommandExecutor.getExitCode(e));
+            logger.info("No git executable detected, some features will not be available");
+            return r -> NoOpGitClient.INSTANCE;
+        }
     }
-  }
 
-  private static GitClient.Factory buildGitClientFactory(
-      Config config, CiVisibilityMetricCollector metricCollector) {
-    if (!config.isCiVisibilityGitClientEnabled()) {
-      return r -> NoOpGitClient.INSTANCE;
+    @Nonnull
+    private static CiEnvironment buildCiEnvironment() {
+        Map<String, String> remoteEnvironment = CiEnvironmentVariables.getAll();
+        if (remoteEnvironment != null) {
+            return new CompositeCiEnvironment(new CiEnvironmentImpl(remoteEnvironment), CiEnvironmentImpl.local());
+        } else {
+            return CiEnvironmentImpl.local();
+        }
     }
-    try {
-      ShellCommandExecutor shellCommandExecutor =
-          new ShellCommandExecutor(new File("."), config.getCiVisibilityGitCommandTimeoutMillis());
-      String gitVersion = shellCommandExecutor.executeCommand(IOUtils::readFully, "git", "version");
-      logger.debug("Detected git executable version {}", gitVersion);
-      return new ShellGitClient.Factory(config, metricCollector);
 
-    } catch (Exception e) {
-      metricCollector.add(
-          CiVisibilityCountMetric.GIT_COMMAND_ERRORS,
-          1,
-          Command.OTHER,
-          ShellCommandExecutor.getExitCode(e));
-      logger.info("No git executable detected, some features will not be available");
-      return r -> NoOpGitClient.INSTANCE;
+    CiVisibilityRepoServices repoServices(Path path) {
+        return new CiVisibilityRepoServices(this, path);
     }
-  }
-
-  @Nonnull
-  private static CiEnvironment buildCiEnvironment() {
-    Map<String, String> remoteEnvironment = CiEnvironmentVariables.getAll();
-    if (remoteEnvironment != null) {
-      return new CompositeCiEnvironment(
-          new CiEnvironmentImpl(remoteEnvironment), CiEnvironmentImpl.local());
-    } else {
-      return CiEnvironmentImpl.local();
-    }
-  }
-
-  CiVisibilityRepoServices repoServices(Path path) {
-    return new CiVisibilityRepoServices(this, path);
-  }
 }

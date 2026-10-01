@@ -8,12 +8,12 @@ import java.util.List;
 
 @AutoService(InstrumenterModule.class)
 public class EmbeddingModule extends InstrumenterModule.Tracing {
-  public EmbeddingModule() {
-    super("openai-java");
-  }
+    public EmbeddingModule() {
+        super("openai-java");
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return Collections.singletonList(new EmbeddingServiceInstrumentation());
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return Collections.singletonList(new EmbeddingServiceInstrumentation());
+    }
 }

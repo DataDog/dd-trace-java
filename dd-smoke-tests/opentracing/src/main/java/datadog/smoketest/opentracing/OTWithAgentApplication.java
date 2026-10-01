@@ -9,22 +9,22 @@ import io.opentracing.util.GlobalTracer;
 
 public class OTWithAgentApplication {
 
-  public static void main(final String[] args) throws InterruptedException {
-    final Tracer tracer = GlobalTracer.get();
+    public static void main(final String[] args) throws InterruptedException {
+        final Tracer tracer = GlobalTracer.get();
 
-    boolean throwError = args != null && args.length > 0 && Boolean.parseBoolean(args[0]);
-    ApiVerification.verifyInterceptors(datadog.trace.api.GlobalTracer.get(), throwError);
+        boolean throwError = args != null && args.length > 0 && Boolean.parseBoolean(args[0]);
+        ApiVerification.verifyInterceptors(datadog.trace.api.GlobalTracer.get(), throwError);
 
-    final Span span = tracer.buildSpan("someOperation").start();
-    try (final Scope ignored = tracer.activateSpan(span)) {
-      span.setTag(DDTags.SERVICE_NAME, "someService");
-      // Verify that the returned object is wrapped correctly.
-      Span root = (Span) ((MutableSpan) tracer.activeSpan()).getLocalRootSpan();
+        final Span span = tracer.buildSpan("someOperation").start();
+        try (final Scope ignored = tracer.activateSpan(span)) {
+            span.setTag(DDTags.SERVICE_NAME, "someService");
+            // Verify that the returned object is wrapped correctly.
+            Span root = (Span) ((MutableSpan) tracer.activeSpan()).getLocalRootSpan();
+        }
+
+        span.finish();
+
+        // Allow trace to be reported.
+        Thread.sleep(1000);
     }
-
-    span.finish();
-
-    // Allow trace to be reported.
-    Thread.sleep(1000);
-  }
 }

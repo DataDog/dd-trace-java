@@ -43,130 +43,123 @@ import org.junit.jupiter.api.Test;
 
 class MaybeBlockResponseHandlerTest extends AbstractInstrumentationTest {
 
-  private static final HttpResponseStatus EARLY_HINTS = new HttpResponseStatus(103, "Early Hints");
+    private static final HttpResponseStatus EARLY_HINTS = new HttpResponseStatus(103, "Early Hints");
 
-  private Object appSecSubscriptions;
-  private boolean originalAppSecActive;
+    private Object appSecSubscriptions;
+    private boolean originalAppSecActive;
 
-  @AfterEach
-  void resetAppSec() {
-    if (appSecSubscriptions != null) {
-      ((SubscriptionService) appSecSubscriptions).reset();
-      appSecSubscriptions = null;
-      ActiveSubsystems.APPSEC_ACTIVE = originalAppSecActive;
+    @AfterEach
+    void resetAppSec() {
+        if (appSecSubscriptions != null) {
+            ((SubscriptionService) appSecSubscriptions).reset();
+            appSecSubscriptions = null;
+            ActiveSubsystems.APPSEC_ACTIVE = originalAppSecActive;
+        }
     }
-  }
 
-  @Test
-  void blocksFinalResponseUsingMirroredContextAfterInformationalResponse() {
-    enableAppSecResponseBlocking();
-    Context context = DECORATE.startSpan(new DefaultHttpHeaders(), Context.root());
-    AgentSpan span = AgentSpan.fromContext(context);
-    EmbeddedChannel channel = new EmbeddedChannel(MaybeBlockResponseHandler.INSTANCE);
-    channel.attr(CONTEXT_ATTRIBUTE_KEY).set(context);
-    FullHttpResponse informationalResponse = null;
-    FullHttpResponse response = null;
+    @Test
+    void blocksFinalResponseUsingMirroredContextAfterInformationalResponse() {
+        enableAppSecResponseBlocking();
+        Context context = DECORATE.startSpan(new DefaultHttpHeaders(), Context.root());
+        AgentSpan span = AgentSpan.fromContext(context);
+        EmbeddedChannel channel = new EmbeddedChannel(MaybeBlockResponseHandler.INSTANCE);
+        channel.attr(CONTEXT_ATTRIBUTE_KEY).set(context);
+        FullHttpResponse informationalResponse = null;
+        FullHttpResponse response = null;
 
-    try {
-      channel.writeOutbound(new DefaultFullHttpResponse(HTTP_1_1, EARLY_HINTS));
+        try {
+            channel.writeOutbound(new DefaultFullHttpResponse(HTTP_1_1, EARLY_HINTS));
 
-      informationalResponse = channel.readOutbound();
-      assertNotNull(informationalResponse);
-      assertEquals(EARLY_HINTS, informationalResponse.status());
-      informationalResponse.release();
-      informationalResponse = null;
+            informationalResponse = channel.readOutbound();
+            assertNotNull(informationalResponse);
+            assertEquals(EARLY_HINTS, informationalResponse.status());
+            informationalResponse.release();
+            informationalResponse = null;
 
-      channel.writeOutbound(new DefaultFullHttpResponse(HTTP_1_1, OK));
+            channel.writeOutbound(new DefaultFullHttpResponse(HTTP_1_1, OK));
 
-      response = channel.readOutbound();
-      assertNotNull(response);
-      assertEquals(FORBIDDEN, response.status());
-    } finally {
-      ReferenceCountUtil.release(informationalResponse);
-      ReferenceCountUtil.release(response);
-      channel.finishAndReleaseAll();
-      span.finish();
+            response = channel.readOutbound();
+            assertNotNull(response);
+            assertEquals(FORBIDDEN, response.status());
+        } finally {
+            ReferenceCountUtil.release(informationalResponse);
+            ReferenceCountUtil.release(response);
+            channel.finishAndReleaseAll();
+            span.finish();
+        }
     }
-  }
 
-  @Test
-  void blocksNonWebSocketSwitchingProtocolsResponse() {
-    enableAppSecResponseBlocking();
-    Context context = DECORATE.startSpan(new DefaultHttpHeaders(), Context.root());
-    AgentSpan span = AgentSpan.fromContext(context);
-    EmbeddedChannel channel = new EmbeddedChannel(MaybeBlockResponseHandler.INSTANCE);
-    channel.attr(CONTEXT_ATTRIBUTE_KEY).set(context);
-    FullHttpResponse response = null;
+    @Test
+    void blocksNonWebSocketSwitchingProtocolsResponse() {
+        enableAppSecResponseBlocking();
+        Context context = DECORATE.startSpan(new DefaultHttpHeaders(), Context.root());
+        AgentSpan span = AgentSpan.fromContext(context);
+        EmbeddedChannel channel = new EmbeddedChannel(MaybeBlockResponseHandler.INSTANCE);
+        channel.attr(CONTEXT_ATTRIBUTE_KEY).set(context);
+        FullHttpResponse response = null;
 
-    try {
-      FullHttpResponse switchingProtocols =
-          new DefaultFullHttpResponse(HTTP_1_1, SWITCHING_PROTOCOLS);
-      switchingProtocols.headers().set(UPGRADE, "h2c");
+        try {
+            FullHttpResponse switchingProtocols = new DefaultFullHttpResponse(HTTP_1_1, SWITCHING_PROTOCOLS);
+            switchingProtocols.headers().set(UPGRADE, "h2c");
 
-      channel.writeOutbound(switchingProtocols);
+            channel.writeOutbound(switchingProtocols);
 
-      response = channel.readOutbound();
-      assertNotNull(response);
-      assertEquals(FORBIDDEN, response.status());
-    } finally {
-      ReferenceCountUtil.release(response);
-      channel.finishAndReleaseAll();
-      span.finish();
+            response = channel.readOutbound();
+            assertNotNull(response);
+            assertEquals(FORBIDDEN, response.status());
+        } finally {
+            ReferenceCountUtil.release(response);
+            channel.finishAndReleaseAll();
+            span.finish();
+        }
     }
-  }
 
-  @Test
-  void dropsWritesAfterBlockedContextHasBeenRemoved() {
-    EmbeddedChannel channel = new EmbeddedChannel(MaybeBlockResponseHandler.INSTANCE);
-    ServerRequestContext serverContext = ServerRequestContext.add(channel, Context.root(), null);
-    ServerRequestContext.markResponseBlocked(channel);
-    ServerRequestContext.remove(channel, serverContext);
-    ByteBuf lateResponseChunk = Unpooled.buffer().writeByte(1);
-    ChannelPromise promise = channel.newPromise();
+    @Test
+    void dropsWritesAfterBlockedContextHasBeenRemoved() {
+        EmbeddedChannel channel = new EmbeddedChannel(MaybeBlockResponseHandler.INSTANCE);
+        ServerRequestContext serverContext = ServerRequestContext.add(channel, Context.root(), null);
+        ServerRequestContext.markResponseBlocked(channel);
+        ServerRequestContext.remove(channel, serverContext);
+        ByteBuf lateResponseChunk = Unpooled.buffer().writeByte(1);
+        ChannelPromise promise = channel.newPromise();
 
-    channel.pipeline().write(lateResponseChunk, promise);
+        channel.pipeline().write(lateResponseChunk, promise);
 
-    assertEquals(0, lateResponseChunk.refCnt());
-    assertTrue(promise.isDone());
-    assertFalse(promise.isSuccess());
-    assertTrue(promise.cause() instanceof ClosedChannelException);
-    assertNull(channel.readOutbound());
-    channel.finishAndReleaseAll();
-  }
+        assertEquals(0, lateResponseChunk.refCnt());
+        assertTrue(promise.isDone());
+        assertFalse(promise.isSuccess());
+        assertTrue(promise.cause() instanceof ClosedChannelException);
+        assertNull(channel.readOutbound());
+        channel.finishAndReleaseAll();
+    }
 
-  private void enableAppSecResponseBlocking() {
-    SubscriptionService subscriptions =
-        (SubscriptionService) AgentTracer.get().getSubscriptionService(RequestContextSlot.APPSEC);
-    appSecSubscriptions = subscriptions;
-    originalAppSecActive = ActiveSubsystems.APPSEC_ACTIVE;
-    ActiveSubsystems.APPSEC_ACTIVE = true;
+    private void enableAppSecResponseBlocking() {
+        SubscriptionService subscriptions =
+                (SubscriptionService) AgentTracer.get().getSubscriptionService(RequestContextSlot.APPSEC);
+        appSecSubscriptions = subscriptions;
+        originalAppSecActive = ActiveSubsystems.APPSEC_ACTIVE;
+        ActiveSubsystems.APPSEC_ACTIVE = true;
 
-    subscriptions.registerCallback(
-        EVENTS.requestStarted(),
-        new Supplier<Flow<Object>>() {
-          @Override
-          public Flow<Object> get() {
-            return new Flow.ResultFlow<>(new Object());
-          }
+        subscriptions.registerCallback(EVENTS.requestStarted(), new Supplier<Flow<Object>>() {
+            @Override
+            public Flow<Object> get() {
+                return new Flow.ResultFlow<>(new Object());
+            }
         });
-    subscriptions.registerCallback(
-        EVENTS.responseHeader(),
-        new TriConsumer<RequestContext, String, String>() {
-          @Override
-          public void accept(RequestContext requestContext, String name, String value) {}
+        subscriptions.registerCallback(EVENTS.responseHeader(), new TriConsumer<RequestContext, String, String>() {
+            @Override
+            public void accept(RequestContext requestContext, String name, String value) {}
         });
-    subscriptions.registerCallback(
-        EVENTS.responseHeaderDone(),
-        new Function<RequestContext, Flow<Void>>() {
-          @Override
-          public Flow<Void> apply(RequestContext requestContext) {
-            return new Flow.ResultFlow<Void>(null) {
-              @Override
-              public Action getAction() {
-                return new Action.RequestBlockingAction(403, BlockingContentType.AUTO);
-              }
-            };
-          }
+        subscriptions.registerCallback(EVENTS.responseHeaderDone(), new Function<RequestContext, Flow<Void>>() {
+            @Override
+            public Flow<Void> apply(RequestContext requestContext) {
+                return new Flow.ResultFlow<Void>(null) {
+                    @Override
+                    public Action getAction() {
+                        return new Action.RequestBlockingAction(403, BlockingContentType.AUTO);
+                    }
+                };
+            }
         });
-  }
+    }
 }

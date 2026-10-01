@@ -16,98 +16,98 @@ import javax.annotation.Nullable;
  * <p>HttpClient instances should be reused across requests for connection pooling.
  */
 public interface HttpClient {
-  /**
-   * Executes an HTTP request synchronously and returns the response. The caller is responsible for
-   * closing the response.
-   *
-   * @param request the request to execute
-   * @return the HTTP response
-   * @throws IOException if an I/O error occurs
-   */
-  HttpResponse execute(HttpRequest request) throws IOException;
-
-  /**
-   * Executes an HTTP request asynchronously and returns a {@link CompletableFuture}. The caller is
-   * responsible for closing the response.
-   *
-   * @param request the request to execute
-   * @return a CompletableFuture that completes with the HTTP response
-   */
-  CompletableFuture<HttpResponse> executeAsync(HttpRequest request);
-
-  /**
-   * Creates a new {@link Builder} for constructing HTTP clients.
-   *
-   * @return a new http client builder
-   */
-  static Builder newBuilder() {
-    return HttpProviders.get().newClientBuilder();
-  }
-
-  /** Builder for constructing {@link HttpClient} instances. */
-  interface Builder {
     /**
-     * Sets the client timeouts, including the connection.
+     * Executes an HTTP request synchronously and returns the response. The caller is responsible for
+     * closing the response.
      *
-     * @param timeout the timeout duration
-     * @return this builder
+     * @param request the request to execute
+     * @return the HTTP response
+     * @throws IOException if an I/O error occurs
      */
-    Builder connectTimeout(Duration timeout);
+    HttpResponse execute(HttpRequest request) throws IOException;
 
     /**
-     * Sets the proxy configuration.
+     * Executes an HTTP request asynchronously and returns a {@link CompletableFuture}. The caller is
+     * responsible for closing the response.
      *
-     * @param proxy the proxy to use
-     * @return this builder
+     * @param request the request to execute
+     * @return a CompletableFuture that completes with the HTTP response
      */
-    Builder proxy(Proxy proxy);
+    CompletableFuture<HttpResponse> executeAsync(HttpRequest request);
 
     /**
-     * Sets proxy authentication credentials.
+     * Creates a new {@link Builder} for constructing HTTP clients.
      *
-     * @param username the proxy username
-     * @param password the proxy password, or {@code null} to use an empty password
-     * @return this builder
+     * @return a new http client builder
      */
-    Builder proxyAuthenticator(String username, @Nullable String password);
+    static Builder newBuilder() {
+        return HttpProviders.get().newClientBuilder();
+    }
 
-    /**
-     * Configures the client to use a Unix domain socket.
-     *
-     * @param socketFile the Unix domain socket file
-     * @return this builder
-     */
-    Builder unixDomainSocket(File socketFile);
+    /** Builder for constructing {@link HttpClient} instances. */
+    interface Builder {
+        /**
+         * Sets the client timeouts, including the connection.
+         *
+         * @param timeout the timeout duration
+         * @return this builder
+         */
+        Builder connectTimeout(Duration timeout);
 
-    /**
-     * Configures the client to use a named pipe (Windows).
-     *
-     * @param pipeName the named pipe name
-     * @return this builder
-     */
-    Builder namedPipe(String pipeName);
+        /**
+         * Sets the proxy configuration.
+         *
+         * @param proxy the proxy to use
+         * @return this builder
+         */
+        Builder proxy(Proxy proxy);
 
-    /**
-     * Forces clear text (HTTP) connections, disabling TLS.
-     *
-     * @param clearText {@code true} to force HTTP, {@code false} to allow HTTPS
-     * @return this builder
-     */
-    Builder clearText(boolean clearText);
+        /**
+         * Sets proxy authentication credentials.
+         *
+         * @param username the proxy username
+         * @param password the proxy password, or {@code null} to use an empty password
+         * @return this builder
+         */
+        Builder proxyAuthenticator(String username, @Nullable String password);
 
-    /**
-     * Sets a custom executor for executing async requests.
-     *
-     * @param executor the executor to use for async requests
-     * @return this builder
-     */
-    Builder executor(Executor executor);
+        /**
+         * Configures the client to use a Unix domain socket.
+         *
+         * @param socketFile the Unix domain socket file
+         * @return this builder
+         */
+        Builder unixDomainSocket(File socketFile);
 
-    /**
-     * Builds the {@link HttpClient} with the configured settings.
-     *
-     * @return the constructed HttpClient
-     */
-    HttpClient build();
-  }
+        /**
+         * Configures the client to use a named pipe (Windows).
+         *
+         * @param pipeName the named pipe name
+         * @return this builder
+         */
+        Builder namedPipe(String pipeName);
+
+        /**
+         * Forces clear text (HTTP) connections, disabling TLS.
+         *
+         * @param clearText {@code true} to force HTTP, {@code false} to allow HTTPS
+         * @return this builder
+         */
+        Builder clearText(boolean clearText);
+
+        /**
+         * Sets a custom executor for executing async requests.
+         *
+         * @param executor the executor to use for async requests
+         * @return this builder
+         */
+        Builder executor(Executor executor);
+
+        /**
+         * Builds the {@link HttpClient} with the configured settings.
+         *
+         * @return the constructed HttpClient
+         */
+        HttpClient build();
+    }
 }

@@ -17,88 +17,87 @@ import io.netty.util.Attribute;
 
 @ChannelHandler.Sharable
 public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapter {
-  public static final HttpClientResponseTracingHandler INSTANCE =
-      new HttpClientResponseTracingHandler();
+    public static final HttpClientResponseTracingHandler INSTANCE = new HttpClientResponseTracingHandler();
 
-  @Override
-  public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
-    final Attribute<AgentSpan> parentAttr = ctx.channel().attr(CLIENT_PARENT_ATTRIBUTE_KEY);
-    parentAttr.setIfAbsent(noopSpan());
-    final AgentSpan parent = parentAttr.get();
-    final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
-    final AgentSpan span = AgentSpan.fromContext(storedContext);
+    @Override
+    public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
+        final Attribute<AgentSpan> parentAttr = ctx.channel().attr(CLIENT_PARENT_ATTRIBUTE_KEY);
+        parentAttr.setIfAbsent(noopSpan());
+        final AgentSpan parent = parentAttr.get();
+        final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
+        final AgentSpan span = AgentSpan.fromContext(storedContext);
 
-    // Set parent context back to maintain the same functionality as getAndSet(parent)
-    if (storedContext != null) {
-      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext.with(parent));
+        // Set parent context back to maintain the same functionality as getAndSet(parent)
+        if (storedContext != null) {
+            ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext.with(parent));
+        }
+
+        final boolean finishSpan = msg instanceof HttpResponse;
+
+        if (span != null && finishSpan) {
+            try (final ContextScope scope = activateSpan(span)) {
+                DECORATE.onResponse(span, (HttpResponse) msg);
+                DECORATE.beforeFinish(span);
+                span.finish();
+            }
+        }
+
+        // We want the callback in the scope of the parent, not the client span
+        try (final ContextScope scope = activateSpan(parent)) {
+            ctx.fireChannelRead(msg);
+        }
     }
 
-    final boolean finishSpan = msg instanceof HttpResponse;
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        final Attribute<AgentSpan> parentAttr = ctx.channel().attr(CLIENT_PARENT_ATTRIBUTE_KEY);
+        parentAttr.setIfAbsent(noopSpan());
+        final AgentSpan parent = parentAttr.get();
+        final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
+        final AgentSpan span = AgentSpan.fromContext(storedContext);
 
-    if (span != null && finishSpan) {
-      try (final ContextScope scope = activateSpan(span)) {
-        DECORATE.onResponse(span, (HttpResponse) msg);
-        DECORATE.beforeFinish(span);
-        span.finish();
-      }
+        // Set parent context back to maintain the same functionality as getAndSet(parent)
+        if (storedContext != null) {
+            ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext.with(parent));
+        }
+
+        if (span != null) {
+            // If an exception is passed to this point, it likely means it was unhandled and the
+            // client span won't be finished with a proper response, so we should finish the span here.
+            try (final ContextScope scope = activateSpan(span)) {
+                DECORATE.onError(span, cause);
+                DECORATE.beforeFinish(span);
+                span.finish();
+            }
+        }
+        // We want the callback in the scope of the parent, not the client span
+        try (final ContextScope scope = activateSpan(parent)) {
+            super.exceptionCaught(ctx, cause);
+        }
     }
 
-    // We want the callback in the scope of the parent, not the client span
-    try (final ContextScope scope = activateSpan(parent)) {
-      ctx.fireChannelRead(msg);
-    }
-  }
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        final Attribute<AgentSpan> parentAttr = ctx.channel().attr(CLIENT_PARENT_ATTRIBUTE_KEY);
+        parentAttr.setIfAbsent(noopSpan());
+        final AgentSpan parent = parentAttr.get();
+        final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
+        final AgentSpan span = AgentSpan.fromContext(storedContext);
 
-  @Override
-  public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-    final Attribute<AgentSpan> parentAttr = ctx.channel().attr(CLIENT_PARENT_ATTRIBUTE_KEY);
-    parentAttr.setIfAbsent(noopSpan());
-    final AgentSpan parent = parentAttr.get();
-    final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
-    final AgentSpan span = AgentSpan.fromContext(storedContext);
+        // Set parent context back to maintain the same functionality as getAndSet(parent)
+        if (storedContext != null) {
+            ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext.with(parent));
+        }
 
-    // Set parent context back to maintain the same functionality as getAndSet(parent)
-    if (storedContext != null) {
-      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext.with(parent));
+        if (span != null && span != parent) {
+            try (final ContextScope scope = activateSpan(span)) {
+                DECORATE.beforeFinish(span);
+                span.finish();
+            }
+        }
+        // We want the callback in the scope of the parent, not the client span
+        try (final ContextScope scope = activateSpan(parent)) {
+            super.channelInactive(ctx);
+        }
     }
-
-    if (span != null) {
-      // If an exception is passed to this point, it likely means it was unhandled and the
-      // client span won't be finished with a proper response, so we should finish the span here.
-      try (final ContextScope scope = activateSpan(span)) {
-        DECORATE.onError(span, cause);
-        DECORATE.beforeFinish(span);
-        span.finish();
-      }
-    }
-    // We want the callback in the scope of the parent, not the client span
-    try (final ContextScope scope = activateSpan(parent)) {
-      super.exceptionCaught(ctx, cause);
-    }
-  }
-
-  @Override
-  public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-    final Attribute<AgentSpan> parentAttr = ctx.channel().attr(CLIENT_PARENT_ATTRIBUTE_KEY);
-    parentAttr.setIfAbsent(noopSpan());
-    final AgentSpan parent = parentAttr.get();
-    final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
-    final AgentSpan span = AgentSpan.fromContext(storedContext);
-
-    // Set parent context back to maintain the same functionality as getAndSet(parent)
-    if (storedContext != null) {
-      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext.with(parent));
-    }
-
-    if (span != null && span != parent) {
-      try (final ContextScope scope = activateSpan(span)) {
-        DECORATE.beforeFinish(span);
-        span.finish();
-      }
-    }
-    // We want the callback in the scope of the parent, not the client span
-    try (final ContextScope scope = activateSpan(parent)) {
-      super.channelInactive(ctx);
-    }
-  }
 }

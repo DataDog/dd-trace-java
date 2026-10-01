@@ -61,146 +61,148 @@ import net.bytebuddy.asm.Advice.OnMethodExit;
 @SuppressWarnings("unused")
 @AutoService(InstrumenterModule.class)
 public final class VirtualThreadInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForBootstrap,
-        Instrumenter.ForSingleType,
-        Instrumenter.HasMethodAdvice,
-        ExcludeFilterProvider {
+        implements Instrumenter.ForBootstrap,
+                Instrumenter.ForSingleType,
+                Instrumenter.HasMethodAdvice,
+                ExcludeFilterProvider {
 
-  // Preload classes used by Context.swap() to avoid class loading on the virtual thread mount path.
-  // DatadogClassLoader loads these from a JarFile using synchronized I/O, which pins
-  // virtual thread carrier threads and can deadlock the application.
-  private static final String[] PRELOAD_CLASS_NAMES = {
-    "datadog.trace.core.scopemanager.ScopeContext", "datadog.trace.core.scopemanager.ScopeStack"
-  };
+    // Preload classes used by Context.swap() to avoid class loading on the virtual thread mount path.
+    // DatadogClassLoader loads these from a JarFile using synchronized I/O, which pins
+    // virtual thread carrier threads and can deadlock the application.
+    private static final String[] PRELOAD_CLASS_NAMES = {
+        "datadog.trace.core.scopemanager.ScopeContext", "datadog.trace.core.scopemanager.ScopeStack"
+    };
 
-  public VirtualThreadInstrumentation() {
-    super("java-lang", "java-lang-21", "virtual-thread");
-  }
-
-  @Override
-  public String[] preloadClassNames() {
-    return PRELOAD_CLASS_NAMES;
-  }
-
-  @Override
-  public String instrumentedType() {
-    return VIRTUAL_THREAD_CLASS_NAME;
-  }
-
-  @Override
-  public boolean isEnabled() {
-    return JavaVirtualMachine.isJavaVersionAtLeast(21) && super.isEnabled();
-  }
-
-  @Override
-  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
-    // VirtualThread context is managed directly across its internal lifecycle.
-    return singletonMap(RUNNABLE, singletonList(VIRTUAL_THREAD_CLASS_NAME));
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap(VIRTUAL_THREAD_CLASS_NAME, VIRTUAL_THREAD_STATE_CLASS_NAME);
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
-    // JDK 22+ enters run(Runnable) after the first mount with the virtual thread current. JDK 21
-    // update releases differ, so they retain context swaps on every mount and unmount.
-    if (JavaVirtualMachine.isJavaVersionAtLeast(22)) {
-      transformer.applyAdvice(
-          isMethod().and(named("run")).and(takesArguments(Runnable.class)).and(returns(void.class)),
-          getClass().getName() + "$Run");
+    public VirtualThreadInstrumentation() {
+        super("java-lang", "java-lang-21", "virtual-thread");
     }
-    transformer.applyAdvice(isMethod().and(named("mount")), getClass().getName() + "$Mount");
-    transformer.applyAdvice(isMethod().and(named("unmount")), getClass().getName() + "$Unmount");
-    transformer.applyAdvice(
-        isMethod().and(named("afterDone")).and(takesArguments(boolean.class)),
-        getClass().getName() + "$AfterDone");
-    transformer.applyAdvice(
-        isMethod().and(named("afterTerminate")).and(takesArguments(boolean.class, boolean.class)),
-        getClass().getName() + "$AfterDone");
-  }
 
-  public static final class Construct {
-    @OnMethodExit(suppress = Throwable.class)
-    public static void afterInit(@Advice.This Object virtualThread) {
-      Context context = currentContext();
-      if (context == rootContext()) {
-        return; // No active context to propagate, avoid creating state
-      }
-      VirtualThreadState state = new VirtualThreadState(context, context.capture());
-      ContextStore<Object, Object> store =
-          InstrumentationContext.get(VIRTUAL_THREAD_CLASS_NAME, VIRTUAL_THREAD_STATE_CLASS_NAME);
-      store.put(virtualThread, state);
+    @Override
+    public String[] preloadClassNames() {
+        return PRELOAD_CLASS_NAMES;
     }
-  }
 
-  public static final class Run {
-    @OnMethodEnter(suppress = Throwable.class)
-    public static void onRun(
-        @Advice.This Object virtualThread,
-        @Advice.Local("virtualThreadState") VirtualThreadState state) {
-      if (!VirtualThreadState.usePerMountContext()) {
-        ContextStore<Object, VirtualThreadState> store =
-            InstrumentationContext.get(VIRTUAL_THREAD_CLASS_NAME, VIRTUAL_THREAD_STATE_CLASS_NAME);
-        state = store.get(virtualThread);
-        if (state != null) {
-          state.onRun();
+    @Override
+    public String instrumentedType() {
+        return VIRTUAL_THREAD_CLASS_NAME;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return JavaVirtualMachine.isJavaVersionAtLeast(21) && super.isEnabled();
+    }
+
+    @Override
+    public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
+        // VirtualThread context is managed directly across its internal lifecycle.
+        return singletonMap(RUNNABLE, singletonList(VIRTUAL_THREAD_CLASS_NAME));
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap(VIRTUAL_THREAD_CLASS_NAME, VIRTUAL_THREAD_STATE_CLASS_NAME);
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
+        // JDK 22+ enters run(Runnable) after the first mount with the virtual thread current. JDK 21
+        // update releases differ, so they retain context swaps on every mount and unmount.
+        if (JavaVirtualMachine.isJavaVersionAtLeast(22)) {
+            transformer.applyAdvice(
+                    isMethod()
+                            .and(named("run"))
+                            .and(takesArguments(Runnable.class))
+                            .and(returns(void.class)),
+                    getClass().getName() + "$Run");
         }
-      }
+        transformer.applyAdvice(isMethod().and(named("mount")), getClass().getName() + "$Mount");
+        transformer.applyAdvice(isMethod().and(named("unmount")), getClass().getName() + "$Unmount");
+        transformer.applyAdvice(
+                isMethod().and(named("afterDone")).and(takesArguments(boolean.class)),
+                getClass().getName() + "$AfterDone");
+        transformer.applyAdvice(
+                isMethod().and(named("afterTerminate")).and(takesArguments(boolean.class, boolean.class)),
+                getClass().getName() + "$AfterDone");
     }
 
-    @OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void afterRun(@Advice.Local("virtualThreadState") VirtualThreadState state) {
-      if (state != null) {
-        state.afterRun();
-      }
-    }
-  }
-
-  public static final class Mount {
-    @OnMethodExit(suppress = Throwable.class)
-    public static void onMount(@Advice.This Object virtualThread) {
-      if (VirtualThreadState.usePerMountContext()) {
-        ContextStore<Object, VirtualThreadState> store =
-            InstrumentationContext.get(VIRTUAL_THREAD_CLASS_NAME, VIRTUAL_THREAD_STATE_CLASS_NAME);
-        VirtualThreadState state = store.get(virtualThread);
-        if (state != null) {
-          state.onMount();
+    public static final class Construct {
+        @OnMethodExit(suppress = Throwable.class)
+        public static void afterInit(@Advice.This Object virtualThread) {
+            Context context = currentContext();
+            if (context == rootContext()) {
+                return; // No active context to propagate, avoid creating state
+            }
+            VirtualThreadState state = new VirtualThreadState(context, context.capture());
+            ContextStore<Object, Object> store =
+                    InstrumentationContext.get(VIRTUAL_THREAD_CLASS_NAME, VIRTUAL_THREAD_STATE_CLASS_NAME);
+            store.put(virtualThread, state);
         }
-      } else {
-        VirtualThreadState.onMountWithoutStore();
-      }
     }
-  }
 
-  public static final class Unmount {
-    @OnMethodEnter(suppress = Throwable.class)
-    public static void onUnmount(@Advice.This Object virtualThread) {
-      if (VirtualThreadState.usePerMountContext()) {
-        ContextStore<Object, VirtualThreadState> store =
-            InstrumentationContext.get(VIRTUAL_THREAD_CLASS_NAME, VIRTUAL_THREAD_STATE_CLASS_NAME);
-        VirtualThreadState state = store.get(virtualThread);
-        if (state != null) {
-          state.onUnmount();
+    public static final class Run {
+        @OnMethodEnter(suppress = Throwable.class)
+        public static void onRun(
+                @Advice.This Object virtualThread, @Advice.Local("virtualThreadState") VirtualThreadState state) {
+            if (!VirtualThreadState.usePerMountContext()) {
+                ContextStore<Object, VirtualThreadState> store =
+                        InstrumentationContext.get(VIRTUAL_THREAD_CLASS_NAME, VIRTUAL_THREAD_STATE_CLASS_NAME);
+                state = store.get(virtualThread);
+                if (state != null) {
+                    state.onRun();
+                }
+            }
         }
-      } else {
-        VirtualThreadState.onUnmountWithoutStore();
-      }
-    }
-  }
 
-  public static final class AfterDone {
-    @OnMethodEnter(suppress = Throwable.class)
-    public static void onDone(@Advice.This Object virtualThread) {
-      ContextStore<Object, VirtualThreadState> store =
-          InstrumentationContext.get(VIRTUAL_THREAD_CLASS_NAME, VIRTUAL_THREAD_STATE_CLASS_NAME);
-      VirtualThreadState state = store.remove(virtualThread);
-      if (state != null) {
-        state.onTerminate();
-      }
+        @OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void afterRun(@Advice.Local("virtualThreadState") VirtualThreadState state) {
+            if (state != null) {
+                state.afterRun();
+            }
+        }
     }
-  }
+
+    public static final class Mount {
+        @OnMethodExit(suppress = Throwable.class)
+        public static void onMount(@Advice.This Object virtualThread) {
+            if (VirtualThreadState.usePerMountContext()) {
+                ContextStore<Object, VirtualThreadState> store =
+                        InstrumentationContext.get(VIRTUAL_THREAD_CLASS_NAME, VIRTUAL_THREAD_STATE_CLASS_NAME);
+                VirtualThreadState state = store.get(virtualThread);
+                if (state != null) {
+                    state.onMount();
+                }
+            } else {
+                VirtualThreadState.onMountWithoutStore();
+            }
+        }
+    }
+
+    public static final class Unmount {
+        @OnMethodEnter(suppress = Throwable.class)
+        public static void onUnmount(@Advice.This Object virtualThread) {
+            if (VirtualThreadState.usePerMountContext()) {
+                ContextStore<Object, VirtualThreadState> store =
+                        InstrumentationContext.get(VIRTUAL_THREAD_CLASS_NAME, VIRTUAL_THREAD_STATE_CLASS_NAME);
+                VirtualThreadState state = store.get(virtualThread);
+                if (state != null) {
+                    state.onUnmount();
+                }
+            } else {
+                VirtualThreadState.onUnmountWithoutStore();
+            }
+        }
+    }
+
+    public static final class AfterDone {
+        @OnMethodEnter(suppress = Throwable.class)
+        public static void onDone(@Advice.This Object virtualThread) {
+            ContextStore<Object, VirtualThreadState> store =
+                    InstrumentationContext.get(VIRTUAL_THREAD_CLASS_NAME, VIRTUAL_THREAD_STATE_CLASS_NAME);
+            VirtualThreadState state = store.remove(virtualThread);
+            if (state != null) {
+                state.onTerminate();
+            }
+        }
+    }
 }

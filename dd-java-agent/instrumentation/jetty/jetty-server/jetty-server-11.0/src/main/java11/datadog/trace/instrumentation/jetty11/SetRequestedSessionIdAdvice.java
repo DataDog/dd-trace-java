@@ -19,25 +19,24 @@ import net.bytebuddy.asm.Advice;
  */
 @RequiresRequestContext(RequestContextSlot.APPSEC)
 public class SetRequestedSessionIdAdvice {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static void setRequestedSessionId(
-      @ActiveRequestContext RequestContext reqCtx,
-      @Advice.Argument(0) final String requestedSessionId) {
-    if (requestedSessionId != null && reqCtx != null) {
-      final CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-      if (cbp == null) {
-        return;
-      }
-      final BiFunction<RequestContext, String, Flow<Void>> addrCallback =
-          cbp.getCallback(EVENTS.requestSession());
-      if (addrCallback == null) {
-        return;
-      }
-      final Flow<Void> flow = addrCallback.apply(reqCtx, requestedSessionId);
-      Flow.Action action = flow.getAction();
-      if (action instanceof Flow.Action.RequestBlockingAction) {
-        throw new BlockingException("Blocked request (for sessionId)");
-      }
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void setRequestedSessionId(
+            @ActiveRequestContext RequestContext reqCtx, @Advice.Argument(0) final String requestedSessionId) {
+        if (requestedSessionId != null && reqCtx != null) {
+            final CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+            if (cbp == null) {
+                return;
+            }
+            final BiFunction<RequestContext, String, Flow<Void>> addrCallback =
+                    cbp.getCallback(EVENTS.requestSession());
+            if (addrCallback == null) {
+                return;
+            }
+            final Flow<Void> flow = addrCallback.apply(reqCtx, requestedSessionId);
+            Flow.Action action = flow.getAction();
+            if (action instanceof Flow.Action.RequestBlockingAction) {
+                throw new BlockingException("Blocked request (for sessionId)");
+            }
+        }
     }
-  }
 }

@@ -14,52 +14,51 @@ import com.datadog.debugger.el.Visitor;
  * ComparisonOperator operator}.
  */
 public class ComparisonExpression implements BooleanExpression {
-  private final ValueExpression<?> left;
-  private final ValueExpression<?> right;
-  private final ComparisonOperator operator;
+    private final ValueExpression<?> left;
+    private final ValueExpression<?> right;
+    private final ComparisonOperator operator;
 
-  public ComparisonExpression(
-      ValueExpression<?> left, ValueExpression<?> right, ComparisonOperator operator) {
-    this.left = left == null ? ValueExpression.NULL : left;
-    this.right = right == null ? ValueRefExpression.NULL : right;
-    this.operator = operator;
-  }
-
-  @Override
-  public Boolean evaluate(EvalContext evalContext) {
-    Value<?> leftValue = left.evaluate(evalContext);
-    if (leftValue.isUndefined()) {
-      return Boolean.FALSE;
+    public ComparisonExpression(ValueExpression<?> left, ValueExpression<?> right, ComparisonOperator operator) {
+        this.left = left == null ? ValueExpression.NULL : left;
+        this.right = right == null ? ValueRefExpression.NULL : right;
+        this.operator = operator;
     }
-    Value<?> rightValue = right.evaluate(evalContext);
-    if (rightValue.isUndefined()) {
-      return Boolean.FALSE;
+
+    @Override
+    public Boolean evaluate(EvalContext evalContext) {
+        Value<?> leftValue = left.evaluate(evalContext);
+        if (leftValue.isUndefined()) {
+            return Boolean.FALSE;
+        }
+        Value<?> rightValue = right.evaluate(evalContext);
+        if (rightValue.isUndefined()) {
+            return Boolean.FALSE;
+        }
+        try {
+            boolean result = operator.apply(leftValue, rightValue);
+            checkTimeout(evalContext.getTimeoutChecker(), this);
+            return result;
+        } catch (EvaluationTimeOutException e) {
+            throw new EvaluationTimeOutException(e.getMessage(), PrettyPrintVisitor.print(this));
+        } catch (EvaluationException e) {
+            throw new EvaluationException(e.getMessage(), PrettyPrintVisitor.print(this));
+        }
     }
-    try {
-      boolean result = operator.apply(leftValue, rightValue);
-      checkTimeout(evalContext.getTimeoutChecker(), this);
-      return result;
-    } catch (EvaluationTimeOutException e) {
-      throw new EvaluationTimeOutException(e.getMessage(), PrettyPrintVisitor.print(this));
-    } catch (EvaluationException e) {
-      throw new EvaluationException(e.getMessage(), PrettyPrintVisitor.print(this));
+
+    @Override
+    public <R> R accept(Visitor<R> visitor) {
+        return visitor.visit(this);
     }
-  }
 
-  @Override
-  public <R> R accept(Visitor<R> visitor) {
-    return visitor.visit(this);
-  }
+    public ValueExpression<?> getLeft() {
+        return left;
+    }
 
-  public ValueExpression<?> getLeft() {
-    return left;
-  }
+    public ValueExpression<?> getRight() {
+        return right;
+    }
 
-  public ValueExpression<?> getRight() {
-    return right;
-  }
-
-  public ComparisonOperator getOperator() {
-    return operator;
-  }
+    public ComparisonOperator getOperator() {
+        return operator;
+    }
 }

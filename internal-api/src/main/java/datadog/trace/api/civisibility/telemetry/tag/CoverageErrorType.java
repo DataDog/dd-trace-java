@@ -4,18 +4,18 @@ import datadog.trace.api.civisibility.telemetry.TagValue;
 
 /** The type of coverage collection error */
 public enum CoverageErrorType implements TagValue {
-  RECORD,
-  PATH,
-  CONCURRENCY;
+    RECORD,
+    PATH,
+    CONCURRENCY;
 
-  private final String s;
+    private final String s;
 
-  CoverageErrorType() {
-    s = "error_type:" + name().toLowerCase();
-  }
+    CoverageErrorType() {
+        s = "error_type:" + name().toLowerCase();
+    }
 
-  @Override
-  public String asString() {
-    return s;
-  }
+    @Override
+    public String asString() {
+        return s;
+    }
 }

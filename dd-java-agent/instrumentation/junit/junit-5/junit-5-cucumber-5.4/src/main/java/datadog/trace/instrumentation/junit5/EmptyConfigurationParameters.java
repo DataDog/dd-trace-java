@@ -13,22 +13,22 @@ import org.junit.platform.engine.ConfigurationParameters;
 @SuppressWarnings("deprecation") // ConfigurationParameters#size() is deprecated in newer platforms
 public final class EmptyConfigurationParameters implements ConfigurationParameters {
 
-  @Override
-  public Optional<String> get(String key) {
-    return Optional.empty();
-  }
+    @Override
+    public Optional<String> get(String key) {
+        return Optional.empty();
+    }
 
-  @Override
-  public Optional<Boolean> getBoolean(String key) {
-    return Optional.empty();
-  }
+    @Override
+    public Optional<Boolean> getBoolean(String key) {
+        return Optional.empty();
+    }
 
-  @Override
-  public int size() {
-    return 0;
-  }
+    @Override
+    public int size() {
+        return 0;
+    }
 
-  public Set<String> keySet() {
-    return Collections.emptySet();
-  }
+    public Set<String> keySet() {
+        return Collections.emptySet();
+    }
 }

@@ -25,116 +25,110 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 public class DependencyServiceTests {
-  DependencyService depService = new DependencyService();
-  Closeable assemblyHandle;
-  TempFileProvider tempFileProvider;
+    DependencyService depService = new DependencyService();
+    Closeable assemblyHandle;
+    TempFileProvider tempFileProvider;
 
-  @AfterEach
-  public void teardown() throws IOException {
-    if (assemblyHandle != null) {
-      assemblyHandle.close();
+    @AfterEach
+    public void teardown() throws IOException {
+        if (assemblyHandle != null) {
+            assemblyHandle.close();
+        }
+        if (tempFileProvider != null) {
+            tempFileProvider.close();
+        }
     }
-    if (tempFileProvider != null) {
-      tempFileProvider.close();
-    }
-  }
 
-  private ClassFileTransformer captureTransformer() {
-    final ClassFileTransformer[] t = {null};
-    Instrumentation instrumentation =
-        (Instrumentation)
-            Proxy.newProxyInstance(
+    private ClassFileTransformer captureTransformer() {
+        final ClassFileTransformer[] t = {null};
+        Instrumentation instrumentation = (Instrumentation) Proxy.newProxyInstance(
                 DependencyServiceTests.class.getClassLoader(),
                 new Class<?>[] {Instrumentation.class},
                 (proxy, method, args) -> {
-                  if (method.getName().equals("addTransformer")) {
-                    t[0] = (ClassFileTransformer) args[0];
-                  } else {
-                    throw new UnsupportedOperationException();
-                  }
-                  return null;
+                    if (method.getName().equals("addTransformer")) {
+                        t[0] = (ClassFileTransformer) args[0];
+                    } else {
+                        throw new UnsupportedOperationException();
+                    }
+                    return null;
                 });
 
-    depService.installOn(instrumentation);
-    assert t[0] != null;
-    return t[0];
-  }
-
-  private Dependency identifyDependency(ClassFileTransformer t, String url)
-      throws MalformedURLException, IllegalClassFormatException {
-    VirtualFile virtualGroovyJar = VFS.getChild(url);
-    URL groovyJarURL = virtualGroovyJar.toURL();
-
-    CodeSource codeSource = new CodeSource(groovyJarURL, (Certificate[]) null);
-    ProtectionDomain domain = new ProtectionDomain(codeSource, null);
-    t.transform(getClass().getClassLoader(), "class.name", Object.class, domain, new byte[0]);
-    depService.run(); // for test enforce instant dependency resolution
-    Collection<Dependency> deps = depService.drainDeterminedDependencies();
-
-    if (deps.isEmpty()) {
-      return null;
+        depService.installOn(instrumentation);
+        assert t[0] != null;
+        return t[0];
     }
 
-    return deps.iterator().next();
-  }
+    private Dependency identifyDependency(ClassFileTransformer t, String url)
+            throws MalformedURLException, IllegalClassFormatException {
+        VirtualFile virtualGroovyJar = VFS.getChild(url);
+        URL groovyJarURL = virtualGroovyJar.toURL();
 
-  @Test
-  public void jboss_vfs_url() throws IOException, IllegalClassFormatException {
-    ClassFileTransformer t = captureTransformer();
+        CodeSource codeSource = new CodeSource(groovyJarURL, (Certificate[]) null);
+        ProtectionDomain domain = new ProtectionDomain(codeSource, null);
+        t.transform(getClass().getClassLoader(), "class.name", Object.class, domain, new byte[0]);
+        depService.run(); // for test enforce instant dependency resolution
+        Collection<Dependency> deps = depService.drainDeterminedDependencies();
 
-    VirtualFileAssembly assembly = new VirtualFileAssembly();
-    VirtualFile assemblyLocation = VFS.getChild("assembly.jar");
-    assemblyHandle = VFS.mountAssembly(assembly, assemblyLocation);
+        if (deps.isEmpty()) {
+            return null;
+        }
 
-    VirtualFile virtualDir =
-        VFS.getChild(
-            ClassLoader.getSystemClassLoader()
+        return deps.iterator().next();
+    }
+
+    @Test
+    public void jboss_vfs_url() throws IOException, IllegalClassFormatException {
+        ClassFileTransformer t = captureTransformer();
+
+        VirtualFileAssembly assembly = new VirtualFileAssembly();
+        VirtualFile assemblyLocation = VFS.getChild("assembly.jar");
+        assemblyHandle = VFS.mountAssembly(assembly, assemblyLocation);
+
+        VirtualFile virtualDir = VFS.getChild(ClassLoader.getSystemClassLoader()
                 .getResource("datadog/telemetry/dependencies/")
                 .getPath());
-    assembly.add("/groovy.jar", virtualDir.getChild("groovy-manifest.jar"));
+        assembly.add("/groovy.jar", virtualDir.getChild("groovy-manifest.jar"));
 
-    Dependency dep = identifyDependency(t, "assembly.jar/groovy.jar");
-    assertNotNull(dep);
+        Dependency dep = identifyDependency(t, "assembly.jar/groovy.jar");
+        assertNotNull(dep);
 
-    // XXX: This should be `groovy` instead of `groovy-manifest` (ideally). However, we only
-    // have the bundle symbolic name with `groovy` and it is not always reliable.
-    assertEquals("groovy-manifest", dep.name);
-    assertEquals("2.4.12", dep.version);
-    assertEquals("groovy-manifest.jar", dep.source);
-    assertEquals("04DF0875A66F111880217FE1C5C59CA877403239", dep.hash);
-  }
+        // XXX: This should be `groovy` instead of `groovy-manifest` (ideally). However, we only
+        // have the bundle symbolic name with `groovy` and it is not always reliable.
+        assertEquals("groovy-manifest", dep.name);
+        assertEquals("2.4.12", dep.version);
+        assertEquals("groovy-manifest.jar", dep.source);
+        assertEquals("04DF0875A66F111880217FE1C5C59CA877403239", dep.hash);
+    }
 
-  @Test
-  public void jboss_vfs_zip_url() throws IOException, IllegalClassFormatException {
-    ClassFileTransformer t = captureTransformer();
+    @Test
+    public void jboss_vfs_zip_url() throws IOException, IllegalClassFormatException {
+        ClassFileTransformer t = captureTransformer();
 
-    VirtualFile zipFile =
-        VFS.getChild(
-            ClassLoader.getSystemClassLoader()
+        VirtualFile zipFile = VFS.getChild(ClassLoader.getSystemClassLoader()
                 .getResource("datadog/telemetry/dependencies/junit.zip")
                 .getPath());
-    VirtualFile mountPoint = VFS.getChild("foo.zip");
-    tempFileProvider = TempFileProvider.create("test", new ScheduledThreadPoolExecutor(2));
-    assemblyHandle = VFS.mountZip(zipFile, mountPoint, tempFileProvider);
+        VirtualFile mountPoint = VFS.getChild("foo.zip");
+        tempFileProvider = TempFileProvider.create("test", new ScheduledThreadPoolExecutor(2));
+        assemblyHandle = VFS.mountZip(zipFile, mountPoint, tempFileProvider);
 
-    Dependency dep = identifyDependency(t, "foo.zip/junit-4.12.jar");
-    assertNotNull(dep);
+        Dependency dep = identifyDependency(t, "foo.zip/junit-4.12.jar");
+        assertNotNull(dep);
 
-    assertEquals("junit", dep.name);
-    assertEquals("4.12", dep.version);
-    assertEquals("junit-4.12.jar", dep.source);
-    assertEquals("4376590587C49AC6DA6935564233F36B092412AE", dep.hash);
-  }
+        assertEquals("junit", dep.name);
+        assertEquals("4.12", dep.version);
+        assertEquals("junit-4.12.jar", dep.source);
+        assertEquals("4376590587C49AC6DA6935564233F36B092412AE", dep.hash);
+    }
 
-  @Test
-  public void jboss_nonexistent_file() throws IOException, IllegalClassFormatException {
-    ClassFileTransformer t = captureTransformer();
+    @Test
+    public void jboss_nonexistent_file() throws IOException, IllegalClassFormatException {
+        ClassFileTransformer t = captureTransformer();
 
-    VirtualFileAssembly assembly = new VirtualFileAssembly();
-    VirtualFile assemblyLocation = VFS.getChild("assembly.jar");
-    assemblyHandle = VFS.mountAssembly(assembly, assemblyLocation);
+        VirtualFileAssembly assembly = new VirtualFileAssembly();
+        VirtualFile assemblyLocation = VFS.getChild("assembly.jar");
+        assemblyHandle = VFS.mountAssembly(assembly, assemblyLocation);
 
-    Dependency dep = identifyDependency(t, "assembly.jar/nonexistent-1.2.3.jar");
-    assertNull(dep);
-  }
+        Dependency dep = identifyDependency(t, "assembly.jar/nonexistent-1.2.3.jar");
+        assertNull(dep);
+    }
 }

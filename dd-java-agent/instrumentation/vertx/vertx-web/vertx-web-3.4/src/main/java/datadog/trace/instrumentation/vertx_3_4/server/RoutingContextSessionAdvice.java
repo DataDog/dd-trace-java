@@ -17,32 +17,29 @@ import net.bytebuddy.asm.Advice;
 
 @RequiresRequestContext(RequestContextSlot.APPSEC)
 class RoutingContextSessionAdvice {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  static void after(
-      @ActiveRequestContext final RequestContext reqCtx,
-      @Advice.Argument(0) final Session session) {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    static void after(@ActiveRequestContext final RequestContext reqCtx, @Advice.Argument(0) final Session session) {
 
-    if (session == null) {
-      return;
-    }
+        if (session == null) {
+            return;
+        }
 
-    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-    BiFunction<RequestContext, String, Flow<Void>> callback =
-        cbp.getCallback(EVENTS.requestSession());
-    if (callback == null) {
-      return;
-    }
+        CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+        BiFunction<RequestContext, String, Flow<Void>> callback = cbp.getCallback(EVENTS.requestSession());
+        if (callback == null) {
+            return;
+        }
 
-    Flow<Void> flow = callback.apply(reqCtx, session.id());
-    Flow.Action action = flow.getAction();
-    if (action instanceof Flow.Action.RequestBlockingAction) {
-      BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
-      if (blockResponseFunction == null) {
-        return;
-      }
-      Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-      blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-      throw new BlockingException("Blocked request (for session)");
+        Flow<Void> flow = callback.apply(reqCtx, session.id());
+        Flow.Action action = flow.getAction();
+        if (action instanceof Flow.Action.RequestBlockingAction) {
+            BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
+            if (blockResponseFunction == null) {
+                return;
+            }
+            Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+            blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+            throw new BlockingException("Blocked request (for session)");
+        }
     }
-  }
 }

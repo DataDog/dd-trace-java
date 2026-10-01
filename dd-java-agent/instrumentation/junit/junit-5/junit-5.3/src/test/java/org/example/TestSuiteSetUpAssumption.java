@@ -8,13 +8,13 @@ import org.junit.jupiter.api.Test;
 
 public class TestSuiteSetUpAssumption {
 
-  @BeforeAll
-  public static void suiteSetup() {
-    assumeTrue(1 > 2);
-  }
+    @BeforeAll
+    public static void suiteSetup() {
+        assumeTrue(1 > 2);
+    }
 
-  @Test
-  public void test_succeed() {
-    assertTrue(true);
-  }
+    @Test
+    public void test_succeed() {
+        assertTrue(true);
+    }
 }

@@ -9,19 +9,16 @@ import org.junit.platform.engine.TestDescriptor;
 
 public class JUnit5OrderUtils {
 
-  private static final MethodHandles METHOD_HANDLES =
-      new MethodHandles(ClassLoaderUtils.getDefaultClassLoader());
+    private static final MethodHandles METHOD_HANDLES = new MethodHandles(ClassLoaderUtils.getDefaultClassLoader());
 
-  private static final MethodHandle GET_TEST_DESCRIPTOR =
-      METHOD_HANDLES.privateFieldGetter(
-          "org.junit.jupiter.engine.discovery.AbstractAnnotatedDescriptorWrapper",
-          "testDescriptor");
+    private static final MethodHandle GET_TEST_DESCRIPTOR = METHOD_HANDLES.privateFieldGetter(
+            "org.junit.jupiter.engine.discovery.AbstractAnnotatedDescriptorWrapper", "testDescriptor");
 
-  public static TestDescriptor getTestDescriptor(ClassDescriptor classDescriptor) {
-    return METHOD_HANDLES.invoke(GET_TEST_DESCRIPTOR, classDescriptor);
-  }
+    public static TestDescriptor getTestDescriptor(ClassDescriptor classDescriptor) {
+        return METHOD_HANDLES.invoke(GET_TEST_DESCRIPTOR, classDescriptor);
+    }
 
-  public static TestDescriptor getTestDescriptor(MethodDescriptor methodDescriptor) {
-    return METHOD_HANDLES.invoke(GET_TEST_DESCRIPTOR, methodDescriptor);
-  }
+    public static TestDescriptor getTestDescriptor(MethodDescriptor methodDescriptor) {
+        return METHOD_HANDLES.invoke(GET_TEST_DESCRIPTOR, methodDescriptor);
+    }
 }

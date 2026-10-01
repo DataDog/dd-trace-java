@@ -10,24 +10,24 @@ import org.apache.ignite.lang.IgniteInClosure;
  */
 public class SpanFinishingCallback implements IgniteInClosure<IgniteFuture<?>> {
 
-  /** Span that we should finish and annotate when the future is complete. */
-  private final AgentSpan span;
+    /** Span that we should finish and annotate when the future is complete. */
+    private final AgentSpan span;
 
-  public SpanFinishingCallback(final AgentSpan span) {
-    this.span = span;
-  }
-
-  @Override
-  public void apply(IgniteFuture<?> igniteFuture) {
-    IgniteCacheDecorator.DECORATE.beforeFinish(span);
-
-    try {
-      igniteFuture.get(); // propagates failure to the catch block below
-      IgniteCacheDecorator.DECORATE.beforeFinish(span);
-    } catch (Exception e) {
-      IgniteCacheDecorator.DECORATE.onError(span, e);
-    } finally {
-      span.finish();
+    public SpanFinishingCallback(final AgentSpan span) {
+        this.span = span;
     }
-  }
+
+    @Override
+    public void apply(IgniteFuture<?> igniteFuture) {
+        IgniteCacheDecorator.DECORATE.beforeFinish(span);
+
+        try {
+            igniteFuture.get(); // propagates failure to the catch block below
+            IgniteCacheDecorator.DECORATE.beforeFinish(span);
+        } catch (Exception e) {
+            IgniteCacheDecorator.DECORATE.onError(span, e);
+        } finally {
+            span.finish();
+        }
+    }
 }

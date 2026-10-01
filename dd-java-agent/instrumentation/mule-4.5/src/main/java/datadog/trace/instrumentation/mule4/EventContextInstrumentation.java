@@ -13,23 +13,23 @@ import datadog.trace.agent.tooling.InstrumenterModule;
  */
 @AutoService(InstrumenterModule.class)
 public final class EventContextInstrumentation extends AbstractMuleInstrumentation
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "org.mule.runtime.core.internal.event.DefaultEventContext",
-      "org.mule.runtime.core.internal.event.DefaultEventContext$ChildEventContext"
-    };
-  }
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            "org.mule.runtime.core.internal.event.DefaultEventContext",
+            "org.mule.runtime.core.internal.event.DefaultEventContext$ChildEventContext"
+        };
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), packageName + ".EventContextCreationAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor(), packageName + ".EventContextCreationAdvice");
+    }
 
-  @Override
-  public String muzzleDirective() {
-    return "before-4.5.0";
-  }
+    @Override
+    public String muzzleDirective() {
+        return "before-4.5.0";
+    }
 }

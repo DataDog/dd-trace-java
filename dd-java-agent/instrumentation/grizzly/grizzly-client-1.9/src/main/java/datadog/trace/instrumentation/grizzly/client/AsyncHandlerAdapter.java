@@ -12,61 +12,61 @@ import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
 public class AsyncHandlerAdapter<T> implements AsyncHandler<T> {
-  private final AgentSpan clientSpan;
-  private final AgentSpan parentSpan;
-  private final AsyncHandler<T> delegate;
-  private Response.ResponseBuilder responseBuilder = new Response.ResponseBuilder();
+    private final AgentSpan clientSpan;
+    private final AgentSpan parentSpan;
+    private final AsyncHandler<T> delegate;
+    private Response.ResponseBuilder responseBuilder = new Response.ResponseBuilder();
 
-  public AsyncHandlerAdapter(AgentSpan clientSpan, AgentSpan parentSpan, AsyncHandler<T> delegate) {
-    this.clientSpan = clientSpan;
-    this.parentSpan = parentSpan;
-    this.delegate = delegate;
-  }
-
-  @Override
-  public void onThrowable(Throwable throwable) {
-    delegate.onThrowable(throwable);
-  }
-
-  @Override
-  public STATE onBodyPartReceived(HttpResponseBodyPart httpResponseBodyPart) throws Exception {
-    try (final ContextScope ignored = activateSpan(clientSpan)) {
-      return delegate.onBodyPartReceived(httpResponseBodyPart);
+    public AsyncHandlerAdapter(AgentSpan clientSpan, AgentSpan parentSpan, AsyncHandler<T> delegate) {
+        this.clientSpan = clientSpan;
+        this.parentSpan = parentSpan;
+        this.delegate = delegate;
     }
-  }
 
-  @Override
-  public STATE onStatusReceived(HttpResponseStatus httpResponseStatus) throws Exception {
-    responseBuilder = responseBuilder.accumulate(httpResponseStatus);
-    try (final ContextScope ignored = activateSpan(clientSpan)) {
-      return delegate.onStatusReceived(httpResponseStatus);
+    @Override
+    public void onThrowable(Throwable throwable) {
+        delegate.onThrowable(throwable);
     }
-  }
 
-  @Override
-  public STATE onHeadersReceived(HttpResponseHeaders httpResponseHeaders) throws Exception {
-    responseBuilder = responseBuilder.accumulate(httpResponseHeaders);
-    try (final ContextScope ignored = activateSpan(clientSpan)) {
-      return delegate.onHeadersReceived(httpResponseHeaders);
+    @Override
+    public STATE onBodyPartReceived(HttpResponseBodyPart httpResponseBodyPart) throws Exception {
+        try (final ContextScope ignored = activateSpan(clientSpan)) {
+            return delegate.onBodyPartReceived(httpResponseBodyPart);
+        }
     }
-  }
 
-  @Override
-  public T onCompleted() throws Exception {
-    try {
-      final T response;
-      try (ContextScope ignored = (parentSpan != null ? activateSpan(parentSpan) : null)) {
-        response = delegate.onCompleted();
-      }
-      if (response instanceof Response) {
-        DECORATE.onResponse(clientSpan, (Response) response);
-      } else {
-        DECORATE.onResponse(clientSpan, responseBuilder.build());
-      }
-      return response;
-    } finally {
-      DECORATE.beforeFinish(clientSpan);
-      clientSpan.finish();
+    @Override
+    public STATE onStatusReceived(HttpResponseStatus httpResponseStatus) throws Exception {
+        responseBuilder = responseBuilder.accumulate(httpResponseStatus);
+        try (final ContextScope ignored = activateSpan(clientSpan)) {
+            return delegate.onStatusReceived(httpResponseStatus);
+        }
     }
-  }
+
+    @Override
+    public STATE onHeadersReceived(HttpResponseHeaders httpResponseHeaders) throws Exception {
+        responseBuilder = responseBuilder.accumulate(httpResponseHeaders);
+        try (final ContextScope ignored = activateSpan(clientSpan)) {
+            return delegate.onHeadersReceived(httpResponseHeaders);
+        }
+    }
+
+    @Override
+    public T onCompleted() throws Exception {
+        try {
+            final T response;
+            try (ContextScope ignored = (parentSpan != null ? activateSpan(parentSpan) : null)) {
+                response = delegate.onCompleted();
+            }
+            if (response instanceof Response) {
+                DECORATE.onResponse(clientSpan, (Response) response);
+            } else {
+                DECORATE.onResponse(clientSpan, responseBuilder.build());
+            }
+            return response;
+        } finally {
+            DECORATE.beforeFinish(clientSpan);
+            clientSpan.finish();
+        }
+    }
 }

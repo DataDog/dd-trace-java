@@ -24,71 +24,71 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class ServletInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public ServletInstrumentation() {
-    super("undertow", "undertow-2.0");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "io.undertow.servlet.handlers.ServletInitialHandler";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("dispatchRequest")), getClass().getName() + "$DispatchAdvice");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".HttpServerExchangeURIDataAdapter",
-      packageName + ".UndertowDecorator",
-      packageName + ".UndertowBlockingHandler",
-      packageName + ".IgnoreSendAttribute",
-      packageName + ".UndertowBlockResponseFunction",
-      packageName + ".UndertowExtractAdapter",
-      packageName + ".UndertowExtractAdapter$Request",
-      packageName + ".UndertowExtractAdapter$Response"
-    };
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "javax.servlet";
-  }
-
-  public static class DispatchAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void enter(
-        @Advice.Argument(0) final HttpServerExchange exchange,
-        @Advice.Argument(1) final ServletRequestContext servletRequestContext) {
-      ContextContinuation continuation = exchange.getAttachment(DATADOG_UNDERTOW_CONTINUATION);
-      if (continuation != null) {
-        AgentSpan undertowSpan = spanFromContext(continuation.context());
-        ServletRequest request = servletRequestContext.getServletRequest();
-        request.setAttribute(DD_CONTEXT_ATTRIBUTE, continuation.context());
-        undertowSpan.setSpanName(SERVLET_REQUEST);
-
-        undertowSpan.setTag(SERVLET_CONTEXT, request.getServletContext().getContextPath());
-        String relativePath = exchange.getRelativePath();
-
-        ServletPathMatch servletPathMatch = servletRequestContext.getServletPathMatch();
-        if (UndertowDecorator.UNDERTOW_LEGACY_TRACING
-            && servletPathMatch != null
-            && servletPathMatch.getMappingMatch() != MappingMatch.DEFAULT) {
-          // Set the route unless the mapping match is default, this way we prevent setting route
-          // for a non-existing resource. Otherwise, it'd set a non-existing resource name with
-          // higher priority than 404 resource, so it wouldn't be able to set resource 404 later in
-          // the onResponse instrumentation.
-          HTTP_RESOURCE_DECORATOR.withRoute(
-              undertowSpan, exchange.getRequestMethod().toString(), relativePath, false);
-        }
-        // The servlet.path tag is expected even for a non-existing resource.
-        undertowSpan.setTag(SERVLET_PATH, relativePath);
-      }
+    public ServletInstrumentation() {
+        super("undertow", "undertow-2.0");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "io.undertow.servlet.handlers.ServletInitialHandler";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("dispatchRequest")), getClass().getName() + "$DispatchAdvice");
+    }
+
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".HttpServerExchangeURIDataAdapter",
+            packageName + ".UndertowDecorator",
+            packageName + ".UndertowBlockingHandler",
+            packageName + ".IgnoreSendAttribute",
+            packageName + ".UndertowBlockResponseFunction",
+            packageName + ".UndertowExtractAdapter",
+            packageName + ".UndertowExtractAdapter$Request",
+            packageName + ".UndertowExtractAdapter$Response"
+        };
+    }
+
+    @Override
+    public String muzzleDirective() {
+        return "javax.servlet";
+    }
+
+    public static class DispatchAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void enter(
+                @Advice.Argument(0) final HttpServerExchange exchange,
+                @Advice.Argument(1) final ServletRequestContext servletRequestContext) {
+            ContextContinuation continuation = exchange.getAttachment(DATADOG_UNDERTOW_CONTINUATION);
+            if (continuation != null) {
+                AgentSpan undertowSpan = spanFromContext(continuation.context());
+                ServletRequest request = servletRequestContext.getServletRequest();
+                request.setAttribute(DD_CONTEXT_ATTRIBUTE, continuation.context());
+                undertowSpan.setSpanName(SERVLET_REQUEST);
+
+                undertowSpan.setTag(SERVLET_CONTEXT, request.getServletContext().getContextPath());
+                String relativePath = exchange.getRelativePath();
+
+                ServletPathMatch servletPathMatch = servletRequestContext.getServletPathMatch();
+                if (UndertowDecorator.UNDERTOW_LEGACY_TRACING
+                        && servletPathMatch != null
+                        && servletPathMatch.getMappingMatch() != MappingMatch.DEFAULT) {
+                    // Set the route unless the mapping match is default, this way we prevent setting route
+                    // for a non-existing resource. Otherwise, it'd set a non-existing resource name with
+                    // higher priority than 404 resource, so it wouldn't be able to set resource 404 later in
+                    // the onResponse instrumentation.
+                    HTTP_RESOURCE_DECORATOR.withRoute(
+                            undertowSpan, exchange.getRequestMethod().toString(), relativePath, false);
+                }
+                // The servlet.path tag is expected even for a non-existing resource.
+                undertowSpan.setTag(SERVLET_PATH, relativePath);
+            }
+        }
+    }
 }

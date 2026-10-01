@@ -14,90 +14,89 @@ import ratpack.http.Response;
 import ratpack.http.Status;
 
 public class RatpackServerDecorator extends HttpServerDecorator<Request, Request, Response, Void> {
-  public static final CharSequence RATPACK_HANDLER = UTF8BytesString.create("ratpack.handler");
-  public static final CharSequence RATPACK = UTF8BytesString.create("ratpack");
-  public static final RatpackServerDecorator DECORATE = new RatpackServerDecorator();
+    public static final CharSequence RATPACK_HANDLER = UTF8BytesString.create("ratpack.handler");
+    public static final CharSequence RATPACK = UTF8BytesString.create("ratpack");
+    public static final RatpackServerDecorator DECORATE = new RatpackServerDecorator();
 
-  @Override
-  protected String[] instrumentationNames() {
-    return new String[] {"ratpack"};
-  }
-
-  @Override
-  protected CharSequence component() {
-    return RATPACK;
-  }
-
-  @Override
-  protected boolean traceAnalyticsDefault() {
-    return false;
-  }
-
-  @Override
-  protected AgentPropagation.ContextVisitor<Void> getter() {
-    return null;
-  }
-
-  @Override
-  protected AgentPropagation.ContextVisitor<Response> responseGetter() {
-    return null;
-  }
-
-  @Override
-  public CharSequence spanName() {
-    return RATPACK_HANDLER;
-  }
-
-  @Override
-  protected String method(final Request request) {
-    return request.getMethod().getName();
-  }
-
-  @Override
-  protected URIDataAdapter url(final Request request) {
-    return new RequestURIAdapterAdapter(request);
-  }
-
-  @Override
-  protected String peerHostIP(final Request request) {
-    return request.getRemoteAddress().getHost();
-  }
-
-  @Override
-  protected int peerPort(final Request request) {
-    return request.getRemoteAddress().getPort();
-  }
-
-  @Override
-  protected int status(final Response response) {
-    final Status status = response.getStatus();
-    if (status != null) {
-      return status.getCode();
-    } else {
-      return 0;
-    }
-  }
-
-  public void onContext(final AgentSpan span, final Context ctx) {
-
-    String description = ctx.getPathBinding().getDescription();
-    if (description == null || description.isEmpty()) {
-      description = "/";
-    } else if (!description.startsWith("/")) {
-      description = "/" + description;
+    @Override
+    protected String[] instrumentationNames() {
+        return new String[] {"ratpack"};
     }
 
-    HTTP_RESOURCE_DECORATOR.withRoute(span, ctx.getRequest().getMethod().getName(), description);
-  }
-
-  @Override
-  protected void doOnError(
-      @Nonnull final AgentSpan span, @Nonnull Throwable throwable, byte errorPriority) {
-    // Attempt to unwrap ratpack.handling.internal.HandlerException without direct reference.
-    if (throwable instanceof Error && throwable.getCause() != null) {
-      super.doOnError(span, throwable.getCause(), errorPriority);
-    } else {
-      super.doOnError(span, throwable, errorPriority);
+    @Override
+    protected CharSequence component() {
+        return RATPACK;
     }
-  }
+
+    @Override
+    protected boolean traceAnalyticsDefault() {
+        return false;
+    }
+
+    @Override
+    protected AgentPropagation.ContextVisitor<Void> getter() {
+        return null;
+    }
+
+    @Override
+    protected AgentPropagation.ContextVisitor<Response> responseGetter() {
+        return null;
+    }
+
+    @Override
+    public CharSequence spanName() {
+        return RATPACK_HANDLER;
+    }
+
+    @Override
+    protected String method(final Request request) {
+        return request.getMethod().getName();
+    }
+
+    @Override
+    protected URIDataAdapter url(final Request request) {
+        return new RequestURIAdapterAdapter(request);
+    }
+
+    @Override
+    protected String peerHostIP(final Request request) {
+        return request.getRemoteAddress().getHost();
+    }
+
+    @Override
+    protected int peerPort(final Request request) {
+        return request.getRemoteAddress().getPort();
+    }
+
+    @Override
+    protected int status(final Response response) {
+        final Status status = response.getStatus();
+        if (status != null) {
+            return status.getCode();
+        } else {
+            return 0;
+        }
+    }
+
+    public void onContext(final AgentSpan span, final Context ctx) {
+
+        String description = ctx.getPathBinding().getDescription();
+        if (description == null || description.isEmpty()) {
+            description = "/";
+        } else if (!description.startsWith("/")) {
+            description = "/" + description;
+        }
+
+        HTTP_RESOURCE_DECORATOR.withRoute(span, ctx.getRequest().getMethod().getName(), description);
+    }
+
+    @Override
+    protected void doOnError(@Nonnull final AgentSpan span, @Nonnull Throwable throwable, byte errorPriority) {
+        // Attempt to unwrap ratpack.handling.internal.HandlerException without direct reference.
+        if (throwable instanceof Error && throwable.getCause() != null) {
+            super.doOnError(span, throwable.getCause(), errorPriority);
+        } else {
+            super.doOnError(span, throwable, errorPriority);
+        }
+    }
 }

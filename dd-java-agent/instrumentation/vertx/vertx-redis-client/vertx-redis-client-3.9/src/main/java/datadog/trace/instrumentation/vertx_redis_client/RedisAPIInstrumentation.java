@@ -14,33 +14,31 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class RedisAPIInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-  public RedisAPIInstrumentation() {
-    super("vertx", "vertx-redis-client");
-  }
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+    public RedisAPIInstrumentation() {
+        super("vertx", "vertx-redis-client");
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    Map<String, String> contextStores = new HashMap<>();
-    contextStores.put("io.vertx.redis.client.RedisAPI", packageName + ".ResponseHandlerWrapper");
-    contextStores.put("io.vertx.redis.client.RedisConnection", "io.vertx.core.net.SocketAddress");
-    return contextStores;
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        Map<String, String> contextStores = new HashMap<>();
+        contextStores.put("io.vertx.redis.client.RedisAPI", packageName + ".ResponseHandlerWrapper");
+        contextStores.put("io.vertx.redis.client.RedisConnection", "io.vertx.core.net.SocketAddress");
+        return contextStores;
+    }
 
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "io.vertx.redis.client.RedisAPI", "io.vertx.redis.client.impl.RedisAPIImpl"
-    };
-  }
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {"io.vertx.redis.client.RedisAPI", "io.vertx.redis.client.impl.RedisAPIImpl"};
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isVirtual().and(isDefaultMethod()).and(returns(named("io.vertx.redis.client.RedisAPI"))),
-        packageName + ".RedisAPICallAdvice");
-    transformer.applyAdvice(
-        named("send").and(not(isDefaultMethod())).and(returns(named("io.vertx.core.Future"))),
-        packageName + ".RedisAPIImplSendAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isVirtual().and(isDefaultMethod()).and(returns(named("io.vertx.redis.client.RedisAPI"))),
+                packageName + ".RedisAPICallAdvice");
+        transformer.applyAdvice(
+                named("send").and(not(isDefaultMethod())).and(returns(named("io.vertx.core.Future"))),
+                packageName + ".RedisAPIImplSendAdvice");
+    }
 }

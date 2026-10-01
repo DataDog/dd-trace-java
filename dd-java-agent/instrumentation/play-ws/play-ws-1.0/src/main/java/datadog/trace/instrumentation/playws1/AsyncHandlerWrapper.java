@@ -12,67 +12,67 @@ import play.shaded.ahc.org.asynchttpclient.HttpResponseStatus;
 import play.shaded.ahc.org.asynchttpclient.Response;
 
 public class AsyncHandlerWrapper implements AsyncHandler {
-  private final AsyncHandler delegate;
-  private final AgentSpan span;
-  private final ContextContinuation continuation;
+    private final AsyncHandler delegate;
+    private final AgentSpan span;
+    private final ContextContinuation continuation;
 
-  private final Response.ResponseBuilder builder = new Response.ResponseBuilder();
+    private final Response.ResponseBuilder builder = new Response.ResponseBuilder();
 
-  public AsyncHandlerWrapper(final AsyncHandler delegate, final AgentSpan span) {
-    this.delegate = delegate;
-    this.span = span;
-    this.continuation = span.captureWithContext();
-  }
-
-  @Override
-  public State onBodyPartReceived(final HttpResponseBodyPart content) throws Exception {
-    builder.accumulate(content);
-    return delegate.onBodyPartReceived(content);
-  }
-
-  @Override
-  public State onStatusReceived(final HttpResponseStatus status) throws Exception {
-    builder.reset();
-    builder.accumulate(status);
-    return delegate.onStatusReceived(status);
-  }
-
-  @Override
-  public State onHeadersReceived(final HttpResponseHeaders httpHeaders) throws Exception {
-    builder.accumulate(httpHeaders);
-    return delegate.onHeadersReceived(httpHeaders);
-  }
-
-  @Override
-  public Object onCompleted() throws Exception {
-    final Response response = builder.build();
-    if (response != null) {
-      DECORATE.onResponse(span, response);
+    public AsyncHandlerWrapper(final AsyncHandler delegate, final AgentSpan span) {
+        this.delegate = delegate;
+        this.span = span;
+        this.continuation = span.captureWithContext();
     }
-    DECORATE.beforeFinish(span);
-    span.finish();
 
-    if (continuation != null) {
-      try (final ContextScope scope = continuation.resume()) {
-        return delegate.onCompleted();
-      }
-    } else {
-      return delegate.onCompleted();
+    @Override
+    public State onBodyPartReceived(final HttpResponseBodyPart content) throws Exception {
+        builder.accumulate(content);
+        return delegate.onBodyPartReceived(content);
     }
-  }
 
-  @Override
-  public void onThrowable(final Throwable throwable) {
-    DECORATE.onError(span, throwable);
-    DECORATE.beforeFinish(span);
-    span.finish();
-
-    if (continuation != null) {
-      try (final ContextScope scope = continuation.resume()) {
-        delegate.onThrowable(throwable);
-      }
-    } else {
-      delegate.onThrowable(throwable);
+    @Override
+    public State onStatusReceived(final HttpResponseStatus status) throws Exception {
+        builder.reset();
+        builder.accumulate(status);
+        return delegate.onStatusReceived(status);
     }
-  }
+
+    @Override
+    public State onHeadersReceived(final HttpResponseHeaders httpHeaders) throws Exception {
+        builder.accumulate(httpHeaders);
+        return delegate.onHeadersReceived(httpHeaders);
+    }
+
+    @Override
+    public Object onCompleted() throws Exception {
+        final Response response = builder.build();
+        if (response != null) {
+            DECORATE.onResponse(span, response);
+        }
+        DECORATE.beforeFinish(span);
+        span.finish();
+
+        if (continuation != null) {
+            try (final ContextScope scope = continuation.resume()) {
+                return delegate.onCompleted();
+            }
+        } else {
+            return delegate.onCompleted();
+        }
+    }
+
+    @Override
+    public void onThrowable(final Throwable throwable) {
+        DECORATE.onError(span, throwable);
+        DECORATE.beforeFinish(span);
+        span.finish();
+
+        if (continuation != null) {
+            try (final ContextScope scope = continuation.resume()) {
+                delegate.onThrowable(throwable);
+            }
+        } else {
+            delegate.onThrowable(throwable);
+        }
+    }
 }

@@ -19,43 +19,42 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class ServletContextInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public ServletContextInstrumentation() {
-    super("servlet", "servlet-dispatcher");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "javax.servlet.ServletContext";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("javax.servlet.RequestDispatcher", String.class.getName());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        returns(named("javax.servlet.RequestDispatcher"))
-            .and(takesArgument(0, String.class))
-            // javax.servlet.ServletContext.getRequestDispatcher
-            // javax.servlet.ServletContext.getNamedDispatcher
-            .and(isPublic()),
-        ServletContextInstrumentation.class.getName() + "$RequestDispatcherTargetAdvice");
-  }
-
-  public static class RequestDispatcherTargetAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void saveTarget(
-        @Advice.Argument(0) final String target,
-        @Advice.Return final RequestDispatcher dispatcher) {
-      InstrumentationContext.get(RequestDispatcher.class, String.class).put(dispatcher, target);
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    public ServletContextInstrumentation() {
+        super("servlet", "servlet-dispatcher");
     }
-  }
+
+    @Override
+    public String hierarchyMarkerType() {
+        return "javax.servlet.ServletContext";
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("javax.servlet.RequestDispatcher", String.class.getName());
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                returns(named("javax.servlet.RequestDispatcher"))
+                        .and(takesArgument(0, String.class))
+                        // javax.servlet.ServletContext.getRequestDispatcher
+                        // javax.servlet.ServletContext.getNamedDispatcher
+                        .and(isPublic()),
+                ServletContextInstrumentation.class.getName() + "$RequestDispatcherTargetAdvice");
+    }
+
+    public static class RequestDispatcherTargetAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void saveTarget(
+                @Advice.Argument(0) final String target, @Advice.Return final RequestDispatcher dispatcher) {
+            InstrumentationContext.get(RequestDispatcher.class, String.class).put(dispatcher, target);
+        }
+    }
 }

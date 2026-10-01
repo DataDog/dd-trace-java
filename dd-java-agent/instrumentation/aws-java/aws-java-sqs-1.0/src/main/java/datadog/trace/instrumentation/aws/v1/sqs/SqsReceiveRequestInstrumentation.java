@@ -14,33 +14,33 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class SqsReceiveRequestInstrumentation extends AbstractSqsInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String instrumentedType() {
-    return "com.amazonaws.services.sqs.model.ReceiveMessageRequest";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor().or(isMethod().and(namedOneOf("setAttributeNames", "withAttributeNames"))),
-        getClass().getName() + "$ReceiveMessageRequestAdvice");
-  }
-
-  public static class ReceiveMessageRequestAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void onExit(@Advice.This ReceiveMessageRequest request) {
-      if (Config.get().isSqsPropagationEnabled()) {
-        // ReceiveMessageRequest always returns a mutable list which we can append to
-        List<String> attributeNames = request.getAttributeNames();
-        for (String name : attributeNames) {
-          if ("AWSTraceHeader".equals(name) || "All".equals(name)) {
-            return;
-          }
-        }
-        attributeNames.add("AWSTraceHeader");
-      }
+    @Override
+    public String instrumentedType() {
+        return "com.amazonaws.services.sqs.model.ReceiveMessageRequest";
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isConstructor().or(isMethod().and(namedOneOf("setAttributeNames", "withAttributeNames"))),
+                getClass().getName() + "$ReceiveMessageRequestAdvice");
+    }
+
+    public static class ReceiveMessageRequestAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void onExit(@Advice.This ReceiveMessageRequest request) {
+            if (Config.get().isSqsPropagationEnabled()) {
+                // ReceiveMessageRequest always returns a mutable list which we can append to
+                List<String> attributeNames = request.getAttributeNames();
+                for (String name : attributeNames) {
+                    if ("AWSTraceHeader".equals(name) || "All".equals(name)) {
+                        return;
+                    }
+                }
+                attributeNames.add("AWSTraceHeader");
+            }
+        }
+    }
 }

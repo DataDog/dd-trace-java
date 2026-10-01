@@ -20,28 +20,28 @@ import org.apache.pekko.http.scaladsl.model.Uri;
  */
 @AutoService(InstrumenterModule.class)
 public class FormDataInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public FormDataInstrumentation() {
-    super("pekko-http");
-  }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public FormDataInstrumentation() {
+        super("pekko-http");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "org.apache.pekko.http.scaladsl.model.FormData";
-  }
+    @Override
+    public String instrumentedType() {
+        return "org.apache.pekko.http.scaladsl.model.FormData";
+    }
 
-  /**
-   * @param transformer
-   * @see UriInstrumentation.TaintQueryAdvice
-   */
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(not(isStatic()))
-            .and(named("fields"))
-            .and(takesArguments(0))
-            .and(returns(named("org.apache.pekko.http.scaladsl.model.Uri$Query"))),
-        "datadog.trace.instrumentation.pekkohttp.iast.UriInstrumentation$TaintQueryAdvice");
-  }
+    /**
+     * @param transformer
+     * @see UriInstrumentation.TaintQueryAdvice
+     */
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(not(isStatic()))
+                        .and(named("fields"))
+                        .and(takesArguments(0))
+                        .and(returns(named("org.apache.pekko.http.scaladsl.model.Uri$Query"))),
+                "datadog.trace.instrumentation.pekkohttp.iast.UriInstrumentation$TaintQueryAdvice");
+    }
 }

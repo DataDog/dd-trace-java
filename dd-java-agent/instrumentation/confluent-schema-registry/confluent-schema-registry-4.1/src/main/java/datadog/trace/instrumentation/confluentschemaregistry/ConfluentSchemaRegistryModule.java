@@ -11,28 +11,27 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class ConfluentSchemaRegistryModule extends InstrumenterModule.Tracing {
-  public ConfluentSchemaRegistryModule() {
-    super("confluent-schema-registry", "kafka");
-  }
+    public ConfluentSchemaRegistryModule() {
+        super("confluent-schema-registry", "kafka");
+    }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
-      packageName + ".SchemaIdExtractor"
-    };
-  }
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            "datadog.trace.instrumentation.kafka_common.ClusterIdHolder", packageName + ".SchemaIdExtractor"
+        };
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    Map<String, String> contextStores = new HashMap<>();
-    contextStores.put("org.apache.kafka.common.serialization.Deserializer", "java.lang.Boolean");
-    contextStores.put("org.apache.kafka.common.serialization.Serializer", "java.lang.Boolean");
-    return contextStores;
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        Map<String, String> contextStores = new HashMap<>();
+        contextStores.put("org.apache.kafka.common.serialization.Deserializer", "java.lang.Boolean");
+        contextStores.put("org.apache.kafka.common.serialization.Serializer", "java.lang.Boolean");
+        return contextStores;
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return asList(new KafkaDeserializerInstrumentation(), new KafkaSerializerInstrumentation());
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return asList(new KafkaDeserializerInstrumentation(), new KafkaSerializerInstrumentation());
+    }
 }

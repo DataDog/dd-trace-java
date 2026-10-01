@@ -33,75 +33,75 @@ import org.openjdk.jmh.infra.BenchmarkParams;
 @State(Scope.Benchmark)
 public class TaintedMapPutsBenchmark {
 
-  private static final int INITIAL_OP_COUNT = 1 << 12;
-  private static final int OP_COUNT = 1024;
+    private static final int INITIAL_OP_COUNT = 1 << 12;
+    private static final int OP_COUNT = 1024;
 
-  private static final Range[] EMPTY_RANGES = new Range[0];
+    private static final Range[] EMPTY_RANGES = new Range[0];
 
-  private TaintedMap map;
-  private List<Object> initialObjectList;
-  private GarbageCollectorHandler gcHandler;
+    private TaintedMap map;
+    private List<Object> initialObjectList;
+    private GarbageCollectorHandler gcHandler;
 
-  @Setup(Level.Iteration)
-  public void setup(BenchmarkParams params) {
-    final boolean baseline = params.getBenchmark().endsWith("baseline");
-    map = baseline ? TaintedMap.NoOp.INSTANCE : new TaintedMap.TaintedMapImpl();
-    gcHandler = new GarbageCollectorHandler(OP_COUNT);
-    initialObjectList = new ArrayList<>(INITIAL_OP_COUNT);
-    for (int i = 0; i < INITIAL_OP_COUNT; i++) {
-      final Object k = new Object();
-      initialObjectList.add(k);
-      map.put(new TaintedObject(k, EMPTY_RANGES));
-    }
-  }
-
-  @Benchmark
-  @OperationsPerInvocation(OP_COUNT)
-  public void baseline() {
-    for (int i = 0; i < OP_COUNT; i++) {
-      final Object k = new Object();
-      final TaintedObject to = new TaintedObject(k, EMPTY_RANGES);
-      gcHandler.add(to);
-      map.put(to);
-    }
-  }
-
-  @Benchmark
-  @OperationsPerInvocation(OP_COUNT)
-  public void puts() {
-    for (int i = 0; i < OP_COUNT; i++) {
-      final Object k = new Object();
-      final TaintedObject to = new TaintedObject(k, EMPTY_RANGES);
-      gcHandler.add(to);
-      map.put(to);
-    }
-  }
-
-  /**
-   * Reference queue that holds a circular buffer of alive objects and enqueues to be purged when
-   * they are removed
-   */
-  private static class GarbageCollectorHandler {
-
-    private final Map<Object, TaintedObject> map;
-    private final CircularBuffer<Object> alive;
-
-    public GarbageCollectorHandler(final int aliveCount) {
-      map = new IdentityHashMap<>(aliveCount);
-      alive = new CircularBuffer<>(aliveCount);
+    @Setup(Level.Iteration)
+    public void setup(BenchmarkParams params) {
+        final boolean baseline = params.getBenchmark().endsWith("baseline");
+        map = baseline ? TaintedMap.NoOp.INSTANCE : new TaintedMap.TaintedMapImpl();
+        gcHandler = new GarbageCollectorHandler(OP_COUNT);
+        initialObjectList = new ArrayList<>(INITIAL_OP_COUNT);
+        for (int i = 0; i < INITIAL_OP_COUNT; i++) {
+            final Object k = new Object();
+            initialObjectList.add(k);
+            map.put(new TaintedObject(k, EMPTY_RANGES));
+        }
     }
 
-    public void add(TaintedObject reference) {
-      if (reference == null || reference.get() == null) {
-        return;
-      }
-      final Object referent = reference.get();
-      final Object toRemove = alive.add(referent);
-      if (toRemove != null) {
-        final TaintedObject taintedObject = map.remove(toRemove);
-        taintedObject.enqueue();
-      }
-      map.put(reference.get(), reference);
+    @Benchmark
+    @OperationsPerInvocation(OP_COUNT)
+    public void baseline() {
+        for (int i = 0; i < OP_COUNT; i++) {
+            final Object k = new Object();
+            final TaintedObject to = new TaintedObject(k, EMPTY_RANGES);
+            gcHandler.add(to);
+            map.put(to);
+        }
     }
-  }
+
+    @Benchmark
+    @OperationsPerInvocation(OP_COUNT)
+    public void puts() {
+        for (int i = 0; i < OP_COUNT; i++) {
+            final Object k = new Object();
+            final TaintedObject to = new TaintedObject(k, EMPTY_RANGES);
+            gcHandler.add(to);
+            map.put(to);
+        }
+    }
+
+    /**
+     * Reference queue that holds a circular buffer of alive objects and enqueues to be purged when
+     * they are removed
+     */
+    private static class GarbageCollectorHandler {
+
+        private final Map<Object, TaintedObject> map;
+        private final CircularBuffer<Object> alive;
+
+        public GarbageCollectorHandler(final int aliveCount) {
+            map = new IdentityHashMap<>(aliveCount);
+            alive = new CircularBuffer<>(aliveCount);
+        }
+
+        public void add(TaintedObject reference) {
+            if (reference == null || reference.get() == null) {
+                return;
+            }
+            final Object referent = reference.get();
+            final Object toRemove = alive.add(referent);
+            if (toRemove != null) {
+                final TaintedObject taintedObject = map.remove(toRemove);
+                taintedObject.enqueue();
+            }
+            map.put(reference.get(), reference);
+        }
+    }
 }

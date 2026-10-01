@@ -11,18 +11,18 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class DB2ConnectionInstrumentation extends AbstractConnectionInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public DB2ConnectionInstrumentation() {
-    super("jdbc", "db2");
-  }
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    public DB2ConnectionInstrumentation() {
+        super("jdbc", "db2");
+    }
 
-  @Override
-  public String hierarchyMarkerType() {
-    return "com.ibm.db2.jcc.DB2Connection";
-  }
+    @Override
+    public String hierarchyMarkerType() {
+        return "com.ibm.db2.jcc.DB2Connection";
+    }
 
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
 }

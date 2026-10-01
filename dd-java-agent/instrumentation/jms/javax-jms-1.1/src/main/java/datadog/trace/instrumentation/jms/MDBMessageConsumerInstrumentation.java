@@ -33,83 +33,81 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public final class MDBMessageConsumerInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  private final String namespace;
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    private final String namespace;
 
-  public MDBMessageConsumerInstrumentation(String namespace) {
-    this.namespace = namespace;
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return namespace + ".jms.MessageListener";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()))
-        .and(
-            hasSuperType(declaresAnnotation(named(namespace + ".ejb.MessageDriven")))
-                .or(implementsInterface(named(namespace + ".ejb.MessageDrivenBean"))));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvices(
-        isMethod()
-            .and(isPublic())
-            .and(named("onMessage"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, (named(namespace + ".jms.Message")))),
-        getClass().getName() + "$ContextPropagationAdvice",
-        getClass().getName() + "$MDBAdvice");
-  }
-
-  @AppliesOn(CONTEXT_TRACKING)
-  public static class ContextPropagationAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(
-        @Advice.Argument(0) final Message message, @Advice.Local("ctxScope") ContextScope scope) {
-      scope = defaultPropagator().extract(rootContext(), message, GETTER).attach();
+    public MDBMessageConsumerInstrumentation(String namespace) {
+        this.namespace = namespace;
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void onExit(@Advice.Local("ctxScope") ContextScope scope) {
-      if (scope != null) scope.close();
-    }
-  }
-
-  public static class MDBAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope methodEnter(@Advice.Argument(0) final Message message) {
-      if (CallDepthThreadLocalMap.incrementCallDepth(MessageListener.class) > 0) {
-        return null;
-      }
-      AgentSpan span = startSpan("jms", JMS_CONSUME);
-      CONSUMER_DECORATE.afterStart(span);
-      CharSequence consumerResourceName;
-      try {
-        Destination destination = message.getJMSDestination();
-        boolean isQueue = CONSUMER_DECORATE.isQueue(destination);
-        String destinationName = CONSUMER_DECORATE.getDestinationName(destination);
-        consumerResourceName = CONSUMER_DECORATE.toResourceName(destinationName, isQueue);
-      } catch (JMSException e) {
-        logJMSException(e);
-        consumerResourceName = "unknown JMS destination";
-      }
-      CONSUMER_DECORATE.onConsume(span, message, consumerResourceName);
-      return activateSpan(span);
+    @Override
+    public String hierarchyMarkerType() {
+        return namespace + ".jms.MessageListener";
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit(
-        @Advice.Enter ContextScope scope, @Advice.Thrown final Throwable throwable) {
-      if (null != scope) {
-        CallDepthThreadLocalMap.reset(MessageListener.class);
-        CONSUMER_DECORATE.onError(scope, throwable);
-        scope.close();
-        spanFromScope(scope).finish();
-      }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()))
+                .and(hasSuperType(declaresAnnotation(named(namespace + ".ejb.MessageDriven")))
+                        .or(implementsInterface(named(namespace + ".ejb.MessageDrivenBean"))));
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvices(
+                isMethod()
+                        .and(isPublic())
+                        .and(named("onMessage"))
+                        .and(takesArguments(1))
+                        .and(takesArgument(0, (named(namespace + ".jms.Message")))),
+                getClass().getName() + "$ContextPropagationAdvice",
+                getClass().getName() + "$MDBAdvice");
+    }
+
+    @AppliesOn(CONTEXT_TRACKING)
+    public static class ContextPropagationAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter(
+                @Advice.Argument(0) final Message message, @Advice.Local("ctxScope") ContextScope scope) {
+            scope = defaultPropagator().extract(rootContext(), message, GETTER).attach();
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void onExit(@Advice.Local("ctxScope") ContextScope scope) {
+            if (scope != null) scope.close();
+        }
+    }
+
+    public static class MDBAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope methodEnter(@Advice.Argument(0) final Message message) {
+            if (CallDepthThreadLocalMap.incrementCallDepth(MessageListener.class) > 0) {
+                return null;
+            }
+            AgentSpan span = startSpan("jms", JMS_CONSUME);
+            CONSUMER_DECORATE.afterStart(span);
+            CharSequence consumerResourceName;
+            try {
+                Destination destination = message.getJMSDestination();
+                boolean isQueue = CONSUMER_DECORATE.isQueue(destination);
+                String destinationName = CONSUMER_DECORATE.getDestinationName(destination);
+                consumerResourceName = CONSUMER_DECORATE.toResourceName(destinationName, isQueue);
+            } catch (JMSException e) {
+                logJMSException(e);
+                consumerResourceName = "unknown JMS destination";
+            }
+            CONSUMER_DECORATE.onConsume(span, message, consumerResourceName);
+            return activateSpan(span);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void methodExit(@Advice.Enter ContextScope scope, @Advice.Thrown final Throwable throwable) {
+            if (null != scope) {
+                CallDepthThreadLocalMap.reset(MessageListener.class);
+                CONSUMER_DECORATE.onError(scope, throwable);
+                scope.close();
+                spanFromScope(scope).finish();
+            }
+        }
+    }
 }

@@ -73,138 +73,139 @@ import org.testcontainers.utility.DockerImageName;
  */
 @Testcontainers
 class SpringBootRabbitSmokeTest {
-  private static final String APPLICATION_JAR =
-      System.getProperty("datadog.smoketest.springboot.shadowJar.path");
-  private static final int TIMEOUT_SECONDS = 60;
-  private static final int RABBIT_AMQP_PORT = 5672;
-  private static final OkHttpClient CLIENT = new OkHttpClient();
-  // AMQP connection-setup / ack commands each app emits as its own (single-span) trace.
-  private static final String[] ADMIN_COMMANDS = {
-    "basic.qos", "basic.consume", "basic.ack", "queue.declare"
-  };
+    private static final String APPLICATION_JAR = System.getProperty("datadog.smoketest.springboot.shadowJar.path");
+    private static final int TIMEOUT_SECONDS = 60;
+    private static final int RABBIT_AMQP_PORT = 5672;
+    private static final OkHttpClient CLIENT = new OkHttpClient();
+    // AMQP connection-setup / ack commands each app emits as its own (single-span) trace.
+    private static final String[] ADMIN_COMMANDS = {"basic.qos", "basic.consume", "basic.ack", "queue.declare"};
 
-  @Container
-  private static final RabbitMQContainer RABBIT =
-      new RabbitMQContainer(
-          DockerImageName.parse(System.getProperty("test.rabbitmq.image"))
-              .asCompatibleSubstituteFor("rabbitmq"));
+    @Container
+    private static final RabbitMQContainer RABBIT = new RabbitMQContainer(
+            DockerImageName.parse(System.getProperty("test.rabbitmq.image")).asCompatibleSubstituteFor("rabbitmq"));
 
-  @Order(1)
-  @RegisterExtension
-  static final TestAgentBackend agent = AgentBackend.testAgentBuilder().retainAcrossTests().build();
+    @Order(1)
+    @RegisterExtension
+    static final TestAgentBackend agent =
+            AgentBackend.testAgentBuilder().retainAcrossTests().build();
 
-  @Order(2)
-  @RegisterExtension
-  static final SmokeServerApp sender =
-      rabbitApp(0).args("--rabbit.sender.queue=otherqueue").build();
+    @Order(2)
+    @RegisterExtension
+    static final SmokeServerApp sender =
+            rabbitApp(0).args("--rabbit.sender.queue=otherqueue").build();
 
-  @Order(3)
-  @RegisterExtension
-  static final SmokeServerApp receiver =
-      rabbitApp(1)
-          .args("--rabbit.receiver.queue=otherqueue", "--rabbit.receiver.forward=true")
-          .build();
+    @Order(3)
+    @RegisterExtension
+    static final SmokeServerApp receiver = rabbitApp(1)
+            .args("--rabbit.receiver.queue=otherqueue", "--rabbit.receiver.forward=true")
+            .build();
 
-  @Test
-  void roundTripsProduceFullAmqpTraceStructure() throws IOException {
-    // Drive 3 round-trips through the sender; each travels
-    // sender -> otherqueue -> receiver -> queue -> sender.
-    String[] messages = {"foo", "bar", "baz"};
-    for (String message : messages) {
-      Request request =
-          new Request.Builder().url(sender.url() + "/roundtrip/" + message).get().build();
-      try (Response response = CLIENT.newCall(request).execute()) {
-        assertEquals(200, response.code(), "round-trip " + message);
-        ResponseBody body = response.body();
-        assertNotNull(body, "round-trip " + message + " response body is null");
-        assertEquals("Got: >" + message, body.string(), "round-trip " + message);
-      }
+    @Test
+    void roundTripsProduceFullAmqpTraceStructure() throws IOException {
+        // Drive 3 round-trips through the sender; each travels
+        // sender -> otherqueue -> receiver -> queue -> sender.
+        String[] messages = {"foo", "bar", "baz"};
+        for (String message : messages) {
+            Request request = new Request.Builder()
+                    .url(sender.url() + "/roundtrip/" + message)
+                    .get()
+                    .build();
+            try (Response response = CLIENT.newCall(request).execute()) {
+                assertEquals(200, response.code(), "round-trip " + message);
+                ResponseBody body = response.body();
+                assertNotNull(body, "round-trip " + message + " response body is null");
+                assertEquals("Got: >" + message, body.string(), "round-trip " + message);
+            }
+        }
+
+        // One full round-trip trace per message, plus each service's connection-setup/ack commands.
+        List<TraceMatcher> expected = new ArrayList<>();
+        for (int i = 0; i < messages.length; i++) {
+            expected.add(roundTrip());
+        }
+        for (String service : new String[] {"spring-rabbit-0", "spring-rabbit-1"}) {
+            for (String command : ADMIN_COMMANDS) {
+                expected.add(admin(service, command));
+            }
+        }
+        agent.traces()
+                .waitForTraces(
+                        TIMEOUT_SECONDS,
+                        o -> o.unorder().ignoreAdditionalTraces(),
+                        expected.toArray(new TraceMatcher[0]));
     }
 
-    // One full round-trip trace per message, plus each service's connection-setup/ack commands.
-    List<TraceMatcher> expected = new ArrayList<>();
-    for (int i = 0; i < messages.length; i++) {
-      expected.add(roundTrip());
+    // The full distributed round-trip: HTTP entrypoint -> publish -> receiver consumes and forwards
+    // -> sender consumes the reply. Each matcher after the root pins its parent to the preceding span
+    // with childOfPrevious(), so the chain asserts the cross-service linkage, not just the shape.
+    private static TraceMatcher roundTrip() {
+        return trace(
+                SORT_BY_ANCESTRY,
+                sp("spring-rabbit-0", "servlet.request", "GET /roundtrip/{message}")
+                        .root(),
+                sp("spring-rabbit-0", "spring.handler", "WebController.roundtrip")
+                        .childOfPrevious(),
+                sp("spring-rabbit-0", "amqp.command", "basic.publish <default> -> otherqueue")
+                        .childOfPrevious(),
+                sp("rabbitmq", "amqp.deliver", "amqp.deliver otherqueue").childOfPrevious(),
+                sp("spring-rabbit-1", "amqp.command", "basic.deliver otherqueue")
+                        .childOfPrevious(),
+                sp("spring-rabbit-1", "amqp.consume", "amqp.consume otherqueue").childOfPrevious(),
+                sp("spring-rabbit-1", "spring.consume", "Receiver.receiveMessage")
+                        .childOfPrevious(),
+                sp("spring-rabbit-1", "amqp.command", "basic.publish <default> -> queue")
+                        .childOfPrevious(),
+                sp("rabbitmq", "amqp.deliver", "amqp.deliver queue").childOfPrevious(),
+                sp("spring-rabbit-0", "amqp.command", "basic.deliver queue").childOfPrevious(),
+                sp("spring-rabbit-0", "amqp.consume", "amqp.consume queue").childOfPrevious(),
+                sp("spring-rabbit-0", "spring.consume", "Receiver.receiveMessage")
+                        .childOfPrevious());
     }
-    for (String service : new String[] {"spring-rabbit-0", "spring-rabbit-1"}) {
-      for (String command : ADMIN_COMMANDS) {
-        expected.add(admin(service, command));
-      }
+
+    // A connection-setup / ack command emitted as its own single-span (root) trace.
+    private static TraceMatcher admin(String service, String command) {
+        return trace(sp(service, "amqp.command", command).root());
     }
-    agent
-        .traces()
-        .waitForTraces(
-            TIMEOUT_SECONDS,
-            o -> o.unorder().ignoreAdditionalTraces(),
-            expected.toArray(new TraceMatcher[0]));
-  }
 
-  // The full distributed round-trip: HTTP entrypoint -> publish -> receiver consumes and forwards
-  // -> sender consumes the reply. Each matcher after the root pins its parent to the preceding span
-  // with childOfPrevious(), so the chain asserts the cross-service linkage, not just the shape.
-  private static TraceMatcher roundTrip() {
-    return trace(
-        SORT_BY_ANCESTRY,
-        sp("spring-rabbit-0", "servlet.request", "GET /roundtrip/{message}").root(),
-        sp("spring-rabbit-0", "spring.handler", "WebController.roundtrip").childOfPrevious(),
-        sp("spring-rabbit-0", "amqp.command", "basic.publish <default> -> otherqueue")
-            .childOfPrevious(),
-        sp("rabbitmq", "amqp.deliver", "amqp.deliver otherqueue").childOfPrevious(),
-        sp("spring-rabbit-1", "amqp.command", "basic.deliver otherqueue").childOfPrevious(),
-        sp("spring-rabbit-1", "amqp.consume", "amqp.consume otherqueue").childOfPrevious(),
-        sp("spring-rabbit-1", "spring.consume", "Receiver.receiveMessage").childOfPrevious(),
-        sp("spring-rabbit-1", "amqp.command", "basic.publish <default> -> queue").childOfPrevious(),
-        sp("rabbitmq", "amqp.deliver", "amqp.deliver queue").childOfPrevious(),
-        sp("spring-rabbit-0", "amqp.command", "basic.deliver queue").childOfPrevious(),
-        sp("spring-rabbit-0", "amqp.consume", "amqp.consume queue").childOfPrevious(),
-        sp("spring-rabbit-0", "spring.consume", "Receiver.receiveMessage").childOfPrevious());
-  }
-
-  // A connection-setup / ack command emitted as its own single-span (root) trace.
-  private static TraceMatcher admin(String service, String command) {
-    return trace(sp(service, "amqp.command", command).root());
-  }
-
-  private static SpanMatcher sp(String service, String operation, String resource) {
-    SpanMatcher matcher = span().service(service).operationName(operation).resourceName(resource);
-    String type = spanType(operation);
-    if (type != null) {
-      matcher.type(type);
+    private static SpanMatcher sp(String service, String operation, String resource) {
+        SpanMatcher matcher = span().service(service).operationName(operation).resourceName(resource);
+        String type = spanType(operation);
+        if (type != null) {
+            matcher.type(type);
+        }
+        return matcher;
     }
-    return matcher;
-  }
 
-  private static String spanType(String operation) {
-    switch (operation) {
-      case "servlet.request":
-      case "spring.handler":
-        return "web";
-      case "amqp.command":
-      case "amqp.deliver":
-      case "spring.consume":
-        return "queue";
-      case "amqp.consume":
-      default:
-        return null;
+    private static String spanType(String operation) {
+        switch (operation) {
+            case "servlet.request":
+            case "spring.handler":
+                return "web";
+            case "amqp.command":
+            case "amqp.deliver":
+            case "spring.consume":
+                return "queue";
+            case "amqp.consume":
+            default:
+                return null;
+        }
     }
-  }
 
-  private static SmokeServerApp.Builder rabbitApp(int index) {
-    return SmokeServerApp.named("spring-rabbit-" + index)
-        .jar(APPLICATION_JAR)
-        .backend(agent)
-        .jvmArgs(
-            "-Ddd.service.name=spring-rabbit-" + index, "-Ddd.rabbit.legacy.tracing.enabled=false")
-        // Resolved at launch, after @Testcontainers has started RABBIT — not at build time.
-        .placeholder("rabbit.host", RABBIT::getHost)
-        .placeholder("rabbit.port", () -> String.valueOf(RABBIT.getMappedPort(RABBIT_AMQP_PORT)))
-        .args(
-            "--server.port=${app.httpPort}",
-            "--spring.rabbitmq.host=${rabbit.host}",
-            "--spring.rabbitmq.port=${rabbit.port}")
-        // The broker connection is torn down noisily when the app is killed at teardown.
-        .allowedErrorLogs(
-            "Failed to check/redeclare auto-delete queue(s)",
-            "An unexpected connection driver error occured");
-  }
+    private static SmokeServerApp.Builder rabbitApp(int index) {
+        return SmokeServerApp.named("spring-rabbit-" + index)
+                .jar(APPLICATION_JAR)
+                .backend(agent)
+                .jvmArgs("-Ddd.service.name=spring-rabbit-" + index, "-Ddd.rabbit.legacy.tracing.enabled=false")
+                // Resolved at launch, after @Testcontainers has started RABBIT — not at build time.
+                .placeholder("rabbit.host", RABBIT::getHost)
+                .placeholder("rabbit.port", () -> String.valueOf(RABBIT.getMappedPort(RABBIT_AMQP_PORT)))
+                .args(
+                        "--server.port=${app.httpPort}",
+                        "--spring.rabbitmq.host=${rabbit.host}",
+                        "--spring.rabbitmq.port=${rabbit.port}")
+                // The broker connection is torn down noisily when the app is killed at teardown.
+                .allowedErrorLogs(
+                        "Failed to check/redeclare auto-delete queue(s)",
+                        "An unexpected connection driver error occured");
+    }
 }

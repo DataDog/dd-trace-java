@@ -10,24 +10,23 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(InstrumenterModule.class)
 public class SpringAsyncInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public SpringAsyncInstrumentation() {
-    super("spring-async");
-  }
+    public SpringAsyncInstrumentation() {
+        super("spring-async");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "org.springframework.aop.interceptor.AsyncExecutionInterceptor";
-  }
+    @Override
+    public String instrumentedType() {
+        return "org.springframework.aop.interceptor.AsyncExecutionInterceptor";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(
-                named("invoke")
-                    .and(takesArgument(0, named("org.aopalliance.intercept.MethodInvocation")))),
-        packageName + ".SpringAsyncAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("invoke")
+                                .and(takesArgument(0, named("org.aopalliance.intercept.MethodInvocation")))),
+                packageName + ".SpringAsyncAdvice");
+    }
 }

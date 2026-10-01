@@ -43,228 +43,222 @@ import org.slf4j.LoggerFactory;
 
 public class AppSecInterceptor implements Interceptor {
 
-  private static final int BODY_PARSING_SIZE_LIMIT = Config.get().getAppSecBodyParsingSizeLimit();
+    private static final int BODY_PARSING_SIZE_LIMIT = Config.get().getAppSecBodyParsingSizeLimit();
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(AppSecInterceptor.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(AppSecInterceptor.class);
 
-  @Override
-  public Response intercept(final Chain chain) throws IOException {
-    Request request = chain.request();
-    final AgentSpan span = AgentTracer.activeSpan();
-    final RequestContext ctx = span == null ? null : span.getRequestContext();
-    if (ctx == null) {
-      return chain.proceed(request);
-    }
-    boolean sampled = false;
-    try {
-      final long requestId = span.getSpanId();
-      sampled = sampleRequest(ctx, requestId);
-      final Object urlTag = span.getTag(Tags.HTTP_URL);
-      final String url = urlTag == null ? null : urlTag.toString();
-      request = onRequest(span, sampled, url, request);
-    } catch (final BlockingException e) {
-      throw e;
-    } catch (final Exception e) {
-      LOGGER.debug("Failed to run AppSec request hooks", e);
-    }
-    // let real connection/IO failures propagate rather than swallowing and retrying the request
-    final Response response = chain.proceed(request);
-    try {
-      return onResponse(span, sampled, response);
-    } catch (final BlockingException e) {
-      throw e;
-    } catch (final Exception e) {
-      LOGGER.debug("Failed to run AppSec response hooks", e);
-      return response;
-    }
-  }
-
-  public static Request onRequest(
-      final AgentSpan span, final boolean sampled, final String url, final Request request) {
-    Request result = request;
-    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-    BiFunction<RequestContext, HttpClientRequest, Flow<Void>> requestCb =
-        cbp.getCallback(EVENTS.httpClientRequest());
-    if (requestCb == null) {
-      return request;
-    }
-
-    final RequestBody requestBody = request.body();
-    final RequestContext ctx = span.getRequestContext();
-    final long requestId = span.getSpanId();
-    final HttpClientRequest clientRequest =
-        new HttpClientRequest(requestId, url, request.method(), mapHeaders(request.headers()));
-    if (sampled && requestBody != null) {
-      // we are going to effectively read all the request body in memory to be analyzed by the WAF,
-      // we also modify the outbound request accordingly
-      final MediaType mediaType = contentType(requestBody);
-      try {
-        final long contentLength = requestBody.contentLength();
-        if (shouldProcessBody(contentLength, mediaType)) {
-          final byte[] payload = readBody(requestBody, (int) contentLength);
-          if (payload.length <= BODY_PARSING_SIZE_LIMIT) {
-            clientRequest.setBody(mediaType, new ByteArrayInputStream(payload));
-          }
-          result =
-              request
-                  .newBuilder()
-                  .method(request.method(), RequestBody.create(requestBody.contentType(), payload))
-                  .build(); // update request
+    @Override
+    public Response intercept(final Chain chain) throws IOException {
+        Request request = chain.request();
+        final AgentSpan span = AgentTracer.activeSpan();
+        final RequestContext ctx = span == null ? null : span.getRequestContext();
+        if (ctx == null) {
+            return chain.proceed(request);
         }
-      } catch (IOException e) {
-        // ignore it and keep the original request
-      }
-    }
-    publish(ctx, clientRequest, requestCb);
-    return result;
-  }
-
-  public static Response onResponse(
-      final AgentSpan span, final boolean sampled, final Response response) {
-    Response result = response;
-    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-    BiFunction<RequestContext, HttpClientResponse, Flow<Void>> responseCb =
-        cbp.getCallback(EVENTS.httpClientResponse());
-    if (responseCb == null) {
-      return response;
-    }
-    final ResponseBody responseBody = response.body();
-    final RequestContext ctx = span.getRequestContext();
-    final long requestId = span.getSpanId();
-    final HttpClientResponse clientResponse =
-        new HttpClientResponse(requestId, response.code(), mapHeaders(response.headers()));
-    if (sampled && responseBody != null) {
-      // we are going to effectively read all the response body in memory to be analyzed by the WAF,
-      // we also
-      // modify the inbound response accordingly
-      final MediaType mediaType = contentType(responseBody);
-      try {
-        final long contentLength = responseBody.contentLength();
-        if (shouldProcessBody(contentLength, mediaType)) {
-          final byte[] payload = readBody(responseBody, (int) contentLength);
-          if (payload.length <= BODY_PARSING_SIZE_LIMIT) {
-            clientResponse.setBody(mediaType, new ByteArrayInputStream(payload));
-          }
-          result =
-              response
-                  .newBuilder()
-                  .body(ResponseBody.create(responseBody.contentType(), payload))
-                  .build();
+        boolean sampled = false;
+        try {
+            final long requestId = span.getSpanId();
+            sampled = sampleRequest(ctx, requestId);
+            final Object urlTag = span.getTag(Tags.HTTP_URL);
+            final String url = urlTag == null ? null : urlTag.toString();
+            request = onRequest(span, sampled, url, request);
+        } catch (final BlockingException e) {
+            throw e;
+        } catch (final Exception e) {
+            LOGGER.debug("Failed to run AppSec request hooks", e);
         }
-      } catch (IOException e) {
-        // ignore it and keep the original response
-      }
+        // let real connection/IO failures propagate rather than swallowing and retrying the request
+        final Response response = chain.proceed(request);
+        try {
+            return onResponse(span, sampled, response);
+        } catch (final BlockingException e) {
+            throw e;
+        } catch (final Exception e) {
+            LOGGER.debug("Failed to run AppSec response hooks", e);
+            return response;
+        }
     }
 
-    try {
-      publish(ctx, clientResponse, responseCb);
-    } catch (final BlockingException e) {
-      throw e;
-    } catch (final Exception e) {
-      // don't let a failure in the response hook discard the rebuilt response above --
-      // its body has already been drained/closed, so falling back to the original response
-      // (as the caller in intercept() does) would hand back an empty/closed body
-      LOGGER.debug("Failed to publish AppSec response event", e);
-    }
-    return result;
-  }
+    public static Request onRequest(
+            final AgentSpan span, final boolean sampled, final String url, final Request request) {
+        Request result = request;
+        CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+        BiFunction<RequestContext, HttpClientRequest, Flow<Void>> requestCb =
+                cbp.getCallback(EVENTS.httpClientRequest());
+        if (requestCb == null) {
+            return request;
+        }
 
-  private static <P extends HttpClientPayload> void publish(
-      final RequestContext ctx,
-      final P request,
-      final BiFunction<RequestContext, P, Flow<Void>> callback) {
-    Flow<Void> flow = callback.apply(ctx, request);
-    Flow.Action action = flow.getAction();
-    if (action instanceof Flow.Action.RequestBlockingAction) {
-      BlockResponseFunction brf = ctx.getBlockResponseFunction();
-      if (brf != null) {
-        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        brf.tryCommitBlockingResponse(ctx, rba);
-      }
-      throw new BlockingException("Blocked request (for http downstream request)");
+        final RequestBody requestBody = request.body();
+        final RequestContext ctx = span.getRequestContext();
+        final long requestId = span.getSpanId();
+        final HttpClientRequest clientRequest =
+                new HttpClientRequest(requestId, url, request.method(), mapHeaders(request.headers()));
+        if (sampled && requestBody != null) {
+            // we are going to effectively read all the request body in memory to be analyzed by the WAF,
+            // we also modify the outbound request accordingly
+            final MediaType mediaType = contentType(requestBody);
+            try {
+                final long contentLength = requestBody.contentLength();
+                if (shouldProcessBody(contentLength, mediaType)) {
+                    final byte[] payload = readBody(requestBody, (int) contentLength);
+                    if (payload.length <= BODY_PARSING_SIZE_LIMIT) {
+                        clientRequest.setBody(mediaType, new ByteArrayInputStream(payload));
+                    }
+                    result = request.newBuilder()
+                            .method(request.method(), RequestBody.create(requestBody.contentType(), payload))
+                            .build(); // update request
+                }
+            } catch (IOException e) {
+                // ignore it and keep the original request
+            }
+        }
+        publish(ctx, clientRequest, requestCb);
+        return result;
     }
-  }
 
-  public static boolean sampleRequest(final RequestContext ctx, final long requestId) {
-    //  Check if the current http request was sampled
-    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-    BiFunction<RequestContext, Long, Flow<Boolean>> samplingCb =
-        cbp.getCallback(EVENTS.httpClientSampling());
-    if (samplingCb == null) {
-      return false;
-    }
-    final Flow<Boolean> sampled = samplingCb.apply(ctx, requestId);
-    return sampled.getResult() != null && sampled.getResult();
-  }
+    public static Response onResponse(final AgentSpan span, final boolean sampled, final Response response) {
+        Response result = response;
+        CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+        BiFunction<RequestContext, HttpClientResponse, Flow<Void>> responseCb =
+                cbp.getCallback(EVENTS.httpClientResponse());
+        if (responseCb == null) {
+            return response;
+        }
+        final ResponseBody responseBody = response.body();
+        final RequestContext ctx = span.getRequestContext();
+        final long requestId = span.getSpanId();
+        final HttpClientResponse clientResponse =
+                new HttpClientResponse(requestId, response.code(), mapHeaders(response.headers()));
+        if (sampled && responseBody != null) {
+            // we are going to effectively read all the response body in memory to be analyzed by the WAF,
+            // we also
+            // modify the inbound response accordingly
+            final MediaType mediaType = contentType(responseBody);
+            try {
+                final long contentLength = responseBody.contentLength();
+                if (shouldProcessBody(contentLength, mediaType)) {
+                    final byte[] payload = readBody(responseBody, (int) contentLength);
+                    if (payload.length <= BODY_PARSING_SIZE_LIMIT) {
+                        clientResponse.setBody(mediaType, new ByteArrayInputStream(payload));
+                    }
+                    result = response.newBuilder()
+                            .body(ResponseBody.create(responseBody.contentType(), payload))
+                            .build();
+                }
+            } catch (IOException e) {
+                // ignore it and keep the original response
+            }
+        }
 
-  /**
-   * Ensure we are only consuming payloads we can safely deserialize with a bounded size to prevent
-   * from OOM
-   */
-  private static boolean shouldProcessBody(final long contentLength, final MediaType mediaType) {
-    if (contentLength <= 0) {
-      return false; // prevent from copying from unbounded source (just to be safe)
+        try {
+            publish(ctx, clientResponse, responseCb);
+        } catch (final BlockingException e) {
+            throw e;
+        } catch (final Exception e) {
+            // don't let a failure in the response hook discard the rebuilt response above --
+            // its body has already been drained/closed, so falling back to the original response
+            // (as the caller in intercept() does) would hand back an empty/closed body
+            LOGGER.debug("Failed to publish AppSec response event", e);
+        }
+        return result;
     }
-    if (BODY_PARSING_SIZE_LIMIT <= 0) {
-      return false; // effectively disabled by configuration
-    }
-    if (contentLength > BODY_PARSING_SIZE_LIMIT) {
-      return false;
-    }
-    return mediaType.isDeserializable();
-  }
 
-  private static byte[] readBody(final RequestBody body, final int contentLength)
-      throws IOException {
-    final ByteArrayOutputStream buffer = new ByteArrayOutputStream(contentLength);
-    try (final BufferedSink sink = Okio.buffer(Okio.sink(buffer))) {
-      body.writeTo(sink);
+    private static <P extends HttpClientPayload> void publish(
+            final RequestContext ctx, final P request, final BiFunction<RequestContext, P, Flow<Void>> callback) {
+        Flow<Void> flow = callback.apply(ctx, request);
+        Flow.Action action = flow.getAction();
+        if (action instanceof Flow.Action.RequestBlockingAction) {
+            BlockResponseFunction brf = ctx.getBlockResponseFunction();
+            if (brf != null) {
+                Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+                brf.tryCommitBlockingResponse(ctx, rba);
+            }
+            throw new BlockingException("Blocked request (for http downstream request)");
+        }
     }
-    return buffer.toByteArray();
-  }
 
-  private static byte[] readBody(final ResponseBody body, final int contentLength)
-      throws IOException {
-    final ByteArrayOutputStream buffer = new ByteArrayOutputStream(contentLength);
-    try (final BufferedSource source = body.source();
-        final Sink sink = Okio.sink(buffer)) {
-      source.readAll(sink);
+    public static boolean sampleRequest(final RequestContext ctx, final long requestId) {
+        //  Check if the current http request was sampled
+        CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+        BiFunction<RequestContext, Long, Flow<Boolean>> samplingCb = cbp.getCallback(EVENTS.httpClientSampling());
+        if (samplingCb == null) {
+            return false;
+        }
+        final Flow<Boolean> sampled = samplingCb.apply(ctx, requestId);
+        return sampled.getResult() != null && sampled.getResult();
     }
-    return buffer.toByteArray();
-  }
 
-  @VisibleForTesting
-  static Map<String, List<String>> mapHeaders(final Headers headers) {
-    if (headers == null) {
-      return Collections.emptyMap();
+    /**
+     * Ensure we are only consuming payloads we can safely deserialize with a bounded size to prevent
+     * from OOM
+     */
+    private static boolean shouldProcessBody(final long contentLength, final MediaType mediaType) {
+        if (contentLength <= 0) {
+            return false; // prevent from copying from unbounded source (just to be safe)
+        }
+        if (BODY_PARSING_SIZE_LIMIT <= 0) {
+            return false; // effectively disabled by configuration
+        }
+        if (contentLength > BODY_PARSING_SIZE_LIMIT) {
+            return false;
+        }
+        return mediaType.isDeserializable();
     }
-    final Map<String, List<String>> grouped = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-    for (int i = 0; i < headers.size(); i++) {
-      final String name = headers.name(i);
-      List<String> values = grouped.get(name);
-      if (values == null) {
-        values = new ArrayList<>(2);
-        grouped.put(name, values);
-      }
-      values.add(headers.value(i));
-    }
-    final int size = grouped.size();
-    // Account for HashMap's default load factor to avoid resizing while copying.
-    final int capacity = size + (size + 2) / 3;
-    final Map<String, List<String>> result = new HashMap<>(capacity);
-    for (Map.Entry<String, List<String>> entry : grouped.entrySet()) {
-      result.put(entry.getKey(), unmodifiableList(entry.getValue()));
-    }
-    return result;
-  }
 
-  private static MediaType contentType(final RequestBody body) {
-    return MediaType.parse(
-        body == null || body.contentType() == null ? null : body.contentType().toString());
-  }
+    private static byte[] readBody(final RequestBody body, final int contentLength) throws IOException {
+        final ByteArrayOutputStream buffer = new ByteArrayOutputStream(contentLength);
+        try (final BufferedSink sink = Okio.buffer(Okio.sink(buffer))) {
+            body.writeTo(sink);
+        }
+        return buffer.toByteArray();
+    }
 
-  private static MediaType contentType(final ResponseBody body) {
-    return MediaType.parse(
-        body == null || body.contentType() == null ? null : body.contentType().toString());
-  }
+    private static byte[] readBody(final ResponseBody body, final int contentLength) throws IOException {
+        final ByteArrayOutputStream buffer = new ByteArrayOutputStream(contentLength);
+        try (final BufferedSource source = body.source();
+                final Sink sink = Okio.sink(buffer)) {
+            source.readAll(sink);
+        }
+        return buffer.toByteArray();
+    }
+
+    @VisibleForTesting
+    static Map<String, List<String>> mapHeaders(final Headers headers) {
+        if (headers == null) {
+            return Collections.emptyMap();
+        }
+        final Map<String, List<String>> grouped = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        for (int i = 0; i < headers.size(); i++) {
+            final String name = headers.name(i);
+            List<String> values = grouped.get(name);
+            if (values == null) {
+                values = new ArrayList<>(2);
+                grouped.put(name, values);
+            }
+            values.add(headers.value(i));
+        }
+        final int size = grouped.size();
+        // Account for HashMap's default load factor to avoid resizing while copying.
+        final int capacity = size + (size + 2) / 3;
+        final Map<String, List<String>> result = new HashMap<>(capacity);
+        for (Map.Entry<String, List<String>> entry : grouped.entrySet()) {
+            result.put(entry.getKey(), unmodifiableList(entry.getValue()));
+        }
+        return result;
+    }
+
+    private static MediaType contentType(final RequestBody body) {
+        return MediaType.parse(
+                body == null || body.contentType() == null
+                        ? null
+                        : body.contentType().toString());
+    }
+
+    private static MediaType contentType(final ResponseBody body) {
+        return MediaType.parse(
+                body == null || body.contentType() == null
+                        ? null
+                        : body.contentType().toString());
+    }
 }

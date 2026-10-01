@@ -7,32 +7,35 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 final class OtelLoggerBuilder implements LoggerBuilder {
-  private final OtelLoggerProvider loggerProvider;
+    private final OtelLoggerProvider loggerProvider;
 
-  private final String instrumentationScopeName;
-  @Nullable private String instrumentationScopeVersion;
-  @Nullable private String schemaUrl;
+    private final String instrumentationScopeName;
 
-  OtelLoggerBuilder(OtelLoggerProvider loggerProvider, String instrumentationScopeName) {
-    this.loggerProvider = loggerProvider;
-    this.instrumentationScopeName = instrumentationScopeName;
-  }
+    @Nullable
+    private String instrumentationScopeVersion;
 
-  @Override
-  public LoggerBuilder setInstrumentationVersion(String instrumentationScopeVersion) {
-    this.instrumentationScopeVersion = instrumentationScopeVersion;
-    return this;
-  }
+    @Nullable
+    private String schemaUrl;
 
-  @Override
-  public LoggerBuilder setSchemaUrl(String schemaUrl) {
-    this.schemaUrl = schemaUrl;
-    return this;
-  }
+    OtelLoggerBuilder(OtelLoggerProvider loggerProvider, String instrumentationScopeName) {
+        this.loggerProvider = loggerProvider;
+        this.instrumentationScopeName = instrumentationScopeName;
+    }
 
-  @Override
-  public Logger build() {
-    return loggerProvider.getLoggerShim(
-        instrumentationScopeName, instrumentationScopeVersion, schemaUrl);
-  }
+    @Override
+    public LoggerBuilder setInstrumentationVersion(String instrumentationScopeVersion) {
+        this.instrumentationScopeVersion = instrumentationScopeVersion;
+        return this;
+    }
+
+    @Override
+    public LoggerBuilder setSchemaUrl(String schemaUrl) {
+        this.schemaUrl = schemaUrl;
+        return this;
+    }
+
+    @Override
+    public Logger build() {
+        return loggerProvider.getLoggerShim(instrumentationScopeName, instrumentationScopeVersion, schemaUrl);
+    }
 }

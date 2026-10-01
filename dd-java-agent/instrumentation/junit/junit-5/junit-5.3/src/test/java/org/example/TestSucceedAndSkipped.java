@@ -7,12 +7,12 @@ import org.junit.jupiter.api.Test;
 
 public class TestSucceedAndSkipped {
 
-  @Test
-  public void test_succeed() {
-    assertTrue(true);
-  }
+    @Test
+    public void test_succeed() {
+        assertTrue(true);
+    }
 
-  @Disabled("Ignore reason in test")
-  @Test
-  public void test_skipped() {}
+    @Disabled("Ignore reason in test")
+    @Test
+    public void test_skipped() {}
 }

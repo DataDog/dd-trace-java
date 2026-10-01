@@ -18,90 +18,89 @@ import org.eclipse.jetty.server.Request;
 
 public class JettyServerAdvice {
 
-  @AppliesOn(CONTEXT_TRACKING)
-  public static class ContextTrackingAdvice {
+    @AppliesOn(CONTEXT_TRACKING)
+    public static class ContextTrackingAdvice {
 
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(
-        @Advice.This final HttpChannel channel,
-        @Advice.Local("parentScope") ContextScope parentScope) {
-      Request req = channel.getRequest();
-      if (req.getAttribute(DD_CONTEXT_ATTRIBUTE) instanceof Context) {
-        return; // re-entry: HandleAdvice will attach existing context
-      }
-      Context parentContext = DECORATE.extract(req);
-      req.setAttribute(DD_PARENT_CONTEXT_ATTRIBUTE, parentContext);
-      parentScope = parentContext.attach();
-    }
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void closeScope(@Advice.Local("parentScope") ContextScope parentScope) {
-      if (parentScope != null) {
-        parentScope.close();
-      }
-    }
-  }
-
-  public static class HandleAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onEnter(
-        @Advice.This final HttpChannel channel, @Advice.Local("agentSpan") AgentSpan span) {
-      Request req = channel.getRequest();
-
-      Object existingContext = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
-      if (existingContext instanceof Context) {
-        return ((Context) existingContext).attach();
-      }
-
-      final Object parentContextObj = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
-      final Context parentContext =
-          (parentContextObj instanceof Context) ? (Context) parentContextObj : rootContext();
-      final Context context = DECORATE.startSpan(req, parentContext);
-      final ContextScope scope = context.attach();
-      span = fromContext(context);
-      span.setMeasured(true);
-      DECORATE.afterStart(span);
-      DECORATE.onRequest(span, req, req, parentContext);
-
-      req.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
-      req.setAttribute(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
-      req.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
-      return scope;
-    }
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void closeScope(@Advice.Enter final ContextScope scope) {
-      scope.close();
-    }
-
-    private void muzzleCheck(Request r) {
-      r.getAsyncContext(); // there must be a getAsyncContext returning a jakarta AsyncContext
-    }
-  }
-
-  /**
-   * Jetty ensures that connections are reset immediately after the response is sent. This provides
-   * a reliable point to finish the server span at the last possible moment.
-   */
-  public static class ResetAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void stopSpan(@Advice.This final HttpChannel channel) {
-      Request req = channel.getRequest();
-      Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
-      if (contextObj instanceof Context) {
-        final Context context = (Context) contextObj;
-        final AgentSpan span = fromContext(context);
-        if (span != null) {
-          DECORATE.onResponse(span, channel);
-          DECORATE.beforeFinish(context);
-          span.finish();
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter(
+                @Advice.This final HttpChannel channel, @Advice.Local("parentScope") ContextScope parentScope) {
+            Request req = channel.getRequest();
+            if (req.getAttribute(DD_CONTEXT_ATTRIBUTE) instanceof Context) {
+                return; // re-entry: HandleAdvice will attach existing context
+            }
+            Context parentContext = DECORATE.extract(req);
+            req.setAttribute(DD_PARENT_CONTEXT_ATTRIBUTE, parentContext);
+            parentScope = parentContext.attach();
         }
-      }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void closeScope(@Advice.Local("parentScope") ContextScope parentScope) {
+            if (parentScope != null) {
+                parentScope.close();
+            }
+        }
     }
 
-    private void muzzleCheck(HttpChannel connection) {
-      connection.run();
+    public static class HandleAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope onEnter(
+                @Advice.This final HttpChannel channel, @Advice.Local("agentSpan") AgentSpan span) {
+            Request req = channel.getRequest();
+
+            Object existingContext = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+            if (existingContext instanceof Context) {
+                return ((Context) existingContext).attach();
+            }
+
+            final Object parentContextObj = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
+            final Context parentContext =
+                    (parentContextObj instanceof Context) ? (Context) parentContextObj : rootContext();
+            final Context context = DECORATE.startSpan(req, parentContext);
+            final ContextScope scope = context.attach();
+            span = fromContext(context);
+            span.setMeasured(true);
+            DECORATE.afterStart(span);
+            DECORATE.onRequest(span, req, req, parentContext);
+
+            req.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
+            req.setAttribute(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
+            req.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
+            return scope;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void closeScope(@Advice.Enter final ContextScope scope) {
+            scope.close();
+        }
+
+        private void muzzleCheck(Request r) {
+            r.getAsyncContext(); // there must be a getAsyncContext returning a jakarta AsyncContext
+        }
     }
-  }
+
+    /**
+     * Jetty ensures that connections are reset immediately after the response is sent. This provides
+     * a reliable point to finish the server span at the last possible moment.
+     */
+    public static class ResetAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void stopSpan(@Advice.This final HttpChannel channel) {
+            Request req = channel.getRequest();
+            Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+            if (contextObj instanceof Context) {
+                final Context context = (Context) contextObj;
+                final AgentSpan span = fromContext(context);
+                if (span != null) {
+                    DECORATE.onResponse(span, channel);
+                    DECORATE.beforeFinish(context);
+                    span.finish();
+                }
+            }
+        }
+
+        private void muzzleCheck(HttpChannel connection) {
+            connection.run();
+        }
+    }
 }

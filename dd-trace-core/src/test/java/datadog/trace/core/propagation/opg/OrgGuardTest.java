@@ -18,39 +18,37 @@ import org.junit.jupiter.api.Test;
 @DisplayName("OrgGuard factory gating")
 class OrgGuardTest {
 
-  private static final Supplier<String> LOCAL_OPM = () -> "L";
+    private static final Supplier<String> LOCAL_OPM = () -> "L";
 
-  @Test
-  @DisplayName("disabled: decorate methods return the input unchanged")
-  void disabledIsZeroCost() {
-    Config config = mock(Config.class, RETURNS_DEFAULTS);
-    when(config.isTraceOrgGuardEnabled()).thenReturn(false);
+    @Test
+    @DisplayName("disabled: decorate methods return the input unchanged")
+    void disabledIsZeroCost() {
+        Config config = mock(Config.class, RETURNS_DEFAULTS);
+        when(config.isTraceOrgGuardEnabled()).thenReturn(false);
 
-    OrgGuard orgGuard =
-        OrgGuard.create(config, LOCAL_OPM, PropagationTags.factory(), mock(HealthMetrics.class));
+        OrgGuard orgGuard = OrgGuard.create(config, LOCAL_OPM, PropagationTags.factory(), mock(HealthMetrics.class));
 
-    HttpCodec.Extractor extractor = mock(HttpCodec.Extractor.class);
-    HttpCodec.Injector injector = mock(HttpCodec.Injector.class);
+        HttpCodec.Extractor extractor = mock(HttpCodec.Extractor.class);
+        HttpCodec.Injector injector = mock(HttpCodec.Injector.class);
 
-    assertSame(extractor, orgGuard.decorateExtractor(extractor));
-    assertSame(injector, orgGuard.decorateInjector(injector));
-  }
+        assertSame(extractor, orgGuard.decorateExtractor(extractor));
+        assertSame(injector, orgGuard.decorateInjector(injector));
+    }
 
-  @Test
-  @DisplayName("enabled: decorate methods wrap with the OPG decorators")
-  void enabledWrapsBothSides() {
-    Config config = mock(Config.class, RETURNS_DEFAULTS);
-    when(config.isTraceOrgGuardEnabled()).thenReturn(true);
-    when(config.isTraceOrgGuardStrict()).thenReturn(false);
-    when(config.getTraceOrgGuardTrustedOpms()).thenReturn(Collections.emptySet());
+    @Test
+    @DisplayName("enabled: decorate methods wrap with the OPG decorators")
+    void enabledWrapsBothSides() {
+        Config config = mock(Config.class, RETURNS_DEFAULTS);
+        when(config.isTraceOrgGuardEnabled()).thenReturn(true);
+        when(config.isTraceOrgGuardStrict()).thenReturn(false);
+        when(config.getTraceOrgGuardTrustedOpms()).thenReturn(Collections.emptySet());
 
-    OrgGuard orgGuard =
-        OrgGuard.create(config, LOCAL_OPM, PropagationTags.factory(), mock(HealthMetrics.class));
+        OrgGuard orgGuard = OrgGuard.create(config, LOCAL_OPM, PropagationTags.factory(), mock(HealthMetrics.class));
 
-    HttpCodec.Extractor extractor = mock(HttpCodec.Extractor.class);
-    HttpCodec.Injector injector = mock(HttpCodec.Injector.class);
+        HttpCodec.Extractor extractor = mock(HttpCodec.Extractor.class);
+        HttpCodec.Injector injector = mock(HttpCodec.Injector.class);
 
-    assertInstanceOf(OrgGuardEnforcingExtractor.class, orgGuard.decorateExtractor(extractor));
-    assertInstanceOf(OpmStampingInjector.class, orgGuard.decorateInjector(injector));
-  }
+        assertInstanceOf(OrgGuardEnforcingExtractor.class, orgGuard.decorateExtractor(extractor));
+        assertInstanceOf(OpmStampingInjector.class, orgGuard.decorateInjector(injector));
+    }
 }

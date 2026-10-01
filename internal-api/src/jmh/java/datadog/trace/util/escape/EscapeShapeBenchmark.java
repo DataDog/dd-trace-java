@@ -100,10 +100,10 @@ import org.openjdk.jmh.infra.Blackhole;
  * </ul>
  */
 @Fork(
-    value = 2,
-    jvmArgsAppend = {
-      "-XX:CompileCommand=dontinline,datadog.trace.util.escape.EscapeShapeBenchmark$UninlinedStrategy::apply"
-    })
+        value = 2,
+        jvmArgsAppend = {
+            "-XX:CompileCommand=dontinline,datadog.trace.util.escape.EscapeShapeBenchmark$UninlinedStrategy::apply"
+        })
 @Warmup(iterations = 3, time = 1)
 @Measurement(iterations = 5, time = 1)
 @Threads(1)
@@ -112,293 +112,292 @@ import org.openjdk.jmh.infra.Blackhole;
 @State(Scope.Thread)
 public class EscapeShapeBenchmark {
 
-  /**
-   * Minimal two-method interface -- a value to read and a close to call -- standing in for any
-   * short-lived object more complex than a single field.
-   */
-  interface Outcome {
-    int value();
+    /**
+     * Minimal two-method interface -- a value to read and a close to call -- standing in for any
+     * short-lived object more complex than a single field.
+     */
+    interface Outcome {
+        int value();
 
-    void close();
-  }
-
-  static final class SingleAllocation implements Outcome {
-    private final int seed;
-
-    SingleAllocation(int seed) {
-      this.seed = seed;
+        void close();
     }
 
-    @Override
-    public int value() {
-      return seed + 1;
-    }
+    static final class SingleAllocation implements Outcome {
+        private final int seed;
 
-    @Override
-    public void close() {}
-  }
+        SingleAllocation(int seed) {
+            this.seed = seed;
+        }
 
-  /** A second allocation site, for the merge that C2 has some chance with. */
-  static final class AlternateAllocation implements Outcome {
-    private final int seed;
-
-    AlternateAllocation(int seed) {
-      this.seed = seed;
-    }
-
-    @Override
-    public int value() {
-      return seed + 2;
-    }
-
-    @Override
-    public void close() {}
-  }
-
-  /** The absent outcome, reachable from a static, so the merge it takes part in is not local. */
-  static final Outcome STATIC_SINGLETON =
-      new Outcome() {
         @Override
         public int value() {
-          return 0;
+            return seed + 1;
         }
 
         @Override
         public void close() {}
-      };
-
-  /** One allocation site carrying the outcome in a field: the shape that survives. */
-  static final class FlaggedAllocation {
-    private final boolean present;
-    private final int seed;
-
-    FlaggedAllocation(boolean present, int seed) {
-      this.present = present;
-      this.seed = seed;
     }
 
-    int value() {
-      return present ? seed + 1 : 0;
+    /** A second allocation site, for the merge that C2 has some chance with. */
+    static final class AlternateAllocation implements Outcome {
+        private final int seed;
+
+        AlternateAllocation(int seed) {
+            this.seed = seed;
+        }
+
+        @Override
+        public int value() {
+            return seed + 2;
+        }
+
+        @Override
+        public void close() {}
     }
 
-    void close() {}
-  }
+    /** The absent outcome, reachable from a static, so the merge it takes part in is not local. */
+    static final Outcome STATIC_SINGLETON = new Outcome() {
+        @Override
+        public int value() {
+            return 0;
+        }
 
-  /**
-   * A non-capturing strategy held in a static final field of concrete type, as {@code @Strategy}
-   * requires.
-   */
-  interface OutcomeStrategy {
-    int apply(FlaggedAllocation cell);
-  }
+        @Override
+        public void close() {}
+    };
 
-  static final OutcomeStrategy INLINED = FlaggedAllocation::value;
+    /** One allocation site carrying the outcome in a field: the shape that survives. */
+    static final class FlaggedAllocation {
+        private final boolean present;
+        private final int seed;
 
-  /**
-   * Kept out of line by the {@code CompileCommand} in {@link Fork}, not by {@link CompilerControl}:
-   * JMH's processor only collects that annotation from {@code @Benchmark} methods, so putting it
-   * here emits no hint at all and the arm silently becomes a duplicate of the inlined one. Check
-   * the timing against {@code passedToInlinedStrategy} before believing this row — a call that
-   * really did not inline cannot cost the same as no call.
-   */
-  static final class UninlinedStrategy implements OutcomeStrategy {
-    @Override
-    public int apply(FlaggedAllocation cell) {
-      return cell.value();
-    }
-  }
+        FlaggedAllocation(boolean present, int seed) {
+            this.present = present;
+            this.seed = seed;
+        }
 
-  static final OutcomeStrategy UNINLINED = new UninlinedStrategy();
+        int value() {
+            return present ? seed + 1 : 0;
+        }
 
-  /**
-   * The template-method shape: a final method on a base type calling out to an abstract one, with
-   * the object under test riding along as the argument. How many concrete subclasses are loaded is
-   * the whole experiment — C2 inlines a monomorphic call outright and a bimorphic one behind a type
-   * guard, but gives up at three, and a call it does not inline turns its argument into an escape.
-   */
-  abstract static class Backing {
-    final int admit(FlaggedAllocation cell) {
-      return store(cell);
+        void close() {}
     }
 
-    abstract int store(FlaggedAllocation cell);
-  }
-
-  static final class ArrayBacking extends Backing {
-    @Override
-    int store(FlaggedAllocation cell) {
-      return cell.value();
+    /**
+     * A non-capturing strategy held in a static final field of concrete type, as {@code @Strategy}
+     * requires.
+     */
+    interface OutcomeStrategy {
+        int apply(FlaggedAllocation cell);
     }
-  }
 
-  static final class LinkedBacking extends Backing {
-    @Override
-    int store(FlaggedAllocation cell) {
-      return cell.value() + 1;
+    static final OutcomeStrategy INLINED = FlaggedAllocation::value;
+
+    /**
+     * Kept out of line by the {@code CompileCommand} in {@link Fork}, not by {@link CompilerControl}:
+     * JMH's processor only collects that annotation from {@code @Benchmark} methods, so putting it
+     * here emits no hint at all and the arm silently becomes a duplicate of the inlined one. Check
+     * the timing against {@code passedToInlinedStrategy} before believing this row — a call that
+     * really did not inline cannot cost the same as no call.
+     */
+    static final class UninlinedStrategy implements OutcomeStrategy {
+        @Override
+        public int apply(FlaggedAllocation cell) {
+            return cell.value();
+        }
     }
-  }
 
-  static final class ThirdBacking extends Backing {
-    @Override
-    int store(FlaggedAllocation cell) {
-      return cell.value() + 2;
+    static final OutcomeStrategy UNINLINED = new UninlinedStrategy();
+
+    /**
+     * The template-method shape: a final method on a base type calling out to an abstract one, with
+     * the object under test riding along as the argument. How many concrete subclasses are loaded is
+     * the whole experiment — C2 inlines a monomorphic call outright and a bimorphic one behind a type
+     * guard, but gives up at three, and a call it does not inline turns its argument into an escape.
+     */
+    abstract static class Backing {
+        final int admit(FlaggedAllocation cell) {
+            return store(cell);
+        }
+
+        abstract int store(FlaggedAllocation cell);
     }
-  }
 
-  // All three the same length, so the index arithmetic and the bounds check are identical and the
-  // only difference between the arms is how many types reach the call site.
-  //
-  // Unexplained: the monomorphic arm times slower than the bimorphic one (2.14 against 1.26 ns on
-  // 17), and equalising the lengths did not change it, so it is not the index arithmetic. Both
-  // eliminate their allocation, which is what this matrix is for, so the timing oddity does not
-  // touch any conclusion drawn here — but do not quote these two timings against each other until
-  // someone has read the assembly.
-  private final Backing[] one = {new ArrayBacking(), new ArrayBacking(), new ArrayBacking()};
-  private final Backing[] two = {new ArrayBacking(), new LinkedBacking(), new ArrayBacking()};
-  private final Backing[] three = {new ArrayBacking(), new LinkedBacking(), new ThirdBacking()};
-
-  // The three arms below are deliberately copy-pasted rather than sharing a helper. A shared helper
-  // would carry one profile for all three call sites, so the megamorphic arm would poison the other
-  // two and the matrix would report the same answer three times.
-
-  @Benchmark
-  public void backingMonomorphic(Blackhole bh) {
-    Backing backing = one[(counter++ & 0x7fffffff) % one.length];
-    FlaggedAllocation cell = new FlaggedAllocation(true, counter);
-    bh.consume(backing.admit(cell));
-  }
-
-  @Benchmark
-  public void backingBimorphic(Blackhole bh) {
-    Backing backing = two[(counter++ & 0x7fffffff) % two.length];
-    FlaggedAllocation cell = new FlaggedAllocation(true, counter);
-    bh.consume(backing.admit(cell));
-  }
-
-  @Benchmark
-  public void backingMegamorphic(Blackhole bh) {
-    Backing backing = three[(counter++ & 0x7fffffff) % three.length];
-    FlaggedAllocation cell = new FlaggedAllocation(true, counter);
-    bh.consume(backing.admit(cell));
-  }
-
-  /**
-   * Alternates so both sides of every branch are taken and the profile is honest. A branch C2 never
-   * sees taken becomes an uncommon trap, which would quietly turn the merge arms into single-site
-   * arms and make the whole matrix a lie.
-   */
-  private int counter;
-
-  private boolean alternate() {
-    return (counter++ & 1) == 0;
-  }
-
-  @Benchmark
-  public void singleSite(Blackhole bh) {
-    SingleAllocation cell = new SingleAllocation(counter++);
-    bh.consume(cell.value());
-  }
-
-  @Benchmark
-  public void mergeOfTwoAllocations(Blackhole bh) {
-    Outcome cell = alternate() ? new SingleAllocation(counter) : new AlternateAllocation(counter);
-    bh.consume(cell.value());
-  }
-
-  @Benchmark
-  public void mergeWithStatic(Blackhole bh) {
-    Outcome cell = alternate() ? new SingleAllocation(counter) : STATIC_SINGLETON;
-    bh.consume(cell.value());
-  }
-
-  @Benchmark
-  public void mergeWithNull(Blackhole bh) {
-    SingleAllocation cell = alternate() ? new SingleAllocation(counter) : null;
-    bh.consume(cell == null ? 0 : cell.value());
-  }
-
-  @Benchmark
-  public void flagOnOneAllocation(Blackhole bh) {
-    FlaggedAllocation cell = new FlaggedAllocation(alternate(), counter);
-    bh.consume(cell.value());
-  }
-
-  @Benchmark
-  public void closedInFinally(Blackhole bh) {
-    SingleAllocation cell = new SingleAllocation(counter++);
-    try {
-      bh.consume(cell.value());
-    } finally {
-      cell.close();
+    static final class ArrayBacking extends Backing {
+        @Override
+        int store(FlaggedAllocation cell) {
+            return cell.value();
+        }
     }
-  }
 
-  /** Preallocated and stackless, so the arm measures control flow rather than fillInStackTrace. */
-  static final class Failure extends RuntimeException {
-    static final Failure INSTANCE = new Failure();
-
-    private Failure() {
-      super("failure", null, false, false);
+    static final class LinkedBacking extends Backing {
+        @Override
+        int store(FlaggedAllocation cell) {
+            return cell.value() + 1;
+        }
     }
-  }
 
-  /**
-   * The same try/finally, with the handler actually taken often enough to be compiled rather than
-   * left as an uncommon trap. This is the case {@link #closedInFinally} does not cover: there, C2
-   * has never seen the exception path, so there is no code for the object to be live into.
-   */
-  @Benchmark
-  public void closedInFinallyWithThrow(Blackhole bh) {
-    SingleAllocation cell = new SingleAllocation(counter++);
-    try {
-      if ((counter & 15) == 0) {
-        throw Failure.INSTANCE;
-      }
-      bh.consume(cell.value());
-    } catch (Failure failure) {
-      bh.consume(cell.value() + 1);
-    } finally {
-      cell.close();
+    static final class ThirdBacking extends Backing {
+        @Override
+        int store(FlaggedAllocation cell) {
+            return cell.value() + 2;
+        }
     }
-  }
 
-  /** The Optional-style shape, whole: a singleton for one outcome, under try/finally. */
-  @Benchmark
-  public void mergeWithStaticClosedInFinally(Blackhole bh) {
-    Outcome cell = alternate() ? new SingleAllocation(counter) : STATIC_SINGLETON;
-    try {
-      bh.consume(cell.value());
-    } finally {
-      cell.close();
+    // All three the same length, so the index arithmetic and the bounds check are identical and the
+    // only difference between the arms is how many types reach the call site.
+    //
+    // Unexplained: the monomorphic arm times slower than the bimorphic one (2.14 against 1.26 ns on
+    // 17), and equalising the lengths did not change it, so it is not the index arithmetic. Both
+    // eliminate their allocation, which is what this matrix is for, so the timing oddity does not
+    // touch any conclusion drawn here — but do not quote these two timings against each other until
+    // someone has read the assembly.
+    private final Backing[] one = {new ArrayBacking(), new ArrayBacking(), new ArrayBacking()};
+    private final Backing[] two = {new ArrayBacking(), new LinkedBacking(), new ArrayBacking()};
+    private final Backing[] three = {new ArrayBacking(), new LinkedBacking(), new ThirdBacking()};
+
+    // The three arms below are deliberately copy-pasted rather than sharing a helper. A shared helper
+    // would carry one profile for all three call sites, so the megamorphic arm would poison the other
+    // two and the matrix would report the same answer three times.
+
+    @Benchmark
+    public void backingMonomorphic(Blackhole bh) {
+        Backing backing = one[(counter++ & 0x7fffffff) % one.length];
+        FlaggedAllocation cell = new FlaggedAllocation(true, counter);
+        bh.consume(backing.admit(cell));
     }
-  }
 
-  /** The single-site shape, whole: one allocation carrying a flag, under try/finally. */
-  @Benchmark
-  public void flagOnOneAllocationClosedInFinally(Blackhole bh) {
-    FlaggedAllocation cell = new FlaggedAllocation(alternate(), counter);
-    try {
-      bh.consume(cell.value());
-    } finally {
-      cell.close();
+    @Benchmark
+    public void backingBimorphic(Blackhole bh) {
+        Backing backing = two[(counter++ & 0x7fffffff) % two.length];
+        FlaggedAllocation cell = new FlaggedAllocation(true, counter);
+        bh.consume(backing.admit(cell));
     }
-  }
 
-  /**
-   * A non-escaping object handed across a call boundary the strategy discipline keeps inlinable.
-   */
-  @Benchmark
-  public void passedToInlinedStrategy(Blackhole bh) {
-    FlaggedAllocation cell = new FlaggedAllocation(alternate(), counter);
-    bh.consume(INLINED.apply(cell));
-  }
+    @Benchmark
+    public void backingMegamorphic(Blackhole bh) {
+        Backing backing = three[(counter++ & 0x7fffffff) % three.length];
+        FlaggedAllocation cell = new FlaggedAllocation(true, counter);
+        bh.consume(backing.admit(cell));
+    }
 
-  /**
-   * The same, with only the inlining taken away. Whatever this costs is what the discipline buys.
-   */
-  @Benchmark
-  public void passedToUninlinedStrategy(Blackhole bh) {
-    FlaggedAllocation cell = new FlaggedAllocation(alternate(), counter);
-    bh.consume(UNINLINED.apply(cell));
-  }
+    /**
+     * Alternates so both sides of every branch are taken and the profile is honest. A branch C2 never
+     * sees taken becomes an uncommon trap, which would quietly turn the merge arms into single-site
+     * arms and make the whole matrix a lie.
+     */
+    private int counter;
+
+    private boolean alternate() {
+        return (counter++ & 1) == 0;
+    }
+
+    @Benchmark
+    public void singleSite(Blackhole bh) {
+        SingleAllocation cell = new SingleAllocation(counter++);
+        bh.consume(cell.value());
+    }
+
+    @Benchmark
+    public void mergeOfTwoAllocations(Blackhole bh) {
+        Outcome cell = alternate() ? new SingleAllocation(counter) : new AlternateAllocation(counter);
+        bh.consume(cell.value());
+    }
+
+    @Benchmark
+    public void mergeWithStatic(Blackhole bh) {
+        Outcome cell = alternate() ? new SingleAllocation(counter) : STATIC_SINGLETON;
+        bh.consume(cell.value());
+    }
+
+    @Benchmark
+    public void mergeWithNull(Blackhole bh) {
+        SingleAllocation cell = alternate() ? new SingleAllocation(counter) : null;
+        bh.consume(cell == null ? 0 : cell.value());
+    }
+
+    @Benchmark
+    public void flagOnOneAllocation(Blackhole bh) {
+        FlaggedAllocation cell = new FlaggedAllocation(alternate(), counter);
+        bh.consume(cell.value());
+    }
+
+    @Benchmark
+    public void closedInFinally(Blackhole bh) {
+        SingleAllocation cell = new SingleAllocation(counter++);
+        try {
+            bh.consume(cell.value());
+        } finally {
+            cell.close();
+        }
+    }
+
+    /** Preallocated and stackless, so the arm measures control flow rather than fillInStackTrace. */
+    static final class Failure extends RuntimeException {
+        static final Failure INSTANCE = new Failure();
+
+        private Failure() {
+            super("failure", null, false, false);
+        }
+    }
+
+    /**
+     * The same try/finally, with the handler actually taken often enough to be compiled rather than
+     * left as an uncommon trap. This is the case {@link #closedInFinally} does not cover: there, C2
+     * has never seen the exception path, so there is no code for the object to be live into.
+     */
+    @Benchmark
+    public void closedInFinallyWithThrow(Blackhole bh) {
+        SingleAllocation cell = new SingleAllocation(counter++);
+        try {
+            if ((counter & 15) == 0) {
+                throw Failure.INSTANCE;
+            }
+            bh.consume(cell.value());
+        } catch (Failure failure) {
+            bh.consume(cell.value() + 1);
+        } finally {
+            cell.close();
+        }
+    }
+
+    /** The Optional-style shape, whole: a singleton for one outcome, under try/finally. */
+    @Benchmark
+    public void mergeWithStaticClosedInFinally(Blackhole bh) {
+        Outcome cell = alternate() ? new SingleAllocation(counter) : STATIC_SINGLETON;
+        try {
+            bh.consume(cell.value());
+        } finally {
+            cell.close();
+        }
+    }
+
+    /** The single-site shape, whole: one allocation carrying a flag, under try/finally. */
+    @Benchmark
+    public void flagOnOneAllocationClosedInFinally(Blackhole bh) {
+        FlaggedAllocation cell = new FlaggedAllocation(alternate(), counter);
+        try {
+            bh.consume(cell.value());
+        } finally {
+            cell.close();
+        }
+    }
+
+    /**
+     * A non-escaping object handed across a call boundary the strategy discipline keeps inlinable.
+     */
+    @Benchmark
+    public void passedToInlinedStrategy(Blackhole bh) {
+        FlaggedAllocation cell = new FlaggedAllocation(alternate(), counter);
+        bh.consume(INLINED.apply(cell));
+    }
+
+    /**
+     * The same, with only the inlining taken away. Whatever this costs is what the discipline buys.
+     */
+    @Benchmark
+    public void passedToUninlinedStrategy(Blackhole bh) {
+        FlaggedAllocation cell = new FlaggedAllocation(alternate(), counter);
+        bh.consume(UNINLINED.apply(cell));
+    }
 }

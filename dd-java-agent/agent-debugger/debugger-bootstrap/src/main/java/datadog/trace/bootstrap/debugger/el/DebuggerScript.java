@@ -8,5 +8,5 @@ import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
  * Because it must be reachable from the instrumented code it must be placed in bootstrap.
  */
 public interface DebuggerScript<R> {
-  R execute(ValueReferenceResolver valueRefResolver, TimeoutChecker timeoutChecker);
+    R execute(ValueReferenceResolver valueRefResolver, TimeoutChecker timeoutChecker);
 }

@@ -11,51 +11,48 @@ import com.datadog.debugger.el.values.BooleanValue;
 import org.junit.jupiter.api.Test;
 
 class IfExpressionTest {
-  private boolean guardFlag = false;
+    private boolean guardFlag = false;
 
-  private EvalContext evalContext = createEvalContext(this);
+    private EvalContext evalContext = createEvalContext(this);
 
-  @Test
-  void testIfTrue() {
-    boolean[] executed = new boolean[] {false};
-    BooleanExpression test = BooleanExpression.TRUE;
-    Expression<Void> expression =
-        context -> {
-          executed[0] = true;
-          return null;
+    @Test
+    void testIfTrue() {
+        boolean[] executed = new boolean[] {false};
+        BooleanExpression test = BooleanExpression.TRUE;
+        Expression<Void> expression = context -> {
+            executed[0] = true;
+            return null;
         };
-    DSL.doif(test, expression).evaluate(evalContext);
-    assertTrue(executed[0]);
-  }
+        DSL.doif(test, expression).evaluate(evalContext);
+        assertTrue(executed[0]);
+    }
 
-  @Test
-  void testIfFalse() {
-    boolean[] executed = new boolean[] {false};
-    BooleanExpression test = BooleanExpression.FALSE;
-    Expression<Void> expression =
-        context -> {
-          executed[0] = true;
-          return null;
+    @Test
+    void testIfFalse() {
+        boolean[] executed = new boolean[] {false};
+        BooleanExpression test = BooleanExpression.FALSE;
+        Expression<Void> expression = context -> {
+            executed[0] = true;
+            return null;
         };
-    DSL.doif(test, expression).evaluate(evalContext);
-    assertFalse(executed[0]);
-  }
+        DSL.doif(test, expression).evaluate(evalContext);
+        assertFalse(executed[0]);
+    }
 
-  @Test
-  void testFromContext() {
-    boolean[] executed = new boolean[] {false};
-    BooleanExpression test = DSL.eq(DSL.ref("guardFlag"), BooleanValue.TRUE);
-    Expression<Void> expression =
-        context -> {
-          executed[0] = true;
-          return null;
+    @Test
+    void testFromContext() {
+        boolean[] executed = new boolean[] {false};
+        BooleanExpression test = DSL.eq(DSL.ref("guardFlag"), BooleanValue.TRUE);
+        Expression<Void> expression = context -> {
+            executed[0] = true;
+            return null;
         };
-    guardFlag = false;
-    DSL.doif(test, expression).evaluate(evalContext);
-    assertFalse(executed[0]);
+        guardFlag = false;
+        DSL.doif(test, expression).evaluate(evalContext);
+        assertFalse(executed[0]);
 
-    guardFlag = true;
-    DSL.doif(test, expression).evaluate(evalContext);
-    assertTrue(executed[0]);
-  }
+        guardFlag = true;
+        DSL.doif(test, expression).evaluate(evalContext);
+        assertTrue(executed[0]);
+    }
 }

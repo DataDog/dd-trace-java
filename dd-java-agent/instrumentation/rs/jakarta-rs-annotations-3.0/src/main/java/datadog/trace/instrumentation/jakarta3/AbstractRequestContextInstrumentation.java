@@ -12,28 +12,28 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public abstract class AbstractRequestContextInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public AbstractRequestContextInstrumentation() {
-    super("jakarta-rs", "jakartars", "jakarta-rs-filter");
-  }
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    public AbstractRequestContextInstrumentation() {
+        super("jakarta-rs", "jakartars", "jakarta-rs-filter");
+    }
 
-  @Override
-  public String hierarchyMarkerType() {
-    return "jakarta.ws.rs.container.ContainerRequestContext";
-  }
+    @Override
+    public String hierarchyMarkerType() {
+        return "jakarta.ws.rs.container.ContainerRequestContext";
+    }
 
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("abortWith"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("jakarta.ws.rs.core.Response"))),
-        getClass().getName() + "$ContainerRequestContextAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("abortWith"))
+                        .and(takesArguments(1))
+                        .and(takesArgument(0, named("jakarta.ws.rs.core.Response"))),
+                getClass().getName() + "$ContainerRequestContextAdvice");
+    }
 }

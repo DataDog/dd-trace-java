@@ -13,29 +13,29 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class FormUrlEncodedInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public FormUrlEncodedInstrumentation() {
-    super("play");
-  }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public FormUrlEncodedInstrumentation() {
+        super("play");
+    }
 
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return MuzzleReferences.PLAY_25_ONLY;
-  }
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return MuzzleReferences.PLAY_25_ONLY;
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "play.mvc.BodyParser$FormUrlEncoded";
-  }
+    @Override
+    public String instrumentedType() {
+        return "play.mvc.BodyParser$FormUrlEncoded";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("parse")
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("play.mvc.Http$RequestHeader")))
-            .and(takesArgument(1, named("akka.util.ByteString")))
-            .and(returns(Map.class)),
-        packageName + ".BodyParserFormUrlEncodedParseAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("parse")
+                        .and(takesArguments(2))
+                        .and(takesArgument(0, named("play.mvc.Http$RequestHeader")))
+                        .and(takesArgument(1, named("akka.util.ByteString")))
+                        .and(returns(Map.class)),
+                packageName + ".BodyParserFormUrlEncodedParseAdvice");
+    }
 }

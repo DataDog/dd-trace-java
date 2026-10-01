@@ -16,49 +16,49 @@ import org.springframework.context.annotation.Bean;
 @SpringBootApplication
 public class MessagingRabbitMQApplication {
 
-  public static String hostName = "127.0.0.1";
-  public static int port = 5672;
+    public static String hostName = "127.0.0.1";
+    public static int port = 5672;
 
-  static final String topicExchangeName = "test-exchange";
+    static final String topicExchangeName = "test-exchange";
 
-  static final String queueName = "test-queue";
+    static final String queueName = "test-queue";
 
-  @Bean
-  Queue queue() {
-    return new Queue(queueName, false);
-  }
+    @Bean
+    Queue queue() {
+        return new Queue(queueName, false);
+    }
 
-  @Bean
-  TopicExchange exchange() {
-    return new TopicExchange(topicExchangeName);
-  }
+    @Bean
+    TopicExchange exchange() {
+        return new TopicExchange(topicExchangeName);
+    }
 
-  @Bean
-  Binding binding(Queue queue, TopicExchange exchange) {
-    return BindingBuilder.bind(queue).to(exchange).with("foo.bar.#");
-  }
+    @Bean
+    Binding binding(Queue queue, TopicExchange exchange) {
+        return BindingBuilder.bind(queue).to(exchange).with("foo.bar.#");
+    }
 
-  @Bean
-  ConnectionFactory connectionFactory() {
-    return new CachingConnectionFactory(hostName, port);
-  }
+    @Bean
+    ConnectionFactory connectionFactory() {
+        return new CachingConnectionFactory(hostName, port);
+    }
 
-  @Bean
-  SimpleMessageListenerContainer container(
-      ConnectionFactory connectionFactory, MessageListenerAdapter listenerAdapter) {
-    SimpleMessageListenerContainer container = new SimpleMessageListenerContainer();
-    container.setConnectionFactory(connectionFactory);
-    container.setQueueNames(queueName);
-    container.setMessageListener(listenerAdapter);
-    return container;
-  }
+    @Bean
+    SimpleMessageListenerContainer container(
+            ConnectionFactory connectionFactory, MessageListenerAdapter listenerAdapter) {
+        SimpleMessageListenerContainer container = new SimpleMessageListenerContainer();
+        container.setConnectionFactory(connectionFactory);
+        container.setQueueNames(queueName);
+        container.setMessageListener(listenerAdapter);
+        return container;
+    }
 
-  @Bean
-  MessageListenerAdapter listenerAdapter(Receiver receiver) {
-    return new MessageListenerAdapter(receiver, "receiveMessage");
-  }
+    @Bean
+    MessageListenerAdapter listenerAdapter(Receiver receiver) {
+        return new MessageListenerAdapter(receiver, "receiveMessage");
+    }
 
-  public static ConfigurableApplicationContext run() {
-    return SpringApplication.run(MessagingRabbitMQApplication.class);
-  }
+    public static ConfigurableApplicationContext run() {
+        return SpringApplication.run(MessagingRabbitMQApplication.class);
+    }
 }

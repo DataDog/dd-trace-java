@@ -9,36 +9,34 @@ import org.springframework.boot.autoconfigure.web.servlet.MultipartAutoConfigura
 @SpringBootApplication(exclude = MultipartAutoConfiguration.class)
 public class SpringbootApplication {
 
-  public static void main(final String[] args) {
-    if (!Boolean.getBoolean("smoketest.skipAppSecActivation")) {
-      try {
-        activateAppSec();
-      } catch (Exception e) {
-        System.out.println("Could not activate appSec: " + e.getMessage());
-      }
-    } else {
-      System.out.println("AppSec activation skipped");
+    public static void main(final String[] args) {
+        if (!Boolean.getBoolean("smoketest.skipAppSecActivation")) {
+            try {
+                activateAppSec();
+            } catch (Exception e) {
+                System.out.println("Could not activate appSec: " + e.getMessage());
+            }
+        } else {
+            System.out.println("AppSec activation skipped");
+        }
+
+        SpringApplication.run(SpringbootApplication.class, args);
+        System.out.println("Started in " + ManagementFactory.getRuntimeMXBean().getUptime() + "ms");
     }
 
-    SpringApplication.run(SpringbootApplication.class, args);
-    System.out.println("Started in " + ManagementFactory.getRuntimeMXBean().getUptime() + "ms");
-  }
-
-  private static void activateAppSec() throws Exception {
-    Class<?> agentClass =
-        ClassLoader.getSystemClassLoader().loadClass("datadog.trace.bootstrap.Agent");
-    Field appSecClassLoaderField = agentClass.getDeclaredField("AGENT_CLASSLOADER");
-    appSecClassLoaderField.setAccessible(true);
-    ClassLoader appSecClassLoader = (ClassLoader) appSecClassLoaderField.get(null);
-    Class<?> appSecSystemClass =
-        appSecClassLoader.loadClass("datadog.trace.bootstrap.ActiveSubsystems");
-    Field activeField = appSecSystemClass.getField("APPSEC_ACTIVE");
-    boolean curActiveValue = (boolean) activeField.get(null);
-    if (curActiveValue) {
-      System.out.println("AppSec is already active");
-    } else {
-      activeField.set(null, true);
-      System.out.println("AppSec Activated");
+    private static void activateAppSec() throws Exception {
+        Class<?> agentClass = ClassLoader.getSystemClassLoader().loadClass("datadog.trace.bootstrap.Agent");
+        Field appSecClassLoaderField = agentClass.getDeclaredField("AGENT_CLASSLOADER");
+        appSecClassLoaderField.setAccessible(true);
+        ClassLoader appSecClassLoader = (ClassLoader) appSecClassLoaderField.get(null);
+        Class<?> appSecSystemClass = appSecClassLoader.loadClass("datadog.trace.bootstrap.ActiveSubsystems");
+        Field activeField = appSecSystemClass.getField("APPSEC_ACTIVE");
+        boolean curActiveValue = (boolean) activeField.get(null);
+        if (curActiveValue) {
+            System.out.println("AppSec is already active");
+        } else {
+            activeField.set(null, true);
+            System.out.println("AppSec Activated");
+        }
     }
-  }
 }

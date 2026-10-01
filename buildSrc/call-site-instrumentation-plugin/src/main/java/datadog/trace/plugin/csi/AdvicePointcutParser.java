@@ -12,21 +12,21 @@ import javax.annotation.Nonnull;
  */
 public interface AdvicePointcutParser {
 
-  @Nonnull
-  MethodType parse(@Nonnull String signature);
+    @Nonnull
+    MethodType parse(@Nonnull String signature);
 
-  class SignatureParsingError extends HasErrorsException {
+    class SignatureParsingError extends HasErrorsException {
 
-    public SignatureParsingError(@Nonnull final HasErrors errors) {
-      super(errors);
+        public SignatureParsingError(@Nonnull final HasErrors errors) {
+            super(errors);
+        }
+
+        public SignatureParsingError(@Nonnull final Collection<Failure> errors) {
+            super(errors);
+        }
+
+        public SignatureParsingError(@Nonnull final Failure... errors) {
+            super(errors);
+        }
     }
-
-    public SignatureParsingError(@Nonnull final Collection<Failure> errors) {
-      super(errors);
-    }
-
-    public SignatureParsingError(@Nonnull final Failure... errors) {
-      super(errors);
-    }
-  }
 }

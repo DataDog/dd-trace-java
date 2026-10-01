@@ -10,20 +10,19 @@ import reactor.netty.Connection;
 import reactor.netty.http.client.HttpClientRequest;
 
 public class TransferConnectSpan implements BiConsumer<HttpClientRequest, Connection> {
-  @Override
-  public void accept(HttpClientRequest clientRequest, Connection connection) {
-    final Context context = clientRequest.currentContextView().getOrDefault(CONNECT_CONTEXT, null);
-    if (null == context) {
-      return;
+    @Override
+    public void accept(HttpClientRequest clientRequest, Connection connection) {
+        final Context context = clientRequest.currentContextView().getOrDefault(CONNECT_CONTEXT, null);
+        if (null == context) {
+            return;
+        }
+        ContextContinuation newContinuation = context.capture();
+        ContextContinuation oldContinuation = connection
+                .channel()
+                .attr(CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY)
+                .getAndSet(newContinuation);
+        if (null != oldContinuation) {
+            oldContinuation.release();
+        }
     }
-    ContextContinuation newContinuation = context.capture();
-    ContextContinuation oldContinuation =
-        connection
-            .channel()
-            .attr(CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY)
-            .getAndSet(newContinuation);
-    if (null != oldContinuation) {
-      oldContinuation.release();
-    }
-  }
 }

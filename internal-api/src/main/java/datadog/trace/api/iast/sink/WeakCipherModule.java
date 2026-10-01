@@ -5,5 +5,5 @@ import javax.annotation.Nonnull;
 
 public interface WeakCipherModule extends IastModule {
 
-  void onCipherAlgorithm(@Nonnull String algorithm);
+    void onCipherAlgorithm(@Nonnull String algorithm);
 }

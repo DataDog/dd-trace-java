@@ -20,69 +20,69 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class OpenTelemetryInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
 
-  public OpenTelemetryInstrumentation() {
-    super("opentelemetry.experimental", "opentelemetry-1");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return InstrumenterConfig.get().isTraceOtelEnabled();
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "io.opentelemetry.api.OpenTelemetry";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "io.opentelemetry.api.DefaultOpenTelemetry",
-      "io.opentelemetry.api.GlobalOpenTelemetry$ObfuscatedOpenTelemetry"
-    };
-  }
-
-  @Override
-  public boolean onlyMatchKnownTypes() {
-    return isShortcutMatchingEnabled(false);
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    // TracerProvider OpenTelemetry.getTracerProvider()
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("getTracerProvider"))
-            .and(takesNoArguments())
-            .and(returns(named("io.opentelemetry.api.trace.TracerProvider"))),
-        OpenTelemetryInstrumentation.class.getName() + "$TracerProviderAdvice");
-    // ContextPropagators OpenTelemetry.getPropagators();
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("getPropagators"))
-            .and(takesNoArguments())
-            .and(returns(named("io.opentelemetry.context.propagation.ContextPropagators"))),
-        OpenTelemetryInstrumentation.class.getName() + "$ContextPropagatorAdvice");
-  }
-
-  public static class TracerProviderAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void returnProvider(@Advice.Return(readOnly = false) TracerProvider result) {
-      result = OtelTracerProvider.INSTANCE;
+    public OpenTelemetryInstrumentation() {
+        super("opentelemetry.experimental", "opentelemetry-1");
     }
-  }
 
-  public static class ContextPropagatorAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void returnProvider(@Advice.Return(readOnly = false) ContextPropagators result) {
-      result = OtelContextPropagators.INSTANCE;
+    @Override
+    protected boolean defaultEnabled() {
+        return InstrumenterConfig.get().isTraceOtelEnabled();
     }
-  }
+
+    @Override
+    public String hierarchyMarkerType() {
+        return "io.opentelemetry.api.OpenTelemetry";
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            "io.opentelemetry.api.DefaultOpenTelemetry",
+            "io.opentelemetry.api.GlobalOpenTelemetry$ObfuscatedOpenTelemetry"
+        };
+    }
+
+    @Override
+    public boolean onlyMatchKnownTypes() {
+        return isShortcutMatchingEnabled(false);
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        // TracerProvider OpenTelemetry.getTracerProvider()
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("getTracerProvider"))
+                        .and(takesNoArguments())
+                        .and(returns(named("io.opentelemetry.api.trace.TracerProvider"))),
+                OpenTelemetryInstrumentation.class.getName() + "$TracerProviderAdvice");
+        // ContextPropagators OpenTelemetry.getPropagators();
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("getPropagators"))
+                        .and(takesNoArguments())
+                        .and(returns(named("io.opentelemetry.context.propagation.ContextPropagators"))),
+                OpenTelemetryInstrumentation.class.getName() + "$ContextPropagatorAdvice");
+    }
+
+    public static class TracerProviderAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void returnProvider(@Advice.Return(readOnly = false) TracerProvider result) {
+            result = OtelTracerProvider.INSTANCE;
+        }
+    }
+
+    public static class ContextPropagatorAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void returnProvider(@Advice.Return(readOnly = false) ContextPropagators result) {
+            result = OtelContextPropagators.INSTANCE;
+        }
+    }
 }

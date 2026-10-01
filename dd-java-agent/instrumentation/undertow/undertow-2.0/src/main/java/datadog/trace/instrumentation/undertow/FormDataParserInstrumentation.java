@@ -27,71 +27,69 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class FormDataParserInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public FormDataParserInstrumentation() {
-    super("undertow", "undertow-2.0");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "io.undertow.server.handlers.form.FormEncodedDataDefinition$FormEncodedDataParser";
-  }
-
-  private static final Reference EXCHANGE_REFERENCE =
-      new Reference.Builder(
-              "io.undertow.server.handlers.form.FormEncodedDataDefinition$FormEncodedDataParser")
-          .withField(new String[0], 0, "exchange", "Lio/undertow/server/HttpServerExchange;")
-          .build();
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {EXCHANGE_REFERENCE};
-  }
-
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("doParse")
-            .and(takesArgument(0, named("org.xnio.channels.StreamSourceChannel")))
-            .and(takesArguments(1))
-            .and(isPrivate()),
-        getClass().getName() + "$DoParseAdvice");
-  }
-
-  @RequiresRequestContext(RequestContextSlot.APPSEC)
-  public static class DoParseAdvice {
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    static void after(
-        @Advice.FieldValue("exchange") HttpServerExchange exchange,
-        @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
-      if (t != null) {
-        return;
-      }
-
-      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-      BiFunction<RequestContext, Object, Flow<Void>> callback =
-          cbp.getCallback(EVENTS.requestBodyProcessed());
-      if (callback == null) {
-        return;
-      }
-      FormData attachment = exchange.getAttachment(FORM_DATA);
-      if (attachment == null) {
-        return;
-      }
-
-      Flow<Void> flow = callback.apply(reqCtx, new FormDataMap(attachment));
-      Flow.Action action = flow.getAction();
-      if (action instanceof Flow.Action.RequestBlockingAction) {
-        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
-        if (blockResponseFunction != null) {
-          blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-          if (t == null) {
-            t = new BlockingException("Blocked request (for FormEncodedDataParser/doParse)");
-          }
-        }
-      }
+    public FormDataParserInstrumentation() {
+        super("undertow", "undertow-2.0");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "io.undertow.server.handlers.form.FormEncodedDataDefinition$FormEncodedDataParser";
+    }
+
+    private static final Reference EXCHANGE_REFERENCE = new Reference.Builder(
+                    "io.undertow.server.handlers.form.FormEncodedDataDefinition$FormEncodedDataParser")
+            .withField(new String[0], 0, "exchange", "Lio/undertow/server/HttpServerExchange;")
+            .build();
+
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return new Reference[] {EXCHANGE_REFERENCE};
+    }
+
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("doParse")
+                        .and(takesArgument(0, named("org.xnio.channels.StreamSourceChannel")))
+                        .and(takesArguments(1))
+                        .and(isPrivate()),
+                getClass().getName() + "$DoParseAdvice");
+    }
+
+    @RequiresRequestContext(RequestContextSlot.APPSEC)
+    public static class DoParseAdvice {
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        static void after(
+                @Advice.FieldValue("exchange") HttpServerExchange exchange,
+                @ActiveRequestContext RequestContext reqCtx,
+                @Advice.Thrown(readOnly = false) Throwable t) {
+            if (t != null) {
+                return;
+            }
+
+            CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+            BiFunction<RequestContext, Object, Flow<Void>> callback = cbp.getCallback(EVENTS.requestBodyProcessed());
+            if (callback == null) {
+                return;
+            }
+            FormData attachment = exchange.getAttachment(FORM_DATA);
+            if (attachment == null) {
+                return;
+            }
+
+            Flow<Void> flow = callback.apply(reqCtx, new FormDataMap(attachment));
+            Flow.Action action = flow.getAction();
+            if (action instanceof Flow.Action.RequestBlockingAction) {
+                Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+                BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
+                if (blockResponseFunction != null) {
+                    blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+                    if (t == null) {
+                        t = new BlockingException("Blocked request (for FormEncodedDataParser/doParse)");
+                    }
+                }
+            }
+        }
+    }
 }

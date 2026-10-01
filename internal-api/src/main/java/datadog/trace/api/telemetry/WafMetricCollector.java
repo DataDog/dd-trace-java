@@ -19,392 +19,142 @@ import java.util.concurrent.atomic.AtomicLongArray;
 
 public class WafMetricCollector implements MetricCollector<WafMetricCollector.WafMetric> {
 
-  private static final int MASK_STRING_TOO_LONG = 1; // 0b001
-  private static final int MASK_LIST_MAP_TOO_LARGE = 1 << 1; // 0b010
-  private static final int MASK_OBJECT_TOO_DEEP = 1 << 2; // 0b100
+    private static final int MASK_STRING_TOO_LONG = 1; // 0b001
+    private static final int MASK_LIST_MAP_TOO_LARGE = 1 << 1; // 0b010
+    private static final int MASK_OBJECT_TOO_DEEP = 1 << 2; // 0b100
 
-  public static WafMetricCollector INSTANCE = new WafMetricCollector();
+    public static WafMetricCollector INSTANCE = new WafMetricCollector();
 
-  public static WafMetricCollector get() {
-    return WafMetricCollector.INSTANCE;
-  }
-
-  private WafMetricCollector() {
-    // Prevent external instantiation
-  }
-
-  private static final String NAMESPACE = "appsec";
-
-  /**
-   * AI Guard metrics live in their own telemetry namespace. The namespace and the metric name are
-   * reported as separate fields and joined downstream, so {@code ai_guard} + {@code requests} is
-   * what surfaces the {@code ai_guard.requests} metric the AI Guard RFC specifies.
-   */
-  private static final String AI_GUARD_NAMESPACE = "ai_guard";
-
-  /** Hoisted because {@link Enum#values()} clones its backing array on every call. */
-  private static final AIGuardRedaction[] REDACTION_VALUES = AIGuardRedaction.values();
-
-  /** Hoisted because {@link Enum#values()} clones its backing array on every call. */
-  private static final AIGuardError[] AI_GUARD_ERROR_VALUES = AIGuardError.values();
-
-  private static final BlockingQueue<WafMetric> rawMetricsQueue =
-      new ArrayBlockingQueue<>(RAW_QUEUE_SIZE);
-
-  private static final int WAF_REQUEST_COMBINATIONS = 256; // 2^8
-  private final AtomicLongArray wafRequestCounter = new AtomicLongArray(WAF_REQUEST_COMBINATIONS);
-
-  private static final AtomicLongArray wafInputTruncatedCounter =
-      new AtomicLongArray(1 << 3); // 3 flags → 2^3 = 8 possible bit combinations
-
-  private static final AtomicLongArray raspRuleEvalCounter =
-      new AtomicLongArray(RuleType.getNumValues());
-  private static final AtomicLongArray raspRuleSkippedCounter =
-      new AtomicLongArray(RuleType.getNumValues());
-  private static final AtomicLongArray raspRuleMatchCounter =
-      new AtomicLongArray(RuleType.getNumValues() * 2);
-  private static final AtomicLongArray raspTimeoutCounter =
-      new AtomicLongArray(RuleType.getNumValues());
-  private static final AtomicLongArray raspErrorCodeCounter =
-      new AtomicLongArray(WafErrorCode.values().length * RuleType.getNumValues());
-  private static final AtomicLongArray wafErrorCodeCounter =
-      new AtomicLongArray(WafErrorCode.values().length);
-  private static final AtomicLongArray missingUserLoginQueue =
-      new AtomicLongArray(LoginFramework.getNumValues() * LoginEvent.getNumValues());
-  private static final AtomicLongArray missingUserIdQueue =
-      new AtomicLongArray(LoginFramework.getNumValues());
-  private static final AtomicLongArray appSecSdkEventQueue =
-      new AtomicLongArray(LoginEvent.getNumValues() * LoginVersion.getNumValues());
-  private static final AtomicInteger wafConfigErrorCounter = new AtomicInteger();
-  private static final AtomicInteger contextClosedRaceCounter = new AtomicInteger();
-  private static final AtomicLongArray aiGuardRequests =
-      new AtomicLongArray(
-          AIGuard.Action.values().length
-              * 2
-              * REDACTION_VALUES.length); // actions * block * redaction state
-  private static final AtomicInteger aiGuardErrors = new AtomicInteger();
-  private static final AtomicLongArray aiGuardErrorTypes =
-      new AtomicLongArray(AI_GUARD_ERROR_VALUES.length);
-  private static final AtomicLongArray aiGuardTruncated =
-      new AtomicLongArray(AIGuardTruncationType.values().length);
-
-  /**
-   * Per-framework counters for requests where API Security could not resolve a route. Aggregated
-   * in-memory and drained on {@link #prepareMetrics()} instead of enqueueing on every request,
-   * since this call site has no sampling gate and could otherwise saturate {@link #rawMetricsQueue}
-   * under load (e.g. scanner traffic hitting unresolvable routes).
-   */
-  private static final String UNKNOWN_FRAMEWORK = "unknown";
-
-  /**
-   * Cap on distinct framework keys tracked per counter map, {@link #UNKNOWN_FRAMEWORK} included.
-   * {@code framework} is read from the span's {@code component} tag, which is not guaranteed to
-   * come from a bounded, known set (e.g. custom/manual instrumentation could set it per-request) —
-   * without a cap the maps would never shrink, since {@link #prepareMetrics()} only resets counters
-   * to zero, it never removes keys. Frameworks beyond the cap are folded into {@link
-   * #UNKNOWN_FRAMEWORK}. Admission is synchronized per-map in {@link #counterFor} so the cap is
-   * enforced atomically instead of racing on {@code size()}.
-   */
-  private static final int MAX_FRAMEWORK_CARDINALITY = 64;
-
-  private static final ConcurrentHashMap<String, AtomicLong> apiSecurityMissingRouteCounters =
-      newFrameworkCounters();
-
-  /**
-   * Per-framework counters for sampled requests with/without an extracted API Security schema.
-   * Aggregated in-memory and drained on {@link #prepareMetrics()} for the same reason as {@link
-   * #apiSecurityMissingRouteCounters}: a burst of sampled requests across many distinct routes
-   * between telemetry heartbeats could otherwise saturate {@link #rawMetricsQueue} one request at a
-   * time.
-   */
-  private static final ConcurrentHashMap<String, AtomicLong> apiSecurityRequestSchemaCounters =
-      newFrameworkCounters();
-
-  private static final ConcurrentHashMap<String, AtomicLong> apiSecurityRequestNoSchemaCounters =
-      newFrameworkCounters();
-
-  /** Reserves the {@link #UNKNOWN_FRAMEWORK} bucket within the cardinality cap up front. */
-  private static ConcurrentHashMap<String, AtomicLong> newFrameworkCounters() {
-    final ConcurrentHashMap<String, AtomicLong> counters = new ConcurrentHashMap<>();
-    counters.put(UNKNOWN_FRAMEWORK, new AtomicLong());
-    return counters;
-  }
-
-  /** WAF version that will be initialized with wafInit and reused for all metrics. */
-  private static String wafVersion = "";
-
-  /**
-   * Rules version that will be updated on each wafInit and wafUpdates. This is not entirely
-   * accurate, since wafRequest metrics might be collected for a period where a rules update happens
-   * and some requests will be incorrectly reported with the old or new rules version.
-   */
-  private static String rulesVersion = "";
-
-  public void wafInit(final String wafVersion, final String rulesVersion, final boolean success) {
-    WafMetricCollector.wafVersion = wafVersion;
-    WafMetricCollector.rulesVersion = rulesVersion;
-    rawMetricsQueue.offer(new WafInitRawMetric(1L, wafVersion, rulesVersion, success));
-  }
-
-  public void wafUpdates(final String rulesVersion, final boolean success) {
-    rawMetricsQueue.offer(new WafUpdatesRawMetric(1L, wafVersion, rulesVersion, success));
-
-    // Flush request metrics to get the new version.
-    if (rulesVersion != null
-        && WafMetricCollector.rulesVersion != null
-        && !rulesVersion.equals(WafMetricCollector.rulesVersion)) {
-      WafMetricCollector.get().prepareMetrics();
+    public static WafMetricCollector get() {
+        return WafMetricCollector.INSTANCE;
     }
-    WafMetricCollector.rulesVersion = rulesVersion;
-  }
 
-  public void wafRequest(
-      final boolean ruleTriggered,
-      final boolean requestBlocked,
-      final boolean wafError,
-      final boolean wafTimeout,
-      final boolean blockFailure,
-      final boolean rateLimited,
-      final boolean inputTruncated,
-      final boolean requestExcluded) {
-    int index =
-        computeWafRequestIndex(
-            ruleTriggered,
-            requestBlocked,
-            wafError,
-            wafTimeout,
-            blockFailure,
-            rateLimited,
-            inputTruncated,
-            requestExcluded);
-    wafRequestCounter.incrementAndGet(index);
-  }
-
-  public void wafInputTruncated(
-      final boolean stringTooLong, final boolean listMapTooLarge, final boolean objectTooDeep) {
-    int index = computeWafInputTruncatedIndex(stringTooLong, listMapTooLarge, objectTooDeep);
-    wafInputTruncatedCounter.incrementAndGet(index);
-  }
-
-  static int computeWafRequestIndex(
-      boolean ruleTriggered,
-      boolean requestBlocked,
-      boolean wafError,
-      boolean wafTimeout,
-      boolean blockFailure,
-      boolean rateLimited,
-      boolean inputTruncated,
-      boolean requestExcluded) {
-    int index = 0;
-    if (ruleTriggered) index |= 1;
-    if (requestBlocked) index |= 1 << 1;
-    if (wafError) index |= 1 << 2;
-    if (wafTimeout) index |= 1 << 3;
-    if (blockFailure) index |= 1 << 4;
-    if (rateLimited) index |= 1 << 5;
-    if (inputTruncated) index |= 1 << 6;
-    if (requestExcluded) index |= 1 << 7;
-    return index;
-  }
-
-  static int computeWafInputTruncatedIndex(
-      boolean stringTooLong, boolean listMapTooLarge, boolean objectTooDeep) {
-    int index = 0;
-    if (stringTooLong) index |= MASK_STRING_TOO_LONG;
-    if (listMapTooLarge) index |= MASK_LIST_MAP_TOO_LARGE;
-    if (objectTooDeep) index |= MASK_OBJECT_TOO_DEEP;
-    return index;
-  }
-
-  public void raspRuleEval(final RuleType ruleType) {
-    raspRuleEvalCounter.incrementAndGet(ruleType.ordinal());
-  }
-
-  public void raspRuleSkipped(final RuleType ruleType) {
-    raspRuleSkippedCounter.incrementAndGet(ruleType.ordinal());
-  }
-
-  public void raspRuleMatch(final RuleType ruleType, final boolean blocked) {
-    raspRuleMatchCounter.incrementAndGet(ruleType.ordinal() * 2 + (blocked ? 1 : 0));
-  }
-
-  public void raspTimeout(final RuleType ruleType) {
-    raspTimeoutCounter.incrementAndGet(ruleType.ordinal());
-  }
-
-  public void raspErrorCode(RuleType ruleType, final int errorCode) {
-    WafErrorCode wafErrorCode = WafErrorCode.fromCode(errorCode);
-    // Unsupported waf error code
-    if (wafErrorCode == null) {
-      return;
+    private WafMetricCollector() {
+        // Prevent external instantiation
     }
-    int index = wafErrorCode.ordinal() * RuleType.getNumValues() + ruleType.ordinal();
-    raspErrorCodeCounter.incrementAndGet(index);
-  }
 
-  public void wafErrorCode(final int errorCode) {
-    WafErrorCode wafErrorCode = WafErrorCode.fromCode(errorCode);
-    // Unsupported waf error code
-    if (wafErrorCode == null) {
-      return;
+    private static final String NAMESPACE = "appsec";
+
+    /**
+     * AI Guard metrics live in their own telemetry namespace. The namespace and the metric name are
+     * reported as separate fields and joined downstream, so {@code ai_guard} + {@code requests} is
+     * what surfaces the {@code ai_guard.requests} metric the AI Guard RFC specifies.
+     */
+    private static final String AI_GUARD_NAMESPACE = "ai_guard";
+
+    /** Hoisted because {@link Enum#values()} clones its backing array on every call. */
+    private static final AIGuardRedaction[] REDACTION_VALUES = AIGuardRedaction.values();
+
+    /** Hoisted because {@link Enum#values()} clones its backing array on every call. */
+    private static final AIGuardError[] AI_GUARD_ERROR_VALUES = AIGuardError.values();
+
+    private static final BlockingQueue<WafMetric> rawMetricsQueue = new ArrayBlockingQueue<>(RAW_QUEUE_SIZE);
+
+    private static final int WAF_REQUEST_COMBINATIONS = 256; // 2^8
+    private final AtomicLongArray wafRequestCounter = new AtomicLongArray(WAF_REQUEST_COMBINATIONS);
+
+    private static final AtomicLongArray wafInputTruncatedCounter =
+            new AtomicLongArray(1 << 3); // 3 flags → 2^3 = 8 possible bit combinations
+
+    private static final AtomicLongArray raspRuleEvalCounter = new AtomicLongArray(RuleType.getNumValues());
+    private static final AtomicLongArray raspRuleSkippedCounter = new AtomicLongArray(RuleType.getNumValues());
+    private static final AtomicLongArray raspRuleMatchCounter = new AtomicLongArray(RuleType.getNumValues() * 2);
+    private static final AtomicLongArray raspTimeoutCounter = new AtomicLongArray(RuleType.getNumValues());
+    private static final AtomicLongArray raspErrorCodeCounter =
+            new AtomicLongArray(WafErrorCode.values().length * RuleType.getNumValues());
+    private static final AtomicLongArray wafErrorCodeCounter = new AtomicLongArray(WafErrorCode.values().length);
+    private static final AtomicLongArray missingUserLoginQueue =
+            new AtomicLongArray(LoginFramework.getNumValues() * LoginEvent.getNumValues());
+    private static final AtomicLongArray missingUserIdQueue = new AtomicLongArray(LoginFramework.getNumValues());
+    private static final AtomicLongArray appSecSdkEventQueue =
+            new AtomicLongArray(LoginEvent.getNumValues() * LoginVersion.getNumValues());
+    private static final AtomicInteger wafConfigErrorCounter = new AtomicInteger();
+    private static final AtomicInteger contextClosedRaceCounter = new AtomicInteger();
+    private static final AtomicLongArray aiGuardRequests = new AtomicLongArray(
+            AIGuard.Action.values().length * 2 * REDACTION_VALUES.length); // actions * block * redaction state
+    private static final AtomicInteger aiGuardErrors = new AtomicInteger();
+    private static final AtomicLongArray aiGuardErrorTypes = new AtomicLongArray(AI_GUARD_ERROR_VALUES.length);
+    private static final AtomicLongArray aiGuardTruncated = new AtomicLongArray(AIGuardTruncationType.values().length);
+
+    /**
+     * Per-framework counters for requests where API Security could not resolve a route. Aggregated
+     * in-memory and drained on {@link #prepareMetrics()} instead of enqueueing on every request,
+     * since this call site has no sampling gate and could otherwise saturate {@link #rawMetricsQueue}
+     * under load (e.g. scanner traffic hitting unresolvable routes).
+     */
+    private static final String UNKNOWN_FRAMEWORK = "unknown";
+
+    /**
+     * Cap on distinct framework keys tracked per counter map, {@link #UNKNOWN_FRAMEWORK} included.
+     * {@code framework} is read from the span's {@code component} tag, which is not guaranteed to
+     * come from a bounded, known set (e.g. custom/manual instrumentation could set it per-request) —
+     * without a cap the maps would never shrink, since {@link #prepareMetrics()} only resets counters
+     * to zero, it never removes keys. Frameworks beyond the cap are folded into {@link
+     * #UNKNOWN_FRAMEWORK}. Admission is synchronized per-map in {@link #counterFor} so the cap is
+     * enforced atomically instead of racing on {@code size()}.
+     */
+    private static final int MAX_FRAMEWORK_CARDINALITY = 64;
+
+    private static final ConcurrentHashMap<String, AtomicLong> apiSecurityMissingRouteCounters = newFrameworkCounters();
+
+    /**
+     * Per-framework counters for sampled requests with/without an extracted API Security schema.
+     * Aggregated in-memory and drained on {@link #prepareMetrics()} for the same reason as {@link
+     * #apiSecurityMissingRouteCounters}: a burst of sampled requests across many distinct routes
+     * between telemetry heartbeats could otherwise saturate {@link #rawMetricsQueue} one request at a
+     * time.
+     */
+    private static final ConcurrentHashMap<String, AtomicLong> apiSecurityRequestSchemaCounters =
+            newFrameworkCounters();
+
+    private static final ConcurrentHashMap<String, AtomicLong> apiSecurityRequestNoSchemaCounters =
+            newFrameworkCounters();
+
+    /** Reserves the {@link #UNKNOWN_FRAMEWORK} bucket within the cardinality cap up front. */
+    private static ConcurrentHashMap<String, AtomicLong> newFrameworkCounters() {
+        final ConcurrentHashMap<String, AtomicLong> counters = new ConcurrentHashMap<>();
+        counters.put(UNKNOWN_FRAMEWORK, new AtomicLong());
+        return counters;
     }
-    wafErrorCodeCounter.incrementAndGet(wafErrorCode.ordinal());
-  }
 
-  public void missingUserLogin(final LoginFramework framework, final LoginEvent eventType) {
-    missingUserLoginQueue.incrementAndGet(
-        framework.ordinal() * LoginEvent.getNumValues() + eventType.ordinal());
-  }
+    /** WAF version that will be initialized with wafInit and reused for all metrics. */
+    private static String wafVersion = "";
 
-  public void missingUserId(final LoginFramework framework) {
-    missingUserIdQueue.incrementAndGet(framework.ordinal());
-  }
+    /**
+     * Rules version that will be updated on each wafInit and wafUpdates. This is not entirely
+     * accurate, since wafRequest metrics might be collected for a period where a rules update happens
+     * and some requests will be incorrectly reported with the old or new rules version.
+     */
+    private static String rulesVersion = "";
 
-  public void appSecSdkEvent(final LoginEvent event, final LoginVersion version) {
-    final int index = event.ordinal() * LoginVersion.getNumValues() + version.ordinal();
-    appSecSdkEventQueue.incrementAndGet(index);
-  }
-
-  public void aiGuardRequest(
-      final AIGuard.Action action, final boolean block, final AIGuardRedaction redaction) {
-    aiGuardRequests.incrementAndGet(aiGuardRequestIndex(action, block, redaction));
-  }
-
-  private static int aiGuardRequestIndex(
-      final AIGuard.Action action, final boolean block, final AIGuardRedaction redaction) {
-    return (action.ordinal() * 2 + (block ? 1 : 0)) * REDACTION_VALUES.length + redaction.ordinal();
-  }
-
-  /**
-   * Reports an evaluation that failed. The failure is counted twice on purpose, mirroring every
-   * other tracer: as {@code error:true} on {@code ai_guard.requests}, which keeps the request count
-   * complete, and under {@code ai_guard.error} with the {@code type} that classifies it.
-   */
-  public void aiGuardError(final AIGuardError type) {
-    aiGuardErrors.incrementAndGet();
-    aiGuardErrorTypes.incrementAndGet(type.ordinal());
-  }
-
-  /**
-   * Reports {@code count} replacements that redaction could not apply. Unlike {@link
-   * #aiGuardError(AIGuardError)} this does not count a failed request: redaction is best effort and
-   * never fails the evaluation it rode in on.
-   */
-  public void aiGuardRedactionErrors(final long count) {
-    aiGuardErrorTypes.addAndGet(AIGuardError.REDACTION_ERROR.ordinal(), count);
-  }
-
-  public void aiGuardTruncated(final AIGuardTruncationType type) {
-    aiGuardTruncated.incrementAndGet(type.ordinal());
-  }
-
-  /**
-   * Reports a request for which API Security could not resolve a route, and therefore could not be
-   * considered for schema extraction sampling.
-   */
-  public void apiSecurityMissingRoute(final String framework) {
-    counterFor(apiSecurityMissingRouteCounters, framework).incrementAndGet();
-  }
-
-  /** Reports a sampled request for which at least one API Security schema was extracted. */
-  public void apiSecurityRequestSchema(final String framework) {
-    counterFor(apiSecurityRequestSchemaCounters, framework).incrementAndGet();
-  }
-
-  /** Reports a sampled request for which no API Security schema was extracted. */
-  public void apiSecurityRequestNoSchema(final String framework) {
-    counterFor(apiSecurityRequestNoSchemaCounters, framework).incrementAndGet();
-  }
-
-  /**
-   * Normalizes a framework (span component) value, mapping null or blank values to "unknown" and
-   * sanitizing the rest via {@link TagsHelper#sanitize}, which also bounds its length. {@code
-   * framework} can originate from manual/custom instrumentation setting the {@code component} tag
-   * per request, so without this the retained-but-cardinality-capped keys could still consume
-   * unbounded heap in bytes even though their count is bounded.
-   */
-  static String normalizeFramework(final String framework) {
-    if (framework == null || framework.trim().isEmpty()) {
-      return UNKNOWN_FRAMEWORK;
+    public void wafInit(final String wafVersion, final String rulesVersion, final boolean success) {
+        WafMetricCollector.wafVersion = wafVersion;
+        WafMetricCollector.rulesVersion = rulesVersion;
+        rawMetricsQueue.offer(new WafInitRawMetric(1L, wafVersion, rulesVersion, success));
     }
-    return TagsHelper.sanitize(framework.trim());
-  }
 
-  /**
-   * Returns the counter for {@code framework} in {@code counters}, capping the map at {@link
-   * #MAX_FRAMEWORK_CARDINALITY} distinct keys ({@link #UNKNOWN_FRAMEWORK} pre-reserved by {@link
-   * #newFrameworkCounters()}). Once the cap is reached, any framework not already tracked is folded
-   * into {@link #UNKNOWN_FRAMEWORK} instead of growing the map further. The fast path for an
-   * already-tracked key is lock-free; admission of a never-seen key is synchronized on {@code
-   * counters} so the size check and the insertion happen atomically, closing the race where
-   * concurrent first-seen frameworks could otherwise all pass the check and overshoot the cap.
-   *
-   * <p>Before normalizing, we first probe {@code counters} with the raw, unsanitized {@code
-   * framework} value. Well-known frameworks (e.g. "netty") are already in sanitized form, so once
-   * admitted, this raw lookup hits directly and skips {@link #normalizeFramework}'s allocation (via
-   * {@link TagsHelper#sanitize}) on every subsequent call for that framework.
-   */
-  @SuppressFBWarnings("JLM_JSR166_UTILCONCURRENT_MONITORENTER")
-  private static AtomicLong counterFor(
-      final ConcurrentHashMap<String, AtomicLong> counters, final String framework) {
-    if (framework != null) {
-      final AtomicLong rawHit = counters.get(framework);
-      if (rawHit != null) {
-        return rawHit;
-      }
+    public void wafUpdates(final String rulesVersion, final boolean success) {
+        rawMetricsQueue.offer(new WafUpdatesRawMetric(1L, wafVersion, rulesVersion, success));
+
+        // Flush request metrics to get the new version.
+        if (rulesVersion != null
+                && WafMetricCollector.rulesVersion != null
+                && !rulesVersion.equals(WafMetricCollector.rulesVersion)) {
+            WafMetricCollector.get().prepareMetrics();
+        }
+        WafMetricCollector.rulesVersion = rulesVersion;
     }
-    final String key = normalizeFramework(framework);
-    final AtomicLong existing = counters.get(key);
-    if (existing != null) {
-      return existing;
-    }
-    synchronized (counters) {
-      final AtomicLong existingSync = counters.get(key);
-      if (existingSync != null) {
-        return existingSync;
-      }
-      if (counters.size() >= MAX_FRAMEWORK_CARDINALITY) {
-        return counters.get(UNKNOWN_FRAMEWORK);
-      }
-      final AtomicLong created = new AtomicLong();
-      counters.put(key, created);
-      return created;
-    }
-  }
 
-  @Override
-  public Collection<WafMetric> drain() {
-    if (!rawMetricsQueue.isEmpty()) {
-      List<WafMetric> list = new LinkedList<>();
-      int drained = rawMetricsQueue.drainTo(list);
-      if (drained > 0) {
-        return list;
-      }
-    }
-    return Collections.emptyList();
-  }
-
-  @Override
-  public void prepareMetrics() {
-
-    // Requests
-    for (int i = 0; i < WAF_REQUEST_COMBINATIONS; i++) {
-      long counter = wafRequestCounter.getAndSet(i, 0);
-      if (counter > 0) {
-        boolean ruleTriggered = (i & 1) != 0;
-        boolean requestBlocked = (i & (1 << 1)) != 0;
-        boolean wafError = (i & (1 << 2)) != 0;
-        boolean wafTimeout = (i & (1 << 3)) != 0;
-        boolean blockFailure = (i & (1 << 4)) != 0;
-        boolean rateLimited = (i & (1 << 5)) != 0;
-        boolean inputTruncated = (i & (1 << 6)) != 0;
-        boolean requestExcluded = (i & (1 << 7)) != 0;
-
-        if (!rawMetricsQueue.offer(
-            new WafRequestsRawMetric(
-                counter,
-                WafMetricCollector.wafVersion,
-                WafMetricCollector.rulesVersion,
+    public void wafRequest(
+            final boolean ruleTriggered,
+            final boolean requestBlocked,
+            final boolean wafError,
+            final boolean wafTimeout,
+            final boolean blockFailure,
+            final boolean rateLimited,
+            final boolean inputTruncated,
+            final boolean requestExcluded) {
+        int index = computeWafRequestIndex(
                 ruleTriggered,
                 requestBlocked,
                 wafError,
@@ -412,642 +162,840 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
                 blockFailure,
                 rateLimited,
                 inputTruncated,
-                requestExcluded))) {
-          return;
-        }
-      }
+                requestExcluded);
+        wafRequestCounter.incrementAndGet(index);
     }
 
-    // WAF input truncated
-    for (int i = 0; i < (1 << 3); i++) {
-      long counter = wafInputTruncatedCounter.getAndSet(i, 0);
-      if (counter > 0) {
-        if (!rawMetricsQueue.offer(new WafInputTruncated(counter, i))) {
-          return;
-        }
-      }
+    public void wafInputTruncated(
+            final boolean stringTooLong, final boolean listMapTooLarge, final boolean objectTooDeep) {
+        int index = computeWafInputTruncatedIndex(stringTooLong, listMapTooLarge, objectTooDeep);
+        wafInputTruncatedCounter.incrementAndGet(index);
     }
 
-    // RASP rule eval per rule type
-    for (RuleType ruleType : RuleType.values()) {
-      long counter = raspRuleEvalCounter.getAndSet(ruleType.ordinal(), 0);
-      if (counter > 0) {
-        if (!rawMetricsQueue.offer(
-            new RaspRuleEval(counter, ruleType, WafMetricCollector.wafVersion))) {
-          return;
-        }
-      }
+    static int computeWafRequestIndex(
+            boolean ruleTriggered,
+            boolean requestBlocked,
+            boolean wafError,
+            boolean wafTimeout,
+            boolean blockFailure,
+            boolean rateLimited,
+            boolean inputTruncated,
+            boolean requestExcluded) {
+        int index = 0;
+        if (ruleTriggered) index |= 1;
+        if (requestBlocked) index |= 1 << 1;
+        if (wafError) index |= 1 << 2;
+        if (wafTimeout) index |= 1 << 3;
+        if (blockFailure) index |= 1 << 4;
+        if (rateLimited) index |= 1 << 5;
+        if (inputTruncated) index |= 1 << 6;
+        if (requestExcluded) index |= 1 << 7;
+        return index;
     }
 
-    // RASP rule match per rule type: two slots per RuleType: ordinal*2 (non-blocked),
-    // ordinal*2+1 (blocked)
-    for (RuleType ruleType : RuleType.values()) {
-      long blockedCount = raspRuleMatchCounter.getAndSet(ruleType.ordinal() * 2 + 1, 0);
-      if (blockedCount > 0) {
-        if (!rawMetricsQueue.offer(
-            new RaspRuleMatch(blockedCount, ruleType, WafMetricCollector.wafVersion, true))) {
-          return;
-        }
-      }
-      long nonBlockedCount = raspRuleMatchCounter.getAndSet(ruleType.ordinal() * 2, 0);
-      if (nonBlockedCount > 0) {
-        if (!rawMetricsQueue.offer(
-            new RaspRuleMatch(nonBlockedCount, ruleType, WafMetricCollector.wafVersion, false))) {
-          return;
-        }
-      }
+    static int computeWafInputTruncatedIndex(boolean stringTooLong, boolean listMapTooLarge, boolean objectTooDeep) {
+        int index = 0;
+        if (stringTooLong) index |= MASK_STRING_TOO_LONG;
+        if (listMapTooLarge) index |= MASK_LIST_MAP_TOO_LARGE;
+        if (objectTooDeep) index |= MASK_OBJECT_TOO_DEEP;
+        return index;
     }
 
-    // RASP timeout per rule type
-    for (RuleType ruleType : RuleType.values()) {
-      long counter = raspTimeoutCounter.getAndSet(ruleType.ordinal(), 0);
-      if (counter > 0) {
-        if (!rawMetricsQueue.offer(
-            new RaspTimeout(counter, ruleType, WafMetricCollector.wafVersion))) {
-          return;
-        }
-      }
+    public void raspRuleEval(final RuleType ruleType) {
+        raspRuleEvalCounter.incrementAndGet(ruleType.ordinal());
     }
 
-    // RASP rule type for each possible error code
-    for (WafErrorCode errorCode : WafErrorCode.values()) {
-      for (RuleType ruleType : RuleType.values()) {
-        int index = errorCode.ordinal() * RuleType.getNumValues() + ruleType.ordinal();
-        long count = raspErrorCodeCounter.getAndSet(index, 0);
-        if (count > 0) {
-          if (!rawMetricsQueue.offer(
-              new RaspError(count, ruleType, WafMetricCollector.wafVersion, errorCode.getCode()))) {
+    public void raspRuleSkipped(final RuleType ruleType) {
+        raspRuleSkippedCounter.incrementAndGet(ruleType.ordinal());
+    }
+
+    public void raspRuleMatch(final RuleType ruleType, final boolean blocked) {
+        raspRuleMatchCounter.incrementAndGet(ruleType.ordinal() * 2 + (blocked ? 1 : 0));
+    }
+
+    public void raspTimeout(final RuleType ruleType) {
+        raspTimeoutCounter.incrementAndGet(ruleType.ordinal());
+    }
+
+    public void raspErrorCode(RuleType ruleType, final int errorCode) {
+        WafErrorCode wafErrorCode = WafErrorCode.fromCode(errorCode);
+        // Unsupported waf error code
+        if (wafErrorCode == null) {
             return;
-          }
         }
-      }
+        int index = wafErrorCode.ordinal() * RuleType.getNumValues() + ruleType.ordinal();
+        raspErrorCodeCounter.incrementAndGet(index);
     }
 
-    // Missing user login
-    for (LoginFramework framework : LoginFramework.values()) {
-      for (LoginEvent event : LoginEvent.values()) {
-        final int ordinal = framework.ordinal() * LoginEvent.getNumValues() + event.ordinal();
-        long counter = missingUserLoginQueue.getAndSet(ordinal, 0);
-        if (counter > 0) {
-          if (!rawMetricsQueue.offer(
-              new MissingUserLoginMetric(counter, framework.getTag(), event.getTag()))) {
+    public void wafErrorCode(final int errorCode) {
+        WafErrorCode wafErrorCode = WafErrorCode.fromCode(errorCode);
+        // Unsupported waf error code
+        if (wafErrorCode == null) {
             return;
-          }
         }
-      }
+        wafErrorCodeCounter.incrementAndGet(wafErrorCode.ordinal());
     }
 
-    // Missing user id
-    for (LoginFramework framework : LoginFramework.values()) {
-      long counter = missingUserIdQueue.getAndSet(framework.ordinal(), 0);
-      if (counter > 0) {
-        if (!rawMetricsQueue.offer(new MissingUserIdMetric(counter, framework.getTag()))) {
-          return;
-        }
-      }
+    public void missingUserLogin(final LoginFramework framework, final LoginEvent eventType) {
+        missingUserLoginQueue.incrementAndGet(framework.ordinal() * LoginEvent.getNumValues() + eventType.ordinal());
     }
 
-    // ATO login events
-    for (LoginEvent event : LoginEvent.values()) {
-      for (LoginVersion version : LoginVersion.values()) {
-        final int ordinal = event.ordinal() * LoginVersion.getNumValues() + version.ordinal();
-        long counter = appSecSdkEventQueue.getAndSet(ordinal, 0);
-        if (counter > 0) {
-          if (!rawMetricsQueue.offer(
-              new AppSecSdkEvent(counter, event.getTag(), version.getTag()))) {
-            return;
-          }
-        }
-      }
+    public void missingUserId(final LoginFramework framework) {
+        missingUserIdQueue.incrementAndGet(framework.ordinal());
     }
 
-    // WAF rule type for each possible error code
-    for (WafErrorCode errorCode : WafErrorCode.values()) {
-      long count = wafErrorCodeCounter.getAndSet(errorCode.ordinal(), 0);
-      if (count > 0) {
-        if (!rawMetricsQueue.offer(
-            new WafError(count, WafMetricCollector.wafVersion, errorCode.getCode()))) {
-          return;
-        }
-      }
+    public void appSecSdkEvent(final LoginEvent event, final LoginVersion version) {
+        final int index = event.ordinal() * LoginVersion.getNumValues() + version.ordinal();
+        appSecSdkEventQueue.incrementAndGet(index);
     }
 
-    // RASP rule skipped per rule type for after-request reason
-    for (RuleType ruleType : RuleType.values()) {
-      long counter = raspRuleSkippedCounter.getAndSet(ruleType.ordinal(), 0);
-      if (counter > 0) {
-        if (!rawMetricsQueue.offer(new AfterRequestRaspRuleSkipped(counter, ruleType))) {
-          return;
-        }
-      }
+    public void aiGuardRequest(final AIGuard.Action action, final boolean block, final AIGuardRedaction redaction) {
+        aiGuardRequests.incrementAndGet(aiGuardRequestIndex(action, block, redaction));
     }
 
-    // WAF config errors
-    int configErrors = wafConfigErrorCounter.getAndSet(0);
-    if (configErrors > 0) {
-      if (!rawMetricsQueue.offer(
-          new WafConfigError(
-              configErrors, WafMetricCollector.wafVersion, WafMetricCollector.rulesVersion))) {
-        return;
-      }
+    private static int aiGuardRequestIndex(
+            final AIGuard.Action action, final boolean block, final AIGuardRedaction redaction) {
+        return (action.ordinal() * 2 + (block ? 1 : 0)) * REDACTION_VALUES.length + redaction.ordinal();
     }
-
-    // WafContext closed-concurrently race (APPSEC-69085)
-    int contextClosedRace = contextClosedRaceCounter.getAndSet(0);
-    if (contextClosedRace > 0) {
-      if (!rawMetricsQueue.offer(new ContextClosedRace(contextClosedRace))) {
-        return;
-      }
-    }
-
-    // AI Guard successful requests
-    aiGuardSuccesses:
-    for (final AIGuard.Action action : AIGuard.Action.values()) {
-      for (int blockFlag = 1; blockFlag >= 0; blockFlag--) {
-        final boolean block = blockFlag == 1;
-        for (final AIGuardRedaction redaction : REDACTION_VALUES) {
-          final long count =
-              aiGuardRequests.getAndSet(aiGuardRequestIndex(action, block, redaction), 0);
-          if (count > 0) {
-            if (!rawMetricsQueue.offer(AIGuardRequests.success(count, action, block, redaction))) {
-              break aiGuardSuccesses;
-            }
-          }
-        }
-      }
-    }
-
-    // AI Guard failed requests
-    final int aiGuardErrorRequests = aiGuardErrors.getAndSet(0);
-    if (aiGuardErrorRequests > 0) {
-      if (!rawMetricsQueue.offer(AIGuardRequests.error(aiGuardErrorRequests))) {
-        return;
-      }
-    }
-
-    // AI Guard errors, per type
-    for (final AIGuardError type : AI_GUARD_ERROR_VALUES) {
-      final long count = aiGuardErrorTypes.getAndSet(type.ordinal(), 0);
-      if (count > 0) {
-        if (!rawMetricsQueue.offer(new AIGuardErrors(count, type))) {
-          return;
-        }
-      }
-    }
-
-    // AI Guard truncated messages
-    for (final AIGuardTruncationType type : AIGuardTruncationType.values()) {
-      final long count = aiGuardTruncated.getAndSet(type.ordinal(), 0);
-      if (count > 0) {
-        if (!rawMetricsQueue.offer(new AIGuardTruncated(count, type))) {
-          return;
-        }
-      }
-    }
-
-    // API Security missing route, per framework
-    for (final Map.Entry<String, AtomicLong> entry : apiSecurityMissingRouteCounters.entrySet()) {
-      final long count = entry.getValue().getAndSet(0);
-      if (count > 0) {
-        if (!rawMetricsQueue.offer(new ApiSecurityMissingRoute(count, entry.getKey()))) {
-          return;
-        }
-      }
-    }
-
-    // API Security request schema, per framework
-    for (final Map.Entry<String, AtomicLong> entry : apiSecurityRequestSchemaCounters.entrySet()) {
-      final long count = entry.getValue().getAndSet(0);
-      if (count > 0) {
-        if (!rawMetricsQueue.offer(new ApiSecurityRequestSchema(count, entry.getKey()))) {
-          return;
-        }
-      }
-    }
-
-    // API Security request no schema, per framework
-    for (final Map.Entry<String, AtomicLong> entry :
-        apiSecurityRequestNoSchemaCounters.entrySet()) {
-      final long count = entry.getValue().getAndSet(0);
-      if (count > 0) {
-        if (!rawMetricsQueue.offer(new ApiSecurityRequestNoSchema(count, entry.getKey()))) {
-          return;
-        }
-      }
-    }
-  }
-
-  public abstract static class WafMetric extends MetricCollector.Metric {
-
-    public WafMetric(String metricName, long counter, String... tags) {
-      this(NAMESPACE, metricName, counter, tags);
-    }
-
-    protected WafMetric(String namespace, String metricName, long counter, String... tags) {
-      super(namespace, true, metricName, "count", counter, tags);
-    }
-  }
-
-  public static class WafInitRawMetric extends WafMetric {
-    public WafInitRawMetric(
-        final long counter,
-        final String wafVersion,
-        final String rulesVersion,
-        final boolean success) {
-      super(
-          "waf.init",
-          counter,
-          "waf_version:" + wafVersion,
-          "event_rules_version:" + rulesVersion,
-          "success:" + success);
-    }
-  }
-
-  public static class WafUpdatesRawMetric extends WafMetric {
-    public WafUpdatesRawMetric(
-        final long counter,
-        final String wafVersion,
-        final String rulesVersion,
-        final boolean success) {
-      super(
-          "waf.updates",
-          counter,
-          "waf_version:" + wafVersion,
-          "event_rules_version:" + rulesVersion,
-          "success:" + success);
-    }
-  }
-
-  public static class MissingUserLoginMetric extends WafMetric {
-
-    public MissingUserLoginMetric(long counter, String framework, String type) {
-      super(
-          "instrum.user_auth.missing_user_login",
-          counter,
-          "framework:" + framework,
-          "event_type:" + type);
-    }
-  }
-
-  public static class MissingUserIdMetric extends WafMetric {
-
-    public MissingUserIdMetric(long counter, String framework) {
-      super(
-          "instrum.user_auth.missing_user_id",
-          counter,
-          "framework:" + framework,
-          "event_type:authenticated_request");
-    }
-  }
-
-  public static class AppSecSdkEvent extends WafMetric {
-
-    public AppSecSdkEvent(long counter, String event, final String version) {
-      super("sdk.event", counter, "event_type:" + event, "sdk_version:" + version);
-    }
-  }
-
-  public static class WafRequestsRawMetric extends WafMetric {
-    public WafRequestsRawMetric(
-        final long counter,
-        final String wafVersion,
-        final String rulesVersion,
-        final boolean triggered,
-        final boolean blocked,
-        final boolean wafError,
-        final boolean wafTimeout,
-        final boolean blockFailure,
-        final boolean rateLimited,
-        final boolean inputTruncated,
-        final boolean requestExcluded) {
-      super(
-          "waf.requests",
-          counter,
-          "waf_version:" + wafVersion,
-          "event_rules_version:" + rulesVersion,
-          "rule_triggered:" + triggered,
-          "request_blocked:" + blocked,
-          "waf_error:" + wafError,
-          "waf_timeout:" + wafTimeout,
-          "block_failure:" + blockFailure,
-          "rate_limited:" + rateLimited,
-          "input_truncated:" + inputTruncated,
-          "request_excluded:" + (requestExcluded ? "full" : "none"));
-    }
-  }
-
-  public void addWafConfigError(int nbErrors) {
-    wafConfigErrorCounter.addAndGet(nbErrors);
-  }
-
-  /**
-   * Records that {@code getOrCreateWafContext} rejected a run because the request's {@code
-   * WafContext} was already closed concurrently (APPSEC-69085). Used to measure the frequency of
-   * this race in production.
-   */
-  public void wafContextClosedRace() {
-    contextClosedRaceCounter.incrementAndGet();
-  }
-
-  public static class ContextClosedRace extends WafMetric {
-    public ContextClosedRace(final long counter) {
-      super("waf.context_closed_race", counter);
-    }
-  }
-
-  public static class WafConfigError extends WafMetric {
-    public WafConfigError(final long counter, final String wafVersion, final String rulesVersion) {
-      super(
-          "waf.config_errors",
-          counter,
-          "waf_version:" + wafVersion,
-          "event_rules_version:" + rulesVersion);
-    }
-  }
-
-  public static class RaspRuleEval extends WafMetric {
-    public RaspRuleEval(final long counter, final RuleType ruleType, final String wafVersion) {
-      super(
-          "rasp.rule.eval",
-          counter,
-          ruleType.variant != null
-              ? new String[] {
-                "rule_type:" + ruleType.type,
-                "rule_variant:" + ruleType.variant,
-                "waf_version:" + wafVersion,
-                "event_rules_version:" + rulesVersion
-              }
-              : new String[] {"rule_type:" + ruleType.type, "waf_version:" + wafVersion});
-    }
-  }
-
-  // Although rasp.rule.skipped reason could be before-request, there is no real case scenario
-  public static class AfterRequestRaspRuleSkipped extends WafMetric {
-    public AfterRequestRaspRuleSkipped(final long counter, final RuleType ruleType) {
-      super(
-          "rasp.rule.skipped",
-          counter,
-          ruleType.variant != null
-              ? new String[] {
-                "rule_type:" + ruleType.type,
-                "rule_variant:" + ruleType.variant,
-                "reason:" + "after-request"
-              }
-              : new String[] {"rule_type:" + ruleType.type, "reason:" + "after-request"});
-    }
-  }
-
-  public static class RaspRuleMatch extends WafMetric {
-    public RaspRuleMatch(
-        final long counter,
-        final RuleType ruleType,
-        final String wafVersion,
-        final boolean blocked) {
-      super(
-          "rasp.rule.match",
-          counter,
-          ruleType.variant != null
-              ? new String[] {
-                "rule_type:" + ruleType.type,
-                "rule_variant:" + ruleType.variant,
-                "waf_version:" + wafVersion,
-                "event_rules_version:" + rulesVersion,
-                "block:" + blocked
-              }
-              : new String[] {
-                "rule_type:" + ruleType.type, "waf_version:" + wafVersion, "block:" + blocked
-              });
-    }
-  }
-
-  public static class RaspTimeout extends WafMetric {
-    public RaspTimeout(final long counter, final RuleType ruleType, final String wafVersion) {
-      super(
-          "rasp.timeout",
-          counter,
-          ruleType.variant != null
-              ? new String[] {
-                "rule_type:" + ruleType.type,
-                "rule_variant:" + ruleType.variant,
-                "waf_version:" + wafVersion,
-                "event_rules_version:" + rulesVersion
-              }
-              : new String[] {"rule_type:" + ruleType.type, "waf_version:" + wafVersion});
-    }
-  }
-
-  public static class RaspError extends WafMetric {
-    public RaspError(
-        final long counter,
-        final RuleType ruleType,
-        final String wafVersion,
-        final Integer ddwafRunError) {
-      super(
-          "rasp.error",
-          counter,
-          ruleType.variant != null
-              ? new String[] {
-                "rule_type:" + ruleType.type,
-                "rule_variant:" + ruleType.variant,
-                "waf_version:" + wafVersion,
-                "event_rules_version:" + rulesVersion,
-                "waf_error:" + ddwafRunError
-              }
-              : new String[] {
-                "rule_type:" + ruleType.type,
-                "waf_version:" + wafVersion,
-                "waf_error:" + ddwafRunError
-              });
-    }
-  }
-
-  public static class WafError extends WafMetric {
-    public WafError(final long counter, final String wafVersion, final Integer ddwafRunError) {
-      super(
-          "waf.error",
-          counter,
-          "waf_version:" + wafVersion,
-          "event_rules_version:" + rulesVersion,
-          "waf_error:" + ddwafRunError);
-    }
-  }
-
-  public static class WafInputTruncated extends WafMetric {
-    public WafInputTruncated(final long counter, final int bitfield) {
-      super("waf.input_truncated", counter, "truncation_reason:" + bitfield);
-    }
-  }
-
-  /** Base class for the metrics reported under the {@code ai_guard} namespace. */
-  public abstract static class AIGuardMetric extends WafMetric {
 
     /**
-     * Call-path tags the AI Guard specification requires on every metric in this namespace. Both
-     * are constant here: the JVM tracer only reaches an evaluation through a direct SDK call, so
-     * there is no auto-instrumented integration to name. They become dimensional once AI Guard
-     * auto-instrumentation lands.
+     * Reports an evaluation that failed. The failure is counted twice on purpose, mirroring every
+     * other tracer: as {@code error:true} on {@code ai_guard.requests}, which keeps the request count
+     * complete, and under {@code ai_guard.error} with the {@code type} that classifies it.
      */
-    private static final String[] CALL_PATH_TAGS = {"source:sdk", "integration:none"};
-
-    protected AIGuardMetric(final String metricName, final long counter, final String... tags) {
-      super(AI_GUARD_NAMESPACE, metricName, counter, withCallPath(tags));
+    public void aiGuardError(final AIGuardError type) {
+        aiGuardErrors.incrementAndGet();
+        aiGuardErrorTypes.incrementAndGet(type.ordinal());
     }
 
-    private static String[] withCallPath(final String[] tags) {
-      final String[] result = Arrays.copyOf(tags, tags.length + CALL_PATH_TAGS.length);
-      System.arraycopy(CALL_PATH_TAGS, 0, result, tags.length, CALL_PATH_TAGS.length);
-      return result;
-    }
-  }
-
-  public static class AIGuardRequests extends AIGuardMetric {
-    private AIGuardRequests(final long count, final String... tags) {
-      super("requests", count, tags);
+    /**
+     * Reports {@code count} replacements that redaction could not apply. Unlike {@link
+     * #aiGuardError(AIGuardError)} this does not count a failed request: redaction is best effort and
+     * never fails the evaluation it rode in on.
+     */
+    public void aiGuardRedactionErrors(final long count) {
+        aiGuardErrorTypes.addAndGet(AIGuardError.REDACTION_ERROR.ordinal(), count);
     }
 
-    public static AIGuardRequests success(
-        final long count,
-        final AIGuard.Action action,
-        final boolean block,
-        final AIGuardRedaction redaction) {
-      if (redaction == AIGuardRedaction.DISABLED) {
-        // No redacted tag at all, so its absence stays distinguishable from a false value.
-        return new AIGuardRequests(count, "action:" + action, "block:" + block, "error:false");
-      }
-      return new AIGuardRequests(
-          count,
-          "action:" + action,
-          "block:" + block,
-          "error:false",
-          "redacted:" + (redaction == AIGuardRedaction.APPLIED));
+    public void aiGuardTruncated(final AIGuardTruncationType type) {
+        aiGuardTruncated.incrementAndGet(type.ordinal());
     }
 
-    public static AIGuardRequests error(final long count) {
-      return new AIGuardRequests(count, "error:true");
-    }
-  }
-
-  /**
-   * Failures reported under {@code ai_guard.error}, classified by {@link AIGuardError}. An
-   * evaluation failure is reported here <em>and</em> as {@code error:true} on {@code
-   * ai_guard.requests}; a redaction error is reported only here.
-   */
-  public static class AIGuardErrors extends AIGuardMetric {
-    public AIGuardErrors(final long count, final AIGuardError type) {
-      super("error", count, "type:" + type.tagValue);
-    }
-  }
-
-  public static class AIGuardTruncated extends AIGuardMetric {
-    public AIGuardTruncated(final long count, final AIGuardTruncationType type) {
-      super("truncated", count, "type:" + type.tagValue);
-    }
-  }
-
-  public static class ApiSecurityMissingRoute extends WafMetric {
-    public ApiSecurityMissingRoute(final long counter, final String framework) {
-      super("api_security.missing_route", counter, "framework:" + framework);
-    }
-  }
-
-  public static class ApiSecurityRequestSchema extends WafMetric {
-    public ApiSecurityRequestSchema(final long counter, final String framework) {
-      super("api_security.request.schema", counter, "framework:" + framework);
-    }
-  }
-
-  public static class ApiSecurityRequestNoSchema extends WafMetric {
-    public ApiSecurityRequestNoSchema(final long counter, final String framework) {
-      super("api_security.request.no_schema", counter, "framework:" + framework);
-    }
-  }
-
-  /**
-   * Whether an evaluation redacted anything, as reported by the {@code redacted} tag on {@code
-   * ai_guard.requests}. {@link #DISABLED} reports no tag at all, so an absent tag means "redaction
-   * is off" and stays distinguishable from {@code redacted:false}.
-   */
-  public enum AIGuardRedaction {
-    /** Redaction is disabled locally, so nothing was even attempted. */
-    DISABLED,
-    /** Redaction is enabled and at least one replacement was applied. */
-    APPLIED,
-    /** Redaction is enabled but nothing was redacted. */
-    NOT_APPLIED
-  }
-
-  /**
-   * Classification of the failures reported under {@code ai_guard.error}, as the {@code type} tag.
-   */
-  public enum AIGuardError {
-    /** A transport failure, or any error the tracer could not attribute to the response. */
-    CLIENT_ERROR("client_error"),
-    /** The service answered with a status code that explains the failure on its own. */
-    BAD_STATUS("bad_status"),
-    /** The service answered successfully, with a body the tracer cannot use. */
-    BAD_RESPONSE("bad_response"),
-    /** A redaction replacement the tracer could not apply. Never fails the evaluation. */
-    REDACTION_ERROR("redaction_error");
-
-    public final String tagValue;
-
-    AIGuardError(final String tagValue) {
-      this.tagValue = tagValue;
-    }
-  }
-
-  public enum AIGuardTruncationType {
-    MESSAGES("messages"),
-    CONTENT("content");
-    public final String tagValue;
-
-    AIGuardTruncationType(final String tagValue) {
-      this.tagValue = tagValue;
-    }
-  }
-
-  /**
-   * Mirror of the {@code WafErrorCode} enum defined in the {@code libddwaf-java} module.
-   *
-   * <p>This enum is duplicated here to avoid adding a dependency on the native bindings module
-   * (`libddwaf-java`) within the {@code internal-api} module.
-   *
-   * <p>IMPORTANT: If the {@code WafErrorCode} definition in {@code libddwaf-java} is updated, this
-   * enum must be kept in sync manually to ensure correct behavior and compatibility.
-   *
-   * <p>Each enum value represents a specific WAF error condition, typically returned when running a
-   * WAF rule evaluation.
-   */
-  public enum WafErrorCode {
-    INVALID_ARGUMENT(-1),
-    INVALID_OBJECT(-2),
-    INTERNAL_ERROR(-3),
-    BINDING_ERROR(
-        -127); // This is a special error code that is not returned by the WAF, is used to signal a
-    // binding error
-
-    private final int code;
-
-    private static final Map<Integer, WafErrorCode> CODE_MAP;
-
-    static {
-      Map<Integer, WafErrorCode> map = new HashMap<>();
-      for (WafErrorCode errorCode : values()) {
-        map.put(errorCode.code, errorCode);
-      }
-      CODE_MAP = Collections.unmodifiableMap(map);
+    /**
+     * Reports a request for which API Security could not resolve a route, and therefore could not be
+     * considered for schema extraction sampling.
+     */
+    public void apiSecurityMissingRoute(final String framework) {
+        counterFor(apiSecurityMissingRouteCounters, framework).incrementAndGet();
     }
 
-    WafErrorCode(int code) {
-      this.code = code;
+    /** Reports a sampled request for which at least one API Security schema was extracted. */
+    public void apiSecurityRequestSchema(final String framework) {
+        counterFor(apiSecurityRequestSchemaCounters, framework).incrementAndGet();
     }
 
-    public int getCode() {
-      return code;
+    /** Reports a sampled request for which no API Security schema was extracted. */
+    public void apiSecurityRequestNoSchema(final String framework) {
+        counterFor(apiSecurityRequestNoSchemaCounters, framework).incrementAndGet();
     }
 
-    public static WafErrorCode fromCode(int code) {
-      return CODE_MAP.get(code);
+    /**
+     * Normalizes a framework (span component) value, mapping null or blank values to "unknown" and
+     * sanitizing the rest via {@link TagsHelper#sanitize}, which also bounds its length. {@code
+     * framework} can originate from manual/custom instrumentation setting the {@code component} tag
+     * per request, so without this the retained-but-cardinality-capped keys could still consume
+     * unbounded heap in bytes even though their count is bounded.
+     */
+    static String normalizeFramework(final String framework) {
+        if (framework == null || framework.trim().isEmpty()) {
+            return UNKNOWN_FRAMEWORK;
+        }
+        return TagsHelper.sanitize(framework.trim());
     }
-  }
+
+    /**
+     * Returns the counter for {@code framework} in {@code counters}, capping the map at {@link
+     * #MAX_FRAMEWORK_CARDINALITY} distinct keys ({@link #UNKNOWN_FRAMEWORK} pre-reserved by {@link
+     * #newFrameworkCounters()}). Once the cap is reached, any framework not already tracked is folded
+     * into {@link #UNKNOWN_FRAMEWORK} instead of growing the map further. The fast path for an
+     * already-tracked key is lock-free; admission of a never-seen key is synchronized on {@code
+     * counters} so the size check and the insertion happen atomically, closing the race where
+     * concurrent first-seen frameworks could otherwise all pass the check and overshoot the cap.
+     *
+     * <p>Before normalizing, we first probe {@code counters} with the raw, unsanitized {@code
+     * framework} value. Well-known frameworks (e.g. "netty") are already in sanitized form, so once
+     * admitted, this raw lookup hits directly and skips {@link #normalizeFramework}'s allocation (via
+     * {@link TagsHelper#sanitize}) on every subsequent call for that framework.
+     */
+    @SuppressFBWarnings("JLM_JSR166_UTILCONCURRENT_MONITORENTER")
+    private static AtomicLong counterFor(final ConcurrentHashMap<String, AtomicLong> counters, final String framework) {
+        if (framework != null) {
+            final AtomicLong rawHit = counters.get(framework);
+            if (rawHit != null) {
+                return rawHit;
+            }
+        }
+        final String key = normalizeFramework(framework);
+        final AtomicLong existing = counters.get(key);
+        if (existing != null) {
+            return existing;
+        }
+        synchronized (counters) {
+            final AtomicLong existingSync = counters.get(key);
+            if (existingSync != null) {
+                return existingSync;
+            }
+            if (counters.size() >= MAX_FRAMEWORK_CARDINALITY) {
+                return counters.get(UNKNOWN_FRAMEWORK);
+            }
+            final AtomicLong created = new AtomicLong();
+            counters.put(key, created);
+            return created;
+        }
+    }
+
+    @Override
+    public Collection<WafMetric> drain() {
+        if (!rawMetricsQueue.isEmpty()) {
+            List<WafMetric> list = new LinkedList<>();
+            int drained = rawMetricsQueue.drainTo(list);
+            if (drained > 0) {
+                return list;
+            }
+        }
+        return Collections.emptyList();
+    }
+
+    @Override
+    public void prepareMetrics() {
+
+        // Requests
+        for (int i = 0; i < WAF_REQUEST_COMBINATIONS; i++) {
+            long counter = wafRequestCounter.getAndSet(i, 0);
+            if (counter > 0) {
+                boolean ruleTriggered = (i & 1) != 0;
+                boolean requestBlocked = (i & (1 << 1)) != 0;
+                boolean wafError = (i & (1 << 2)) != 0;
+                boolean wafTimeout = (i & (1 << 3)) != 0;
+                boolean blockFailure = (i & (1 << 4)) != 0;
+                boolean rateLimited = (i & (1 << 5)) != 0;
+                boolean inputTruncated = (i & (1 << 6)) != 0;
+                boolean requestExcluded = (i & (1 << 7)) != 0;
+
+                if (!rawMetricsQueue.offer(new WafRequestsRawMetric(
+                        counter,
+                        WafMetricCollector.wafVersion,
+                        WafMetricCollector.rulesVersion,
+                        ruleTriggered,
+                        requestBlocked,
+                        wafError,
+                        wafTimeout,
+                        blockFailure,
+                        rateLimited,
+                        inputTruncated,
+                        requestExcluded))) {
+                    return;
+                }
+            }
+        }
+
+        // WAF input truncated
+        for (int i = 0; i < (1 << 3); i++) {
+            long counter = wafInputTruncatedCounter.getAndSet(i, 0);
+            if (counter > 0) {
+                if (!rawMetricsQueue.offer(new WafInputTruncated(counter, i))) {
+                    return;
+                }
+            }
+        }
+
+        // RASP rule eval per rule type
+        for (RuleType ruleType : RuleType.values()) {
+            long counter = raspRuleEvalCounter.getAndSet(ruleType.ordinal(), 0);
+            if (counter > 0) {
+                if (!rawMetricsQueue.offer(new RaspRuleEval(counter, ruleType, WafMetricCollector.wafVersion))) {
+                    return;
+                }
+            }
+        }
+
+        // RASP rule match per rule type: two slots per RuleType: ordinal*2 (non-blocked),
+        // ordinal*2+1 (blocked)
+        for (RuleType ruleType : RuleType.values()) {
+            long blockedCount = raspRuleMatchCounter.getAndSet(ruleType.ordinal() * 2 + 1, 0);
+            if (blockedCount > 0) {
+                if (!rawMetricsQueue.offer(
+                        new RaspRuleMatch(blockedCount, ruleType, WafMetricCollector.wafVersion, true))) {
+                    return;
+                }
+            }
+            long nonBlockedCount = raspRuleMatchCounter.getAndSet(ruleType.ordinal() * 2, 0);
+            if (nonBlockedCount > 0) {
+                if (!rawMetricsQueue.offer(
+                        new RaspRuleMatch(nonBlockedCount, ruleType, WafMetricCollector.wafVersion, false))) {
+                    return;
+                }
+            }
+        }
+
+        // RASP timeout per rule type
+        for (RuleType ruleType : RuleType.values()) {
+            long counter = raspTimeoutCounter.getAndSet(ruleType.ordinal(), 0);
+            if (counter > 0) {
+                if (!rawMetricsQueue.offer(new RaspTimeout(counter, ruleType, WafMetricCollector.wafVersion))) {
+                    return;
+                }
+            }
+        }
+
+        // RASP rule type for each possible error code
+        for (WafErrorCode errorCode : WafErrorCode.values()) {
+            for (RuleType ruleType : RuleType.values()) {
+                int index = errorCode.ordinal() * RuleType.getNumValues() + ruleType.ordinal();
+                long count = raspErrorCodeCounter.getAndSet(index, 0);
+                if (count > 0) {
+                    if (!rawMetricsQueue.offer(
+                            new RaspError(count, ruleType, WafMetricCollector.wafVersion, errorCode.getCode()))) {
+                        return;
+                    }
+                }
+            }
+        }
+
+        // Missing user login
+        for (LoginFramework framework : LoginFramework.values()) {
+            for (LoginEvent event : LoginEvent.values()) {
+                final int ordinal = framework.ordinal() * LoginEvent.getNumValues() + event.ordinal();
+                long counter = missingUserLoginQueue.getAndSet(ordinal, 0);
+                if (counter > 0) {
+                    if (!rawMetricsQueue.offer(
+                            new MissingUserLoginMetric(counter, framework.getTag(), event.getTag()))) {
+                        return;
+                    }
+                }
+            }
+        }
+
+        // Missing user id
+        for (LoginFramework framework : LoginFramework.values()) {
+            long counter = missingUserIdQueue.getAndSet(framework.ordinal(), 0);
+            if (counter > 0) {
+                if (!rawMetricsQueue.offer(new MissingUserIdMetric(counter, framework.getTag()))) {
+                    return;
+                }
+            }
+        }
+
+        // ATO login events
+        for (LoginEvent event : LoginEvent.values()) {
+            for (LoginVersion version : LoginVersion.values()) {
+                final int ordinal = event.ordinal() * LoginVersion.getNumValues() + version.ordinal();
+                long counter = appSecSdkEventQueue.getAndSet(ordinal, 0);
+                if (counter > 0) {
+                    if (!rawMetricsQueue.offer(new AppSecSdkEvent(counter, event.getTag(), version.getTag()))) {
+                        return;
+                    }
+                }
+            }
+        }
+
+        // WAF rule type for each possible error code
+        for (WafErrorCode errorCode : WafErrorCode.values()) {
+            long count = wafErrorCodeCounter.getAndSet(errorCode.ordinal(), 0);
+            if (count > 0) {
+                if (!rawMetricsQueue.offer(new WafError(count, WafMetricCollector.wafVersion, errorCode.getCode()))) {
+                    return;
+                }
+            }
+        }
+
+        // RASP rule skipped per rule type for after-request reason
+        for (RuleType ruleType : RuleType.values()) {
+            long counter = raspRuleSkippedCounter.getAndSet(ruleType.ordinal(), 0);
+            if (counter > 0) {
+                if (!rawMetricsQueue.offer(new AfterRequestRaspRuleSkipped(counter, ruleType))) {
+                    return;
+                }
+            }
+        }
+
+        // WAF config errors
+        int configErrors = wafConfigErrorCounter.getAndSet(0);
+        if (configErrors > 0) {
+            if (!rawMetricsQueue.offer(
+                    new WafConfigError(configErrors, WafMetricCollector.wafVersion, WafMetricCollector.rulesVersion))) {
+                return;
+            }
+        }
+
+        // WafContext closed-concurrently race (APPSEC-69085)
+        int contextClosedRace = contextClosedRaceCounter.getAndSet(0);
+        if (contextClosedRace > 0) {
+            if (!rawMetricsQueue.offer(new ContextClosedRace(contextClosedRace))) {
+                return;
+            }
+        }
+
+        // AI Guard successful requests
+        aiGuardSuccesses:
+        for (final AIGuard.Action action : AIGuard.Action.values()) {
+            for (int blockFlag = 1; blockFlag >= 0; blockFlag--) {
+                final boolean block = blockFlag == 1;
+                for (final AIGuardRedaction redaction : REDACTION_VALUES) {
+                    final long count = aiGuardRequests.getAndSet(aiGuardRequestIndex(action, block, redaction), 0);
+                    if (count > 0) {
+                        if (!rawMetricsQueue.offer(AIGuardRequests.success(count, action, block, redaction))) {
+                            break aiGuardSuccesses;
+                        }
+                    }
+                }
+            }
+        }
+
+        // AI Guard failed requests
+        final int aiGuardErrorRequests = aiGuardErrors.getAndSet(0);
+        if (aiGuardErrorRequests > 0) {
+            if (!rawMetricsQueue.offer(AIGuardRequests.error(aiGuardErrorRequests))) {
+                return;
+            }
+        }
+
+        // AI Guard errors, per type
+        for (final AIGuardError type : AI_GUARD_ERROR_VALUES) {
+            final long count = aiGuardErrorTypes.getAndSet(type.ordinal(), 0);
+            if (count > 0) {
+                if (!rawMetricsQueue.offer(new AIGuardErrors(count, type))) {
+                    return;
+                }
+            }
+        }
+
+        // AI Guard truncated messages
+        for (final AIGuardTruncationType type : AIGuardTruncationType.values()) {
+            final long count = aiGuardTruncated.getAndSet(type.ordinal(), 0);
+            if (count > 0) {
+                if (!rawMetricsQueue.offer(new AIGuardTruncated(count, type))) {
+                    return;
+                }
+            }
+        }
+
+        // API Security missing route, per framework
+        for (final Map.Entry<String, AtomicLong> entry : apiSecurityMissingRouteCounters.entrySet()) {
+            final long count = entry.getValue().getAndSet(0);
+            if (count > 0) {
+                if (!rawMetricsQueue.offer(new ApiSecurityMissingRoute(count, entry.getKey()))) {
+                    return;
+                }
+            }
+        }
+
+        // API Security request schema, per framework
+        for (final Map.Entry<String, AtomicLong> entry : apiSecurityRequestSchemaCounters.entrySet()) {
+            final long count = entry.getValue().getAndSet(0);
+            if (count > 0) {
+                if (!rawMetricsQueue.offer(new ApiSecurityRequestSchema(count, entry.getKey()))) {
+                    return;
+                }
+            }
+        }
+
+        // API Security request no schema, per framework
+        for (final Map.Entry<String, AtomicLong> entry : apiSecurityRequestNoSchemaCounters.entrySet()) {
+            final long count = entry.getValue().getAndSet(0);
+            if (count > 0) {
+                if (!rawMetricsQueue.offer(new ApiSecurityRequestNoSchema(count, entry.getKey()))) {
+                    return;
+                }
+            }
+        }
+    }
+
+    public abstract static class WafMetric extends MetricCollector.Metric {
+
+        public WafMetric(String metricName, long counter, String... tags) {
+            this(NAMESPACE, metricName, counter, tags);
+        }
+
+        protected WafMetric(String namespace, String metricName, long counter, String... tags) {
+            super(namespace, true, metricName, "count", counter, tags);
+        }
+    }
+
+    public static class WafInitRawMetric extends WafMetric {
+        public WafInitRawMetric(
+                final long counter, final String wafVersion, final String rulesVersion, final boolean success) {
+            super(
+                    "waf.init",
+                    counter,
+                    "waf_version:" + wafVersion,
+                    "event_rules_version:" + rulesVersion,
+                    "success:" + success);
+        }
+    }
+
+    public static class WafUpdatesRawMetric extends WafMetric {
+        public WafUpdatesRawMetric(
+                final long counter, final String wafVersion, final String rulesVersion, final boolean success) {
+            super(
+                    "waf.updates",
+                    counter,
+                    "waf_version:" + wafVersion,
+                    "event_rules_version:" + rulesVersion,
+                    "success:" + success);
+        }
+    }
+
+    public static class MissingUserLoginMetric extends WafMetric {
+
+        public MissingUserLoginMetric(long counter, String framework, String type) {
+            super("instrum.user_auth.missing_user_login", counter, "framework:" + framework, "event_type:" + type);
+        }
+    }
+
+    public static class MissingUserIdMetric extends WafMetric {
+
+        public MissingUserIdMetric(long counter, String framework) {
+            super(
+                    "instrum.user_auth.missing_user_id",
+                    counter,
+                    "framework:" + framework,
+                    "event_type:authenticated_request");
+        }
+    }
+
+    public static class AppSecSdkEvent extends WafMetric {
+
+        public AppSecSdkEvent(long counter, String event, final String version) {
+            super("sdk.event", counter, "event_type:" + event, "sdk_version:" + version);
+        }
+    }
+
+    public static class WafRequestsRawMetric extends WafMetric {
+        public WafRequestsRawMetric(
+                final long counter,
+                final String wafVersion,
+                final String rulesVersion,
+                final boolean triggered,
+                final boolean blocked,
+                final boolean wafError,
+                final boolean wafTimeout,
+                final boolean blockFailure,
+                final boolean rateLimited,
+                final boolean inputTruncated,
+                final boolean requestExcluded) {
+            super(
+                    "waf.requests",
+                    counter,
+                    "waf_version:" + wafVersion,
+                    "event_rules_version:" + rulesVersion,
+                    "rule_triggered:" + triggered,
+                    "request_blocked:" + blocked,
+                    "waf_error:" + wafError,
+                    "waf_timeout:" + wafTimeout,
+                    "block_failure:" + blockFailure,
+                    "rate_limited:" + rateLimited,
+                    "input_truncated:" + inputTruncated,
+                    "request_excluded:" + (requestExcluded ? "full" : "none"));
+        }
+    }
+
+    public void addWafConfigError(int nbErrors) {
+        wafConfigErrorCounter.addAndGet(nbErrors);
+    }
+
+    /**
+     * Records that {@code getOrCreateWafContext} rejected a run because the request's {@code
+     * WafContext} was already closed concurrently (APPSEC-69085). Used to measure the frequency of
+     * this race in production.
+     */
+    public void wafContextClosedRace() {
+        contextClosedRaceCounter.incrementAndGet();
+    }
+
+    public static class ContextClosedRace extends WafMetric {
+        public ContextClosedRace(final long counter) {
+            super("waf.context_closed_race", counter);
+        }
+    }
+
+    public static class WafConfigError extends WafMetric {
+        public WafConfigError(final long counter, final String wafVersion, final String rulesVersion) {
+            super("waf.config_errors", counter, "waf_version:" + wafVersion, "event_rules_version:" + rulesVersion);
+        }
+    }
+
+    public static class RaspRuleEval extends WafMetric {
+        public RaspRuleEval(final long counter, final RuleType ruleType, final String wafVersion) {
+            super(
+                    "rasp.rule.eval",
+                    counter,
+                    ruleType.variant != null
+                            ? new String[] {
+                                "rule_type:" + ruleType.type,
+                                "rule_variant:" + ruleType.variant,
+                                "waf_version:" + wafVersion,
+                                "event_rules_version:" + rulesVersion
+                            }
+                            : new String[] {"rule_type:" + ruleType.type, "waf_version:" + wafVersion});
+        }
+    }
+
+    // Although rasp.rule.skipped reason could be before-request, there is no real case scenario
+    public static class AfterRequestRaspRuleSkipped extends WafMetric {
+        public AfterRequestRaspRuleSkipped(final long counter, final RuleType ruleType) {
+            super(
+                    "rasp.rule.skipped",
+                    counter,
+                    ruleType.variant != null
+                            ? new String[] {
+                                "rule_type:" + ruleType.type,
+                                "rule_variant:" + ruleType.variant,
+                                "reason:" + "after-request"
+                            }
+                            : new String[] {"rule_type:" + ruleType.type, "reason:" + "after-request"});
+        }
+    }
+
+    public static class RaspRuleMatch extends WafMetric {
+        public RaspRuleMatch(
+                final long counter, final RuleType ruleType, final String wafVersion, final boolean blocked) {
+            super(
+                    "rasp.rule.match",
+                    counter,
+                    ruleType.variant != null
+                            ? new String[] {
+                                "rule_type:" + ruleType.type,
+                                "rule_variant:" + ruleType.variant,
+                                "waf_version:" + wafVersion,
+                                "event_rules_version:" + rulesVersion,
+                                "block:" + blocked
+                            }
+                            : new String[] {
+                                "rule_type:" + ruleType.type, "waf_version:" + wafVersion, "block:" + blocked
+                            });
+        }
+    }
+
+    public static class RaspTimeout extends WafMetric {
+        public RaspTimeout(final long counter, final RuleType ruleType, final String wafVersion) {
+            super(
+                    "rasp.timeout",
+                    counter,
+                    ruleType.variant != null
+                            ? new String[] {
+                                "rule_type:" + ruleType.type,
+                                "rule_variant:" + ruleType.variant,
+                                "waf_version:" + wafVersion,
+                                "event_rules_version:" + rulesVersion
+                            }
+                            : new String[] {"rule_type:" + ruleType.type, "waf_version:" + wafVersion});
+        }
+    }
+
+    public static class RaspError extends WafMetric {
+        public RaspError(
+                final long counter, final RuleType ruleType, final String wafVersion, final Integer ddwafRunError) {
+            super(
+                    "rasp.error",
+                    counter,
+                    ruleType.variant != null
+                            ? new String[] {
+                                "rule_type:" + ruleType.type,
+                                "rule_variant:" + ruleType.variant,
+                                "waf_version:" + wafVersion,
+                                "event_rules_version:" + rulesVersion,
+                                "waf_error:" + ddwafRunError
+                            }
+                            : new String[] {
+                                "rule_type:" + ruleType.type, "waf_version:" + wafVersion, "waf_error:" + ddwafRunError
+                            });
+        }
+    }
+
+    public static class WafError extends WafMetric {
+        public WafError(final long counter, final String wafVersion, final Integer ddwafRunError) {
+            super(
+                    "waf.error",
+                    counter,
+                    "waf_version:" + wafVersion,
+                    "event_rules_version:" + rulesVersion,
+                    "waf_error:" + ddwafRunError);
+        }
+    }
+
+    public static class WafInputTruncated extends WafMetric {
+        public WafInputTruncated(final long counter, final int bitfield) {
+            super("waf.input_truncated", counter, "truncation_reason:" + bitfield);
+        }
+    }
+
+    /** Base class for the metrics reported under the {@code ai_guard} namespace. */
+    public abstract static class AIGuardMetric extends WafMetric {
+
+        /**
+         * Call-path tags the AI Guard specification requires on every metric in this namespace. Both
+         * are constant here: the JVM tracer only reaches an evaluation through a direct SDK call, so
+         * there is no auto-instrumented integration to name. They become dimensional once AI Guard
+         * auto-instrumentation lands.
+         */
+        private static final String[] CALL_PATH_TAGS = {"source:sdk", "integration:none"};
+
+        protected AIGuardMetric(final String metricName, final long counter, final String... tags) {
+            super(AI_GUARD_NAMESPACE, metricName, counter, withCallPath(tags));
+        }
+
+        private static String[] withCallPath(final String[] tags) {
+            final String[] result = Arrays.copyOf(tags, tags.length + CALL_PATH_TAGS.length);
+            System.arraycopy(CALL_PATH_TAGS, 0, result, tags.length, CALL_PATH_TAGS.length);
+            return result;
+        }
+    }
+
+    public static class AIGuardRequests extends AIGuardMetric {
+        private AIGuardRequests(final long count, final String... tags) {
+            super("requests", count, tags);
+        }
+
+        public static AIGuardRequests success(
+                final long count, final AIGuard.Action action, final boolean block, final AIGuardRedaction redaction) {
+            if (redaction == AIGuardRedaction.DISABLED) {
+                // No redacted tag at all, so its absence stays distinguishable from a false value.
+                return new AIGuardRequests(count, "action:" + action, "block:" + block, "error:false");
+            }
+            return new AIGuardRequests(
+                    count,
+                    "action:" + action,
+                    "block:" + block,
+                    "error:false",
+                    "redacted:" + (redaction == AIGuardRedaction.APPLIED));
+        }
+
+        public static AIGuardRequests error(final long count) {
+            return new AIGuardRequests(count, "error:true");
+        }
+    }
+
+    /**
+     * Failures reported under {@code ai_guard.error}, classified by {@link AIGuardError}. An
+     * evaluation failure is reported here <em>and</em> as {@code error:true} on {@code
+     * ai_guard.requests}; a redaction error is reported only here.
+     */
+    public static class AIGuardErrors extends AIGuardMetric {
+        public AIGuardErrors(final long count, final AIGuardError type) {
+            super("error", count, "type:" + type.tagValue);
+        }
+    }
+
+    public static class AIGuardTruncated extends AIGuardMetric {
+        public AIGuardTruncated(final long count, final AIGuardTruncationType type) {
+            super("truncated", count, "type:" + type.tagValue);
+        }
+    }
+
+    public static class ApiSecurityMissingRoute extends WafMetric {
+        public ApiSecurityMissingRoute(final long counter, final String framework) {
+            super("api_security.missing_route", counter, "framework:" + framework);
+        }
+    }
+
+    public static class ApiSecurityRequestSchema extends WafMetric {
+        public ApiSecurityRequestSchema(final long counter, final String framework) {
+            super("api_security.request.schema", counter, "framework:" + framework);
+        }
+    }
+
+    public static class ApiSecurityRequestNoSchema extends WafMetric {
+        public ApiSecurityRequestNoSchema(final long counter, final String framework) {
+            super("api_security.request.no_schema", counter, "framework:" + framework);
+        }
+    }
+
+    /**
+     * Whether an evaluation redacted anything, as reported by the {@code redacted} tag on {@code
+     * ai_guard.requests}. {@link #DISABLED} reports no tag at all, so an absent tag means "redaction
+     * is off" and stays distinguishable from {@code redacted:false}.
+     */
+    public enum AIGuardRedaction {
+        /** Redaction is disabled locally, so nothing was even attempted. */
+        DISABLED,
+        /** Redaction is enabled and at least one replacement was applied. */
+        APPLIED,
+        /** Redaction is enabled but nothing was redacted. */
+        NOT_APPLIED
+    }
+
+    /**
+     * Classification of the failures reported under {@code ai_guard.error}, as the {@code type} tag.
+     */
+    public enum AIGuardError {
+        /** A transport failure, or any error the tracer could not attribute to the response. */
+        CLIENT_ERROR("client_error"),
+        /** The service answered with a status code that explains the failure on its own. */
+        BAD_STATUS("bad_status"),
+        /** The service answered successfully, with a body the tracer cannot use. */
+        BAD_RESPONSE("bad_response"),
+        /** A redaction replacement the tracer could not apply. Never fails the evaluation. */
+        REDACTION_ERROR("redaction_error");
+
+        public final String tagValue;
+
+        AIGuardError(final String tagValue) {
+            this.tagValue = tagValue;
+        }
+    }
+
+    public enum AIGuardTruncationType {
+        MESSAGES("messages"),
+        CONTENT("content");
+        public final String tagValue;
+
+        AIGuardTruncationType(final String tagValue) {
+            this.tagValue = tagValue;
+        }
+    }
+
+    /**
+     * Mirror of the {@code WafErrorCode} enum defined in the {@code libddwaf-java} module.
+     *
+     * <p>This enum is duplicated here to avoid adding a dependency on the native bindings module
+     * (`libddwaf-java`) within the {@code internal-api} module.
+     *
+     * <p>IMPORTANT: If the {@code WafErrorCode} definition in {@code libddwaf-java} is updated, this
+     * enum must be kept in sync manually to ensure correct behavior and compatibility.
+     *
+     * <p>Each enum value represents a specific WAF error condition, typically returned when running a
+     * WAF rule evaluation.
+     */
+    public enum WafErrorCode {
+        INVALID_ARGUMENT(-1),
+        INVALID_OBJECT(-2),
+        INTERNAL_ERROR(-3),
+        BINDING_ERROR(-127); // This is a special error code that is not returned by the WAF, is used to signal a
+        // binding error
+
+        private final int code;
+
+        private static final Map<Integer, WafErrorCode> CODE_MAP;
+
+        static {
+            Map<Integer, WafErrorCode> map = new HashMap<>();
+            for (WafErrorCode errorCode : values()) {
+                map.put(errorCode.code, errorCode);
+            }
+            CODE_MAP = Collections.unmodifiableMap(map);
+        }
+
+        WafErrorCode(int code) {
+            this.code = code;
+        }
+
+        public int getCode() {
+            return code;
+        }
+
+        public static WafErrorCode fromCode(int code) {
+            return CODE_MAP.get(code);
+        }
+    }
 }

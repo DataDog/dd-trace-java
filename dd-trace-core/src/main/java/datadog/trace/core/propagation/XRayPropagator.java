@@ -22,37 +22,34 @@ import javax.annotation.ParametersAreNonnullByDefault;
  */
 @ParametersAreNonnullByDefault
 public class XRayPropagator implements Propagator {
-  private final HttpCodec.Injector injector;
+    private final HttpCodec.Injector injector;
 
-  /**
-   * Constructor.
-   *
-   * @param config the config get the baggage mapping from.
-   */
-  public XRayPropagator(Config config) {
-    this.injector = XRayHttpCodec.newInjector(config.getBaggageMapping());
-  }
-
-  @Override
-  public <C> void inject(Context context, C carrier, CarrierSetter<C> setter) {
-    AgentSpan span;
-    //noinspection ConstantValue
-    if (context == null
-        || carrier == null
-        || setter == null
-        || (span = fromContext(context)) == null) {
-      return;
+    /**
+     * Constructor.
+     *
+     * @param config the config get the baggage mapping from.
+     */
+    public XRayPropagator(Config config) {
+        this.injector = XRayHttpCodec.newInjector(config.getBaggageMapping());
     }
-    AgentSpanContext spanContext = span.spanContext();
-    if (spanContext instanceof DDSpanContext) {
-      DDSpanContext ddSpanContext = (DDSpanContext) spanContext;
-      ddSpanContext.getTraceCollector().setSamplingPriorityIfNecessary();
-      this.injector.inject(ddSpanContext, carrier, setter);
-    }
-  }
 
-  @Override
-  public <C> Context extract(Context context, C carrier, CarrierVisitor<C> visitor) {
-    return context;
-  }
+    @Override
+    public <C> void inject(Context context, C carrier, CarrierSetter<C> setter) {
+        AgentSpan span;
+        //noinspection ConstantValue
+        if (context == null || carrier == null || setter == null || (span = fromContext(context)) == null) {
+            return;
+        }
+        AgentSpanContext spanContext = span.spanContext();
+        if (spanContext instanceof DDSpanContext) {
+            DDSpanContext ddSpanContext = (DDSpanContext) spanContext;
+            ddSpanContext.getTraceCollector().setSamplingPriorityIfNecessary();
+            this.injector.inject(ddSpanContext, carrier, setter);
+        }
+    }
+
+    @Override
+    public <C> Context extract(Context context, C carrier, CarrierVisitor<C> visitor) {
+        return context;
+    }
 }

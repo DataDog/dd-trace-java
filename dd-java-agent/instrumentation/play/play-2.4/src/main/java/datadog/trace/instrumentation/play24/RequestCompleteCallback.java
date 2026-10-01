@@ -11,31 +11,31 @@ import play.api.mvc.Result;
 import scala.util.Try;
 
 public class RequestCompleteCallback extends scala.runtime.AbstractFunction1<Try<Result>, Object> {
-  private static final Logger log = LoggerFactory.getLogger(RequestCompleteCallback.class);
-  private final AgentSpan span;
-  private final ContextScope scope;
+    private static final Logger log = LoggerFactory.getLogger(RequestCompleteCallback.class);
+    private final AgentSpan span;
+    private final ContextScope scope;
 
-  public RequestCompleteCallback(final ContextScope scope) {
-    this.span = AgentSpan.fromContext(scope.context());
-    this.scope = scope;
-  }
-
-  @Override
-  public Object apply(final Try<Result> result) {
-    try {
-      if (result.isFailure()) {
-        DECORATE.onError(span, result.failed().get());
-      } else {
-        if (REPORT_HTTP_STATUS) {
-          DECORATE.onResponse(span, result.get());
-        }
-      }
-      DECORATE.beforeFinish(scope.context());
-    } catch (final Throwable t) {
-      log.debug("error in play instrumentation", t);
-    } finally {
-      span.finish();
+    public RequestCompleteCallback(final ContextScope scope) {
+        this.span = AgentSpan.fromContext(scope.context());
+        this.scope = scope;
     }
-    return null;
-  }
+
+    @Override
+    public Object apply(final Try<Result> result) {
+        try {
+            if (result.isFailure()) {
+                DECORATE.onError(span, result.failed().get());
+            } else {
+                if (REPORT_HTTP_STATUS) {
+                    DECORATE.onResponse(span, result.get());
+                }
+            }
+            DECORATE.beforeFinish(scope.context());
+        } catch (final Throwable t) {
+            log.debug("error in play instrumentation", t);
+        } finally {
+            span.finish();
+        }
+        return null;
+    }
 }

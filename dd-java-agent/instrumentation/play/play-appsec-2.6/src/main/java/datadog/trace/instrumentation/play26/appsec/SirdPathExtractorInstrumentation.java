@@ -25,63 +25,61 @@ import scala.collection.immutable.List;
  */
 @AutoService(InstrumenterModule.class)
 public class SirdPathExtractorInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public SirdPathExtractorInstrumentation() {
-    super("play");
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "play26Plus";
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return MuzzleReferences.PLAY_26_PLUS; // force failure in <2.6
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "play.api.routing.sird.PathExtractor";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("extract")
-            .and(takesArguments(1))
-            .and(takesArgument(0, String.class))
-            .and(returns(named("scala.Option"))),
-        SirdPathExtractorInstrumentation.class.getName() + "$ExtractAdvice");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.play.appsec.PathExtractionHelpers",
-    };
-  }
-
-  @RequiresRequestContext(RequestContextSlot.APPSEC)
-  static class ExtractAdvice {
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    static void after(
-        @Advice.Return scala.Option<scala.collection.immutable.List<String>> ret,
-        @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
-      if (ret.isEmpty() || t != null) {
-        return;
-      }
-
-      Map<String, Object> conv = new HashMap<>();
-      List<String> stringList = ret.get();
-      for (int i = 0; i < stringList.size(); i++) {
-        conv.put(Integer.toString(i), stringList.apply(i));
-      }
-
-      t =
-          PathExtractionHelpers.callRequestPathParamsCallback(
-              reqCtx, conv, "sird.PathExtractor#extract");
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public SirdPathExtractorInstrumentation() {
+        super("play");
     }
-  }
+
+    @Override
+    public String muzzleDirective() {
+        return "play26Plus";
+    }
+
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return MuzzleReferences.PLAY_26_PLUS; // force failure in <2.6
+    }
+
+    @Override
+    public String instrumentedType() {
+        return "play.api.routing.sird.PathExtractor";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("extract")
+                        .and(takesArguments(1))
+                        .and(takesArgument(0, String.class))
+                        .and(returns(named("scala.Option"))),
+                SirdPathExtractorInstrumentation.class.getName() + "$ExtractAdvice");
+    }
+
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            "datadog.trace.instrumentation.play.appsec.PathExtractionHelpers",
+        };
+    }
+
+    @RequiresRequestContext(RequestContextSlot.APPSEC)
+    static class ExtractAdvice {
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        static void after(
+                @Advice.Return scala.Option<scala.collection.immutable.List<String>> ret,
+                @ActiveRequestContext RequestContext reqCtx,
+                @Advice.Thrown(readOnly = false) Throwable t) {
+            if (ret.isEmpty() || t != null) {
+                return;
+            }
+
+            Map<String, Object> conv = new HashMap<>();
+            List<String> stringList = ret.get();
+            for (int i = 0; i < stringList.size(); i++) {
+                conv.put(Integer.toString(i), stringList.apply(i));
+            }
+
+            t = PathExtractionHelpers.callRequestPathParamsCallback(reqCtx, conv, "sird.PathExtractor#extract");
+        }
+    }
 }

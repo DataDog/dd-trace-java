@@ -12,24 +12,24 @@ import scala.util.Random;
 @CallSite(spi = IastCallSites.class)
 public class RandomCallSite {
 
-  @CallSite.Before("boolean scala.util.Random.nextBoolean()")
-  @CallSite.Before("int scala.util.Random.nextInt()")
-  @CallSite.Before("int scala.util.Random.nextInt(int)")
-  @CallSite.Before("long scala.util.Random.nextLong()")
-  @CallSite.Before("float scala.util.Random.nextFloat()")
-  @CallSite.Before("double scala.util.Random.nextDouble()")
-  @CallSite.Before("double scala.util.Random.nextGaussian()")
-  @CallSite.Before("void scala.util.Random.nextBytes(byte[])")
-  @CallSite.Before("java.lang.String scala.util.Random.nextString(int)")
-  @CallSite.Before("char scala.util.Random.nextPrintableChar()")
-  public static void before(@CallSite.This final Random random) {
-    final WeakRandomnessModule module = InstrumentationBridge.WEAK_RANDOMNESS;
-    if (module != null && random != null) {
-      try {
-        module.onWeakRandom(random.getClass());
-      } catch (final Throwable e) {
-        module.onUnexpectedException("random threw", e);
-      }
+    @CallSite.Before("boolean scala.util.Random.nextBoolean()")
+    @CallSite.Before("int scala.util.Random.nextInt()")
+    @CallSite.Before("int scala.util.Random.nextInt(int)")
+    @CallSite.Before("long scala.util.Random.nextLong()")
+    @CallSite.Before("float scala.util.Random.nextFloat()")
+    @CallSite.Before("double scala.util.Random.nextDouble()")
+    @CallSite.Before("double scala.util.Random.nextGaussian()")
+    @CallSite.Before("void scala.util.Random.nextBytes(byte[])")
+    @CallSite.Before("java.lang.String scala.util.Random.nextString(int)")
+    @CallSite.Before("char scala.util.Random.nextPrintableChar()")
+    public static void before(@CallSite.This final Random random) {
+        final WeakRandomnessModule module = InstrumentationBridge.WEAK_RANDOMNESS;
+        if (module != null && random != null) {
+            try {
+                module.onWeakRandom(random.getClass());
+            } catch (final Throwable e) {
+                module.onUnexpectedException("random threw", e);
+            }
+        }
     }
-  }
 }

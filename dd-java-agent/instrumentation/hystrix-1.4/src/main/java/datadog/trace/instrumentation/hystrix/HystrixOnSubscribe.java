@@ -8,30 +8,28 @@ import datadog.trace.instrumentation.rxjava.TracedOnSubscribe;
 import rx.Observable;
 
 public class HystrixOnSubscribe extends TracedOnSubscribe {
-  private static final String OPERATION_NAME = "hystrix.cmd";
+    private static final String OPERATION_NAME = "hystrix.cmd";
 
-  private final HystrixInvokableInfo<?> command;
-  private final String methodName;
+    private final HystrixInvokableInfo<?> command;
+    private final String methodName;
 
-  public HystrixOnSubscribe(
-      final Observable originalObservable,
-      final HystrixInvokableInfo<?> command,
-      final String methodName) {
-    super(originalObservable, OPERATION_NAME, DECORATE);
+    public HystrixOnSubscribe(
+            final Observable originalObservable, final HystrixInvokableInfo<?> command, final String methodName) {
+        super(originalObservable, OPERATION_NAME, DECORATE);
 
-    this.command = command;
-    this.methodName = methodName;
-  }
+        this.command = command;
+        this.methodName = methodName;
+    }
 
-  @Override
-  protected String instrumentationName() {
-    return "hystrix";
-  }
+    @Override
+    protected String instrumentationName() {
+        return "hystrix";
+    }
 
-  @Override
-  protected void afterStart(final AgentSpan span) {
-    super.afterStart(span);
+    @Override
+    protected void afterStart(final AgentSpan span) {
+        super.afterStart(span);
 
-    DECORATE.onCommand(span, command, methodName);
-  }
+        DECORATE.onCommand(span, command, methodName);
+    }
 }

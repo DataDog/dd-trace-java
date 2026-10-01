@@ -7,11 +7,11 @@ import datadog.trace.api.Trace;
  */
 public class UnrelatedWorker extends Thread {
 
-  @Override
-  public void run() {
-    unrelatedWork();
-  }
+    @Override
+    public void run() {
+        unrelatedWork();
+    }
 
-  @Trace(operationName = "unrelated.work")
-  static void unrelatedWork() {}
+    @Trace(operationName = "unrelated.work")
+    static void unrelatedWork() {}
 }

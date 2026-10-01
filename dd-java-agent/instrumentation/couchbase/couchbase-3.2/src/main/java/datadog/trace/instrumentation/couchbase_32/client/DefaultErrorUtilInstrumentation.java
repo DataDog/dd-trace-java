@@ -10,21 +10,21 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(InstrumenterModule.class)
 public class DefaultErrorUtilInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public DefaultErrorUtilInstrumentation() {
-    super("couchbase", "couchbase-3");
-  }
+    public DefaultErrorUtilInstrumentation() {
+        super("couchbase", "couchbase-3");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "com.couchbase.client.core.error.DefaultErrorUtil";
-  }
+    @Override
+    public String instrumentedType() {
+        return "com.couchbase.client.core.error.DefaultErrorUtil";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isStatic().and(isMethod()).and(named("keyValueStatusToException")),
-        packageName + ".DefaultErrorUtilAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isStatic().and(isMethod()).and(named("keyValueStatusToException")),
+                packageName + ".DefaultErrorUtilAdvice");
+    }
 }

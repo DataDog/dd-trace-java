@@ -23,52 +23,50 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class JSPInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public JSPInstrumentation() {
-    super("jsp", "jsp-render");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "javax.servlet.jsp.HttpJspPage";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("_jspService")
-            .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest")))
-            .and(takesArgument(1, named("javax.servlet.http.HttpServletResponse")))
-            .and(isPublic()),
-        JSPInstrumentation.class.getName() + "$HttpJspPageAdvice");
-  }
-
-  public static class HttpJspPageAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onEnter(
-        @Advice.This final Object obj, @Advice.Argument(0) final HttpServletRequest req) {
-      final AgentSpan span =
-          startSpan(JSP_HTTP_SERVLET.toString(), JSP_RENDER)
-              .setTag("servlet.context", req.getContextPath());
-      DECORATE.afterStart(span);
-      DECORATE.onRender(span, req);
-      return activateSpan(span);
+    public JSPInstrumentation() {
+        super("jsp", "jsp-render");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
-      DECORATE.onError(scope, throwable);
-      DECORATE.beforeFinish(scope);
-      scope.close();
-      spanFromScope(scope).finish();
+    @Override
+    public String hierarchyMarkerType() {
+        return "javax.servlet.jsp.HttpJspPage";
     }
-  }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("_jspService")
+                        .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest")))
+                        .and(takesArgument(1, named("javax.servlet.http.HttpServletResponse")))
+                        .and(isPublic()),
+                JSPInstrumentation.class.getName() + "$HttpJspPageAdvice");
+    }
+
+    public static class HttpJspPageAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope onEnter(
+                @Advice.This final Object obj, @Advice.Argument(0) final HttpServletRequest req) {
+            final AgentSpan span =
+                    startSpan(JSP_HTTP_SERVLET.toString(), JSP_RENDER).setTag("servlet.context", req.getContextPath());
+            DECORATE.afterStart(span);
+            DECORATE.onRender(span, req);
+            return activateSpan(span);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void stopSpan(@Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+            DECORATE.onError(scope, throwable);
+            DECORATE.beforeFinish(scope);
+            scope.close();
+            spanFromScope(scope).finish();
+        }
+    }
 }

@@ -17,60 +17,58 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TibcoDecorator extends BaseDecorator {
-  private static final CharSequence TIBCO_BW = UTF8BytesString.create("tibco_bw");
-  private static final Logger LOGGER = LoggerFactory.getLogger(TibcoDecorator.class);
-  public static final CharSequence TIBCO_PROCESS_OPERATION =
-      UTF8BytesString.create("tibco.process");
-  public static final CharSequence TIBCO_ACTIVITY_OPERATION =
-      UTF8BytesString.create("tibco.activity");
-  public static final TibcoDecorator DECORATE = new TibcoDecorator();
-  private static final CharSequence VERSION = UTF8BytesString.create(extractVersion());
+    private static final CharSequence TIBCO_BW = UTF8BytesString.create("tibco_bw");
+    private static final Logger LOGGER = LoggerFactory.getLogger(TibcoDecorator.class);
+    public static final CharSequence TIBCO_PROCESS_OPERATION = UTF8BytesString.create("tibco.process");
+    public static final CharSequence TIBCO_ACTIVITY_OPERATION = UTF8BytesString.create("tibco.activity");
+    public static final TibcoDecorator DECORATE = new TibcoDecorator();
+    private static final CharSequence VERSION = UTF8BytesString.create(extractVersion());
 
-  private static String extractVersion() {
-    String v = PEVersion.getVersion();
-    if (v == null) {
-      return null;
+    private static String extractVersion() {
+        String v = PEVersion.getVersion();
+        if (v == null) {
+            return null;
+        }
+        // it's something like version 15.0, build xx, some date
+        Pattern pattern = Pattern.compile("\\D*(\\d[^,]*).*");
+        Matcher matcher = pattern.matcher(v);
+        if (matcher.matches()) {
+            return matcher.group(1);
+        }
+        LOGGER.debug(
+                "Unable to extract the tibco businessworks version. The tag `tibco.version` will be missing from process spans");
+        return null;
     }
-    // it's something like version 15.0, build xx, some date
-    Pattern pattern = Pattern.compile("\\D*(\\d[^,]*).*");
-    Matcher matcher = pattern.matcher(v);
-    if (matcher.matches()) {
-      return matcher.group(1);
+
+    @Override
+    protected String[] instrumentationNames() {
+        return new String[] {TIBCO_BW.toString()};
     }
-    LOGGER.debug(
-        "Unable to extract the tibco businessworks version. The tag `tibco.version` will be missing from process spans");
-    return null;
-  }
 
-  @Override
-  protected String[] instrumentationNames() {
-    return new String[] {TIBCO_BW.toString()};
-  }
+    @Override
+    protected CharSequence spanType() {
+        return InternalSpanTypes.TIBCO_BW;
+    }
 
-  @Override
-  protected CharSequence spanType() {
-    return InternalSpanTypes.TIBCO_BW;
-  }
+    @Override
+    protected CharSequence component() {
+        return TIBCO_BW;
+    }
 
-  @Override
-  protected CharSequence component() {
-    return TIBCO_BW;
-  }
+    @Override
+    protected void doAfterStart(@Nonnull final AgentSpan span) {
+        span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_INTERNAL);
+        super.doAfterStart(span);
+    }
 
-  @Override
-  protected void doAfterStart(@Nonnull final AgentSpan span) {
-    span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_INTERNAL);
-    super.doAfterStart(span);
-  }
+    public void onProcessStart(AgentSpan span, String processName) {
+        span.setResourceName(processName)
+                .setTag(TIBCO_NODE, JobPool.getName())
+                .setTag(TIBCO_VERSION, VERSION)
+                .setMeasured(true);
+    }
 
-  public void onProcessStart(AgentSpan span, String processName) {
-    span.setResourceName(processName)
-        .setTag(TIBCO_NODE, JobPool.getName())
-        .setTag(TIBCO_VERSION, VERSION)
-        .setMeasured(true);
-  }
-
-  public void onActivityStart(final AgentSpan span, String activityName) {
-    span.setResourceName(activityName);
-  }
+    public void onActivityStart(final AgentSpan span, String activityName) {
+        span.setResourceName(activityName);
+    }
 }

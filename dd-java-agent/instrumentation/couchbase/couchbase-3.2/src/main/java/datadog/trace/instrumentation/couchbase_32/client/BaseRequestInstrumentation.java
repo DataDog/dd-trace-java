@@ -9,20 +9,19 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(InstrumenterModule.class)
 public class BaseRequestInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public BaseRequestInstrumentation() {
-    super("couchbase", "couchbase-3");
-  }
+    public BaseRequestInstrumentation() {
+        super("couchbase", "couchbase-3");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "com.couchbase.client.core.msg.BaseRequest";
-  }
+    @Override
+    public String instrumentedType() {
+        return "com.couchbase.client.core.msg.BaseRequest";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor().and(takesArguments(4)), packageName + ".BaseRequestAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor().and(takesArguments(4)), packageName + ".BaseRequestAdvice");
+    }
 }

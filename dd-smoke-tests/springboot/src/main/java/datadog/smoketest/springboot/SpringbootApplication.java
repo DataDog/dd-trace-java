@@ -19,40 +19,40 @@ import org.springframework.web.util.UrlPathHelper;
 @SpringBootApplication
 public class SpringbootApplication {
 
-  @Configuration
-  @ComponentScan(basePackages = {"datadog.smoketest.springboot.controller"})
-  public static class WebConfig extends WebMvcConfigurerAdapter {
+    @Configuration
+    @ComponentScan(basePackages = {"datadog.smoketest.springboot.controller"})
+    public static class WebConfig extends WebMvcConfigurerAdapter {
 
-    @Override
-    public void configurePathMatch(PathMatchConfigurer configurer) {
-      UrlPathHelper urlPathHelper = new UrlPathHelper();
-      urlPathHelper.setRemoveSemicolonContent(false);
-      configurer.setUrlPathHelper(urlPathHelper);
+        @Override
+        public void configurePathMatch(PathMatchConfigurer configurer) {
+            UrlPathHelper urlPathHelper = new UrlPathHelper();
+            urlPathHelper.setRemoveSemicolonContent(false);
+            configurer.setUrlPathHelper(urlPathHelper);
+        }
+
+        @Bean
+        public Controller simpleIastController() {
+            return new SimpleIastController();
+        }
+
+        @Bean
+        public SimpleUrlHandlerMapping simpleMapping(Controller simpleIastController) {
+            SimpleUrlHandlerMapping mapping = new SimpleUrlHandlerMapping();
+            mapping.setUrlMap(Collections.singletonMap("/simple/{var1}", simpleIastController));
+            mapping.setOrder(0);
+            return mapping;
+        }
     }
 
     @Bean
-    public Controller simpleIastController() {
-      return new SimpleIastController();
+    public HttpFirewall getHttpFirewall() {
+        StrictHttpFirewall strictHttpFirewall = new StrictHttpFirewall();
+        strictHttpFirewall.setAllowSemicolon(true);
+        return strictHttpFirewall;
     }
 
-    @Bean
-    public SimpleUrlHandlerMapping simpleMapping(Controller simpleIastController) {
-      SimpleUrlHandlerMapping mapping = new SimpleUrlHandlerMapping();
-      mapping.setUrlMap(Collections.singletonMap("/simple/{var1}", simpleIastController));
-      mapping.setOrder(0);
-      return mapping;
+    public static void main(final String[] args) {
+        SpringApplication.run(SpringbootApplication.class, args);
+        System.out.println("Started in " + ManagementFactory.getRuntimeMXBean().getUptime() + "ms");
     }
-  }
-
-  @Bean
-  public HttpFirewall getHttpFirewall() {
-    StrictHttpFirewall strictHttpFirewall = new StrictHttpFirewall();
-    strictHttpFirewall.setAllowSemicolon(true);
-    return strictHttpFirewall;
-  }
-
-  public static void main(final String[] args) {
-    SpringApplication.run(SpringbootApplication.class, args);
-    System.out.println("Started in " + ManagementFactory.getRuntimeMXBean().getUptime() + "ms");
-  }
 }

@@ -29,83 +29,81 @@ import org.mockito.quality.Strictness;
 @MockitoSettings(strictness = Strictness.LENIENT)
 public class OpenJdkOngoingRecordingTest {
 
-  private static final String TEST_NAME = "recording name";
+    private static final String TEST_NAME = "recording name";
 
-  @Mock private Instant start;
-  @Mock private Instant end;
-  @Mock private Recording recording;
+    @Mock
+    private Instant start;
 
-  private OpenJdkOngoingRecording ongoingRecording;
+    @Mock
+    private Instant end;
 
-  @BeforeEach
-  public void setup() {
-    assumeFalse(JavaVirtualMachine.isJ9());
-    when(recording.getState()).thenReturn(RecordingState.RUNNING);
-    when(recording.getName()).thenReturn(TEST_NAME);
+    @Mock
+    private Recording recording;
 
-    ongoingRecording =
-        new OpenJdkOngoingRecording(recording, new ControllerContext().snapshot(), true);
-  }
+    private OpenJdkOngoingRecording ongoingRecording;
 
-  @Test
-  public void testStop() {
-    RecordingData data = ongoingRecording.stop();
-    assertTrue(data instanceof OpenJdkRecordingData);
-    assertEquals(recording, ((OpenJdkRecordingData) data).getRecording());
+    @BeforeEach
+    public void setup() {
+        assumeFalse(JavaVirtualMachine.isJ9());
+        when(recording.getState()).thenReturn(RecordingState.RUNNING);
+        when(recording.getName()).thenReturn(TEST_NAME);
 
-    verify(recording).stop();
-  }
+        ongoingRecording = new OpenJdkOngoingRecording(recording, new ControllerContext().snapshot(), true);
+    }
 
-  @Test
-  public void testStopOnStopped() {
-    when(recording.getState()).thenReturn(RecordingState.STOPPED);
+    @Test
+    public void testStop() {
+        RecordingData data = ongoingRecording.stop();
+        assertTrue(data instanceof OpenJdkRecordingData);
+        assertEquals(recording, ((OpenJdkRecordingData) data).getRecording());
 
-    assertThrows(
-        IllegalStateException.class,
-        () -> {
-          ongoingRecording.stop();
+        verify(recording).stop();
+    }
+
+    @Test
+    public void testStopOnStopped() {
+        when(recording.getState()).thenReturn(RecordingState.STOPPED);
+
+        assertThrows(IllegalStateException.class, () -> {
+            ongoingRecording.stop();
         });
 
-    verify(recording, never()).stop();
-  }
+        verify(recording, never()).stop();
+    }
 
-  @Test
-  public void testSnapshot() {
-    final RecordingData recordingData = ongoingRecording.snapshot(start);
-    assertTrue(recordingData instanceof OpenJdkRecordingData);
-    assertEquals(TEST_NAME, recordingData.getName());
-    assertEquals(start, recordingData.getStart());
-    assertEquals(
-        ((OpenJdkRecordingData) recordingData).getRecording().getStopTime(),
-        recordingData.getEnd());
-    assertNotEquals(
-        recording,
-        ((OpenJdkRecordingData) recordingData).getRecording(),
-        "make sure we didn't get our mocked recording");
+    @Test
+    public void testSnapshot() {
+        final RecordingData recordingData = ongoingRecording.snapshot(start);
+        assertTrue(recordingData instanceof OpenJdkRecordingData);
+        assertEquals(TEST_NAME, recordingData.getName());
+        assertEquals(start, recordingData.getStart());
+        assertEquals(((OpenJdkRecordingData) recordingData).getRecording().getStopTime(), recordingData.getEnd());
+        assertNotEquals(
+                recording,
+                ((OpenJdkRecordingData) recordingData).getRecording(),
+                "make sure we didn't get our mocked recording");
 
-    // We got real recording so we should clean it up
-    recordingData.release();
+        // We got real recording so we should clean it up
+        recordingData.release();
 
-    verify(recording, never()).stop();
-  }
+        verify(recording, never()).stop();
+    }
 
-  @Test
-  public void testSnapshotOnStopped() {
-    when(recording.getState()).thenReturn(RecordingState.STOPPED);
+    @Test
+    public void testSnapshotOnStopped() {
+        when(recording.getState()).thenReturn(RecordingState.STOPPED);
 
-    assertThrows(
-        IllegalStateException.class,
-        () -> {
-          ongoingRecording.snapshot(start);
+        assertThrows(IllegalStateException.class, () -> {
+            ongoingRecording.snapshot(start);
         });
 
-    verify(recording, never()).stop();
-  }
+        verify(recording, never()).stop();
+    }
 
-  @Test
-  public void testClose() {
-    ongoingRecording.close();
+    @Test
+    public void testClose() {
+        ongoingRecording.close();
 
-    verify(recording).close();
-  }
+        verify(recording).close();
+    }
 }

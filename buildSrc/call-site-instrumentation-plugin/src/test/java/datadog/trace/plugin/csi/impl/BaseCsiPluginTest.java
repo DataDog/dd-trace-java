@@ -21,43 +21,41 @@ import java.util.stream.Collectors;
 
 public abstract class BaseCsiPluginTest {
 
-  protected static void assertNoErrors(HasErrors hasErrors) {
-    List<String> errors =
-        hasErrors.getErrors().stream()
-            .map(
-                error -> {
-                  String causeString = error.getCause() == null ? "-" : error.getCauseString();
-                  return error.getMessage() + ": " + causeString;
+    protected static void assertNoErrors(HasErrors hasErrors) {
+        List<String> errors = hasErrors.getErrors().stream()
+                .map(error -> {
+                    String causeString = error.getCause() == null ? "-" : error.getCauseString();
+                    return error.getMessage() + ": " + causeString;
                 })
-            .collect(Collectors.toList());
-    assertEquals(Collections.emptyList(), errors);
-  }
-
-  protected static File fetchClass(Class<?> clazz) {
-    try {
-      Path folder = Paths.get(clazz.getResource("/").toURI()).resolve("../../");
-      String fileSeparator = File.separator.equals("\\") ? "\\\\" : File.separator;
-      String classFile = clazz.getName().replaceAll("\\.", fileSeparator) + ".class";
-      Path groovy = folder.resolve("groovy/test").resolve(classFile);
-      if (Files.exists(groovy)) {
-        return groovy.toFile();
-      }
-      return folder.resolve("java/test").resolve(classFile).toFile();
-    } catch (URISyntaxException e) {
-      throw new RuntimeException(e);
+                .collect(Collectors.toList());
+        assertEquals(Collections.emptyList(), errors);
     }
-  }
 
-  protected static CallSiteSpecification buildClassSpecification(Class<?> clazz) {
-    File classFile = fetchClass(clazz);
-    CallSiteSpecification spec = specificationBuilder().build(classFile).get();
-    spec.getAdvices().forEach(advice -> advice.parseSignature(pointcutParser()));
-    return spec;
-  }
+    protected static File fetchClass(Class<?> clazz) {
+        try {
+            Path folder = Paths.get(clazz.getResource("/").toURI()).resolve("../../");
+            String fileSeparator = File.separator.equals("\\") ? "\\\\" : File.separator;
+            String classFile = clazz.getName().replaceAll("\\.", fileSeparator) + ".class";
+            Path groovy = folder.resolve("groovy/test").resolve(classFile);
+            if (Files.exists(groovy)) {
+                return groovy.toFile();
+            }
+            return folder.resolve("java/test").resolve(classFile).toFile();
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-  protected ValidationContext mockValidationContext() {
-    ValidationContext context = mock(ValidationContext.class);
-    when(context.getContextProperty(TYPE_RESOLVER)).thenReturn(typeResolver());
-    return context;
-  }
+    protected static CallSiteSpecification buildClassSpecification(Class<?> clazz) {
+        File classFile = fetchClass(clazz);
+        CallSiteSpecification spec = specificationBuilder().build(classFile).get();
+        spec.getAdvices().forEach(advice -> advice.parseSignature(pointcutParser()));
+        return spec;
+    }
+
+    protected ValidationContext mockValidationContext() {
+        ValidationContext context = mock(ValidationContext.class);
+        when(context.getContextProperty(TYPE_RESOLVER)).thenReturn(typeResolver());
+        return context;
+    }
 }

@@ -15,77 +15,72 @@ import javax.annotation.Nonnull;
 
 public final class HttpStreamResponseWrapper<T> implements HttpResponseFor<StreamResponse<T>> {
 
-  public static <T> HttpResponseFor<StreamResponse<T>> wrap(
-      HttpResponseFor<StreamResponse<T>> response,
-      final AgentSpan span,
-      BiConsumer<AgentSpan, List<T>> decorate) {
-    DECORATE.withHttpResponse(span, response.headers());
-    return new HttpStreamResponseWrapper<>(response, span, decorate);
-  }
+    public static <T> HttpResponseFor<StreamResponse<T>> wrap(
+            HttpResponseFor<StreamResponse<T>> response,
+            final AgentSpan span,
+            BiConsumer<AgentSpan, List<T>> decorate) {
+        DECORATE.withHttpResponse(span, response.headers());
+        return new HttpStreamResponseWrapper<>(response, span, decorate);
+    }
 
-  public static <T> CompletableFuture<HttpResponseFor<StreamResponse<T>>> wrapFuture(
-      CompletableFuture<HttpResponseFor<StreamResponse<T>>> future,
-      AgentSpan span,
-      BiConsumer<AgentSpan, List<T>> decorate) {
-    return future
-        .thenApply(r -> wrap(r, span, decorate))
-        .whenComplete(
-            (_r, err) -> {
-              if (err != null) {
+    public static <T> CompletableFuture<HttpResponseFor<StreamResponse<T>>> wrapFuture(
+            CompletableFuture<HttpResponseFor<StreamResponse<T>>> future,
+            AgentSpan span,
+            BiConsumer<AgentSpan, List<T>> decorate) {
+        return future.thenApply(r -> wrap(r, span, decorate)).whenComplete((_r, err) -> {
+            if (err != null) {
                 DECORATE.finishSpan(span, err);
-              }
-            });
-  }
-
-  private final HttpResponseFor<StreamResponse<T>> delegate;
-  private final AgentSpan span;
-  private final BiConsumer<AgentSpan, List<T>> decorate;
-  private final AtomicBoolean parseCalled = new AtomicBoolean(false);
-
-  private HttpStreamResponseWrapper(
-      HttpResponseFor<StreamResponse<T>> delegate,
-      AgentSpan span,
-      BiConsumer<AgentSpan, List<T>> decorate) {
-    this.delegate = delegate;
-    this.span = span;
-    this.decorate = decorate;
-  }
-
-  @Override
-  public StreamResponse<T> parse() {
-    try {
-      StreamResponse<T> parsed = delegate.parse();
-      return new HttpStreamResponseStreamWrapper<>(span, decorate, parsed);
-    } catch (Throwable err) {
-      DECORATE.finishSpan(span, err);
-      throw err;
-    } finally {
-      parseCalled.set(true);
+            }
+        });
     }
-  }
 
-  @Override
-  public int statusCode() {
-    return delegate.statusCode();
-  }
+    private final HttpResponseFor<StreamResponse<T>> delegate;
+    private final AgentSpan span;
+    private final BiConsumer<AgentSpan, List<T>> decorate;
+    private final AtomicBoolean parseCalled = new AtomicBoolean(false);
 
-  @Nonnull
-  @Override
-  public Headers headers() {
-    return delegate.headers();
-  }
-
-  @Nonnull
-  @Override
-  public InputStream body() {
-    return delegate.body();
-  }
-
-  @Override
-  public void close() {
-    if (parseCalled.compareAndSet(false, true)) {
-      DECORATE.finishSpan(span, null);
+    private HttpStreamResponseWrapper(
+            HttpResponseFor<StreamResponse<T>> delegate, AgentSpan span, BiConsumer<AgentSpan, List<T>> decorate) {
+        this.delegate = delegate;
+        this.span = span;
+        this.decorate = decorate;
     }
-    delegate.close();
-  }
+
+    @Override
+    public StreamResponse<T> parse() {
+        try {
+            StreamResponse<T> parsed = delegate.parse();
+            return new HttpStreamResponseStreamWrapper<>(span, decorate, parsed);
+        } catch (Throwable err) {
+            DECORATE.finishSpan(span, err);
+            throw err;
+        } finally {
+            parseCalled.set(true);
+        }
+    }
+
+    @Override
+    public int statusCode() {
+        return delegate.statusCode();
+    }
+
+    @Nonnull
+    @Override
+    public Headers headers() {
+        return delegate.headers();
+    }
+
+    @Nonnull
+    @Override
+    public InputStream body() {
+        return delegate.body();
+    }
+
+    @Override
+    public void close() {
+        if (parseCalled.compareAndSet(false, true)) {
+            DECORATE.finishSpan(span, null);
+        }
+        delegate.close();
+    }
 }

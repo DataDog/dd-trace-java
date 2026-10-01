@@ -9,16 +9,16 @@ import org.junit.jupiter.api.Test;
 @Disabled("Ignore reason in class")
 public class TestSkippedNested {
 
-  @Test
-  public void test_succeed() {
-    assertTrue(true);
-  }
-
-  @Nested
-  class NestedSuite {
     @Test
-    public void test_succeed_nested() {
-      assertTrue(true);
+    public void test_succeed() {
+        assertTrue(true);
     }
-  }
+
+    @Nested
+    class NestedSuite {
+        @Test
+        public void test_succeed_nested() {
+            assertTrue(true);
+        }
+    }
 }

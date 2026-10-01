@@ -34,52 +34,52 @@ import org.openjdk.jmh.annotations.Warmup;
 @State(Scope.Thread)
 public class AppContextSnapshotBenchmark {
 
-  @Param({"2", "8"})
-  int attrCount;
+    @Param({"2", "8"})
+    int attrCount;
 
-  /**
-   * Stack depth for the deepStack benchmark — 16 forces one resize past the default 8-slot pool.
-   */
-  @Param({"8", "16"})
-  int stackDepth;
+    /**
+     * Stack depth for the deepStack benchmark — 16 forces one resize past the default 8-slot pool.
+     */
+    @Param({"8", "16"})
+    int stackDepth;
 
-  private DatadogProfiler.AppContextSnapshot source;
-  private DatadogProfiler.AppContextSnapshot slot;
-  private DatadogProfiler.ScopeStack stack;
+    private DatadogProfiler.AppContextSnapshot source;
+    private DatadogProfiler.AppContextSnapshot slot;
+    private DatadogProfiler.ScopeStack stack;
 
-  @Setup
-  public void setup() {
-    source = new DatadogProfiler.AppContextSnapshot(attrCount);
-    for (int i = 0; i < attrCount; i++) {
-      source.record(i, "value-" + i);
+    @Setup
+    public void setup() {
+        source = new DatadogProfiler.AppContextSnapshot(attrCount);
+        for (int i = 0; i < attrCount; i++) {
+            source.record(i, "value-" + i);
+        }
+        slot = new DatadogProfiler.AppContextSnapshot(attrCount);
+        stack = new DatadogProfiler.ScopeStack(attrCount);
     }
-    slot = new DatadogProfiler.AppContextSnapshot(attrCount);
-    stack = new DatadogProfiler.ScopeStack(attrCount);
-  }
 
-  /** ScopeStack save: copies current snapshot into a pre-allocated pool slot (zero alloc). */
-  @Benchmark
-  public void save() {
-    slot.copyFrom(source);
-  }
-
-  /** ScopeStack restore: copies pool slot back into the live snapshot (zero alloc). */
-  @Benchmark
-  public void restore() {
-    source.copyFrom(slot);
-  }
-
-  /**
-   * Borrow {@code stackDepth} slots then release them all. At {@code stackDepth=16} the pool
-   * resizes during warmup; steady-state measurement confirms zero allocation after growth.
-   */
-  @Benchmark
-  public void deepStack() {
-    for (int i = 0; i < stackDepth; i++) {
-      stack.borrow().copyFrom(source);
+    /** ScopeStack save: copies current snapshot into a pre-allocated pool slot (zero alloc). */
+    @Benchmark
+    public void save() {
+        slot.copyFrom(source);
     }
-    for (int i = 0; i < stackDepth; i++) {
-      stack.release();
+
+    /** ScopeStack restore: copies pool slot back into the live snapshot (zero alloc). */
+    @Benchmark
+    public void restore() {
+        source.copyFrom(slot);
     }
-  }
+
+    /**
+     * Borrow {@code stackDepth} slots then release them all. At {@code stackDepth=16} the pool
+     * resizes during warmup; steady-state measurement confirms zero allocation after growth.
+     */
+    @Benchmark
+    public void deepStack() {
+        for (int i = 0; i < stackDepth; i++) {
+            stack.borrow().copyFrom(source);
+        }
+        for (int i = 0; i < stackDepth; i++) {
+            stack.release();
+        }
+    }
 }

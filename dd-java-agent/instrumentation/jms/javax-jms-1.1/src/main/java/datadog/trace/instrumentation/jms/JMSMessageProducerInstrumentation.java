@@ -38,197 +38,195 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public final class JMSMessageProducerInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  private final String namespace;
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    private final String namespace;
 
-  public JMSMessageProducerInstrumentation(String namespace) {
-    this.namespace = namespace;
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return namespace + ".jms.MessageProducer";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvices(
-        named("send").and(takesArgument(0, named(namespace + ".jms.Message"))).and(isPublic()),
-        JMSMessageProducerInstrumentation.class.getName() + "$ProducerAdvice",
-        JMSMessageProducerInstrumentation.class.getName() + "$ProducerContextPropagationAdvice");
-    transformer.applyAdvices(
-        named("send")
-            .and(takesArgument(0, hasInterface(named(namespace + ".jms.Destination"))))
-            .and(takesArgument(1, named(namespace + ".jms.Message")))
-            .and(isPublic()),
-        JMSMessageProducerInstrumentation.class.getName() + "$ProducerWithDestinationAdvice",
-        JMSMessageProducerInstrumentation.class.getName()
-            + "$ProducerWithDestinationContextPropagationAdvice");
-  }
-
-  public static class ProducerAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope beforeSend(
-        @Advice.Argument(0) final Message message, @Advice.This final MessageProducer producer) {
-      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(MessageProducer.class);
-      if (callDepth > 0) {
-        return null;
-      }
-
-      MessageProducerState producerState =
-          InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
-              .get(producer);
-
-      CharSequence resourceName;
-      String destinationName;
-      try {
-        // fall-back when producer wasn't created via standard Session.createProducer API
-        if (null != producerState) {
-          resourceName = producerState.getResourceName();
-          Destination destination = PRODUCER_DECORATE.getDestination(producer);
-          destinationName = PRODUCER_DECORATE.getDestinationName(destination);
-        } else {
-          Destination destination = PRODUCER_DECORATE.getDestination(producer);
-          destinationName = PRODUCER_DECORATE.getDestinationName(destination);
-          boolean isQueue = PRODUCER_DECORATE.isQueue(destination);
-          resourceName = PRODUCER_DECORATE.toResourceName(destinationName, isQueue);
-        }
-      } catch (Exception ignored) {
-        resourceName = "Unknown Destination";
-        destinationName = "";
-      }
-
-      final AgentSpan span = startSpan("jms", JMS_PRODUCE);
-      PRODUCER_DECORATE.afterStart(span);
-      PRODUCER_DECORATE.onProduce(span, resourceName);
-
-      if (null != destinationName
-          && !destinationName.isEmpty()
-          && Config.get().isDataStreamsEnabled()) {
-        final String tech = messageTechnology(message);
-        if ("ibmmq".equals(tech)) { // Initial release only supports DSM in JMS for IBM MQ
-          DataStreamsTags tags = create(tech, OUTBOUND, destinationName);
-          DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
-          AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, dsmContext);
-        }
-      }
-
-      if (JMSDecorator.canInject(message) && TIME_IN_QUEUE_ENABLED && null != producerState) {
-        SETTER.injectTimeInQueue(message, producerState);
-      }
-      return activateSpan(span);
+    public JMSMessageProducerInstrumentation(String namespace) {
+        this.namespace = namespace;
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void afterSend(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
-      if (scope == null) {
-        return;
-      }
-      PRODUCER_DECORATE.onError(scope, throwable);
-      PRODUCER_DECORATE.beforeFinish(scope);
-      scope.close();
-      spanFromScope(scope).finish();
-      CallDepthThreadLocalMap.reset(MessageProducer.class);
+    @Override
+    public String hierarchyMarkerType() {
+        return namespace + ".jms.MessageProducer";
     }
-  }
 
-  @AppliesOn(CONTEXT_TRACKING)
-  public static class ProducerContextPropagationAdvice {
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
 
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(
-        @Advice.Argument(0) final Message message, @Advice.This final MessageProducer producer) {
-      AgentSpan span = activeSpan();
-      if (span == null) return;
-      if (JMSDecorator.canInject(message) && Config.get().isJmsPropagationEnabled()) {
-        MessageProducerState producerState =
-            InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
-                .get(producer);
-        if (null == producerState || !producerState.isPropagationDisabled()) {
-          defaultPropagator().inject(span, message, SETTER);
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvices(
+                named("send")
+                        .and(takesArgument(0, named(namespace + ".jms.Message")))
+                        .and(isPublic()),
+                JMSMessageProducerInstrumentation.class.getName() + "$ProducerAdvice",
+                JMSMessageProducerInstrumentation.class.getName() + "$ProducerContextPropagationAdvice");
+        transformer.applyAdvices(
+                named("send")
+                        .and(takesArgument(0, hasInterface(named(namespace + ".jms.Destination"))))
+                        .and(takesArgument(1, named(namespace + ".jms.Message")))
+                        .and(isPublic()),
+                JMSMessageProducerInstrumentation.class.getName() + "$ProducerWithDestinationAdvice",
+                JMSMessageProducerInstrumentation.class.getName() + "$ProducerWithDestinationContextPropagationAdvice");
+    }
+
+    public static class ProducerAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope beforeSend(
+                @Advice.Argument(0) final Message message, @Advice.This final MessageProducer producer) {
+            final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(MessageProducer.class);
+            if (callDepth > 0) {
+                return null;
+            }
+
+            MessageProducerState producerState = InstrumentationContext.get(
+                            MessageProducer.class, MessageProducerState.class)
+                    .get(producer);
+
+            CharSequence resourceName;
+            String destinationName;
+            try {
+                // fall-back when producer wasn't created via standard Session.createProducer API
+                if (null != producerState) {
+                    resourceName = producerState.getResourceName();
+                    Destination destination = PRODUCER_DECORATE.getDestination(producer);
+                    destinationName = PRODUCER_DECORATE.getDestinationName(destination);
+                } else {
+                    Destination destination = PRODUCER_DECORATE.getDestination(producer);
+                    destinationName = PRODUCER_DECORATE.getDestinationName(destination);
+                    boolean isQueue = PRODUCER_DECORATE.isQueue(destination);
+                    resourceName = PRODUCER_DECORATE.toResourceName(destinationName, isQueue);
+                }
+            } catch (Exception ignored) {
+                resourceName = "Unknown Destination";
+                destinationName = "";
+            }
+
+            final AgentSpan span = startSpan("jms", JMS_PRODUCE);
+            PRODUCER_DECORATE.afterStart(span);
+            PRODUCER_DECORATE.onProduce(span, resourceName);
+
+            if (null != destinationName
+                    && !destinationName.isEmpty()
+                    && Config.get().isDataStreamsEnabled()) {
+                final String tech = messageTechnology(message);
+                if ("ibmmq".equals(tech)) { // Initial release only supports DSM in JMS for IBM MQ
+                    DataStreamsTags tags = create(tech, OUTBOUND, destinationName);
+                    DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
+                    AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, dsmContext);
+                }
+            }
+
+            if (JMSDecorator.canInject(message) && TIME_IN_QUEUE_ENABLED && null != producerState) {
+                SETTER.injectTimeInQueue(message, producerState);
+            }
+            return activateSpan(span);
         }
-      }
-    }
-  }
 
-  public static class ProducerWithDestinationAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope beforeSend(
-        @Advice.Argument(0) final Destination destination,
-        @Advice.Argument(1) final Message message,
-        @Advice.This final MessageProducer producer) {
-      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(MessageProducer.class);
-      if (callDepth > 0) {
-        return null;
-      }
-
-      boolean isQueue = PRODUCER_DECORATE.isQueue(destination);
-      String destinationName = PRODUCER_DECORATE.getDestinationName(destination);
-      CharSequence resourceName = PRODUCER_DECORATE.toResourceName(destinationName, isQueue);
-
-      final AgentSpan span = startSpan("jms", JMS_PRODUCE);
-      PRODUCER_DECORATE.afterStart(span);
-      PRODUCER_DECORATE.onProduce(span, resourceName);
-
-      if (null != destinationName
-          && !destinationName.isEmpty()
-          && Config.get().isDataStreamsEnabled()) {
-        final String tech = messageTechnology(message);
-        if ("ibmmq".equals(tech)) { // Initial release only supports DSM in JMS for IBM MQ
-          DataStreamsTags tags = create(tech, OUTBOUND, destinationName);
-          DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
-          AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, dsmContext);
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void afterSend(@Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+            if (scope == null) {
+                return;
+            }
+            PRODUCER_DECORATE.onError(scope, throwable);
+            PRODUCER_DECORATE.beforeFinish(scope);
+            scope.close();
+            spanFromScope(scope).finish();
+            CallDepthThreadLocalMap.reset(MessageProducer.class);
         }
-      }
+    }
 
-      if (JMSDecorator.canInject(message) && TIME_IN_QUEUE_ENABLED) {
-        MessageProducerState producerState =
-            InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
-                .get(producer);
-        if (null != producerState) {
-          SETTER.injectTimeInQueue(message, producerState);
+    @AppliesOn(CONTEXT_TRACKING)
+    public static class ProducerContextPropagationAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter(
+                @Advice.Argument(0) final Message message, @Advice.This final MessageProducer producer) {
+            AgentSpan span = activeSpan();
+            if (span == null) return;
+            if (JMSDecorator.canInject(message) && Config.get().isJmsPropagationEnabled()) {
+                MessageProducerState producerState = InstrumentationContext.get(
+                                MessageProducer.class, MessageProducerState.class)
+                        .get(producer);
+                if (null == producerState || !producerState.isPropagationDisabled()) {
+                    defaultPropagator().inject(span, message, SETTER);
+                }
+            }
         }
-      }
-      return activateSpan(span);
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void afterSend(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
-      if (scope == null) {
-        return;
-      }
-      PRODUCER_DECORATE.onError(scope, throwable);
-      PRODUCER_DECORATE.beforeFinish(scope);
-      scope.close();
-      spanFromScope(scope).finish();
-      CallDepthThreadLocalMap.reset(MessageProducer.class);
-    }
-  }
+    public static class ProducerWithDestinationAdvice {
 
-  @AppliesOn(CONTEXT_TRACKING)
-  public static class ProducerWithDestinationContextPropagationAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope beforeSend(
+                @Advice.Argument(0) final Destination destination,
+                @Advice.Argument(1) final Message message,
+                @Advice.This final MessageProducer producer) {
+            final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(MessageProducer.class);
+            if (callDepth > 0) {
+                return null;
+            }
 
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(
-        @Advice.Argument(0) final Destination destination,
-        @Advice.Argument(1) final Message message) {
-      AgentSpan span = activeSpan();
-      if (span == null) return;
-      if (JMSDecorator.canInject(message) && Config.get().isJmsPropagationEnabled()) {
-        String destinationName = PRODUCER_DECORATE.getDestinationName(destination);
-        if (!Config.get().isJmsPropagationDisabledForDestination(destinationName)) {
-          defaultPropagator().inject(span, message, SETTER);
+            boolean isQueue = PRODUCER_DECORATE.isQueue(destination);
+            String destinationName = PRODUCER_DECORATE.getDestinationName(destination);
+            CharSequence resourceName = PRODUCER_DECORATE.toResourceName(destinationName, isQueue);
+
+            final AgentSpan span = startSpan("jms", JMS_PRODUCE);
+            PRODUCER_DECORATE.afterStart(span);
+            PRODUCER_DECORATE.onProduce(span, resourceName);
+
+            if (null != destinationName
+                    && !destinationName.isEmpty()
+                    && Config.get().isDataStreamsEnabled()) {
+                final String tech = messageTechnology(message);
+                if ("ibmmq".equals(tech)) { // Initial release only supports DSM in JMS for IBM MQ
+                    DataStreamsTags tags = create(tech, OUTBOUND, destinationName);
+                    DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
+                    AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, dsmContext);
+                }
+            }
+
+            if (JMSDecorator.canInject(message) && TIME_IN_QUEUE_ENABLED) {
+                MessageProducerState producerState = InstrumentationContext.get(
+                                MessageProducer.class, MessageProducerState.class)
+                        .get(producer);
+                if (null != producerState) {
+                    SETTER.injectTimeInQueue(message, producerState);
+                }
+            }
+            return activateSpan(span);
         }
-      }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void afterSend(@Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+            if (scope == null) {
+                return;
+            }
+            PRODUCER_DECORATE.onError(scope, throwable);
+            PRODUCER_DECORATE.beforeFinish(scope);
+            scope.close();
+            spanFromScope(scope).finish();
+            CallDepthThreadLocalMap.reset(MessageProducer.class);
+        }
     }
-  }
+
+    @AppliesOn(CONTEXT_TRACKING)
+    public static class ProducerWithDestinationContextPropagationAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter(
+                @Advice.Argument(0) final Destination destination, @Advice.Argument(1) final Message message) {
+            AgentSpan span = activeSpan();
+            if (span == null) return;
+            if (JMSDecorator.canInject(message) && Config.get().isJmsPropagationEnabled()) {
+                String destinationName = PRODUCER_DECORATE.getDestinationName(destination);
+                if (!Config.get().isJmsPropagationDisabledForDestination(destinationName)) {
+                    defaultPropagator().inject(span, message, SETTER);
+                }
+            }
+        }
+    }
 }

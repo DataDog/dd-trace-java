@@ -25,61 +25,59 @@ import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
-public final class PublisherInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+public final class PublisherInstrumentation implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String instrumentedType() {
-    return "com.google.cloud.pubsub.v1.Publisher";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvices(
-        isMethod().and(named("publish")),
-        getClass().getName() + "$Wrap",
-        getClass().getName() + "$ContextPropagationAdvice");
-  }
-
-  public static final class Wrap {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope before(@Advice.This Publisher publisher) {
-      final AgentSpan span = startSpan(JAVA_PUBSUB.toString(), PUBSUB_PRODUCE);
-
-      final CharSequence topicName = PRODUCER_DECORATE.extractTopic(publisher.getTopicNameString());
-      PRODUCER_DECORATE.afterStart(span);
-      PRODUCER_DECORATE.onProduce(span, topicName);
-
-      return activateSpan(span);
+    @Override
+    public String instrumentedType() {
+        return "com.google.cloud.pubsub.v1.Publisher";
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
-      PRODUCER_DECORATE.onError(scope, throwable);
-      PRODUCER_DECORATE.beforeFinish(scope);
-      scope.close();
-      spanFromScope(scope).finish();
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvices(
+                isMethod().and(named("publish")),
+                getClass().getName() + "$Wrap",
+                getClass().getName() + "$ContextPropagationAdvice");
     }
-  }
 
-  @AppliesOn(CONTEXT_TRACKING)
-  public static final class ContextPropagationAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(
-        @Advice.Argument(value = 0, readOnly = false) PubsubMessage msg,
-        @Advice.This Publisher publisher) {
-      AgentSpan span = activeSpan();
-      if (span == null) return;
-      DataStreamsTags tags =
-          create(
-              "google-pubsub",
-              OUTBOUND,
-              PRODUCER_DECORATE.extractTopic(publisher.getTopicNameString()).toString());
-      PubsubMessage.Builder builder = msg.toBuilder();
-      DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
-      defaultPropagator().inject(span.with(dsmContext), builder, SETTER);
-      msg = builder.build();
+    public static final class Wrap {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope before(@Advice.This Publisher publisher) {
+            final AgentSpan span = startSpan(JAVA_PUBSUB.toString(), PUBSUB_PRODUCE);
+
+            final CharSequence topicName = PRODUCER_DECORATE.extractTopic(publisher.getTopicNameString());
+            PRODUCER_DECORATE.afterStart(span);
+            PRODUCER_DECORATE.onProduce(span, topicName);
+
+            return activateSpan(span);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void stopSpan(@Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+            PRODUCER_DECORATE.onError(scope, throwable);
+            PRODUCER_DECORATE.beforeFinish(scope);
+            scope.close();
+            spanFromScope(scope).finish();
+        }
     }
-  }
+
+    @AppliesOn(CONTEXT_TRACKING)
+    public static final class ContextPropagationAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter(
+                @Advice.Argument(value = 0, readOnly = false) PubsubMessage msg, @Advice.This Publisher publisher) {
+            AgentSpan span = activeSpan();
+            if (span == null) return;
+            DataStreamsTags tags = create(
+                    "google-pubsub",
+                    OUTBOUND,
+                    PRODUCER_DECORATE
+                            .extractTopic(publisher.getTopicNameString())
+                            .toString());
+            PubsubMessage.Builder builder = msg.toBuilder();
+            DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
+            defaultPropagator().inject(span.with(dsmContext), builder, SETTER);
+            msg = builder.build();
+        }
+    }
 }

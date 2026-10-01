@@ -17,31 +17,29 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public class ServerHttpRequestInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public ServerHttpRequestInstrumentation() {
-    super("spring-webflux");
-  }
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    public ServerHttpRequestInstrumentation() {
+        super("spring-webflux");
+    }
 
-  @Override
-  public String hierarchyMarkerType() {
-    return "org.springframework.http.server.reactive.ServerHttpRequest";
-  }
+    @Override
+    public String hierarchyMarkerType() {
+        return "org.springframework.http.server.reactive.ServerHttpRequest";
+    }
 
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return nameEndsWith("ServerHttpRequest").and(implementsInterface(named(hierarchyMarkerType())));
-  }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return nameEndsWith("ServerHttpRequest").and(implementsInterface(named(hierarchyMarkerType())));
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("getQueryParams")).and(takesArguments(0)),
-        packageName + ".TaintQueryParamsAdvice");
-    transformer.applyAdvice(
-        isMethod().and(named("getCookies")).and(takesArguments(0)),
-        packageName + ".TaintCookiesAdvice");
-    transformer.applyAdvice(
-        isMethod().and(named("getBody")).and(takesArguments(0)),
-        packageName + ".TaintGetBodyAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("getQueryParams")).and(takesArguments(0)),
+                packageName + ".TaintQueryParamsAdvice");
+        transformer.applyAdvice(
+                isMethod().and(named("getCookies")).and(takesArguments(0)), packageName + ".TaintCookiesAdvice");
+        transformer.applyAdvice(
+                isMethod().and(named("getBody")).and(takesArguments(0)), packageName + ".TaintGetBodyAdvice");
+    }
 }

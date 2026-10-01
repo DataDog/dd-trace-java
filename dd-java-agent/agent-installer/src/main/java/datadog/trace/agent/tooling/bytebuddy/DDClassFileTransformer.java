@@ -14,30 +14,30 @@ import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
  */
 public final class DDClassFileTransformer extends ResettableClassFileTransformer.WithDelegation {
 
-  public static final TransformerDecorator DECORATOR = DDClassFileTransformer::new;
+    public static final TransformerDecorator DECORATOR = DDClassFileTransformer::new;
 
-  public DDClassFileTransformer(final ResettableClassFileTransformer classFileTransformer) {
-    super(classFileTransformer);
-  }
-
-  @Override
-  public byte[] transform(
-      final ClassLoader classLoader,
-      final String internalClassName,
-      final Class<?> classBeingRedefined,
-      final ProtectionDomain protectionDomain,
-      final byte[] classFileBuffer)
-      throws IllegalClassFormatException {
-
-    if (null != classLoader && canSkipClassLoaderByName(classLoader)) {
-      return null;
+    public DDClassFileTransformer(final ResettableClassFileTransformer classFileTransformer) {
+        super(classFileTransformer);
     }
 
-    try {
-      return classFileTransformer.transform(
-          classLoader, internalClassName, classBeingRedefined, protectionDomain, classFileBuffer);
-    } finally {
-      SharedTypePools.endTransform();
+    @Override
+    public byte[] transform(
+            final ClassLoader classLoader,
+            final String internalClassName,
+            final Class<?> classBeingRedefined,
+            final ProtectionDomain protectionDomain,
+            final byte[] classFileBuffer)
+            throws IllegalClassFormatException {
+
+        if (null != classLoader && canSkipClassLoaderByName(classLoader)) {
+            return null;
+        }
+
+        try {
+            return classFileTransformer.transform(
+                    classLoader, internalClassName, classBeingRedefined, protectionDomain, classFileBuffer);
+        } finally {
+            SharedTypePools.endTransform();
+        }
     }
-  }
 }

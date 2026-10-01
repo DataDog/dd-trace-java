@@ -8,17 +8,17 @@ import javax.naming.directory.SearchResult;
 
 public interface DirContextSuite {
 
-  NamingEnumeration<SearchResult> search(
-      final String name, final String filter, final SearchControls cons) throws NamingException;
+    NamingEnumeration<SearchResult> search(final String name, final String filter, final SearchControls cons)
+            throws NamingException;
 
-  NamingEnumeration<SearchResult> search(
-      final Name name, final String filter, final SearchControls cons) throws NamingException;
+    NamingEnumeration<SearchResult> search(final Name name, final String filter, final SearchControls cons)
+            throws NamingException;
 
-  NamingEnumeration<SearchResult> search(
-      final String name, final String filter, final Object[] args, final SearchControls cons)
-      throws NamingException;
+    NamingEnumeration<SearchResult> search(
+            final String name, final String filter, final Object[] args, final SearchControls cons)
+            throws NamingException;
 
-  NamingEnumeration<SearchResult> search(
-      final Name name, final String filter, final Object[] args, final SearchControls cons)
-      throws NamingException;
+    NamingEnumeration<SearchResult> search(
+            final Name name, final String filter, final Object[] args, final SearchControls cons)
+            throws NamingException;
 }

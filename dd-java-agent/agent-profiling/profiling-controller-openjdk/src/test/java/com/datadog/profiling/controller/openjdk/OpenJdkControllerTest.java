@@ -31,256 +31,250 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 public class OpenJdkControllerTest {
 
-  private static final String TEST_NAME = "recording name";
+    private static final String TEST_NAME = "recording name";
 
-  @BeforeAll
-  static void setupSpec() {
-    assumeFalse(JavaVirtualMachine.isJ9());
-  }
-
-  @Test
-  public void testCreateContinuousRecording() throws Exception {
-    Properties props = getConfigProperties();
-    props.put(PROFILING_DATADOG_PROFILER_ENABLED, "false");
-
-    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
-
-    OpenJdkController controller = new OpenJdkController(configProvider);
-    RecordingData data =
-        controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop();
-    assertTrue(data instanceof OpenJdkRecordingData);
-    try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
-      assertEquals(TEST_NAME, recording.getName());
-      assertEquals(controller.getMaxSize(), recording.getMaxSize());
-      assertEquals(OpenJdkController.RECORDING_MAX_AGE, recording.getMaxAge());
+    @BeforeAll
+    static void setupSpec() {
+        assumeFalse(JavaVirtualMachine.isJ9());
     }
-  }
 
-  @Test
-  public void testHeapProfilerIsDisabledOnUnsupportedVersion() throws Exception {
-    Properties props = getConfigProperties();
+    @Test
+    public void testCreateContinuousRecording() throws Exception {
+        Properties props = getConfigProperties();
+        props.put(PROFILING_DATADOG_PROFILER_ENABLED, "false");
 
-    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+        ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
-    OpenJdkController controller = new OpenJdkController(configProvider);
-    RecordingData data =
-        controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop();
-    assertTrue(data instanceof OpenJdkRecordingData);
-    try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
-      assertEquals(
-          isOldObjectSampleAvailable(),
-          Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")));
+        OpenJdkController controller = new OpenJdkController(configProvider);
+        RecordingData data = controller
+                .createRecording(TEST_NAME, new ControllerContext().snapshot())
+                .stop();
+        assertTrue(data instanceof OpenJdkRecordingData);
+        try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
+            assertEquals(TEST_NAME, recording.getName());
+            assertEquals(controller.getMaxSize(), recording.getMaxSize());
+            assertEquals(OpenJdkController.RECORDING_MAX_AGE, recording.getMaxAge());
+        }
     }
-  }
 
-  @Test
-  public void testHeapProfilerIsStillOverriddenOnUnsupportedVersion() throws Exception {
-    Properties props = getConfigProperties();
-    props.put(PROFILING_TEMPLATE_OVERRIDE_FILE, JfpTestResources.overridesOldObjectSample());
+    @Test
+    public void testHeapProfilerIsDisabledOnUnsupportedVersion() throws Exception {
+        Properties props = getConfigProperties();
 
-    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+        ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
-    OpenJdkController controller = new OpenJdkController(configProvider);
-    RecordingData data =
-        controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop();
-    assertTrue(data instanceof OpenJdkRecordingData);
-    try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
-      if (!isOldObjectSampleAvailable()) {
-        assertEquals(
-            true, Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")));
-      }
+        OpenJdkController controller = new OpenJdkController(configProvider);
+        RecordingData data = controller
+                .createRecording(TEST_NAME, new ControllerContext().snapshot())
+                .stop();
+        assertTrue(data instanceof OpenJdkRecordingData);
+        try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
+            assertEquals(
+                    isOldObjectSampleAvailable(),
+                    Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")));
+        }
     }
-  }
 
-  @Test
-  public void testHeapProfilerIsStillOverriddenThroughConfig() throws Exception {
-    Properties props = getConfigProperties();
-    props.put(PROFILING_HEAP_ENABLED, "true");
-    // Disable ddprof so OldObjectSample is not proactively disabled
-    props.put(PROFILING_DATADOG_PROFILER_ENABLED, "false");
+    @Test
+    public void testHeapProfilerIsStillOverriddenOnUnsupportedVersion() throws Exception {
+        Properties props = getConfigProperties();
+        props.put(PROFILING_TEMPLATE_OVERRIDE_FILE, JfpTestResources.overridesOldObjectSample());
 
-    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+        ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
-    OpenJdkController controller = new OpenJdkController(configProvider);
-    try (final Recording recording =
-        ((OpenJdkRecordingData)
-                controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop())
-            .getRecording()) {
-      // On JVMs where OldObjectSample is not available (e.g. Java 8), explicitly enabling heap
-      // profiling has no effect — the event cannot be safely enabled.
-      assertEquals(
-          isOldObjectSampleAvailable(),
-          Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")));
+        OpenJdkController controller = new OpenJdkController(configProvider);
+        RecordingData data = controller
+                .createRecording(TEST_NAME, new ControllerContext().snapshot())
+                .stop();
+        assertTrue(data instanceof OpenJdkRecordingData);
+        try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
+            if (!isOldObjectSampleAvailable()) {
+                assertEquals(true, Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")));
+            }
+        }
     }
-  }
 
-  @Test
-  public void testAllocationProfilerIsDisabledOnUnsupportedVersion() throws Exception {
-    Properties props = getConfigProperties();
+    @Test
+    public void testHeapProfilerIsStillOverriddenThroughConfig() throws Exception {
+        Properties props = getConfigProperties();
+        props.put(PROFILING_HEAP_ENABLED, "true");
+        // Disable ddprof so OldObjectSample is not proactively disabled
+        props.put(PROFILING_DATADOG_PROFILER_ENABLED, "false");
 
-    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+        ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
-    OpenJdkController controller = new OpenJdkController(configProvider);
-    RecordingData data =
-        controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop();
-    assertTrue(data instanceof OpenJdkRecordingData);
-    try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
-      if (isObjectAllocationSampleAvailable()) {
-        assertEquals(
-            false,
-            Boolean.parseBoolean(
-                recording.getSettings().get("jdk.ObjectAllocationInNewTLAB#enabled")));
-        assertEquals(
-            false,
-            Boolean.parseBoolean(
-                recording.getSettings().get("jdk.ObjectAllocationOutsideTLAB#enabled")));
-        assertEquals(
-            true,
-            Boolean.parseBoolean(
-                recording.getSettings().get("jdk.ObjectAllocationSample#enabled")));
-      } else {
-        assertEquals(
-            false,
-            Boolean.parseBoolean(
-                recording.getSettings().get("jdk.ObjectAllocationInNewTLAB#enabled")));
-        assertEquals(
-            false,
-            Boolean.parseBoolean(
-                recording.getSettings().get("jdk.ObjectAllocationOutsideTLAB#enabled")));
-        assertEquals(
-            false,
-            Boolean.parseBoolean(
-                recording.getSettings().get("jdk.ObjectAllocationSample#enabled")));
-      }
+        OpenJdkController controller = new OpenJdkController(configProvider);
+        try (final Recording recording = ((OpenJdkRecordingData) controller
+                        .createRecording(TEST_NAME, new ControllerContext().snapshot())
+                        .stop())
+                .getRecording()) {
+            // On JVMs where OldObjectSample is not available (e.g. Java 8), explicitly enabling heap
+            // profiling has no effect — the event cannot be safely enabled.
+            assertEquals(
+                    isOldObjectSampleAvailable(),
+                    Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")));
+        }
     }
-  }
 
-  @Test
-  public void testAllocationProfilerIsStillOverriddenOnUnsupportedVersion() throws Exception {
-    Properties props = getConfigProperties();
-    props.put(PROFILING_TEMPLATE_OVERRIDE_FILE, JfpTestResources.overridesObjectAllocation());
-    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+    @Test
+    public void testAllocationProfilerIsDisabledOnUnsupportedVersion() throws Exception {
+        Properties props = getConfigProperties();
 
-    OpenJdkController controller = new OpenJdkController(configProvider);
-    RecordingData data =
-        controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop();
-    assertTrue(data instanceof OpenJdkRecordingData);
-    try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
-      if (!isObjectAllocationSampleAvailable()) {
-        assertEquals(
-            true,
-            Boolean.parseBoolean(
-                recording.getSettings().get("jdk.ObjectAllocationInNewTLAB#enabled")));
-        assertEquals(
-            true,
-            Boolean.parseBoolean(
-                recording.getSettings().get("jdk.ObjectAllocationOutsideTLAB#enabled")));
-      }
+        ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+
+        OpenJdkController controller = new OpenJdkController(configProvider);
+        RecordingData data = controller
+                .createRecording(TEST_NAME, new ControllerContext().snapshot())
+                .stop();
+        assertTrue(data instanceof OpenJdkRecordingData);
+        try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
+            if (isObjectAllocationSampleAvailable()) {
+                assertEquals(
+                        false,
+                        Boolean.parseBoolean(recording.getSettings().get("jdk.ObjectAllocationInNewTLAB#enabled")));
+                assertEquals(
+                        false,
+                        Boolean.parseBoolean(recording.getSettings().get("jdk.ObjectAllocationOutsideTLAB#enabled")));
+                assertEquals(
+                        true, Boolean.parseBoolean(recording.getSettings().get("jdk.ObjectAllocationSample#enabled")));
+            } else {
+                assertEquals(
+                        false,
+                        Boolean.parseBoolean(recording.getSettings().get("jdk.ObjectAllocationInNewTLAB#enabled")));
+                assertEquals(
+                        false,
+                        Boolean.parseBoolean(recording.getSettings().get("jdk.ObjectAllocationOutsideTLAB#enabled")));
+                assertEquals(
+                        false, Boolean.parseBoolean(recording.getSettings().get("jdk.ObjectAllocationSample#enabled")));
+            }
+        }
     }
-  }
 
-  @Test
-  public void testAllocationProfilerIsStillOverriddenThroughConfig() throws Exception {
-    Properties props = getConfigProperties();
-    props.put(PROFILING_ALLOCATION_ENABLED, "true");
+    @Test
+    public void testAllocationProfilerIsStillOverriddenOnUnsupportedVersion() throws Exception {
+        Properties props = getConfigProperties();
+        props.put(PROFILING_TEMPLATE_OVERRIDE_FILE, JfpTestResources.overridesObjectAllocation());
+        ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
-    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
-
-    OpenJdkController controller = new OpenJdkController(configProvider);
-    try (final Recording recording =
-        ((OpenJdkRecordingData)
-                controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop())
-            .getRecording()) {
-      if (!isObjectAllocationSampleAvailable()) {
-        assertEquals(
-            true,
-            Boolean.parseBoolean(
-                recording.getSettings().get("jdk.ObjectAllocationInNewTLAB#enabled")));
-        assertEquals(
-            true,
-            Boolean.parseBoolean(
-                recording.getSettings().get("jdk.ObjectAllocationOutsideTLAB#enabled")));
-      }
+        OpenJdkController controller = new OpenJdkController(configProvider);
+        RecordingData data = controller
+                .createRecording(TEST_NAME, new ControllerContext().snapshot())
+                .stop();
+        assertTrue(data instanceof OpenJdkRecordingData);
+        try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
+            if (!isObjectAllocationSampleAvailable()) {
+                assertEquals(
+                        true,
+                        Boolean.parseBoolean(recording.getSettings().get("jdk.ObjectAllocationInNewTLAB#enabled")));
+                assertEquals(
+                        true,
+                        Boolean.parseBoolean(recording.getSettings().get("jdk.ObjectAllocationOutsideTLAB#enabled")));
+            }
+        }
     }
-  }
 
-  @Test
-  public void testNativeProfilerIsDisabledOnUnsupportedVersion() throws Exception {
-    assumeFalse(isNativeMethodSampleAvailable());
-    Properties props = getConfigProperties();
+    @Test
+    public void testAllocationProfilerIsStillOverriddenThroughConfig() throws Exception {
+        Properties props = getConfigProperties();
+        props.put(PROFILING_ALLOCATION_ENABLED, "true");
 
-    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+        ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
-    OpenJdkController controller = new OpenJdkController(configProvider);
-    RecordingData data =
-        controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop();
-    assertTrue(data instanceof OpenJdkRecordingData);
-    try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
-      assertFalse(
-          Boolean.parseBoolean(recording.getSettings().get("jdk.NativeMethodSample#enabled")));
+        OpenJdkController controller = new OpenJdkController(configProvider);
+        try (final Recording recording = ((OpenJdkRecordingData) controller
+                        .createRecording(TEST_NAME, new ControllerContext().snapshot())
+                        .stop())
+                .getRecording()) {
+            if (!isObjectAllocationSampleAvailable()) {
+                assertEquals(
+                        true,
+                        Boolean.parseBoolean(recording.getSettings().get("jdk.ObjectAllocationInNewTLAB#enabled")));
+                assertEquals(
+                        true,
+                        Boolean.parseBoolean(recording.getSettings().get("jdk.ObjectAllocationOutsideTLAB#enabled")));
+            }
+        }
     }
-  }
 
-  @Test
-  public void testNativeProfilerIsStillOverriddenOnUnsupportedVersion() throws Exception {
-    Properties props = getConfigProperties();
+    @Test
+    public void testNativeProfilerIsDisabledOnUnsupportedVersion() throws Exception {
+        assumeFalse(isNativeMethodSampleAvailable());
+        Properties props = getConfigProperties();
 
-    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+        ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
-    OpenJdkController controller = new OpenJdkController(configProvider);
-    RecordingData data =
-        controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop();
-    assertTrue(data instanceof OpenJdkRecordingData);
-    try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
-      if (!isNativeMethodSampleAvailable()) {
-        assertTrue(
-            Boolean.parseBoolean(recording.getSettings().get("jdk.NativeMethodSample#enabled")));
-      }
+        OpenJdkController controller = new OpenJdkController(configProvider);
+        RecordingData data = controller
+                .createRecording(TEST_NAME, new ControllerContext().snapshot())
+                .stop();
+        assertTrue(data instanceof OpenJdkRecordingData);
+        try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
+            assertFalse(Boolean.parseBoolean(recording.getSettings().get("jdk.NativeMethodSample#enabled")));
+        }
     }
-  }
 
-  @Test
-  public void testOldObjectSampleDisabledWhenDdprofMemleakActive() throws Exception {
-    Properties props = getConfigProperties();
-    props.put(PROFILING_DATADOG_PROFILER_ENABLED, "true");
+    @Test
+    public void testNativeProfilerIsStillOverriddenOnUnsupportedVersion() throws Exception {
+        Properties props = getConfigProperties();
 
-    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+        ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
-    ControllerContext context = new ControllerContext();
-    context.setDatadogProfilerEnabled(true);
-    context.setDatadogProfilingModes(EnumSet.of(ProfilingMode.MEMLEAK));
-
-    OpenJdkController controller = new OpenJdkController(configProvider);
-    try (final Recording recording =
-        ((OpenJdkRecordingData) controller.createRecording(TEST_NAME, context.snapshot()).stop())
-            .getRecording()) {
-      assertFalse(Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")));
+        OpenJdkController controller = new OpenJdkController(configProvider);
+        RecordingData data = controller
+                .createRecording(TEST_NAME, new ControllerContext().snapshot())
+                .stop();
+        assertTrue(data instanceof OpenJdkRecordingData);
+        try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
+            if (!isNativeMethodSampleAvailable()) {
+                assertTrue(Boolean.parseBoolean(recording.getSettings().get("jdk.NativeMethodSample#enabled")));
+            }
+        }
     }
-  }
 
-  @Test
-  public void testUnifiedFlagDisabledTurnsOffOldObjectSample() throws Exception {
-    Properties props = getConfigProperties();
-    props.put(PROFILING_HEAP_ENABLED, "false");
+    @Test
+    public void testOldObjectSampleDisabledWhenDdprofMemleakActive() throws Exception {
+        Properties props = getConfigProperties();
+        props.put(PROFILING_DATADOG_PROFILER_ENABLED, "true");
 
-    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+        ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
-    OpenJdkController controller = new OpenJdkController(configProvider);
-    RecordingData data =
-        controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop();
-    assertTrue(data instanceof OpenJdkRecordingData);
-    try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
-      assertFalse(
-          Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")),
-          "OldObjectSample should be disabled when unified live heap flag is false");
+        ControllerContext context = new ControllerContext();
+        context.setDatadogProfilerEnabled(true);
+        context.setDatadogProfilingModes(EnumSet.of(ProfilingMode.MEMLEAK));
+
+        OpenJdkController controller = new OpenJdkController(configProvider);
+        try (final Recording recording = ((OpenJdkRecordingData) controller
+                        .createRecording(TEST_NAME, context.snapshot())
+                        .stop())
+                .getRecording()) {
+            assertFalse(Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")));
+        }
     }
-  }
 
-  private static Properties getConfigProperties() {
-    Properties props = new Properties();
-    // make sure the async profiler is not force-enabled
-    props.put(PROFILING_AUXILIARY_TYPE, PROFILING_AUXILIARY_TYPE_DEFAULT);
-    props.put(PROFILING_DATADOG_PROFILER_ENABLED, "false");
-    return props;
-  }
+    @Test
+    public void testUnifiedFlagDisabledTurnsOffOldObjectSample() throws Exception {
+        Properties props = getConfigProperties();
+        props.put(PROFILING_HEAP_ENABLED, "false");
+
+        ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+
+        OpenJdkController controller = new OpenJdkController(configProvider);
+        RecordingData data = controller
+                .createRecording(TEST_NAME, new ControllerContext().snapshot())
+                .stop();
+        assertTrue(data instanceof OpenJdkRecordingData);
+        try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
+            assertFalse(
+                    Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")),
+                    "OldObjectSample should be disabled when unified live heap flag is false");
+        }
+    }
+
+    private static Properties getConfigProperties() {
+        Properties props = new Properties();
+        // make sure the async profiler is not force-enabled
+        props.put(PROFILING_AUXILIARY_TYPE, PROFILING_AUXILIARY_TYPE_DEFAULT);
+        props.put(PROFILING_DATADOG_PROFILER_ENABLED, "false");
+        return props;
+    }
 }

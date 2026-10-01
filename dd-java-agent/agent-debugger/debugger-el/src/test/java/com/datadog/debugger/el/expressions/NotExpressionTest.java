@@ -10,18 +10,18 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class NotExpressionTest {
-  @ParameterizedTest
-  @MethodSource("expressions")
-  void testNullPredicate(BooleanExpression expression, boolean expected, String prettyPrint) {
-    NotExpression expr = new NotExpression(expression);
-    assertEquals(expected, expr.evaluate(createEvalContext(this)));
-    assertEquals(prettyPrint, print(expr));
-  }
+    @ParameterizedTest
+    @MethodSource("expressions")
+    void testNullPredicate(BooleanExpression expression, boolean expected, String prettyPrint) {
+        NotExpression expr = new NotExpression(expression);
+        assertEquals(expected, expr.evaluate(createEvalContext(this)));
+        assertEquals(prettyPrint, print(expr));
+    }
 
-  private static Stream<Arguments> expressions() {
-    return Stream.of(
-        Arguments.of(null, true, "not(false)"),
-        Arguments.of(BooleanExpression.TRUE, false, "not(true)"),
-        Arguments.of(BooleanExpression.FALSE, true, "not(false)"));
-  }
+    private static Stream<Arguments> expressions() {
+        return Stream.of(
+                Arguments.of(null, true, "not(false)"),
+                Arguments.of(BooleanExpression.TRUE, false, "not(true)"),
+                Arguments.of(BooleanExpression.FALSE, true, "not(false)"));
+    }
 }

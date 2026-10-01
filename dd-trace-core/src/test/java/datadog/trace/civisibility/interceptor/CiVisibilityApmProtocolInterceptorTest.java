@@ -20,70 +20,71 @@ import org.junit.jupiter.api.Timeout;
 @Timeout(value = 10, unit = TimeUnit.SECONDS)
 public class CiVisibilityApmProtocolInterceptorTest extends DDCoreJavaSpecification {
 
-  private ListWriter writer;
-  private CoreTracer tracer;
+    private ListWriter writer;
+    private CoreTracer tracer;
 
-  @BeforeEach
-  void setup() {
-    writer = new ListWriter();
-    tracer = tracerBuilder().writer(writer).build();
-  }
-
-  @AfterEach
-  void cleanup() {
-    if (tracer != null) {
-      tracer.close();
+    @BeforeEach
+    void setup() {
+        writer = new ListWriter();
+        tracer = tracerBuilder().writer(writer).build();
     }
-  }
 
-  @Test
-  void testSuiteAndTestModuleSpansAreFilteredOut() throws InterruptedException, TimeoutException {
-    tracer.addTraceInterceptor(CiVisibilityApmProtocolInterceptor.INSTANCE);
+    @AfterEach
+    void cleanup() {
+        if (tracer != null) {
+            tracer.close();
+        }
+    }
 
-    tracer
-        .buildSpan("datadog", "test-module")
-        .withSpanType(DDSpanTypes.TEST_MODULE_END)
-        .start()
-        .finish();
-    tracer
-        .buildSpan("datadog", "test-suite")
-        .withSpanType(DDSpanTypes.TEST_SUITE_END)
-        .start()
-        .finish();
-    tracer.buildSpan("datadog", "test").withSpanType(DDSpanTypes.TEST).start().finish();
+    @Test
+    void testSuiteAndTestModuleSpansAreFilteredOut() throws InterruptedException, TimeoutException {
+        tracer.addTraceInterceptor(CiVisibilityApmProtocolInterceptor.INSTANCE);
 
-    writer.waitForTraces(1);
+        tracer.buildSpan("datadog", "test-module")
+                .withSpanType(DDSpanTypes.TEST_MODULE_END)
+                .start()
+                .finish();
+        tracer.buildSpan("datadog", "test-suite")
+                .withSpanType(DDSpanTypes.TEST_SUITE_END)
+                .start()
+                .finish();
+        tracer.buildSpan("datadog", "test")
+                .withSpanType(DDSpanTypes.TEST)
+                .start()
+                .finish();
 
-    List<DDSpan> trace = writer.firstTrace();
-    assertEquals(1, trace.size());
+        writer.waitForTraces(1);
 
-    DDSpan span = trace.get(0);
-    assertEquals("test", span.getOperationName().toString());
-  }
+        List<DDSpan> trace = writer.firstTrace();
+        assertEquals(1, trace.size());
 
-  @Test
-  void testSessionTestModuleAndTestSuiteIdsAreNullified()
-      throws InterruptedException, TimeoutException {
-    tracer.addTraceInterceptor(CiVisibilityApmProtocolInterceptor.INSTANCE);
+        DDSpan span = trace.get(0);
+        assertEquals("test", span.getOperationName().toString());
+    }
 
-    DDSpan testSpan =
-        (DDSpan) tracer.buildSpan("datadog", "test").withSpanType(DDSpanTypes.TEST).start();
-    testSpan.setTag(Tags.TEST_SESSION_ID, "session ID");
-    testSpan.setTag(Tags.TEST_MODULE_ID, "module ID");
-    testSpan.setTag(Tags.TEST_SUITE_ID, "suite ID");
-    testSpan.setTag("random tag", "random value");
-    testSpan.finish();
+    @Test
+    void testSessionTestModuleAndTestSuiteIdsAreNullified() throws InterruptedException, TimeoutException {
+        tracer.addTraceInterceptor(CiVisibilityApmProtocolInterceptor.INSTANCE);
 
-    writer.waitForTraces(1);
+        DDSpan testSpan = (DDSpan) tracer.buildSpan("datadog", "test")
+                .withSpanType(DDSpanTypes.TEST)
+                .start();
+        testSpan.setTag(Tags.TEST_SESSION_ID, "session ID");
+        testSpan.setTag(Tags.TEST_MODULE_ID, "module ID");
+        testSpan.setTag(Tags.TEST_SUITE_ID, "suite ID");
+        testSpan.setTag("random tag", "random value");
+        testSpan.finish();
 
-    List<DDSpan> trace = writer.firstTrace();
-    assertEquals(1, trace.size());
+        writer.waitForTraces(1);
 
-    DDSpan span = trace.get(0);
+        List<DDSpan> trace = writer.firstTrace();
+        assertEquals(1, trace.size());
 
-    assertNull(span.getTag(Tags.TEST_SESSION_ID));
-    assertNull(span.getTag(Tags.TEST_MODULE_ID));
-    assertNull(span.getTag(Tags.TEST_SUITE_ID));
-    assertEquals("random value", span.getTag("random tag"));
-  }
+        DDSpan span = trace.get(0);
+
+        assertNull(span.getTag(Tags.TEST_SESSION_ID));
+        assertNull(span.getTag(Tags.TEST_MODULE_ID));
+        assertNull(span.getTag(Tags.TEST_SUITE_ID));
+        assertEquals("random value", span.getTag("random tag"));
+    }
 }

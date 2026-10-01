@@ -18,41 +18,41 @@ import datadog.trace.agent.tooling.InstrumenterModule;
  */
 @AutoService(InstrumenterModule.class)
 public final class ResourceNameFilterMappingInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public ResourceNameFilterMappingInstrumentation() {
-    super("spring-web", "spring-path-filter");
-  }
+    public ResourceNameFilterMappingInstrumentation() {
+        super("spring-web", "spring-path-filter");
+    }
 
-  @Override
-  protected boolean defaultEnabled() {
-    return false;
-  }
+    @Override
+    protected boolean defaultEnabled() {
+        return false;
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "org.springframework.web.servlet.DispatcherServlet";
-  }
+    @Override
+    public String instrumentedType() {
+        return "org.springframework.web.servlet.DispatcherServlet";
+    }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".SpringWebHttpServerDecorator",
-      packageName + ".ServletRequestURIAdapter",
-      packageName + ".HandlerMappingResourceNameFilter",
-      packageName + ".HandlerMappingResourceNameFilter$BeanDefinition",
-      packageName + ".PathMatchingHttpServletRequestWrapper",
-    };
-  }
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".SpringWebHttpServerDecorator",
+            packageName + ".ServletRequestURIAdapter",
+            packageName + ".HandlerMappingResourceNameFilter",
+            packageName + ".HandlerMappingResourceNameFilter$BeanDefinition",
+            packageName + ".PathMatchingHttpServletRequestWrapper",
+        };
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(isProtected())
-            .and(named("onRefresh"))
-            .and(takesArgument(0, named("org.springframework.context.ApplicationContext")))
-            .and(takesArguments(1)),
-        packageName + ".ResourceNameFilterMappingAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isProtected())
+                        .and(named("onRefresh"))
+                        .and(takesArgument(0, named("org.springframework.context.ApplicationContext")))
+                        .and(takesArguments(1)),
+                packageName + ".ResourceNameFilterMappingAdvice");
+    }
 }

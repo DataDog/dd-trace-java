@@ -7,19 +7,19 @@ import javax.annotation.Nullable;
 
 public class RepoIndexSourcePathResolver implements SourcePathResolver {
 
-  private final RepoIndexProvider indexProvider;
+    private final RepoIndexProvider indexProvider;
 
-  public RepoIndexSourcePathResolver(RepoIndexProvider indexProvider) {
-    this.indexProvider = indexProvider;
-  }
+    public RepoIndexSourcePathResolver(RepoIndexProvider indexProvider) {
+        this.indexProvider = indexProvider;
+    }
 
-  @Override
-  public Collection<String> getSourcePaths(@Nonnull Class<?> c) {
-    return indexProvider.getIndex().getSourcePaths(c);
-  }
+    @Override
+    public Collection<String> getSourcePaths(@Nonnull Class<?> c) {
+        return indexProvider.getIndex().getSourcePaths(c);
+    }
 
-  @Override
-  public Collection<String> getResourcePaths(@Nullable String relativePath) {
-    return indexProvider.getIndex().getSourcePaths(relativePath);
-  }
+    @Override
+    public Collection<String> getResourcePaths(@Nullable String relativePath) {
+        return indexProvider.getIndex().getSourcePaths(relativePath);
+    }
 }

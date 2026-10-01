@@ -8,22 +8,21 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class ConfigDefaultsConverter extends AbstractStringFallThruConverter {
-  private static final Map<String, String> MAPPING;
+    private static final Map<String, String> MAPPING;
 
-  static {
-    MAPPING = new HashMap<>();
-    MAPPING.put("DEFAULT_SERVICE_NAME", DEFAULT_SERVICE_NAME);
-    MAPPING.put(
-        "DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME", DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME);
-  }
+    static {
+        MAPPING = new HashMap<>();
+        MAPPING.put("DEFAULT_SERVICE_NAME", DEFAULT_SERVICE_NAME);
+        MAPPING.put("DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME", DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME);
+    }
 
-  @Override
-  protected String className() {
-    return "ConfigDefaults";
-  }
+    @Override
+    protected String className() {
+        return "ConfigDefaults";
+    }
 
-  @Override
-  protected Map<String, String> mapping() {
-    return MAPPING;
-  }
+    @Override
+    protected Map<String, String> mapping() {
+        return MAPPING;
+    }
 }

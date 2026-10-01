@@ -12,64 +12,63 @@ import org.junit.jupiter.api.condition.DisabledIf;
 
 public class FilesTest {
 
-  private SecurityManager originalSM;
+    private SecurityManager originalSM;
 
-  @Test
-  void existsReturnsTrueWhenFileExistsAndIsAccessible() throws IOException {
-    File file = File.createTempFile("test", "txt");
-    file.deleteOnExit();
+    @Test
+    void existsReturnsTrueWhenFileExistsAndIsAccessible() throws IOException {
+        File file = File.createTempFile("test", "txt");
+        file.deleteOnExit();
 
-    assertTrue(Files.exists(file));
-  }
+        assertTrue(Files.exists(file));
+    }
 
-  @Test
-  void existsReturnsFalseWhenFileDoesNotExist() throws IOException {
-    File file = File.createTempFile("missing", "txt");
-    assertTrue(file.delete()); // ensure it does not exist
+    @Test
+    void existsReturnsFalseWhenFileDoesNotExist() throws IOException {
+        File file = File.createTempFile("missing", "txt");
+        assertTrue(file.delete()); // ensure it does not exist
 
-    assertFalse(Files.exists(file));
-  }
+        assertFalse(Files.exists(file));
+    }
 
-  @Test
-  @DisabledIf("isJava18OrLater")
-  void existsReturnsFalseWhenSecurityManagerForbidsFileAccess() throws IOException {
-    File file = File.createTempFile("test", "txt");
-    file.deleteOnExit();
+    @Test
+    @DisabledIf("isJava18OrLater")
+    void existsReturnsFalseWhenSecurityManagerForbidsFileAccess() throws IOException {
+        File file = File.createTempFile("test", "txt");
+        file.deleteOnExit();
 
-    // --- install restrictive SecurityManager only in this test ---
-    SecurityManager originalSM = System.getSecurityManager();
+        // --- install restrictive SecurityManager only in this test ---
+        SecurityManager originalSM = System.getSecurityManager();
 
-    System.setSecurityManager(
-        new SecurityManager() {
-          @Override
-          public void checkRead(String filePath) {
-            // Deny only THIS file so classloading still works
-            if (filePath.equals(file.getAbsolutePath())) {
-              throw new SecurityException("Access denied");
+        System.setSecurityManager(new SecurityManager() {
+            @Override
+            public void checkRead(String filePath) {
+                // Deny only THIS file so classloading still works
+                if (filePath.equals(file.getAbsolutePath())) {
+                    throw new SecurityException("Access denied");
+                }
             }
-          }
 
-          @Override
-          public void checkPermission(Permission perm) {
-            // allow everything else
-          }
+            @Override
+            public void checkPermission(Permission perm) {
+                // allow everything else
+            }
 
-          @Override
-          public void checkPermission(Permission perm, Object context) {
-            // allow everything else
-          }
+            @Override
+            public void checkPermission(Permission perm, Object context) {
+                // allow everything else
+            }
         });
 
-    try {
-      boolean result = Files.exists(file);
-      assertFalse(result);
-    } finally {
-      // --- restore original security manager ---
-      System.setSecurityManager(originalSM);
+        try {
+            boolean result = Files.exists(file);
+            assertFalse(result);
+        } finally {
+            // --- restore original security manager ---
+            System.setSecurityManager(originalSM);
+        }
     }
-  }
 
-  static boolean isJava18OrLater() {
-    return JavaVirtualMachine.isJavaVersionAtLeast(18);
-  }
+    static boolean isJava18OrLater() {
+        return JavaVirtualMachine.isJavaVersionAtLeast(18);
+    }
 }

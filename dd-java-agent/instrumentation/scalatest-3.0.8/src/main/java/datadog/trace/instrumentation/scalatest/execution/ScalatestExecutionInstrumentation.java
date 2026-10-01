@@ -26,80 +26,76 @@ import org.scalatest.SuperEngine;
 
 @AutoService(InstrumenterModule.class)
 public class ScalatestExecutionInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  private final String parentPackageName = Strings.getPackageName(ScalatestUtils.class.getName());
+    private final String parentPackageName = Strings.getPackageName(ScalatestUtils.class.getName());
 
-  public ScalatestExecutionInstrumentation() {
-    super("ci-visibility", "scalatest", "test-retry");
-  }
-
-  @Override
-  public boolean isEnabled() {
-    return super.isEnabled() && Config.get().isCiVisibilityExecutionPoliciesEnabled();
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "org.scalatest.SuperEngine";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("runTestImpl")
-            .and(takesArgument(0, named("org.scalatest.Suite")))
-            .and(takesArgument(1, String.class))
-            .and(takesArgument(2, named("org.scalatest.Args"))),
-        ScalatestExecutionInstrumentation.class.getName() + "$ExecutionAdvice");
-  }
-
-  public static class ExecutionAdvice {
-    @Advice.OnMethodEnter
-    public static void beforeTest(
-        @Advice.Argument(value = 0) Suite suite,
-        @Advice.Argument(value = 1) String testName,
-        @Advice.Argument(value = 2) Args args,
-        @Advice.Argument(value = 4, readOnly = false)
-            scala.Function1<SuperEngine<?>.TestLeaf, Outcome> invokeWithFixture)
-        throws Throwable {
-      if (!(invokeWithFixture instanceof TestExecutionWrapper)) {
-        int runStamp = args.tracker().nextOrdinal().runStamp();
-        RunContext context = RunContext.getOrCreate(runStamp);
-        TestIdentifier testIdentifier = new TestIdentifier(suite.suiteId(), testName, null);
-        TestSourceData testSourceData = new TestSourceData(suite.getClass(), null, null);
-        TestExecutionPolicy executionPolicy =
-            context.getOrCreateExecutionPolicy(
-                testIdentifier, testSourceData, context.tags(testIdentifier));
-
-        invokeWithFixture = new TestExecutionWrapper(invokeWithFixture, executionPolicy);
-      }
+    public ScalatestExecutionInstrumentation() {
+        super("ci-visibility", "scalatest", "test-retry");
     }
 
-    @Advice.OnMethodExit
-    public static void afterTest(
-        @Advice.Origin MethodHandle runTest,
-        @Advice.This SuperEngine engine,
-        @Advice.Argument(value = 0) Suite suite,
-        @Advice.Argument(value = 1) String testName,
-        @Advice.Argument(value = 2) Args args,
-        @Advice.Argument(value = 3) Object includeIcon,
-        @Advice.Argument(value = 4)
-            scala.Function1<SuperEngine<?>.TestLeaf, Outcome> invokeWithFixture,
-        @Advice.Return(readOnly = false) Status status)
-        throws Throwable {
-      TestExecutionWrapper invokeWrapper = (TestExecutionWrapper) invokeWithFixture;
-      if (invokeWrapper.applicable()) {
-        status =
-            (Status)
-                runTest.invokeWithArguments(
-                    engine, suite, testName, args, includeIcon, invokeWithFixture);
-      }
+    @Override
+    public boolean isEnabled() {
+        return super.isEnabled() && Config.get().isCiVisibilityExecutionPoliciesEnabled();
     }
-  }
+
+    @Override
+    public String hierarchyMarkerType() {
+        return "org.scalatest.SuperEngine";
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return extendsClass(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("runTestImpl")
+                        .and(takesArgument(0, named("org.scalatest.Suite")))
+                        .and(takesArgument(1, String.class))
+                        .and(takesArgument(2, named("org.scalatest.Args"))),
+                ScalatestExecutionInstrumentation.class.getName() + "$ExecutionAdvice");
+    }
+
+    public static class ExecutionAdvice {
+        @Advice.OnMethodEnter
+        public static void beforeTest(
+                @Advice.Argument(value = 0) Suite suite,
+                @Advice.Argument(value = 1) String testName,
+                @Advice.Argument(value = 2) Args args,
+                @Advice.Argument(value = 4, readOnly = false)
+                        scala.Function1<SuperEngine<?>.TestLeaf, Outcome> invokeWithFixture)
+                throws Throwable {
+            if (!(invokeWithFixture instanceof TestExecutionWrapper)) {
+                int runStamp = args.tracker().nextOrdinal().runStamp();
+                RunContext context = RunContext.getOrCreate(runStamp);
+                TestIdentifier testIdentifier = new TestIdentifier(suite.suiteId(), testName, null);
+                TestSourceData testSourceData = new TestSourceData(suite.getClass(), null, null);
+                TestExecutionPolicy executionPolicy = context.getOrCreateExecutionPolicy(
+                        testIdentifier, testSourceData, context.tags(testIdentifier));
+
+                invokeWithFixture = new TestExecutionWrapper(invokeWithFixture, executionPolicy);
+            }
+        }
+
+        @Advice.OnMethodExit
+        public static void afterTest(
+                @Advice.Origin MethodHandle runTest,
+                @Advice.This SuperEngine engine,
+                @Advice.Argument(value = 0) Suite suite,
+                @Advice.Argument(value = 1) String testName,
+                @Advice.Argument(value = 2) Args args,
+                @Advice.Argument(value = 3) Object includeIcon,
+                @Advice.Argument(value = 4) scala.Function1<SuperEngine<?>.TestLeaf, Outcome> invokeWithFixture,
+                @Advice.Return(readOnly = false) Status status)
+                throws Throwable {
+            TestExecutionWrapper invokeWrapper = (TestExecutionWrapper) invokeWithFixture;
+            if (invokeWrapper.applicable()) {
+                status = (Status)
+                        runTest.invokeWithArguments(engine, suite, testName, args, includeIcon, invokeWithFixture);
+            }
+        }
+    }
 }

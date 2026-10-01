@@ -3,11 +3,11 @@ package com.tibco.pe.core;
 import com.tibco.pe.plugin.Activity;
 
 public interface Task {
-  String getName();
+    String getName();
 
-  Activity getActivity();
+    Activity getActivity();
 
-  Workflow getWorkflow();
+    Workflow getWorkflow();
 
-  int getTransitionCount();
+    int getTransitionCount();
 }

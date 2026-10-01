@@ -16,47 +16,45 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
-public final class ECIInteractionInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  @Override
-  public String instrumentedType() {
-    return "com.ibm.connector2.cics.ECIInteraction";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(named("execute"), getClass().getName() + "$ExecuteAdvice");
-  }
-
-  public static class ExecuteAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope enter(@Advice.Argument(0) final Object spec) {
-      // Coordinating with JavaGatewayInterfaceInstrumentation
-      CallDepthThreadLocalMap.incrementCallDepth(ECIInteraction.class);
-
-      if (!(spec instanceof ECIInteractionSpec)) {
-        return null;
-      }
-
-      AgentSpan span = startSpan(CICS_CLIENT.toString(), ECI_EXECUTE_OPERATION);
-      DECORATE.afterStart(span);
-      DECORATE.onECIInteraction(span, (ECIInteractionSpec) spec);
-
-      return activateSpan(span);
+public final class ECIInteractionInstrumentation implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    @Override
+    public String instrumentedType() {
+        return "com.ibm.connector2.cics.ECIInteraction";
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
-      CallDepthThreadLocalMap.decrementCallDepth(ECIInteraction.class);
-
-      if (null != scope) {
-        AgentSpan span = spanFromScope(scope);
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-        scope.close();
-        span.finish();
-      }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(named("execute"), getClass().getName() + "$ExecuteAdvice");
     }
-  }
+
+    public static class ExecuteAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope enter(@Advice.Argument(0) final Object spec) {
+            // Coordinating with JavaGatewayInterfaceInstrumentation
+            CallDepthThreadLocalMap.incrementCallDepth(ECIInteraction.class);
+
+            if (!(spec instanceof ECIInteractionSpec)) {
+                return null;
+            }
+
+            AgentSpan span = startSpan(CICS_CLIENT.toString(), ECI_EXECUTE_OPERATION);
+            DECORATE.afterStart(span);
+            DECORATE.onECIInteraction(span, (ECIInteractionSpec) spec);
+
+            return activateSpan(span);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void exit(@Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+            CallDepthThreadLocalMap.decrementCallDepth(ECIInteraction.class);
+
+            if (null != scope) {
+                AgentSpan span = spanFromScope(scope);
+                DECORATE.onError(span, throwable);
+                DECORATE.beforeFinish(span);
+                scope.close();
+                span.finish();
+            }
+        }
+    }
 }

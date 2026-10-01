@@ -7,32 +7,35 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 final class OtelMeterBuilder implements MeterBuilder {
-  private final OtelMeterProvider meterProvider;
+    private final OtelMeterProvider meterProvider;
 
-  private final String instrumentationScopeName;
-  @Nullable private String instrumentationScopeVersion;
-  @Nullable private String schemaUrl;
+    private final String instrumentationScopeName;
 
-  OtelMeterBuilder(OtelMeterProvider meterProvider, String instrumentationScopeName) {
-    this.meterProvider = meterProvider;
-    this.instrumentationScopeName = instrumentationScopeName;
-  }
+    @Nullable
+    private String instrumentationScopeVersion;
 
-  @Override
-  public MeterBuilder setInstrumentationVersion(String instrumentationScopeVersion) {
-    this.instrumentationScopeVersion = instrumentationScopeVersion;
-    return this;
-  }
+    @Nullable
+    private String schemaUrl;
 
-  @Override
-  public MeterBuilder setSchemaUrl(String schemaUrl) {
-    this.schemaUrl = schemaUrl;
-    return this;
-  }
+    OtelMeterBuilder(OtelMeterProvider meterProvider, String instrumentationScopeName) {
+        this.meterProvider = meterProvider;
+        this.instrumentationScopeName = instrumentationScopeName;
+    }
 
-  @Override
-  public Meter build() {
-    return meterProvider.getMeterShim(
-        instrumentationScopeName, instrumentationScopeVersion, schemaUrl);
-  }
+    @Override
+    public MeterBuilder setInstrumentationVersion(String instrumentationScopeVersion) {
+        this.instrumentationScopeVersion = instrumentationScopeVersion;
+        return this;
+    }
+
+    @Override
+    public MeterBuilder setSchemaUrl(String schemaUrl) {
+        this.schemaUrl = schemaUrl;
+        return this;
+    }
+
+    @Override
+    public Meter build() {
+        return meterProvider.getMeterShim(instrumentationScopeName, instrumentationScopeVersion, schemaUrl);
+    }
 }

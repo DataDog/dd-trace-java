@@ -18,57 +18,55 @@ import de.thetaphi.forbiddenapis.SuppressForbidden;
  * thread-safe and all methods can be safely called from multiple threads.
  */
 public final class HttpProviders {
-  private static final String JDK_HTTP_PROVIDER_CLASS_NAME =
-      "datadog.http.client.jdk.JdkHttpProvider";
-  private static final String OKHTTP_PROVIDER_CLASS_NAME =
-      "datadog.http.client.okhttp.OkHttpProvider";
-  private static volatile boolean compatibilityMode = false;
-  private static HttpProvider provider;
+    private static final String JDK_HTTP_PROVIDER_CLASS_NAME = "datadog.http.client.jdk.JdkHttpProvider";
+    private static final String OKHTTP_PROVIDER_CLASS_NAME = "datadog.http.client.okhttp.OkHttpProvider";
+    private static volatile boolean compatibilityMode = false;
+    private static HttpProvider provider;
 
-  private HttpProviders() {}
+    private HttpProviders() {}
 
-  public static void forceCompatClient() {
-    // Skip if already in compat mode
-    if (compatibilityMode) {
-      return;
-    }
-    compatibilityMode = true;
-    provider = null;
-  }
-
-  public static HttpProvider get() {
-    if (provider == null) {
-      provider = findProvider();
-    }
-    return provider;
-  }
-
-  @SuppressForbidden // Class#forName(String) used to dynamically load the http API implementation
-  private static HttpProvider findProvider() {
-    Class<?> clazz = null;
-    // Load the default client class
-    if (!compatibilityMode) {
-      try {
-        clazz = Class.forName(JDK_HTTP_PROVIDER_CLASS_NAME);
-      } catch (ClassNotFoundException | UnsupportedClassVersionError ignored) {
+    public static void forceCompatClient() {
+        // Skip if already in compat mode
+        if (compatibilityMode) {
+            return;
+        }
         compatibilityMode = true;
-      }
+        provider = null;
     }
-    // If not loaded, load the compat client class
-    if (clazz == null) {
-      try {
-        clazz = Class.forName(OKHTTP_PROVIDER_CLASS_NAME);
-      } catch (ClassNotFoundException ignored) {
-      }
+
+    public static HttpProvider get() {
+        if (provider == null) {
+            provider = findProvider();
+        }
+        return provider;
     }
-    // If no class loaded, raise the illegal state
-    if (clazz == null) {
-      throw new IllegalStateException("No http client implementation found");
+
+    @SuppressForbidden // Class#forName(String) used to dynamically load the http API implementation
+    private static HttpProvider findProvider() {
+        Class<?> clazz = null;
+        // Load the default client class
+        if (!compatibilityMode) {
+            try {
+                clazz = Class.forName(JDK_HTTP_PROVIDER_CLASS_NAME);
+            } catch (ClassNotFoundException | UnsupportedClassVersionError ignored) {
+                compatibilityMode = true;
+            }
+        }
+        // If not loaded, load the compat client class
+        if (clazz == null) {
+            try {
+                clazz = Class.forName(OKHTTP_PROVIDER_CLASS_NAME);
+            } catch (ClassNotFoundException ignored) {
+            }
+        }
+        // If no class loaded, raise the illegal state
+        if (clazz == null) {
+            throw new IllegalStateException("No http client implementation found");
+        }
+        try {
+            return (HttpProvider) clazz.getDeclaredConstructor().newInstance();
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("No http client implementation found", e);
+        }
     }
-    try {
-      return (HttpProvider) clazz.getDeclaredConstructor().newInstance();
-    } catch (ReflectiveOperationException e) {
-      throw new IllegalStateException("No http client implementation found", e);
-    }
-  }
 }

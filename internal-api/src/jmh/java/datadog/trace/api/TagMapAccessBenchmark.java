@@ -65,104 +65,104 @@ import org.openjdk.jmh.infra.Blackhole;
 @Threads(8)
 @State(Scope.Benchmark)
 public class TagMapAccessBenchmark {
-  // a representative HTTP-server-ish tag set (immutable -> safe to share across threads)
-  static final String[] NAMES = {
-    "http.request.method",
-    "http.response.status_code",
-    "http.route",
-    "url.path",
-    "url.scheme",
-    "server.address",
-    "server.port",
-    "client.address",
-    "network.protocol.version",
-    "user_agent.original",
-    "span.kind",
-    "component",
-    "language",
-    "error",
-    "resource.name",
-    "service.name",
-    "operation.name",
-    "env",
-  };
+    // a representative HTTP-server-ish tag set (immutable -> safe to share across threads)
+    static final String[] NAMES = {
+        "http.request.method",
+        "http.response.status_code",
+        "http.route",
+        "url.path",
+        "url.scheme",
+        "server.address",
+        "server.port",
+        "client.address",
+        "network.protocol.version",
+        "user_agent.original",
+        "span.kind",
+        "component",
+        "language",
+        "error",
+        "resource.name",
+        "service.name",
+        "operation.name",
+        "env",
+    };
 
-  static final Object[] VALUES = new Object[NAMES.length];
+    static final Object[] VALUES = new Object[NAMES.length];
 
-  static {
-    for (int i = 0; i < NAMES.length; ++i) {
-      VALUES[i] = "value-" + i;
+    static {
+        for (int i = 0; i < NAMES.length; ++i) {
+            VALUES[i] = "value-" + i;
+        }
     }
-  }
 
-  /**
-   * Pre-populated read map, PER-THREAD ({@code Scope.Thread}): each thread owns its own map so
-   * reads don't contend on shared mutable state under {@code @Threads(8)}.
-   */
-  @State(Scope.Thread)
-  public static class ReadMap {
-    TagMap map;
+    /**
+     * Pre-populated read map, PER-THREAD ({@code Scope.Thread}): each thread owns its own map so
+     * reads don't contend on shared mutable state under {@code @Threads(8)}.
+     */
+    @State(Scope.Thread)
+    public static class ReadMap {
+        TagMap map;
 
-    @Setup(Level.Trial)
-    public void build() {
-      this.map = TagMap.create();
-      for (int i = 0; i < NAMES.length; ++i) {
-        this.map.set(NAMES[i], VALUES[i]);
-      }
+        @Setup(Level.Trial)
+        public void build() {
+            this.map = TagMap.create();
+            for (int i = 0; i < NAMES.length; ++i) {
+                this.map.set(NAMES[i], VALUES[i]);
+            }
+        }
     }
-  }
 
-  @Benchmark
-  public TagMap insert() {
-    TagMap map = TagMap.create();
-    for (int i = 0; i < NAMES.length; ++i) {
-      map.set(NAMES[i], VALUES[i]);
+    @Benchmark
+    public TagMap insert() {
+        TagMap map = TagMap.create();
+        for (int i = 0; i < NAMES.length; ++i) {
+            map.set(NAMES[i], VALUES[i]);
+        }
+        return map;
     }
-    return map;
-  }
 
-  @Benchmark
-  public TagMap insert_via_ledger() {
-    TagMap.Ledger ledger = TagMap.ledger();
-    for (int i = 0; i < NAMES.length; ++i) {
-      ledger.set(NAMES[i], VALUES[i]);
+    @Benchmark
+    public TagMap insert_via_ledger() {
+        TagMap.Ledger ledger = TagMap.ledger();
+        for (int i = 0; i < NAMES.length; ++i) {
+            ledger.set(NAMES[i], VALUES[i]);
+        }
+        return ledger.build();
     }
-    return ledger.build();
-  }
 
-  @Benchmark
-  public Map<String, Object> insert_hashMap() {
-    HashMap<String, Object> map = new HashMap<>();
-    for (int i = 0; i < NAMES.length; ++i) {
-      map.put(NAMES[i], VALUES[i]);
+    @Benchmark
+    public Map<String, Object> insert_hashMap() {
+        HashMap<String, Object> map = new HashMap<>();
+        for (int i = 0; i < NAMES.length; ++i) {
+            map.put(NAMES[i], VALUES[i]);
+        }
+        return map;
     }
-    return map;
-  }
 
-  /**
-   * Models the builder idiom for HashMap: accumulate into a staging map, then defensively copy. Two
-   * allocations, two fill passes — the honest cost of a HashMap-based builder pattern.
-   */
-  @Benchmark
-  public Map<String, Object> insert_hashMap_builderStyle() {
-    HashMap<String, Object> staging = new HashMap<>();
-    for (int i = 0; i < NAMES.length; ++i) {
-      staging.put(NAMES[i], VALUES[i]);
+    /**
+     * Models the builder idiom for HashMap: accumulate into a staging map, then defensively copy. Two
+     * allocations, two fill passes — the honest cost of a HashMap-based builder pattern.
+     */
+    @Benchmark
+    public Map<String, Object> insert_hashMap_builderStyle() {
+        HashMap<String, Object> staging = new HashMap<>();
+        for (int i = 0; i < NAMES.length; ++i) {
+            staging.put(NAMES[i], VALUES[i]);
+        }
+        return new HashMap<>(staging);
     }
-    return new HashMap<>(staging);
-  }
 
-  @Benchmark
-  public void getObject(ReadMap rm, Blackhole bh) {
-    for (int i = 0; i < NAMES.length; ++i) {
-      bh.consume(rm.map.getObject(NAMES[i]));
+    @Benchmark
+    public void getObject(ReadMap rm, Blackhole bh) {
+        for (int i = 0; i < NAMES.length; ++i) {
+            bh.consume(rm.map.getObject(NAMES[i]));
+        }
     }
-  }
 
-  @Benchmark
-  public void getEntry(ReadMap rm, Blackhole bh) {
-    for (int i = 0; i < NAMES.length; ++i) {
-      bh.consume(rm.map.getEntry(NAMES[i]).objectValue());
+    @Benchmark
+    public void getEntry(ReadMap rm, Blackhole bh) {
+        for (int i = 0; i < NAMES.length; ++i) {
+            bh.consume(rm.map.getEntry(NAMES[i]).objectValue());
+        }
     }
-  }
 }

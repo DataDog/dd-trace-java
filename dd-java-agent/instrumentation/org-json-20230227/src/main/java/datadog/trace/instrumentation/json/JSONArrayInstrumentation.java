@@ -18,40 +18,39 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class JSONArrayInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public JSONArrayInstrumentation() {
-    super("org-json");
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "all";
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.json.JSONArray";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor().and(takesArguments(0)).and(takesArgument(0, named("org.json.JSONTokener"))),
-        getClass().getName() + "$ConstructorAdvice");
-    transformer.applyAdvice(
-        isMethod().and(isPublic()).and(returns(Object.class)).and(named("opt")),
-        packageName + ".OptAdvice");
-  }
-
-  public static class ConstructorAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Propagation
-    public static void afterInit(@Advice.This Object self, @Advice.Argument(0) final Object input) {
-      final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
-      if (iastModule != null && input != null) {
-        iastModule.taintObjectIfTainted(self, input);
-      }
+    public JSONArrayInstrumentation() {
+        super("org-json");
     }
-  }
+
+    @Override
+    public String muzzleDirective() {
+        return "all";
+    }
+
+    @Override
+    public String instrumentedType() {
+        return "org.json.JSONArray";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isConstructor().and(takesArguments(0)).and(takesArgument(0, named("org.json.JSONTokener"))),
+                getClass().getName() + "$ConstructorAdvice");
+        transformer.applyAdvice(
+                isMethod().and(isPublic()).and(returns(Object.class)).and(named("opt")), packageName + ".OptAdvice");
+    }
+
+    public static class ConstructorAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Propagation
+        public static void afterInit(@Advice.This Object self, @Advice.Argument(0) final Object input) {
+            final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
+            if (iastModule != null && input != null) {
+                iastModule.taintObjectIfTainted(self, input);
+            }
+        }
+    }
 }

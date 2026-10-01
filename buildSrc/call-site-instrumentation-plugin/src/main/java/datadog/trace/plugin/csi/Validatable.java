@@ -4,5 +4,5 @@ import javax.annotation.Nonnull;
 
 public interface Validatable {
 
-  void validate(@Nonnull ValidationContext context);
+    void validate(@Nonnull ValidationContext context);
 }

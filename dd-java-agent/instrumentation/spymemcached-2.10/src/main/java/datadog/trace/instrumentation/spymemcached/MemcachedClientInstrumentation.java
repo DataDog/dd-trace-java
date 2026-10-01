@@ -25,158 +25,152 @@ import net.spy.memcached.internal.OperationFuture;
 
 @AutoService(InstrumenterModule.class)
 public final class MemcachedClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  private static final String MEMCACHED_PACKAGE = "net.spy.memcached";
+    private static final String MEMCACHED_PACKAGE = "net.spy.memcached";
 
-  public MemcachedClientInstrumentation() {
-    super("spymemcached");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return MEMCACHED_PACKAGE + ".MemcachedClient";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(returns(named(MEMCACHED_PACKAGE + ".internal.OperationFuture")))
-            /*
-            Flush seems to have a bug when listeners may not be always called.
-            Also tracing flush is probably of a very limited value.
-            */
-            .and(not(named("flush"))),
-        MemcachedClientInstrumentation.class.getName() + "$AsyncOperationAdvice");
-    transformer.applyAdvice(
-        isMethod().and(isPublic()).and(returns(named(MEMCACHED_PACKAGE + ".internal.GetFuture"))),
-        MemcachedClientInstrumentation.class.getName() + "$AsyncGetAdvice");
-    transformer.applyAdvice(
-        isMethod().and(isPublic()).and(returns(named(MEMCACHED_PACKAGE + ".internal.BulkFuture"))),
-        MemcachedClientInstrumentation.class.getName() + "$AsyncBulkAdvice");
-    transformer.applyAdvice(
-        isMethod().and(isPublic()).and(namedOneOf("incr", "decr")),
-        MemcachedClientInstrumentation.class.getName() + "$SyncOperationAdvice");
-  }
-
-  public static class AsyncOperationAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope methodEnter() {
-      if (CallDepthThreadLocalMap.incrementCallDepth(MemcachedClient.class) > 0) {
-        return null;
-      }
-      return activateSpan(
-          startSpan(COMPONENT_NAME.toString(), MemcacheClientDecorator.OPERATION_NAME));
+    public MemcachedClientInstrumentation() {
+        super("spymemcached");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit(
-        @Advice.Enter final ContextScope scope,
-        @Advice.Origin("#m") final String methodName,
-        @Advice.Return final OperationFuture future) {
-      if (scope == null) {
-        return;
-      }
-      CallDepthThreadLocalMap.reset(MemcachedClient.class);
-      try (final ContextScope toClose = scope) {
-        if (future != null) {
-          final OperationCompletionListener listener =
-              new OperationCompletionListener(spanFromScope(scope), methodName);
-          future.addListener(listener);
+    @Override
+    public String instrumentedType() {
+        return MEMCACHED_PACKAGE + ".MemcachedClient";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPublic())
+                        .and(returns(named(MEMCACHED_PACKAGE + ".internal.OperationFuture")))
+                        /*
+                        Flush seems to have a bug when listeners may not be always called.
+                        Also tracing flush is probably of a very limited value.
+                        */
+                        .and(not(named("flush"))),
+                MemcachedClientInstrumentation.class.getName() + "$AsyncOperationAdvice");
+        transformer.applyAdvice(
+                isMethod().and(isPublic()).and(returns(named(MEMCACHED_PACKAGE + ".internal.GetFuture"))),
+                MemcachedClientInstrumentation.class.getName() + "$AsyncGetAdvice");
+        transformer.applyAdvice(
+                isMethod().and(isPublic()).and(returns(named(MEMCACHED_PACKAGE + ".internal.BulkFuture"))),
+                MemcachedClientInstrumentation.class.getName() + "$AsyncBulkAdvice");
+        transformer.applyAdvice(
+                isMethod().and(isPublic()).and(namedOneOf("incr", "decr")),
+                MemcachedClientInstrumentation.class.getName() + "$SyncOperationAdvice");
+    }
+
+    public static class AsyncOperationAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope methodEnter() {
+            if (CallDepthThreadLocalMap.incrementCallDepth(MemcachedClient.class) > 0) {
+                return null;
+            }
+            return activateSpan(startSpan(COMPONENT_NAME.toString(), MemcacheClientDecorator.OPERATION_NAME));
         }
-      }
-    }
-  }
 
-  public static class AsyncGetAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope methodEnter() {
-      if (CallDepthThreadLocalMap.incrementCallDepth(MemcachedClient.class) > 0) {
-        return null;
-      }
-      return activateSpan(
-          startSpan(COMPONENT_NAME.toString(), MemcacheClientDecorator.OPERATION_NAME));
-    }
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit(
-        @Advice.Enter final ContextScope scope,
-        @Advice.Origin("#m") final String methodName,
-        @Advice.Return final GetFuture future) {
-      if (scope == null) {
-        return;
-      }
-      CallDepthThreadLocalMap.reset(MemcachedClient.class);
-      try (final ContextScope toClose = scope) {
-        if (future != null) {
-          final GetCompletionListener listener =
-              new GetCompletionListener(spanFromScope(scope), methodName);
-          future.addListener(listener);
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void methodExit(
+                @Advice.Enter final ContextScope scope,
+                @Advice.Origin("#m") final String methodName,
+                @Advice.Return final OperationFuture future) {
+            if (scope == null) {
+                return;
+            }
+            CallDepthThreadLocalMap.reset(MemcachedClient.class);
+            try (final ContextScope toClose = scope) {
+                if (future != null) {
+                    final OperationCompletionListener listener =
+                            new OperationCompletionListener(spanFromScope(scope), methodName);
+                    future.addListener(listener);
+                }
+            }
         }
-      }
-    }
-  }
-
-  public static class AsyncBulkAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope methodEnter() {
-      if (CallDepthThreadLocalMap.incrementCallDepth(MemcachedClient.class) > 0) {
-        return null;
-      }
-      return activateSpan(
-          startSpan(COMPONENT_NAME.toString(), MemcacheClientDecorator.OPERATION_NAME));
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit(
-        @Advice.Enter final ContextScope scope,
-        @Advice.Origin("#m") final String methodName,
-        @Advice.Return final BulkFuture future) {
-      if (scope == null) {
-        return;
-      }
-      CallDepthThreadLocalMap.reset(MemcachedClient.class);
-      try (final ContextScope toClose = scope) {
-        if (future != null) {
-          final BulkGetCompletionListener listener =
-              new BulkGetCompletionListener(spanFromScope(scope), methodName);
-          future.addListener(listener);
+    public static class AsyncGetAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope methodEnter() {
+            if (CallDepthThreadLocalMap.incrementCallDepth(MemcachedClient.class) > 0) {
+                return null;
+            }
+            return activateSpan(startSpan(COMPONENT_NAME.toString(), MemcacheClientDecorator.OPERATION_NAME));
         }
-      }
-    }
-  }
 
-  public static class SyncOperationAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static SyncCompletionListener methodEnter(@Advice.Origin("#m") final String methodName) {
-      if (CallDepthThreadLocalMap.incrementCallDepth(MemcachedClient.class) > 0) {
-        return null;
-      }
-      final AgentSpan span =
-          startSpan(COMPONENT_NAME.toString(), MemcacheClientDecorator.OPERATION_NAME);
-      return new SyncCompletionListener(span, methodName);
-    }
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void methodExit(
-        @Advice.Enter final SyncCompletionListener listener,
-        @Advice.Thrown final Throwable thrown) {
-      if (listener == null) {
-        return;
-      }
-      CallDepthThreadLocalMap.reset(MemcachedClient.class);
-      listener.done(thrown);
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void methodExit(
+                @Advice.Enter final ContextScope scope,
+                @Advice.Origin("#m") final String methodName,
+                @Advice.Return final GetFuture future) {
+            if (scope == null) {
+                return;
+            }
+            CallDepthThreadLocalMap.reset(MemcachedClient.class);
+            try (final ContextScope toClose = scope) {
+                if (future != null) {
+                    final GetCompletionListener listener = new GetCompletionListener(spanFromScope(scope), methodName);
+                    future.addListener(listener);
+                }
+            }
+        }
     }
 
-    public static void muzzleCheck(OperationFuture operationFuture) {
-      // before 2.10.4 futures are not completing correctly. We stick at this as minimum version
-      operationFuture.signalComplete();
+    public static class AsyncBulkAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope methodEnter() {
+            if (CallDepthThreadLocalMap.incrementCallDepth(MemcachedClient.class) > 0) {
+                return null;
+            }
+            return activateSpan(startSpan(COMPONENT_NAME.toString(), MemcacheClientDecorator.OPERATION_NAME));
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void methodExit(
+                @Advice.Enter final ContextScope scope,
+                @Advice.Origin("#m") final String methodName,
+                @Advice.Return final BulkFuture future) {
+            if (scope == null) {
+                return;
+            }
+            CallDepthThreadLocalMap.reset(MemcachedClient.class);
+            try (final ContextScope toClose = scope) {
+                if (future != null) {
+                    final BulkGetCompletionListener listener =
+                            new BulkGetCompletionListener(spanFromScope(scope), methodName);
+                    future.addListener(listener);
+                }
+            }
+        }
     }
-  }
+
+    public static class SyncOperationAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static SyncCompletionListener methodEnter(@Advice.Origin("#m") final String methodName) {
+            if (CallDepthThreadLocalMap.incrementCallDepth(MemcachedClient.class) > 0) {
+                return null;
+            }
+            final AgentSpan span = startSpan(COMPONENT_NAME.toString(), MemcacheClientDecorator.OPERATION_NAME);
+            return new SyncCompletionListener(span, methodName);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void methodExit(
+                @Advice.Enter final SyncCompletionListener listener, @Advice.Thrown final Throwable thrown) {
+            if (listener == null) {
+                return;
+            }
+            CallDepthThreadLocalMap.reset(MemcachedClient.class);
+            listener.done(thrown);
+        }
+
+        public static void muzzleCheck(OperationFuture operationFuture) {
+            // before 2.10.4 futures are not completing correctly. We stick at this as minimum version
+            operationFuture.signalComplete();
+        }
+    }
 }

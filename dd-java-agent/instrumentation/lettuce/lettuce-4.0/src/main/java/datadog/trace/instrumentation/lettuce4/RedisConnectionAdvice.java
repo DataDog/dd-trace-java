@@ -9,21 +9,20 @@ import net.bytebuddy.asm.Advice;
 
 public class RedisConnectionAdvice {
 
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static ContextScope onEnter(@Advice.Argument(1) final RedisURI redisURI) {
-    return InstrumentationPoints.beforeConnect(redisURI);
-  }
-
-  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void onExit(
-      @Advice.Argument(1) final RedisURI redisURI,
-      @Advice.Enter final ContextScope scope,
-      @Advice.Thrown final Throwable throwable,
-      @Advice.Return final StatefulRedisConnection connection) {
-    if (connection != null) {
-      InstrumentationContext.get(StatefulConnection.class, RedisURI.class)
-          .put(connection, redisURI);
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ContextScope onEnter(@Advice.Argument(1) final RedisURI redisURI) {
+        return InstrumentationPoints.beforeConnect(redisURI);
     }
-    InstrumentationPoints.afterConnect(scope, throwable);
-  }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void onExit(
+            @Advice.Argument(1) final RedisURI redisURI,
+            @Advice.Enter final ContextScope scope,
+            @Advice.Thrown final Throwable throwable,
+            @Advice.Return final StatefulRedisConnection connection) {
+        if (connection != null) {
+            InstrumentationContext.get(StatefulConnection.class, RedisURI.class).put(connection, redisURI);
+        }
+        InstrumentationPoints.afterConnect(scope, throwable);
+    }
 }

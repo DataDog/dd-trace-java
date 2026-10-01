@@ -16,52 +16,50 @@ import org.slf4j.LoggerFactory;
 
 public class DDIntakeTraceInterceptor extends AbstractTraceInterceptor {
 
-  public static final DDIntakeTraceInterceptor INSTANCE =
-      new DDIntakeTraceInterceptor(Priority.DD_INTAKE);
+    public static final DDIntakeTraceInterceptor INSTANCE = new DDIntakeTraceInterceptor(Priority.DD_INTAKE);
 
-  private static final Logger log = LoggerFactory.getLogger(DDIntakeTraceInterceptor.class);
+    private static final Logger log = LoggerFactory.getLogger(DDIntakeTraceInterceptor.class);
 
-  protected DDIntakeTraceInterceptor(Priority priority) {
-    super(priority);
-  }
-
-  @Override
-  public Collection<? extends MutableSpan> onTraceComplete(
-      Collection<? extends MutableSpan> trace) {
-    if (trace.isEmpty()) {
-      return trace;
+    protected DDIntakeTraceInterceptor(Priority priority) {
+        super(priority);
     }
 
-    for (MutableSpan span : trace) {
-      if (span instanceof DDSpan) {
-        process((DDSpan) span);
-      }
-    }
-    return trace;
-  }
+    @Override
+    public Collection<? extends MutableSpan> onTraceComplete(Collection<? extends MutableSpan> trace) {
+        if (trace.isEmpty()) {
+            return trace;
+        }
 
-  private void process(DDSpan span) {
-    span.setServiceName(normalizeServiceName(span.getServiceName()));
-    span.setOperationName(normalizeOperationName(span.getOperationName()));
-    span.setSpanType(normalizeSpanType(span.getType()));
-
-    if (span.getResourceName() == null || span.getResourceName().length() == 0) {
-      log.debug(
-          "Fixing malformed trace. Resource is empty (reason:resource_empty), setting span.resource={}: {}",
-          span.getOperationName(),
-          span);
-      span.setResourceName(span.getOperationName());
+        for (MutableSpan span : trace) {
+            if (span instanceof DDSpan) {
+                process((DDSpan) span);
+            }
+        }
+        return trace;
     }
 
-    span.setTag(Tags.ENV, TraceUtils.normalizeEnv((String) span.getTag(Tags.ENV)));
+    private void process(DDSpan span) {
+        span.setServiceName(normalizeServiceName(span.getServiceName()));
+        span.setOperationName(normalizeOperationName(span.getOperationName()));
+        span.setSpanType(normalizeSpanType(span.getType()));
 
-    final short httpStatusCode = span.getHttpStatusCode();
-    if (httpStatusCode != 0 && !isValidStatusCode(httpStatusCode)) {
-      log.debug(
-          "Fixing malformed trace. HTTP status code is invalid (reason:invalid_http_status_code), dropping invalid http.status_code={}: {}",
-          httpStatusCode,
-          span);
-      span.setHttpStatusCode(0);
+        if (span.getResourceName() == null || span.getResourceName().length() == 0) {
+            log.debug(
+                    "Fixing malformed trace. Resource is empty (reason:resource_empty), setting span.resource={}: {}",
+                    span.getOperationName(),
+                    span);
+            span.setResourceName(span.getOperationName());
+        }
+
+        span.setTag(Tags.ENV, TraceUtils.normalizeEnv((String) span.getTag(Tags.ENV)));
+
+        final short httpStatusCode = span.getHttpStatusCode();
+        if (httpStatusCode != 0 && !isValidStatusCode(httpStatusCode)) {
+            log.debug(
+                    "Fixing malformed trace. HTTP status code is invalid (reason:invalid_http_status_code), dropping invalid http.status_code={}: {}",
+                    httpStatusCode,
+                    span);
+            span.setHttpStatusCode(0);
+        }
     }
-  }
 }

@@ -15,67 +15,66 @@ import org.slf4j.LoggerFactory;
 
 public class ServiceNameCollector {
 
-  private static final Logger log = LoggerFactory.getLogger(ServiceNameCollector.class);
+    private static final Logger log = LoggerFactory.getLogger(ServiceNameCollector.class);
 
-  private static final int MAX_EXTRA_SERVICE = Config.get().getRemoteConfigMaxExtraServices();
+    private static final int MAX_EXTRA_SERVICE = Config.get().getRemoteConfigMaxExtraServices();
 
-  // This is not final to allow mocking it on tests
-  private static ServiceNameCollector INSTANCE = new ServiceNameCollector();
+    // This is not final to allow mocking it on tests
+    private static ServiceNameCollector INSTANCE = new ServiceNameCollector();
 
-  public static ServiceNameCollector get() {
-    return INSTANCE;
-  }
-
-  private final ConcurrentHashMap<String, String> services =
-      new ConcurrentHashMap<>(MAX_EXTRA_SERVICE);
-
-  volatile boolean limitReachedLogged = false;
-
-  private ServiceNameCollector() {
-    // singleton
-  }
-
-  public void addService(final String serviceName) {
-    if (serviceName == null || serviceName.isEmpty()) {
-      return;
+    public static ServiceNameCollector get() {
+        return INSTANCE;
     }
-    if (services.size() >= MAX_EXTRA_SERVICE) {
-      if (!limitReachedLogged) {
-        log.debug(
-            SEND_TELEMETRY,
-            "extra service limit({}) reached: service {} can't be added",
-            MAX_EXTRA_SERVICE,
-            serviceName);
-        limitReachedLogged = true;
-      }
-      return;
+
+    private final ConcurrentHashMap<String, String> services = new ConcurrentHashMap<>(MAX_EXTRA_SERVICE);
+
+    volatile boolean limitReachedLogged = false;
+
+    private ServiceNameCollector() {
+        // singleton
     }
-    services.putIfAbsent(serviceName, serviceName);
-  }
 
-  /**
-   * Get the list of unique services deduplicated by case. There is no locking on the addService map
-   * so, the method is not thread safe.
-   *
-   * @return the list of unique services, or {@code null} if none have been collected
-   */
-  @Nullable
-  public List<String> getServices() {
-    if (services.isEmpty()) {
-      return null;
+    public void addService(final String serviceName) {
+        if (serviceName == null || serviceName.isEmpty()) {
+            return;
+        }
+        if (services.size() >= MAX_EXTRA_SERVICE) {
+            if (!limitReachedLogged) {
+                log.debug(
+                        SEND_TELEMETRY,
+                        "extra service limit({}) reached: service {} can't be added",
+                        MAX_EXTRA_SERVICE,
+                        serviceName);
+                limitReachedLogged = true;
+            }
+            return;
+        }
+        services.putIfAbsent(serviceName, serviceName);
     }
-    final Set<String> uniqueNames = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
-    uniqueNames.addAll(services.keySet());
-    uniqueNames.remove(Config.get().getServiceName());
-    return uniqueNames.isEmpty() ? null : new ArrayList<>(uniqueNames);
-  }
 
-  public void clear() {
-    services.clear();
-  }
+    /**
+     * Get the list of unique services deduplicated by case. There is no locking on the addService map
+     * so, the method is not thread safe.
+     *
+     * @return the list of unique services, or {@code null} if none have been collected
+     */
+    @Nullable
+    public List<String> getServices() {
+        if (services.isEmpty()) {
+            return null;
+        }
+        final Set<String> uniqueNames = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        uniqueNames.addAll(services.keySet());
+        uniqueNames.remove(Config.get().getServiceName());
+        return uniqueNames.isEmpty() ? null : new ArrayList<>(uniqueNames);
+    }
 
-  @VisibleForTesting
-  static void setInstance(ServiceNameCollector instance) {
-    INSTANCE = instance;
-  }
+    public void clear() {
+        services.clear();
+    }
+
+    @VisibleForTesting
+    static void setInstance(ServiceNameCollector instance) {
+        INSTANCE = instance;
+    }
 }

@@ -11,15 +11,15 @@ import net.bytebuddy.asm.Advice;
 /** Advice for the {@code io.karatelabs.core.Runner.Builder} constructor. */
 public class KarateBuilderAdvice {
 
-  @Advice.OnMethodExit
-  public static void onRunnerBuilderConstructorExit(@Advice.This Runner.Builder builder) {
-    ContextStore<Scenario, ExecutionContext> scenarioContext =
-        InstrumentationContext.get(Scenario.class, ExecutionContext.class);
-    builder.listener(new KarateTracingListener(scenarioContext));
-  }
+    @Advice.OnMethodExit
+    public static void onRunnerBuilderConstructorExit(@Advice.This Runner.Builder builder) {
+        ContextStore<Scenario, ExecutionContext> scenarioContext =
+                InstrumentationContext.get(Scenario.class, ExecutionContext.class);
+        builder.listener(new KarateTracingListener(scenarioContext));
+    }
 
-  // Karate 2.0.0 and above
-  public static void muzzleCheck(RunListener runListener) {
-    runListener.onEvent((RunEvent) null);
-  }
+    // Karate 2.0.0 and above
+    public static void muzzleCheck(RunListener runListener) {
+        runListener.onEvent((RunEvent) null);
+    }
 }

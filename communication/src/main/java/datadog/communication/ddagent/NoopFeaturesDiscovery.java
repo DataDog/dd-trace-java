@@ -11,15 +11,15 @@ import datadog.metrics.api.Monitoring;
  * network I/O.
  */
 public class NoopFeaturesDiscovery extends DDAgentFeaturesDiscovery {
-  public static final NoopFeaturesDiscovery INSTANCE = new NoopFeaturesDiscovery();
+    public static final NoopFeaturesDiscovery INSTANCE = new NoopFeaturesDiscovery();
 
-  private NoopFeaturesDiscovery() {
-    super(null, Monitoring.DISABLED, null, V0_4, false, false);
-  }
+    private NoopFeaturesDiscovery() {
+        super(null, Monitoring.DISABLED, null, V0_4, false, false);
+    }
 
-  @Override
-  public void discover() {}
+    @Override
+    public void discover() {}
 
-  @Override
-  public void discoverIfOutdated() {}
+    @Override
+    public void discoverIfOutdated() {}
 }

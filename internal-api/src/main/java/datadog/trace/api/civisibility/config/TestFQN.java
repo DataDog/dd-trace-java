@@ -8,41 +8,41 @@ import java.util.Objects;
  * executions of the same test case (for example when retries are done) will have the same FQN.
  */
 public class TestFQN {
-  private final String suite;
-  private final String name;
+    private final String suite;
+    private final String name;
 
-  public TestFQN(String suite, String name) {
-    this.suite = suite;
-    this.name = name;
-  }
-
-  public String getSuite() {
-    return suite;
-  }
-
-  public String getName() {
-    return name;
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
+    public TestFQN(String suite, String name) {
+        this.suite = suite;
+        this.name = name;
     }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
+
+    public String getSuite() {
+        return suite;
     }
-    TestFQN that = (TestFQN) o;
-    return Objects.equals(suite, that.suite) && Objects.equals(name, that.name);
-  }
 
-  @Override
-  public int hashCode() {
-    return HashingUtils.hash(suite, name);
-  }
+    public String getName() {
+        return name;
+    }
 
-  @Override
-  public String toString() {
-    return "TestFQN{" + "suite='" + suite + '\'' + ", name='" + name + '\'' + '}';
-  }
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        TestFQN that = (TestFQN) o;
+        return Objects.equals(suite, that.suite) && Objects.equals(name, that.name);
+    }
+
+    @Override
+    public int hashCode() {
+        return HashingUtils.hash(suite, name);
+    }
+
+    @Override
+    public String toString() {
+        return "TestFQN{" + "suite='" + suite + '\'' + ", name='" + name + '\'' + '}';
+    }
 }

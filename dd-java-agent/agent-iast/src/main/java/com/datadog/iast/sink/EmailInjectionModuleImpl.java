@@ -6,15 +6,15 @@ import datadog.trace.api.iast.sink.EmailInjectionModule;
 import javax.annotation.Nullable;
 
 public class EmailInjectionModuleImpl extends SinkModuleBase implements EmailInjectionModule {
-  public EmailInjectionModuleImpl(final Dependencies dependencies) {
-    super(dependencies);
-  }
-
-  @Override
-  public void onSendEmail(@Nullable final Object messageContent) {
-    if (messageContent == null) {
-      return;
+    public EmailInjectionModuleImpl(final Dependencies dependencies) {
+        super(dependencies);
     }
-    checkInjection(VulnerabilityType.EMAIL_HTML_INJECTION, messageContent);
-  }
+
+    @Override
+    public void onSendEmail(@Nullable final Object messageContent) {
+        if (messageContent == null) {
+            return;
+        }
+        checkInjection(VulnerabilityType.EMAIL_HTML_INJECTION, messageContent);
+    }
 }

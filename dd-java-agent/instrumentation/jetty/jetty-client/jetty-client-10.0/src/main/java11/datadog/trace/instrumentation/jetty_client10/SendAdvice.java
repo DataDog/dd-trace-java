@@ -12,26 +12,25 @@ import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.client.api.Response;
 
 public class SendAdvice {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentSpan methodEnter(
-      @Advice.Argument(0) Request request,
-      @Advice.Argument(1) List<Response.ResponseListener> responseListeners) {
-    AgentSpan span = startSpan("jetty-client", HTTP_REQUEST);
-    InstrumentationContext.get(Request.class, AgentSpan.class).put(request, span);
-    // make sure the span is finished before onComplete callbacks execute
-    responseListeners.add(0, new SpanFinishingCompleteListener(span));
-    DECORATE.afterStart(span);
-    DECORATE.onRequest(span, request);
-    return span;
-  }
-
-  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void methodExit(
-      @Advice.Enter final AgentSpan span, @Advice.Thrown final Throwable throwable) {
-    if (throwable != null) {
-      DECORATE.onError(span, throwable);
-      DECORATE.beforeFinish(span);
-      span.finish();
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static AgentSpan methodEnter(
+            @Advice.Argument(0) Request request,
+            @Advice.Argument(1) List<Response.ResponseListener> responseListeners) {
+        AgentSpan span = startSpan("jetty-client", HTTP_REQUEST);
+        InstrumentationContext.get(Request.class, AgentSpan.class).put(request, span);
+        // make sure the span is finished before onComplete callbacks execute
+        responseListeners.add(0, new SpanFinishingCompleteListener(span));
+        DECORATE.afterStart(span);
+        DECORATE.onRequest(span, request);
+        return span;
     }
-  }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void methodExit(@Advice.Enter final AgentSpan span, @Advice.Thrown final Throwable throwable) {
+        if (throwable != null) {
+            DECORATE.onError(span, throwable);
+            DECORATE.beforeFinish(span);
+            span.finish();
+        }
+    }
 }

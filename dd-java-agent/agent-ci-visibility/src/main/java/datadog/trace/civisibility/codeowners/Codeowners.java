@@ -10,11 +10,11 @@ import javax.annotation.Nullable;
  *     file description</a>
  */
 public interface Codeowners {
-  @Nullable
-  Collection<String> getOwners(@Nonnull String path);
+    @Nullable
+    Collection<String> getOwners(@Nonnull String path);
 
-  /**
-   * @return {@code true} if {@code CODEOWNERS} file could be located and parsed
-   */
-  boolean exist();
+    /**
+     * @return {@code true} if {@code CODEOWNERS} file could be located and parsed
+     */
+    boolean exist();
 }

@@ -12,21 +12,20 @@ import javax.annotation.Nullable;
  */
 public class MultiModuleExecutionSettingsFactory implements ExecutionSettingsFactory {
 
-  private final DDCache<JvmInfo, Map<String, ExecutionSettings>> cache;
-  private final ExecutionSettingsFactoryImpl delegate;
+    private final DDCache<JvmInfo, Map<String, ExecutionSettings>> cache;
+    private final ExecutionSettingsFactoryImpl delegate;
 
-  public MultiModuleExecutionSettingsFactory(Config config, ExecutionSettingsFactoryImpl delegate) {
-    this.delegate = delegate;
-    this.cache = DDCaches.newFixedSizeCache(config.getCiVisibilityExecutionSettingsCacheSize());
-  }
+    public MultiModuleExecutionSettingsFactory(Config config, ExecutionSettingsFactoryImpl delegate) {
+        this.delegate = delegate;
+        this.cache = DDCaches.newFixedSizeCache(config.getCiVisibilityExecutionSettingsCacheSize());
+    }
 
-  @Override
-  public ExecutionSettings create(@Nonnull JvmInfo jvmInfo, @Nullable String moduleName) {
-    Map<String, ExecutionSettings> executionSettingsByModule =
-        cache.computeIfAbsent(jvmInfo, delegate::create);
-    ExecutionSettings moduleSettings = executionSettingsByModule.get(moduleName);
-    return moduleSettings != null
-        ? moduleSettings
-        : executionSettingsByModule.get(ExecutionSettingsFactoryImpl.DEFAULT_SETTINGS);
-  }
+    @Override
+    public ExecutionSettings create(@Nonnull JvmInfo jvmInfo, @Nullable String moduleName) {
+        Map<String, ExecutionSettings> executionSettingsByModule = cache.computeIfAbsent(jvmInfo, delegate::create);
+        ExecutionSettings moduleSettings = executionSettingsByModule.get(moduleName);
+        return moduleSettings != null
+                ? moduleSettings
+                : executionSettingsByModule.get(ExecutionSettingsFactoryImpl.DEFAULT_SETTINGS);
+    }
 }

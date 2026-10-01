@@ -17,29 +17,28 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 class LdapRegexTokenizerTest {
 
-  @ParameterizedTest(name = "{0}")
-  @MethodSource("redactsFilterLiteralsArguments")
-  void redactsFilterLiterals(
-      final String description, final String filter, final List<String> expected) {
-    assertEquals(expected, tokenize(filter));
-  }
-
-  static Stream<Arguments> redactsFilterLiteralsArguments() {
-    return Stream.of(
-        arguments("equality literal", "(cn=John Doe)", singletonList("John Doe")),
-        arguments("nested filter literals", "(&(uid=bob)(role=admin))", asList("bob", "admin")),
-        arguments("greater-or-equal operator", "(age>=21)", singletonList("21")),
-        arguments("less-or-equal operator", "(score<=100)", singletonList("100")),
-        arguments("approximate operator", "(attr~=approx)", singletonList("approx")));
-  }
-
-  private static List<String> tokenize(String filter) {
-    Tokenizer tokenizer = new LdapRegexTokenizer(new Evidence(filter));
-    List<String> tokens = new ArrayList<>();
-    while (tokenizer.next()) {
-      Ranged range = tokenizer.current();
-      tokens.add(filter.substring(range.getStart(), range.getStart() + range.getLength()));
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("redactsFilterLiteralsArguments")
+    void redactsFilterLiterals(final String description, final String filter, final List<String> expected) {
+        assertEquals(expected, tokenize(filter));
     }
-    return tokens;
-  }
+
+    static Stream<Arguments> redactsFilterLiteralsArguments() {
+        return Stream.of(
+                arguments("equality literal", "(cn=John Doe)", singletonList("John Doe")),
+                arguments("nested filter literals", "(&(uid=bob)(role=admin))", asList("bob", "admin")),
+                arguments("greater-or-equal operator", "(age>=21)", singletonList("21")),
+                arguments("less-or-equal operator", "(score<=100)", singletonList("100")),
+                arguments("approximate operator", "(attr~=approx)", singletonList("approx")));
+    }
+
+    private static List<String> tokenize(String filter) {
+        Tokenizer tokenizer = new LdapRegexTokenizer(new Evidence(filter));
+        List<String> tokens = new ArrayList<>();
+        while (tokenizer.next()) {
+            Ranged range = tokenizer.current();
+            tokens.add(filter.substring(range.getStart(), range.getStart() + range.getLength()));
+        }
+        return tokens;
+    }
 }

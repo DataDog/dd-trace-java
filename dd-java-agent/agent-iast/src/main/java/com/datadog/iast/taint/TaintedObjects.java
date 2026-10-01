@@ -19,167 +19,167 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("UnusedReturnValue")
 public interface TaintedObjects extends Iterable<TaintedObject> {
 
-  Logger LOGGER = LoggerFactory.getLogger(TaintedObjects.class);
+    Logger LOGGER = LoggerFactory.getLogger(TaintedObjects.class);
 
-  static TaintedObjects build(@Nonnull final TaintedMap map) {
-    final TaintedObjectsImpl taintedObjects = new TaintedObjectsImpl(map);
-    return IastSystem.DEBUG ? new TaintedObjectsDebugAdapter(taintedObjects) : taintedObjects;
-  }
-
-  @Nullable
-  TaintedObject taint(@Nonnull Object obj, @Nonnull Range[] ranges);
-
-  @Nullable
-  TaintedObject get(@Nonnull Object obj);
-
-  void clear();
-
-  int count();
-
-  class TaintedObjectsImpl implements TaintedObjects {
-
-    private final TaintedMap map;
-
-    private TaintedObjectsImpl(final @Nonnull TaintedMap map) {
-      this.map = map;
+    static TaintedObjects build(@Nonnull final TaintedMap map) {
+        final TaintedObjectsImpl taintedObjects = new TaintedObjectsImpl(map);
+        return IastSystem.DEBUG ? new TaintedObjectsDebugAdapter(taintedObjects) : taintedObjects;
     }
 
     @Nullable
-    @Override
-    public TaintedObject taint(final @Nonnull Object obj, final @Nonnull Range[] ranges) {
-      try {
-        final TaintedObject tainted = new TaintedObject(obj, ranges);
-        map.put(tainted);
-        return tainted;
-      } catch (Throwable e) {
-        LOGGER.debug("Error tainting object, it won't be tainted", e);
-        return null;
-      }
-    }
+    TaintedObject taint(@Nonnull Object obj, @Nonnull Range[] ranges);
 
     @Nullable
-    @Override
-    public TaintedObject get(final @Nonnull Object obj) {
-      return map.get(obj);
-    }
+    TaintedObject get(@Nonnull Object obj);
 
-    @Override
-    public void clear() {
-      map.clear();
-    }
+    void clear();
 
-    @Override
-    public int count() {
-      return map.count();
-    }
+    int count();
 
-    @Nonnull
-    @Override
-    public Iterator<TaintedObject> iterator() {
-      return map.iterator();
-    }
-  }
+    class TaintedObjectsImpl implements TaintedObjects {
 
-  final class TaintedObjectsDebugAdapter implements TaintedObjects, Wrapper<TaintedObjectsImpl> {
+        private final TaintedMap map;
 
-    private final TaintedObjectsImpl delegated;
-    private final UUID id;
-
-    public TaintedObjectsDebugAdapter(final TaintedObjectsImpl delegated) {
-      this.delegated = delegated;
-      id = RandomUtils.randomUUID();
-      LOGGER.debug("new: id={}", id);
-    }
-
-    @Nullable
-    @Override
-    public TaintedObject taint(final @Nonnull Object obj, final @Nonnull Range[] ranges) {
-      final TaintedObject tainted = delegated.taint(obj, ranges);
-      logTainted(tainted);
-      return tainted;
-    }
-
-    @Nullable
-    @Override
-    public TaintedObject get(final @Nonnull Object obj) {
-      return delegated.get(obj);
-    }
-
-    @Override
-    public void clear() {
-      if (IastSystem.DEBUG && LOGGER.isDebugEnabled()) {
-        try {
-          final List<TaintedObject> entries = new ArrayList<>();
-          for (final TaintedObject to : delegated.map) {
-            entries.add(to);
-          }
-          LOGGER.debug("clear {}: map={}", id, TaintedObjectEncoding.toJson(entries));
-        } catch (final Throwable e) {
-          LOGGER.error("Failed to debug tainted objects release", e);
+        private TaintedObjectsImpl(final @Nonnull TaintedMap map) {
+            this.map = map;
         }
-      }
-      delegated.clear();
-    }
 
-    @Override
-    public int count() {
-      return delegated.count();
-    }
-
-    @Nonnull
-    @Override
-    public Iterator<TaintedObject> iterator() {
-      return delegated.iterator();
-    }
-
-    private void logTainted(@Nullable final TaintedObject tainted) {
-      if (LOGGER.isDebugEnabled()) {
-        try {
-          if (tainted == null) {
-            LOGGER.debug("taint {}: ignored", id);
-          } else {
-            LOGGER.debug("taint {}: tainted={}", id, TaintedObjectEncoding.toJson(tainted));
-          }
-        } catch (final Throwable e) {
-          LOGGER.error("Failed to debug new tainted object", e);
+        @Nullable
+        @Override
+        public TaintedObject taint(final @Nonnull Object obj, final @Nonnull Range[] ranges) {
+            try {
+                final TaintedObject tainted = new TaintedObject(obj, ranges);
+                map.put(tainted);
+                return tainted;
+            } catch (Throwable e) {
+                LOGGER.debug("Error tainting object, it won't be tainted", e);
+                return null;
+            }
         }
-      }
+
+        @Nullable
+        @Override
+        public TaintedObject get(final @Nonnull Object obj) {
+            return map.get(obj);
+        }
+
+        @Override
+        public void clear() {
+            map.clear();
+        }
+
+        @Override
+        public int count() {
+            return map.count();
+        }
+
+        @Nonnull
+        @Override
+        public Iterator<TaintedObject> iterator() {
+            return map.iterator();
+        }
     }
 
-    @Override
-    public TaintedObjectsImpl unwrap() {
-      return delegated;
+    final class TaintedObjectsDebugAdapter implements TaintedObjects, Wrapper<TaintedObjectsImpl> {
+
+        private final TaintedObjectsImpl delegated;
+        private final UUID id;
+
+        public TaintedObjectsDebugAdapter(final TaintedObjectsImpl delegated) {
+            this.delegated = delegated;
+            id = RandomUtils.randomUUID();
+            LOGGER.debug("new: id={}", id);
+        }
+
+        @Nullable
+        @Override
+        public TaintedObject taint(final @Nonnull Object obj, final @Nonnull Range[] ranges) {
+            final TaintedObject tainted = delegated.taint(obj, ranges);
+            logTainted(tainted);
+            return tainted;
+        }
+
+        @Nullable
+        @Override
+        public TaintedObject get(final @Nonnull Object obj) {
+            return delegated.get(obj);
+        }
+
+        @Override
+        public void clear() {
+            if (IastSystem.DEBUG && LOGGER.isDebugEnabled()) {
+                try {
+                    final List<TaintedObject> entries = new ArrayList<>();
+                    for (final TaintedObject to : delegated.map) {
+                        entries.add(to);
+                    }
+                    LOGGER.debug("clear {}: map={}", id, TaintedObjectEncoding.toJson(entries));
+                } catch (final Throwable e) {
+                    LOGGER.error("Failed to debug tainted objects release", e);
+                }
+            }
+            delegated.clear();
+        }
+
+        @Override
+        public int count() {
+            return delegated.count();
+        }
+
+        @Nonnull
+        @Override
+        public Iterator<TaintedObject> iterator() {
+            return delegated.iterator();
+        }
+
+        private void logTainted(@Nullable final TaintedObject tainted) {
+            if (LOGGER.isDebugEnabled()) {
+                try {
+                    if (tainted == null) {
+                        LOGGER.debug("taint {}: ignored", id);
+                    } else {
+                        LOGGER.debug("taint {}: tainted={}", id, TaintedObjectEncoding.toJson(tainted));
+                    }
+                } catch (final Throwable e) {
+                    LOGGER.error("Failed to debug new tainted object", e);
+                }
+            }
+        }
+
+        @Override
+        public TaintedObjectsImpl unwrap() {
+            return delegated;
+        }
     }
-  }
 
-  final class NoOp implements TaintedObjects {
+    final class NoOp implements TaintedObjects {
 
-    public static final TaintedObjects INSTANCE = new NoOp();
+        public static final TaintedObjects INSTANCE = new NoOp();
 
-    @Nullable
-    @Override
-    public TaintedObject taint(@Nonnull final Object obj, @Nonnull final Range[] ranges) {
-      return null;
+        @Nullable
+        @Override
+        public TaintedObject taint(@Nonnull final Object obj, @Nonnull final Range[] ranges) {
+            return null;
+        }
+
+        @Nullable
+        @Override
+        public TaintedObject get(@Nonnull final Object obj) {
+            return null;
+        }
+
+        @Override
+        public void clear() {}
+
+        @Override
+        public int count() {
+            return 0;
+        }
+
+        @Override
+        @Nonnull
+        public Iterator<TaintedObject> iterator() {
+            return emptyIterator();
+        }
     }
-
-    @Nullable
-    @Override
-    public TaintedObject get(@Nonnull final Object obj) {
-      return null;
-    }
-
-    @Override
-    public void clear() {}
-
-    @Override
-    public int count() {
-      return 0;
-    }
-
-    @Override
-    @Nonnull
-    public Iterator<TaintedObject> iterator() {
-      return emptyIterator();
-    }
-  }
 }

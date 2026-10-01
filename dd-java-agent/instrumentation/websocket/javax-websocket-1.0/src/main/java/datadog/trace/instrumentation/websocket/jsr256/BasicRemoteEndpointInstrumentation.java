@@ -26,196 +26,191 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-public class BasicRemoteEndpointInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  private final String namespace;
+public class BasicRemoteEndpointInstrumentation implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    private final String namespace;
 
-  public BasicRemoteEndpointInstrumentation(String namespace) {
-    this.namespace = namespace;
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return namespace + ".websocket.RemoteEndpoint$Basic";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isPublic()
-            .and(named("sendText"))
-            .and(takesArguments(1).or(takesArguments(2).and(takesArgument(1, boolean.class))))
-            .and(takesArgument(0, named("java.lang.String")))
-            .and(returns(void.class)),
-        getClass().getName() + "$SendTextAdvice");
-    transformer.applyAdvice(
-        isPublic()
-            .and(named("sendBinary"))
-            .and(takesArguments(1).or(takesArguments(2).and(takesArgument(1, boolean.class))))
-            .and(takesArgument(0, named("java.nio.ByteBuffer")))
-            .and(returns(void.class)),
-        getClass().getName() + "$SendBinaryAdvice");
-    transformer.applyAdvice(
-        isPublic().and(named("sendObject")).and(takesArguments(1)).and(returns(void.class)),
-        getClass().getName() + "$SendObjectAdvice");
-    transformer.applyAdvice(
-        isPublic().and(named("getSendStream")).and(takesNoArguments()),
-        getClass().getName() + "$WrapStreamAdvice");
-    transformer.applyAdvice(
-        isPublic().and(named("getSendWriter")).and(takesNoArguments()),
-        getClass().getName() + "$WrapWriterAdvice");
-  }
-
-  public static class SendTextAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope before(
-        @Advice.This final RemoteEndpoint.Basic self,
-        @Advice.Argument(0) String text,
-        @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
-      handlerContext =
-          InstrumentationContext.get(RemoteEndpoint.class, HandlerContext.Sender.class).get(self);
-      if (handlerContext == null
-          || CallDepthThreadLocalMap.incrementCallDepth(RemoteEndpoint.class) > 0) {
-        return null;
-      }
-
-      final AgentSpan wsSpan =
-          DECORATE.startOutboundFrameSpan(
-              handlerContext,
-              CHAR_SEQUENCE_SIZE_CALCULATOR.getFormat(),
-              CHAR_SEQUENCE_SIZE_CALCULATOR.getLengthFunction().applyAsInt(text));
-      return activateSpan(wsSpan);
+    public BasicRemoteEndpointInstrumentation(String namespace) {
+        this.namespace = namespace;
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void after(
-        @Advice.Enter final ContextScope scope,
-        @Advice.Local("handlerContext") HandlerContext.Sender handlerContext,
-        @Advice.Thrown final Throwable throwable,
-        @Advice.Argument(value = 1, optional = true) final Boolean last) {
-      CallDepthThreadLocalMap.decrementCallDepth(RemoteEndpoint.class);
-
-      if (scope == null) {
-        return;
-      }
-      DECORATE.onError(scope, throwable);
-      boolean finishSpan = last == null || last || throwable != null;
-      if (finishSpan) {
-        DECORATE.onFrameEnd(handlerContext);
-      }
-      scope.close();
-    }
-  }
-
-  public static class SendBinaryAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope before(
-        @Advice.This final RemoteEndpoint.Basic self,
-        @Advice.Argument(0) ByteBuffer buffer,
-        @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
-      handlerContext =
-          InstrumentationContext.get(RemoteEndpoint.class, HandlerContext.Sender.class).get(self);
-      if (handlerContext == null
-          || CallDepthThreadLocalMap.incrementCallDepth(RemoteEndpoint.class) > 0) {
-        return null;
-      }
-
-      final AgentSpan wsSpan =
-          DECORATE.startOutboundFrameSpan(
-              handlerContext,
-              BYTE_BUFFER_SIZE_CALCULATOR.getFormat(),
-              BYTE_BUFFER_SIZE_CALCULATOR.getLengthFunction().applyAsInt(buffer));
-      return activateSpan(wsSpan);
+    @Override
+    public String hierarchyMarkerType() {
+        return namespace + ".websocket.RemoteEndpoint$Basic";
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void after(
-        @Advice.Enter final ContextScope scope,
-        @Advice.Local("handlerContext") HandlerContext.Sender handlerContext,
-        @Advice.Thrown final Throwable throwable,
-        @Advice.Argument(value = 1, optional = true) final Boolean last) {
-      CallDepthThreadLocalMap.decrementCallDepth(RemoteEndpoint.class);
-      if (scope == null) {
-        return;
-      }
-      DECORATE.onError(scope, throwable);
-      boolean finishSpan = last == null || last || throwable != null;
-      if (finishSpan) {
-        DECORATE.onFrameEnd(handlerContext);
-      }
-      scope.close();
-    }
-  }
-
-  public static class SendObjectAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope before(
-        @Advice.This final RemoteEndpoint.Basic self,
-        @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
-      handlerContext =
-          InstrumentationContext.get(RemoteEndpoint.class, HandlerContext.Sender.class).get(self);
-      if (handlerContext == null
-          || CallDepthThreadLocalMap.incrementCallDepth(RemoteEndpoint.class) > 0) {
-        return null;
-      }
-
-      // we actually cannot know the size and the type since this the conversion is done by
-      // encoders/decoders.
-      // we can anyway instrument also the Encoders but that would add much more complexity.
-      // right now this is not in scope
-      final AgentSpan wsSpan = DECORATE.startOutboundFrameSpan(handlerContext, null, 0);
-      return activateSpan(wsSpan);
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void after(
-        @Advice.Enter final ContextScope scope,
-        @Advice.Local("handlerContext") HandlerContext.Sender handlerContext,
-        @Advice.Thrown final Throwable throwable) {
-      CallDepthThreadLocalMap.decrementCallDepth(RemoteEndpoint.class);
-      if (scope == null) {
-        return;
-      }
-      DECORATE.onError(scope, throwable);
-      DECORATE.onFrameEnd(handlerContext);
-      scope.close();
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isPublic()
+                        .and(named("sendText"))
+                        .and(takesArguments(1).or(takesArguments(2).and(takesArgument(1, boolean.class))))
+                        .and(takesArgument(0, named("java.lang.String")))
+                        .and(returns(void.class)),
+                getClass().getName() + "$SendTextAdvice");
+        transformer.applyAdvice(
+                isPublic()
+                        .and(named("sendBinary"))
+                        .and(takesArguments(1).or(takesArguments(2).and(takesArgument(1, boolean.class))))
+                        .and(takesArgument(0, named("java.nio.ByteBuffer")))
+                        .and(returns(void.class)),
+                getClass().getName() + "$SendBinaryAdvice");
+        transformer.applyAdvice(
+                isPublic().and(named("sendObject")).and(takesArguments(1)).and(returns(void.class)),
+                getClass().getName() + "$SendObjectAdvice");
+        transformer.applyAdvice(
+                isPublic().and(named("getSendStream")).and(takesNoArguments()),
+                getClass().getName() + "$WrapStreamAdvice");
+        transformer.applyAdvice(
+                isPublic().and(named("getSendWriter")).and(takesNoArguments()),
+                getClass().getName() + "$WrapWriterAdvice");
     }
-  }
 
-  public static class WrapWriterAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void after(
-        @Advice.This final RemoteEndpoint.Basic self,
-        @Advice.Return(readOnly = false) Writer writer) {
-      if (writer instanceof TracingWriter) {
-        return;
-      }
-      final HandlerContext.Sender handlerContext =
-          InstrumentationContext.get(RemoteEndpoint.class, HandlerContext.Sender.class).get(self);
-      if (handlerContext != null) {
-        writer = new TracingWriter(writer, handlerContext);
-      }
-    }
-  }
+    public static class SendTextAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope before(
+                @Advice.This final RemoteEndpoint.Basic self,
+                @Advice.Argument(0) String text,
+                @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
+            handlerContext = InstrumentationContext.get(RemoteEndpoint.class, HandlerContext.Sender.class)
+                    .get(self);
+            if (handlerContext == null || CallDepthThreadLocalMap.incrementCallDepth(RemoteEndpoint.class) > 0) {
+                return null;
+            }
 
-  public static class WrapStreamAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void after(
-        @Advice.This final RemoteEndpoint.Basic self,
-        @Advice.Return(readOnly = false) OutputStream outputStream) {
-      if (outputStream instanceof TracingOutputStream) {
-        return;
-      }
-      final HandlerContext.Sender handlerContext =
-          InstrumentationContext.get(RemoteEndpoint.class, HandlerContext.Sender.class).get(self);
-      if (handlerContext != null) {
-        outputStream = new TracingOutputStream(outputStream, handlerContext);
-      }
+            final AgentSpan wsSpan = DECORATE.startOutboundFrameSpan(
+                    handlerContext,
+                    CHAR_SEQUENCE_SIZE_CALCULATOR.getFormat(),
+                    CHAR_SEQUENCE_SIZE_CALCULATOR.getLengthFunction().applyAsInt(text));
+            return activateSpan(wsSpan);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void after(
+                @Advice.Enter final ContextScope scope,
+                @Advice.Local("handlerContext") HandlerContext.Sender handlerContext,
+                @Advice.Thrown final Throwable throwable,
+                @Advice.Argument(value = 1, optional = true) final Boolean last) {
+            CallDepthThreadLocalMap.decrementCallDepth(RemoteEndpoint.class);
+
+            if (scope == null) {
+                return;
+            }
+            DECORATE.onError(scope, throwable);
+            boolean finishSpan = last == null || last || throwable != null;
+            if (finishSpan) {
+                DECORATE.onFrameEnd(handlerContext);
+            }
+            scope.close();
+        }
     }
-  }
+
+    public static class SendBinaryAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope before(
+                @Advice.This final RemoteEndpoint.Basic self,
+                @Advice.Argument(0) ByteBuffer buffer,
+                @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
+            handlerContext = InstrumentationContext.get(RemoteEndpoint.class, HandlerContext.Sender.class)
+                    .get(self);
+            if (handlerContext == null || CallDepthThreadLocalMap.incrementCallDepth(RemoteEndpoint.class) > 0) {
+                return null;
+            }
+
+            final AgentSpan wsSpan = DECORATE.startOutboundFrameSpan(
+                    handlerContext,
+                    BYTE_BUFFER_SIZE_CALCULATOR.getFormat(),
+                    BYTE_BUFFER_SIZE_CALCULATOR.getLengthFunction().applyAsInt(buffer));
+            return activateSpan(wsSpan);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void after(
+                @Advice.Enter final ContextScope scope,
+                @Advice.Local("handlerContext") HandlerContext.Sender handlerContext,
+                @Advice.Thrown final Throwable throwable,
+                @Advice.Argument(value = 1, optional = true) final Boolean last) {
+            CallDepthThreadLocalMap.decrementCallDepth(RemoteEndpoint.class);
+            if (scope == null) {
+                return;
+            }
+            DECORATE.onError(scope, throwable);
+            boolean finishSpan = last == null || last || throwable != null;
+            if (finishSpan) {
+                DECORATE.onFrameEnd(handlerContext);
+            }
+            scope.close();
+        }
+    }
+
+    public static class SendObjectAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope before(
+                @Advice.This final RemoteEndpoint.Basic self,
+                @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
+            handlerContext = InstrumentationContext.get(RemoteEndpoint.class, HandlerContext.Sender.class)
+                    .get(self);
+            if (handlerContext == null || CallDepthThreadLocalMap.incrementCallDepth(RemoteEndpoint.class) > 0) {
+                return null;
+            }
+
+            // we actually cannot know the size and the type since this the conversion is done by
+            // encoders/decoders.
+            // we can anyway instrument also the Encoders but that would add much more complexity.
+            // right now this is not in scope
+            final AgentSpan wsSpan = DECORATE.startOutboundFrameSpan(handlerContext, null, 0);
+            return activateSpan(wsSpan);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void after(
+                @Advice.Enter final ContextScope scope,
+                @Advice.Local("handlerContext") HandlerContext.Sender handlerContext,
+                @Advice.Thrown final Throwable throwable) {
+            CallDepthThreadLocalMap.decrementCallDepth(RemoteEndpoint.class);
+            if (scope == null) {
+                return;
+            }
+            DECORATE.onError(scope, throwable);
+            DECORATE.onFrameEnd(handlerContext);
+            scope.close();
+        }
+    }
+
+    public static class WrapWriterAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void after(
+                @Advice.This final RemoteEndpoint.Basic self, @Advice.Return(readOnly = false) Writer writer) {
+            if (writer instanceof TracingWriter) {
+                return;
+            }
+            final HandlerContext.Sender handlerContext = InstrumentationContext.get(
+                            RemoteEndpoint.class, HandlerContext.Sender.class)
+                    .get(self);
+            if (handlerContext != null) {
+                writer = new TracingWriter(writer, handlerContext);
+            }
+        }
+    }
+
+    public static class WrapStreamAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void after(
+                @Advice.This final RemoteEndpoint.Basic self,
+                @Advice.Return(readOnly = false) OutputStream outputStream) {
+            if (outputStream instanceof TracingOutputStream) {
+                return;
+            }
+            final HandlerContext.Sender handlerContext = InstrumentationContext.get(
+                            RemoteEndpoint.class, HandlerContext.Sender.class)
+                    .get(self);
+            if (handlerContext != null) {
+                outputStream = new TracingOutputStream(outputStream, handlerContext);
+            }
+        }
+    }
 }

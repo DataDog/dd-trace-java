@@ -18,25 +18,25 @@ import org.junit.jupiter.api.Test;
  */
 class WithTracerTagsVersionTest extends DDCoreJavaSpecification {
 
-  private static TagMap tracerTagsWithVersion(Config config) {
-    TagMap userTags = TagMap.create();
-    userTags.set(Tags.VERSION, "1.2.3");
-    return CoreTracer.withTracerTags(userTags, config, null);
-  }
+    private static TagMap tracerTagsWithVersion(Config config) {
+        TagMap userTags = TagMap.create();
+        userTags.set(Tags.VERSION, "1.2.3");
+        return CoreTracer.withTracerTags(userTags, config, null);
+    }
 
-  @Test
-  void versionStrippedFromBundleByDefault() {
-    assertNull(
-        tracerTagsWithVersion(Config.get()).getString(Tags.VERSION),
-        "version is kept out of the trace-level bundle by default (avoids per-span tombstone)");
-  }
+    @Test
+    void versionStrippedFromBundleByDefault() {
+        assertNull(
+                tracerTagsWithVersion(Config.get()).getString(Tags.VERSION),
+                "version is kept out of the trace-level bundle by default (avoids per-span tombstone)");
+    }
 
-  @Test
-  @WithConfig(key = SPLIT_BY_TAGS, value = "version")
-  void versionKeptInBundleWhenSplitByVersion() {
-    assertEquals(
-        "1.2.3",
-        tracerTagsWithVersion(Config.get()).getString(Tags.VERSION),
-        "version must stay in the bundle so split-by-tags can derive the service name");
-  }
+    @Test
+    @WithConfig(key = SPLIT_BY_TAGS, value = "version")
+    void versionKeptInBundleWhenSplitByVersion() {
+        assertEquals(
+                "1.2.3",
+                tracerTagsWithVersion(Config.get()).getString(Tags.VERSION),
+                "version must stay in the bundle so split-by-tags can derive the service name");
+    }
 }

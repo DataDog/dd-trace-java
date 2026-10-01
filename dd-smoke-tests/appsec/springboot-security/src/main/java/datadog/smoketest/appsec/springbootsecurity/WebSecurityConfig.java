@@ -19,49 +19,48 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableWebSecurity
 public class WebSecurityConfig {
 
-  final DataSource dataSource;
+    final DataSource dataSource;
 
-  public WebSecurityConfig(DataSource dataSource) {
-    this.dataSource = dataSource;
-  }
+    public WebSecurityConfig(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
 
-  @Bean
-  public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-    http.authorizeRequests(
-            (requests) ->
-                requests
-                    .antMatchers("/", "/signup", "/register")
-                    .permitAll()
-                    .anyRequest()
-                    .authenticated())
-        .formLogin((form) -> form.loginPage("/login").permitAll())
-        .logout(LogoutConfigurer::permitAll);
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http.authorizeRequests((requests) -> requests.antMatchers("/", "/signup", "/register")
+                        .permitAll()
+                        .anyRequest()
+                        .authenticated())
+                .formLogin((form) -> form.loginPage("/login").permitAll())
+                .logout(LogoutConfigurer::permitAll);
 
-    return http.build();
-  }
+        return http.build();
+    }
 
-  @Bean
-  @DependsOn("dataSource")
-  public DataSourceInitializer dataSourceInitializer() {
-    ResourceDatabasePopulator populator = new ResourceDatabasePopulator();
-    populator.addScript(new ClassPathResource("schema.sql"));
+    @Bean
+    @DependsOn("dataSource")
+    public DataSourceInitializer dataSourceInitializer() {
+        ResourceDatabasePopulator populator = new ResourceDatabasePopulator();
+        populator.addScript(new ClassPathResource("schema.sql"));
 
-    DataSourceInitializer initializer = new DataSourceInitializer();
-    initializer.setDataSource(dataSource);
-    initializer.setDatabasePopulator(populator);
+        DataSourceInitializer initializer = new DataSourceInitializer();
+        initializer.setDataSource(dataSource);
+        initializer.setDatabasePopulator(populator);
 
-    return initializer;
-  }
+        return initializer;
+    }
 
-  @Bean
-  @DependsOn("dataSourceInitializer")
-  public UserDetailsManager userDetailsService() {
-    UserDetailsManager userDetailsManager = new JdbcUserDetailsManager(dataSource);
+    @Bean
+    @DependsOn("dataSourceInitializer")
+    public UserDetailsManager userDetailsService() {
+        UserDetailsManager userDetailsManager = new JdbcUserDetailsManager(dataSource);
 
-    // Create some default for case when user creation happens outside request
-    userDetailsManager.createUser(
-        User.withUsername("default_user").password("{noop}").roles("USER").build());
+        // Create some default for case when user creation happens outside request
+        userDetailsManager.createUser(User.withUsername("default_user")
+                .password("{noop}")
+                .roles("USER")
+                .build());
 
-    return userDetailsManager;
-  }
+        return userDetailsManager;
+    }
 }

@@ -13,26 +13,26 @@ import io.micronaut.http.server.netty.NettyHttpRequest;
 import net.bytebuddy.asm.Advice;
 
 public class ChannelAcceptAdvice {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static ContextScope beginRequest(
-      @Advice.FieldValue("nettyRequest") final NettyHttpRequest request) {
-    final AgentSpan nettySpan = activeSpan();
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ContextScope beginRequest(@Advice.FieldValue("nettyRequest") final NettyHttpRequest request) {
+        final AgentSpan nettySpan = activeSpan();
 
-    if (request == null || nettySpan == null) {
-      return null;
+        if (request == null || nettySpan == null) {
+            return null;
+        }
+        final AgentSpan span =
+                startSpan("micronaut-controller", DECORATE.spanName()).setMeasured(true);
+        DECORATE.afterStart(span);
+        request.setAttribute(SPAN_ATTRIBUTE, span);
+        request.setAttribute(PARENT_SPAN_ATTRIBUTE, nettySpan);
+
+        return activateSpan(span);
     }
-    final AgentSpan span = startSpan("micronaut-controller", DECORATE.spanName()).setMeasured(true);
-    DECORATE.afterStart(span);
-    request.setAttribute(SPAN_ATTRIBUTE, span);
-    request.setAttribute(PARENT_SPAN_ATTRIBUTE, nettySpan);
 
-    return activateSpan(span);
-  }
-
-  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void endRequest(@Advice.Enter final ContextScope scope) {
-    if (scope != null) {
-      scope.close();
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void endRequest(@Advice.Enter final ContextScope scope) {
+        if (scope != null) {
+            scope.close();
+        }
     }
-  }
 }

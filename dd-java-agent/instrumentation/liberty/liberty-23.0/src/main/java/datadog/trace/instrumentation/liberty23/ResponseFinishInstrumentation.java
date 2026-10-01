@@ -28,81 +28,80 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class ResponseFinishInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public ResponseFinishInstrumentation() {
-    super("liberty");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "com.ibm.ws.webcontainer.srt.SRTServletResponse";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("finish").and(takesNoArguments()),
-        ResponseFinishInstrumentation.class.getName() + "$ResponseFinishAdvice");
-    transformer.applyAdvice(
-        named("closeResponseOutput").and(takesArguments(1)).and(takesArgument(0, boolean.class)),
-        ResponseFinishInstrumentation.class.getName() + "$SetCompletedAdvice");
-  }
-
-  /**
-   * Older versions have the inserted code conditioned on <code>
-   * reqState.getCurrentThreadsIExtendedRequest() == this.getRequest()</code>, though not in all
-   * code paths (for instance, not when getOutputStream() was called instead of getWriter). This
-   * inconsistency, together with the fact that newer versions don't have this condition anymore,
-   * suggests it is a bug. Without this inserted advice, async requests are not completed when
-   * blocking async requests.
-   */
-  static class SetCompletedAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    static void after(@Advice.Argument(0) boolean releaseChannel) {
-      WebContainerRequestState reqState = WebContainerRequestState.getInstance(true);
-      if (releaseChannel && !reqState.isCompleted()) {
-        reqState.setCompleted(true);
-      }
+    public ResponseFinishInstrumentation() {
+        super("liberty");
     }
-  }
 
-  @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
-  public static class ResponseFinishAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    static Context onEnter(@Advice.This SRTServletResponse resp) {
-      // this is the last opportunity to have any meaningful
-      // interaction with the response
-      Context context = null;
-      IExtendedRequest req = resp.getRequest();
-      try {
-        Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
-        if (contextObj instanceof Context) {
-          context = (Context) contextObj;
-          req.setAttribute(DD_CONTEXT_ATTRIBUTE, null);
-          AgentSpan span = fromContext(context);
-          if (span != null) {
-            DECORATE.onSRTResponse(span, resp);
-          }
+    @Override
+    public String instrumentedType() {
+        return "com.ibm.ws.webcontainer.srt.SRTServletResponse";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("finish").and(takesNoArguments()),
+                ResponseFinishInstrumentation.class.getName() + "$ResponseFinishAdvice");
+        transformer.applyAdvice(
+                named("closeResponseOutput").and(takesArguments(1)).and(takesArgument(0, boolean.class)),
+                ResponseFinishInstrumentation.class.getName() + "$SetCompletedAdvice");
+    }
+
+    /**
+     * Older versions have the inserted code conditioned on <code>
+     * reqState.getCurrentThreadsIExtendedRequest() == this.getRequest()</code>, though not in all
+     * code paths (for instance, not when getOutputStream() was called instead of getWriter). This
+     * inconsistency, together with the fact that newer versions don't have this condition anymore,
+     * suggests it is a bug. Without this inserted advice, async requests are not completed when
+     * blocking async requests.
+     */
+    static class SetCompletedAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        static void after(@Advice.Argument(0) boolean releaseChannel) {
+            WebContainerRequestState reqState = WebContainerRequestState.getInstance(true);
+            if (releaseChannel && !reqState.isCompleted()) {
+                reqState.setCompleted(true);
+            }
         }
-      } catch (NullPointerException e) {
-        // OpenLiberty will throw NPE on getAttribute if the response has already been closed.
-      }
-
-      return context;
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.This SRTServletResponse resp, @Advice.Enter Context context) {
-      if (context == null) {
-        return;
-      }
-      AgentSpan span = fromContext(context);
-      if (span != null) {
-        DECORATE.beforeFinish(context);
-        span.finish();
-      }
+    @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
+    public static class ResponseFinishAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        static Context onEnter(@Advice.This SRTServletResponse resp) {
+            // this is the last opportunity to have any meaningful
+            // interaction with the response
+            Context context = null;
+            IExtendedRequest req = resp.getRequest();
+            try {
+                Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+                if (contextObj instanceof Context) {
+                    context = (Context) contextObj;
+                    req.setAttribute(DD_CONTEXT_ATTRIBUTE, null);
+                    AgentSpan span = fromContext(context);
+                    if (span != null) {
+                        DECORATE.onSRTResponse(span, resp);
+                    }
+                }
+            } catch (NullPointerException e) {
+                // OpenLiberty will throw NPE on getAttribute if the response has already been closed.
+            }
+
+            return context;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void stopSpan(@Advice.This SRTServletResponse resp, @Advice.Enter Context context) {
+            if (context == null) {
+                return;
+            }
+            AgentSpan span = fromContext(context);
+            if (span != null) {
+                DECORATE.beforeFinish(context);
+                span.finish();
+            }
+        }
     }
-  }
 }

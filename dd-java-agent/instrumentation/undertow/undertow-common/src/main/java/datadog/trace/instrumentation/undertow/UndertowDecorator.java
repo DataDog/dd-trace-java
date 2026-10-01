@@ -15,96 +15,88 @@ import io.undertow.util.AttachmentKey;
 import java.net.InetSocketAddress;
 
 public class UndertowDecorator
-    extends HttpServerDecorator<
-        HttpServerExchange, HttpServerExchange, HttpServerExchange, HttpServerExchange> {
-  public static final CharSequence SERVLET_REQUEST =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().server().operationForComponent("java-web-servlet"));
-  public static final CharSequence UNDERTOW_HTTP_SERVER =
-      UTF8BytesString.create("undertow-http-server");
+        extends HttpServerDecorator<HttpServerExchange, HttpServerExchange, HttpServerExchange, HttpServerExchange> {
+    public static final CharSequence SERVLET_REQUEST = UTF8BytesString.create(
+            SpanNaming.instance().namingSchema().server().operationForComponent("java-web-servlet"));
+    public static final CharSequence UNDERTOW_HTTP_SERVER = UTF8BytesString.create("undertow-http-server");
 
-  @SuppressWarnings("rawtypes")
-  private static final InstanceStore<AttachmentKey> attachmentStore =
-      InstanceStore.of(AttachmentKey.class);
+    @SuppressWarnings("rawtypes")
+    private static final InstanceStore<AttachmentKey> attachmentStore = InstanceStore.of(AttachmentKey.class);
 
-  @SuppressWarnings("unchecked")
-  public static final AttachmentKey<ContextContinuation> DATADOG_UNDERTOW_CONTINUATION =
-      attachmentStore.getOrCreate(
-          "DD_UNDERTOW_CONTINUATION", () -> AttachmentKey.create(ContextContinuation.class));
+    @SuppressWarnings("unchecked")
+    public static final AttachmentKey<ContextContinuation> DATADOG_UNDERTOW_CONTINUATION = attachmentStore.getOrCreate(
+            "DD_UNDERTOW_CONTINUATION", () -> AttachmentKey.create(ContextContinuation.class));
 
-  @SuppressWarnings("unchecked")
-  public static final AttachmentKey<Context> PARENT_CONTEXT_KEY =
-      attachmentStore.getOrCreate(
-          "DD_UNDERTOW_PARENT_CONTEXT", () -> AttachmentKey.create(Context.class));
+    @SuppressWarnings("unchecked")
+    public static final AttachmentKey<Context> PARENT_CONTEXT_KEY =
+            attachmentStore.getOrCreate("DD_UNDERTOW_PARENT_CONTEXT", () -> AttachmentKey.create(Context.class));
 
-  public static final UndertowDecorator DECORATE = new UndertowDecorator();
-  public static final CharSequence UNDERTOW_REQUEST =
-      UTF8BytesString.create(DECORATE.operationName());
-  public static final boolean UNDERTOW_LEGACY_TRACING =
-      Config.get().isLegacyTracingEnabled(true, "undertow");
+    public static final UndertowDecorator DECORATE = new UndertowDecorator();
+    public static final CharSequence UNDERTOW_REQUEST = UTF8BytesString.create(DECORATE.operationName());
+    public static final boolean UNDERTOW_LEGACY_TRACING = Config.get().isLegacyTracingEnabled(true, "undertow");
 
-  @Override
-  protected String[] instrumentationNames() {
-    return new String[] {"undertow-http", "undertow-http-server"};
-  }
+    @Override
+    protected String[] instrumentationNames() {
+        return new String[] {"undertow-http", "undertow-http-server"};
+    }
 
-  @Override
-  protected CharSequence component() {
-    return UNDERTOW_HTTP_SERVER;
-  }
+    @Override
+    protected CharSequence component() {
+        return UNDERTOW_HTTP_SERVER;
+    }
 
-  @Override
-  protected AgentPropagation.ContextVisitor<HttpServerExchange> getter() {
-    return UndertowExtractAdapter.Request.GETTER;
-  }
+    @Override
+    protected AgentPropagation.ContextVisitor<HttpServerExchange> getter() {
+        return UndertowExtractAdapter.Request.GETTER;
+    }
 
-  @Override
-  protected AgentPropagation.ContextVisitor<HttpServerExchange> responseGetter() {
-    return UndertowExtractAdapter.Response.GETTER;
-  }
+    @Override
+    protected AgentPropagation.ContextVisitor<HttpServerExchange> responseGetter() {
+        return UndertowExtractAdapter.Response.GETTER;
+    }
 
-  @Override
-  public CharSequence spanName() {
-    return UNDERTOW_REQUEST;
-  }
+    @Override
+    public CharSequence spanName() {
+        return UNDERTOW_REQUEST;
+    }
 
-  @Override
-  protected String method(final HttpServerExchange exchange) {
-    return exchange.getRequestMethod().toString();
-  }
+    @Override
+    protected String method(final HttpServerExchange exchange) {
+        return exchange.getRequestMethod().toString();
+    }
 
-  @Override
-  protected URIDataAdapter url(final HttpServerExchange exchange) {
-    return new HttpServerExchangeURIDataAdapter(exchange);
-  }
+    @Override
+    protected URIDataAdapter url(final HttpServerExchange exchange) {
+        return new HttpServerExchangeURIDataAdapter(exchange);
+    }
 
-  @Override
-  protected String peerHostIP(final HttpServerExchange exchange) {
-    return exchange.getSourceAddress().getAddress().getHostAddress();
-  }
+    @Override
+    protected String peerHostIP(final HttpServerExchange exchange) {
+        return exchange.getSourceAddress().getAddress().getHostAddress();
+    }
 
-  @Override
-  protected int peerPort(final HttpServerExchange exchange) {
-    // getDestinationAddress() can be null in the same situations that make
-    // HttpServerExchangeURIDataAdapter#port() NPE internally (e.g. AJP, a Unix domain socket
-    // transport, or a wrapped/detached ServerConnection).
-    InetSocketAddress destination = exchange.getDestinationAddress();
-    return destination == null ? UNSET_PORT : destination.getPort();
-  }
+    @Override
+    protected int peerPort(final HttpServerExchange exchange) {
+        // getDestinationAddress() can be null in the same situations that make
+        // HttpServerExchangeURIDataAdapter#port() NPE internally (e.g. AJP, a Unix domain socket
+        // transport, or a wrapped/detached ServerConnection).
+        InetSocketAddress destination = exchange.getDestinationAddress();
+        return destination == null ? UNSET_PORT : destination.getPort();
+    }
 
-  @Override
-  protected int status(final HttpServerExchange exchange) {
-    return exchange.getResponseCode();
-  }
+    @Override
+    protected int status(final HttpServerExchange exchange) {
+        return exchange.getResponseCode();
+    }
 
-  @Override
-  protected boolean isAppSecOnResponseSeparate() {
-    return true;
-  }
+    @Override
+    protected boolean isAppSecOnResponseSeparate() {
+        return true;
+    }
 
-  @Override
-  protected BlockResponseFunction createBlockResponseFunction(
-      HttpServerExchange httpServerExchange, HttpServerExchange httpServerExchange1) {
-    return new UndertowBlockResponseFunction(httpServerExchange);
-  }
+    @Override
+    protected BlockResponseFunction createBlockResponseFunction(
+            HttpServerExchange httpServerExchange, HttpServerExchange httpServerExchange1) {
+        return new UndertowBlockResponseFunction(httpServerExchange);
+    }
 }

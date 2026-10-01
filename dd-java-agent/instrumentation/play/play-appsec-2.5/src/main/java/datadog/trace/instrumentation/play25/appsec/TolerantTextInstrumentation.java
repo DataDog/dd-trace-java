@@ -12,29 +12,29 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 
 @AutoService(InstrumenterModule.class)
 public class TolerantTextInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public TolerantTextInstrumentation() {
-    super("play");
-  }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public TolerantTextInstrumentation() {
+        super("play");
+    }
 
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return MuzzleReferences.PLAY_25_ONLY;
-  }
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return MuzzleReferences.PLAY_25_ONLY;
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "play.mvc.BodyParser$TolerantText";
-  }
+    @Override
+    public String instrumentedType() {
+        return "play.mvc.BodyParser$TolerantText";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("parse")
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("play.mvc.Http$RequestHeader")))
-            .and(takesArgument(1, named("akka.util.ByteString")))
-            .and(returns(String.class)),
-        packageName + ".BodyParserTolerantTextParseAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("parse")
+                        .and(takesArguments(2))
+                        .and(takesArgument(0, named("play.mvc.Http$RequestHeader")))
+                        .and(takesArgument(1, named("akka.util.ByteString")))
+                        .and(returns(String.class)),
+                packageName + ".BodyParserTolerantTextParseAdvice");
+    }
 }

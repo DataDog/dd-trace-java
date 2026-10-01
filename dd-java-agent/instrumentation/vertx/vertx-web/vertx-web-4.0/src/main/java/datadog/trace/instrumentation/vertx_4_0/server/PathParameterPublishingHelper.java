@@ -21,58 +21,58 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class PathParameterPublishingHelper {
-  private static final Logger log = LoggerFactory.getLogger(PathParameterPublishingHelper.class);
+    private static final Logger log = LoggerFactory.getLogger(PathParameterPublishingHelper.class);
 
-  public static Throwable publishParams(Map<String, String> params) {
-    AgentSpan agentSpan = activeSpan();
-    if (agentSpan == null) {
-      return null;
-    }
-
-    RequestContext requestContext = agentSpan.getRequestContext();
-    if (requestContext == null) {
-      return null;
-    }
-
-    { // appsec
-      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-      BiFunction<RequestContext, Map<String, ?>, Flow<Void>> callback =
-          cbp.getCallback(EVENTS.requestPathParams());
-      if (callback != null) {
-        Flow<Void> flow = callback.apply(requestContext, params);
-        Flow.Action action = flow.getAction();
-        if (action instanceof Flow.Action.RequestBlockingAction) {
-          BlockResponseFunction brf = requestContext.getBlockResponseFunction();
-          if (brf == null) {
-            log.warn("Can't block. Don't know how to block on this server");
-          } else {
-            Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-            brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
-
-            return new BlockingException("Blocked request (for route/matches)");
-          }
+    public static Throwable publishParams(Map<String, String> params) {
+        AgentSpan agentSpan = activeSpan();
+        if (agentSpan == null) {
+            return null;
         }
-      }
-    }
 
-    { // iast
-      IastContext iastRequestContext = requestContext.getData(RequestContextSlot.IAST);
-      if (iastRequestContext != null) {
-        PropagationModule module = InstrumentationBridge.PROPAGATION;
-        if (module != null) {
-          for (Map.Entry<String, String> e : params.entrySet()) {
-            String parameterName = e.getKey();
-            String value = e.getValue();
-            if (parameterName == null || value == null) {
-              continue; // should not happen
+        RequestContext requestContext = agentSpan.getRequestContext();
+        if (requestContext == null) {
+            return null;
+        }
+
+        { // appsec
+            CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+            BiFunction<RequestContext, Map<String, ?>, Flow<Void>> callback =
+                    cbp.getCallback(EVENTS.requestPathParams());
+            if (callback != null) {
+                Flow<Void> flow = callback.apply(requestContext, params);
+                Flow.Action action = flow.getAction();
+                if (action instanceof Flow.Action.RequestBlockingAction) {
+                    BlockResponseFunction brf = requestContext.getBlockResponseFunction();
+                    if (brf == null) {
+                        log.warn("Can't block. Don't know how to block on this server");
+                    } else {
+                        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+                        brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
+
+                        return new BlockingException("Blocked request (for route/matches)");
+                    }
+                }
             }
-            module.taintString(
-                iastRequestContext, value, SourceTypes.REQUEST_PATH_PARAMETER, parameterName);
-          }
         }
-      }
-    }
 
-    return null;
-  }
+        { // iast
+            IastContext iastRequestContext = requestContext.getData(RequestContextSlot.IAST);
+            if (iastRequestContext != null) {
+                PropagationModule module = InstrumentationBridge.PROPAGATION;
+                if (module != null) {
+                    for (Map.Entry<String, String> e : params.entrySet()) {
+                        String parameterName = e.getKey();
+                        String value = e.getValue();
+                        if (parameterName == null || value == null) {
+                            continue; // should not happen
+                        }
+                        module.taintString(
+                                iastRequestContext, value, SourceTypes.REQUEST_PATH_PARAMETER, parameterName);
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
 }

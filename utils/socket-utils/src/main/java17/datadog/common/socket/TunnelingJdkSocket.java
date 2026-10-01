@@ -30,372 +30,374 @@ import java.util.Set;
  * 16.
  */
 final class TunnelingJdkSocket extends Socket {
-  private final UnixDomainSocketAddress unixSocketAddress;
-  private final SocketChannel unixSocketChannel;
+    private final UnixDomainSocketAddress unixSocketAddress;
+    private final SocketChannel unixSocketChannel;
 
-  private volatile InetSocketAddress inetSocketAddress;
-  @VisibleForTesting Selector selector;
+    private volatile InetSocketAddress inetSocketAddress;
 
-  private volatile int timeout;
-  private volatile boolean shutIn;
-  private volatile boolean shutOut;
-  private volatile boolean closed;
+    @VisibleForTesting
+    Selector selector;
 
-  static final int DEFAULT_BUFFER_SIZE = 8192;
-  // Indicate that the buffer size is not set by initializing to -1
-  private int sendBufferSize = -1;
-  private int receiveBufferSize = -1;
+    private volatile int timeout;
+    private volatile boolean shutIn;
+    private volatile boolean shutOut;
+    private volatile boolean closed;
 
-  TunnelingJdkSocket(final Path path) throws IOException, UnsupportedOperationException {
-    this.unixSocketAddress = UnixDomainSocketAddress.of(path);
-    this.unixSocketChannel = SocketChannel.open(StandardProtocolFamily.UNIX);
-  }
+    static final int DEFAULT_BUFFER_SIZE = 8192;
+    // Indicate that the buffer size is not set by initializing to -1
+    private int sendBufferSize = -1;
+    private int receiveBufferSize = -1;
 
-  @Override
-  public boolean isConnected() {
-    return inetSocketAddress != null;
-  }
+    TunnelingJdkSocket(final Path path) throws IOException, UnsupportedOperationException {
+        this.unixSocketAddress = UnixDomainSocketAddress.of(path);
+        this.unixSocketChannel = SocketChannel.open(StandardProtocolFamily.UNIX);
+    }
 
-  @Override
-  public boolean isInputShutdown() {
-    return shutIn;
-  }
+    @Override
+    public boolean isConnected() {
+        return inetSocketAddress != null;
+    }
 
-  @Override
-  public boolean isOutputShutdown() {
-    return shutOut;
-  }
+    @Override
+    public boolean isInputShutdown() {
+        return shutIn;
+    }
 
-  @Override
-  public boolean isClosed() {
-    return closed;
-  }
+    @Override
+    public boolean isOutputShutdown() {
+        return shutOut;
+    }
 
-  @Override
-  public void setSoTimeout(int timeout) throws SocketException {
-    if (isClosed()) {
-      throw new SocketException("Socket is closed");
+    @Override
+    public boolean isClosed() {
+        return closed;
     }
-    if (timeout < 0) {
-      throw new IllegalArgumentException("Socket timeout can't be negative");
-    }
-    this.timeout = timeout;
-  }
 
-  @Override
-  public int getSoTimeout() throws SocketException {
-    if (isClosed()) {
-      throw new SocketException("Socket is closed");
+    @Override
+    public void setSoTimeout(int timeout) throws SocketException {
+        if (isClosed()) {
+            throw new SocketException("Socket is closed");
+        }
+        if (timeout < 0) {
+            throw new IllegalArgumentException("Socket timeout can't be negative");
+        }
+        this.timeout = timeout;
     }
-    return timeout;
-  }
 
-  @Override
-  public void connect(final SocketAddress endpoint) throws IOException {
-    connect(endpoint, 0);
-  }
+    @Override
+    public int getSoTimeout() throws SocketException {
+        if (isClosed()) {
+            throw new SocketException("Socket is closed");
+        }
+        return timeout;
+    }
 
-  // `timeout` is intentionally ignored here, like in the jnr-unixsocket implementation.
-  // See:
-  // https://github.com/jnr/jnr-unixsocket/blob/master/src/main/java/jnr/unixsocket/UnixSocket.java#L89-L97
-  @Override
-  public void connect(final SocketAddress endpoint, final int timeout) throws IOException {
-    if (endpoint == null) {
-      throw new IllegalArgumentException("Endpoint cannot be null");
+    @Override
+    public void connect(final SocketAddress endpoint) throws IOException {
+        connect(endpoint, 0);
     }
-    if (timeout < 0) {
-      throw new IllegalArgumentException("Timeout cannot be negative");
-    }
-    if (isClosed()) {
-      throw new SocketException("Socket is closed");
-    }
-    if (isConnected()) {
-      throw new SocketException("Socket is already connected");
-    }
-    InetSocketAddress inetSocketAddress = (InetSocketAddress) endpoint;
-    try {
-      unixSocketChannel.connect(unixSocketAddress);
-      this.inetSocketAddress = inetSocketAddress;
-    } catch (IOException e) {
-      close();
-      throw e;
-    }
-  }
 
-  @Override
-  public SocketChannel getChannel() {
-    return unixSocketChannel;
-  }
-
-  @Override
-  public void setSendBufferSize(int size) throws SocketException {
-    if (size <= 0) {
-      throw new IllegalArgumentException("Invalid send buffer size");
-    }
-    if (isClosed()) {
-      throw new SocketException("Socket is closed");
-    }
-    sendBufferSize = size;
-    try {
-      unixSocketChannel.setOption(StandardSocketOptions.SO_SNDBUF, size);
-    } catch (IOException e) {
-      SocketException se = new SocketException("Failed to set send buffer size socket option");
-      se.initCause(e);
-      throw se;
-    }
-  }
-
-  @Override
-  public int getSendBufferSize() throws SocketException {
-    if (isClosed()) {
-      throw new SocketException("Socket is closed");
-    }
-    if (sendBufferSize == -1) {
-      return DEFAULT_BUFFER_SIZE;
-    }
-    return sendBufferSize;
-  }
-
-  @Override
-  public void setReceiveBufferSize(int size) throws SocketException {
-    if (size <= 0) {
-      throw new IllegalArgumentException("Invalid receive buffer size");
-    }
-    if (isClosed()) {
-      throw new SocketException("Socket is closed");
-    }
-    receiveBufferSize = size;
-    try {
-      unixSocketChannel.setOption(StandardSocketOptions.SO_RCVBUF, size);
-    } catch (IOException e) {
-      SocketException se = new SocketException("Failed to set receive buffer size socket option");
-      se.initCause(e);
-      throw se;
-    }
-  }
-
-  @Override
-  public int getReceiveBufferSize() throws SocketException {
-    if (isClosed()) {
-      throw new SocketException("Socket is closed");
-    }
-    if (receiveBufferSize == -1) {
-      return DEFAULT_BUFFER_SIZE;
-    }
-    return receiveBufferSize;
-  }
-
-  public int getStreamBufferSize() throws SocketException {
-    if (isClosed()) {
-      throw new SocketException("Socket is closed");
-    }
-    if (sendBufferSize == -1 && receiveBufferSize == -1) {
-      return DEFAULT_BUFFER_SIZE;
-    }
-    return Math.max(sendBufferSize, receiveBufferSize);
-  }
-
-  @Override
-  public InputStream getInputStream() throws IOException {
-    // Configuring the channel can wait for a blocked write. Let close() interrupt that write.
-    if (!isClosed() && isConnected() && !isInputShutdown() && unixSocketChannel.isBlocking()) {
-      unixSocketChannel.configureBlocking(false);
-    }
-    // Serialize validation and selector publication with close() so close cannot miss a selector
-    // that is still being initialized.
-    synchronized (this) {
-      if (isClosed()) {
-        throw new SocketException("Socket is closed");
-      }
-      if (!isConnected()) {
-        throw new SocketException("Socket is not connected");
-      }
-      if (isInputShutdown()) {
-        throw new SocketException("Socket input is shutdown");
-      }
-
-      if (selector == null) {
-        Selector newSelector = Selector.open();
+    // `timeout` is intentionally ignored here, like in the jnr-unixsocket implementation.
+    // See:
+    // https://github.com/jnr/jnr-unixsocket/blob/master/src/main/java/jnr/unixsocket/UnixSocket.java#L89-L97
+    @Override
+    public void connect(final SocketAddress endpoint, final int timeout) throws IOException {
+        if (endpoint == null) {
+            throw new IllegalArgumentException("Endpoint cannot be null");
+        }
+        if (timeout < 0) {
+            throw new IllegalArgumentException("Timeout cannot be negative");
+        }
+        if (isClosed()) {
+            throw new SocketException("Socket is closed");
+        }
+        if (isConnected()) {
+            throw new SocketException("Socket is already connected");
+        }
+        InetSocketAddress inetSocketAddress = (InetSocketAddress) endpoint;
         try {
-          unixSocketChannel.register(newSelector, SelectionKey.OP_READ);
-          selector = newSelector;
-        } catch (IOException | RuntimeException e) {
-          try {
-            newSelector.close();
-          } catch (IOException closeException) {
-            e.addSuppressed(closeException);
-          }
-          throw e;
+            unixSocketChannel.connect(unixSocketAddress);
+            this.inetSocketAddress = inetSocketAddress;
+        } catch (IOException e) {
+            close();
+            throw e;
         }
-      }
+    }
 
-      final Selector readSelector = selector;
-      return new InputStream() {
-        private final ByteBuffer buffer = ByteBuffer.allocate(getStreamBufferSize());
+    @Override
+    public SocketChannel getChannel() {
+        return unixSocketChannel;
+    }
 
-        @Override
-        public int read() throws IOException {
-          byte[] nextByte = new byte[1];
-          return (read(nextByte, 0, 1) == -1) ? -1 : (nextByte[0] & 0xFF);
+    @Override
+    public void setSendBufferSize(int size) throws SocketException {
+        if (size <= 0) {
+            throw new IllegalArgumentException("Invalid send buffer size");
         }
+        if (isClosed()) {
+            throw new SocketException("Socket is closed");
+        }
+        sendBufferSize = size;
+        try {
+            unixSocketChannel.setOption(StandardSocketOptions.SO_SNDBUF, size);
+        } catch (IOException e) {
+            SocketException se = new SocketException("Failed to set send buffer size socket option");
+            se.initCause(e);
+            throw se;
+        }
+    }
 
-        @Override
-        public int read(byte[] b, int off, int len) throws IOException {
-          if (isInputShutdown()) {
-            return -1;
-          }
-          buffer.clear();
+    @Override
+    public int getSendBufferSize() throws SocketException {
+        if (isClosed()) {
+            throw new SocketException("Socket is closed");
+        }
+        if (sendBufferSize == -1) {
+            return DEFAULT_BUFFER_SIZE;
+        }
+        return sendBufferSize;
+    }
 
-          try {
-            int readyChannels = readSelector.select(timeout);
-            if (readyChannels == 0) {
-              if (isClosed() || !readSelector.isOpen()) {
+    @Override
+    public void setReceiveBufferSize(int size) throws SocketException {
+        if (size <= 0) {
+            throw new IllegalArgumentException("Invalid receive buffer size");
+        }
+        if (isClosed()) {
+            throw new SocketException("Socket is closed");
+        }
+        receiveBufferSize = size;
+        try {
+            unixSocketChannel.setOption(StandardSocketOptions.SO_RCVBUF, size);
+        } catch (IOException e) {
+            SocketException se = new SocketException("Failed to set receive buffer size socket option");
+            se.initCause(e);
+            throw se;
+        }
+    }
+
+    @Override
+    public int getReceiveBufferSize() throws SocketException {
+        if (isClosed()) {
+            throw new SocketException("Socket is closed");
+        }
+        if (receiveBufferSize == -1) {
+            return DEFAULT_BUFFER_SIZE;
+        }
+        return receiveBufferSize;
+    }
+
+    public int getStreamBufferSize() throws SocketException {
+        if (isClosed()) {
+            throw new SocketException("Socket is closed");
+        }
+        if (sendBufferSize == -1 && receiveBufferSize == -1) {
+            return DEFAULT_BUFFER_SIZE;
+        }
+        return Math.max(sendBufferSize, receiveBufferSize);
+    }
+
+    @Override
+    public InputStream getInputStream() throws IOException {
+        // Configuring the channel can wait for a blocked write. Let close() interrupt that write.
+        if (!isClosed() && isConnected() && !isInputShutdown() && unixSocketChannel.isBlocking()) {
+            unixSocketChannel.configureBlocking(false);
+        }
+        // Serialize validation and selector publication with close() so close cannot miss a selector
+        // that is still being initialized.
+        synchronized (this) {
+            if (isClosed()) {
                 throw new SocketException("Socket is closed");
-              }
-              return 0;
+            }
+            if (!isConnected()) {
+                throw new SocketException("Socket is not connected");
+            }
+            if (isInputShutdown()) {
+                throw new SocketException("Socket input is shutdown");
             }
 
-            Set<SelectionKey> selectedKeys = readSelector.selectedKeys();
-            // Multiple input streams share this selector, so serialize iteration and removal from
-            // its non-thread-safe selected-key set.
-            synchronized (selectedKeys) {
-              Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
-              while (keyIterator.hasNext()) {
-                SelectionKey key = keyIterator.next();
-                keyIterator.remove();
-                if (key.isReadable()) {
-                  int r = unixSocketChannel.read(buffer);
-                  if (r == -1) {
-                    return -1;
-                  }
-                  buffer.flip();
-                  len = Math.min(r, len);
-                  buffer.get(b, off, len);
-                  return len;
+            if (selector == null) {
+                Selector newSelector = Selector.open();
+                try {
+                    unixSocketChannel.register(newSelector, SelectionKey.OP_READ);
+                    selector = newSelector;
+                } catch (IOException | RuntimeException e) {
+                    try {
+                        newSelector.close();
+                    } catch (IOException closeException) {
+                        e.addSuppressed(closeException);
+                    }
+                    throw e;
                 }
-              }
             }
-            return 0;
-          } catch (ClosedSelectorException | CancelledKeyException e) {
-            SocketException socketException = new SocketException("Socket is closed");
-            socketException.initCause(e);
-            throw socketException;
-          }
+
+            final Selector readSelector = selector;
+            return new InputStream() {
+                private final ByteBuffer buffer = ByteBuffer.allocate(getStreamBufferSize());
+
+                @Override
+                public int read() throws IOException {
+                    byte[] nextByte = new byte[1];
+                    return (read(nextByte, 0, 1) == -1) ? -1 : (nextByte[0] & 0xFF);
+                }
+
+                @Override
+                public int read(byte[] b, int off, int len) throws IOException {
+                    if (isInputShutdown()) {
+                        return -1;
+                    }
+                    buffer.clear();
+
+                    try {
+                        int readyChannels = readSelector.select(timeout);
+                        if (readyChannels == 0) {
+                            if (isClosed() || !readSelector.isOpen()) {
+                                throw new SocketException("Socket is closed");
+                            }
+                            return 0;
+                        }
+
+                        Set<SelectionKey> selectedKeys = readSelector.selectedKeys();
+                        // Multiple input streams share this selector, so serialize iteration and removal from
+                        // its non-thread-safe selected-key set.
+                        synchronized (selectedKeys) {
+                            Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
+                            while (keyIterator.hasNext()) {
+                                SelectionKey key = keyIterator.next();
+                                keyIterator.remove();
+                                if (key.isReadable()) {
+                                    int r = unixSocketChannel.read(buffer);
+                                    if (r == -1) {
+                                        return -1;
+                                    }
+                                    buffer.flip();
+                                    len = Math.min(r, len);
+                                    buffer.get(b, off, len);
+                                    return len;
+                                }
+                            }
+                        }
+                        return 0;
+                    } catch (ClosedSelectorException | CancelledKeyException e) {
+                        SocketException socketException = new SocketException("Socket is closed");
+                        socketException.initCause(e);
+                        throw socketException;
+                    }
+                }
+
+                @Override
+                public void close() throws IOException {
+                    TunnelingJdkSocket.this.close();
+                }
+            };
         }
+    }
 
-        @Override
-        public void close() throws IOException {
-          TunnelingJdkSocket.this.close();
+    @Override
+    public OutputStream getOutputStream() throws IOException {
+        if (isClosed()) {
+            throw new SocketException("Socket is closed");
         }
-      };
-    }
-  }
-
-  @Override
-  public OutputStream getOutputStream() throws IOException {
-    if (isClosed()) {
-      throw new SocketException("Socket is closed");
-    }
-    if (!isConnected()) {
-      throw new SocketException("Socket is not connected");
-    }
-    if (isOutputShutdown()) {
-      throw new SocketException("Socket output is shutdown");
-    }
-
-    return new OutputStream() {
-      @Override
-      public void write(int b) throws IOException {
-        byte[] array = ByteBuffer.allocate(4).putInt(b).array();
-        write(array, 0, 4);
-      }
-
-      @Override
-      public void write(byte[] b, int off, int len) throws IOException {
+        if (!isConnected()) {
+            throw new SocketException("Socket is not connected");
+        }
         if (isOutputShutdown()) {
-          throw new IOException("Stream closed");
+            throw new SocketException("Socket output is shutdown");
         }
-        ByteBuffer buffer = ByteBuffer.wrap(b, off, len);
-        while (buffer.hasRemaining()) {
-          unixSocketChannel.write(buffer);
+
+        return new OutputStream() {
+            @Override
+            public void write(int b) throws IOException {
+                byte[] array = ByteBuffer.allocate(4).putInt(b).array();
+                write(array, 0, 4);
+            }
+
+            @Override
+            public void write(byte[] b, int off, int len) throws IOException {
+                if (isOutputShutdown()) {
+                    throw new IOException("Stream closed");
+                }
+                ByteBuffer buffer = ByteBuffer.wrap(b, off, len);
+                while (buffer.hasRemaining()) {
+                    unixSocketChannel.write(buffer);
+                }
+            }
+
+            @Override
+            public void close() throws IOException {
+                TunnelingJdkSocket.this.close();
+            }
+        };
+    }
+
+    @Override
+    public void shutdownInput() throws IOException {
+        // Keep validation, channel shutdown, and state publication atomic with close().
+        synchronized (this) {
+            if (isClosed()) {
+                throw new SocketException("Socket is closed");
+            }
+            if (!isConnected()) {
+                throw new SocketException("Socket is not connected");
+            }
+            if (isInputShutdown()) {
+                throw new SocketException("Socket input is already shutdown");
+            }
+            unixSocketChannel.shutdownInput();
+            shutIn = true;
         }
-      }
+    }
 
-      @Override
-      public void close() throws IOException {
-        TunnelingJdkSocket.this.close();
-      }
-    };
-  }
+    @Override
+    public void shutdownOutput() throws IOException {
+        // Keep validation, channel shutdown, and state publication atomic with close().
+        synchronized (this) {
+            if (isClosed()) {
+                throw new SocketException("Socket is closed");
+            }
+            if (!isConnected()) {
+                throw new SocketException("Socket is not connected");
+            }
+            if (isOutputShutdown()) {
+                throw new SocketException("Socket output is already shutdown");
+            }
+            unixSocketChannel.shutdownOutput();
+            shutOut = true;
+        }
+    }
 
-  @Override
-  public void shutdownInput() throws IOException {
-    // Keep validation, channel shutdown, and state publication atomic with close().
-    synchronized (this) {
-      if (isClosed()) {
-        throw new SocketException("Socket is closed");
-      }
-      if (!isConnected()) {
-        throw new SocketException("Socket is not connected");
-      }
-      if (isInputShutdown()) {
-        throw new SocketException("Socket input is already shutdown");
-      }
-      unixSocketChannel.shutdownInput();
-      shutIn = true;
+    @Override
+    public InetAddress getInetAddress() {
+        if (!isConnected()) {
+            return null;
+        }
+        return inetSocketAddress.getAddress();
     }
-  }
 
-  @Override
-  public void shutdownOutput() throws IOException {
-    // Keep validation, channel shutdown, and state publication atomic with close().
-    synchronized (this) {
-      if (isClosed()) {
-        throw new SocketException("Socket is closed");
-      }
-      if (!isConnected()) {
-        throw new SocketException("Socket is not connected");
-      }
-      if (isOutputShutdown()) {
-        throw new SocketException("Socket output is already shutdown");
-      }
-      unixSocketChannel.shutdownOutput();
-      shutOut = true;
+    @Override
+    public void close() {
+        Selector currentSelector;
+        // Publish the terminal state and snapshot the selector atomically with selector creation and
+        // half-close operations. The resources are closed after releasing this monitor.
+        synchronized (this) {
+            if (isClosed()) {
+                return;
+            }
+            shutIn = true;
+            shutOut = true;
+            closed = true;
+            currentSelector = selector;
+        }
+        // Ignore possible exceptions so that we continue closing the socket
+        try {
+            if (currentSelector != null) {
+                currentSelector.close();
+            }
+        } catch (IOException ignored) {
+        }
+        try {
+            unixSocketChannel.close();
+        } catch (IOException ignored) {
+        }
     }
-  }
-
-  @Override
-  public InetAddress getInetAddress() {
-    if (!isConnected()) {
-      return null;
-    }
-    return inetSocketAddress.getAddress();
-  }
-
-  @Override
-  public void close() {
-    Selector currentSelector;
-    // Publish the terminal state and snapshot the selector atomically with selector creation and
-    // half-close operations. The resources are closed after releasing this monitor.
-    synchronized (this) {
-      if (isClosed()) {
-        return;
-      }
-      shutIn = true;
-      shutOut = true;
-      closed = true;
-      currentSelector = selector;
-    }
-    // Ignore possible exceptions so that we continue closing the socket
-    try {
-      if (currentSelector != null) {
-        currentSelector.close();
-      }
-    } catch (IOException ignored) {
-    }
-    try {
-      unixSocketChannel.close();
-    } catch (IOException ignored) {
-    }
-  }
 }

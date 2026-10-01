@@ -8,19 +8,19 @@ import org.junit.jupiter.api.Test;
 
 public class TestSucceedBeforeEachAfterEach {
 
-  @BeforeEach
-  public void setUp() {}
+    @BeforeEach
+    public void setUp() {}
 
-  @AfterEach
-  public void tearDown() {}
+    @AfterEach
+    public void tearDown() {}
 
-  @Test
-  public void test_succeed() {
-    assertTrue(true);
-  }
+    @Test
+    public void test_succeed() {
+        assertTrue(true);
+    }
 
-  @Test
-  public void another_test_succeed() {
-    assertTrue(true);
-  }
+    @Test
+    public void another_test_succeed() {
+        assertTrue(true);
+    }
 }

@@ -27,69 +27,65 @@ import javax.annotation.Nullable;
  */
 public class ManualApiTestModule extends AbstractTestModule implements DDTestModule {
 
-  private final CoverageStore.Factory coverageStoreFactory;
-  private final ExecutionResults executionResults = new ExecutionResults();
+    private final CoverageStore.Factory coverageStoreFactory;
+    private final ExecutionResults executionResults = new ExecutionResults();
 
-  public ManualApiTestModule(
-      AgentSpanContext sessionSpanContext,
-      String moduleName,
-      @Nullable Long startTime,
-      Config config,
-      CiVisibilityMetricCollector metricCollector,
-      TestDecorator testDecorator,
-      SourcePathResolver sourcePathResolver,
-      Codeowners codeowners,
-      LinesResolver linesResolver,
-      CoverageStore.Factory coverageStoreFactory,
-      Consumer<AgentSpan> onSpanFinish) {
-    super(
-        sessionSpanContext,
-        moduleName,
-        startTime,
-        InstrumentationType.MANUAL_API,
-        config,
-        metricCollector,
-        testDecorator,
-        sourcePathResolver,
-        codeowners,
-        linesResolver,
-        onSpanFinish);
-    this.coverageStoreFactory = coverageStoreFactory;
-  }
+    public ManualApiTestModule(
+            AgentSpanContext sessionSpanContext,
+            String moduleName,
+            @Nullable Long startTime,
+            Config config,
+            CiVisibilityMetricCollector metricCollector,
+            TestDecorator testDecorator,
+            SourcePathResolver sourcePathResolver,
+            Codeowners codeowners,
+            LinesResolver linesResolver,
+            CoverageStore.Factory coverageStoreFactory,
+            Consumer<AgentSpan> onSpanFinish) {
+        super(
+                sessionSpanContext,
+                moduleName,
+                startTime,
+                InstrumentationType.MANUAL_API,
+                config,
+                metricCollector,
+                testDecorator,
+                sourcePathResolver,
+                codeowners,
+                linesResolver,
+                onSpanFinish);
+        this.coverageStoreFactory = coverageStoreFactory;
+    }
 
-  @Override
-  public ManualApiTestSuite testSuiteStart(
-      String testSuiteName,
-      @Nullable Class<?> testClass,
-      @Nullable Long startTime,
-      boolean parallelized) {
-    TestSuiteImpl suite =
-        new TestSuiteImpl(
-            span.spanContext(),
-            moduleName,
-            testSuiteName,
-            null,
-            false,
-            testClass,
-            startTime,
-            parallelized,
-            InstrumentationType.MANUAL_API,
-            TestFrameworkInstrumentation.OTHER, // for metric purposes, framework is OTHER
-            config,
-            metricCollector,
-            testDecorator,
-            sourcePathResolver,
-            codeowners,
-            linesResolver,
-            coverageStoreFactory,
-            executionResults,
-            ConfigurationErrors.NONE,
-            Collections.emptyList(),
-            tagsPropagator::propagateCiVisibilityTags);
+    @Override
+    public ManualApiTestSuite testSuiteStart(
+            String testSuiteName, @Nullable Class<?> testClass, @Nullable Long startTime, boolean parallelized) {
+        TestSuiteImpl suite = new TestSuiteImpl(
+                span.spanContext(),
+                moduleName,
+                testSuiteName,
+                null,
+                false,
+                testClass,
+                startTime,
+                parallelized,
+                InstrumentationType.MANUAL_API,
+                TestFrameworkInstrumentation.OTHER, // for metric purposes, framework is OTHER
+                config,
+                metricCollector,
+                testDecorator,
+                sourcePathResolver,
+                codeowners,
+                linesResolver,
+                coverageStoreFactory,
+                executionResults,
+                ConfigurationErrors.NONE,
+                Collections.emptyList(),
+                tagsPropagator::propagateCiVisibilityTags);
 
-    String frameworkName = testDecorator.component().toString();
-    suite.setTag(Tags.TEST_FRAMEWORK, frameworkName);
+        String frameworkName = testDecorator.component().toString();
+        suite.setTag(Tags.TEST_FRAMEWORK, frameworkName);
 
-    return new ManualApiTestSuite(suite, frameworkName);
-  }
+        return new ManualApiTestSuite(suite, frameworkName);
+    }
 }

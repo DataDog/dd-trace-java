@@ -5,9 +5,9 @@ import jdk.jfr.Event;
 import jdk.jfr.FlightRecorder;
 
 public final class JfrHelper {
-  public static void addPeriodicEvent(Class<? extends Event> eventClass, Runnable eventHook) {
-    if (!Platform.isNativeImageBuilder()) {
-      FlightRecorder.addPeriodicEvent(eventClass, eventHook);
+    public static void addPeriodicEvent(Class<? extends Event> eventClass, Runnable eventHook) {
+        if (!Platform.isNativeImageBuilder()) {
+            FlightRecorder.addPeriodicEvent(eventClass, eventHook);
+        }
     }
-  }
 }

@@ -8,11 +8,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class Receiver {
 
-  public final CountDownLatch latch = new CountDownLatch(1);
+    public final CountDownLatch latch = new CountDownLatch(1);
 
-  @Trace(operationName = "receive")
-  public void receiveMessage(String message) {
-    assert null != AgentTracer.activeSpan() : "no active span during message receipt";
-    latch.countDown();
-  }
+    @Trace(operationName = "receive")
+    public void receiveMessage(String message) {
+        assert null != AgentTracer.activeSpan() : "no active span during message receipt";
+        latch.countDown();
+    }
 }

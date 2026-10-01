@@ -32,78 +32,71 @@ import org.openjdk.jmh.annotations.Warmup;
 @OutputTimeUnit(MICROSECONDS)
 public class EventDispatcherBenchmark {
 
-  @State(Scope.Benchmark)
-  public static class DispatcherState {
-    public static final OrderedCallback.Priority[] PRIORITY_VALUES =
-        OrderedCallback.Priority.values();
+    @State(Scope.Benchmark)
+    public static class DispatcherState {
+        public static final OrderedCallback.Priority[] PRIORITY_VALUES = OrderedCallback.Priority.values();
 
-    @Param({"5", "50", "500"})
-    int numUsedSubscribers;
+        @Param({"5", "50", "500"})
+        int numUsedSubscribers;
 
-    @Param({"5", "5000"})
-    int numUnusedSubscribers;
+        @Param({"5", "5000"})
+        int numUnusedSubscribers;
 
-    Address<?>[] usedAddresses =
-        new Address<?>[] {
-          KnownAddresses.REQUEST_BODY_RAW,
-          KnownAddresses.REQUEST_COOKIES,
-          KnownAddresses.REQUEST_QUERY
+        Address<?>[] usedAddresses = new Address<?>[] {
+            KnownAddresses.REQUEST_BODY_RAW, KnownAddresses.REQUEST_COOKIES, KnownAddresses.REQUEST_QUERY
         };
 
-    Address<?> unusedAddress = KnownAddresses.HEADERS_NO_COOKIES;
+        Address<?> unusedAddress = KnownAddresses.HEADERS_NO_COOKIES;
 
-    EventDispatcher dispatcher = new EventDispatcher();
+        EventDispatcher dispatcher = new EventDispatcher();
 
-    @Setup
-    public void create() {
-      int iUsed = 0, iUnused = 0, iTotal = 0;
-      int usedAddressIdx = 0;
+        @Setup
+        public void create() {
+            int iUsed = 0, iUnused = 0, iTotal = 0;
+            int usedAddressIdx = 0;
 
-      EventDispatcher.DataSubscriptionSet subsSet = new EventDispatcher.DataSubscriptionSet();
-      while (iUsed < numUsedSubscribers || iUnused < numUnusedSubscribers) {
-        if (iUsed < numUsedSubscribers) {
-          iUsed++;
-          int i = iTotal++;
-          Address<?> usedAddress = usedAddresses[usedAddressIdx++ % usedAddresses.length];
-          doSubscribe(subsSet, usedAddress, i);
-        }
-        if (iUnused < numUnusedSubscribers) {
-          iUnused++;
-          int i = iTotal++;
-          doSubscribe(subsSet, unusedAddress, i);
-        }
-      }
-
-      dispatcher.subscribeDataAvailable(subsSet);
-    }
-
-    private void doSubscribe(
-        EventDispatcher.DataSubscriptionSet subsSet, Address<?> address, int i) {
-      final OrderedCallback.Priority priority = PRIORITY_VALUES[i % 4];
-      subsSet.addSubscription(
-          Collections.singletonList(address),
-          new DataListener() {
-            @Override
-            public void onDataAvailable(
-                ChangeableFlow flow,
-                AppSecRequestContext context,
-                DataBundle dataBundle,
-                GatewayContext gatewayContext) {}
-
-            @Override
-            public Priority getPriority() {
-              return priority;
+            EventDispatcher.DataSubscriptionSet subsSet = new EventDispatcher.DataSubscriptionSet();
+            while (iUsed < numUsedSubscribers || iUnused < numUnusedSubscribers) {
+                if (iUsed < numUsedSubscribers) {
+                    iUsed++;
+                    int i = iTotal++;
+                    Address<?> usedAddress = usedAddresses[usedAddressIdx++ % usedAddresses.length];
+                    doSubscribe(subsSet, usedAddress, i);
+                }
+                if (iUnused < numUnusedSubscribers) {
+                    iUnused++;
+                    int i = iTotal++;
+                    doSubscribe(subsSet, unusedAddress, i);
+                }
             }
-          });
+
+            dispatcher.subscribeDataAvailable(subsSet);
+        }
+
+        private void doSubscribe(EventDispatcher.DataSubscriptionSet subsSet, Address<?> address, int i) {
+            final OrderedCallback.Priority priority = PRIORITY_VALUES[i % 4];
+            subsSet.addSubscription(Collections.singletonList(address), new DataListener() {
+                @Override
+                public void onDataAvailable(
+                        ChangeableFlow flow,
+                        AppSecRequestContext context,
+                        DataBundle dataBundle,
+                        GatewayContext gatewayContext) {}
+
+                @Override
+                public Priority getPriority() {
+                    return priority;
+                }
+            });
+        }
+
+        void run() {
+            dispatcher.getDataSubscribers();
+        }
     }
 
-    void run() {
-      dispatcher.getDataSubscribers();
+    @Benchmark
+    public void getDataSubscribers(DispatcherState state) {
+        state.run();
     }
-  }
-
-  @Benchmark
-  public void getDataSubscribers(DispatcherState state) {
-    state.run();
-  }
 }

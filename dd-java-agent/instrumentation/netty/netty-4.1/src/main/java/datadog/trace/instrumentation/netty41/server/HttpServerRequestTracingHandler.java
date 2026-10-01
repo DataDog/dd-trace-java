@@ -19,120 +19,118 @@ import java.util.Deque;
 
 @ChannelHandler.Sharable
 public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapter {
-  public static HttpServerRequestTracingHandler INSTANCE = new HttpServerRequestTracingHandler();
+    public static HttpServerRequestTracingHandler INSTANCE = new HttpServerRequestTracingHandler();
 
-  @Override
-  public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
-    Channel channel = ctx.channel();
-    if (!(msg instanceof HttpRequest)) {
-      final Context storedContext = channel.attr(CONTEXT_ATTRIBUTE_KEY).get();
-      if (storedContext == null) {
-        ctx.fireChannelRead(msg); // superclass does not throw
-      } else {
-        try (final ContextScope scope = storedContext.attach()) {
-          ctx.fireChannelRead(msg); // superclass does not throw
-        }
-      }
-      return;
-    }
-
-    final HttpRequest request = (HttpRequest) msg;
-    if (ServerRequestContext.isRequestBlocked(channel)) {
-      // A deferred block keeps its handler in the pipeline while an earlier response completes.
-      // Forward later pipelined requests to that handler instead of adding another one.
-      ctx.fireChannelRead(msg);
-      return;
-    }
-    if (!ServerRequestContext.canTrackRequest(channel)) {
-      channel.attr(PARENT_CONTEXT_ATTRIBUTE_KEY).set(null);
-      ctx.fireChannelRead(msg);
-      return;
-    }
-
-    final HttpHeaders headers = request.headers();
-    final Context storedParentContext = channel.attr(PARENT_CONTEXT_ATTRIBUTE_KEY).getAndSet(null);
-    final Context parentContext =
-        storedParentContext != null ? storedParentContext : DECORATE.extract(headers);
-    final Context context = DECORATE.startSpan(headers, parentContext);
-    final ServerRequestContext serverContext =
-        ServerRequestContext.add(channel, context, headers.get("accept"));
-
-    try (final ContextScope ignored = context.attach()) {
-      final AgentSpan span = AgentSpan.fromContext(context);
-      DECORATE.afterStart(span);
-      DECORATE.onRequest(span, channel, request, parentContext);
-
-      Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
-      if (rba != null) {
-        ctx.pipeline()
-            .addAfter(
-                ctx.name(),
-                BlockingResponseHandler.HANDLER_NAME,
-                new BlockingResponseHandler(
-                    span.getRequestContext().getTraceSegment(), rba, serverContext));
-      }
-
-      try {
-        ctx.fireChannelRead(msg);
-        /*
-        The handler chain started from 'fireChannelRead(msg)' will finish the span if successful
-        */
-      } catch (final Throwable throwable) {
-        /*
-        The handler chain failed with exception - need to finish the span here
-         */
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(ignored.context());
-        span.finish(); // Finish the span manually since finishSpanOnClose was false
-        ServerRequestContext.remove(ctx.channel(), serverContext);
-        throw throwable;
-      }
-    }
-  }
-
-  @Override
-  public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-    try {
-      super.channelInactive(ctx);
-    } finally {
-      try {
-        final Deque<ServerRequestContext> storedContexts =
-            ServerRequestContext.removeAll(ctx.channel());
-        if (storedContexts != null) {
-          ServerRequestContext storedContext;
-          while ((storedContext = storedContexts.pollFirst()) != null) {
-            if (storedContext.isResponseStarted()) {
-              finishSpanOnChannelClose(storedContext);
+    @Override
+    public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
+        Channel channel = ctx.channel();
+        if (!(msg instanceof HttpRequest)) {
+            final Context storedContext = channel.attr(CONTEXT_ATTRIBUTE_KEY).get();
+            if (storedContext == null) {
+                ctx.fireChannelRead(msg); // superclass does not throw
             } else {
-              publishSpanOnChannelClose(storedContext.tracingContext());
+                try (final ContextScope scope = storedContext.attach()) {
+                    ctx.fireChannelRead(msg); // superclass does not throw
+                }
             }
-          }
+            return;
         }
-      } catch (final Throwable ignored) {
-      }
-    }
-  }
 
-  private static void finishSpanOnChannelClose(final ServerRequestContext serverContext) {
-    final Context storedContext = serverContext.tracingContext();
-    final AgentSpan span = AgentSpan.fromContext(storedContext);
-    if (span == null) {
-      return;
-    }
-    try (final ContextScope ignored = storedContext.attach()) {
-      if (!serverContext.isBeforeFinishCalled()) {
-        serverContext.markBeforeFinishCalled();
-        DECORATE.beforeFinish(storedContext);
-      }
-      span.finish();
-    }
-  }
+        final HttpRequest request = (HttpRequest) msg;
+        if (ServerRequestContext.isRequestBlocked(channel)) {
+            // A deferred block keeps its handler in the pipeline while an earlier response completes.
+            // Forward later pipelined requests to that handler instead of adding another one.
+            ctx.fireChannelRead(msg);
+            return;
+        }
+        if (!ServerRequestContext.canTrackRequest(channel)) {
+            channel.attr(PARENT_CONTEXT_ATTRIBUTE_KEY).set(null);
+            ctx.fireChannelRead(msg);
+            return;
+        }
 
-  private static void publishSpanOnChannelClose(final Context storedContext) {
-    final AgentSpan span = AgentSpan.fromContext(storedContext);
-    if (span != null && span.phasedFinish()) {
-      // At this point we can just publish this span to avoid losing the rest of the trace.
-      span.publish();
+        final HttpHeaders headers = request.headers();
+        final Context storedParentContext =
+                channel.attr(PARENT_CONTEXT_ATTRIBUTE_KEY).getAndSet(null);
+        final Context parentContext = storedParentContext != null ? storedParentContext : DECORATE.extract(headers);
+        final Context context = DECORATE.startSpan(headers, parentContext);
+        final ServerRequestContext serverContext = ServerRequestContext.add(channel, context, headers.get("accept"));
+
+        try (final ContextScope ignored = context.attach()) {
+            final AgentSpan span = AgentSpan.fromContext(context);
+            DECORATE.afterStart(span);
+            DECORATE.onRequest(span, channel, request, parentContext);
+
+            Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
+            if (rba != null) {
+                ctx.pipeline()
+                        .addAfter(
+                                ctx.name(),
+                                BlockingResponseHandler.HANDLER_NAME,
+                                new BlockingResponseHandler(
+                                        span.getRequestContext().getTraceSegment(), rba, serverContext));
+            }
+
+            try {
+                ctx.fireChannelRead(msg);
+                /*
+                The handler chain started from 'fireChannelRead(msg)' will finish the span if successful
+                */
+            } catch (final Throwable throwable) {
+                /*
+                The handler chain failed with exception - need to finish the span here
+                 */
+                DECORATE.onError(span, throwable);
+                DECORATE.beforeFinish(ignored.context());
+                span.finish(); // Finish the span manually since finishSpanOnClose was false
+                ServerRequestContext.remove(ctx.channel(), serverContext);
+                throw throwable;
+            }
+        }
     }
-  }
+
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        try {
+            super.channelInactive(ctx);
+        } finally {
+            try {
+                final Deque<ServerRequestContext> storedContexts = ServerRequestContext.removeAll(ctx.channel());
+                if (storedContexts != null) {
+                    ServerRequestContext storedContext;
+                    while ((storedContext = storedContexts.pollFirst()) != null) {
+                        if (storedContext.isResponseStarted()) {
+                            finishSpanOnChannelClose(storedContext);
+                        } else {
+                            publishSpanOnChannelClose(storedContext.tracingContext());
+                        }
+                    }
+                }
+            } catch (final Throwable ignored) {
+            }
+        }
+    }
+
+    private static void finishSpanOnChannelClose(final ServerRequestContext serverContext) {
+        final Context storedContext = serverContext.tracingContext();
+        final AgentSpan span = AgentSpan.fromContext(storedContext);
+        if (span == null) {
+            return;
+        }
+        try (final ContextScope ignored = storedContext.attach()) {
+            if (!serverContext.isBeforeFinishCalled()) {
+                serverContext.markBeforeFinishCalled();
+                DECORATE.beforeFinish(storedContext);
+            }
+            span.finish();
+        }
+    }
+
+    private static void publishSpanOnChannelClose(final Context storedContext) {
+        final AgentSpan span = AgentSpan.fromContext(storedContext);
+        if (span != null && span.phasedFinish()) {
+            // At this point we can just publish this span to avoid losing the rest of the trace.
+            span.publish();
+        }
+    }
 }

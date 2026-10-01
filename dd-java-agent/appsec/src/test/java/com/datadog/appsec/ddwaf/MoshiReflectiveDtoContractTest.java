@@ -18,28 +18,27 @@ import org.junit.jupiter.api.Test;
  */
 class MoshiReflectiveDtoContractTest {
 
-  /**
-   * Every class reached by the reflective adapters in {@code WAFModule} and {@code
-   * AppSecEventWrapper}.
-   */
-  private static final List<Class<?>> REFLECTIVELY_INSTANTIATED =
-      Arrays.asList(
-          WAFResultData.class,
-          WAFResultData.Rule.class,
-          WAFResultData.RuleMatch.class,
-          WAFResultData.Parameter.class,
-          WAFResultData.MatchInfo.class,
-          AppSecEventWrapper.class,
-          AppSecEvent.class);
+    /**
+     * Every class reached by the reflective adapters in {@code WAFModule} and {@code
+     * AppSecEventWrapper}.
+     */
+    private static final List<Class<?>> REFLECTIVELY_INSTANTIATED = Arrays.asList(
+            WAFResultData.class,
+            WAFResultData.Rule.class,
+            WAFResultData.RuleMatch.class,
+            WAFResultData.Parameter.class,
+            WAFResultData.MatchInfo.class,
+            AppSecEventWrapper.class,
+            AppSecEvent.class);
 
-  @Test
-  void everyReflectivelyBoundDtoDeclaresANoArgConstructor() {
-    for (Class<?> clazz : REFLECTIVELY_INSTANTIATED) {
-      assertDoesNotThrow(
-          () -> {
-            clazz.getDeclaredConstructor();
-          },
-          clazz.getName() + " must declare a no-arg constructor for Moshi");
+    @Test
+    void everyReflectivelyBoundDtoDeclaresANoArgConstructor() {
+        for (Class<?> clazz : REFLECTIVELY_INSTANTIATED) {
+            assertDoesNotThrow(
+                    () -> {
+                        clazz.getDeclaredConstructor();
+                    },
+                    clazz.getName() + " must declare a no-arg constructor for Moshi");
+        }
     }
-  }
 }

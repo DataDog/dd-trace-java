@@ -4,9 +4,9 @@ import java.net.URL;
 
 /** Provides details of where the resolved type was defined. */
 public interface WithLocation {
-  int getClassLoaderId();
+    int getClassLoaderId();
 
-  URL getClassFile();
+    URL getClassFile();
 
-  byte[] getBytecode();
+    byte[] getBytecode();
 }

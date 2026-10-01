@@ -11,39 +11,39 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public final class InternalTagsAdder extends TagsPostProcessor {
-  private final UTF8BytesString ddService;
+    private final UTF8BytesString ddService;
 
-  // Prebuilt once to avoid per-span Entry allocation.
-  private final TagMap.Entry baseServiceEntry;
-  @Nullable private final TagMap.Entry versionEntry;
+    // Prebuilt once to avoid per-span Entry allocation.
+    private final TagMap.Entry baseServiceEntry;
 
-  public InternalTagsAdder(@Nonnull final String ddService, @Nullable final String version) {
-    this.ddService = UTF8BytesString.create(ddService);
-    this.baseServiceEntry = TagMap.Entry.create(DDTags.BASE_SERVICE, this.ddService);
-    this.versionEntry =
-        version != null && !version.isEmpty()
-            ? TagMap.Entry.create(VERSION, UTF8BytesString.create(version))
-            : null;
-  }
+    @Nullable
+    private final TagMap.Entry versionEntry;
 
-  @Override
-  public void processTags(
-      TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
-    if (spanContext == null) {
-      return;
+    public InternalTagsAdder(@Nonnull final String ddService, @Nullable final String version) {
+        this.ddService = UTF8BytesString.create(ddService);
+        this.baseServiceEntry = TagMap.Entry.create(DDTags.BASE_SERVICE, this.ddService);
+        this.versionEntry = version != null && !version.isEmpty()
+                ? TagMap.Entry.create(VERSION, UTF8BytesString.create(version))
+                : null;
     }
 
-    if (!ddService.toString().equalsIgnoreCase(spanContext.getServiceName())) {
-      if (baseServiceEntry != null) {
-        // service name != DD_SERVICE
-        unsafeTags.set(baseServiceEntry);
-      }
-    } else {
-      // as per config consistency, the version tag is added across tracers only if
-      // the service name is DD_SERVICE and version  tag is not manually set
-      if (versionEntry != null && !unsafeTags.containsKey(VERSION)) {
-        unsafeTags.set(versionEntry);
-      }
+    @Override
+    public void processTags(TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+        if (spanContext == null) {
+            return;
+        }
+
+        if (!ddService.toString().equalsIgnoreCase(spanContext.getServiceName())) {
+            if (baseServiceEntry != null) {
+                // service name != DD_SERVICE
+                unsafeTags.set(baseServiceEntry);
+            }
+        } else {
+            // as per config consistency, the version tag is added across tracers only if
+            // the service name is DD_SERVICE and version  tag is not manually set
+            if (versionEntry != null && !unsafeTags.containsKey(VERSION)) {
+                unsafeTags.set(versionEntry);
+            }
+        }
     }
-  }
 }

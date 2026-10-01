@@ -1,8 +1,8 @@
 package com.tibco.pe.core;
 
 public class JobPool {
-  public static String getName() {
-    // STUB
-    return null;
-  }
+    public static String getName() {
+        // STUB
+        return null;
+    }
 }

@@ -20,55 +20,53 @@ import java.util.List;
 import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
-public final class ScalaPromiseModule extends InstrumenterModule.ContextTracking
-    implements ExcludeFilterProvider {
+public final class ScalaPromiseModule extends InstrumenterModule.ContextTracking implements ExcludeFilterProvider {
 
-  public ScalaPromiseModule() {
-    super("scala_concurrent");
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "scala-promise-2.10";
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    Map<String, String> contextStore = new HashMap<>();
-    contextStore.put("scala.util.Try", Context.class.getName());
-    contextStore.put("scala.concurrent.impl.CallbackRunnable", State.class.getName());
-    return contextStore;
-  }
-
-  @Override
-  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
-    // force other instrumentations (e.g. Runnable) not to deal with this type
-    Map<ExcludeFilter.ExcludeType, Collection<String>> map = new HashMap<>();
-    Collection<String> cbr = singleton("scala.concurrent.impl.CallbackRunnable");
-    map.put(RUNNABLE, cbr);
-    map.put(EXECUTOR, cbr);
-    return map;
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {"datadog.trace.instrumentation.scala.PromiseHelper"};
-  }
-
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    final InstrumenterConfig config = InstrumenterConfig.get();
-    final List<Instrumenter> instrumenters = new ArrayList<>(3);
-    instrumenters.add(new CallbackRunnableInstrumentation());
-    if (config.isIntegrationEnabled(singleton("scala_future_object"), true)) {
-      instrumenters.add(new FutureObjectInstrumentation());
+    public ScalaPromiseModule() {
+        super("scala_concurrent");
     }
-    // Only enable this if integrations have been enabled and the extra "integration"
-    // scala_promise_completion_priority has been enabled specifically
-    if (config.isIntegrationEnabled(
-        Collections.singletonList("scala_promise_completion_priority"), false)) {
-      instrumenters.add(new PromiseObjectInstrumentation());
+
+    @Override
+    public String muzzleDirective() {
+        return "scala-promise-2.10";
     }
-    return instrumenters;
-  }
+
+    @Override
+    public Map<String, String> contextStore() {
+        Map<String, String> contextStore = new HashMap<>();
+        contextStore.put("scala.util.Try", Context.class.getName());
+        contextStore.put("scala.concurrent.impl.CallbackRunnable", State.class.getName());
+        return contextStore;
+    }
+
+    @Override
+    public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
+        // force other instrumentations (e.g. Runnable) not to deal with this type
+        Map<ExcludeFilter.ExcludeType, Collection<String>> map = new HashMap<>();
+        Collection<String> cbr = singleton("scala.concurrent.impl.CallbackRunnable");
+        map.put(RUNNABLE, cbr);
+        map.put(EXECUTOR, cbr);
+        return map;
+    }
+
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {"datadog.trace.instrumentation.scala.PromiseHelper"};
+    }
+
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        final InstrumenterConfig config = InstrumenterConfig.get();
+        final List<Instrumenter> instrumenters = new ArrayList<>(3);
+        instrumenters.add(new CallbackRunnableInstrumentation());
+        if (config.isIntegrationEnabled(singleton("scala_future_object"), true)) {
+            instrumenters.add(new FutureObjectInstrumentation());
+        }
+        // Only enable this if integrations have been enabled and the extra "integration"
+        // scala_promise_completion_priority has been enabled specifically
+        if (config.isIntegrationEnabled(Collections.singletonList("scala_promise_completion_priority"), false)) {
+            instrumenters.add(new PromiseObjectInstrumentation());
+        }
+        return instrumenters;
+    }
 }

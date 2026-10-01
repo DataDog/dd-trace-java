@@ -8,10 +8,10 @@ import org.apache.commons.httpclient.HttpMethod;
 @ParametersAreNonnullByDefault
 public class HttpHeadersInjectAdapter implements CarrierSetter<HttpMethod> {
 
-  public static final HttpHeadersInjectAdapter SETTER = new HttpHeadersInjectAdapter();
+    public static final HttpHeadersInjectAdapter SETTER = new HttpHeadersInjectAdapter();
 
-  @Override
-  public void set(final HttpMethod carrier, final String key, final String value) {
-    carrier.setRequestHeader(new Header(key, value));
-  }
+    @Override
+    public void set(final HttpMethod carrier, final String key, final String value) {
+        carrier.setRequestHeader(new Header(key, value));
+    }
 }

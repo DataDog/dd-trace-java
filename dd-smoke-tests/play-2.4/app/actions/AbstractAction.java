@@ -11,22 +11,22 @@ import play.mvc.Result;
 
 public abstract class AbstractAction extends Action.Simple {
 
-  private final String operationName;
+    private final String operationName;
 
-  protected AbstractAction(String operationName) {
-    this.operationName = operationName;
-  }
-
-  @Override
-  public F.Promise<Result> call(Http.Context context) throws Throwable {
-    Tracer tracer = GlobalTracer.get();
-    Span span = tracer.buildSpan(operationName).start();
-    Scope scope = tracer.scopeManager().activate(span);
-    try {
-      return delegate.call(context);
-    } finally {
-      scope.close();
-      span.finish();
+    protected AbstractAction(String operationName) {
+        this.operationName = operationName;
     }
-  }
+
+    @Override
+    public F.Promise<Result> call(Http.Context context) throws Throwable {
+        Tracer tracer = GlobalTracer.get();
+        Span span = tracer.buildSpan(operationName).start();
+        Scope scope = tracer.scopeManager().activate(span);
+        try {
+            return delegate.call(context);
+        } finally {
+            scope.close();
+            span.finish();
+        }
+    }
 }

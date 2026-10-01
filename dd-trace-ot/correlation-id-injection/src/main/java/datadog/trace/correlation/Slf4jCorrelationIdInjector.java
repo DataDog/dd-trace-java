@@ -10,19 +10,19 @@ import org.slf4j.MDC;
  */
 @SuppressWarnings("unused")
 class Slf4jCorrelationIdInjector extends AbstractCorrelationIdInjector {
-  public Slf4jCorrelationIdInjector(InternalTracer tracer) {
-    super(tracer);
-  }
+    public Slf4jCorrelationIdInjector(InternalTracer tracer) {
+        super(tracer);
+    }
 
-  @Override
-  protected void afterScopeActivatedCallback() {
-    MDC.put(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
-    MDC.put(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
-  }
+    @Override
+    protected void afterScopeActivatedCallback() {
+        MDC.put(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
+        MDC.put(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
+    }
 
-  @Override
-  protected void afterScopeClosedCallback() {
-    MDC.remove(CorrelationIdentifier.getTraceIdKey());
-    MDC.remove(CorrelationIdentifier.getSpanIdKey());
-  }
+    @Override
+    protected void afterScopeClosedCallback() {
+        MDC.remove(CorrelationIdentifier.getTraceIdKey());
+        MDC.remove(CorrelationIdentifier.getSpanIdKey());
+    }
 }

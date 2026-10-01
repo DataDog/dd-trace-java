@@ -10,11 +10,11 @@ import okhttp3.RequestBody;
 /** API for posting HTTP requests to backend */
 public interface BackendApi {
 
-  <T> T post(
-      String uri,
-      RequestBody requestBody,
-      IOThrowingFunction<InputStream, T> responseParser,
-      @Nullable OkHttpUtils.CustomListener requestListener,
-      boolean requestCompression)
-      throws IOException;
+    <T> T post(
+            String uri,
+            RequestBody requestBody,
+            IOThrowingFunction<InputStream, T> responseParser,
+            @Nullable OkHttpUtils.CustomListener requestListener,
+            boolean requestCompression)
+            throws IOException;
 }

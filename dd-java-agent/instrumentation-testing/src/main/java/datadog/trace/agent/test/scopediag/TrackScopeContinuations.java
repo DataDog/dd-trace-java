@@ -11,9 +11,9 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Inherited
 public @interface TrackScopeContinuations {
-  /** Set to {@code false} only for a proven incompatibility with the diagnostic itself. */
-  boolean enabled() default true;
+    /** Set to {@code false} only for a proven incompatibility with the diagnostic itself. */
+    boolean enabled() default true;
 
-  /** Explains why the diagnostic is disabled. Required when {@link #enabled()} is false. */
-  String reason() default "";
+    /** Explains why the diagnostic is disabled. Required when {@link #enabled()} is false. */
+    String reason() default "";
 }

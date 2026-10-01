@@ -19,43 +19,43 @@ import org.springframework.security.core.AuthenticationException;
 
 @AutoService(InstrumenterModule.class)
 public class AuthenticationManagerInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public AuthenticationManagerInstrumentation() {
-    super("spring-security");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "org.springframework.security.authentication.AuthenticationManager";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("authenticate"))
-            .and(takesArgument(0, named("org.springframework.security.core.Authentication")))
-            .and(returns(named("org.springframework.security.core.Authentication")))
-            .and(isPublic()),
-        getClass().getName() + "$AuthenticationManagerAdvice");
-  }
-
-  public static class AuthenticationManagerAdvice {
-
-    @Advice.OnMethodExit(onThrowable = AuthenticationException.class, suppress = Throwable.class)
-    public static void onExit(
-        @Advice.Argument(value = 0, readOnly = false) Authentication authentication,
-        @Advice.Return final Authentication result,
-        @Advice.Thrown final AuthenticationException throwable) {
-      if (ActiveSubsystems.APPSEC_ACTIVE) {
-        SpringSecurityUserEventDecorator.DECORATE.onLogin(authentication, throwable, result);
-      }
+    public AuthenticationManagerInstrumentation() {
+        super("spring-security");
     }
-  }
+
+    @Override
+    public String hierarchyMarkerType() {
+        return "org.springframework.security.authentication.AuthenticationManager";
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("authenticate"))
+                        .and(takesArgument(0, named("org.springframework.security.core.Authentication")))
+                        .and(returns(named("org.springframework.security.core.Authentication")))
+                        .and(isPublic()),
+                getClass().getName() + "$AuthenticationManagerAdvice");
+    }
+
+    public static class AuthenticationManagerAdvice {
+
+        @Advice.OnMethodExit(onThrowable = AuthenticationException.class, suppress = Throwable.class)
+        public static void onExit(
+                @Advice.Argument(value = 0, readOnly = false) Authentication authentication,
+                @Advice.Return final Authentication result,
+                @Advice.Thrown final AuthenticationException throwable) {
+            if (ActiveSubsystems.APPSEC_ACTIVE) {
+                SpringSecurityUserEventDecorator.DECORATE.onLogin(authentication, throwable, result);
+            }
+        }
+    }
 }

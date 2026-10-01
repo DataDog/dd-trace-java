@@ -29,93 +29,81 @@ import net.bytebuddy.utility.JavaModule;
 
 public class ClassInjectingTransformer implements AgentBuilder.Transformer, AsmVisitorWrapper {
 
-  private static final String BINARY_NAME = "locator/InjectedInterface";
-  public static final String NAME = BINARY_NAME.replace("/", ".");
+    private static final String BINARY_NAME = "locator/InjectedInterface";
+    public static final String NAME = BINARY_NAME.replace("/", ".");
 
-  public static AgentBuilder instrument(AgentBuilder agentBuilder) {
-    return agentBuilder
-        .type(named(ClassInjectingTestInstrumentation.class.getName() + "$ToBeInstrumented"))
-        .transform(new ClassInjectingTransformer());
-  }
-
-  public static void injectInterfaceNamed(String binaryName, ClassLoader classLoader) {
-    MethodHandles.Lookup myLookup = MethodHandles.lookup();
-    try {
-      Method m =
-          ClassLoader.class.getDeclaredMethod(
-              "defineClass",
-              String.class,
-              byte[].class,
-              Integer.TYPE,
-              Integer.TYPE,
-              ProtectionDomain.class);
-      m.setAccessible(true);
-      MethodHandle defineMethod = myLookup.unreflect(m);
-      ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
-      cw.visit(
-          V1_8,
-          ACC_PUBLIC | ACC_INTERFACE | ACC_ABSTRACT,
-          binaryName,
-          null,
-          "java/lang/Object",
-          null);
-      String markerName = ClassInjectingTestInstrumentation.class.getName() + "$ToBeMatched";
-      cw.visitAnnotation("L" + markerName.replace(".", "/") + ";", true).visitEnd();
-      byte[] bytes = cw.toByteArray();
-      defineMethod.invoke(classLoader, binaryName.replace("/", "."), bytes, 0, bytes.length, null);
-    } catch (Throwable e) {
-      e.printStackTrace();
+    public static AgentBuilder instrument(AgentBuilder agentBuilder) {
+        return agentBuilder
+                .type(named(ClassInjectingTestInstrumentation.class.getName() + "$ToBeInstrumented"))
+                .transform(new ClassInjectingTransformer());
     }
-  }
 
-  @Override
-  public DynamicType.Builder<?> transform(
-      DynamicType.Builder<?> builder,
-      TypeDescription typeDescription,
-      ClassLoader classLoader,
-      JavaModule module,
-      ProtectionDomain pd) {
+    public static void injectInterfaceNamed(String binaryName, ClassLoader classLoader) {
+        MethodHandles.Lookup myLookup = MethodHandles.lookup();
+        try {
+            Method m = ClassLoader.class.getDeclaredMethod(
+                    "defineClass", String.class, byte[].class, Integer.TYPE, Integer.TYPE, ProtectionDomain.class);
+            m.setAccessible(true);
+            MethodHandle defineMethod = myLookup.unreflect(m);
+            ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
+            cw.visit(V1_8, ACC_PUBLIC | ACC_INTERFACE | ACC_ABSTRACT, binaryName, null, "java/lang/Object", null);
+            String markerName = ClassInjectingTestInstrumentation.class.getName() + "$ToBeMatched";
+            cw.visitAnnotation("L" + markerName.replace(".", "/") + ";", true).visitEnd();
+            byte[] bytes = cw.toByteArray();
+            defineMethod.invoke(classLoader, binaryName.replace("/", "."), bytes, 0, bytes.length, null);
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
+    }
 
-    // First we create an interface and define it
-    injectInterfaceNamed(BINARY_NAME, classLoader);
+    @Override
+    public DynamicType.Builder<?> transform(
+            DynamicType.Builder<?> builder,
+            TypeDescription typeDescription,
+            ClassLoader classLoader,
+            JavaModule module,
+            ProtectionDomain pd) {
 
-    // Then we let the visitor add it to the class
-    return builder.visit(this);
-  }
+        // First we create an interface and define it
+        injectInterfaceNamed(BINARY_NAME, classLoader);
 
-  @Override
-  public int mergeWriter(int flags) {
-    return flags;
-  }
+        // Then we let the visitor add it to the class
+        return builder.visit(this);
+    }
 
-  @Override
-  public int mergeReader(int flags) {
-    return flags;
-  }
+    @Override
+    public int mergeWriter(int flags) {
+        return flags;
+    }
 
-  @Override
-  public ClassVisitor wrap(
-      TypeDescription instrumentedType,
-      ClassVisitor classVisitor,
-      Implementation.Context implementationContext,
-      TypePool typePool,
-      FieldList<FieldDescription.InDefinedShape> fields,
-      MethodList<?> methods,
-      int writerFlags,
-      int readerFlags) {
-    return new ClassVisitor(Opcodes.ASM7, classVisitor) {
-      @Override
-      public void visit(
-          final int version,
-          final int access,
-          final String name,
-          final String signature,
-          final String superName,
-          final String[] interfaces) {
-        List<String> ifs = interfaces != null ? Arrays.asList(interfaces) : new ArrayList<String>();
-        ifs.add(BINARY_NAME);
-        super.visit(version, access, name, signature, superName, ifs.toArray(new String[0]));
-      }
-    };
-  }
+    @Override
+    public int mergeReader(int flags) {
+        return flags;
+    }
+
+    @Override
+    public ClassVisitor wrap(
+            TypeDescription instrumentedType,
+            ClassVisitor classVisitor,
+            Implementation.Context implementationContext,
+            TypePool typePool,
+            FieldList<FieldDescription.InDefinedShape> fields,
+            MethodList<?> methods,
+            int writerFlags,
+            int readerFlags) {
+        return new ClassVisitor(Opcodes.ASM7, classVisitor) {
+            @Override
+            public void visit(
+                    final int version,
+                    final int access,
+                    final String name,
+                    final String signature,
+                    final String superName,
+                    final String[] interfaces) {
+                List<String> ifs = interfaces != null ? Arrays.asList(interfaces) : new ArrayList<String>();
+                ifs.add(BINARY_NAME);
+                super.visit(version, access, name, signature, superName, ifs.toArray(new String[0]));
+            }
+        };
+    }
 }

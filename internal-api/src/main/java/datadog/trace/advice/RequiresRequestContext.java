@@ -14,5 +14,5 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.CLASS)
 @Target(ElementType.TYPE)
 public @interface RequiresRequestContext {
-  RequestContextSlot value();
+    RequestContextSlot value();
 }

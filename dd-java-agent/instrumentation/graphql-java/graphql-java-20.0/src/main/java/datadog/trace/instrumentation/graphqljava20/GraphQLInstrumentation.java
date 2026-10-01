@@ -31,114 +31,110 @@ import java.util.List;
 
 public final class GraphQLInstrumentation extends SimplePerformantInstrumentation {
 
-  public static Instrumentation install(Instrumentation instrumentation) {
-    if (instrumentation == null) {
-      return new GraphQLInstrumentation();
+    public static Instrumentation install(Instrumentation instrumentation) {
+        if (instrumentation == null) {
+            return new GraphQLInstrumentation();
+        }
+        if (instrumentation.getClass() == GraphQLInstrumentation.class) {
+            return instrumentation;
+        }
+        List<Instrumentation> instrumentationList = new ArrayList<>();
+        if (instrumentation instanceof ChainedInstrumentation) {
+            List<Instrumentation> instrumentations = ((ChainedInstrumentation) instrumentation).getInstrumentations();
+            if (instrumentations.stream().anyMatch(v -> v.getClass() == GraphQLInstrumentation.class)) {
+                return instrumentation;
+            }
+            instrumentationList.addAll(instrumentations);
+        } else {
+            instrumentationList.add(instrumentation);
+        }
+        instrumentationList.add(new GraphQLInstrumentation());
+        return new ChainedInstrumentation(instrumentationList);
     }
-    if (instrumentation.getClass() == GraphQLInstrumentation.class) {
-      return instrumentation;
+
+    @Override
+    public State createState(InstrumentationCreateStateParameters parameters) {
+        return new State();
     }
-    List<Instrumentation> instrumentationList = new ArrayList<>();
-    if (instrumentation instanceof ChainedInstrumentation) {
-      List<Instrumentation> instrumentations =
-          ((ChainedInstrumentation) instrumentation).getInstrumentations();
-      if (instrumentations.stream().anyMatch(v -> v.getClass() == GraphQLInstrumentation.class)) {
-        return instrumentation;
-      }
-      instrumentationList.addAll(instrumentations);
-    } else {
-      instrumentationList.add(instrumentation);
+
+    @Override
+    public InstrumentationContext<ExecutionResult> beginExecution(
+            InstrumentationExecutionParameters parameters, InstrumentationState instrumentationState) {
+        if (!(instrumentationState instanceof State)) {
+            return super.beginExecution(parameters, instrumentationState);
+        }
+        final State state = (State) instrumentationState;
+        final AgentSpan requestSpan =
+                startSpan(GraphQLDecorator.GRAPHQL_JAVA.toString(), GraphQLDecorator.GRAPHQL_REQUEST);
+        GraphQLDecorator.DECORATE.afterStart(requestSpan);
+
+        state.setRequestSpan(requestSpan);
+        // parameters.getOperation() is null
+
+        return new ExecutionInstrumentationContext(state);
     }
-    instrumentationList.add(new GraphQLInstrumentation());
-    return new ChainedInstrumentation(instrumentationList);
-  }
 
-  @Override
-  public State createState(InstrumentationCreateStateParameters parameters) {
-    return new State();
-  }
+    @Override
+    public InstrumentationContext<ExecutionResult> beginExecuteOperation(
+            InstrumentationExecuteOperationParameters parameters, InstrumentationState instrumentationState) {
+        if (!(instrumentationState instanceof State)) {
+            return super.beginExecuteOperation(parameters, instrumentationState);
+        }
+        final State state = (State) instrumentationState;
+        AgentSpan requestSpan = state.getRequestSpan();
 
-  @Override
-  public InstrumentationContext<ExecutionResult> beginExecution(
-      InstrumentationExecutionParameters parameters, InstrumentationState instrumentationState) {
-    if (!(instrumentationState instanceof State)) {
-      return super.beginExecution(parameters, instrumentationState);
+        OperationDefinition operationDefinition =
+                parameters.getExecutionContext().getOperationDefinition();
+        String operationName = operationDefinition.getName();
+
+        requestSpan.setTag("graphql.operation.name", operationName);
+        String resourceName = operationName != null ? operationName : state.getQuery();
+        requestSpan.setResourceName(resourceName);
+        GraphQLDecorator.DECORATE.onRequest(requestSpan, parameters.getExecutionContext());
+        return SimpleInstrumentationContext.noOp();
     }
-    final State state = (State) instrumentationState;
-    final AgentSpan requestSpan =
-        startSpan(GraphQLDecorator.GRAPHQL_JAVA.toString(), GraphQLDecorator.GRAPHQL_REQUEST);
-    GraphQLDecorator.DECORATE.afterStart(requestSpan);
 
-    state.setRequestSpan(requestSpan);
-    // parameters.getOperation() is null
-
-    return new ExecutionInstrumentationContext(state);
-  }
-
-  @Override
-  public InstrumentationContext<ExecutionResult> beginExecuteOperation(
-      InstrumentationExecuteOperationParameters parameters,
-      InstrumentationState instrumentationState) {
-    if (!(instrumentationState instanceof State)) {
-      return super.beginExecuteOperation(parameters, instrumentationState);
+    @Override
+    public DataFetcher<?> instrumentDataFetcher(
+            final DataFetcher<?> dataFetcher,
+            InstrumentationFieldFetchParameters parameters,
+            InstrumentationState instrumentationState) {
+        if (!(instrumentationState instanceof State)) {
+            return super.instrumentDataFetcher(dataFetcher, parameters, instrumentationState);
+        }
+        final State state = (State) instrumentationState;
+        final AgentSpan requestSpan = state.getRequestSpan();
+        return new InstrumentedDataFetcher(dataFetcher, parameters, requestSpan);
     }
-    final State state = (State) instrumentationState;
-    AgentSpan requestSpan = state.getRequestSpan();
 
-    OperationDefinition operationDefinition =
-        parameters.getExecutionContext().getOperationDefinition();
-    String operationName = operationDefinition.getName();
-
-    requestSpan.setTag("graphql.operation.name", operationName);
-    String resourceName = operationName != null ? operationName : state.getQuery();
-    requestSpan.setResourceName(resourceName);
-    GraphQLDecorator.DECORATE.onRequest(requestSpan, parameters.getExecutionContext());
-    return SimpleInstrumentationContext.noOp();
-  }
-
-  @Override
-  public DataFetcher<?> instrumentDataFetcher(
-      final DataFetcher<?> dataFetcher,
-      InstrumentationFieldFetchParameters parameters,
-      InstrumentationState instrumentationState) {
-    if (!(instrumentationState instanceof State)) {
-      return super.instrumentDataFetcher(dataFetcher, parameters, instrumentationState);
+    @Override
+    public InstrumentationContext<Document> beginParse(
+            InstrumentationExecutionParameters parameters, InstrumentationState instrumentationState) {
+        if (!(instrumentationState instanceof State)) {
+            return super.beginParse(parameters, instrumentationState);
+        }
+        final State state = (State) instrumentationState;
+        final AgentSpan parsingSpan = AgentTracer.startSpan(
+                GraphQLDecorator.GRAPHQL_JAVA.toString(),
+                GraphQLDecorator.GRAPHQL_PARSING,
+                state.getRequestSpan().spanContext());
+        GraphQLDecorator.DECORATE.afterStart(parsingSpan);
+        return new ParsingInstrumentationContext(parsingSpan, state, parameters.getQuery());
     }
-    final State state = (State) instrumentationState;
-    final AgentSpan requestSpan = state.getRequestSpan();
-    return new InstrumentedDataFetcher(dataFetcher, parameters, requestSpan);
-  }
 
-  @Override
-  public InstrumentationContext<Document> beginParse(
-      InstrumentationExecutionParameters parameters, InstrumentationState instrumentationState) {
-    if (!(instrumentationState instanceof State)) {
-      return super.beginParse(parameters, instrumentationState);
+    @Override
+    public InstrumentationContext<List<ValidationError>> beginValidation(
+            InstrumentationValidationParameters parameters, InstrumentationState instrumentationState) {
+        if (!(instrumentationState instanceof State)) {
+            return super.beginValidation(parameters, instrumentationState);
+        }
+        final State state = (State) instrumentationState;
+
+        final AgentSpan validationSpan = AgentTracer.startSpan(
+                GraphQLDecorator.GRAPHQL_JAVA.toString(),
+                GraphQLDecorator.GRAPHQL_VALIDATION,
+                state.getRequestSpan().spanContext());
+        GraphQLDecorator.DECORATE.afterStart(validationSpan);
+        return new ValidationInstrumentationContext(validationSpan);
     }
-    final State state = (State) instrumentationState;
-    final AgentSpan parsingSpan =
-        AgentTracer.startSpan(
-            GraphQLDecorator.GRAPHQL_JAVA.toString(),
-            GraphQLDecorator.GRAPHQL_PARSING,
-            state.getRequestSpan().spanContext());
-    GraphQLDecorator.DECORATE.afterStart(parsingSpan);
-    return new ParsingInstrumentationContext(parsingSpan, state, parameters.getQuery());
-  }
-
-  @Override
-  public InstrumentationContext<List<ValidationError>> beginValidation(
-      InstrumentationValidationParameters parameters, InstrumentationState instrumentationState) {
-    if (!(instrumentationState instanceof State)) {
-      return super.beginValidation(parameters, instrumentationState);
-    }
-    final State state = (State) instrumentationState;
-
-    final AgentSpan validationSpan =
-        AgentTracer.startSpan(
-            GraphQLDecorator.GRAPHQL_JAVA.toString(),
-            GraphQLDecorator.GRAPHQL_VALIDATION,
-            state.getRequestSpan().spanContext());
-    GraphQLDecorator.DECORATE.afterStart(validationSpan);
-    return new ValidationInstrumentationContext(validationSpan);
-  }
 }

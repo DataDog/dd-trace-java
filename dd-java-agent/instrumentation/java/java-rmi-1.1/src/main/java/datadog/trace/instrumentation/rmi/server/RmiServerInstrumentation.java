@@ -27,59 +27,55 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class RmiServerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public RmiServerInstrumentation() {
-    super("rmi", "rmi-server");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return null; // bootstrap type
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named("java.rmi.server.RemoteServer"));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(isPublic()).and(not(isStatic())), getClass().getName() + "$ServerAdvice");
-  }
-
-  public static class ServerAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class, inline = true)
-    public static ContextScope onEnter(
-        @Advice.This final Object thiz, @Advice.Origin final Method method) {
-      final AgentSpanContext context = THREAD_LOCAL_CONTEXT.getAndResetContext();
-
-      final AgentSpan span;
-      if (context == null) {
-        span = startSpan(RMI_SERVER.toString(), RMI_REQUEST);
-      } else {
-        span = startSpan(RMI_SERVER.toString(), RMI_REQUEST, context);
-      }
-
-      span.setResourceName(DECORATE.spanNameForMethod(method));
-
-      DECORATE.afterStart(span);
-      return activateSpan(span);
+    public RmiServerInstrumentation() {
+        super("rmi", "rmi-server");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
-      if (scope == null) {
-        return;
-      }
-      DECORATE.onError(scope, throwable);
-      DECORATE.beforeFinish(scope);
-      scope.close();
-      spanFromScope(scope).finish();
+    @Override
+    public String hierarchyMarkerType() {
+        return null; // bootstrap type
     }
-  }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return extendsClass(named("java.rmi.server.RemoteServer"));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(isPublic()).and(not(isStatic())), getClass().getName() + "$ServerAdvice");
+    }
+
+    public static class ServerAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class, inline = true)
+        public static ContextScope onEnter(@Advice.This final Object thiz, @Advice.Origin final Method method) {
+            final AgentSpanContext context = THREAD_LOCAL_CONTEXT.getAndResetContext();
+
+            final AgentSpan span;
+            if (context == null) {
+                span = startSpan(RMI_SERVER.toString(), RMI_REQUEST);
+            } else {
+                span = startSpan(RMI_SERVER.toString(), RMI_REQUEST, context);
+            }
+
+            span.setResourceName(DECORATE.spanNameForMethod(method));
+
+            DECORATE.afterStart(span);
+            return activateSpan(span);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void stopSpan(@Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+            if (scope == null) {
+                return;
+            }
+            DECORATE.onError(scope, throwable);
+            DECORATE.beforeFinish(scope);
+            scope.close();
+            spanFromScope(scope).finish();
+        }
+    }
 }

@@ -13,26 +13,26 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(InstrumenterModule.class)
 public class CassandraClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public CassandraClientInstrumentation() {
-    super("cassandra");
-  }
+    public CassandraClientInstrumentation() {
+        super("cassandra");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "com.datastax.oss.driver.internal.core.session.DefaultSession";
-  }
+    @Override
+    public String instrumentedType() {
+        return "com.datastax.oss.driver.internal.core.session.DefaultSession";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("init"))
-            .and(isStatic())
-            .and(takesArguments(3))
-            .and(takesArgument(1, named("java.util.Set")))
-            .and(returns(named("java.util.concurrent.CompletionStage"))),
-        packageName + ".CassandraClientAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("init"))
+                        .and(isStatic())
+                        .and(takesArguments(3))
+                        .and(takesArgument(1, named("java.util.Set")))
+                        .and(returns(named("java.util.concurrent.CompletionStage"))),
+                packageName + ".CassandraClientAdvice");
+    }
 }

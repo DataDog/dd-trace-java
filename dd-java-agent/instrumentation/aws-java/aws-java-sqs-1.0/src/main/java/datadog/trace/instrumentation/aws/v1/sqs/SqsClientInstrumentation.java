@@ -17,46 +17,42 @@ import net.bytebuddy.asm.Advice;
 /** AWS SDK v1 instrumentation */
 @AutoService(InstrumenterModule.class)
 public final class SqsClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  private static final String INSTRUMENTATION_NAME = "aws-sdk";
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    private static final String INSTRUMENTATION_NAME = "aws-sdk";
 
-  public SqsClientInstrumentation() {
-    super(INSTRUMENTATION_NAME);
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "com.amazonaws.handlers.HandlerChainFactory";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("newRequestHandler2Chain")),
-        SqsClientInstrumentation.class.getName() + "$HandlerChainAdvice");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "com.amazonaws.AmazonWebServiceRequest", "datadog.context.Context");
-  }
-
-  public static class HandlerChainAdvice {
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void addHandler(@Advice.Return final List<RequestHandler2> handlers) {
-      if (Config.get().isDataStreamsEnabled()
-          || Config.get().isSqsInjectDatadogAttributeEnabled()) {
-        for (RequestHandler2 interceptor : handlers) {
-          if (interceptor instanceof SqsInterceptor) {
-            return; // list already has our interceptor, return to builder
-          }
-        }
-        handlers.add(
-            new SqsInterceptor(
-                InstrumentationContext.get(
-                    "com.amazonaws.AmazonWebServiceRequest", "datadog.context.Context")));
-      }
+    public SqsClientInstrumentation() {
+        super(INSTRUMENTATION_NAME);
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "com.amazonaws.handlers.HandlerChainFactory";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("newRequestHandler2Chain")),
+                SqsClientInstrumentation.class.getName() + "$HandlerChainAdvice");
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap("com.amazonaws.AmazonWebServiceRequest", "datadog.context.Context");
+    }
+
+    public static class HandlerChainAdvice {
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void addHandler(@Advice.Return final List<RequestHandler2> handlers) {
+            if (Config.get().isDataStreamsEnabled() || Config.get().isSqsInjectDatadogAttributeEnabled()) {
+                for (RequestHandler2 interceptor : handlers) {
+                    if (interceptor instanceof SqsInterceptor) {
+                        return; // list already has our interceptor, return to builder
+                    }
+                }
+                handlers.add(new SqsInterceptor(InstrumentationContext.get(
+                        "com.amazonaws.AmazonWebServiceRequest", "datadog.context.Context")));
+            }
+        }
+    }
 }

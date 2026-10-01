@@ -21,38 +21,38 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public class ContainerRequestFilterInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public ContainerRequestFilterInstrumentation() {
-    super("jakarta-rs", "jakartars", "jakarta-rs-filter");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "jakarta.ws.rs.container.ContainerRequestFilter";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("filter"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("jakarta.ws.rs.container.ContainerRequestContext"))),
-        ContainerRequestFilterInstrumentation.class.getName() + "$RequestFilterAdvice");
-  }
-
-  public static class RequestFilterAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void setFilterClass(
-        @Advice.This final ContainerRequestFilter filter,
-        @Advice.Argument(0) final ContainerRequestContext context) {
-      context.setProperty(JakartaRsAnnotationsDecorator.ABORT_FILTER_CLASS, filter.getClass());
+    public ContainerRequestFilterInstrumentation() {
+        super("jakarta-rs", "jakartars", "jakarta-rs-filter");
     }
-  }
+
+    @Override
+    public String hierarchyMarkerType() {
+        return "jakarta.ws.rs.container.ContainerRequestFilter";
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("filter"))
+                        .and(takesArguments(1))
+                        .and(takesArgument(0, named("jakarta.ws.rs.container.ContainerRequestContext"))),
+                ContainerRequestFilterInstrumentation.class.getName() + "$RequestFilterAdvice");
+    }
+
+    public static class RequestFilterAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void setFilterClass(
+                @Advice.This final ContainerRequestFilter filter,
+                @Advice.Argument(0) final ContainerRequestContext context) {
+            context.setProperty(JakartaRsAnnotationsDecorator.ABORT_FILTER_CLASS, filter.getClass());
+        }
+    }
 }

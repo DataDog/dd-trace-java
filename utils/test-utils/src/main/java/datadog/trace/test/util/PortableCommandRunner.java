@@ -13,43 +13,43 @@ import java.io.OutputStream;
  * no usable native equivalent. Spawned as a child process; not meant to be called directly.
  */
 public final class PortableCommandRunner {
-  private PortableCommandRunner() {}
+    private PortableCommandRunner() {}
 
-  @SuppressForbidden
-  public static void main(String[] arguments) throws IOException, InterruptedException {
-    execute(arguments, System.in, System.out);
-    System.out.flush();
-  }
-
-  @VisibleForTesting
-  static void execute(String[] arguments, InputStream input, OutputStream output)
-      throws IOException, InterruptedException {
-    if (arguments.length == 0) {
-      throw new IllegalArgumentException("Missing command");
+    @SuppressForbidden
+    public static void main(String[] arguments) throws IOException, InterruptedException {
+        execute(arguments, System.in, System.out);
+        System.out.flush();
     }
-    switch (arguments[0]) {
-      case "echo":
-        output.write((argument(arguments) + System.lineSeparator()).getBytes(defaultCharset()));
-        break;
-      case "cat":
-        byte[] buffer = new byte[8192];
-        int read;
-        while ((read = input.read(buffer)) != -1) {
-          output.write(buffer, 0, read);
+
+    @VisibleForTesting
+    static void execute(String[] arguments, InputStream input, OutputStream output)
+            throws IOException, InterruptedException {
+        if (arguments.length == 0) {
+            throw new IllegalArgumentException("Missing command");
         }
-        break;
-      case "sleep":
-        Thread.sleep(Long.parseLong(argument(arguments)));
-        break;
-      default:
-        throw new IllegalArgumentException("Unknown command: " + arguments[0]);
+        switch (arguments[0]) {
+            case "echo":
+                output.write((argument(arguments) + System.lineSeparator()).getBytes(defaultCharset()));
+                break;
+            case "cat":
+                byte[] buffer = new byte[8192];
+                int read;
+                while ((read = input.read(buffer)) != -1) {
+                    output.write(buffer, 0, read);
+                }
+                break;
+            case "sleep":
+                Thread.sleep(Long.parseLong(argument(arguments)));
+                break;
+            default:
+                throw new IllegalArgumentException("Unknown command: " + arguments[0]);
+        }
     }
-  }
 
-  private static String argument(String[] arguments) {
-    if (arguments.length < 2) {
-      throw new IllegalArgumentException("Command '" + arguments[0] + "' requires an argument");
+    private static String argument(String[] arguments) {
+        if (arguments.length < 2) {
+            throw new IllegalArgumentException("Command '" + arguments[0] + "' requires an argument");
+        }
+        return arguments[1];
     }
-    return arguments[1];
-  }
 }

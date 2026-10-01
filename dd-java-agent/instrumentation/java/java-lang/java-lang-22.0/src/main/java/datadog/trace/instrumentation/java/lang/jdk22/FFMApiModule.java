@@ -12,22 +12,23 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class FFMApiModule extends InstrumenterModule.Tracing {
-  public FFMApiModule() {
-    super("ffm-native-tracing", "java-lang-22");
-  }
+    public FFMApiModule() {
+        super("ffm-native-tracing", "java-lang-22");
+    }
 
-  @Override
-  public boolean isEnabled() {
-    return super.isEnabled() && !InstrumenterConfig.get().getTraceNativeMethods().isEmpty();
-  }
+    @Override
+    public boolean isEnabled() {
+        return super.isEnabled()
+                && !InstrumenterConfig.get().getTraceNativeMethods().isEmpty();
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap("jdk.internal.loader.NativeLibrary", "java.lang.String");
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap("jdk.internal.loader.NativeLibrary", "java.lang.String");
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return asList(new LinkerInstrumentation(), new NativeLibraryInstrumentation());
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return asList(new LinkerInstrumentation(), new NativeLibraryInstrumentation());
+    }
 }

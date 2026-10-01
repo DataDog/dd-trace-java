@@ -6,11 +6,5 @@ package datadog.trace.agent.tooling.csi;
  */
 public interface InvokeAdvice extends CallSiteAdvice {
 
-  void apply(
-      MethodHandler handler,
-      int opcode,
-      String owner,
-      String name,
-      String descriptor,
-      boolean isInterface);
+    void apply(MethodHandler handler, int opcode, String owner, String name, String descriptor, boolean isInterface);
 }

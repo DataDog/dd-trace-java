@@ -22,107 +22,100 @@ import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 
 @ChannelHandler.Sharable
 public class WebSocketServerRequestTracingHandler extends ChannelInboundHandlerAdapter {
-  public static WebSocketServerRequestTracingHandler INSTANCE =
-      new WebSocketServerRequestTracingHandler();
+    public static WebSocketServerRequestTracingHandler INSTANCE = new WebSocketServerRequestTracingHandler();
 
-  @Override
-  public void channelRead(ChannelHandlerContext ctx, Object frame) {
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object frame) {
 
-    if (frame instanceof WebSocketFrame) {
-      Channel channel = ctx.channel();
-      HandlerContext.Receiver receiverContext =
-          channel.attr(WEBSOCKET_RECEIVER_HANDLER_CONTEXT).get();
+        if (frame instanceof WebSocketFrame) {
+            Channel channel = ctx.channel();
+            HandlerContext.Receiver receiverContext =
+                    channel.attr(WEBSOCKET_RECEIVER_HANDLER_CONTEXT).get();
 
-      if (receiverContext == null) {
-        HandlerContext.Sender sessionState = channel.attr(WEBSOCKET_SENDER_HANDLER_CONTEXT).get();
-        if (sessionState != null) {
-          String channelId = ctx.channel().attr(CHANNEL_ID).get();
-          receiverContext = new HandlerContext.Receiver(sessionState.getHandshakeSpan(), channelId);
-          channel.attr(WEBSOCKET_RECEIVER_HANDLER_CONTEXT).set(receiverContext);
-        }
-      }
-      if (receiverContext != null) {
-        if (frame instanceof TextWebSocketFrame) {
-          // WebSocket Read Text Start
-          TextWebSocketFrame textFrame = (TextWebSocketFrame) frame;
-
-          final AgentSpan span =
-              DECORATE.startInboundFrameSpan(
-                  receiverContext, textFrame.text(), textFrame.isFinalFragment());
-          try (final ContextScope scope = activateSpan(span)) {
-            ctx.fireChannelRead(textFrame);
-            // WebSocket Read Text Start
-          } finally {
-            if (textFrame.isFinalFragment()) {
-              channel.attr(WEBSOCKET_RECEIVER_HANDLER_CONTEXT).remove();
-              DECORATE.onFrameEnd(receiverContext);
+            if (receiverContext == null) {
+                HandlerContext.Sender sessionState =
+                        channel.attr(WEBSOCKET_SENDER_HANDLER_CONTEXT).get();
+                if (sessionState != null) {
+                    String channelId = ctx.channel().attr(CHANNEL_ID).get();
+                    receiverContext = new HandlerContext.Receiver(sessionState.getHandshakeSpan(), channelId);
+                    channel.attr(WEBSOCKET_RECEIVER_HANDLER_CONTEXT).set(receiverContext);
+                }
             }
-          }
-          return;
-        }
+            if (receiverContext != null) {
+                if (frame instanceof TextWebSocketFrame) {
+                    // WebSocket Read Text Start
+                    TextWebSocketFrame textFrame = (TextWebSocketFrame) frame;
 
-        if (frame instanceof BinaryWebSocketFrame) {
-          // WebSocket Read Binary Start
-          BinaryWebSocketFrame binaryFrame = (BinaryWebSocketFrame) frame;
-          final AgentSpan span =
-              DECORATE.startInboundFrameSpan(
-                  receiverContext,
-                  binaryFrame.content().nioBuffer(),
-                  binaryFrame.isFinalFragment());
-          try (final ContextScope scope = activateSpan(span)) {
-            ctx.fireChannelRead(binaryFrame);
-          } finally {
-            // WebSocket Read Binary End
-            if (binaryFrame.isFinalFragment()) {
-              channel.attr(WEBSOCKET_RECEIVER_HANDLER_CONTEXT).remove();
-              DECORATE.onFrameEnd(receiverContext);
+                    final AgentSpan span = DECORATE.startInboundFrameSpan(
+                            receiverContext, textFrame.text(), textFrame.isFinalFragment());
+                    try (final ContextScope scope = activateSpan(span)) {
+                        ctx.fireChannelRead(textFrame);
+                        // WebSocket Read Text Start
+                    } finally {
+                        if (textFrame.isFinalFragment()) {
+                            channel.attr(WEBSOCKET_RECEIVER_HANDLER_CONTEXT).remove();
+                            DECORATE.onFrameEnd(receiverContext);
+                        }
+                    }
+                    return;
+                }
+
+                if (frame instanceof BinaryWebSocketFrame) {
+                    // WebSocket Read Binary Start
+                    BinaryWebSocketFrame binaryFrame = (BinaryWebSocketFrame) frame;
+                    final AgentSpan span = DECORATE.startInboundFrameSpan(
+                            receiverContext, binaryFrame.content().nioBuffer(), binaryFrame.isFinalFragment());
+                    try (final ContextScope scope = activateSpan(span)) {
+                        ctx.fireChannelRead(binaryFrame);
+                    } finally {
+                        // WebSocket Read Binary End
+                        if (binaryFrame.isFinalFragment()) {
+                            channel.attr(WEBSOCKET_RECEIVER_HANDLER_CONTEXT).remove();
+                            DECORATE.onFrameEnd(receiverContext);
+                        }
+                    }
+
+                    return;
+                }
+
+                if (frame instanceof ContinuationWebSocketFrame) {
+                    ContinuationWebSocketFrame continuationWebSocketFrame = (ContinuationWebSocketFrame) frame;
+                    final AgentSpan span = DECORATE.startInboundFrameSpan(
+                            receiverContext,
+                            MESSAGE_TYPE_TEXT.equals(receiverContext.getMessageType())
+                                    ? continuationWebSocketFrame.text()
+                                    : continuationWebSocketFrame.content().nioBuffer(),
+                            continuationWebSocketFrame.isFinalFragment());
+                    try (final ContextScope scope = activateSpan(span)) {
+                        ctx.fireChannelRead(continuationWebSocketFrame);
+                    } finally {
+                        if (continuationWebSocketFrame.isFinalFragment()) {
+                            channel.attr(WEBSOCKET_RECEIVER_HANDLER_CONTEXT).remove();
+                            DECORATE.onFrameEnd(receiverContext);
+                        }
+                    }
+                    return;
+                }
+
+                if (frame instanceof CloseWebSocketFrame) {
+                    // WebSocket Closed by client
+                    CloseWebSocketFrame closeFrame = (CloseWebSocketFrame) frame;
+                    int statusCode = closeFrame.statusCode();
+                    String reasonText = closeFrame.reasonText();
+                    channel.attr(WEBSOCKET_SENDER_HANDLER_CONTEXT).remove();
+                    channel.attr(WEBSOCKET_RECEIVER_HANDLER_CONTEXT).remove();
+                    final AgentSpan span = DECORATE.startInboundCloseSpan(receiverContext, reasonText, statusCode);
+                    try (final ContextScope scope = activateSpan(span)) {
+                        ctx.fireChannelRead(closeFrame);
+                        if (closeFrame.isFinalFragment()) {
+                            DECORATE.onFrameEnd(receiverContext);
+                        }
+                    }
+                    return;
+                }
             }
-          }
-
-          return;
         }
-
-        if (frame instanceof ContinuationWebSocketFrame) {
-          ContinuationWebSocketFrame continuationWebSocketFrame =
-              (ContinuationWebSocketFrame) frame;
-          final AgentSpan span =
-              DECORATE.startInboundFrameSpan(
-                  receiverContext,
-                  MESSAGE_TYPE_TEXT.equals(receiverContext.getMessageType())
-                      ? continuationWebSocketFrame.text()
-                      : continuationWebSocketFrame.content().nioBuffer(),
-                  continuationWebSocketFrame.isFinalFragment());
-          try (final ContextScope scope = activateSpan(span)) {
-            ctx.fireChannelRead(continuationWebSocketFrame);
-          } finally {
-            if (continuationWebSocketFrame.isFinalFragment()) {
-              channel.attr(WEBSOCKET_RECEIVER_HANDLER_CONTEXT).remove();
-              DECORATE.onFrameEnd(receiverContext);
-            }
-          }
-          return;
-        }
-
-        if (frame instanceof CloseWebSocketFrame) {
-          // WebSocket Closed by client
-          CloseWebSocketFrame closeFrame = (CloseWebSocketFrame) frame;
-          int statusCode = closeFrame.statusCode();
-          String reasonText = closeFrame.reasonText();
-          channel.attr(WEBSOCKET_SENDER_HANDLER_CONTEXT).remove();
-          channel.attr(WEBSOCKET_RECEIVER_HANDLER_CONTEXT).remove();
-          final AgentSpan span =
-              DECORATE.startInboundCloseSpan(receiverContext, reasonText, statusCode);
-          try (final ContextScope scope = activateSpan(span)) {
-            ctx.fireChannelRead(closeFrame);
-            if (closeFrame.isFinalFragment()) {
-              DECORATE.onFrameEnd(receiverContext);
-            }
-          }
-          return;
-        }
-      }
+        // can be other messages we do not handle like ping, pong
+        ctx.fireChannelRead(frame);
     }
-    // can be other messages we do not handle like ping, pong
-    ctx.fireChannelRead(frame);
-  }
 }

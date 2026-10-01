@@ -12,18 +12,18 @@ import javax.annotation.Nonnull;
 @CallSite(spi = IastCallSites.class)
 public class StringReaderCallSite {
 
-  @CallSite.After("void java.io.StringReader.<init>(java.lang.String)")
-  public static StringReader afterInit(
-      @CallSite.AllArguments @Nonnull final Object[] params,
-      @CallSite.Return @Nonnull final StringReader result) {
-    final PropagationModule propagationModule = InstrumentationBridge.PROPAGATION;
-    if (propagationModule != null) {
-      try {
-        propagationModule.taintObjectIfTainted(result, params[0]);
-      } catch (Throwable e) {
-        propagationModule.onUnexpectedException("afterInit threw", e);
-      }
+    @CallSite.After("void java.io.StringReader.<init>(java.lang.String)")
+    public static StringReader afterInit(
+            @CallSite.AllArguments @Nonnull final Object[] params,
+            @CallSite.Return @Nonnull final StringReader result) {
+        final PropagationModule propagationModule = InstrumentationBridge.PROPAGATION;
+        if (propagationModule != null) {
+            try {
+                propagationModule.taintObjectIfTainted(result, params[0]);
+            } catch (Throwable e) {
+                propagationModule.onUnexpectedException("afterInit threw", e);
+            }
+        }
+        return result;
     }
-    return result;
-  }
 }

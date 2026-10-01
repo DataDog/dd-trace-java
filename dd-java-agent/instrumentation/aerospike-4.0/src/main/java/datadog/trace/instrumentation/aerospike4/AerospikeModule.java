@@ -11,19 +11,19 @@ import java.util.List;
 
 @AutoService(InstrumenterModule.class)
 public final class AerospikeModule extends InstrumenterModule.Tracing {
-  public AerospikeModule() {
-    super("aerospike");
-  }
-
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    final List<Instrumenter> ret = new ArrayList<>(4);
-    ret.add(new AerospikeClientInstrumentation());
-    ret.add(new CommandInstrumentation());
-    if (InstrumenterConfig.get().isIntegrationEnabled(singleton("java_concurrent"), true)) {
-      ret.add(new NioEventLoopInstrumentation());
+    public AerospikeModule() {
+        super("aerospike");
     }
-    ret.add(new PartitionInstrumentation());
-    return ret;
-  }
+
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        final List<Instrumenter> ret = new ArrayList<>(4);
+        ret.add(new AerospikeClientInstrumentation());
+        ret.add(new CommandInstrumentation());
+        if (InstrumenterConfig.get().isIntegrationEnabled(singleton("java_concurrent"), true)) {
+            ret.add(new NioEventLoopInstrumentation());
+        }
+        ret.add(new PartitionInstrumentation());
+        return ret;
+    }
 }

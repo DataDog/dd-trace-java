@@ -9,18 +9,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class BlockAllWritesHandler extends SimpleChannelDownstreamHandler {
-  public static final ChannelDownstreamHandler INSTANCE = new BlockAllWritesHandler();
-  private static final Logger log = LoggerFactory.getLogger(BlockAllWritesHandler.class);
+    public static final ChannelDownstreamHandler INSTANCE = new BlockAllWritesHandler();
+    private static final Logger log = LoggerFactory.getLogger(BlockAllWritesHandler.class);
 
-  private BlockAllWritesHandler() {}
+    private BlockAllWritesHandler() {}
 
-  @Override
-  public void writeRequested(ChannelHandlerContext ctx, MessageEvent e) {
-    if (e.getMessage() instanceof HttpResponse) {
-      log.debug("Blocking write of {}", e);
-      e.getFuture().setSuccess();
-    } else {
-      ctx.sendDownstream(e);
+    @Override
+    public void writeRequested(ChannelHandlerContext ctx, MessageEvent e) {
+        if (e.getMessage() instanceof HttpResponse) {
+            log.debug("Blocking write of {}", e);
+            e.getFuture().setSuccess();
+        } else {
+            ctx.sendDownstream(e);
+        }
     }
-  }
 }

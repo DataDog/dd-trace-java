@@ -45,37 +45,36 @@ import org.junit.jupiter.api.Test;
  */
 public class JfrEventHolderInitForkedTest {
 
-  @Test
-  public void productionInitOrderingDoesNotPoisonHandlers() throws Exception {
-    final ClassLoader loader = getClass().getClassLoader();
+    @Test
+    public void productionInitOrderingDoesNotPoisonHandlers() throws Exception {
+        final ClassLoader loader = getClass().getClassLoader();
 
-    // The holder class (if any) is selected by JDK version; skip when this JDK has none (JDK 8,
-    // 23+).
-    final String holderName = Agent.jfrEventHolderClassName();
-    assumeTrue(holderName != null, "No JFR event-holder class on this JDK; nothing to test");
+        // The holder class (if any) is selected by JDK version; skip when this JDK has none (JDK 8,
+        // 23+).
+        final String holderName = Agent.jfrEventHolderClassName();
+        assumeTrue(holderName != null, "No JFR event-holder class on this JDK; nothing to test");
 
-    // Exercise the exact production path: FlightRecorder init first, then holder <clinit>.
-    Agent.initializeJfrEventHolderClass(loader);
+        // Exercise the exact production path: FlightRecorder init first, then holder <clinit>.
+        Agent.initializeJfrEventHolderClass(loader);
 
-    // The holder is now initialized; read its static handler fields and check none are null.
-    final Class<?> holder = Class.forName(holderName, false, loader);
-    final List<String> nullFields = new ArrayList<>();
-    int handlerFields = 0;
-    for (final Field field : holder.getDeclaredFields()) {
-      if (!Modifier.isStatic(field.getModifiers()) || field.getType().isPrimitive()) {
-        continue;
-      }
-      handlerFields++;
-      field.setAccessible(true);
-      if (field.get(null) == null) {
-        nullFields.add(field.getName());
-      }
+        // The holder is now initialized; read its static handler fields and check none are null.
+        final Class<?> holder = Class.forName(holderName, false, loader);
+        final List<String> nullFields = new ArrayList<>();
+        int handlerFields = 0;
+        for (final Field field : holder.getDeclaredFields()) {
+            if (!Modifier.isStatic(field.getModifiers()) || field.getType().isPrimitive()) {
+                continue;
+            }
+            handlerFields++;
+            field.setAccessible(true);
+            if (field.get(null) == null) {
+                nullFields.add(field.getName());
+            }
+        }
+
+        assertTrue(handlerFields > 0, "expected " + holderName + " to declare handler fields");
+        assertTrue(
+                nullFields.isEmpty(),
+                "JFR handler fields were poisoned to null (holder initialized before FlightRecorder): " + nullFields);
     }
-
-    assertTrue(handlerFields > 0, "expected " + holderName + " to declare handler fields");
-    assertTrue(
-        nullFields.isEmpty(),
-        "JFR handler fields were poisoned to null (holder initialized before FlightRecorder): "
-            + nullFields);
-  }
 }

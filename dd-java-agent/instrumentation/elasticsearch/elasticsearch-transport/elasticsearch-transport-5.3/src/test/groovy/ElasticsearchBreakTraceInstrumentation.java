@@ -13,13 +13,13 @@ import datadog.trace.instrumentation.elasticsearch.ShadowExistingScopeAdvice;
  */
 @AutoService(InstrumenterModule.class)
 public class ElasticsearchBreakTraceInstrumentation extends TestInstrumentation {
-  @Override
-  public String instrumentedType() {
-    return "org.elasticsearch.client.node.NodeClient";
-  }
+    @Override
+    public String instrumentedType() {
+        return "org.elasticsearch.client.node.NodeClient";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(named("executeLocally"), ShadowExistingScopeAdvice.class.getName());
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(named("executeLocally"), ShadowExistingScopeAdvice.class.getName());
+    }
 }

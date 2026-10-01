@@ -5,15 +5,15 @@ import datadog.trace.bootstrap.otlp.metrics.OtlpDoublePoint;
 
 /** Always reports the latest value. */
 final class OtelDoubleValue extends OtelAggregator {
-  private volatile double value;
+    private volatile double value;
 
-  @Override
-  void doRecordDouble(double value) {
-    this.value = value;
-  }
+    @Override
+    void doRecordDouble(double value) {
+        this.value = value;
+    }
 
-  @Override
-  OtlpDataPoint doCollect(boolean reset) {
-    return new OtlpDoublePoint(value);
-  }
+    @Override
+    OtlpDataPoint doCollect(boolean reset) {
+        return new OtlpDoublePoint(value);
+    }
 }

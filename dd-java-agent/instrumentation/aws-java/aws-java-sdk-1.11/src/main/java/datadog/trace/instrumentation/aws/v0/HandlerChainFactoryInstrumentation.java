@@ -14,39 +14,37 @@ import net.bytebuddy.asm.Advice;
  * is tested. It could possibly be extended earlier.
  */
 public final class HandlerChainFactoryInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  private final String namespace;
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    private final String namespace;
 
-  public HandlerChainFactoryInstrumentation(String namespace) {
-    this.namespace = namespace;
-  }
-
-  @Override
-  public String instrumentedType() {
-    return namespace + ".handlers.HandlerChainFactory";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("newRequestHandler2Chain")),
-        HandlerChainFactoryInstrumentation.class.getName() + "$HandlerChainAdvice");
-  }
-
-  public static class HandlerChainAdvice {
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void addHandler(@Advice.Return final List<RequestHandler2> handlers) {
-      for (final RequestHandler2 handler : handlers) {
-        if (handler instanceof TracingRequestHandler) {
-          return;
-        }
-      }
-      handlers.add(
-          new TracingRequestHandler(
-              InstrumentationContext.get(
-                  "com.amazonaws.services.sqs.model.ReceiveMessageResult", "java.lang.String"),
-              InstrumentationContext.get(
-                  "com.amazonaws.AmazonWebServiceRequest", "datadog.context.Context")));
+    public HandlerChainFactoryInstrumentation(String namespace) {
+        this.namespace = namespace;
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return namespace + ".handlers.HandlerChainFactory";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("newRequestHandler2Chain")),
+                HandlerChainFactoryInstrumentation.class.getName() + "$HandlerChainAdvice");
+    }
+
+    public static class HandlerChainAdvice {
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void addHandler(@Advice.Return final List<RequestHandler2> handlers) {
+            for (final RequestHandler2 handler : handlers) {
+                if (handler instanceof TracingRequestHandler) {
+                    return;
+                }
+            }
+            handlers.add(new TracingRequestHandler(
+                    InstrumentationContext.get(
+                            "com.amazonaws.services.sqs.model.ReceiveMessageResult", "java.lang.String"),
+                    InstrumentationContext.get("com.amazonaws.AmazonWebServiceRequest", "datadog.context.Context")));
+        }
+    }
 }

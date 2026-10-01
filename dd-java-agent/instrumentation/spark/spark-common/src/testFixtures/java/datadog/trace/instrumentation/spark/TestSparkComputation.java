@@ -12,44 +12,43 @@ import org.apache.spark.sql.streaming.StreamingQuery;
  * have a good support for groovy
  */
 public class TestSparkComputation {
-  public static void generateTestSparkComputation(SparkSession sparkSession) {
-    // This will generate 1 spark job that has two stages
-    // - the first because distinct will need a shuffle operation
-    // - the second one triggered by the count() action
-    sparkSession.sparkContext().range(1, 10, 1, 2).distinct().count();
-  }
-
-  public static void generateTestFailingSparkComputation(SparkSession sparkSession) {
-    sparkSession
-        .sparkContext()
-        .range(1, 10, 1, 2)
-        .toJavaRDD()
-        .map(x -> ((Long) null).toString())
-        .collect();
-  }
-
-  public static StreamingQuery generateTestFailingStreamingComputation(Dataset<String> ds)
-      throws TimeoutException {
-    return ds.map((MapFunction<String, String>) x -> ((Long) null).toString(), Encoders.STRING())
-        .writeStream()
-        .queryName("failing-query")
-        .outputMode("append")
-        .format("console")
-        .start();
-  }
-
-  static class IdentityMapFunction implements MapFunction<String, String> {
-    @Override
-    public String call(String s) {
-      return s;
+    public static void generateTestSparkComputation(SparkSession sparkSession) {
+        // This will generate 1 spark job that has two stages
+        // - the first because distinct will need a shuffle operation
+        // - the second one triggered by the count() action
+        sparkSession.sparkContext().range(1, 10, 1, 2).distinct().count();
     }
-  }
 
-  public static Dataset<String> applyIdentityMapFunction(Dataset<String> ds) {
-    return ds.map(new IdentityMapFunction(), Encoders.STRING());
-  }
+    public static void generateTestFailingSparkComputation(SparkSession sparkSession) {
+        sparkSession
+                .sparkContext()
+                .range(1, 10, 1, 2)
+                .toJavaRDD()
+                .map(x -> ((Long) null).toString())
+                .collect();
+    }
 
-  public static String getSparkVersion() {
-    return org.apache.spark.package$.MODULE$.SPARK_VERSION();
-  }
+    public static StreamingQuery generateTestFailingStreamingComputation(Dataset<String> ds) throws TimeoutException {
+        return ds.map((MapFunction<String, String>) x -> ((Long) null).toString(), Encoders.STRING())
+                .writeStream()
+                .queryName("failing-query")
+                .outputMode("append")
+                .format("console")
+                .start();
+    }
+
+    static class IdentityMapFunction implements MapFunction<String, String> {
+        @Override
+        public String call(String s) {
+            return s;
+        }
+    }
+
+    public static Dataset<String> applyIdentityMapFunction(Dataset<String> ds) {
+        return ds.map(new IdentityMapFunction(), Encoders.STRING());
+    }
+
+    public static String getSparkVersion() {
+        return org.apache.spark.package$.MODULE$.SPARK_VERSION();
+    }
 }

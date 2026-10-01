@@ -12,63 +12,57 @@ import akka.http.scaladsl.model.HttpResponse;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 
 public class AkkaHttpServerHeaders {
-  private AkkaHttpServerHeaders() {}
+    private AkkaHttpServerHeaders() {}
 
-  private static final AgentPropagation.ContextVisitor<HttpRequest> GETTER_REQUEST =
-      AkkaHttpServerHeaders::forEachKeyRequest;
-  private static final AgentPropagation.ContextVisitor<HttpResponse> GETTER_RESPONSE =
-      AkkaHttpServerHeaders::forEachKeyResponse;
+    private static final AgentPropagation.ContextVisitor<HttpRequest> GETTER_REQUEST =
+            AkkaHttpServerHeaders::forEachKeyRequest;
+    private static final AgentPropagation.ContextVisitor<HttpResponse> GETTER_RESPONSE =
+            AkkaHttpServerHeaders::forEachKeyResponse;
 
-  public static AgentPropagation.ContextVisitor<HttpRequest> requestGetter() {
-    return GETTER_REQUEST;
-  }
+    public static AgentPropagation.ContextVisitor<HttpRequest> requestGetter() {
+        return GETTER_REQUEST;
+    }
 
-  public static AgentPropagation.ContextVisitor<HttpResponse> responseGetter() {
-    return GETTER_RESPONSE;
-  }
+    public static AgentPropagation.ContextVisitor<HttpResponse> responseGetter() {
+        return GETTER_RESPONSE;
+    }
 
-  private static void doForEachKey(
-      HttpMessage carrier,
-      akka.http.javadsl.model.HttpEntity entity,
-      AgentPropagation.KeyClassifier classifier) {
-    // In Akka HTTP, Content-Type is part of the entity, not a regular header.
-    // Extract it for all entity types (Default, Chunked, etc.), not only Strict.
-    if (entity instanceof HttpEntity) {
-      ContentType contentType = ((HttpEntity) entity).contentType();
-      if (contentType != null) {
-        String contentTypeValue = contentType.value();
-        if (!contentTypeValue.isEmpty() && !classifier.accept("content-type", contentTypeValue)) {
-          return;
+    private static void doForEachKey(
+            HttpMessage carrier, akka.http.javadsl.model.HttpEntity entity, AgentPropagation.KeyClassifier classifier) {
+        // In Akka HTTP, Content-Type is part of the entity, not a regular header.
+        // Extract it for all entity types (Default, Chunked, etc.), not only Strict.
+        if (entity instanceof HttpEntity) {
+            ContentType contentType = ((HttpEntity) entity).contentType();
+            if (contentType != null) {
+                String contentTypeValue = contentType.value();
+                if (!contentTypeValue.isEmpty() && !classifier.accept("content-type", contentTypeValue)) {
+                    return;
+                }
+            }
         }
-      }
-    }
-    if (entity instanceof HttpEntity.Strict) {
-      HttpEntity.Strict strictEntity = (HttpEntity.Strict) entity;
-      if (!classifier.accept("content-length", Long.toString(strictEntity.contentLength()))) {
-        return;
-      }
+        if (entity instanceof HttpEntity.Strict) {
+            HttpEntity.Strict strictEntity = (HttpEntity.Strict) entity;
+            if (!classifier.accept("content-length", Long.toString(strictEntity.contentLength()))) {
+                return;
+            }
+        }
+
+        for (final HttpHeader header : carrier.getHeaders()) {
+            // skip synthetic headers
+            if (header instanceof RemoteAddress || header instanceof TimeoutAccess || header instanceof RawRequestURI) {
+                continue;
+            }
+            if (!classifier.accept(header.lowercaseName(), header.value())) {
+                return;
+            }
+        }
     }
 
-    for (final HttpHeader header : carrier.getHeaders()) {
-      // skip synthetic headers
-      if (header instanceof RemoteAddress
-          || header instanceof TimeoutAccess
-          || header instanceof RawRequestURI) {
-        continue;
-      }
-      if (!classifier.accept(header.lowercaseName(), header.value())) {
-        return;
-      }
+    private static void forEachKeyRequest(HttpRequest req, AgentPropagation.KeyClassifier classifier) {
+        doForEachKey(req, req.entity(), classifier);
     }
-  }
 
-  private static void forEachKeyRequest(
-      HttpRequest req, AgentPropagation.KeyClassifier classifier) {
-    doForEachKey(req, req.entity(), classifier);
-  }
-
-  private static void forEachKeyResponse(
-      final HttpResponse resp, final AgentPropagation.KeyClassifier classifier) {
-    doForEachKey(resp, resp.entity(), classifier);
-  }
+    private static void forEachKeyResponse(final HttpResponse resp, final AgentPropagation.KeyClassifier classifier) {
+        doForEachKey(resp, resp.entity(), classifier);
+    }
 }

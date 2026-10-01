@@ -17,45 +17,45 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class GlobalTracerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public GlobalTracerInstrumentation() {
-    super("opentracing", "opentracing-globaltracer");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "io.opentracing.util.GlobalTracer";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".OTTracer",
-      packageName + ".OTTracer$OTSpanBuilder",
-      packageName + ".OTTextMapInjectSetter",
-      packageName + ".OTScopeManager",
-      packageName + ".OTScopeManager$OTScope",
-      packageName + ".OTScopeManager$FakeScope",
-      packageName + ".TypeConverter",
-      packageName + ".OTSpan",
-      packageName + ".OTSpanContext",
-      "datadog.trace.instrumentation.opentracing.LogHandler",
-      "datadog.trace.instrumentation.opentracing.DefaultLogHandler",
-    };
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isTypeInitializer(), GlobalTracerInstrumentation.class.getName() + "$GlobalTracerAdvice");
-  }
-
-  public static class GlobalTracerAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void registerTracer() {
-      if (AgentTracer.isRegistered()) {
-        GlobalTracer.registerIfAbsent(new OTTracer(AgentTracer.get()));
-      }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public GlobalTracerInstrumentation() {
+        super("opentracing", "opentracing-globaltracer");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "io.opentracing.util.GlobalTracer";
+    }
+
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".OTTracer",
+            packageName + ".OTTracer$OTSpanBuilder",
+            packageName + ".OTTextMapInjectSetter",
+            packageName + ".OTScopeManager",
+            packageName + ".OTScopeManager$OTScope",
+            packageName + ".OTScopeManager$FakeScope",
+            packageName + ".TypeConverter",
+            packageName + ".OTSpan",
+            packageName + ".OTSpanContext",
+            "datadog.trace.instrumentation.opentracing.LogHandler",
+            "datadog.trace.instrumentation.opentracing.DefaultLogHandler",
+        };
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isTypeInitializer(), GlobalTracerInstrumentation.class.getName() + "$GlobalTracerAdvice");
+    }
+
+    public static class GlobalTracerAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void registerTracer() {
+            if (AgentTracer.isRegistered()) {
+                GlobalTracer.registerIfAbsent(new OTTracer(AgentTracer.get()));
+            }
+        }
+    }
 }

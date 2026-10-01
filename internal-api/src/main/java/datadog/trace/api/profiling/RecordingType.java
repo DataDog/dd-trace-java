@@ -1,15 +1,15 @@
 package datadog.trace.api.profiling;
 
 public enum RecordingType {
-  CONTINUOUS("continuous");
+    CONTINUOUS("continuous");
 
-  private final String name;
+    private final String name;
 
-  RecordingType(final String name) {
-    this.name = name;
-  }
+    RecordingType(final String name) {
+        this.name = name;
+    }
 
-  public String getName() {
-    return name;
-  }
+    public String getName() {
+        return name;
+    }
 }

@@ -23,52 +23,51 @@ import org.quartz.JobExecutionContext;
 
 @AutoService(InstrumenterModule.class)
 public final class QuartzSchedulingInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public QuartzSchedulingInstrumentation() {
-    super("quartz");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "org.quartz.Job";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(named("execute"))
-            .and(takesArgument(0, named("org.quartz.JobExecutionContext"))),
-        QuartzSchedulingInstrumentation.class.getName() + "$QuartzSchedulingAdvice");
-  }
-
-  public static class QuartzSchedulingAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope enter(@Advice.Argument(0) JobExecutionContext context) {
-      // create a new trace for every job
-      final AgentSpan span = startSpan("quartz", SCHEDULED_CALL, null);
-      DECORATE.afterStart(span);
-      DECORATE.onExecute(span, context);
-      return activateSpan(span);
+    public QuartzSchedulingInstrumentation() {
+        super("quartz");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void onExit(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
-      final AgentSpan span = spanFromScope(scope);
-      if (throwable != null) {
-        DECORATE.onError(span, throwable);
-      }
-      DECORATE.beforeFinish(span);
-      scope.close();
-      span.finish();
+    @Override
+    public String hierarchyMarkerType() {
+        return "org.quartz.Job";
     }
-  }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPublic())
+                        .and(named("execute"))
+                        .and(takesArgument(0, named("org.quartz.JobExecutionContext"))),
+                QuartzSchedulingInstrumentation.class.getName() + "$QuartzSchedulingAdvice");
+    }
+
+    public static class QuartzSchedulingAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope enter(@Advice.Argument(0) JobExecutionContext context) {
+            // create a new trace for every job
+            final AgentSpan span = startSpan("quartz", SCHEDULED_CALL, null);
+            DECORATE.afterStart(span);
+            DECORATE.onExecute(span, context);
+            return activateSpan(span);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void onExit(@Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+            final AgentSpan span = spanFromScope(scope);
+            if (throwable != null) {
+                DECORATE.onError(span, throwable);
+            }
+            DECORATE.beforeFinish(span);
+            scope.close();
+            span.finish();
+        }
+    }
 }

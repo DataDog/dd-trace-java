@@ -17,40 +17,39 @@ import net.spy.memcached.internal.OperationFuture;
 
 @AutoService(InstrumenterModule.class)
 public class MemcachedConnectionInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public MemcachedConnectionInstrumentation() {
-    super("spymemcached");
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("addOperation"))
-            .and(isProtected())
-            .and(takesArgument(0, named("net.spy.memcached.MemcachedNode"))),
-        MemcachedConnectionInstrumentation.class.getName() + "$AddOperationAdvice");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "net.spy.memcached.MemcachedConnection";
-  }
-
-  public static class AddOperationAdvice {
-    @Advice.OnMethodEnter
-    public static void methodEnter(@Advice.Argument(0) final MemcachedNode node) {
-      final AgentSpan span = AgentTracer.activeSpan();
-      if (span != null && node != null && node.getSocketAddress() instanceof InetSocketAddress) {
-        MemcacheClientDecorator.DECORATE.onPeerConnection(
-            span, (InetSocketAddress) node.getSocketAddress());
-      }
+    public MemcachedConnectionInstrumentation() {
+        super("spymemcached");
     }
 
-    public static void muzzleCheck(OperationFuture operationFuture) {
-      // before 2.10.4 futures are not completing correctly. We stick at this as minimum version
-      operationFuture.signalComplete();
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("addOperation"))
+                        .and(isProtected())
+                        .and(takesArgument(0, named("net.spy.memcached.MemcachedNode"))),
+                MemcachedConnectionInstrumentation.class.getName() + "$AddOperationAdvice");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "net.spy.memcached.MemcachedConnection";
+    }
+
+    public static class AddOperationAdvice {
+        @Advice.OnMethodEnter
+        public static void methodEnter(@Advice.Argument(0) final MemcachedNode node) {
+            final AgentSpan span = AgentTracer.activeSpan();
+            if (span != null && node != null && node.getSocketAddress() instanceof InetSocketAddress) {
+                MemcacheClientDecorator.DECORATE.onPeerConnection(span, (InetSocketAddress) node.getSocketAddress());
+            }
+        }
+
+        public static void muzzleCheck(OperationFuture operationFuture) {
+            // before 2.10.4 futures are not completing correctly. We stick at this as minimum version
+            operationFuture.signalComplete();
+        }
+    }
 }

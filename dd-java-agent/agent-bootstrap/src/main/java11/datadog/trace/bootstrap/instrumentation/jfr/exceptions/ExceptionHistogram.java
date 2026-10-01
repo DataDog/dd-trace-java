@@ -23,121 +23,120 @@ import org.slf4j.LoggerFactory;
  */
 public class ExceptionHistogram {
 
-  private static final Logger log = LoggerFactory.getLogger(ExceptionHistogram.class);
+    private static final Logger log = LoggerFactory.getLogger(ExceptionHistogram.class);
 
-  static final String CLIPPED_ENTRY_TYPE_NAME = "TOO-MANY-EXCEPTIONS";
+    static final String CLIPPED_ENTRY_TYPE_NAME = "TOO-MANY-EXCEPTIONS";
 
-  private final Map<String, AtomicLong> histogram = new ConcurrentHashMap<>();
-  private final int maxTopItems;
-  private final int maxSize;
-  private final EventType exceptionCountEventType;
-  private final Runnable eventHook;
+    private final Map<String, AtomicLong> histogram = new ConcurrentHashMap<>();
+    private final int maxTopItems;
+    private final int maxSize;
+    private final EventType exceptionCountEventType;
+    private final Runnable eventHook;
 
-  ExceptionHistogram(final Config config) {
-    maxTopItems = config.getProfilingExceptionHistogramTopItems();
-    maxSize = config.getProfilingExceptionHistogramMaxCollectionSize();
-    exceptionCountEventType = EventType.getEventType(ExceptionCountEvent.class);
-    eventHook = this::emit;
-    JfrHelper.addPeriodicEvent(ExceptionCountEvent.class, eventHook);
-  }
-
-  /** Remove this instance from JFR periodic events callbacks */
-  void deregister() {
-    FlightRecorder.removePeriodicEvent(eventHook);
-  }
-
-  /**
-   * Record a new exception instance
-   *
-   * @param exception instance
-   * @return {@literal true} if this is the first record of the given exception type; {@literal
-   *     false} otherwise
-   */
-  public boolean record(final Throwable exception) {
-    if (exception == null) {
-      return false;
-    }
-    return record(exception.getClass().getName());
-  }
-
-  private boolean record(String typeName) {
-    if (!exceptionCountEventType.isEnabled()) {
-      return false;
-    }
-    if (!histogram.containsKey(typeName) && histogram.size() >= maxSize) {
-      log.debug("Histogram is too big, skipping adding new entry: {}", typeName);
-      // Overwrite type name to limit total number of entries in the histogram
-      typeName = CLIPPED_ENTRY_TYPE_NAME;
+    ExceptionHistogram(final Config config) {
+        maxTopItems = config.getProfilingExceptionHistogramTopItems();
+        maxSize = config.getProfilingExceptionHistogramMaxCollectionSize();
+        exceptionCountEventType = EventType.getEventType(ExceptionCountEvent.class);
+        eventHook = this::emit;
+        JfrHelper.addPeriodicEvent(ExceptionCountEvent.class, eventHook);
     }
 
-    long count = histogram.computeIfAbsent(typeName, k -> new AtomicLong()).getAndIncrement();
+    /** Remove this instance from JFR periodic events callbacks */
+    void deregister() {
+        FlightRecorder.removePeriodicEvent(eventHook);
+    }
 
-    /*
-     * This is supposed to signal that a particular exception type was seen the first time in a particular time span.
-     * !ATTENTION! This will work on best-effort basis - namely all overflowing exception which are recorded
-     * as 'TOO-MANY-EXCEPTIONS' will receive only one common 'first hit'.
+    /**
+     * Record a new exception instance
+     *
+     * @param exception instance
+     * @return {@literal true} if this is the first record of the given exception type; {@literal
+     *     false} otherwise
      */
-    return count == 0;
-  }
-
-  private void emit() {
-    if (!exceptionCountEventType.isEnabled()) {
-      return;
+    public boolean record(final Throwable exception) {
+        if (exception == null) {
+            return false;
+        }
+        return record(exception.getClass().getName());
     }
 
-    doEmit();
-  }
+    private boolean record(String typeName) {
+        if (!exceptionCountEventType.isEnabled()) {
+            return false;
+        }
+        if (!histogram.containsKey(typeName) && histogram.size() >= maxSize) {
+            log.debug("Histogram is too big, skipping adding new entry: {}", typeName);
+            // Overwrite type name to limit total number of entries in the histogram
+            typeName = CLIPPED_ENTRY_TYPE_NAME;
+        }
 
-  void doEmit() {
-    Stream<Pair<String, Long>> items =
-        histogram.entrySet().stream()
-            .map(e -> Pair.of(e.getKey(), e.getValue().getAndSet(0)))
-            .filter(p -> p.getValue() != 0)
-            .sorted((l1, l2) -> Long.compare(l2.getValue(), l1.getValue()));
+        long count = histogram.computeIfAbsent(typeName, k -> new AtomicLong()).getAndIncrement();
 
-    if (maxTopItems > 0) {
-      items = items.limit(maxTopItems);
+        /*
+         * This is supposed to signal that a particular exception type was seen the first time in a particular time span.
+         * !ATTENTION! This will work on best-effort basis - namely all overflowing exception which are recorded
+         * as 'TOO-MANY-EXCEPTIONS' will receive only one common 'first hit'.
+         */
+        return count == 0;
     }
 
-    emitEvents(items);
+    private void emit() {
+        if (!exceptionCountEventType.isEnabled()) {
+            return;
+        }
 
-    // Stream is 'materialized' by `forEach` call above so we have to do clean up after that
-    // Otherwise we would keep entries for one extra iteration
-    histogram.entrySet().removeIf(e -> e.getValue().get() == 0L);
-  }
-
-  // important that this is non-final and package private; allows concurrency tests
-  void emitEvents(Stream<Pair<String, Long>> items) {
-    items.forEach(e -> createAndCommitEvent(e.getKey(), e.getValue()));
-  }
-
-  private void createAndCommitEvent(final String type, final long count) {
-    final ExceptionCountEvent event = new ExceptionCountEvent(type, count);
-    if (event.shouldCommit()) {
-      event.commit();
-    }
-  }
-
-  static class Pair<K, V> {
-
-    final K key;
-    final V value;
-
-    public static <K, V> Pair<K, V> of(final K key, final V value) {
-      return new Pair<>(key, value);
+        doEmit();
     }
 
-    public Pair(final K key, final V value) {
-      this.key = key;
-      this.value = value;
+    void doEmit() {
+        Stream<Pair<String, Long>> items = histogram.entrySet().stream()
+                .map(e -> Pair.of(e.getKey(), e.getValue().getAndSet(0)))
+                .filter(p -> p.getValue() != 0)
+                .sorted((l1, l2) -> Long.compare(l2.getValue(), l1.getValue()));
+
+        if (maxTopItems > 0) {
+            items = items.limit(maxTopItems);
+        }
+
+        emitEvents(items);
+
+        // Stream is 'materialized' by `forEach` call above so we have to do clean up after that
+        // Otherwise we would keep entries for one extra iteration
+        histogram.entrySet().removeIf(e -> e.getValue().get() == 0L);
     }
 
-    public K getKey() {
-      return key;
+    // important that this is non-final and package private; allows concurrency tests
+    void emitEvents(Stream<Pair<String, Long>> items) {
+        items.forEach(e -> createAndCommitEvent(e.getKey(), e.getValue()));
     }
 
-    public V getValue() {
-      return value;
+    private void createAndCommitEvent(final String type, final long count) {
+        final ExceptionCountEvent event = new ExceptionCountEvent(type, count);
+        if (event.shouldCommit()) {
+            event.commit();
+        }
     }
-  }
+
+    static class Pair<K, V> {
+
+        final K key;
+        final V value;
+
+        public static <K, V> Pair<K, V> of(final K key, final V value) {
+            return new Pair<>(key, value);
+        }
+
+        public Pair(final K key, final V value) {
+            this.key = key;
+            this.value = value;
+        }
+
+        public K getKey() {
+            return key;
+        }
+
+        public V getValue() {
+            return value;
+        }
+    }
 }

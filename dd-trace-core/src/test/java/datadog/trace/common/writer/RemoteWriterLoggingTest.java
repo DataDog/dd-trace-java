@@ -35,98 +35,95 @@ import org.slf4j.LoggerFactory;
  */
 class RemoteWriterLoggingTest extends DDCoreJavaSpecification {
 
-  private Logger logger;
-  private Level previousLevel;
-  private ListAppender<ILoggingEvent> appender;
+    private Logger logger;
+    private Level previousLevel;
+    private ListAppender<ILoggingEvent> appender;
 
-  private final HealthMetrics monitor = mock(HealthMetrics.class);
-  private final TraceProcessingWorker worker = mock(TraceProcessingWorker.class);
-  private final PayloadDispatcherImpl dispatcher = mock(PayloadDispatcherImpl.class);
-  private final DDAgentWriter writer =
-      new DDAgentWriter(worker, dispatcher, monitor, 1, SECONDS, false);
+    private final HealthMetrics monitor = mock(HealthMetrics.class);
+    private final TraceProcessingWorker worker = mock(TraceProcessingWorker.class);
+    private final PayloadDispatcherImpl dispatcher = mock(PayloadDispatcherImpl.class);
+    private final DDAgentWriter writer = new DDAgentWriter(worker, dispatcher, monitor, 1, SECONDS, false);
 
-  @BeforeEach
-  void attachAppender() {
-    logger = (Logger) LoggerFactory.getLogger(RemoteWriter.class);
-    previousLevel = logger.getLevel();
-    // WARN, not DEBUG: at DEBUG the writer logs the detailed message instead of the rate-limited
-    // warning, which is not the path a user in production sees.
-    logger.setLevel(Level.WARN);
-    appender = new ListAppender<>();
-    appender.start();
-    logger.addAppender(appender);
-  }
-
-  @AfterEach
-  void detachAppender() {
-    logger.detachAppender(appender);
-    logger.setLevel(previousLevel);
-    writer.close();
-  }
-
-  @Test
-  void warnsWhenAKeptTraceIsLostToOverflow() {
-    write(PrioritySampling.SAMPLER_KEEP, DROPPED_BUFFER_OVERFLOW);
-
-    assertEquals(1, appender.list.size());
-    ILoggingEvent event = appender.list.get(0);
-    assertEquals(Level.WARN, event.getLevel());
-    assertTrue(
-        event.getFormattedMessage().contains("kept trace"),
-        "the warning should say a kept trace was lost: " + event.getFormattedMessage());
-  }
-
-  @Test
-  void staysQuietWhenOnlyASampledOutTraceIsLostToOverflow() {
-    write(PrioritySampling.SAMPLER_DROP, DROPPED_BUFFER_OVERFLOW_SAMPLED_OUT);
-
-    assertEquals(
-        Collections.emptyList(),
-        appender.list,
-        "losing an already sampled-out trace must not warn the user");
-  }
-
-  @Test
-  void warnsWhenASingleSpanSamplingCandidateIsLostToOverflow() {
-    write(PrioritySampling.SAMPLER_DROP, DROPPED_BUFFER_OVERFLOW_SINGLE_SPAN);
-
-    assertEquals(1, appender.list.size());
-    ILoggingEvent event = appender.list.get(0);
-    assertEquals(Level.WARN, event.getLevel());
-    assertTrue(
-        event.getFormattedMessage().contains("single span sampling"),
-        "the warning should say a single span sampling candidate was lost: "
-            + event.getFormattedMessage());
-  }
-
-  /**
-   * The rate limiter holds a single budget, so a flood of the benign case must not consume the
-   * budget that the genuine warning needs.
-   */
-  @Test
-  void sampledOutOverflowDoesNotSuppressAKeptTraceWarning() {
-    for (int i = 0; i < 100; i++) {
-      write(PrioritySampling.SAMPLER_DROP, DROPPED_BUFFER_OVERFLOW_SAMPLED_OUT);
+    @BeforeEach
+    void attachAppender() {
+        logger = (Logger) LoggerFactory.getLogger(RemoteWriter.class);
+        previousLevel = logger.getLevel();
+        // WARN, not DEBUG: at DEBUG the writer logs the detailed message instead of the rate-limited
+        // warning, which is not the path a user in production sees.
+        logger.setLevel(Level.WARN);
+        appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
     }
 
-    write(PrioritySampling.SAMPLER_KEEP, DROPPED_BUFFER_OVERFLOW);
+    @AfterEach
+    void detachAppender() {
+        logger.detachAppender(appender);
+        logger.setLevel(previousLevel);
+        writer.close();
+    }
 
-    assertEquals(1, appender.list.size());
-    ILoggingEvent event = appender.list.get(0);
-    assertEquals(Level.WARN, event.getLevel());
-    // The surviving warning must be the one about the kept trace, not a benign one that happened
-    // to claim the budget first.
-    assertTrue(
-        event.getFormattedMessage().contains("kept trace"),
-        "expected the kept-trace warning, got: " + event.getFormattedMessage());
-  }
+    @Test
+    void warnsWhenAKeptTraceIsLostToOverflow() {
+        write(PrioritySampling.SAMPLER_KEEP, DROPPED_BUFFER_OVERFLOW);
 
-  private void write(byte priority, PublishResult result) {
-    DDSpan root = buildSpan(0L, "test.tag", "test.value", PropagationTags.factory().empty());
-    root.setSamplingPriority(priority);
-    List<DDSpan> trace = Collections.singletonList(root);
-    when(worker.publish(any(), anyInt(), eq(trace))).thenReturn(result);
+        assertEquals(1, appender.list.size());
+        ILoggingEvent event = appender.list.get(0);
+        assertEquals(Level.WARN, event.getLevel());
+        assertTrue(
+                event.getFormattedMessage().contains("kept trace"),
+                "the warning should say a kept trace was lost: " + event.getFormattedMessage());
+    }
 
-    writer.write(trace);
-  }
+    @Test
+    void staysQuietWhenOnlyASampledOutTraceIsLostToOverflow() {
+        write(PrioritySampling.SAMPLER_DROP, DROPPED_BUFFER_OVERFLOW_SAMPLED_OUT);
+
+        assertEquals(
+                Collections.emptyList(), appender.list, "losing an already sampled-out trace must not warn the user");
+    }
+
+    @Test
+    void warnsWhenASingleSpanSamplingCandidateIsLostToOverflow() {
+        write(PrioritySampling.SAMPLER_DROP, DROPPED_BUFFER_OVERFLOW_SINGLE_SPAN);
+
+        assertEquals(1, appender.list.size());
+        ILoggingEvent event = appender.list.get(0);
+        assertEquals(Level.WARN, event.getLevel());
+        assertTrue(
+                event.getFormattedMessage().contains("single span sampling"),
+                "the warning should say a single span sampling candidate was lost: " + event.getFormattedMessage());
+    }
+
+    /**
+     * The rate limiter holds a single budget, so a flood of the benign case must not consume the
+     * budget that the genuine warning needs.
+     */
+    @Test
+    void sampledOutOverflowDoesNotSuppressAKeptTraceWarning() {
+        for (int i = 0; i < 100; i++) {
+            write(PrioritySampling.SAMPLER_DROP, DROPPED_BUFFER_OVERFLOW_SAMPLED_OUT);
+        }
+
+        write(PrioritySampling.SAMPLER_KEEP, DROPPED_BUFFER_OVERFLOW);
+
+        assertEquals(1, appender.list.size());
+        ILoggingEvent event = appender.list.get(0);
+        assertEquals(Level.WARN, event.getLevel());
+        // The surviving warning must be the one about the kept trace, not a benign one that happened
+        // to claim the budget first.
+        assertTrue(
+                event.getFormattedMessage().contains("kept trace"),
+                "expected the kept-trace warning, got: " + event.getFormattedMessage());
+    }
+
+    private void write(byte priority, PublishResult result) {
+        DDSpan root = buildSpan(
+                0L, "test.tag", "test.value", PropagationTags.factory().empty());
+        root.setSamplingPriority(priority);
+        List<DDSpan> trace = Collections.singletonList(root);
+        when(worker.publish(any(), anyInt(), eq(trace))).thenReturn(result);
+
+        writer.write(trace);
+    }
 }

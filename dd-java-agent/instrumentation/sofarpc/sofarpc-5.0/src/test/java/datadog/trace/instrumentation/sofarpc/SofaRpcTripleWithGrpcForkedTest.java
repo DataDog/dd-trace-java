@@ -54,108 +54,106 @@ import org.junit.jupiter.api.TestInstance;
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class SofaRpcTripleWithGrpcForkedTest extends AbstractInstrumentationTest {
-  // No configurePreAgent() override — gRPC instrumentation is enabled by default.
+    // No configurePreAgent() override — gRPC instrumentation is enabled by default.
 
-  private static final int TRIPLE_PORT = 12204;
+    private static final int TRIPLE_PORT = 12204;
 
-  private ProviderConfig<TripleGreeterService> tripleProviderConfig;
-  private TripleGreeterService greeterService;
+    private ProviderConfig<TripleGreeterService> tripleProviderConfig;
+    private TripleGreeterService greeterService;
 
-  // @BeforeEach (not @BeforeAll) so the gRPC server is built after the agent is installed by
-  // AbstractInstrumentationTest.init(), allowing GrpcServerBuilderInstrumentation to add
-  // TracingServerInterceptor at build time.
-  @BeforeEach
-  void setupServer() {
-    tripleProviderConfig =
-        new ProviderConfig<TripleGreeterService>()
-            .setApplication(new ApplicationConfig().setAppName("test-server"))
-            .setInterfaceId(TripleGreeterService.class.getName())
-            .setRef(new TripleGreeterServiceImpl())
-            .setServer(
-                new ServerConfig().setProtocol("tri").setHost("127.0.0.1").setPort(TRIPLE_PORT))
-            .setRegister(false);
-    tripleProviderConfig.export();
+    // @BeforeEach (not @BeforeAll) so the gRPC server is built after the agent is installed by
+    // AbstractInstrumentationTest.init(), allowing GrpcServerBuilderInstrumentation to add
+    // TracingServerInterceptor at build time.
+    @BeforeEach
+    void setupServer() {
+        tripleProviderConfig = new ProviderConfig<TripleGreeterService>()
+                .setApplication(new ApplicationConfig().setAppName("test-server"))
+                .setInterfaceId(TripleGreeterService.class.getName())
+                .setRef(new TripleGreeterServiceImpl())
+                .setServer(new ServerConfig()
+                        .setProtocol("tri")
+                        .setHost("127.0.0.1")
+                        .setPort(TRIPLE_PORT))
+                .setRegister(false);
+        tripleProviderConfig.export();
 
-    greeterService =
-        new ConsumerConfig<TripleGreeterService>()
-            .setApplication(new ApplicationConfig().setAppName("test-client"))
-            .setInterfaceId(TripleGreeterService.class.getName())
-            .setDirectUrl("tri://127.0.0.1:" + TRIPLE_PORT)
-            .setProtocol("tri")
-            .setRegister(false)
-            .setSubscribe(false)
-            .refer();
-  }
-
-  @AfterEach
-  void tearDownServer() {
-    if (tripleProviderConfig != null) {
-      tripleProviderConfig.unExport();
-      tripleProviderConfig = null;
-    }
-    greeterService = null;
-  }
-
-  @Test
-  void tripleServerSpanIsNestedUnderGrpcServer() throws InterruptedException, TimeoutException {
-    AgentSpan callerSpan = startSpan("test", "caller");
-    ContextScope callerScope = activateSpan(callerSpan);
-    String reply;
-    try {
-      reply = greeterService.sayHello("World");
-    } finally {
-      callerScope.close();
-      callerSpan.finish();
+        greeterService = new ConsumerConfig<TripleGreeterService>()
+                .setApplication(new ApplicationConfig().setAppName("test-client"))
+                .setInterfaceId(TripleGreeterService.class.getName())
+                .setDirectUrl("tri://127.0.0.1:" + TRIPLE_PORT)
+                .setProtocol("tri")
+                .setRegister(false)
+                .setSubscribe(false)
+                .refer();
     }
 
-    assertEquals("Hello, World", reply);
-
-    // Client spans (caller, sofarpc[client], grpc.client) are flushed when the client-side
-    // root span finishes. Server spans (grpc.server, grpc.message, sofarpc[server]) are flushed
-    // when grpc.server — the server-side local root — finishes on its own thread.
-    // That gives two separate ListWriter entries even though both share the same trace_id.
-    writer.waitForTraces(2);
-    List<DDSpan> allSpans = flattenTraces();
-
-    DDSpan serverSofaSpan = findSpan(allSpans, "sofarpc.request", "server");
-    DDSpan grpcServerSpan = findSpan(allSpans, "grpc.server", null);
-
-    assertNotNull(
-        serverSofaSpan, "Expected sofarpc[server] span. Spans found: " + describeSpans(allSpans));
-    assertNotNull(
-        grpcServerSpan, "Expected grpc.server span. Spans found: " + describeSpans(allSpans));
-
-    // sofarpc.request[server] must be a direct child of grpc.server, not grpc.client
-    assertEquals(
-        grpcServerSpan.getSpanId(),
-        serverSofaSpan.getParentId(),
-        "sofarpc.request[server] should be a child of grpc.server");
-  }
-
-  private List<DDSpan> flattenTraces() {
-    List<DDSpan> result = new ArrayList<>();
-    for (List<DDSpan> trace : writer) {
-      result.addAll(trace);
-    }
-    return result;
-  }
-
-  private DDSpan findSpan(List<DDSpan> spans, String operationName, String spanKind) {
-    for (DDSpan span : spans) {
-      if (span.getOperationName().toString().equals(operationName)) {
-        if (spanKind == null || spanKind.equals(span.getTag("span.kind"))) {
-          return span;
+    @AfterEach
+    void tearDownServer() {
+        if (tripleProviderConfig != null) {
+            tripleProviderConfig.unExport();
+            tripleProviderConfig = null;
         }
-      }
+        greeterService = null;
     }
-    return null;
-  }
 
-  private String describeSpans(List<DDSpan> spans) {
-    List<String> descriptions = new ArrayList<>();
-    for (DDSpan span : spans) {
-      descriptions.add(span.getOperationName() + "[" + span.getTag("span.kind") + "]");
+    @Test
+    void tripleServerSpanIsNestedUnderGrpcServer() throws InterruptedException, TimeoutException {
+        AgentSpan callerSpan = startSpan("test", "caller");
+        ContextScope callerScope = activateSpan(callerSpan);
+        String reply;
+        try {
+            reply = greeterService.sayHello("World");
+        } finally {
+            callerScope.close();
+            callerSpan.finish();
+        }
+
+        assertEquals("Hello, World", reply);
+
+        // Client spans (caller, sofarpc[client], grpc.client) are flushed when the client-side
+        // root span finishes. Server spans (grpc.server, grpc.message, sofarpc[server]) are flushed
+        // when grpc.server — the server-side local root — finishes on its own thread.
+        // That gives two separate ListWriter entries even though both share the same trace_id.
+        writer.waitForTraces(2);
+        List<DDSpan> allSpans = flattenTraces();
+
+        DDSpan serverSofaSpan = findSpan(allSpans, "sofarpc.request", "server");
+        DDSpan grpcServerSpan = findSpan(allSpans, "grpc.server", null);
+
+        assertNotNull(serverSofaSpan, "Expected sofarpc[server] span. Spans found: " + describeSpans(allSpans));
+        assertNotNull(grpcServerSpan, "Expected grpc.server span. Spans found: " + describeSpans(allSpans));
+
+        // sofarpc.request[server] must be a direct child of grpc.server, not grpc.client
+        assertEquals(
+                grpcServerSpan.getSpanId(),
+                serverSofaSpan.getParentId(),
+                "sofarpc.request[server] should be a child of grpc.server");
     }
-    return descriptions.toString();
-  }
+
+    private List<DDSpan> flattenTraces() {
+        List<DDSpan> result = new ArrayList<>();
+        for (List<DDSpan> trace : writer) {
+            result.addAll(trace);
+        }
+        return result;
+    }
+
+    private DDSpan findSpan(List<DDSpan> spans, String operationName, String spanKind) {
+        for (DDSpan span : spans) {
+            if (span.getOperationName().toString().equals(operationName)) {
+                if (spanKind == null || spanKind.equals(span.getTag("span.kind"))) {
+                    return span;
+                }
+            }
+        }
+        return null;
+    }
+
+    private String describeSpans(List<DDSpan> spans) {
+        List<String> descriptions = new ArrayList<>();
+        for (DDSpan span : spans) {
+            descriptions.add(span.getOperationName() + "[" + span.getTag("span.kind") + "]");
+        }
+        return descriptions.toString();
+    }
 }

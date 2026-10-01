@@ -14,43 +14,43 @@ import net.bytebuddy.asm.Advice;
 
 public class HTTPPluginAdvice {
 
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static ContextScope onEnter(@Advice.Argument(value = 2) final Object serverTransaction) {
-    final AgentSpan span = startSpan("axway-http", DECORATE.spanName()).setMeasured(true);
-    DECORATE.afterStart(span);
-    // serverTransaction is like request + connection in one object:
-    DECORATE.onRequest(span, serverTransaction, serverTransaction, rootContext());
-    return span.attachWithContext();
-  }
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ContextScope onEnter(@Advice.Argument(value = 2) final Object serverTransaction) {
+        final AgentSpan span = startSpan("axway-http", DECORATE.spanName()).setMeasured(true);
+        DECORATE.afterStart(span);
+        // serverTransaction is like request + connection in one object:
+        DECORATE.onRequest(span, serverTransaction, serverTransaction, rootContext());
+        return span.attachWithContext();
+    }
 
-  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void onExit(
-      @Advice.Enter final ContextScope scope,
-      @Advice.Argument(value = 2) final Object serverTransaction,
-      @Advice.Thrown final Throwable throwable) {
-    if (scope == null) {
-      return;
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void onExit(
+            @Advice.Enter final ContextScope scope,
+            @Advice.Argument(value = 2) final Object serverTransaction,
+            @Advice.Thrown final Throwable throwable) {
+        if (scope == null) {
+            return;
+        }
+        final Context context = scope.context();
+        final AgentSpan span = fromContext(context);
+        try {
+            if (null != serverTransaction) {
+                // manual DECORATE.onResponse(span, serverTransaction):
+                // TODO: It doesn't work. Rewriting of InstrumentationContext.get fails here, because both
+                // arguments should be
+                //  class-literals (not runtime Class object) to make FieldBackedContextRequestRewriter
+                // work.
+                int respCode = InstrumentationContext.get(SERVER_TRANSACTION_CLASS, int.class)
+                        .get(serverTransaction);
+                span.setHttpStatusCode(respCode);
+            }
+            if (throwable != null) {
+                DECORATE.onError(span, throwable);
+            }
+            DECORATE.beforeFinish(context);
+        } finally {
+            scope.close();
+            span.finish();
+        }
     }
-    final Context context = scope.context();
-    final AgentSpan span = fromContext(context);
-    try {
-      if (null != serverTransaction) {
-        // manual DECORATE.onResponse(span, serverTransaction):
-        // TODO: It doesn't work. Rewriting of InstrumentationContext.get fails here, because both
-        // arguments should be
-        //  class-literals (not runtime Class object) to make FieldBackedContextRequestRewriter
-        // work.
-        int respCode =
-            InstrumentationContext.get(SERVER_TRANSACTION_CLASS, int.class).get(serverTransaction);
-        span.setHttpStatusCode(respCode);
-      }
-      if (throwable != null) {
-        DECORATE.onError(span, throwable);
-      }
-      DECORATE.beforeFinish(context);
-    } finally {
-      scope.close();
-      span.finish();
-    }
-  }
 }

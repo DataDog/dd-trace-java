@@ -20,33 +20,31 @@ import net.bytebuddy.asm.Advice;
 // keep in sync with jersey2 (javax packages)
 @AutoService(InstrumenterModule.class)
 public class ReaderInterceptorExecutorInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public ReaderInterceptorExecutorInstrumentation() {
-    super("jersey");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.glassfish.jersey.message.internal.ReaderInterceptorExecutor";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("getInputStream").and(takesArguments(0)),
-        getClass().getName() + "$InstrumenterAdvice");
-  }
-
-  @RequiresRequestContext(RequestContextSlot.IAST)
-  public static class InstrumenterAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    static void after(
-        @Advice.Return final InputStream inputStream, @ActiveRequestContext RequestContext reqCtx) {
-      final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        module.taintObject(ctx, inputStream, SourceTypes.REQUEST_BODY);
-      }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public ReaderInterceptorExecutorInstrumentation() {
+        super("jersey");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "org.glassfish.jersey.message.internal.ReaderInterceptorExecutor";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("getInputStream").and(takesArguments(0)), getClass().getName() + "$InstrumenterAdvice");
+    }
+
+    @RequiresRequestContext(RequestContextSlot.IAST)
+    public static class InstrumenterAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        static void after(@Advice.Return final InputStream inputStream, @ActiveRequestContext RequestContext reqCtx) {
+            final PropagationModule module = InstrumentationBridge.PROPAGATION;
+            if (module != null) {
+                IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+                module.taintObject(ctx, inputStream, SourceTypes.REQUEST_BODY);
+            }
+        }
+    }
 }

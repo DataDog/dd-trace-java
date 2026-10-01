@@ -8,16 +8,14 @@ import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 
 public class TaintFutureHelper {
-  public static <T> Future<T> wrapFuture(
-      Future<T> f, Object input, PropagationModule mod, ExecutionContext ec) {
-    JFunction1<T, T> mapf =
-        t -> {
-          IastContext ctx = IastContext.Provider.get(AgentTracer.activeSpan());
-          if (ctx != null) {
-            mod.taintObjectIfTainted(ctx, t, input);
-          }
-          return t;
+    public static <T> Future<T> wrapFuture(Future<T> f, Object input, PropagationModule mod, ExecutionContext ec) {
+        JFunction1<T, T> mapf = t -> {
+            IastContext ctx = IastContext.Provider.get(AgentTracer.activeSpan());
+            if (ctx != null) {
+                mod.taintObjectIfTainted(ctx, t, input);
+            }
+            return t;
         };
-    return f.map(mapf, ec);
-  }
+        return f.map(mapf, ec);
+    }
 }

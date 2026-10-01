@@ -9,24 +9,24 @@ import java.util.regex.Pattern;
  * regular expression.
  */
 public class Matches implements Matcher<CharSequence> {
-  private final Pattern pattern;
+    private final Pattern pattern;
 
-  Matches(Pattern pattern) {
-    this.pattern = pattern;
-  }
+    Matches(Pattern pattern) {
+        this.pattern = pattern;
+    }
 
-  @Override
-  public Optional<CharSequence> expected() {
-    return Optional.empty();
-  }
+    @Override
+    public Optional<CharSequence> expected() {
+        return Optional.empty();
+    }
 
-  @Override
-  public String failureReason() {
-    return "Non matching value";
-  }
+    @Override
+    public String failureReason() {
+        return "Non matching value";
+    }
 
-  @Override
-  public boolean test(CharSequence s) {
-    return this.pattern.matcher(s).matches();
-  }
+    @Override
+    public boolean test(CharSequence s) {
+        return this.pattern.matcher(s).matches();
+    }
 }

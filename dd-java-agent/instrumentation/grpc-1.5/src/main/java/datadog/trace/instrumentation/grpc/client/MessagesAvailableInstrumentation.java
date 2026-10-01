@@ -24,53 +24,51 @@ import java.util.Collections;
 import net.bytebuddy.asm.Advice;
 
 public final class MessagesAvailableInstrumentation
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "io.grpc.internal.ClientCallImpl$ClientStreamListenerImpl$1MessagesAvailable",
-      "io.grpc.internal.ClientCallImpl$ClientStreamListenerImpl$1MessageRead"
-    };
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), getClass().getName() + "$Capture");
-    if (InstrumenterConfig.get()
-        .isIntegrationEnabled(Collections.singleton("grpc-message"), false)) {
-      transformer.applyAdvice(named("runInContext"), getClass().getName() + "$ReceiveMessages");
-    }
-  }
-
-  @AppliesOn(CONTEXT_TRACKING)
-  public static final class Capture {
-    @Advice.OnMethodExit
-    public static void capture(@Advice.This Runnable task) {
-      AdviceUtils.capture(InstrumentationContext.get(Runnable.class, State.class), task);
-    }
-  }
-
-  public static final class ReceiveMessages {
-    @Advice.OnMethodEnter
-    public static ContextScope before() {
-      AgentSpan clientSpan = activeSpan();
-      if (clientSpan != null && OPERATION_NAME.equals(clientSpan.getOperationName())) {
-        AgentSpan messageSpan =
-            startSpan(COMPONENT_NAME.toString(), GRPC_MESSAGE)
-                .setTag("message.type", clientSpan.getTag("response.type"));
-        DECORATE.afterStart(messageSpan);
-        return activateSpan(messageSpan);
-      }
-      return null;
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            "io.grpc.internal.ClientCallImpl$ClientStreamListenerImpl$1MessagesAvailable",
+            "io.grpc.internal.ClientCallImpl$ClientStreamListenerImpl$1MessageRead"
+        };
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter ContextScope scope) {
-      if (null != scope) {
-        scope.close();
-        spanFromScope(scope).finish();
-      }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor(), getClass().getName() + "$Capture");
+        if (InstrumenterConfig.get().isIntegrationEnabled(Collections.singleton("grpc-message"), false)) {
+            transformer.applyAdvice(named("runInContext"), getClass().getName() + "$ReceiveMessages");
+        }
     }
-  }
+
+    @AppliesOn(CONTEXT_TRACKING)
+    public static final class Capture {
+        @Advice.OnMethodExit
+        public static void capture(@Advice.This Runnable task) {
+            AdviceUtils.capture(InstrumentationContext.get(Runnable.class, State.class), task);
+        }
+    }
+
+    public static final class ReceiveMessages {
+        @Advice.OnMethodEnter
+        public static ContextScope before() {
+            AgentSpan clientSpan = activeSpan();
+            if (clientSpan != null && OPERATION_NAME.equals(clientSpan.getOperationName())) {
+                AgentSpan messageSpan = startSpan(COMPONENT_NAME.toString(), GRPC_MESSAGE)
+                        .setTag("message.type", clientSpan.getTag("response.type"));
+                DECORATE.afterStart(messageSpan);
+                return activateSpan(messageSpan);
+            }
+            return null;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class)
+        public static void after(@Advice.Enter ContextScope scope) {
+            if (null != scope) {
+                scope.close();
+                spanFromScope(scope).finish();
+            }
+        }
+    }
 }

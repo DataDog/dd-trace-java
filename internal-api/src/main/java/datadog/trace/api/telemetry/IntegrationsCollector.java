@@ -9,51 +9,51 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 public class IntegrationsCollector {
 
-  private static final IntegrationsCollector INSTANCE = new IntegrationsCollector();
-  private final Queue<Integration> integrations = new LinkedBlockingQueue<>();
+    private static final IntegrationsCollector INSTANCE = new IntegrationsCollector();
+    private final Queue<Integration> integrations = new LinkedBlockingQueue<>();
 
-  private IntegrationsCollector() {}
+    private IntegrationsCollector() {}
 
-  public static IntegrationsCollector get() {
-    return INSTANCE;
-  }
-
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_METHOD_SYNCHRONIZATION",
-      justification =
-          "All production callers are agent-owned and do not synchronize on this monitor; locking prevents updates from interleaving with draining.")
-  public synchronized void update(Iterable<String> names, boolean enabled) {
-    Integration i = new Integration();
-    i.names = names;
-    i.enabled = enabled;
-
-    integrations.offer(i);
-  }
-
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_METHOD_SYNCHRONIZATION",
-      justification =
-          "All production callers are agent-owned and do not synchronize on this monitor; locking prevents updates from interleaving with draining.")
-  public synchronized Map<String, Boolean> drain() {
-    if (integrations.isEmpty()) {
-      return Collections.emptyMap();
+    public static IntegrationsCollector get() {
+        return INSTANCE;
     }
 
-    Map<String, Boolean> map = new LinkedHashMap<>();
+    @SuppressFBWarnings(
+            value = "USO_UNSAFE_METHOD_SYNCHRONIZATION",
+            justification =
+                    "All production callers are agent-owned and do not synchronize on this monitor; locking prevents updates from interleaving with draining.")
+    public synchronized void update(Iterable<String> names, boolean enabled) {
+        Integration i = new Integration();
+        i.names = names;
+        i.enabled = enabled;
 
-    Integration i;
-    while ((i = integrations.poll()) != null) {
-      boolean enabled = i.enabled;
-      for (String name : i.names) {
-        map.put(name, enabled);
-      }
+        integrations.offer(i);
     }
 
-    return map;
-  }
+    @SuppressFBWarnings(
+            value = "USO_UNSAFE_METHOD_SYNCHRONIZATION",
+            justification =
+                    "All production callers are agent-owned and do not synchronize on this monitor; locking prevents updates from interleaving with draining.")
+    public synchronized Map<String, Boolean> drain() {
+        if (integrations.isEmpty()) {
+            return Collections.emptyMap();
+        }
 
-  private static class Integration {
-    public Iterable<String> names;
-    public boolean enabled;
-  }
+        Map<String, Boolean> map = new LinkedHashMap<>();
+
+        Integration i;
+        while ((i = integrations.poll()) != null) {
+            boolean enabled = i.enabled;
+            for (String name : i.names) {
+                map.put(name, enabled);
+            }
+        }
+
+        return map;
+    }
+
+    private static class Integration {
+        public Iterable<String> names;
+        public boolean enabled;
+    }
 }

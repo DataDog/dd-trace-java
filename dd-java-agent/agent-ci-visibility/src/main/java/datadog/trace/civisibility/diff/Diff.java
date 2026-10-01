@@ -5,7 +5,7 @@ import datadog.trace.civisibility.ipc.serialization.SerializableType;
 
 public interface Diff extends SerializableType {
 
-  PolymorphicSerializer<Diff> SERIALIZER = new PolymorphicSerializer<>(LineDiff.class);
+    PolymorphicSerializer<Diff> SERIALIZER = new PolymorphicSerializer<>(LineDiff.class);
 
-  boolean contains(String relativePath, int startLine, int endLine);
+    boolean contains(String relativePath, int startLine, int endLine);
 }

@@ -16,39 +16,38 @@ import org.restlet.util.Series;
 
 @AutoService(InstrumenterModule.class)
 public final class RouteInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public RouteInstrumentation() {
-    super("restlet-http");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.restlet.routing.TemplateRoute";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("beforeHandle"))
-            .and(takesArgument(0, named("org.restlet.Request")))
-            .and(takesArgument(1, named("org.restlet.Response"))),
-        getClass().getName() + "$RouteBeforeHandleAdvice");
-  }
-
-  public static class RouteBeforeHandleAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void beginRequest(
-        @Advice.This final TemplateRoute route, @Advice.Argument(0) final Request request) {
-      String pattern = route.getTemplate().getPattern();
-      if (null == pattern || pattern.equals("")) {
-        return;
-      }
-
-      Series<Header> headers =
-          (Series<Header>) request.getAttributes().get("org.restlet.http.headers");
-      headers.set(RESTLET_ROUTE, pattern);
+    public RouteInstrumentation() {
+        super("restlet-http");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "org.restlet.routing.TemplateRoute";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("beforeHandle"))
+                        .and(takesArgument(0, named("org.restlet.Request")))
+                        .and(takesArgument(1, named("org.restlet.Response"))),
+                getClass().getName() + "$RouteBeforeHandleAdvice");
+    }
+
+    public static class RouteBeforeHandleAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void beginRequest(
+                @Advice.This final TemplateRoute route, @Advice.Argument(0) final Request request) {
+            String pattern = route.getTemplate().getPattern();
+            if (null == pattern || pattern.equals("")) {
+                return;
+            }
+
+            Series<Header> headers = (Series<Header>) request.getAttributes().get("org.restlet.http.headers");
+            headers.set(RESTLET_ROUTE, pattern);
+        }
+    }
 }

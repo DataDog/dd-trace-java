@@ -18,39 +18,38 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public final class HikariPoolInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public HikariPoolInstrumentation() {
-    super("jdbc", "hikari");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return InstrumenterConfig.get().isJdbcPoolWaitingEnabled();
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "com.zaxxer.hikari.pool.HikariPool";
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("com.zaxxer.hikari.util.ConcurrentBag", String.class.getName());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor(), HikariPoolInstrumentation.class.getName() + "$ConstructorAdvice");
-  }
-
-  public static class ConstructorAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    static void after(
-        @Advice.FieldValue("connectionBag") ConcurrentBag concurrentBag,
-        @Advice.FieldValue("poolName") String poolName) {
-      InstrumentationContext.get(ConcurrentBag.class, String.class).put(concurrentBag, poolName);
+    public HikariPoolInstrumentation() {
+        super("jdbc", "hikari");
     }
-  }
+
+    @Override
+    protected boolean defaultEnabled() {
+        return InstrumenterConfig.get().isJdbcPoolWaitingEnabled();
+    }
+
+    @Override
+    public String instrumentedType() {
+        return "com.zaxxer.hikari.pool.HikariPool";
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("com.zaxxer.hikari.util.ConcurrentBag", String.class.getName());
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor(), HikariPoolInstrumentation.class.getName() + "$ConstructorAdvice");
+    }
+
+    public static class ConstructorAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        static void after(
+                @Advice.FieldValue("connectionBag") ConcurrentBag concurrentBag,
+                @Advice.FieldValue("poolName") String poolName) {
+            InstrumentationContext.get(ConcurrentBag.class, String.class).put(concurrentBag, poolName);
+        }
+    }
 }

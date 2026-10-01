@@ -10,28 +10,27 @@ import org.junit.jupiter.api.Test;
 
 public class ClassFileHelperTest {
 
-  @Test
-  public void extractSourceFile() {
-    assertEquals(
-        "JDK8.java",
-        ClassFileHelper.extractSourceFile(
-            readClassFileBytes("/com/datadog/debugger/classfiles/JDK8.class")));
-    assertEquals(
-        "JDK23.java",
-        ClassFileHelper.extractSourceFile(
-            readClassFileBytes("/com/datadog/debugger/classfiles/JDK23.class")));
-    // big classfile (80KB)
-    assertEquals(
-        "CommandLine.java",
-        ClassFileHelper.extractSourceFile(
-            readClassFileBytes("/com/datadog/debugger/classfiles/CommandLine.class")));
-  }
-
-  private static byte[] readClassFileBytes(String fileName) {
-    try {
-      return Files.readAllBytes(Paths.get(ClassFileHelperTest.class.getResource(fileName).toURI()));
-    } catch (IOException | URISyntaxException e) {
-      throw new RuntimeException(e);
+    @Test
+    public void extractSourceFile() {
+        assertEquals(
+                "JDK8.java",
+                ClassFileHelper.extractSourceFile(readClassFileBytes("/com/datadog/debugger/classfiles/JDK8.class")));
+        assertEquals(
+                "JDK23.java",
+                ClassFileHelper.extractSourceFile(readClassFileBytes("/com/datadog/debugger/classfiles/JDK23.class")));
+        // big classfile (80KB)
+        assertEquals(
+                "CommandLine.java",
+                ClassFileHelper.extractSourceFile(
+                        readClassFileBytes("/com/datadog/debugger/classfiles/CommandLine.class")));
     }
-  }
+
+    private static byte[] readClassFileBytes(String fileName) {
+        try {
+            return Files.readAllBytes(
+                    Paths.get(ClassFileHelperTest.class.getResource(fileName).toURI()));
+        } catch (IOException | URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

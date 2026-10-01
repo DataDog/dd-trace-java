@@ -29,95 +29,91 @@ import org.glassfish.jersey.media.multipart.MultiPart;
 
 @AutoService(InstrumenterModule.class)
 public class MultiPartReaderServerSideInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public MultiPartReaderServerSideInstrumentation() {
-    super("jersey");
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "multipart";
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.glassfish.jersey.media.multipart.internal.MultiPartReaderServerSide";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("readMultiPart")
-            .and(isProtected())
-            .and(returns(named("org.glassfish.jersey.media.multipart.MultiPart")))
-            .and(takesArguments(6)),
-        getClass().getName() + "$ReadMultiPartAdvice");
-  }
-
-  @RequiresRequestContext(RequestContextSlot.APPSEC)
-  public static class ReadMultiPartAdvice {
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    static void after(
-        @Advice.Return final MultiPart ret,
-        @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
-      if (ret == null || t != null) {
-        return;
-      }
-
-      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-      BiFunction<RequestContext, Object, Flow<Void>> callback =
-          cbp.getCallback(EVENTS.requestBodyProcessed());
-      BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCallback =
-          cbp.getCallback(EVENTS.requestFilesFilenames());
-      BiFunction<RequestContext, List<String>, Flow<Void>> contentCallback =
-          cbp.getCallback(EVENTS.requestFilesContent());
-      if (callback == null && filenamesCallback == null && contentCallback == null) {
-        return;
-      }
-
-      Map<String, List<String>> map = callback != null ? new HashMap<>() : null;
-      List<String> filenames = filenamesCallback != null ? new ArrayList<>() : null;
-      List<String> filesContent = contentCallback != null ? new ArrayList<>() : null;
-      for (BodyPart bodyPart : ret.getBodyParts()) {
-        if (!(bodyPart instanceof FormDataBodyPart)) {
-          continue;
-        }
-        MultiPartHelper.collectBodyPart((FormDataBodyPart) bodyPart, map, filenames, filesContent);
-      }
-
-      if (map != null) {
-        Flow<Void> flow = callback.apply(reqCtx, map);
-        BlockingException be =
-            MultiPartHelper.tryBlock(
-                reqCtx, flow, "Blocked request (for MultiPartReaderServerSide/readMultiPart)");
-        if (be != null) {
-          t = be;
-        }
-      }
-
-      if (filenames != null && !filenames.isEmpty()) {
-        Flow<Void> filenamesFlow = filenamesCallback.apply(reqCtx, filenames);
-        if (t == null) {
-          BlockingException be =
-              MultiPartHelper.tryBlock(
-                  reqCtx, filenamesFlow, "Blocked request (multipart file upload)");
-          if (be != null) {
-            t = be;
-          }
-        }
-      }
-
-      if (t == null && filesContent != null && !filesContent.isEmpty()) {
-        Flow<Void> contentFlow = contentCallback.apply(reqCtx, filesContent);
-        BlockingException be =
-            MultiPartHelper.tryBlock(
-                reqCtx, contentFlow, "Blocked request (multipart file upload content)");
-        if (be != null) {
-          t = be;
-        }
-      }
+    public MultiPartReaderServerSideInstrumentation() {
+        super("jersey");
     }
-  }
+
+    @Override
+    public String muzzleDirective() {
+        return "multipart";
+    }
+
+    @Override
+    public String instrumentedType() {
+        return "org.glassfish.jersey.media.multipart.internal.MultiPartReaderServerSide";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("readMultiPart")
+                        .and(isProtected())
+                        .and(returns(named("org.glassfish.jersey.media.multipart.MultiPart")))
+                        .and(takesArguments(6)),
+                getClass().getName() + "$ReadMultiPartAdvice");
+    }
+
+    @RequiresRequestContext(RequestContextSlot.APPSEC)
+    public static class ReadMultiPartAdvice {
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        static void after(
+                @Advice.Return final MultiPart ret,
+                @ActiveRequestContext RequestContext reqCtx,
+                @Advice.Thrown(readOnly = false) Throwable t) {
+            if (ret == null || t != null) {
+                return;
+            }
+
+            CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+            BiFunction<RequestContext, Object, Flow<Void>> callback = cbp.getCallback(EVENTS.requestBodyProcessed());
+            BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCallback =
+                    cbp.getCallback(EVENTS.requestFilesFilenames());
+            BiFunction<RequestContext, List<String>, Flow<Void>> contentCallback =
+                    cbp.getCallback(EVENTS.requestFilesContent());
+            if (callback == null && filenamesCallback == null && contentCallback == null) {
+                return;
+            }
+
+            Map<String, List<String>> map = callback != null ? new HashMap<>() : null;
+            List<String> filenames = filenamesCallback != null ? new ArrayList<>() : null;
+            List<String> filesContent = contentCallback != null ? new ArrayList<>() : null;
+            for (BodyPart bodyPart : ret.getBodyParts()) {
+                if (!(bodyPart instanceof FormDataBodyPart)) {
+                    continue;
+                }
+                MultiPartHelper.collectBodyPart((FormDataBodyPart) bodyPart, map, filenames, filesContent);
+            }
+
+            if (map != null) {
+                Flow<Void> flow = callback.apply(reqCtx, map);
+                BlockingException be = MultiPartHelper.tryBlock(
+                        reqCtx, flow, "Blocked request (for MultiPartReaderServerSide/readMultiPart)");
+                if (be != null) {
+                    t = be;
+                }
+            }
+
+            if (filenames != null && !filenames.isEmpty()) {
+                Flow<Void> filenamesFlow = filenamesCallback.apply(reqCtx, filenames);
+                if (t == null) {
+                    BlockingException be =
+                            MultiPartHelper.tryBlock(reqCtx, filenamesFlow, "Blocked request (multipart file upload)");
+                    if (be != null) {
+                        t = be;
+                    }
+                }
+            }
+
+            if (t == null && filesContent != null && !filesContent.isEmpty()) {
+                Flow<Void> contentFlow = contentCallback.apply(reqCtx, filesContent);
+                BlockingException be = MultiPartHelper.tryBlock(
+                        reqCtx, contentFlow, "Blocked request (multipart file upload content)");
+                if (be != null) {
+                    t = be;
+                }
+            }
+        }
+    }
 }

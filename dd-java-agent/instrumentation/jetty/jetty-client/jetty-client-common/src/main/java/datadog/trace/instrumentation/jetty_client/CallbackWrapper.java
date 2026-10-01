@@ -12,146 +12,146 @@ import org.eclipse.jetty.http.HttpField;
 
 public class CallbackWrapper implements Response.Listener, Request.Listener {
 
-  private final AgentSpan parent;
-  private final AgentSpan span;
-  private final Object delegate;
+    private final AgentSpan parent;
+    private final AgentSpan span;
+    private final Object delegate;
 
-  public CallbackWrapper(AgentSpan parent, AgentSpan span, Object delegate) {
-    this.parent = parent;
-    this.span = span;
-    this.delegate = delegate;
-  }
-
-  @Override
-  public void onBegin(Response response) {
-    if (delegate instanceof Response.BeginListener) {
-      try (ContextScope scope = activate(span)) {
-        ((Response.BeginListener) delegate).onBegin(response);
-      }
+    public CallbackWrapper(AgentSpan parent, AgentSpan span, Object delegate) {
+        this.parent = parent;
+        this.span = span;
+        this.delegate = delegate;
     }
-  }
 
-  @Override
-  public void onComplete(Result result) {
-    if (delegate instanceof Response.CompleteListener) {
-      // this probably does the wrong thing, but preserves old behaviour and is consistent
-      // with other http clients with completion callback registration
-      try (ContextScope scope = activate(parent)) {
-        ((Response.CompleteListener) delegate).onComplete(result);
-      }
+    @Override
+    public void onBegin(Response response) {
+        if (delegate instanceof Response.BeginListener) {
+            try (ContextScope scope = activate(span)) {
+                ((Response.BeginListener) delegate).onBegin(response);
+            }
+        }
     }
-  }
 
-  @Override
-  public void onContent(Response response, ByteBuffer content) {
-    if (delegate instanceof Response.ContentListener) {
-      try (ContextScope scope = activate(span)) {
-        ((Response.ContentListener) delegate).onContent(response, content);
-      }
+    @Override
+    public void onComplete(Result result) {
+        if (delegate instanceof Response.CompleteListener) {
+            // this probably does the wrong thing, but preserves old behaviour and is consistent
+            // with other http clients with completion callback registration
+            try (ContextScope scope = activate(parent)) {
+                ((Response.CompleteListener) delegate).onComplete(result);
+            }
+        }
     }
-  }
 
-  @Override
-  public void onFailure(Response response, Throwable failure) {
-    if (delegate instanceof Response.FailureListener) {
-      try (ContextScope scope = activate(span)) {
-        ((Response.FailureListener) delegate).onFailure(response, failure);
-      }
+    @Override
+    public void onContent(Response response, ByteBuffer content) {
+        if (delegate instanceof Response.ContentListener) {
+            try (ContextScope scope = activate(span)) {
+                ((Response.ContentListener) delegate).onContent(response, content);
+            }
+        }
     }
-  }
 
-  @Override
-  public boolean onHeader(Response response, HttpField field) {
-    if (delegate instanceof Response.HeaderListener) {
-      try (ContextScope scope = activate(span)) {
-        return ((Response.HeaderListener) delegate).onHeader(response, field);
-      }
+    @Override
+    public void onFailure(Response response, Throwable failure) {
+        if (delegate instanceof Response.FailureListener) {
+            try (ContextScope scope = activate(span)) {
+                ((Response.FailureListener) delegate).onFailure(response, failure);
+            }
+        }
     }
-    return false;
-  }
 
-  @Override
-  public void onHeaders(Response response) {
-    if (delegate instanceof Response.HeadersListener) {
-      try (ContextScope scope = activate(span)) {
-        ((Response.HeadersListener) delegate).onHeaders(response);
-      }
+    @Override
+    public boolean onHeader(Response response, HttpField field) {
+        if (delegate instanceof Response.HeaderListener) {
+            try (ContextScope scope = activate(span)) {
+                return ((Response.HeaderListener) delegate).onHeader(response, field);
+            }
+        }
+        return false;
     }
-  }
 
-  @Override
-  public void onSuccess(Response response) {
-    if (delegate instanceof Response.SuccessListener) {
-      try (ContextScope scope = activate(span)) {
-        ((Response.SuccessListener) delegate).onSuccess(response);
-      }
+    @Override
+    public void onHeaders(Response response) {
+        if (delegate instanceof Response.HeadersListener) {
+            try (ContextScope scope = activate(span)) {
+                ((Response.HeadersListener) delegate).onHeaders(response);
+            }
+        }
     }
-  }
 
-  @Override
-  public void onBegin(Request request) {
-    if (delegate instanceof Request.BeginListener) {
-      try (ContextScope scope = activate(span)) {
-        ((Request.SuccessListener) delegate).onSuccess(request);
-      }
+    @Override
+    public void onSuccess(Response response) {
+        if (delegate instanceof Response.SuccessListener) {
+            try (ContextScope scope = activate(span)) {
+                ((Response.SuccessListener) delegate).onSuccess(response);
+            }
+        }
     }
-  }
 
-  @Override
-  public void onCommit(Request request) {
-    if (delegate instanceof Request.CommitListener) {
-      try (ContextScope scope = activate(span)) {
-        ((Request.CommitListener) delegate).onCommit(request);
-      }
+    @Override
+    public void onBegin(Request request) {
+        if (delegate instanceof Request.BeginListener) {
+            try (ContextScope scope = activate(span)) {
+                ((Request.SuccessListener) delegate).onSuccess(request);
+            }
+        }
     }
-  }
 
-  @Override
-  public void onContent(Request request, ByteBuffer content) {
-    if (delegate instanceof Request.ContentListener) {
-      try (ContextScope scope = activate(span)) {
-        ((Request.ContentListener) delegate).onContent(request, content);
-      }
+    @Override
+    public void onCommit(Request request) {
+        if (delegate instanceof Request.CommitListener) {
+            try (ContextScope scope = activate(span)) {
+                ((Request.CommitListener) delegate).onCommit(request);
+            }
+        }
     }
-  }
 
-  @Override
-  public void onFailure(Request request, Throwable failure) {
-    if (delegate instanceof Request.FailureListener) {
-      try (ContextScope scope = activate(span)) {
-        ((Request.FailureListener) delegate).onFailure(request, failure);
-      }
+    @Override
+    public void onContent(Request request, ByteBuffer content) {
+        if (delegate instanceof Request.ContentListener) {
+            try (ContextScope scope = activate(span)) {
+                ((Request.ContentListener) delegate).onContent(request, content);
+            }
+        }
     }
-  }
 
-  @Override
-  public void onHeaders(Request request) {
-    if (delegate instanceof Request.HeadersListener) {
-      try (ContextScope scope = activate(span)) {
-        ((Request.HeadersListener) delegate).onHeaders(request);
-      }
+    @Override
+    public void onFailure(Request request, Throwable failure) {
+        if (delegate instanceof Request.FailureListener) {
+            try (ContextScope scope = activate(span)) {
+                ((Request.FailureListener) delegate).onFailure(request, failure);
+            }
+        }
     }
-  }
 
-  @Override
-  public void onQueued(Request request) {
-    if (delegate instanceof Request.QueuedListener) {
-      try (ContextScope scope = activate(span)) {
-        ((Request.QueuedListener) delegate).onQueued(request);
-      }
+    @Override
+    public void onHeaders(Request request) {
+        if (delegate instanceof Request.HeadersListener) {
+            try (ContextScope scope = activate(span)) {
+                ((Request.HeadersListener) delegate).onHeaders(request);
+            }
+        }
     }
-  }
 
-  @Override
-  public void onSuccess(Request request) {
-    if (delegate instanceof Request.SuccessListener) {
-      try (ContextScope scope = activate(span)) {
-        ((Request.SuccessListener) delegate).onSuccess(request);
-      }
+    @Override
+    public void onQueued(Request request) {
+        if (delegate instanceof Request.QueuedListener) {
+            try (ContextScope scope = activate(span)) {
+                ((Request.QueuedListener) delegate).onQueued(request);
+            }
+        }
     }
-  }
 
-  private ContextScope activate(AgentSpan span) {
-    return null == span ? null : activateSpan(span);
-  }
+    @Override
+    public void onSuccess(Request request) {
+        if (delegate instanceof Request.SuccessListener) {
+            try (ContextScope scope = activate(span)) {
+                ((Request.SuccessListener) delegate).onSuccess(request);
+            }
+        }
+    }
+
+    private ContextScope activate(AgentSpan span) {
+        return null == span ? null : activateSpan(span);
+    }
 }

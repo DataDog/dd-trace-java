@@ -9,14 +9,13 @@ import org.springframework.scheduling.config.ScheduledTaskHolder;
 @Configuration
 @EnableScheduling
 public class TriggerTaskConfig {
-  @Bean
-  public TriggerTask triggerTasks() {
-    return new TriggerTask();
-  }
+    @Bean
+    public TriggerTask triggerTasks() {
+        return new TriggerTask();
+    }
 
-  @Bean
-  public ScheduledTasksEndpoint scheduledTasksEndpoint(
-      ObjectProvider<ScheduledTaskHolder> holders) {
-    return new ScheduledTasksEndpoint(holders.orderedStream().collect(Collectors.toSet()));
-  }
+    @Bean
+    public ScheduledTasksEndpoint scheduledTasksEndpoint(ObjectProvider<ScheduledTaskHolder> holders) {
+        return new ScheduledTasksEndpoint(holders.orderedStream().collect(Collectors.toSet()));
+    }
 }

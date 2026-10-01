@@ -12,74 +12,68 @@ import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabas
 
 public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecorator<RedisURI> {
 
-  public static final CharSequence REDIS_CLIENT = UTF8BytesString.create("redis-client");
+    public static final CharSequence REDIS_CLIENT = UTF8BytesString.create("redis-client");
 
-  public static final CharSequence OPERATION_NAME =
-      UTF8BytesString.create(SpanNaming.instance().namingSchema().cache().operation("redis"));
-  private static final String SERVICE_NAME =
-      SpanNaming.instance().namingSchema().cache().service("redis");
-  public static final LettuceClientDecorator DECORATE = new LettuceClientDecorator();
+    public static final CharSequence OPERATION_NAME =
+            UTF8BytesString.create(SpanNaming.instance().namingSchema().cache().operation("redis"));
+    private static final String SERVICE_NAME =
+            SpanNaming.instance().namingSchema().cache().service("redis");
+    public static final LettuceClientDecorator DECORATE = new LettuceClientDecorator();
 
-  @Override
-  protected String[] instrumentationNames() {
-    return new String[] {"lettuce"};
-  }
-
-  @Override
-  protected String service() {
-    return SERVICE_NAME;
-  }
-
-  @Override
-  protected CharSequence component() {
-    return REDIS_CLIENT;
-  }
-
-  @Override
-  protected CharSequence spanType() {
-    return InternalSpanTypes.REDIS;
-  }
-
-  @Override
-  protected String dbType() {
-    return "redis";
-  }
-
-  @Override
-  protected String dbUser(final RedisURI connection) {
-    return null;
-  }
-
-  @Override
-  protected String dbInstance(final RedisURI connection) {
-    return null;
-  }
-
-  @Override
-  protected String dbHostname(RedisURI redisURI) {
-    return redisURI.getHost();
-  }
-
-  @Override
-  public void onConnection(final AgentSpan span, final RedisURI connection) {
-    if (connection != null) {
-      setPeerPort(span, connection.getPort());
-      span.setTag("db.redis.dbIndex", connection.getDatabase());
+    @Override
+    protected String[] instrumentationNames() {
+        return new String[] {"lettuce"};
     }
-    super.onConnection(span, connection);
-  }
 
-  public void onCommand(final AgentSpan span, final RedisCommand<?, ?, ?> command) {
-    span.setResourceName(
-        null == command ? "Redis Command" : getCommandResourceName(command.getType()));
-  }
+    @Override
+    protected String service() {
+        return SERVICE_NAME;
+    }
 
-  public String resourceNameForConnection(final RedisURI redisURI) {
-    return "CONNECT:"
-        + redisURI.getHost()
-        + ":"
-        + redisURI.getPort()
-        + "/"
-        + redisURI.getDatabase();
-  }
+    @Override
+    protected CharSequence component() {
+        return REDIS_CLIENT;
+    }
+
+    @Override
+    protected CharSequence spanType() {
+        return InternalSpanTypes.REDIS;
+    }
+
+    @Override
+    protected String dbType() {
+        return "redis";
+    }
+
+    @Override
+    protected String dbUser(final RedisURI connection) {
+        return null;
+    }
+
+    @Override
+    protected String dbInstance(final RedisURI connection) {
+        return null;
+    }
+
+    @Override
+    protected String dbHostname(RedisURI redisURI) {
+        return redisURI.getHost();
+    }
+
+    @Override
+    public void onConnection(final AgentSpan span, final RedisURI connection) {
+        if (connection != null) {
+            setPeerPort(span, connection.getPort());
+            span.setTag("db.redis.dbIndex", connection.getDatabase());
+        }
+        super.onConnection(span, connection);
+    }
+
+    public void onCommand(final AgentSpan span, final RedisCommand<?, ?, ?> command) {
+        span.setResourceName(null == command ? "Redis Command" : getCommandResourceName(command.getType()));
+    }
+
+    public String resourceNameForConnection(final RedisURI redisURI) {
+        return "CONNECT:" + redisURI.getHost() + ":" + redisURI.getPort() + "/" + redisURI.getDatabase();
+    }
 }

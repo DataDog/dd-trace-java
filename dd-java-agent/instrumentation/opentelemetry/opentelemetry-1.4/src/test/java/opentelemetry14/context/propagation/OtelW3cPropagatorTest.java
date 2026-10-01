@@ -14,30 +14,29 @@ import org.junit.jupiter.params.provider.Arguments;
 
 @WithConfig(key = "trace.propagation.style", value = "datadog")
 class OtelW3cPropagatorTest extends AbstractPropagatorTest {
-  @Override
-  TextMapPropagator propagator() {
-    return W3CTraceContextPropagator.getInstance();
-  }
+    @Override
+    TextMapPropagator propagator() {
+        return W3CTraceContextPropagator.getInstance();
+    }
 
-  static Stream<Arguments> values() {
-    return Stream.of(
-        arguments(
-            headers("traceparent", "00-00000000000000001111111111111111-2222222222222222-00"),
-            "00000000000000001111111111111111",
-            "2222222222222222",
-            UNSET),
-        arguments(
-            headers("traceparent", "00-00000000000000001111111111111111-2222222222222222-01"),
-            "00000000000000001111111111111111",
-            "2222222222222222",
-            SAMPLER_KEEP));
-  }
+    static Stream<Arguments> values() {
+        return Stream.of(
+                arguments(
+                        headers("traceparent", "00-00000000000000001111111111111111-2222222222222222-00"),
+                        "00000000000000001111111111111111",
+                        "2222222222222222",
+                        UNSET),
+                arguments(
+                        headers("traceparent", "00-00000000000000001111111111111111-2222222222222222-01"),
+                        "00000000000000001111111111111111",
+                        "2222222222222222",
+                        SAMPLER_KEEP));
+    }
 
-  @Override
-  void assertInjectedHeaders(
-      Map<String, String> headers, String traceId, String spanId, byte sampling) {
-    String sampleFlag = sampling == SAMPLER_KEEP ? "01" : "00";
-    String expectedTraceParent = "00-" + traceId + "-" + spanId + "-" + sampleFlag;
-    assertEquals(expectedTraceParent, headers.get("traceparent"));
-  }
+    @Override
+    void assertInjectedHeaders(Map<String, String> headers, String traceId, String spanId, byte sampling) {
+        String sampleFlag = sampling == SAMPLER_KEEP ? "01" : "00";
+        String expectedTraceParent = "00-" + traceId + "-" + spanId + "-" + sampleFlag;
+        assertEquals(expectedTraceParent, headers.get("traceparent"));
+    }
 }

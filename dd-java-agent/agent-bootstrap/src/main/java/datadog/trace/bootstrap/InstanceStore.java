@@ -16,65 +16,65 @@ import javax.annotation.Nullable;
  */
 public final class InstanceStore<T> {
 
-  @SuppressWarnings("rawtypes")
-  private static final ClassValue<InstanceStore> classInstanceStore =
-      GenericClassValue.of(type -> new InstanceStore<>());
+    @SuppressWarnings("rawtypes")
+    private static final ClassValue<InstanceStore> classInstanceStore =
+            GenericClassValue.of(type -> new InstanceStore<>());
 
-  /**
-   * @return global store of instances with the same common type
-   */
-  @SuppressWarnings("unchecked")
-  public static <T> InstanceStore<T> of(Class<T> type) {
-    return classInstanceStore.get(type);
-  }
+    /**
+     * @return global store of instances with the same common type
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> InstanceStore<T> of(Class<T> type) {
+        return classInstanceStore.get(type);
+    }
 
-  // simple approach; instance stores don't need highly concurrent access or weak keys
-  private final Map<String, T> store = Collections.synchronizedMap(new HashMap<>());
+    // simple approach; instance stores don't need highly concurrent access or weak keys
+    private final Map<String, T> store = Collections.synchronizedMap(new HashMap<>());
 
-  private InstanceStore() {}
+    private InstanceStore() {}
 
-  /**
-   * Gets the instance of {@code T} currently associated with the given key.
-   *
-   * @param key the instance key
-   * @return the associated instance; {@code null} if there was none
-   */
-  @Nullable
-  public T get(String key) {
-    return store.get(key);
-  }
+    /**
+     * Gets the instance of {@code T} currently associated with the given key.
+     *
+     * @param key the instance key
+     * @return the associated instance; {@code null} if there was none
+     */
+    @Nullable
+    public T get(String key) {
+        return store.get(key);
+    }
 
-  /**
-   * Unconditionally associates an instance of {@code T} with the given key.
-   *
-   * @param key the instance key
-   * @param instance the instance
-   */
-  public void put(String key, T instance) {
-    store.put(key, instance);
-  }
+    /**
+     * Unconditionally associates an instance of {@code T} with the given key.
+     *
+     * @param key the instance key
+     * @param instance the instance
+     */
+    public void put(String key, T instance) {
+        store.put(key, instance);
+    }
 
-  /**
-   * If the given key is not already associated with an instance, create one using the factory and
-   * associate it. Unlike {@link java.util.Map#putIfAbsent} this always returns the final associated
-   * instance.
-   *
-   * @param key the instance key
-   * @param instanceFactory the factory to create instances
-   * @return final associated instance
-   */
-  public T getOrCreate(String key, Supplier<T> instanceFactory) {
-    return store.computeIfAbsent(key, k -> instanceFactory.get());
-  }
+    /**
+     * If the given key is not already associated with an instance, create one using the factory and
+     * associate it. Unlike {@link java.util.Map#putIfAbsent} this always returns the final associated
+     * instance.
+     *
+     * @param key the instance key
+     * @param instanceFactory the factory to create instances
+     * @return final associated instance
+     */
+    public T getOrCreate(String key, Supplier<T> instanceFactory) {
+        return store.computeIfAbsent(key, k -> instanceFactory.get());
+    }
 
-  /**
-   * Removes the instance of {@code T} currently associated with the given key.
-   *
-   * @param key the instance key
-   * @return the previously associated instance; {@code null} if there was none
-   */
-  @Nullable
-  public T remove(String key) {
-    return store.remove(key);
-  }
+    /**
+     * Removes the instance of {@code T} currently associated with the given key.
+     *
+     * @param key the instance key
+     * @return the previously associated instance; {@code null} if there was none
+     */
+    @Nullable
+    public T remove(String key) {
+        return store.remove(key);
+    }
 }

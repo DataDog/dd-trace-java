@@ -7,10 +7,10 @@ import play.shaded.ahc.org.asynchttpclient.Request;
 @ParametersAreNonnullByDefault
 public class HeadersInjectAdapter implements CarrierSetter<Request> {
 
-  public static final HeadersInjectAdapter SETTER = new HeadersInjectAdapter();
+    public static final HeadersInjectAdapter SETTER = new HeadersInjectAdapter();
 
-  @Override
-  public void set(final Request carrier, final String key, final String value) {
-    carrier.getHeaders().add(key, value);
-  }
+    @Override
+    public void set(final Request carrier, final String key, final String value) {
+        carrier.getHeaders().add(key, value);
+    }
 }

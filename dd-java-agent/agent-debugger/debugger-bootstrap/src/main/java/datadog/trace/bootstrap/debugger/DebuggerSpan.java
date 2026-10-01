@@ -1,18 +1,18 @@
 package datadog.trace.bootstrap.debugger;
 
 public interface DebuggerSpan {
-  void finish();
+    void finish();
 
-  void setError(Throwable t);
+    void setError(Throwable t);
 
-  DebuggerSpan NOOP_SPAN = new NoopSpan();
+    DebuggerSpan NOOP_SPAN = new NoopSpan();
 
-  class NoopSpan implements DebuggerSpan {
+    class NoopSpan implements DebuggerSpan {
 
-    @Override
-    public void finish() {}
+        @Override
+        public void finish() {}
 
-    @Override
-    public void setError(Throwable t) {}
-  }
+        @Override
+        public void setError(Throwable t) {}
+    }
 }

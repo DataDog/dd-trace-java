@@ -37,185 +37,182 @@ import org.openjdk.jmh.infra.Blackhole;
 @Fork(value = 3)
 public class NumericConversionBenchmark {
 
-  static {
-    BenchmarkUtil.disableLogging();
-  }
+    static {
+        BenchmarkUtil.disableLogging();
+    }
 
-  private AppSecRequestContext context;
-  private TraceSegment mockTraceSegment;
+    private AppSecRequestContext context;
+    private TraceSegment mockTraceSegment;
 
-  @Setup(Level.Iteration)
-  public void setUp() {
-    context = new AppSecRequestContext();
-    // Use NoOp TraceSegment to minimize overhead
-    mockTraceSegment = TraceSegment.NoOp.INSTANCE;
-  }
+    @Setup(Level.Iteration)
+    public void setUp() {
+        context = new AppSecRequestContext();
+        // Use NoOp TraceSegment to minimize overhead
+        mockTraceSegment = TraceSegment.NoOp.INSTANCE;
+    }
 
-  @Benchmark
-  public void validInteger(Blackhole blackhole) {
-    context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "42")));
-    boolean result = context.commitDerivatives(mockTraceSegment);
-    blackhole.consume(result);
-  }
+    @Benchmark
+    public void validInteger(Blackhole blackhole) {
+        context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "42")));
+        boolean result = context.commitDerivatives(mockTraceSegment);
+        blackhole.consume(result);
+    }
 
-  @Benchmark
-  public void validIntegerNegative(Blackhole blackhole) {
-    context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "-12345")));
-    boolean result = context.commitDerivatives(mockTraceSegment);
-    blackhole.consume(result);
-  }
+    @Benchmark
+    public void validIntegerNegative(Blackhole blackhole) {
+        context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "-12345")));
+        boolean result = context.commitDerivatives(mockTraceSegment);
+        blackhole.consume(result);
+    }
 
-  @Benchmark
-  public void validIntegerWithSign(Blackhole blackhole) {
-    context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "+999")));
-    boolean result = context.commitDerivatives(mockTraceSegment);
-    blackhole.consume(result);
-  }
+    @Benchmark
+    public void validIntegerWithSign(Blackhole blackhole) {
+        context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "+999")));
+        boolean result = context.commitDerivatives(mockTraceSegment);
+        blackhole.consume(result);
+    }
 
-  @Benchmark
-  public void validDecimal(Blackhole blackhole) {
-    context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "3.14")));
-    boolean result = context.commitDerivatives(mockTraceSegment);
-    blackhole.consume(result);
-  }
+    @Benchmark
+    public void validDecimal(Blackhole blackhole) {
+        context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "3.14")));
+        boolean result = context.commitDerivatives(mockTraceSegment);
+        blackhole.consume(result);
+    }
 
-  @Benchmark
-  public void validDecimalNegative(Blackhole blackhole) {
-    context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "-99.5")));
-    boolean result = context.commitDerivatives(mockTraceSegment);
-    blackhole.consume(result);
-  }
+    @Benchmark
+    public void validDecimalNegative(Blackhole blackhole) {
+        context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "-99.5")));
+        boolean result = context.commitDerivatives(mockTraceSegment);
+        blackhole.consume(result);
+    }
 
-  @Benchmark
-  public void validLargeNumber(Blackhole blackhole) {
-    context.reportDerivatives(
-        singletonMap("test_attr", singletonMap("value", "9223372036854775807")));
-    boolean result = context.commitDerivatives(mockTraceSegment);
-    blackhole.consume(result);
-  }
+    @Benchmark
+    public void validLargeNumber(Blackhole blackhole) {
+        context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "9223372036854775807")));
+        boolean result = context.commitDerivatives(mockTraceSegment);
+        blackhole.consume(result);
+    }
 
-  // Invalid inputs - these should show the biggest improvement (no exceptions thrown)
-  @Benchmark
-  public void invalidAlphabetic(Blackhole blackhole) {
-    context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "not_a_number")));
-    boolean result = context.commitDerivatives(mockTraceSegment);
-    blackhole.consume(result);
-  }
+    // Invalid inputs - these should show the biggest improvement (no exceptions thrown)
+    @Benchmark
+    public void invalidAlphabetic(Blackhole blackhole) {
+        context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "not_a_number")));
+        boolean result = context.commitDerivatives(mockTraceSegment);
+        blackhole.consume(result);
+    }
 
-  @Benchmark
-  public void invalidAlphanumeric(Blackhole blackhole) {
-    context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "12x34")));
-    boolean result = context.commitDerivatives(mockTraceSegment);
-    blackhole.consume(result);
-  }
+    @Benchmark
+    public void invalidAlphanumeric(Blackhole blackhole) {
+        context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "12x34")));
+        boolean result = context.commitDerivatives(mockTraceSegment);
+        blackhole.consume(result);
+    }
 
-  @Benchmark
-  public void invalidMultipleDecimals(Blackhole blackhole) {
-    context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "3.14.15")));
-    boolean result = context.commitDerivatives(mockTraceSegment);
-    blackhole.consume(result);
-  }
+    @Benchmark
+    public void invalidMultipleDecimals(Blackhole blackhole) {
+        context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "3.14.15")));
+        boolean result = context.commitDerivatives(mockTraceSegment);
+        blackhole.consume(result);
+    }
 
-  @Benchmark
-  public void invalidHexFormat(Blackhole blackhole) {
-    context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "0x10")));
-    boolean result = context.commitDerivatives(mockTraceSegment);
-    blackhole.consume(result);
-  }
+    @Benchmark
+    public void invalidHexFormat(Blackhole blackhole) {
+        context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "0x10")));
+        boolean result = context.commitDerivatives(mockTraceSegment);
+        blackhole.consume(result);
+    }
 
-  @Benchmark
-  public void invalidScientific(Blackhole blackhole) {
-    context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "1e10")));
-    boolean result = context.commitDerivatives(mockTraceSegment);
-    blackhole.consume(result);
-  }
+    @Benchmark
+    public void invalidScientific(Blackhole blackhole) {
+        context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "1e10")));
+        boolean result = context.commitDerivatives(mockTraceSegment);
+        blackhole.consume(result);
+    }
 
-  @Benchmark
-  public void invalidSpecialChars(Blackhole blackhole) {
-    context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "$100")));
-    boolean result = context.commitDerivatives(mockTraceSegment);
-    blackhole.consume(result);
-  }
+    @Benchmark
+    public void invalidSpecialChars(Blackhole blackhole) {
+        context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "$100")));
+        boolean result = context.commitDerivatives(mockTraceSegment);
+        blackhole.consume(result);
+    }
 
-  // Whitespace handling - now works correctly after optimization (issue #10494)
-  @Benchmark
-  public void whitespaceLeading(Blackhole blackhole) {
-    context.reportDerivatives(singletonMap("test_attr", singletonMap("value", " 42")));
-    boolean result = context.commitDerivatives(mockTraceSegment);
-    blackhole.consume(result);
-  }
+    // Whitespace handling - now works correctly after optimization (issue #10494)
+    @Benchmark
+    public void whitespaceLeading(Blackhole blackhole) {
+        context.reportDerivatives(singletonMap("test_attr", singletonMap("value", " 42")));
+        boolean result = context.commitDerivatives(mockTraceSegment);
+        blackhole.consume(result);
+    }
 
-  @Benchmark
-  public void whitespaceTrailing(Blackhole blackhole) {
-    context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "42 ")));
-    boolean result = context.commitDerivatives(mockTraceSegment);
-    blackhole.consume(result);
-  }
+    @Benchmark
+    public void whitespaceTrailing(Blackhole blackhole) {
+        context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "42 ")));
+        boolean result = context.commitDerivatives(mockTraceSegment);
+        blackhole.consume(result);
+    }
 
-  @Benchmark
-  public void whitespaceBoth(Blackhole blackhole) {
-    context.reportDerivatives(singletonMap("test_attr", singletonMap("value", " 42 ")));
-    boolean result = context.commitDerivatives(mockTraceSegment);
-    blackhole.consume(result);
-  }
+    @Benchmark
+    public void whitespaceBoth(Blackhole blackhole) {
+        context.reportDerivatives(singletonMap("test_attr", singletonMap("value", " 42 ")));
+        boolean result = context.commitDerivatives(mockTraceSegment);
+        blackhole.consume(result);
+    }
 
-  @Benchmark
-  public void whitespaceTabNewline(Blackhole blackhole) {
-    context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "\t100\n")));
-    boolean result = context.commitDerivatives(mockTraceSegment);
-    blackhole.consume(result);
-  }
+    @Benchmark
+    public void whitespaceTabNewline(Blackhole blackhole) {
+        context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "\t100\n")));
+        boolean result = context.commitDerivatives(mockTraceSegment);
+        blackhole.consume(result);
+    }
 
-  // Empty/null - fast rejection
-  @Benchmark
-  public void emptyString(Blackhole blackhole) {
-    context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "")));
-    boolean result = context.commitDerivatives(mockTraceSegment);
-    blackhole.consume(result);
-  }
+    // Empty/null - fast rejection
+    @Benchmark
+    public void emptyString(Blackhole blackhole) {
+        context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "")));
+        boolean result = context.commitDerivatives(mockTraceSegment);
+        blackhole.consume(result);
+    }
 
-  @Benchmark
-  public void whitespaceOnly(Blackhole blackhole) {
-    context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "   ")));
-    boolean result = context.commitDerivatives(mockTraceSegment);
-    blackhole.consume(result);
-  }
+    @Benchmark
+    public void whitespaceOnly(Blackhole blackhole) {
+        context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "   ")));
+        boolean result = context.commitDerivatives(mockTraceSegment);
+        blackhole.consume(result);
+    }
 
-  // Overflow cases - should handle gracefully without exceptions
-  @Benchmark
-  public void overflowLongMax(Blackhole blackhole) {
-    context.reportDerivatives(
-        singletonMap("test_attr", singletonMap("value", "9223372036854775808")));
-    boolean result = context.commitDerivatives(mockTraceSegment);
-    blackhole.consume(result);
-  }
+    // Overflow cases - should handle gracefully without exceptions
+    @Benchmark
+    public void overflowLongMax(Blackhole blackhole) {
+        context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "9223372036854775808")));
+        boolean result = context.commitDerivatives(mockTraceSegment);
+        blackhole.consume(result);
+    }
 
-  @Benchmark
-  public void overflowVeryLarge(Blackhole blackhole) {
-    context.reportDerivatives(
-        singletonMap("test_attr", singletonMap("value", "99999999999999999999999")));
-    boolean result = context.commitDerivatives(mockTraceSegment);
-    blackhole.consume(result);
-  }
+    @Benchmark
+    public void overflowVeryLarge(Blackhole blackhole) {
+        context.reportDerivatives(singletonMap("test_attr", singletonMap("value", "99999999999999999999999")));
+        boolean result = context.commitDerivatives(mockTraceSegment);
+        blackhole.consume(result);
+    }
 
-  // Mixed workload - realistic scenario with 80% invalid, 20% valid
-  @Benchmark
-  public void mixedWorkload(Blackhole blackhole) {
-    // Invalid (80%)
-    context.reportDerivatives(singletonMap("attr1", singletonMap("value", "invalid")));
-    blackhole.consume(context.commitDerivatives(mockTraceSegment));
+    // Mixed workload - realistic scenario with 80% invalid, 20% valid
+    @Benchmark
+    public void mixedWorkload(Blackhole blackhole) {
+        // Invalid (80%)
+        context.reportDerivatives(singletonMap("attr1", singletonMap("value", "invalid")));
+        blackhole.consume(context.commitDerivatives(mockTraceSegment));
 
-    context.reportDerivatives(singletonMap("attr2", singletonMap("value", "abc123")));
-    blackhole.consume(context.commitDerivatives(mockTraceSegment));
+        context.reportDerivatives(singletonMap("attr2", singletonMap("value", "abc123")));
+        blackhole.consume(context.commitDerivatives(mockTraceSegment));
 
-    context.reportDerivatives(singletonMap("attr3", singletonMap("value", "0x10")));
-    blackhole.consume(context.commitDerivatives(mockTraceSegment));
+        context.reportDerivatives(singletonMap("attr3", singletonMap("value", "0x10")));
+        blackhole.consume(context.commitDerivatives(mockTraceSegment));
 
-    context.reportDerivatives(singletonMap("attr4", singletonMap("value", "")));
-    blackhole.consume(context.commitDerivatives(mockTraceSegment));
+        context.reportDerivatives(singletonMap("attr4", singletonMap("value", "")));
+        blackhole.consume(context.commitDerivatives(mockTraceSegment));
 
-    // Valid (20%)
-    context.reportDerivatives(singletonMap("attr5", singletonMap("value", "42")));
-    blackhole.consume(context.commitDerivatives(mockTraceSegment));
-  }
+        // Valid (20%)
+        context.reportDerivatives(singletonMap("attr5", singletonMap("value", "42")));
+        blackhole.consume(context.commitDerivatives(mockTraceSegment));
+    }
 }

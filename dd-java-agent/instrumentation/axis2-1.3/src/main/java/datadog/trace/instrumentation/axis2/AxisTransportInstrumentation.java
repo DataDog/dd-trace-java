@@ -25,91 +25,87 @@ import net.bytebuddy.asm.Advice;
 import org.apache.axis2.context.MessageContext;
 
 public final class AxisTransportInstrumentation
-    implements Instrumenter.ForKnownTypes,
-        Instrumenter.ForConfiguredType,
-        Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForKnownTypes, Instrumenter.ForConfiguredType, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {"com.ibm.ws.websvcs.transport.http.HTTPTransportSender"};
-  }
-
-  @Override
-  public String configuredMatchingType() {
-    // this won't match any class unless the property is set
-    return InstrumenterConfig.get().getAxisTransportClassName();
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvices(
-        isMethod()
-            .and(named("invoke"))
-            .and(takesArgument(0, named("org.apache.axis2.context.MessageContext"))),
-        getClass().getName() + "$TransportAdvice",
-        getClass().getName() + "$TransportContextPropagationAdvice");
-  }
-
-  public static final class TransportAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope beginTransport(@Advice.Argument(0) final MessageContext message) {
-      // only create a span if the message has a clear action and there's a surrounding request
-      if (DECORATE.shouldTrace(message)) {
-        AgentSpan span = startSpan("axis2", AXIS2_TRANSPORT);
-        DECORATE.afterStart(span);
-        DECORATE.onTransport(span, message);
-        DECORATE.onMessage(span, message);
-        return activateSpan(span);
-      }
-      return null;
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {"com.ibm.ws.websvcs.transport.http.HTTPTransportSender"};
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void finishTransport(
-        @Advice.Enter final ContextScope scope,
-        @Advice.Argument(0) final MessageContext message,
-        @Advice.Thrown final Throwable error) {
-      if (null == scope) {
-        return;
-      }
+    @Override
+    public String configuredMatchingType() {
+        // this won't match any class unless the property is set
+        return InstrumenterConfig.get().getAxisTransportClassName();
+    }
 
-      AgentSpan span = spanFromScope(scope);
-      if (null != error) {
-        // cancel async tracking when we know there's an error
-        message.removePropertyNonReplicable(AXIS2_ASYNC_SPAN_KEY);
-        DECORATE.onError(span, error);
-      }
-      scope.close();
-      if (span.equals(message.getPropertyNonReplicable(AXIS2_ASYNC_SPAN_KEY))) {
-        // delay finishing span until async callback completes...
-      } else {
-        Object statusCode = message.getProperty("transport.http.statusCode");
-        if (statusCode instanceof Integer) {
-          span.setHttpStatusCode((Integer) statusCode);
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvices(
+                isMethod().and(named("invoke")).and(takesArgument(0, named("org.apache.axis2.context.MessageContext"))),
+                getClass().getName() + "$TransportAdvice",
+                getClass().getName() + "$TransportContextPropagationAdvice");
+    }
+
+    public static final class TransportAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope beginTransport(@Advice.Argument(0) final MessageContext message) {
+            // only create a span if the message has a clear action and there's a surrounding request
+            if (DECORATE.shouldTrace(message)) {
+                AgentSpan span = startSpan("axis2", AXIS2_TRANSPORT);
+                DECORATE.afterStart(span);
+                DECORATE.onTransport(span, message);
+                DECORATE.onMessage(span, message);
+                return activateSpan(span);
+            }
+            return null;
         }
-        DECORATE.beforeFinish(span, message);
-        span.finish();
-      }
-    }
-  }
 
-  @AppliesOn(CONTEXT_TRACKING)
-  public static final class TransportContextPropagationAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(@Advice.Argument(0) final MessageContext message) {
-      AgentSpan span = activeSpan();
-      if (span == null) return;
-      // the transport handler will copy TRANSPORT_HEADERS to the outgoing request
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      Map<String, Object> headers = (Map) message.getProperty("TRANSPORT_HEADERS");
-      if (null == headers) {
-        headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-        message.setProperty("TRANSPORT_HEADERS", headers);
-      }
-      try {
-        defaultPropagator().inject(span, headers, SETTER);
-      } catch (Throwable ignore) {
-      }
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void finishTransport(
+                @Advice.Enter final ContextScope scope,
+                @Advice.Argument(0) final MessageContext message,
+                @Advice.Thrown final Throwable error) {
+            if (null == scope) {
+                return;
+            }
+
+            AgentSpan span = spanFromScope(scope);
+            if (null != error) {
+                // cancel async tracking when we know there's an error
+                message.removePropertyNonReplicable(AXIS2_ASYNC_SPAN_KEY);
+                DECORATE.onError(span, error);
+            }
+            scope.close();
+            if (span.equals(message.getPropertyNonReplicable(AXIS2_ASYNC_SPAN_KEY))) {
+                // delay finishing span until async callback completes...
+            } else {
+                Object statusCode = message.getProperty("transport.http.statusCode");
+                if (statusCode instanceof Integer) {
+                    span.setHttpStatusCode((Integer) statusCode);
+                }
+                DECORATE.beforeFinish(span, message);
+                span.finish();
+            }
+        }
     }
-  }
+
+    @AppliesOn(CONTEXT_TRACKING)
+    public static final class TransportContextPropagationAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter(@Advice.Argument(0) final MessageContext message) {
+            AgentSpan span = activeSpan();
+            if (span == null) return;
+            // the transport handler will copy TRANSPORT_HEADERS to the outgoing request
+            @SuppressWarnings({"unchecked", "rawtypes"})
+            Map<String, Object> headers = (Map) message.getProperty("TRANSPORT_HEADERS");
+            if (null == headers) {
+                headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+                message.setProperty("TRANSPORT_HEADERS", headers);
+            }
+            try {
+                defaultPropagator().inject(span, headers, SETTER);
+            } catch (Throwable ignore) {
+            }
+        }
+    }
 }

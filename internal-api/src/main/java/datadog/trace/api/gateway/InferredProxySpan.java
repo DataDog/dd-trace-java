@@ -28,291 +28,287 @@ import java.util.Map;
 import javax.annotation.Nonnull;
 
 public class InferredProxySpan implements ImplicitContextKeyed {
-  private static final ContextKey<InferredProxySpan> CONTEXT_KEY = named("inferred-proxy-key");
-  static final String PROXY_SYSTEM = "x-dd-proxy";
-  static final String PROXY_START_TIME_MS = "x-dd-proxy-request-time-ms";
-  static final String PROXY_PATH = "x-dd-proxy-path";
-  static final String PROXY_RESOURCE_PATH = "x-dd-proxy-resource-path";
-  static final String PROXY_HTTP_METHOD = "x-dd-proxy-httpmethod";
-  static final String PROXY_DOMAIN_NAME = "x-dd-proxy-domain-name";
-  static final String STAGE = "x-dd-proxy-stage";
-  // Optional tags
-  static final String PROXY_ACCOUNT_ID = "x-dd-proxy-account-id";
-  static final String PROXY_API_ID = "x-dd-proxy-api-id";
-  static final String PROXY_REGION = "x-dd-proxy-region";
-  static final Map<String, String> SUPPORTED_PROXIES;
-  static final String INSTRUMENTATION_NAME = "inferred_proxy";
+    private static final ContextKey<InferredProxySpan> CONTEXT_KEY = named("inferred-proxy-key");
+    static final String PROXY_SYSTEM = "x-dd-proxy";
+    static final String PROXY_START_TIME_MS = "x-dd-proxy-request-time-ms";
+    static final String PROXY_PATH = "x-dd-proxy-path";
+    static final String PROXY_RESOURCE_PATH = "x-dd-proxy-resource-path";
+    static final String PROXY_HTTP_METHOD = "x-dd-proxy-httpmethod";
+    static final String PROXY_DOMAIN_NAME = "x-dd-proxy-domain-name";
+    static final String STAGE = "x-dd-proxy-stage";
+    // Optional tags
+    static final String PROXY_ACCOUNT_ID = "x-dd-proxy-account-id";
+    static final String PROXY_API_ID = "x-dd-proxy-api-id";
+    static final String PROXY_REGION = "x-dd-proxy-region";
+    static final Map<String, String> SUPPORTED_PROXIES;
+    static final String INSTRUMENTATION_NAME = "inferred_proxy";
 
-  static {
-    SUPPORTED_PROXIES = new HashMap<>();
-    SUPPORTED_PROXIES.put("aws-apigateway", "aws.apigateway");
-    SUPPORTED_PROXIES.put("aws-httpapi", "aws.httpapi");
-    SUPPORTED_PROXIES.put("azure-apim", "azure.apim");
-  }
-
-  private final Map<String, String> headers;
-  @VisibleForTesting AgentSpan span;
-  // Service-entry span registered at startSpan() time; used to guard against premature finishing
-  // by child spans (e.g., Spring MVC handler spans) before the response status is known.
-  private AgentSpan registeredServiceEntrySpan;
-  private boolean phasedFinished;
-
-  public static InferredProxySpan fromHeaders(Map<String, String> values) {
-    return new InferredProxySpan(values);
-  }
-
-  public static InferredProxySpan fromContext(Context context) {
-    return context.get(CONTEXT_KEY);
-  }
-
-  private InferredProxySpan(Map<String, String> headers) {
-    this.headers = headers == null ? Collections.emptyMap() : headers;
-  }
-
-  public boolean isValid() {
-    String startTimeStr = header(PROXY_START_TIME_MS);
-    String proxySystem = header(PROXY_SYSTEM);
-    return startTimeStr != null
-        && proxySystem != null
-        && SUPPORTED_PROXIES.containsKey(proxySystem);
-  }
-
-  public AgentSpanContext start(AgentSpanContext extracted) {
-    if (this.span != null || !isValid()) {
-      return extracted;
+    static {
+        SUPPORTED_PROXIES = new HashMap<>();
+        SUPPORTED_PROXIES.put("aws-apigateway", "aws.apigateway");
+        SUPPORTED_PROXIES.put("aws-httpapi", "aws.httpapi");
+        SUPPORTED_PROXIES.put("azure-apim", "azure.apim");
     }
 
-    long startTime;
-    try {
-      startTime = Long.parseLong(header(PROXY_START_TIME_MS)) * 1000; // Convert to microseconds
-    } catch (NumberFormatException e) {
-      return extracted; // Invalid timestamp
+    private final Map<String, String> headers;
+
+    @VisibleForTesting
+    AgentSpan span;
+    // Service-entry span registered at startSpan() time; used to guard against premature finishing
+    // by child spans (e.g., Spring MVC handler spans) before the response status is known.
+    private AgentSpan registeredServiceEntrySpan;
+    private boolean phasedFinished;
+
+    public static InferredProxySpan fromHeaders(Map<String, String> values) {
+        return new InferredProxySpan(values);
     }
 
-    String proxySystem = header(PROXY_SYSTEM);
-    String proxy = SUPPORTED_PROXIES.get(proxySystem);
-    String httpMethod = header(PROXY_HTTP_METHOD);
-    String path = header(PROXY_PATH);
-    String resourcePath = header(PROXY_RESOURCE_PATH);
-    String domainName = header(PROXY_DOMAIN_NAME);
-
-    AgentSpan span = AgentTracer.get().startSpan(INSTRUMENTATION_NAME, proxy, extracted, startTime);
-
-    // Service: value of x-dd-proxy-domain-name or global config if not found
-    String serviceName =
-        domainName != null && !domainName.isEmpty() ? domainName : Config.get().getServiceName();
-    span.setServiceName(serviceName, INSTRUMENTATION_NAME);
-
-    // Component: aws-apigateway or aws-httpapi
-    span.setTag(COMPONENT, proxySystem);
-
-    // Span kind: server
-    span.setTag(SPAN_KIND, SPAN_KIND_SERVER);
-
-    // SpanType: web
-    span.setTag(SPAN_TYPE, "web");
-
-    // Http.method - value of x-dd-proxy-httpmethod
-    span.setTag(HTTP_METHOD, httpMethod);
-
-    // Http.url - https:// + x-dd-proxy-domain-name + x-dd-proxy-path
-    span.setTag(
-        HTTP_URL,
-        domainName != null && !domainName.isEmpty() ? "https://" + domainName + path : path);
-
-    // Http.route - value of x-dd-proxy-resource-path (or x-dd-proxy-path as fallback)
-    span.setTag(HTTP_ROUTE, resourcePath != null && !resourcePath.isEmpty() ? resourcePath : path);
-
-    // "stage" - value of x-dd-proxy-stage
-    span.setTag("stage", header(STAGE));
-
-    // Optional tags - only set if present
-    String accountId = header(PROXY_ACCOUNT_ID);
-    if (accountId != null && !accountId.isEmpty()) {
-      span.setTag("account_id", accountId);
+    public static InferredProxySpan fromContext(Context context) {
+        return context.get(CONTEXT_KEY);
     }
 
-    String apiId = header(PROXY_API_ID);
-    if (apiId != null && !apiId.isEmpty()) {
-      span.setTag("apiid", apiId);
+    private InferredProxySpan(Map<String, String> headers) {
+        this.headers = headers == null ? Collections.emptyMap() : headers;
     }
 
-    String region = header(PROXY_REGION);
-    if (region != null && !region.isEmpty()) {
-      span.setTag("region", region);
+    public boolean isValid() {
+        String startTimeStr = header(PROXY_START_TIME_MS);
+        String proxySystem = header(PROXY_SYSTEM);
+        return startTimeStr != null && proxySystem != null && SUPPORTED_PROXIES.containsKey(proxySystem);
     }
 
-    // Compute and set dd_resource_key (ARN) if we have region and apiId
-    if (region != null && !region.isEmpty() && apiId != null && !apiId.isEmpty()) {
-      String arn = computeArn(proxySystem, region, apiId);
-      if (arn != null) {
-        span.setTag("dd_resource_key", arn);
-      }
+    public AgentSpanContext start(AgentSpanContext extracted) {
+        if (this.span != null || !isValid()) {
+            return extracted;
+        }
+
+        long startTime;
+        try {
+            startTime = Long.parseLong(header(PROXY_START_TIME_MS)) * 1000; // Convert to microseconds
+        } catch (NumberFormatException e) {
+            return extracted; // Invalid timestamp
+        }
+
+        String proxySystem = header(PROXY_SYSTEM);
+        String proxy = SUPPORTED_PROXIES.get(proxySystem);
+        String httpMethod = header(PROXY_HTTP_METHOD);
+        String path = header(PROXY_PATH);
+        String resourcePath = header(PROXY_RESOURCE_PATH);
+        String domainName = header(PROXY_DOMAIN_NAME);
+
+        AgentSpan span = AgentTracer.get().startSpan(INSTRUMENTATION_NAME, proxy, extracted, startTime);
+
+        // Service: value of x-dd-proxy-domain-name or global config if not found
+        String serviceName = domainName != null && !domainName.isEmpty()
+                ? domainName
+                : Config.get().getServiceName();
+        span.setServiceName(serviceName, INSTRUMENTATION_NAME);
+
+        // Component: aws-apigateway or aws-httpapi
+        span.setTag(COMPONENT, proxySystem);
+
+        // Span kind: server
+        span.setTag(SPAN_KIND, SPAN_KIND_SERVER);
+
+        // SpanType: web
+        span.setTag(SPAN_TYPE, "web");
+
+        // Http.method - value of x-dd-proxy-httpmethod
+        span.setTag(HTTP_METHOD, httpMethod);
+
+        // Http.url - https:// + x-dd-proxy-domain-name + x-dd-proxy-path
+        span.setTag(HTTP_URL, domainName != null && !domainName.isEmpty() ? "https://" + domainName + path : path);
+
+        // Http.route - value of x-dd-proxy-resource-path (or x-dd-proxy-path as fallback)
+        span.setTag(HTTP_ROUTE, resourcePath != null && !resourcePath.isEmpty() ? resourcePath : path);
+
+        // "stage" - value of x-dd-proxy-stage
+        span.setTag("stage", header(STAGE));
+
+        // Optional tags - only set if present
+        String accountId = header(PROXY_ACCOUNT_ID);
+        if (accountId != null && !accountId.isEmpty()) {
+            span.setTag("account_id", accountId);
+        }
+
+        String apiId = header(PROXY_API_ID);
+        if (apiId != null && !apiId.isEmpty()) {
+            span.setTag("apiid", apiId);
+        }
+
+        String region = header(PROXY_REGION);
+        if (region != null && !region.isEmpty()) {
+            span.setTag("region", region);
+        }
+
+        // Compute and set dd_resource_key (ARN) if we have region and apiId
+        if (region != null && !region.isEmpty() && apiId != null && !apiId.isEmpty()) {
+            String arn = computeArn(proxySystem, region, apiId);
+            if (arn != null) {
+                span.setTag("dd_resource_key", arn);
+            }
+        }
+
+        // _dd.inferred_span = 1 (indicates that this is an inferred span)
+        span.setTag("_dd.inferred_span", 1);
+
+        // Resource Name: <Method> <Route> when route available, else <Method> <Path>
+        // Prefer x-dd-proxy-resource-path (route) over x-dd-proxy-path (path)
+        // Use MANUAL_INSTRUMENTATION priority to prevent TagInterceptor from overriding
+        String routeOrPath = resourcePath != null && !resourcePath.isEmpty() ? resourcePath : path;
+        String resourceName = httpMethod != null && routeOrPath != null ? httpMethod + " " + routeOrPath : null;
+        if (resourceName != null) {
+            span.setResourceName(resourceName, MANUAL_INSTRUMENTATION);
+        }
+
+        // Free collected headers
+        this.headers.clear();
+        // Store inferred span
+        this.span = span;
+        // Return inferred span as new parent context
+        return this.span.spanContext();
     }
 
-    // _dd.inferred_span = 1 (indicates that this is an inferred span)
-    span.setTag("_dd.inferred_span", 1);
-
-    // Resource Name: <Method> <Route> when route available, else <Method> <Path>
-    // Prefer x-dd-proxy-resource-path (route) over x-dd-proxy-path (path)
-    // Use MANUAL_INSTRUMENTATION priority to prevent TagInterceptor from overriding
-    String routeOrPath = resourcePath != null && !resourcePath.isEmpty() ? resourcePath : path;
-    String resourceName =
-        httpMethod != null && routeOrPath != null ? httpMethod + " " + routeOrPath : null;
-    if (resourceName != null) {
-      span.setResourceName(resourceName, MANUAL_INSTRUMENTATION);
+    private String header(String name) {
+        return this.headers.get(name);
     }
 
-    // Free collected headers
-    this.headers.clear();
-    // Store inferred span
-    this.span = span;
-    // Return inferred span as new parent context
-    return this.span.spanContext();
-  }
+    /**
+     * Compute ARN for the API Gateway resource. Format for v1 REST:
+     * arn:aws:apigateway:{region}::/restapis/{api-id} Format for v2 HTTP:
+     * arn:aws:apigateway:{region}::/apis/{api-id}
+     */
+    @VisibleForTesting
+    String computeArn(String proxySystem, String region, String apiId) {
+        if (proxySystem == null || region == null || apiId == null) {
+            return null;
+        }
 
-  private String header(String name) {
-    return this.headers.get(name);
-  }
+        // Assume AWS partition (could be extended to support other partitions like aws-cn, aws-us-gov)
+        String partition = "aws";
 
-  /**
-   * Compute ARN for the API Gateway resource. Format for v1 REST:
-   * arn:aws:apigateway:{region}::/restapis/{api-id} Format for v2 HTTP:
-   * arn:aws:apigateway:{region}::/apis/{api-id}
-   */
-  @VisibleForTesting
-  String computeArn(String proxySystem, String region, String apiId) {
-    if (proxySystem == null || region == null || apiId == null) {
-      return null;
+        // Determine resource type based on proxy system
+        String resourceType;
+        if ("aws-apigateway".equals(proxySystem)) {
+            resourceType = "restapis"; // v1 REST API
+        } else if ("aws-httpapi".equals(proxySystem)) {
+            resourceType = "apis"; // v2 HTTP API
+        } else {
+            return null; // Unknown proxy type
+        }
+
+        return String.format("arn:%s:apigateway:%s::/%s/%s", partition, region, resourceType, apiId);
     }
 
-    // Assume AWS partition (could be extended to support other partitions like aws-cn, aws-us-gov)
-    String partition = "aws";
-
-    // Determine resource type based on proxy system
-    String resourceType;
-    if ("aws-apigateway".equals(proxySystem)) {
-      resourceType = "restapis"; // v1 REST API
-    } else if ("aws-httpapi".equals(proxySystem)) {
-      resourceType = "apis"; // v2 HTTP API
-    } else {
-      return null; // Unknown proxy type
+    /**
+     * Registers the service-entry span for this inferred proxy span. This allows {@link
+     * #finish(AgentSpan)} to distinguish between premature finish calls from child handler spans
+     * (e.g., Spring MVC) and the final finish call from the service-entry span after the response is
+     * written.
+     */
+    public void registerServiceEntrySpan(AgentSpan serviceEntrySpan) {
+        this.registeredServiceEntrySpan = serviceEntrySpan;
     }
 
-    return String.format("arn:%s:apigateway:%s::/%s/%s", partition, region, resourceType, apiId);
-  }
-
-  /**
-   * Registers the service-entry span for this inferred proxy span. This allows {@link
-   * #finish(AgentSpan)} to distinguish between premature finish calls from child handler spans
-   * (e.g., Spring MVC) and the final finish call from the service-entry span after the response is
-   * written.
-   */
-  public void registerServiceEntrySpan(AgentSpan serviceEntrySpan) {
-    this.registeredServiceEntrySpan = serviceEntrySpan;
-  }
-
-  public void finish() {
-    finish(null);
-  }
-
-  /**
-   * Finishes this inferred proxy span, copying relevant tags from the given span.
-   *
-   * <p>When a service-entry span is registered (via {@link #registerServiceEntrySpan}), this method
-   * distinguishes between two callers:
-   *
-   * <ul>
-   *   <li><b>Non-service-entry caller</b> (e.g., Spring MVC handler span): copies available tags
-   *       (AppSec) and calls {@link AgentSpan#phasedFinish()} to record duration without
-   *       publishing. The span stays alive so HTTP tags can be added later.
-   *   <li><b>Service-entry caller</b>: copies all tags including HTTP status/error/useragent, then
-   *       publishes the span (via {@link AgentSpan#publish()} if phasedFinished, or {@link
-   *       AgentSpan#finish()} otherwise).
-   * </ul>
-   *
-   * @param callerSpan the span calling finish, used to copy tags and determine caller type
-   */
-  public void finish(AgentSpan callerSpan) {
-    if (this.span == null) {
-      return;
+    public void finish() {
+        finish(null);
     }
 
-    boolean isServiceEntryOrFallback =
-        registeredServiceEntrySpan == null
-            || callerSpan == null
-            || callerSpan == registeredServiceEntrySpan;
+    /**
+     * Finishes this inferred proxy span, copying relevant tags from the given span.
+     *
+     * <p>When a service-entry span is registered (via {@link #registerServiceEntrySpan}), this method
+     * distinguishes between two callers:
+     *
+     * <ul>
+     *   <li><b>Non-service-entry caller</b> (e.g., Spring MVC handler span): copies available tags
+     *       (AppSec) and calls {@link AgentSpan#phasedFinish()} to record duration without
+     *       publishing. The span stays alive so HTTP tags can be added later.
+     *   <li><b>Service-entry caller</b>: copies all tags including HTTP status/error/useragent, then
+     *       publishes the span (via {@link AgentSpan#publish()} if phasedFinished, or {@link
+     *       AgentSpan#finish()} otherwise).
+     * </ul>
+     *
+     * @param callerSpan the span calling finish, used to copy tags and determine caller type
+     */
+    public void finish(AgentSpan callerSpan) {
+        if (this.span == null) {
+            return;
+        }
 
-    if (isServiceEntryOrFallback) {
-      // Final call: copy all tags (AppSec + HTTP status/error/useragent) and close the span
-      copyTagsFromServiceEntry(callerSpan);
-      if (phasedFinished) {
-        this.span.publish();
-      } else {
-        this.span.finish();
-      }
-      this.span = null;
-      this.registeredServiceEntrySpan = null;
-      this.phasedFinished = false;
-    } else if (!phasedFinished) {
-      // First non-service-entry call (e.g., Spring MVC handler span fires beforeFinish() before
-      // the response is written): copy available tags (AppSec) and phase-finish to record
-      // duration, but keep the span alive so the service-entry call can add HTTP tags later.
-      copyTagsFromServiceEntry(callerSpan);
-      this.span.phasedFinish();
-      this.phasedFinished = true;
-    }
-    // If already phasedFinished and caller is not service-entry: ignore duplicate calls
-  }
+        boolean isServiceEntryOrFallback =
+                registeredServiceEntrySpan == null || callerSpan == null || callerSpan == registeredServiceEntrySpan;
 
-  /**
-   * Copies relevant tags from the service-entry span to this inferred proxy span. This includes
-   * AppSec tags required by RFC-1081, plus HTTP tags that are only known after the request
-   * completes ({@code http.status_code}, {@code error}, {@code http.useragent}).
-   */
-  private void copyTagsFromServiceEntry(AgentSpan serviceEntrySpan) {
-    if (serviceEntrySpan == null || serviceEntrySpan == this.span) {
-      return;
-    }
-
-    Object appsecEnabled = serviceEntrySpan.getTag("_dd.appsec.enabled");
-    if (appsecEnabled != null) {
-      this.span.setMetric("_dd.appsec.enabled", 1);
-    }
-
-    Object appsecJson = serviceEntrySpan.getTag("_dd.appsec.json");
-    if (appsecJson != null) {
-      this.span.setTag("_dd.appsec.json", appsecJson.toString());
-    }
-
-    short statusCode = serviceEntrySpan.getHttpStatusCode();
-    if (statusCode > 0) {
-      this.span.setHttpStatusCode(statusCode);
-      boolean isError = Config.get().getHttpServerErrorStatuses().get(statusCode);
-      this.span.setError(isError, HTTP_SERVER_DECORATOR);
+        if (isServiceEntryOrFallback) {
+            // Final call: copy all tags (AppSec + HTTP status/error/useragent) and close the span
+            copyTagsFromServiceEntry(callerSpan);
+            if (phasedFinished) {
+                this.span.publish();
+            } else {
+                this.span.finish();
+            }
+            this.span = null;
+            this.registeredServiceEntrySpan = null;
+            this.phasedFinished = false;
+        } else if (!phasedFinished) {
+            // First non-service-entry call (e.g., Spring MVC handler span fires beforeFinish() before
+            // the response is written): copy available tags (AppSec) and phase-finish to record
+            // duration, but keep the span alive so the service-entry call can add HTTP tags later.
+            copyTagsFromServiceEntry(callerSpan);
+            this.span.phasedFinish();
+            this.phasedFinished = true;
+        }
+        // If already phasedFinished and caller is not service-entry: ignore duplicate calls
     }
 
-    Object userAgent = serviceEntrySpan.getTag(HTTP_USER_AGENT);
-    if (userAgent != null) {
-      this.span.setTag(HTTP_USER_AGENT, userAgent.toString());
+    /**
+     * Copies relevant tags from the service-entry span to this inferred proxy span. This includes
+     * AppSec tags required by RFC-1081, plus HTTP tags that are only known after the request
+     * completes ({@code http.status_code}, {@code error}, {@code http.useragent}).
+     */
+    private void copyTagsFromServiceEntry(AgentSpan serviceEntrySpan) {
+        if (serviceEntrySpan == null || serviceEntrySpan == this.span) {
+            return;
+        }
+
+        Object appsecEnabled = serviceEntrySpan.getTag("_dd.appsec.enabled");
+        if (appsecEnabled != null) {
+            this.span.setMetric("_dd.appsec.enabled", 1);
+        }
+
+        Object appsecJson = serviceEntrySpan.getTag("_dd.appsec.json");
+        if (appsecJson != null) {
+            this.span.setTag("_dd.appsec.json", appsecJson.toString());
+        }
+
+        short statusCode = serviceEntrySpan.getHttpStatusCode();
+        if (statusCode > 0) {
+            this.span.setHttpStatusCode(statusCode);
+            boolean isError = Config.get().getHttpServerErrorStatuses().get(statusCode);
+            this.span.setError(isError, HTTP_SERVER_DECORATOR);
+        }
+
+        Object userAgent = serviceEntrySpan.getTag(HTTP_USER_AGENT);
+        if (userAgent != null) {
+            this.span.setTag(HTTP_USER_AGENT, userAgent.toString());
+        }
+
+        // Forward the Datadog scan/test markers so the API endpoint reducer can keep
+        // scan/test traffic out of the inventory even when the local root is the inferred span.
+        // These markers are only tagged on the service-entry span (by HttpServerDecorator), so
+        // calls from non-service-entry handler spans during phasedFinish are no-ops here.
+        Object endpointScan = serviceEntrySpan.getTag(HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN);
+        if (endpointScan != null) {
+            this.span.setTag(HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN, endpointScan.toString());
+        }
+        Object securityTest = serviceEntrySpan.getTag(HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST);
+        if (securityTest != null) {
+            this.span.setTag(HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST, securityTest.toString());
+        }
     }
 
-    // Forward the Datadog scan/test markers so the API endpoint reducer can keep
-    // scan/test traffic out of the inventory even when the local root is the inferred span.
-    // These markers are only tagged on the service-entry span (by HttpServerDecorator), so
-    // calls from non-service-entry handler spans during phasedFinish are no-ops here.
-    Object endpointScan = serviceEntrySpan.getTag(HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN);
-    if (endpointScan != null) {
-      this.span.setTag(HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN, endpointScan.toString());
+    @Override
+    public Context storeInto(@Nonnull Context context) {
+        return context.with(CONTEXT_KEY, this);
     }
-    Object securityTest = serviceEntrySpan.getTag(HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST);
-    if (securityTest != null) {
-      this.span.setTag(HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST, securityTest.toString());
-    }
-  }
-
-  @Override
-  public Context storeInto(@Nonnull Context context) {
-    return context.with(CONTEXT_KEY, this);
-  }
 }

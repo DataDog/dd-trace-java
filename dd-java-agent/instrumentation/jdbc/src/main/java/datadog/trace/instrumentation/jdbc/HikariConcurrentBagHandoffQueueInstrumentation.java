@@ -19,42 +19,37 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public final class HikariConcurrentBagHandoffQueueInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType,
-        Instrumenter.HasMethodAdvice,
-        Instrumenter.WithTypeStructure {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, Instrumenter.WithTypeStructure {
 
-  public HikariConcurrentBagHandoffQueueInstrumentation() {
-    super("jdbc", "hikari");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return InstrumenterConfig.get().isJdbcPoolWaitingEnabled();
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "com.zaxxer.hikari.util.ConcurrentBag";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> structureMatcher() {
-    return declaresField(named("handoffQueue"));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor(),
-        HikariConcurrentBagHandoffQueueInstrumentation.class.getName() + "$ConstructorAdvice");
-  }
-
-  public static class ConstructorAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    static void after(
-        @Advice.FieldValue(value = "handoffQueue", readOnly = false)
-            SynchronousQueue handoffQueue) {
-      handoffQueue = new HikariBlockedTrackingSynchronousQueue<>();
+    public HikariConcurrentBagHandoffQueueInstrumentation() {
+        super("jdbc", "hikari");
     }
-  }
+
+    @Override
+    protected boolean defaultEnabled() {
+        return InstrumenterConfig.get().isJdbcPoolWaitingEnabled();
+    }
+
+    @Override
+    public String instrumentedType() {
+        return "com.zaxxer.hikari.util.ConcurrentBag";
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> structureMatcher() {
+        return declaresField(named("handoffQueue"));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isConstructor(), HikariConcurrentBagHandoffQueueInstrumentation.class.getName() + "$ConstructorAdvice");
+    }
+
+    public static class ConstructorAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        static void after(@Advice.FieldValue(value = "handoffQueue", readOnly = false) SynchronousQueue handoffQueue) {
+            handoffQueue = new HikariBlockedTrackingSynchronousQueue<>();
+        }
+    }
 }

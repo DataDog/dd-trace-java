@@ -9,18 +9,16 @@ import io.lettuce.core.protocol.RedisCommand;
 import net.bytebuddy.asm.Advice;
 
 public class RedisSubscriptionCommandErrorAdvice {
-  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void afterError(
-      @Advice.This RedisCommand command, @Advice.Argument(value = 0) Throwable throwable) {
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void afterError(@Advice.This RedisCommand command, @Advice.Argument(value = 0) Throwable throwable) {
 
-    ContextStore<RedisCommand, AgentSpan> ctx =
-        InstrumentationContext.get(RedisCommand.class, AgentSpan.class);
-    AgentSpan span = ctx.get(command);
-    if (span != null) {
-      DECORATE.onError(span, throwable);
-      DECORATE.beforeFinish(span);
-      span.finish();
+        ContextStore<RedisCommand, AgentSpan> ctx = InstrumentationContext.get(RedisCommand.class, AgentSpan.class);
+        AgentSpan span = ctx.get(command);
+        if (span != null) {
+            DECORATE.onError(span, throwable);
+            DECORATE.beforeFinish(span);
+            span.finish();
+        }
+        ctx.put(command, null);
     }
-    ctx.put(command, null);
-  }
 }

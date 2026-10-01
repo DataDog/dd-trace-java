@@ -12,36 +12,36 @@ import org.junit.jupiter.api.Test;
 
 class BooleanValueExpressionAdapterTest {
 
-  @Test
-  public void testLiteral() {
-    {
-      BooleanValueExpressionAdapter booleanValueExpressionAdapter =
-          new BooleanValueExpressionAdapter(BooleanExpression.TRUE);
-      BooleanValue resultValue = booleanValueExpressionAdapter.evaluate(null);
-      assertTrue(resultValue.getValue());
+    @Test
+    public void testLiteral() {
+        {
+            BooleanValueExpressionAdapter booleanValueExpressionAdapter =
+                    new BooleanValueExpressionAdapter(BooleanExpression.TRUE);
+            BooleanValue resultValue = booleanValueExpressionAdapter.evaluate(null);
+            assertTrue(resultValue.getValue());
+        }
+        {
+            BooleanValueExpressionAdapter booleanValueExpressionAdapter =
+                    new BooleanValueExpressionAdapter(BooleanExpression.FALSE);
+            BooleanValue resultValue = booleanValueExpressionAdapter.evaluate(null);
+            assertFalse(resultValue.getValue());
+        }
     }
-    {
-      BooleanValueExpressionAdapter booleanValueExpressionAdapter =
-          new BooleanValueExpressionAdapter(BooleanExpression.FALSE);
-      BooleanValue resultValue = booleanValueExpressionAdapter.evaluate(null);
-      assertFalse(resultValue.getValue());
+
+    @Test
+    public void testExpression() {
+        BooleanValueExpressionAdapter booleanValueExpressionAdapter =
+                new BooleanValueExpressionAdapter(DSL.eq(DSL.value(1), DSL.value(1)));
+        BooleanValue resultValue = booleanValueExpressionAdapter.evaluate(createEvalContext(this));
+        assertTrue(resultValue.getValue());
     }
-  }
 
-  @Test
-  public void testExpression() {
-    BooleanValueExpressionAdapter booleanValueExpressionAdapter =
-        new BooleanValueExpressionAdapter(DSL.eq(DSL.value(1), DSL.value(1)));
-    BooleanValue resultValue = booleanValueExpressionAdapter.evaluate(createEvalContext(this));
-    assertTrue(resultValue.getValue());
-  }
-
-  @Test
-  public void testNull() {
-    BooleanValueExpressionAdapter booleanValueExpressionAdapter =
-        new BooleanValueExpressionAdapter(evalContext -> null);
-    EvaluationException ex =
-        assertThrows(EvaluationException.class, () -> booleanValueExpressionAdapter.evaluate(null));
-    assertEquals("Boolean expression returning null", ex.getMessage());
-  }
+    @Test
+    public void testNull() {
+        BooleanValueExpressionAdapter booleanValueExpressionAdapter =
+                new BooleanValueExpressionAdapter(evalContext -> null);
+        EvaluationException ex =
+                assertThrows(EvaluationException.class, () -> booleanValueExpressionAdapter.evaluate(null));
+        assertEquals("Boolean expression returning null", ex.getMessage());
+    }
 }

@@ -21,62 +21,60 @@ import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
-public final class AsyncHttpClientInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+public final class AsyncHttpClientInstrumentation implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String instrumentedType() {
-    return "com.ning.http.client.AsyncHttpClient";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvices(
-        named("executeRequest")
-            .and(takesArgument(0, named("com.ning.http.client.Request")))
-            .and(takesArgument(1, named("com.ning.http.client.AsyncHandler")))
-            .and(isPublic()),
-        getClass().getName() + "$ExecuteRequest",
-        getClass().getName() + "$ExecuteContextPropagationAdvice");
-  }
-
-  public static class ExecuteRequest {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onEnter(
-        @Advice.Argument(0) final Request request,
-        @Advice.Argument(value = 1, readOnly = false) AsyncHandler<?> handler) {
-      AgentSpan parentSpan = activeSpan();
-      AgentSpan span = startSpan("grizzly-http-async-client", HTTP_REQUEST);
-      DECORATE.afterStart(span);
-      DECORATE.onRequest(span, request);
-      handler = new AsyncHandlerAdapter<>(span, parentSpan, handler);
-      return activateSpan(span);
+    @Override
+    public String instrumentedType() {
+        return "com.ning.http.client.AsyncHttpClient";
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void onExit(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
-      if (scope == null) {
-        return;
-      }
-      if (throwable != null) {
-        AgentSpan span = spanFromScope(scope);
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-        scope.close();
-        span.finish();
-      } else {
-        scope.close();
-      }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvices(
+                named("executeRequest")
+                        .and(takesArgument(0, named("com.ning.http.client.Request")))
+                        .and(takesArgument(1, named("com.ning.http.client.AsyncHandler")))
+                        .and(isPublic()),
+                getClass().getName() + "$ExecuteRequest",
+                getClass().getName() + "$ExecuteContextPropagationAdvice");
     }
-  }
 
-  @AppliesOn(CONTEXT_TRACKING)
-  public static class ExecuteContextPropagationAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(@Advice.Argument(0) final Request request) {
-      DECORATE.injectContext(currentContext(), request, SETTER);
+    public static class ExecuteRequest {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope onEnter(
+                @Advice.Argument(0) final Request request,
+                @Advice.Argument(value = 1, readOnly = false) AsyncHandler<?> handler) {
+            AgentSpan parentSpan = activeSpan();
+            AgentSpan span = startSpan("grizzly-http-async-client", HTTP_REQUEST);
+            DECORATE.afterStart(span);
+            DECORATE.onRequest(span, request);
+            handler = new AsyncHandlerAdapter<>(span, parentSpan, handler);
+            return activateSpan(span);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void onExit(@Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+            if (scope == null) {
+                return;
+            }
+            if (throwable != null) {
+                AgentSpan span = spanFromScope(scope);
+                DECORATE.onError(span, throwable);
+                DECORATE.beforeFinish(span);
+                scope.close();
+                span.finish();
+            } else {
+                scope.close();
+            }
+        }
     }
-  }
+
+    @AppliesOn(CONTEXT_TRACKING)
+    public static class ExecuteContextPropagationAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter(@Advice.Argument(0) final Request request) {
+            DECORATE.injectContext(currentContext(), request, SETTER);
+        }
+    }
 }

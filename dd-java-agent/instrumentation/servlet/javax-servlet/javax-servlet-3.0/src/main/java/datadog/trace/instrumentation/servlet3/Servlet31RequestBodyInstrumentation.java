@@ -22,63 +22,63 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public class Servlet31RequestBodyInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public Servlet31RequestBodyInstrumentation() {
-    super("servlet-request-body");
-  }
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    public Servlet31RequestBodyInstrumentation() {
+        super("servlet-request-body");
+    }
 
-  @Override
-  public String muzzleDirective() {
-    return "servlet-3.1.x";
-  }
+    @Override
+    public String muzzleDirective() {
+        return "servlet-3.1.x";
+    }
 
-  @Override
-  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    // Avoid matching request bodies before 3.1.x which have their own instrumentation
-    return hasClassNamed("javax.servlet.ReadListener");
-  }
+    @Override
+    public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+        // Avoid matching request bodies before 3.1.x which have their own instrumentation
+        return hasClassNamed("javax.servlet.ReadListener");
+    }
 
-  @Override
-  public String hierarchyMarkerType() {
-    return "javax.servlet.http.HttpServletRequest";
-  }
+    @Override
+    public String hierarchyMarkerType() {
+        return "javax.servlet.http.HttpServletRequest";
+    }
 
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()))
-        // ignore wrappers that ship with servlet-api
-        .and(namedNoneOf("javax.servlet.http.HttpServletRequestWrapper"))
-        .and(not(extendsClass(named("javax.servlet.http.HttpServletRequestWrapper"))));
-  }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()))
+                // ignore wrappers that ship with servlet-api
+                .and(namedNoneOf("javax.servlet.http.HttpServletRequestWrapper"))
+                .and(not(extendsClass(named("javax.servlet.http.HttpServletRequestWrapper"))));
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("getInputStream")
-            .and(takesNoArguments())
-            .and(returns(named("javax.servlet.ServletInputStream")))
-            .and(isPublic()),
-        packageName + ".HttpServletGetInputStreamAdvice");
-    transformer.applyAdvice(
-        named("getReader")
-            .and(takesNoArguments())
-            .and(returns(named("java.io.BufferedReader")))
-            .and(isPublic()),
-        packageName + ".HttpServletGetReaderAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("getInputStream")
+                        .and(takesNoArguments())
+                        .and(returns(named("javax.servlet.ServletInputStream")))
+                        .and(isPublic()),
+                packageName + ".HttpServletGetInputStreamAdvice");
+        transformer.applyAdvice(
+                named("getReader")
+                        .and(takesNoArguments())
+                        .and(returns(named("java.io.BufferedReader")))
+                        .and(isPublic()),
+                packageName + ".HttpServletGetReaderAdvice");
+    }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.servlet.BufferedReaderWrapper",
-      "datadog.trace.instrumentation.servlet.AbstractServletInputStreamWrapper",
-      "datadog.trace.instrumentation.servlet3.Servlet31InputStreamWrapper"
-    };
-  }
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            "datadog.trace.instrumentation.servlet.BufferedReaderWrapper",
+            "datadog.trace.instrumentation.servlet.AbstractServletInputStreamWrapper",
+            "datadog.trace.instrumentation.servlet3.Servlet31InputStreamWrapper"
+        };
+    }
 
-  @Override
-  public int order() {
-    // apply this instrumentation after the regular servlet one.
-    return 1;
-  }
+    @Override
+    public int order() {
+        // apply this instrumentation after the regular servlet one.
+        return 1;
+    }
 }

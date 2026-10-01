@@ -10,9 +10,9 @@ import javax.annotation.Nonnull;
 
 public interface Extension {
 
-  boolean appliesTo(@Nonnull CallSiteSpecification spec);
+    boolean appliesTo(@Nonnull CallSiteSpecification spec);
 
-  void apply(@Nonnull Configuration configuration, @Nonnull CallSiteResult result) throws Exception;
+    void apply(@Nonnull Configuration configuration, @Nonnull CallSiteResult result) throws Exception;
 
-  List<Extension> EXTENSIONS = Collections.singletonList(new IastExtension());
+    List<Extension> EXTENSIONS = Collections.singletonList(new IastExtension());
 }

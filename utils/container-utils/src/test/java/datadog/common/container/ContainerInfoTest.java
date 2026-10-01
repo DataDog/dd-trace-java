@@ -27,7 +27,7 @@ import org.tabletest.junit.TableTest;
 @SuppressForbidden
 public class ContainerInfoTest extends DDJavaSpecification {
 
-  // spotless:off
+    // spotless:off
   @TableTest({
     "id | controllers           | path                                                                                                                            | containerId                                                        | podId                                  | line",
     // Docker examples
@@ -99,19 +99,19 @@ public class ContainerInfoTest extends DDJavaSpecification {
   }
   // spotless:on
 
-  @ParameterizedTest
-  @MethodSource("containerInfoParsedFromFileContentArguments")
-  void containerInfoParsedFromFileContent(
-      String containerId, String podId, int size, String content) throws Exception {
-    ContainerInfo containerInfo = ContainerInfo.parse(content);
+    @ParameterizedTest
+    @MethodSource("containerInfoParsedFromFileContentArguments")
+    void containerInfoParsedFromFileContent(String containerId, String podId, int size, String content)
+            throws Exception {
+        ContainerInfo containerInfo = ContainerInfo.parse(content);
 
-    assertEquals(containerId, containerInfo.getContainerId());
-    assertEquals(podId, containerInfo.getPodId());
-    assertEquals(size, containerInfo.getCGroups().size());
-  }
+        assertEquals(containerId, containerInfo.getContainerId());
+        assertEquals(podId, containerInfo.getPodId());
+        assertEquals(size, containerInfo.getCGroups().size());
+    }
 
-  static Stream<Arguments> containerInfoParsedFromFileContentArguments() {
-    // spotless:off
+    static Stream<Arguments> containerInfoParsedFromFileContentArguments() {
+        // spotless:off
     return Stream.of(
         // Docker
         arguments("3726184226f5d3147c25fdeab5b60097e378e8a720503a5e19ecfdf29f869860", null, 13,
@@ -211,55 +211,55 @@ public class ContainerInfoTest extends DDJavaSpecification {
             + "1:name=systemd:/system.slice/garden.service/garden/6f265890-5165-7fab-6b52-18d1")
     );
     // spotless:on
-  }
+    }
 
-  @Test
-  void containerInfoFromEmptyFileIsEmpty() throws Exception {
-    File f = File.createTempFile("container-info-test-", "-empty-file");
-    f.deleteOnExit();
-    Path p = Paths.get(f.getPath());
+    @Test
+    void containerInfoFromEmptyFileIsEmpty() throws Exception {
+        File f = File.createTempFile("container-info-test-", "-empty-file");
+        f.deleteOnExit();
+        Path p = Paths.get(f.getPath());
 
-    ContainerInfo containerInfo = ContainerInfo.fromProcFile(p);
+        ContainerInfo containerInfo = ContainerInfo.fromProcFile(p);
 
-    assertNull(containerInfo.getContainerId());
-    assertNull(containerInfo.getPodId());
-    assertEquals(0, containerInfo.getCGroups().size());
-  }
+        assertNull(containerInfo.getContainerId());
+        assertNull(containerInfo.getPodId());
+        assertEquals(0, containerInfo.getCGroups().size());
+    }
 
-  @Test
-  void containerInfoThrowsParseExceptionWhenGivenMalformedProcfile() throws Exception {
-    File f = File.createTempFile("container-info-test-", "-malformed-file");
-    f.deleteOnExit();
-    Files.write(f.toPath(), "This is not valid".getBytes());
-    Path p = Paths.get(f.getPath());
+    @Test
+    void containerInfoThrowsParseExceptionWhenGivenMalformedProcfile() throws Exception {
+        File f = File.createTempFile("container-info-test-", "-malformed-file");
+        f.deleteOnExit();
+        Files.write(f.toPath(), "This is not valid".getBytes());
+        Path p = Paths.get(f.getPath());
 
-    assertThrows(ParseException.class, () -> ContainerInfo.fromProcFile(p));
-  }
+        assertThrows(ParseException.class, () -> ContainerInfo.fromProcFile(p));
+    }
 
-  @Test
-  void containerInfoToleratesMissingContainerIdAndPodIdInProcfile() throws Exception {
-    File f = File.createTempFile("container-info-test-", "-missing-container-id");
-    f.deleteOnExit();
-    Files.write(f.toPath(), "1:cpuset:fake-path".getBytes());
-    Path p = Paths.get(f.getPath());
+    @Test
+    void containerInfoToleratesMissingContainerIdAndPodIdInProcfile() throws Exception {
+        File f = File.createTempFile("container-info-test-", "-missing-container-id");
+        f.deleteOnExit();
+        Files.write(f.toPath(), "1:cpuset:fake-path".getBytes());
+        Path p = Paths.get(f.getPath());
 
-    ContainerInfo containerInfo = ContainerInfo.fromProcFile(p);
+        ContainerInfo containerInfo = ContainerInfo.fromProcFile(p);
 
-    assertNull(containerInfo.getContainerId());
-    assertNull(containerInfo.getPodId());
-    assertEquals(1, containerInfo.getCGroups().size());
-  }
+        assertNull(containerInfo.getContainerId());
+        assertNull(containerInfo.getPodId());
+        assertEquals(1, containerInfo.getCGroups().size());
+    }
 
-  @Test
-  void getInoPathShouldReturnSameValueAsLsIdPath() throws Exception {
-    File f = File.createTempFile("container-info-test-", "-inode-file");
-    f.deleteOnExit();
-    Path path = f.toPath();
+    @Test
+    void getInoPathShouldReturnSameValueAsLsIdPath() throws Exception {
+        File f = File.createTempFile("container-info-test-", "-inode-file");
+        f.deleteOnExit();
+        Path path = f.toPath();
 
-    assertEquals(readInode(path), ContainerInfo.readInode(path));
-  }
+        assertEquals(readInode(path), ContainerInfo.readInode(path));
+    }
 
-  // spotless:off
+    // spotless:off
   @TableTest({
     "cid          | isHostCgroupNamespace",
     "cid          | true                 ",
@@ -275,19 +275,19 @@ public class ContainerInfoTest extends DDJavaSpecification {
   }
   // spotless:on
 
-  @TableTest({
-    "cid",
-    "   ",
-    "'' "
-  })
-  void readEntityIDReturnNullIfContainerIdIsNotDefinedAndIsHostCgroupNamespace(String cid) {
-    ContainerInfo containerInfo = new ContainerInfo();
-    containerInfo.setContainerId(cid);
+    @TableTest({
+      "cid",
+      "   ",
+      "'' "
+    })
+    void readEntityIDReturnNullIfContainerIdIsNotDefinedAndIsHostCgroupNamespace(String cid) {
+        ContainerInfo containerInfo = new ContainerInfo();
+        containerInfo.setContainerId(cid);
 
-    assertNull(ContainerInfo.readEntityID(containerInfo, true, Paths.get("/sys/fs/cgroup")));
-  }
+        assertNull(ContainerInfo.readEntityID(containerInfo, true, Paths.get("/sys/fs/cgroup")));
+    }
 
-  // spotless:off
+    // spotless:off
   @TableTest({
     "controllers          | hasEntityId",
     "['', memory]         | true       ",
@@ -340,37 +340,38 @@ public class ContainerInfoTest extends DDJavaSpecification {
   }
   // spotless:on
 
-  @Test
-  void readEntityIDReturnIdInoForParentWhenPathIsSlash() throws Exception {
-    File mountPath = createTempDir();
-    File memoryController = Files.createDirectory(mountPath.toPath().resolve("memory")).toFile();
-    memoryController.deleteOnExit();
-    long ino = readInode(memoryController.toPath());
+    @Test
+    void readEntityIDReturnIdInoForParentWhenPathIsSlash() throws Exception {
+        File mountPath = createTempDir();
+        File memoryController =
+                Files.createDirectory(mountPath.toPath().resolve("memory")).toFile();
+        memoryController.deleteOnExit();
+        long ino = readInode(memoryController.toPath());
 
-    ContainerInfo containerInfo = new ContainerInfo();
-    ContainerInfo.CGroupInfo cGroupInfo = new ContainerInfo.CGroupInfo();
-    cGroupInfo.setControllers(Arrays.asList("memory"));
-    cGroupInfo.setPath("/");
-    containerInfo.setcGroups(Arrays.asList(cGroupInfo));
+        ContainerInfo containerInfo = new ContainerInfo();
+        ContainerInfo.CGroupInfo cGroupInfo = new ContainerInfo.CGroupInfo();
+        cGroupInfo.setControllers(Arrays.asList("memory"));
+        cGroupInfo.setPath("/");
+        containerInfo.setcGroups(Arrays.asList(cGroupInfo));
 
-    assertEquals("in-" + ino, ContainerInfo.readEntityID(containerInfo, false, mountPath.toPath()));
-  }
-
-  private static File createTempDir() throws IOException {
-    File dir = File.createTempFile("container-info-test-", "-sys-fs-cgroup");
-    dir.delete();
-    dir.mkdirs();
-    dir.deleteOnExit();
-    return dir;
-  }
-
-  private static long readInode(Path path) throws IOException, InterruptedException {
-    ProcessBuilder pb = new ProcessBuilder("ls", "-id", path.toString());
-    Process ps = pb.start();
-    try (BufferedReader reader = new BufferedReader(new InputStreamReader(ps.getInputStream()))) {
-      String line = reader.readLine();
-      ps.waitFor();
-      return Long.parseLong(line.substring(0, line.indexOf(' ')));
+        assertEquals("in-" + ino, ContainerInfo.readEntityID(containerInfo, false, mountPath.toPath()));
     }
-  }
+
+    private static File createTempDir() throws IOException {
+        File dir = File.createTempFile("container-info-test-", "-sys-fs-cgroup");
+        dir.delete();
+        dir.mkdirs();
+        dir.deleteOnExit();
+        return dir;
+    }
+
+    private static long readInode(Path path) throws IOException, InterruptedException {
+        ProcessBuilder pb = new ProcessBuilder("ls", "-id", path.toString());
+        Process ps = pb.start();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(ps.getInputStream()))) {
+            String line = reader.readLine();
+            ps.waitFor();
+            return Long.parseLong(line.substring(0, line.indexOf(' ')));
+        }
+    }
 }

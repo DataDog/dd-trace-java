@@ -40,49 +40,49 @@ import org.openjdk.jmh.annotations.Warmup;
 @Fork(value = 1)
 public class ContextManagerDepthBenchmark {
 
-  /**
-   * Which {@link ContextManager} implementation to benchmark.
-   *
-   * @see ContextManagerBenchmark#managerType
-   */
-  @Param({"ThreadLocal", "Continuable"})
-  public String managerType;
+    /**
+     * Which {@link ContextManager} implementation to benchmark.
+     *
+     * @see ContextManagerBenchmark#managerType
+     */
+    @Param({"ThreadLocal", "Continuable"})
+    public String managerType;
 
-  @Param({"1", "4", "8", "100"})
-  public int depth;
+    @Param({"1", "4", "8", "100"})
+    public int depth;
 
-  ContextManager manager;
-  Context[] contexts;
+    ContextManager manager;
+    Context[] contexts;
 
-  @Setup
-  public void setup() {
-    manager = ContextManagerBenchmark.createManager(managerType);
-    contexts = ContextManagerBenchmark.createContexts();
-  }
-
-  @State(Scope.Thread)
-  public static class ThreadState {
-    final ContextScope[] scopes = new ContextScope[100];
-
-    int nextContextIndex;
-
-    Context nextContext(Context[] contexts) {
-      return contexts[(nextContextIndex++) & (ContextManagerBenchmark.CONTEXT_COUNT - 1)];
+    @Setup
+    public void setup() {
+        manager = ContextManagerBenchmark.createManager(managerType);
+        contexts = ContextManagerBenchmark.createContexts();
     }
-  }
 
-  // ── Benchmark ─────────────────────────────────────────────────────────────
+    @State(Scope.Thread)
+    public static class ThreadState {
+        final ContextScope[] scopes = new ContextScope[100];
 
-  /** Attach the same context {@code depth} times then close all scopes in LIFO order. */
-  @Benchmark
-  public void attachSameContextDepth(ThreadState thread) {
-    Context ctx = thread.nextContext(contexts);
-    ContextScope[] scopes = thread.scopes;
-    for (int i = 0; i < depth; i++) {
-      scopes[i] = manager.attach(ctx);
+        int nextContextIndex;
+
+        Context nextContext(Context[] contexts) {
+            return contexts[(nextContextIndex++) & (ContextManagerBenchmark.CONTEXT_COUNT - 1)];
+        }
     }
-    for (int i = depth - 1; i >= 0; i--) {
-      scopes[i].close();
+
+    // ── Benchmark ─────────────────────────────────────────────────────────────
+
+    /** Attach the same context {@code depth} times then close all scopes in LIFO order. */
+    @Benchmark
+    public void attachSameContextDepth(ThreadState thread) {
+        Context ctx = thread.nextContext(contexts);
+        ContextScope[] scopes = thread.scopes;
+        for (int i = 0; i < depth; i++) {
+            scopes[i] = manager.attach(ctx);
+        }
+        for (int i = depth - 1; i >= 0; i--) {
+            scopes[i].close();
+        }
     }
-  }
 }

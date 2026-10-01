@@ -12,16 +12,16 @@ import org.junit.jupiter.api.Test;
 
 class OtlpMetricsServiceTest {
 
-  @Test
-  void httpJsonProtocolUsesJsonCollectorAndConfiguredEndpoint() {
-    Properties properties = new Properties();
-    properties.setProperty(OTLP_METRICS_PROTOCOL, "http/json");
-    properties.setProperty(OTLP_METRICS_ENDPOINT, "http://localhost:4318/v1/metrics");
+    @Test
+    void httpJsonProtocolUsesJsonCollectorAndConfiguredEndpoint() {
+        Properties properties = new Properties();
+        properties.setProperty(OTLP_METRICS_PROTOCOL, "http/json");
+        properties.setProperty(OTLP_METRICS_ENDPOINT, "http://localhost:4318/v1/metrics");
 
-    OtlpMetricsService service = new OtlpMetricsService(Config.get(properties));
+        OtlpMetricsService service = new OtlpMetricsService(Config.get(properties));
 
-    assertInstanceOf(OtlpMetricsJsonCollector.class, service.getCollector());
-    OtlpHttpSender sender = assertInstanceOf(OtlpHttpSender.class, service.getSender());
-    assertEquals("http://localhost:4318/v1/metrics", sender.url().toString());
-  }
+        assertInstanceOf(OtlpMetricsJsonCollector.class, service.getCollector());
+        OtlpHttpSender sender = assertInstanceOf(OtlpHttpSender.class, service.getSender());
+        assertEquals("http://localhost:4318/v1/metrics", sender.url().toString());
+    }
 }

@@ -35,241 +35,235 @@ import net.bytebuddy.pool.TypePool;
 
 @AutoService(InstrumenterModule.class)
 public class ParsePartsInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType,
-        Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasTypeAdvice, Instrumenter.HasMethodAdvice {
 
-  public ParsePartsInstrumentation() {
-    super("tomcat");
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "from7";
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.apache.catalina.connector.Request";
-  }
-
-  @Override
-  public void typeAdvice(TypeTransformer transformer) {
-    transformer.applyAdvice(new ParsePartsVisitorWrapper());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("parseParts")
-            .and(takesArguments(0).or(takesArguments(1).and(takesArgument(0, boolean.class))))
-            .and(isPrivate()),
-        getClass().getName() + "$ParsePartsAdvice");
-  }
-
-  public static class ParsePartsAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    static void before(
-        @Advice.Local("collector") ParameterCollector collector,
-        @Advice.Local("reqCtx") RequestContext reqCtx) {
-      AgentSpan agentSpan = AgentTracer.activeSpan();
-      if (agentSpan != null) {
-        RequestContext requestContext = agentSpan.getRequestContext();
-        if (requestContext != null && requestContext.getData(RequestContextSlot.APPSEC) != null) {
-          reqCtx = requestContext;
-          boolean inspectContent =
-              AgentTracer.get()
-                      .getCallbackProvider(RequestContextSlot.APPSEC)
-                      .getCallback(EVENTS.requestFilesContent())
-                  != null;
-          collector = new ParameterCollector.ParameterCollectorImpl(inspectContent);
-          return;
-        }
-      }
-
-      // this variable is used in the custom instrumentation below
-      collector = ParameterCollector.ParameterCollectorNoop.INSTANCE;
+    public ParsePartsInstrumentation() {
+        super("tomcat");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    static void after(
-        @Advice.Local("collector") ParameterCollector collector,
-        @Advice.Local("reqCtx") RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
-      if (t != null || reqCtx == null) {
-        return;
-      }
+    @Override
+    public String muzzleDirective() {
+        return "from7";
+    }
 
-      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+    @Override
+    public String instrumentedType() {
+        return "org.apache.catalina.connector.Request";
+    }
 
-      if (!collector.isEmpty()) {
-        BiFunction<RequestContext, Object, Flow<Void>> callback =
-            cbp.getCallback(EVENTS.requestBodyProcessed());
-        if (callback != null) {
-          Flow<Void> flow = callback.apply(reqCtx, collector.getMap());
-          Flow.Action action = flow.getAction();
-          if (action instanceof Flow.Action.RequestBlockingAction) {
-            Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-            BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
-            if (blockResponseFunction != null) {
-              blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-              t = new BlockingException("Blocked request (for Request/parseParts)");
-              reqCtx.getTraceSegment().effectivelyBlocked();
+    @Override
+    public void typeAdvice(TypeTransformer transformer) {
+        transformer.applyAdvice(new ParsePartsVisitorWrapper());
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("parseParts")
+                        .and(takesArguments(0).or(takesArguments(1).and(takesArgument(0, boolean.class))))
+                        .and(isPrivate()),
+                getClass().getName() + "$ParsePartsAdvice");
+    }
+
+    public static class ParsePartsAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        static void before(
+                @Advice.Local("collector") ParameterCollector collector,
+                @Advice.Local("reqCtx") RequestContext reqCtx) {
+            AgentSpan agentSpan = AgentTracer.activeSpan();
+            if (agentSpan != null) {
+                RequestContext requestContext = agentSpan.getRequestContext();
+                if (requestContext != null && requestContext.getData(RequestContextSlot.APPSEC) != null) {
+                    reqCtx = requestContext;
+                    boolean inspectContent = AgentTracer.get()
+                                    .getCallbackProvider(RequestContextSlot.APPSEC)
+                                    .getCallback(EVENTS.requestFilesContent())
+                            != null;
+                    collector = new ParameterCollector.ParameterCollectorImpl(inspectContent);
+                    return;
+                }
             }
-          }
-        }
-      }
 
-      List<String> filenames = collector.getFilenames();
-      if (!filenames.isEmpty()) {
-        BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb =
-            cbp.getCallback(EVENTS.requestFilesFilenames());
-        if (filenamesCb != null) {
-          Flow<Void> filenamesFlow = filenamesCb.apply(reqCtx, filenames);
-          Flow.Action filenamesAction = filenamesFlow.getAction();
-          if (t == null && filenamesAction instanceof Flow.Action.RequestBlockingAction) {
-            Flow.Action.RequestBlockingAction rba =
-                (Flow.Action.RequestBlockingAction) filenamesAction;
-            BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-            if (brf != null) {
-              brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-              t = new BlockingException("Blocked request (multipart file upload)");
-              reqCtx.getTraceSegment().effectivelyBlocked();
+            // this variable is used in the custom instrumentation below
+            collector = ParameterCollector.ParameterCollectorNoop.INSTANCE;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        static void after(
+                @Advice.Local("collector") ParameterCollector collector,
+                @Advice.Local("reqCtx") RequestContext reqCtx,
+                @Advice.Thrown(readOnly = false) Throwable t) {
+            if (t != null || reqCtx == null) {
+                return;
             }
-          }
-        }
-      }
 
-      if (t == null) {
-        List<String> contents = collector.getContents();
-        if (!contents.isEmpty()) {
-          BiFunction<RequestContext, List<String>, Flow<Void>> contentCb =
-              cbp.getCallback(EVENTS.requestFilesContent());
-          if (contentCb != null) {
-            Flow<Void> contentFlow = contentCb.apply(reqCtx, contents);
-            Flow.Action contentAction = contentFlow.getAction();
-            if (contentAction instanceof Flow.Action.RequestBlockingAction) {
-              Flow.Action.RequestBlockingAction rba =
-                  (Flow.Action.RequestBlockingAction) contentAction;
-              BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-              if (brf != null) {
-                brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-                t = new BlockingException("Blocked request (multipart file upload content)");
-                reqCtx.getTraceSegment().effectivelyBlocked();
-              }
+            CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+
+            if (!collector.isEmpty()) {
+                BiFunction<RequestContext, Object, Flow<Void>> callback =
+                        cbp.getCallback(EVENTS.requestBodyProcessed());
+                if (callback != null) {
+                    Flow<Void> flow = callback.apply(reqCtx, collector.getMap());
+                    Flow.Action action = flow.getAction();
+                    if (action instanceof Flow.Action.RequestBlockingAction) {
+                        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+                        BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
+                        if (blockResponseFunction != null) {
+                            blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+                            t = new BlockingException("Blocked request (for Request/parseParts)");
+                            reqCtx.getTraceSegment().effectivelyBlocked();
+                        }
+                    }
+                }
             }
-          }
+
+            List<String> filenames = collector.getFilenames();
+            if (!filenames.isEmpty()) {
+                BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb =
+                        cbp.getCallback(EVENTS.requestFilesFilenames());
+                if (filenamesCb != null) {
+                    Flow<Void> filenamesFlow = filenamesCb.apply(reqCtx, filenames);
+                    Flow.Action filenamesAction = filenamesFlow.getAction();
+                    if (t == null && filenamesAction instanceof Flow.Action.RequestBlockingAction) {
+                        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) filenamesAction;
+                        BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+                        if (brf != null) {
+                            brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+                            t = new BlockingException("Blocked request (multipart file upload)");
+                            reqCtx.getTraceSegment().effectivelyBlocked();
+                        }
+                    }
+                }
+            }
+
+            if (t == null) {
+                List<String> contents = collector.getContents();
+                if (!contents.isEmpty()) {
+                    BiFunction<RequestContext, List<String>, Flow<Void>> contentCb =
+                            cbp.getCallback(EVENTS.requestFilesContent());
+                    if (contentCb != null) {
+                        Flow<Void> contentFlow = contentCb.apply(reqCtx, contents);
+                        Flow.Action contentAction = contentFlow.getAction();
+                        if (contentAction instanceof Flow.Action.RequestBlockingAction) {
+                            Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) contentAction;
+                            BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+                            if (brf != null) {
+                                brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+                                t = new BlockingException("Blocked request (multipart file upload content)");
+                                reqCtx.getTraceSegment().effectivelyBlocked();
+                            }
+                        }
+                    }
+                }
+            }
         }
-      }
-    }
-  }
-
-  public static class ParsePartsVisitorWrapper implements AsmVisitorWrapper {
-    @Override
-    public int mergeWriter(int flags) {
-      return flags | ClassWriter.COMPUTE_MAXS;
     }
 
-    @Override
-    public int mergeReader(int flags) {
-      return flags;
+    public static class ParsePartsVisitorWrapper implements AsmVisitorWrapper {
+        @Override
+        public int mergeWriter(int flags) {
+            return flags | ClassWriter.COMPUTE_MAXS;
+        }
+
+        @Override
+        public int mergeReader(int flags) {
+            return flags;
+        }
+
+        @Override
+        public ClassVisitor wrap(
+                TypeDescription instrumentedType,
+                ClassVisitor classVisitor,
+                Implementation.Context implementationContext,
+                TypePool typePool,
+                FieldList<FieldDescription.InDefinedShape> fields,
+                MethodList<?> methods,
+                int writerFlags,
+                int readerFlags) {
+            return new RequestClassVisitor(Opcodes.ASM8, classVisitor);
+        }
     }
 
-    @Override
-    public ClassVisitor wrap(
-        TypeDescription instrumentedType,
-        ClassVisitor classVisitor,
-        Implementation.Context implementationContext,
-        TypePool typePool,
-        FieldList<FieldDescription.InDefinedShape> fields,
-        MethodList<?> methods,
-        int writerFlags,
-        int readerFlags) {
-      return new RequestClassVisitor(Opcodes.ASM8, classVisitor);
-    }
-  }
+    public static class RequestClassVisitor extends ClassVisitor {
+        public RequestClassVisitor(int api, ClassVisitor cv) {
+            super(api, cv);
+        }
 
-  public static class RequestClassVisitor extends ClassVisitor {
-    public RequestClassVisitor(int api, ClassVisitor cv) {
-      super(api, cv);
+        @Override
+        public MethodVisitor visitMethod(
+                int access, String name, String descriptor, String signature, String[] exceptions) {
+            MethodVisitor superMv = super.visitMethod(access, name, descriptor, signature, exceptions);
+            if ("parseParts".equals(name) && ("()V".equals(descriptor) || "(Z)V".equals(descriptor))) {
+                return new ParsePartsMethodVisitor(api, superMv, "(Z)V".equals(descriptor) ? 2 : 1);
+            } else {
+                return superMv;
+            }
+        }
     }
 
-    @Override
-    public MethodVisitor visitMethod(
-        int access, String name, String descriptor, String signature, String[] exceptions) {
-      MethodVisitor superMv = super.visitMethod(access, name, descriptor, signature, exceptions);
-      if ("parseParts".equals(name) && ("()V".equals(descriptor) || "(Z)V".equals(descriptor))) {
-        return new ParsePartsMethodVisitor(api, superMv, "(Z)V".equals(descriptor) ? 2 : 1);
-      } else {
-        return superMv;
-      }
-    }
-  }
+    public static class ParsePartsMethodVisitor extends MethodVisitor {
+        private final int collectedParamsVar;
 
-  public static class ParsePartsMethodVisitor extends MethodVisitor {
-    private final int collectedParamsVar;
+        public ParsePartsMethodVisitor(int api, MethodVisitor superMv, int collectedParamsVar) {
+            super(api, superMv);
+            this.collectedParamsVar = collectedParamsVar;
+        }
 
-    public ParsePartsMethodVisitor(int api, MethodVisitor superMv, int collectedParamsVar) {
-      super(api, superMv);
-      this.collectedParamsVar = collectedParamsVar;
+        @Override
+        public void visitMethodInsn(int opcode, String owner, String name, String descriptor, boolean isInterface) {
+            if (opcode == Opcodes.INVOKEVIRTUAL
+                    && owner.equals("org/apache/tomcat/util/http/Parameters")
+                    && name.equals("addParameter")
+                    && descriptor.equals("(Ljava/lang/String;Ljava/lang/String;)V")) {
+                super.visitVarInsn(Opcodes.ALOAD, collectedParamsVar);
+                // stack: ..., key, value, collParams
+                super.visitInsn(Opcodes.DUP_X2);
+                // stack: ..., collParams, key, value, collParams
+                super.visitInsn(Opcodes.POP);
+                // stack: ..., collParams, key, value
+                super.visitInsn(Opcodes.DUP2_X1);
+                // stack: ..., key, value, collParams, key, value
+                super.visitMethodInsn(
+                        Opcodes.INVOKEINTERFACE,
+                        Type.getInternalName(ParameterCollector.class),
+                        "put",
+                        "(Ljava/lang/String;Ljava/lang/String;)V",
+                        true);
+                // original stack
+            } else if (opcode == Opcodes.INVOKEVIRTUAL
+                    && owner.equals("org/apache/tomcat/util/http/Parameters")
+                    && name.equals("addParameterValues")
+                    && descriptor.equals("(Ljava/lang/String;[Ljava/lang/String;)V")) {
+                super.visitVarInsn(Opcodes.ALOAD, collectedParamsVar);
+                super.visitInsn(Opcodes.DUP_X2);
+                super.visitInsn(Opcodes.POP);
+                super.visitInsn(Opcodes.DUP2_X1);
+                super.visitMethodInsn(
+                        Opcodes.INVOKEINTERFACE,
+                        Type.getInternalName(ParameterCollector.class),
+                        "put",
+                        "(Ljava/lang/String;[Ljava/lang/String;)V",
+                        true);
+            } else if (opcode == Opcodes.INVOKEINTERFACE
+                    && name.equals("add")
+                    && descriptor.equals("(Ljava/lang/Object;)Z")) {
+                // Intercept Collection.add(part) to capture uploaded file names.
+                // Stack before: ..., collection_ref, part_ref
+                super.visitInsn(Opcodes.DUP);
+                // Stack: ..., collection_ref, part_ref, part_ref
+                super.visitVarInsn(Opcodes.ALOAD, collectedParamsVar);
+                // Stack: ..., collection_ref, part_ref, part_ref, collector
+                super.visitInsn(Opcodes.SWAP);
+                // Stack: ..., collection_ref, part_ref, collector, part_ref
+                super.visitMethodInsn(
+                        Opcodes.INVOKEINTERFACE,
+                        Type.getInternalName(ParameterCollector.class),
+                        "addPart",
+                        "(Ljava/lang/Object;)V",
+                        true);
+                // Stack: ..., collection_ref, part_ref
+            }
+            super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
+        }
     }
-
-    @Override
-    public void visitMethodInsn(
-        int opcode, String owner, String name, String descriptor, boolean isInterface) {
-      if (opcode == Opcodes.INVOKEVIRTUAL
-          && owner.equals("org/apache/tomcat/util/http/Parameters")
-          && name.equals("addParameter")
-          && descriptor.equals("(Ljava/lang/String;Ljava/lang/String;)V")) {
-        super.visitVarInsn(Opcodes.ALOAD, collectedParamsVar);
-        // stack: ..., key, value, collParams
-        super.visitInsn(Opcodes.DUP_X2);
-        // stack: ..., collParams, key, value, collParams
-        super.visitInsn(Opcodes.POP);
-        // stack: ..., collParams, key, value
-        super.visitInsn(Opcodes.DUP2_X1);
-        // stack: ..., key, value, collParams, key, value
-        super.visitMethodInsn(
-            Opcodes.INVOKEINTERFACE,
-            Type.getInternalName(ParameterCollector.class),
-            "put",
-            "(Ljava/lang/String;Ljava/lang/String;)V",
-            true);
-        // original stack
-      } else if (opcode == Opcodes.INVOKEVIRTUAL
-          && owner.equals("org/apache/tomcat/util/http/Parameters")
-          && name.equals("addParameterValues")
-          && descriptor.equals("(Ljava/lang/String;[Ljava/lang/String;)V")) {
-        super.visitVarInsn(Opcodes.ALOAD, collectedParamsVar);
-        super.visitInsn(Opcodes.DUP_X2);
-        super.visitInsn(Opcodes.POP);
-        super.visitInsn(Opcodes.DUP2_X1);
-        super.visitMethodInsn(
-            Opcodes.INVOKEINTERFACE,
-            Type.getInternalName(ParameterCollector.class),
-            "put",
-            "(Ljava/lang/String;[Ljava/lang/String;)V",
-            true);
-      } else if (opcode == Opcodes.INVOKEINTERFACE
-          && name.equals("add")
-          && descriptor.equals("(Ljava/lang/Object;)Z")) {
-        // Intercept Collection.add(part) to capture uploaded file names.
-        // Stack before: ..., collection_ref, part_ref
-        super.visitInsn(Opcodes.DUP);
-        // Stack: ..., collection_ref, part_ref, part_ref
-        super.visitVarInsn(Opcodes.ALOAD, collectedParamsVar);
-        // Stack: ..., collection_ref, part_ref, part_ref, collector
-        super.visitInsn(Opcodes.SWAP);
-        // Stack: ..., collection_ref, part_ref, collector, part_ref
-        super.visitMethodInsn(
-            Opcodes.INVOKEINTERFACE,
-            Type.getInternalName(ParameterCollector.class),
-            "addPart",
-            "(Ljava/lang/Object;)V",
-            true);
-        // Stack: ..., collection_ref, part_ref
-      }
-      super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
-    }
-  }
 }

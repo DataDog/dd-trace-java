@@ -9,27 +9,27 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class TestSnapshotListener extends DebuggerSink {
-  public boolean skipped;
-  public DebuggerMetricCollector.SkippedReason reason;
-  public List<Snapshot> snapshots = new ArrayList<>();
+    public boolean skipped;
+    public DebuggerMetricCollector.SkippedReason reason;
+    public List<Snapshot> snapshots = new ArrayList<>();
 
-  public TestSnapshotListener(Config config, ProbeStatusSink probeStatusSink) {
-    super(config, probeStatusSink);
-  }
+    public TestSnapshotListener(Config config, ProbeStatusSink probeStatusSink) {
+        super(config, probeStatusSink);
+    }
 
-  @Override
-  public void skipSnapshot(String probeId, DebuggerMetricCollector.SkippedReason reason) {
-    skipped = true;
-    this.reason = reason;
-  }
+    @Override
+    public void skipSnapshot(String probeId, DebuggerMetricCollector.SkippedReason reason) {
+        skipped = true;
+        this.reason = reason;
+    }
 
-  @Override
-  public void addSnapshot(Snapshot snapshot) {
-    snapshots.add(snapshot);
-  }
+    @Override
+    public void addSnapshot(Snapshot snapshot) {
+        snapshots.add(snapshot);
+    }
 
-  @Override
-  public void addHighRateSnapshot(Snapshot snapshot) {
-    snapshots.add(snapshot);
-  }
+    @Override
+    public void addHighRateSnapshot(Snapshot snapshot) {
+        snapshots.add(snapshot);
+    }
 }

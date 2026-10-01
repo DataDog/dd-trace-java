@@ -14,18 +14,17 @@ import scala.concurrent.Future;
  * the exception may be recorded.
  */
 public class MarkSpanAsErroredPF
-    extends JavaPartialFunction<Throwable, scala.Function1<RequestContext, Future<RouteResult>>> {
-  public static final JavaPartialFunction INSTANCE = new MarkSpanAsErroredPF();
+        extends JavaPartialFunction<Throwable, scala.Function1<RequestContext, Future<RouteResult>>> {
+    public static final JavaPartialFunction INSTANCE = new MarkSpanAsErroredPF();
 
-  private MarkSpanAsErroredPF() {}
+    private MarkSpanAsErroredPF() {}
 
-  @Override
-  public Function1<RequestContext, Future<RouteResult>> apply(Throwable x, boolean isCheck)
-      throws Exception {
-    AgentSpan agentSpan = AgentTracer.activeSpan();
-    if (agentSpan != null) {
-      agentSpan.addThrowable(x);
+    @Override
+    public Function1<RequestContext, Future<RouteResult>> apply(Throwable x, boolean isCheck) throws Exception {
+        AgentSpan agentSpan = AgentTracer.activeSpan();
+        if (agentSpan != null) {
+            agentSpan.addThrowable(x);
+        }
+        throw noMatch();
     }
-    throw noMatch();
-  }
 }

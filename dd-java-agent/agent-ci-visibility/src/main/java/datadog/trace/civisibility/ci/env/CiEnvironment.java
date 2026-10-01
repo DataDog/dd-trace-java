@@ -4,7 +4,7 @@ import java.util.Map;
 
 public interface CiEnvironment {
 
-  String get(String name);
+    String get(String name);
 
-  Map<String, String> get();
+    Map<String, String> get();
 }

@@ -8,8 +8,8 @@ import org.junit.Test;
 @DisableTestTrace
 public class TestDisableTestTrace {
 
-  @Test
-  public void test_succeed() {
-    assertTrue(true);
-  }
+    @Test
+    public void test_succeed() {
+        assertTrue(true);
+    }
 }

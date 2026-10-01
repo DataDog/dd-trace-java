@@ -6,6 +6,5 @@ import javax.annotation.Nullable;
 
 public interface LdapInjectionModule extends IastModule {
 
-  void onDirContextSearch(
-      @Nullable String name, @Nonnull String filterExpr, @Nullable Object[] filterArgs);
+    void onDirContextSearch(@Nullable String name, @Nonnull String filterExpr, @Nullable Object[] filterArgs);
 }

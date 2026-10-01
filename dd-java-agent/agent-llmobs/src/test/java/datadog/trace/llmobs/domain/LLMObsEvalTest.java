@@ -26,29 +26,25 @@ import org.junit.jupiter.api.Test;
  */
 class LLMObsEvalTest {
 
-  private static final JsonAdapter<Map<String, Object>> JSON_READER =
-      new Moshi.Builder()
-          .build()
-          .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
+    private static final JsonAdapter<Map<String, Object>> JSON_READER =
+            new Moshi.Builder().build().adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
 
-  private static List<?> serialize(LLMObsEval... evals) throws IOException {
-    String body = LLMObsEval.batchSerializer().toJson(Arrays.asList(evals));
+    private static List<?> serialize(LLMObsEval... evals) throws IOException {
+        String body = LLMObsEval.batchSerializer().toJson(Arrays.asList(evals));
 
-    Map<String, Object> data = asMap(JSON_READER.fromJson(body).get("data"));
-    assertEquals("evaluation_metric", data.get("type"));
-    return (List<?>) asMap(data.get("attributes")).get("metrics");
-  }
+        Map<String, Object> data = asMap(JSON_READER.fromJson(body).get("data"));
+        assertEquals("evaluation_metric", data.get("type"));
+        return (List<?>) asMap(data.get("attributes")).get("metrics");
+    }
 
-  @SuppressWarnings("unchecked")
-  private static Map<String, Object> asMap(Object value) {
-    return (Map<String, Object>) value;
-  }
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> asMap(Object value) {
+        return (Map<String, Object>) value;
+    }
 
-  @Test
-  void testScoreEvalCarriesTheV1KeySetAndNothingElse() throws IOException {
-    List<?> metrics =
-        serialize(
-            new LLMObsEval.Score(
+    @Test
+    void testScoreEvalCarriesTheV1KeySetAndNothingElse() throws IOException {
+        List<?> metrics = serialize(new LLMObsEval.Score(
                 "abc123",
                 42L,
                 1700000000000L,
@@ -57,56 +53,52 @@ class LLMObsEvalTest {
                 Collections.singletonMap("source", "web-ui"),
                 0.75));
 
-    assertEquals(1, metrics.size());
-    Map<String, Object> metric = asMap(metrics.get(0));
+        assertEquals(1, metrics.size());
+        Map<String, Object> metric = asMap(metrics.get(0));
 
-    assertEquals("abc123", metric.get("trace_id"));
-    assertEquals("42", metric.get("span_id"));
-    assertEquals(1.7e12, metric.get("timestamp_ms"));
-    assertEquals("my-app", metric.get("ml_app"));
-    assertEquals("score", metric.get("metric_type"));
-    assertEquals("sentiment", metric.get("label"));
-    assertEquals(0.75, metric.get("score_value"));
-    assertEquals(Collections.singletonList("source:web-ui"), metric.get("tags"));
+        assertEquals("abc123", metric.get("trace_id"));
+        assertEquals("42", metric.get("span_id"));
+        assertEquals(1.7e12, metric.get("timestamp_ms"));
+        assertEquals("my-app", metric.get("ml_app"));
+        assertEquals("score", metric.get("metric_type"));
+        assertEquals("sentiment", metric.get("label"));
+        assertEquals(0.75, metric.get("score_value"));
+        assertEquals(Collections.singletonList("source:web-ui"), metric.get("tags"));
 
-    // The only addition to the v1 payload.
-    assertEquals("evaluation", metric.get("event_kind"));
+        // The only addition to the v1 payload.
+        assertEquals("evaluation", metric.get("event_kind"));
 
-    // Feedback-only keys must never leak into the v1 payload.
-    assertFalse(metric.containsKey("submitter"), metric.toString());
-    assertFalse(metric.containsKey("session_id"), metric.toString());
-    assertFalse(metric.containsKey("feedback_join_key"), metric.toString());
-    assertFalse(metric.containsKey("assessment"), metric.toString());
-    assertFalse(metric.containsKey("reasoning"), metric.toString());
-  }
+        // Feedback-only keys must never leak into the v1 payload.
+        assertFalse(metric.containsKey("submitter"), metric.toString());
+        assertFalse(metric.containsKey("session_id"), metric.toString());
+        assertFalse(metric.containsKey("feedback_join_key"), metric.toString());
+        assertFalse(metric.containsKey("assessment"), metric.toString());
+        assertFalse(metric.containsKey("reasoning"), metric.toString());
+    }
 
-  @Test
-  void testCategoricalEvalCarriesTheV1KeySet() throws IOException {
-    List<?> metrics =
-        serialize(
-            new LLMObsEval.Categorical(
-                "abc123", 42L, 1700000000000L, "my-app", "tone", null, "positive"));
+    @Test
+    void testCategoricalEvalCarriesTheV1KeySet() throws IOException {
+        List<?> metrics = serialize(
+                new LLMObsEval.Categorical("abc123", 42L, 1700000000000L, "my-app", "tone", null, "positive"));
 
-    Map<String, Object> metric = asMap(metrics.get(0));
+        Map<String, Object> metric = asMap(metrics.get(0));
 
-    assertEquals("categorical", metric.get("metric_type"));
-    assertEquals("positive", metric.get("categorical_value"));
-    assertFalse(metric.containsKey("score_value"), metric.toString());
-    // A null tag map is omitted rather than serialized as an empty list.
-    assertFalse(metric.containsKey("tags"), metric.toString());
-    assertEquals("evaluation", metric.get("event_kind"));
-  }
+        assertEquals("categorical", metric.get("metric_type"));
+        assertEquals("positive", metric.get("categorical_value"));
+        assertFalse(metric.containsKey("score_value"), metric.toString());
+        // A null tag map is omitted rather than serialized as an empty list.
+        assertFalse(metric.containsKey("tags"), metric.toString());
+        assertEquals("evaluation", metric.get("event_kind"));
+    }
 
-  @Test
-  void testABatchMixesScoreAndCategoricalInOneEnvelope() throws IOException {
-    List<?> metrics =
-        serialize(
-            new LLMObsEval.Score("abc123", 42L, 1700000000000L, "my-app", "sentiment", null, 0.75),
-            new LLMObsEval.Categorical(
-                "abc123", 42L, 1700000000000L, "my-app", "tone", null, "positive"));
+    @Test
+    void testABatchMixesScoreAndCategoricalInOneEnvelope() throws IOException {
+        List<?> metrics = serialize(
+                new LLMObsEval.Score("abc123", 42L, 1700000000000L, "my-app", "sentiment", null, 0.75),
+                new LLMObsEval.Categorical("abc123", 42L, 1700000000000L, "my-app", "tone", null, "positive"));
 
-    assertEquals(2, metrics.size());
-    assertEquals(0.75, asMap(metrics.get(0)).get("score_value"));
-    assertEquals("positive", asMap(metrics.get(1)).get("categorical_value"));
-  }
+        assertEquals(2, metrics.size());
+        assertEquals(0.75, asMap(metrics.get(0)).get("score_value"));
+        assertEquals("positive", asMap(metrics.get(1)).get("categorical_value"));
+    }
 }

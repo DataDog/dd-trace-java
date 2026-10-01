@@ -8,28 +8,26 @@ import datadog.trace.api.iast.stratum.SourceMapper;
 
 public class SourceMapperImpl implements SourceMapper {
 
-  // This is only available if IAST source mapping is enabled
-  public static final SourceMapperImpl INSTANCE =
-      Config.get().isIastSourceMappingEnabled()
-          ? new SourceMapperImpl(StratumManager.getInstance())
-          : null;
+    // This is only available if IAST source mapping is enabled
+    public static final SourceMapperImpl INSTANCE =
+            Config.get().isIastSourceMappingEnabled() ? new SourceMapperImpl(StratumManager.getInstance()) : null;
 
-  private final StratumManager stratumManager;
+    private final StratumManager stratumManager;
 
-  private SourceMapperImpl(StratumManager stratumManager) {
-    this.stratumManager = stratumManager;
-  }
-
-  @Override
-  public Pair<String, Integer> getFileAndLine(String className, int lineNumber) {
-    Stratum stratum = stratumManager.get(className);
-    if (stratum == null) {
-      return null;
+    private SourceMapperImpl(StratumManager stratumManager) {
+        this.stratumManager = stratumManager;
     }
-    Pair<String, Integer> inputLine = stratum.getInputLine(lineNumber);
-    if (inputLine == null) {
-      return null;
+
+    @Override
+    public Pair<String, Integer> getFileAndLine(String className, int lineNumber) {
+        Stratum stratum = stratumManager.get(className);
+        if (stratum == null) {
+            return null;
+        }
+        Pair<String, Integer> inputLine = stratum.getInputLine(lineNumber);
+        if (inputLine == null) {
+            return null;
+        }
+        return Pair.of(stratum.getSourceFile(inputLine.getLeft()), inputLine.getRight());
     }
-    return Pair.of(stratum.getSourceFile(inputLine.getLeft()), inputLine.getRight());
-  }
 }

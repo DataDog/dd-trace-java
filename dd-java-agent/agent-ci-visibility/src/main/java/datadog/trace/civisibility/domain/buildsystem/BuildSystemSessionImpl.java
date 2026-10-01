@@ -44,197 +44,191 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 public class BuildSystemSessionImpl<T extends CoverageProcessor> extends AbstractTestSession
-    implements BuildSystemSession {
+        implements BuildSystemSession {
 
-  private final String startCommand;
-  private final ModuleSignalRouter moduleSignalRouter;
-  private final ExecutionSettingsFactory executionSettingsFactory;
-  private final SignalServer signalServer;
-  private final RepoIndexProvider repoIndexProvider;
-  private final CoverageProcessor.Factory<T> coverageProcessorFactory;
-  private final T coverageProcessor;
-  private final BuildSessionSettings settings;
+    private final String startCommand;
+    private final ModuleSignalRouter moduleSignalRouter;
+    private final ExecutionSettingsFactory executionSettingsFactory;
+    private final SignalServer signalServer;
+    private final RepoIndexProvider repoIndexProvider;
+    private final CoverageProcessor.Factory<T> coverageProcessorFactory;
+    private final T coverageProcessor;
+    private final BuildSessionSettings settings;
 
-  public BuildSystemSessionImpl(
-      String projectName,
-      String startCommand,
-      @Nullable Long startTime,
-      Provider ciProvider,
-      Config config,
-      CiVisibilityMetricCollector metricCollector,
-      ModuleSignalRouter moduleSignalRouter,
-      TestDecorator testDecorator,
-      SourcePathResolver sourcePathResolver,
-      Codeowners codeowners,
-      LinesResolver linesResolver,
-      ExecutionSettingsFactory executionSettingsFactory,
-      SignalServer signalServer,
-      RepoIndexProvider repoIndexProvider,
-      CoverageProcessor.Factory<T> coverageProcessorFactory) {
-    super(
-        projectName,
-        startTime,
-        InstrumentationType.BUILD,
-        ciProvider,
-        config,
-        metricCollector,
-        testDecorator,
-        sourcePathResolver,
-        codeowners,
-        linesResolver);
-    this.startCommand = startCommand;
-    this.moduleSignalRouter = moduleSignalRouter;
-    this.executionSettingsFactory = executionSettingsFactory;
-    this.signalServer = signalServer;
-    this.repoIndexProvider = repoIndexProvider;
-    this.coverageProcessorFactory = coverageProcessorFactory;
-    this.coverageProcessor = coverageProcessorFactory.sessionCoverage(span.getSpanId());
+    public BuildSystemSessionImpl(
+            String projectName,
+            String startCommand,
+            @Nullable Long startTime,
+            Provider ciProvider,
+            Config config,
+            CiVisibilityMetricCollector metricCollector,
+            ModuleSignalRouter moduleSignalRouter,
+            TestDecorator testDecorator,
+            SourcePathResolver sourcePathResolver,
+            Codeowners codeowners,
+            LinesResolver linesResolver,
+            ExecutionSettingsFactory executionSettingsFactory,
+            SignalServer signalServer,
+            RepoIndexProvider repoIndexProvider,
+            CoverageProcessor.Factory<T> coverageProcessorFactory) {
+        super(
+                projectName,
+                startTime,
+                InstrumentationType.BUILD,
+                ciProvider,
+                config,
+                metricCollector,
+                testDecorator,
+                sourcePathResolver,
+                codeowners,
+                linesResolver);
+        this.startCommand = startCommand;
+        this.moduleSignalRouter = moduleSignalRouter;
+        this.executionSettingsFactory = executionSettingsFactory;
+        this.signalServer = signalServer;
+        this.repoIndexProvider = repoIndexProvider;
+        this.coverageProcessorFactory = coverageProcessorFactory;
+        this.coverageProcessor = coverageProcessorFactory.sessionCoverage(span.getSpanId());
 
-    ExecutionSettings executionSettings =
-        executionSettingsFactory.create(JvmInfo.CURRENT_JVM, null);
-    this.settings =
-        new BuildSessionSettings(
-            executionSettings.isCodeCoverageReportUploadEnabled(),
-            getCoverageIncludedPackages(config, repoIndexProvider),
-            config.getCiVisibilityCodeCoverageExcludes());
+        ExecutionSettings executionSettings = executionSettingsFactory.create(JvmInfo.CURRENT_JVM, null);
+        this.settings = new BuildSessionSettings(
+                executionSettings.isCodeCoverageReportUploadEnabled(),
+                getCoverageIncludedPackages(config, repoIndexProvider),
+                config.getCiVisibilityCodeCoverageExcludes());
 
-    DynamicAutoTestRetrySettings dynamicAtrSettings =
-        executionSettings.getDynamicAutoTestRetrySettings();
-    if (dynamicAtrSettings.isEnabled()) {
-      metricCollector.add(
-          CiVisibilityCountMetric.DYNAMIC_ATR_RETRIES_ENABLED,
-          1,
-          dynamicAtrSettings.isCustom() ? HasCustomBuckets.TRUE : null);
+        DynamicAutoTestRetrySettings dynamicAtrSettings = executionSettings.getDynamicAutoTestRetrySettings();
+        if (dynamicAtrSettings.isEnabled()) {
+            metricCollector.add(
+                    CiVisibilityCountMetric.DYNAMIC_ATR_RETRIES_ENABLED,
+                    1,
+                    dynamicAtrSettings.isCustom() ? HasCustomBuckets.TRUE : null);
+        }
+
+        signalServer.registerSignalHandler(
+                SignalType.MODULE_EXECUTION_RESULT, moduleSignalRouter::onModuleSignalReceived);
+        signalServer.registerSignalHandler(
+                SignalType.MODULE_COVERAGE_DATA_JACOCO, moduleSignalRouter::onModuleSignalReceived);
+        signalServer.registerSignalHandler(SignalType.REPO_INDEX_REQUEST, this::onRepoIndexRequestReceived);
+        signalServer.registerSignalHandler(
+                SignalType.EXECUTION_SETTINGS_REQUEST, this::onExecutionSettingsRequestReceived);
+        signalServer.start();
+
+        setTag(Tags.TEST_COMMAND, startCommand);
     }
 
-    signalServer.registerSignalHandler(
-        SignalType.MODULE_EXECUTION_RESULT, moduleSignalRouter::onModuleSignalReceived);
-    signalServer.registerSignalHandler(
-        SignalType.MODULE_COVERAGE_DATA_JACOCO, moduleSignalRouter::onModuleSignalReceived);
-    signalServer.registerSignalHandler(
-        SignalType.REPO_INDEX_REQUEST, this::onRepoIndexRequestReceived);
-    signalServer.registerSignalHandler(
-        SignalType.EXECUTION_SETTINGS_REQUEST, this::onExecutionSettingsRequestReceived);
-    signalServer.start();
+    private static List<String> getCoverageIncludedPackages(Config config, RepoIndexProvider repoIndexProvider) {
+        if (!config.isCiVisibilityCodeCoverageEnabled()) {
+            return Collections.emptyList();
+        }
 
-    setTag(Tags.TEST_COMMAND, startCommand);
-  }
-
-  private static List<String> getCoverageIncludedPackages(
-      Config config, RepoIndexProvider repoIndexProvider) {
-    if (!config.isCiVisibilityCodeCoverageEnabled()) {
-      return Collections.emptyList();
+        List<String> includedPackages = config.getCiVisibilityCodeCoverageIncludes();
+        if (includedPackages != null && !includedPackages.isEmpty()) {
+            return new ArrayList<>(includedPackages);
+        } else {
+            RepoIndex repoIndex = repoIndexProvider.getIndex();
+            return new ArrayList<>(repoIndex.getRootPackages());
+        }
     }
 
-    List<String> includedPackages = config.getCiVisibilityCodeCoverageIncludes();
-    if (includedPackages != null && !includedPackages.isEmpty()) {
-      return new ArrayList<>(includedPackages);
-    } else {
-      RepoIndex repoIndex = repoIndexProvider.getIndex();
-      return new ArrayList<>(repoIndex.getRootPackages());
-    }
-  }
-
-  private SignalResponse onRepoIndexRequestReceived(RepoIndexRequest request) {
-    try {
-      RepoIndex index = repoIndexProvider.getIndex();
-      return new RepoIndexResponse(index);
-    } catch (Exception e) {
-      return new ErrorResponse("Error while building repo index: " + e.getMessage());
-    }
-  }
-
-  private SignalResponse onExecutionSettingsRequestReceived(ExecutionSettingsRequest request) {
-    try {
-      JvmInfo jvmInfo = request.getJvmInfo();
-      String moduleName = request.getModuleName();
-      ExecutionSettings settings = executionSettingsFactory.create(jvmInfo, moduleName);
-      return new ExecutionSettingsResponse(settings);
-
-    } catch (Exception e) {
-      return new ErrorResponse("Error while getting module execution settings: " + e.getMessage());
-    }
-  }
-
-  @Override
-  public BuildSystemModuleImpl testModuleStart(
-      String moduleName,
-      @Nullable Long startTime,
-      BuildModuleLayout moduleLayout,
-      JvmInfo jvmInfo,
-      @Nullable Collection<Path> classpath,
-      @Nullable JavaAgent jacocoAgent) {
-    ExecutionSettings executionSettings = executionSettingsFactory.create(jvmInfo, moduleName);
-    return new BuildSystemModuleImpl(
-        span.spanContext(),
-        moduleName,
-        startCommand,
-        startTime,
-        signalServer.getAddress(),
-        moduleLayout,
-        classpath,
-        jacocoAgent,
-        config,
-        metricCollector,
-        testDecorator,
-        sourcePathResolver,
-        codeowners,
-        linesResolver,
-        moduleSignalRouter,
-        coverageProcessorFactory,
-        coverageProcessor,
-        executionSettings,
-        settings,
-        this::onModuleFinish);
-  }
-
-  @Override
-  public AgentSpan testTaskStart(String taskName) {
-    return startSpan("ci_visibility", taskName, span.spanContext());
-  }
-
-  private void onModuleFinish(AgentSpan moduleSpan) {
-    // multiple modules can finish in parallel
-    tagPropagator.propagateCiVisibilityTags(moduleSpan);
-    tagPropagator.propagateTags(
-        moduleSpan,
-        TagMergeSpec.of(Tags.TEST_EARLY_FLAKE_ENABLED, Boolean::logicalOr),
-        TagMergeSpec.of(Tags.TEST_EARLY_FLAKE_ABORT_REASON),
-        TagMergeSpec.of(Tags.TEST_CODE_COVERAGE_ENABLED, Boolean::logicalOr),
-        TagMergeSpec.of(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, Boolean::logicalOr),
-        TagMergeSpec.of(Tags.TEST_ITR_TESTS_SKIPPING_TYPE),
-        TagMergeSpec.of(Tags.TEST_ITR_TESTS_SKIPPING_COUNT, Long::sum),
-        TagMergeSpec.of(DDTags.CI_ITR_TESTS_SKIPPED, Boolean::logicalOr),
-        TagMergeSpec.of(Tags.TEST_TEST_MANAGEMENT_ENABLED, Boolean::logicalOr),
-        TagMergeSpec.of(Tags.TEST_IS_ANDROID, Boolean::logicalOr),
-        TagMergeSpec.of(DDTags.TEST_HAS_FAILED_TEST_REPLAY, Boolean::logicalOr),
-        TagMergeSpec.of(DDTags.CI_LIBRARY_CONFIGURATION_ERROR_SETTINGS, Boolean::logicalOr),
-        TagMergeSpec.of(DDTags.CI_LIBRARY_CONFIGURATION_ERROR_SKIPPABLE_TESTS, Boolean::logicalOr),
-        TagMergeSpec.of(DDTags.CI_LIBRARY_CONFIGURATION_ERROR_FLAKY_TESTS, Boolean::logicalOr),
-        TagMergeSpec.of(DDTags.CI_LIBRARY_CONFIGURATION_ERROR_KNOWN_TESTS, Boolean::logicalOr),
-        TagMergeSpec.of(
-            DDTags.CI_LIBRARY_CONFIGURATION_ERROR_TEST_MANAGEMENT_TESTS, Boolean::logicalOr));
-  }
-
-  @Override
-  public BuildSessionSettings getSettings() {
-    return settings;
-  }
-
-  @Override
-  public void end(@Nullable Long endTime) {
-    signalServer.stop();
-
-    Long coveragePercentage = coverageProcessor.processCoverageData();
-    if (coveragePercentage != null) {
-      setTag(Tags.TEST_CODE_COVERAGE_LINES_PERCENTAGE, coveragePercentage);
-
-      Object testSkippingEnabled = span.getTag(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED);
-      if (testSkippingEnabled != null && (Boolean) testSkippingEnabled) {
-        setTag(Tags.TEST_CODE_COVERAGE_BACKFILLED, true);
-      }
+    private SignalResponse onRepoIndexRequestReceived(RepoIndexRequest request) {
+        try {
+            RepoIndex index = repoIndexProvider.getIndex();
+            return new RepoIndexResponse(index);
+        } catch (Exception e) {
+            return new ErrorResponse("Error while building repo index: " + e.getMessage());
+        }
     }
 
-    super.end(endTime);
-  }
+    private SignalResponse onExecutionSettingsRequestReceived(ExecutionSettingsRequest request) {
+        try {
+            JvmInfo jvmInfo = request.getJvmInfo();
+            String moduleName = request.getModuleName();
+            ExecutionSettings settings = executionSettingsFactory.create(jvmInfo, moduleName);
+            return new ExecutionSettingsResponse(settings);
+
+        } catch (Exception e) {
+            return new ErrorResponse("Error while getting module execution settings: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public BuildSystemModuleImpl testModuleStart(
+            String moduleName,
+            @Nullable Long startTime,
+            BuildModuleLayout moduleLayout,
+            JvmInfo jvmInfo,
+            @Nullable Collection<Path> classpath,
+            @Nullable JavaAgent jacocoAgent) {
+        ExecutionSettings executionSettings = executionSettingsFactory.create(jvmInfo, moduleName);
+        return new BuildSystemModuleImpl(
+                span.spanContext(),
+                moduleName,
+                startCommand,
+                startTime,
+                signalServer.getAddress(),
+                moduleLayout,
+                classpath,
+                jacocoAgent,
+                config,
+                metricCollector,
+                testDecorator,
+                sourcePathResolver,
+                codeowners,
+                linesResolver,
+                moduleSignalRouter,
+                coverageProcessorFactory,
+                coverageProcessor,
+                executionSettings,
+                settings,
+                this::onModuleFinish);
+    }
+
+    @Override
+    public AgentSpan testTaskStart(String taskName) {
+        return startSpan("ci_visibility", taskName, span.spanContext());
+    }
+
+    private void onModuleFinish(AgentSpan moduleSpan) {
+        // multiple modules can finish in parallel
+        tagPropagator.propagateCiVisibilityTags(moduleSpan);
+        tagPropagator.propagateTags(
+                moduleSpan,
+                TagMergeSpec.of(Tags.TEST_EARLY_FLAKE_ENABLED, Boolean::logicalOr),
+                TagMergeSpec.of(Tags.TEST_EARLY_FLAKE_ABORT_REASON),
+                TagMergeSpec.of(Tags.TEST_CODE_COVERAGE_ENABLED, Boolean::logicalOr),
+                TagMergeSpec.of(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, Boolean::logicalOr),
+                TagMergeSpec.of(Tags.TEST_ITR_TESTS_SKIPPING_TYPE),
+                TagMergeSpec.of(Tags.TEST_ITR_TESTS_SKIPPING_COUNT, Long::sum),
+                TagMergeSpec.of(DDTags.CI_ITR_TESTS_SKIPPED, Boolean::logicalOr),
+                TagMergeSpec.of(Tags.TEST_TEST_MANAGEMENT_ENABLED, Boolean::logicalOr),
+                TagMergeSpec.of(Tags.TEST_IS_ANDROID, Boolean::logicalOr),
+                TagMergeSpec.of(DDTags.TEST_HAS_FAILED_TEST_REPLAY, Boolean::logicalOr),
+                TagMergeSpec.of(DDTags.CI_LIBRARY_CONFIGURATION_ERROR_SETTINGS, Boolean::logicalOr),
+                TagMergeSpec.of(DDTags.CI_LIBRARY_CONFIGURATION_ERROR_SKIPPABLE_TESTS, Boolean::logicalOr),
+                TagMergeSpec.of(DDTags.CI_LIBRARY_CONFIGURATION_ERROR_FLAKY_TESTS, Boolean::logicalOr),
+                TagMergeSpec.of(DDTags.CI_LIBRARY_CONFIGURATION_ERROR_KNOWN_TESTS, Boolean::logicalOr),
+                TagMergeSpec.of(DDTags.CI_LIBRARY_CONFIGURATION_ERROR_TEST_MANAGEMENT_TESTS, Boolean::logicalOr));
+    }
+
+    @Override
+    public BuildSessionSettings getSettings() {
+        return settings;
+    }
+
+    @Override
+    public void end(@Nullable Long endTime) {
+        signalServer.stop();
+
+        Long coveragePercentage = coverageProcessor.processCoverageData();
+        if (coveragePercentage != null) {
+            setTag(Tags.TEST_CODE_COVERAGE_LINES_PERCENTAGE, coveragePercentage);
+
+            Object testSkippingEnabled = span.getTag(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED);
+            if (testSkippingEnabled != null && (Boolean) testSkippingEnabled) {
+                setTag(Tags.TEST_CODE_COVERAGE_BACKFILLED, true);
+            }
+        }
+
+        super.end(endTime);
+    }
 }

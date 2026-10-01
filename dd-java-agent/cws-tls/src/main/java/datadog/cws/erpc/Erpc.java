@@ -12,15 +12,15 @@ import com.sun.jna.Pointer;
  * code.
  */
 public class Erpc {
-  static final NativeLong REQUEST_CODE = new NativeLong(0xdeadc001L);
+    static final NativeLong REQUEST_CODE = new NativeLong(0xdeadc001L);
 
-  public interface CLibrary extends Library {
-    CLibrary Instance = (CLibrary) Native.load("c", CLibrary.class);
+    public interface CLibrary extends Library {
+        CLibrary Instance = (CLibrary) Native.load("c", CLibrary.class);
 
-    NativeLong ioctl(NativeLong fd, NativeLong request, Object... args);
-  }
+        NativeLong ioctl(NativeLong fd, NativeLong request, Object... args);
+    }
 
-  public static void send(Request request) {
-    CLibrary.Instance.ioctl(new NativeLong(0), REQUEST_CODE, Pointer.nativeValue(request.pointer));
-  }
+    public static void send(Request request) {
+        CLibrary.Instance.ioctl(new NativeLong(0), REQUEST_CODE, Pointer.nativeValue(request.pointer));
+    }
 }

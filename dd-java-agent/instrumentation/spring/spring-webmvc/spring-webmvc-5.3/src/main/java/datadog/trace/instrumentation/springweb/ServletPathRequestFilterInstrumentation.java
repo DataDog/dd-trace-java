@@ -22,52 +22,48 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistry;
  */
 @AutoService(InstrumenterModule.class)
 public class ServletPathRequestFilterInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public ServletPathRequestFilterInstrumentation() {
-    super("spring-web", "spring-path-filter");
-  }
-
-  @Override
-  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return hasClassNamed("org.springframework.web.filter.ServletRequestPathFilter")
-        .and(hasClassNamed("javax.servlet.Filter"));
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "org.springframework.web.context.WebApplicationContext";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named("org.springframework.context.support.AbstractApplicationContext"))
-        .and(implementsInterface(named(hierarchyMarkerType())));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("postProcessBeanFactory"))
-            .and(
-                takesArgument(
-                    0,
-                    named(
-                        "org.springframework.beans.factory.config.ConfigurableListableBeanFactory"))),
-        ServletPathRequestFilterInstrumentation.class.getName() + "$FilterInjectingAdvice");
-  }
-
-  public static class FilterInjectingAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(
-        @Advice.Argument(0) final ConfigurableListableBeanFactory beanFactory) {
-      if (beanFactory instanceof BeanDefinitionRegistry
-          && !beanFactory.containsBean("servletPathRequestFilter")) {
-
-        ((BeanDefinitionRegistry) beanFactory)
-            .registerBeanDefinition(
-                "servletPathRequestFilter", new OrderedServletPathRequestFilter.BeanDefinition());
-      }
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    public ServletPathRequestFilterInstrumentation() {
+        super("spring-web", "spring-path-filter");
     }
-  }
+
+    @Override
+    public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+        return hasClassNamed("org.springframework.web.filter.ServletRequestPathFilter")
+                .and(hasClassNamed("javax.servlet.Filter"));
+    }
+
+    @Override
+    public String hierarchyMarkerType() {
+        return "org.springframework.web.context.WebApplicationContext";
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return extendsClass(named("org.springframework.context.support.AbstractApplicationContext"))
+                .and(implementsInterface(named(hierarchyMarkerType())));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("postProcessBeanFactory"))
+                        .and(takesArgument(
+                                0, named("org.springframework.beans.factory.config.ConfigurableListableBeanFactory"))),
+                ServletPathRequestFilterInstrumentation.class.getName() + "$FilterInjectingAdvice");
+    }
+
+    public static class FilterInjectingAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter(@Advice.Argument(0) final ConfigurableListableBeanFactory beanFactory) {
+            if (beanFactory instanceof BeanDefinitionRegistry
+                    && !beanFactory.containsBean("servletPathRequestFilter")) {
+
+                ((BeanDefinitionRegistry) beanFactory)
+                        .registerBeanDefinition(
+                                "servletPathRequestFilter", new OrderedServletPathRequestFilter.BeanDefinition());
+            }
+        }
+    }
 }

@@ -16,32 +16,31 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class ShutdownInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public ShutdownInstrumentation() {
-    super("shutdown");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "java.lang.Shutdown";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(isStatic()).and(named("runHooks")),
-        getClass().getName() + "$ShutdownAdvice");
-  }
-
-  public static class ShutdownAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void methodEnter() {
-      // let's intercept the `runHooks` method before any of the hooks run
-      ShutdownHelper.shutdownAgent();
+    public ShutdownInstrumentation() {
+        super("shutdown");
     }
 
-    public static void muzzleCheck() {}
-  }
+    @Override
+    public String instrumentedType() {
+        return "java.lang.Shutdown";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(isStatic()).and(named("runHooks")), getClass().getName() + "$ShutdownAdvice");
+    }
+
+    public static class ShutdownAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void methodEnter() {
+            // let's intercept the `runHooks` method before any of the hooks run
+            ShutdownHelper.shutdownAgent();
+        }
+
+        public static void muzzleCheck() {}
+    }
 }

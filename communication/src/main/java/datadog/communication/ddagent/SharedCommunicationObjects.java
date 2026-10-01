@@ -24,256 +24,248 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SharedCommunicationObjects {
-  private static final Logger log = LoggerFactory.getLogger(SharedCommunicationObjects.class);
+    private static final Logger log = LoggerFactory.getLogger(SharedCommunicationObjects.class);
 
-  private static final String X_DATADOG_TEST_SESSION_TOKEN = "X-Datadog-Test-Session-Token";
+    private static final String X_DATADOG_TEST_SESSION_TOKEN = "X-Datadog-Test-Session-Token";
 
-  private final List<Runnable> pausedComponents = new ArrayList<>();
-  private volatile boolean paused;
+    private final List<Runnable> pausedComponents = new ArrayList<>();
+    private volatile boolean paused;
 
-  /**
-   * HTTP client for making requests to Datadog agent. Depending on configuration, this client may
-   * use regular HTTP, UDS or named pipe.
-   */
-  @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
-  public OkHttpClient agentHttpClient;
+    /**
+     * HTTP client for making requests to Datadog agent. Depending on configuration, this client may
+     * use regular HTTP, UDS or named pipe.
+     */
+    @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
+    public OkHttpClient agentHttpClient;
 
-  /**
-   * HTTP client for making requests directly to Datadog backend. Unlike {@link #agentHttpClient},
-   * this client is not configured to use UDS or named pipe.
-   */
-  private volatile OkHttpClient intakeHttpClient;
+    /**
+     * HTTP client for making requests directly to Datadog backend. Unlike {@link #agentHttpClient},
+     * this client is not configured to use UDS or named pipe.
+     */
+    private volatile OkHttpClient intakeHttpClient;
 
-  @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
-  public long httpClientTimeout;
+    @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
+    public long httpClientTimeout;
 
-  @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
-  public boolean forceClearTextHttpForIntakeClient;
+    @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
+    public boolean forceClearTextHttpForIntakeClient;
 
-  @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
-  public HttpUrl agentUrl;
+    @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
+    public HttpUrl agentUrl;
 
-  @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
-  public Monitoring monitoring;
+    @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
+    public Monitoring monitoring;
 
-  private volatile DDAgentFeaturesDiscovery featuresDiscovery;
-  private ConfigurationPoller configurationPoller;
+    private volatile DDAgentFeaturesDiscovery featuresDiscovery;
+    private ConfigurationPoller configurationPoller;
 
-  public SharedCommunicationObjects() {
-    this(false);
-  }
-
-  public SharedCommunicationObjects(boolean paused) {
-    this.paused = paused;
-  }
-
-  public void createRemaining(Config config) {
-    if (monitoring == null) {
-      monitoring = Monitoring.DISABLED;
+    public SharedCommunicationObjects() {
+        this(false);
     }
 
-    httpClientTimeout =
-        config.isCiVisibilityEnabled()
-            ? config.getCiVisibilityBackendApiTimeoutMillis()
-            : TimeUnit.SECONDS.toMillis(config.getAgentTimeout());
-
-    forceClearTextHttpForIntakeClient = config.isForceClearTextHttpForIntakeClient();
-
-    if (agentUrl == null) {
-      agentUrl = parseAgentUrl(config);
-      if (agentUrl == null) {
-        throw new IllegalArgumentException("Bad agent URL: " + config.getAgentUrl());
-      }
+    public SharedCommunicationObjects(boolean paused) {
+        this.paused = paused;
     }
 
-    if (agentHttpClient == null) {
-      String unixDomainSocket = SocketUtils.discoverApmSocket(config);
-      String namedPipe = config.getAgentNamedPipe();
-      agentHttpClient =
-          OkHttpUtils.buildHttpClient(
-              OkHttpUtils.isPlainHttp(agentUrl), unixDomainSocket, namedPipe, httpClientTimeout);
-      String testSessionToken = config.getTestAgentSessionToken();
-      if (testSessionToken != null) {
-        agentHttpClient = injectTestAgentSessionHeaderInterceptor(testSessionToken);
-      }
-    }
-  }
+    public void createRemaining(Config config) {
+        if (monitoring == null) {
+            monitoring = Monitoring.DISABLED;
+        }
 
-  private OkHttpClient injectTestAgentSessionHeaderInterceptor(String testSessionToken) {
-    return agentHttpClient
-        .newBuilder()
-        .addInterceptor(
-            chain ->
-                chain.proceed(
-                    chain
-                        .request()
+        httpClientTimeout = config.isCiVisibilityEnabled()
+                ? config.getCiVisibilityBackendApiTimeoutMillis()
+                : TimeUnit.SECONDS.toMillis(config.getAgentTimeout());
+
+        forceClearTextHttpForIntakeClient = config.isForceClearTextHttpForIntakeClient();
+
+        if (agentUrl == null) {
+            agentUrl = parseAgentUrl(config);
+            if (agentUrl == null) {
+                throw new IllegalArgumentException("Bad agent URL: " + config.getAgentUrl());
+            }
+        }
+
+        if (agentHttpClient == null) {
+            String unixDomainSocket = SocketUtils.discoverApmSocket(config);
+            String namedPipe = config.getAgentNamedPipe();
+            agentHttpClient = OkHttpUtils.buildHttpClient(
+                    OkHttpUtils.isPlainHttp(agentUrl), unixDomainSocket, namedPipe, httpClientTimeout);
+            String testSessionToken = config.getTestAgentSessionToken();
+            if (testSessionToken != null) {
+                agentHttpClient = injectTestAgentSessionHeaderInterceptor(testSessionToken);
+            }
+        }
+    }
+
+    private OkHttpClient injectTestAgentSessionHeaderInterceptor(String testSessionToken) {
+        return agentHttpClient
+                .newBuilder()
+                .addInterceptor(chain -> chain.proceed(chain.request()
                         .newBuilder()
                         .header(X_DATADOG_TEST_SESSION_TOKEN, testSessionToken)
                         .build()))
-        .build();
-  }
+                .build();
+    }
 
-  /** Registers a callback to be called when remote communications resume. */
-  public void whenReady(Runnable callback) {
-    if (paused) {
-      synchronized (pausedComponents) {
+    /** Registers a callback to be called when remote communications resume. */
+    public void whenReady(Runnable callback) {
         if (paused) {
-          pausedComponents.add(callback);
-          return;
-        }
-      }
-    }
-    callback.run(); // not paused, run immediately
-  }
-
-  /** Resumes remote communications including any paused callbacks. */
-  public void resume() {
-    paused = false;
-    // attempt discovery first to avoid potential race condition on IBM Java8
-    if (null != featuresDiscovery) {
-      featuresDiscovery.discoverIfOutdated();
-    } else {
-      Security.getProviders(); // fallback to preloading provider extensions
-    }
-    synchronized (pausedComponents) {
-      for (Runnable callback : pausedComponents) {
-        try {
-          callback.run();
-        } catch (Throwable e) {
-          log.warn("Problem resuming remote component {}", callback, e);
-        }
-      }
-      pausedComponents.clear();
-    }
-  }
-
-  private static HttpUrl parseAgentUrl(Config config) {
-    String agentUrl = config.getAgentUrl();
-    if (agentUrl.startsWith("unix:")) {
-      // provide placeholder agent URL, in practice we'll be tunnelling over UDS
-      agentUrl = "http://" + config.getAgentHost() + ":" + config.getAgentPort();
-    }
-    return HttpUrl.parse(agentUrl);
-  }
-
-  public ConfigurationPoller configurationPoller(Config config) {
-    if (configurationPoller == null && config.isRemoteConfigEnabled()) {
-      configurationPoller = createPoller(config);
-    }
-    return configurationPoller;
-  }
-
-  private ConfigurationPoller createPoller(Config config) {
-    String containerId = ContainerInfo.get().getContainerId();
-    String entityId = ContainerInfo.getEntityId();
-    Supplier<String> configUrlSupplier;
-    String remoteConfigUrl = config.getFinalRemoteConfigUrl();
-    if (remoteConfigUrl != null) {
-      configUrlSupplier = new FixedConfigUrlSupplier(remoteConfigUrl);
-    } else {
-      createRemaining(config);
-      configUrlSupplier = new RetryConfigUrlSupplier(this, config);
-    }
-    return new DefaultConfigurationPoller(
-        config, TRACER_VERSION, containerId, entityId, configUrlSupplier, agentHttpClient);
-  }
-
-  // for testing
-  public void setFeaturesDiscovery(DDAgentFeaturesDiscovery featuresDiscovery) {
-    this.featuresDiscovery = featuresDiscovery;
-  }
-
-  public DDAgentFeaturesDiscovery featuresDiscovery(Config config) {
-    DDAgentFeaturesDiscovery ret = featuresDiscovery;
-    if (ret == null) {
-      synchronized (this) {
-        if ((ret = featuresDiscovery) == null) {
-          if (config.isCiVisibilityEnabled() && BazelMode.get().isPayloadFilesEnabled()) {
-            // Hermetic Bazel runs write payloads to local files; don't probe the agent.
-            ret = NoopFeaturesDiscovery.INSTANCE;
-          } else {
-            createRemaining(config);
-            ret =
-                new DDAgentFeaturesDiscovery(
-                    agentHttpClient,
-                    monitoring,
-                    agentUrl,
-                    config.getProtocolVersion(),
-                    config.isTracerMetricsEnabled(),
-                    config.isTracerMetricsIgnoreAgentVersion());
-
-            if (paused) {
-              // defer remote discovery until remote I/O is allowed
-            } else {
-              if (AGENT_THREAD_GROUP.equals(Thread.currentThread().getThreadGroup())) {
-                ret.discover(); // safe to run on same thread
-              } else {
-                // avoid performing blocking I/O operation on application thread
-                AgentTaskScheduler.get().execute(ret::discoverIfOutdated);
-              }
+            synchronized (pausedComponents) {
+                if (paused) {
+                    pausedComponents.add(callback);
+                    return;
+                }
             }
-          }
-          featuresDiscovery = ret;
         }
-      }
-    }
-    return ret;
-  }
-
-  private static final class FixedConfigUrlSupplier implements Supplier<String> {
-    private final String configUrl;
-
-    private FixedConfigUrlSupplier(String configUrl) {
-      this.configUrl = configUrl;
+        callback.run(); // not paused, run immediately
     }
 
-    @Override
-    public String get() {
-      return this.configUrl;
-    }
-  }
-
-  private static final class RetryConfigUrlSupplier implements Supplier<String> {
-    private String configUrl;
-    private final SharedCommunicationObjects sco;
-    private final Config config;
-
-    private RetryConfigUrlSupplier(final SharedCommunicationObjects sco, final Config config) {
-      this.sco = sco;
-      this.config = config;
-    }
-
-    @Override
-    public String get() {
-      if (configUrl != null) {
-        return configUrl;
-      }
-
-      final DDAgentFeaturesDiscovery discovery = sco.featuresDiscovery(config);
-      discovery.discoverIfOutdated();
-      final String configEndpoint = discovery.getConfigEndpoint();
-      if (configEndpoint == null) {
-        return null;
-      }
-      this.configUrl = discovery.buildUrl(configEndpoint).toString();
-      log.debug("Found remote config endpoint: {}", this.configUrl);
-      return this.configUrl;
-    }
-  }
-
-  public OkHttpClient getIntakeHttpClient() {
-    OkHttpClient client = this.intakeHttpClient;
-    if (client != null) {
-      return client;
+    /** Resumes remote communications including any paused callbacks. */
+    public void resume() {
+        paused = false;
+        // attempt discovery first to avoid potential race condition on IBM Java8
+        if (null != featuresDiscovery) {
+            featuresDiscovery.discoverIfOutdated();
+        } else {
+            Security.getProviders(); // fallback to preloading provider extensions
+        }
+        synchronized (pausedComponents) {
+            for (Runnable callback : pausedComponents) {
+                try {
+                    callback.run();
+                } catch (Throwable e) {
+                    log.warn("Problem resuming remote component {}", callback, e);
+                }
+            }
+            pausedComponents.clear();
+        }
     }
 
-    synchronized (this) {
-      if (this.intakeHttpClient == null) {
-        this.intakeHttpClient =
-            OkHttpUtils.buildHttpClient(
-                forceClearTextHttpForIntakeClient, null, null, httpClientTimeout);
-      }
-      return this.intakeHttpClient;
+    private static HttpUrl parseAgentUrl(Config config) {
+        String agentUrl = config.getAgentUrl();
+        if (agentUrl.startsWith("unix:")) {
+            // provide placeholder agent URL, in practice we'll be tunnelling over UDS
+            agentUrl = "http://" + config.getAgentHost() + ":" + config.getAgentPort();
+        }
+        return HttpUrl.parse(agentUrl);
     }
-  }
+
+    public ConfigurationPoller configurationPoller(Config config) {
+        if (configurationPoller == null && config.isRemoteConfigEnabled()) {
+            configurationPoller = createPoller(config);
+        }
+        return configurationPoller;
+    }
+
+    private ConfigurationPoller createPoller(Config config) {
+        String containerId = ContainerInfo.get().getContainerId();
+        String entityId = ContainerInfo.getEntityId();
+        Supplier<String> configUrlSupplier;
+        String remoteConfigUrl = config.getFinalRemoteConfigUrl();
+        if (remoteConfigUrl != null) {
+            configUrlSupplier = new FixedConfigUrlSupplier(remoteConfigUrl);
+        } else {
+            createRemaining(config);
+            configUrlSupplier = new RetryConfigUrlSupplier(this, config);
+        }
+        return new DefaultConfigurationPoller(
+                config, TRACER_VERSION, containerId, entityId, configUrlSupplier, agentHttpClient);
+    }
+
+    // for testing
+    public void setFeaturesDiscovery(DDAgentFeaturesDiscovery featuresDiscovery) {
+        this.featuresDiscovery = featuresDiscovery;
+    }
+
+    public DDAgentFeaturesDiscovery featuresDiscovery(Config config) {
+        DDAgentFeaturesDiscovery ret = featuresDiscovery;
+        if (ret == null) {
+            synchronized (this) {
+                if ((ret = featuresDiscovery) == null) {
+                    if (config.isCiVisibilityEnabled() && BazelMode.get().isPayloadFilesEnabled()) {
+                        // Hermetic Bazel runs write payloads to local files; don't probe the agent.
+                        ret = NoopFeaturesDiscovery.INSTANCE;
+                    } else {
+                        createRemaining(config);
+                        ret = new DDAgentFeaturesDiscovery(
+                                agentHttpClient,
+                                monitoring,
+                                agentUrl,
+                                config.getProtocolVersion(),
+                                config.isTracerMetricsEnabled(),
+                                config.isTracerMetricsIgnoreAgentVersion());
+
+                        if (paused) {
+                            // defer remote discovery until remote I/O is allowed
+                        } else {
+                            if (AGENT_THREAD_GROUP.equals(Thread.currentThread().getThreadGroup())) {
+                                ret.discover(); // safe to run on same thread
+                            } else {
+                                // avoid performing blocking I/O operation on application thread
+                                AgentTaskScheduler.get().execute(ret::discoverIfOutdated);
+                            }
+                        }
+                    }
+                    featuresDiscovery = ret;
+                }
+            }
+        }
+        return ret;
+    }
+
+    private static final class FixedConfigUrlSupplier implements Supplier<String> {
+        private final String configUrl;
+
+        private FixedConfigUrlSupplier(String configUrl) {
+            this.configUrl = configUrl;
+        }
+
+        @Override
+        public String get() {
+            return this.configUrl;
+        }
+    }
+
+    private static final class RetryConfigUrlSupplier implements Supplier<String> {
+        private String configUrl;
+        private final SharedCommunicationObjects sco;
+        private final Config config;
+
+        private RetryConfigUrlSupplier(final SharedCommunicationObjects sco, final Config config) {
+            this.sco = sco;
+            this.config = config;
+        }
+
+        @Override
+        public String get() {
+            if (configUrl != null) {
+                return configUrl;
+            }
+
+            final DDAgentFeaturesDiscovery discovery = sco.featuresDiscovery(config);
+            discovery.discoverIfOutdated();
+            final String configEndpoint = discovery.getConfigEndpoint();
+            if (configEndpoint == null) {
+                return null;
+            }
+            this.configUrl = discovery.buildUrl(configEndpoint).toString();
+            log.debug("Found remote config endpoint: {}", this.configUrl);
+            return this.configUrl;
+        }
+    }
+
+    public OkHttpClient getIntakeHttpClient() {
+        OkHttpClient client = this.intakeHttpClient;
+        if (client != null) {
+            return client;
+        }
+
+        synchronized (this) {
+            if (this.intakeHttpClient == null) {
+                this.intakeHttpClient =
+                        OkHttpUtils.buildHttpClient(forceClearTextHttpForIntakeClient, null, null, httpClientTimeout);
+            }
+            return this.intakeHttpClient;
+        }
+    }
 }

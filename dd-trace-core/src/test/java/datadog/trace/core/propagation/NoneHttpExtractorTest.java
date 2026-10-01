@@ -36,22 +36,20 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 
 class NoneHttpExtractorTest extends AbstractHttpExtractorTest {
-  @Override
-  protected HttpCodec.Extractor newExtractor(
-      Config config, Supplier<TraceConfig> traceConfigSupplier) {
-    return NoneCodec.newExtractor(config, traceConfigSupplier);
-  }
+    @Override
+    protected HttpCodec.Extractor newExtractor(Config config, Supplier<TraceConfig> traceConfigSupplier) {
+        return NoneCodec.newExtractor(config, traceConfigSupplier);
+    }
 
-  @TableTest({
-    "scenario     | traceId | spanId ",
-    "no origin    | '1'     | '2'    ",
-    "uint64 max   | 'MAX'   | 'MAX-1'",
-    "uint64 max-1 | 'MAX-1' | 'MAX'  "
-  })
-  void extractHttpHeaders(
-      @ConvertWith(TraceIdConverter.class) String traceId,
-      @ConvertWith(TraceIdConverter.class) String spanId) {
-    // spotless:off
+    @TableTest({
+      "scenario     | traceId | spanId ",
+      "no origin    | '1'     | '2'    ",
+      "uint64 max   | 'MAX'   | 'MAX-1'",
+      "uint64 max-1 | 'MAX-1' | 'MAX'  "
+    })
+    void extractHttpHeaders(
+            @ConvertWith(TraceIdConverter.class) String traceId, @ConvertWith(TraceIdConverter.class) String spanId) {
+        // spotless:off
     Map<String, String> headers = headers(
         "", "empty key",
         TRACE_ID_KEY, traceId,
@@ -64,35 +62,34 @@ class NoneHttpExtractorTest extends AbstractHttpExtractorTest {
     );
     // spotless:on
 
-    TagContext context = this.extractor.extract(headers, stringValuesMap());
+        TagContext context = this.extractor.extract(headers, stringValuesMap());
 
-    assertEquals(DDTraceId.ZERO, context.getTraceId());
-    assertEquals(DDSpanId.ZERO, context.getSpanId());
-    Map<String, String> expectedBaggage = new HashMap<>();
-    expectedBaggage.put(SOME_BAGGAGE, "my-interesting-baggage-info");
-    expectedBaggage.put(SOME_CASE_SENSITIVE_BAGGAGE, "my-interesting-baggage-info-2");
-    assertEquals(expectedBaggage, context.getBaggage());
-    assertEquals(singletonMap(SOME_TAG, "my-interesting-info,and-more"), context.getTags());
-    assertEquals(UNSET, context.getSamplingPriority());
-    assertNull(context.getOrigin());
-  }
+        assertEquals(DDTraceId.ZERO, context.getTraceId());
+        assertEquals(DDSpanId.ZERO, context.getSpanId());
+        Map<String, String> expectedBaggage = new HashMap<>();
+        expectedBaggage.put(SOME_BAGGAGE, "my-interesting-baggage-info");
+        expectedBaggage.put(SOME_CASE_SENSITIVE_BAGGAGE, "my-interesting-baggage-info-2");
+        assertEquals(expectedBaggage, context.getBaggage());
+        assertEquals(singletonMap(SOME_TAG, "my-interesting-info,and-more"), context.getTags());
+        assertEquals(UNSET, context.getSamplingPriority());
+        assertNull(context.getOrigin());
+    }
 
-  @WithConfig(key = REQUEST_HEADER_TAGS_COMMA_ALLOWED, value = "false")
-  @Test
-  void extractHttpHeadersWithoutComma() {
-    // Recreate extractor with the comma-disallowed config
-    this.extractor.cleanup();
-    Map<String, String> baggageMap = new HashMap<>();
-    baggageMap.put(SOME_CUSTOM_BAGGAGE_HEADER, SOME_BAGGAGE);
-    baggageMap.put(SOME_CUSTOM_BAGGAGE_HEADER_2, SOME_CASE_SENSITIVE_BAGGAGE);
-    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
-        DynamicConfig.create()
-            .setHeaderTags(singletonMap(SOME_HEADER, SOME_TAG))
-            .setBaggageMapping(baggageMap)
-            .apply();
-    this.extractor = NoneCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig);
+    @WithConfig(key = REQUEST_HEADER_TAGS_COMMA_ALLOWED, value = "false")
+    @Test
+    void extractHttpHeadersWithoutComma() {
+        // Recreate extractor with the comma-disallowed config
+        this.extractor.cleanup();
+        Map<String, String> baggageMap = new HashMap<>();
+        baggageMap.put(SOME_CUSTOM_BAGGAGE_HEADER, SOME_BAGGAGE);
+        baggageMap.put(SOME_CUSTOM_BAGGAGE_HEADER_2, SOME_CASE_SENSITIVE_BAGGAGE);
+        DynamicConfig<DynamicConfig.Snapshot> dynamicConfig = DynamicConfig.create()
+                .setHeaderTags(singletonMap(SOME_HEADER, SOME_TAG))
+                .setBaggageMapping(baggageMap)
+                .apply();
+        this.extractor = NoneCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig);
 
-    // spotless:off
+        // spotless:off
     Map<String, String> headers = headers(
         "", "empty key",
         TRACE_ID_KEY, "2",
@@ -105,46 +102,46 @@ class NoneHttpExtractorTest extends AbstractHttpExtractorTest {
     );
     // spotless:on
 
-    TagContext context = this.extractor.extract(headers, stringValuesMap());
+        TagContext context = this.extractor.extract(headers, stringValuesMap());
 
-    assertEquals(DDTraceId.ZERO, context.getTraceId());
-    assertEquals(DDSpanId.ZERO, context.getSpanId());
-    Map<String, String> expectedBaggage = new HashMap<>();
-    expectedBaggage.put(SOME_BAGGAGE, "my-interesting-baggage-info");
-    expectedBaggage.put(SOME_CASE_SENSITIVE_BAGGAGE, "my-interesting-baggage-info-2");
-    assertEquals(expectedBaggage, context.getBaggage());
-    assertEquals(singletonMap(SOME_TAG, "my-interesting-info"), context.getTags());
-  }
+        assertEquals(DDTraceId.ZERO, context.getTraceId());
+        assertEquals(DDSpanId.ZERO, context.getSpanId());
+        Map<String, String> expectedBaggage = new HashMap<>();
+        expectedBaggage.put(SOME_BAGGAGE, "my-interesting-baggage-info");
+        expectedBaggage.put(SOME_CASE_SENSITIVE_BAGGAGE, "my-interesting-baggage-info-2");
+        assertEquals(expectedBaggage, context.getBaggage());
+        assertEquals(singletonMap(SOME_TAG, "my-interesting-info"), context.getTags());
+    }
 
-  @ParameterizedTest
-  @ValueSource(booleans = {false, true})
-  void extractHeaderTagsWithNoPropagation(boolean withOrigin) {
-    // spotless:off
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void extractHeaderTagsWithNoPropagation(boolean withOrigin) {
+        // spotless:off
     Map<String, String> headers = headers(
         ORIGIN_KEY, withOrigin ? "my-origin" : null,
         SOME_HEADER, "my-interesting-info"
     );
     // spotless:on
 
-    TagContext context = this.extractor.extract(headers, stringValuesMap());
+        TagContext context = this.extractor.extract(headers, stringValuesMap());
 
-    assertFalse(context instanceof ExtractedContext);
-    assertEquals(singletonMap(SOME_TAG, "my-interesting-info"), context.getTags());
-    assertNull(context.getOrigin());
-  }
+        assertFalse(context instanceof ExtractedContext);
+        assertEquals(singletonMap(SOME_TAG, "my-interesting-info"), context.getTags());
+        assertNull(context.getOrigin());
+    }
 
-  @TableTest({
-    "scenario            | hexId                             ",
-    "64-bit short        | '1'                               ",
-    "64-bit max chars    | '123456789abcdef0'                ",
-    "128-bit             | '123456789abcdef0123456789abcdef0'",
-    "128-bit zero middle | '64184f2400000000123456789abcdef0'",
-    "128-bit all f       | 'ffffffffffffffffffffffffffffffff'"
-  })
-  void extractHttpHeadersWith128BitTraceId(String hexId) {
-    DD128bTraceId traceId = DD128bTraceId.fromHex(hexId);
-    boolean is128bTrace = traceId.toHighOrderLong() != 0;
-    // spotless:off
+    @TableTest({
+      "scenario            | hexId                             ",
+      "64-bit short        | '1'                               ",
+      "64-bit max chars    | '123456789abcdef0'                ",
+      "128-bit             | '123456789abcdef0123456789abcdef0'",
+      "128-bit zero middle | '64184f2400000000123456789abcdef0'",
+      "128-bit all f       | 'ffffffffffffffffffffffffffffffff'"
+    })
+    void extractHttpHeadersWith128BitTraceId(String hexId) {
+        DD128bTraceId traceId = DD128bTraceId.fromHex(hexId);
+        boolean is128bTrace = traceId.toHighOrderLong() != 0;
+        // spotless:off
     Map<String, String> headers = headers(
         TRACE_ID_KEY, traceId.toString(),
         SPAN_ID_KEY, "2",
@@ -157,17 +154,17 @@ class NoneHttpExtractorTest extends AbstractHttpExtractorTest {
     );
     // spotless:on
 
-    TagContext context = this.extractor.extract(headers, stringValuesMap());
+        TagContext context = this.extractor.extract(headers, stringValuesMap());
 
-    assertEquals(DDTraceId.ZERO, context.getTraceId());
-    assertEquals(DDSpanId.ZERO, context.getSpanId());
-    assertTrue(context.getBaggage().isEmpty());
-    assertEquals(singletonMap(SOME_TAG, "my-interesting-info"), context.getTags());
-  }
+        assertEquals(DDTraceId.ZERO, context.getTraceId());
+        assertEquals(DDSpanId.ZERO, context.getSpanId());
+        assertTrue(context.getBaggage().isEmpty());
+        assertEquals(singletonMap(SOME_TAG, "my-interesting-info"), context.getTags());
+    }
 
-  @Test
-  void extractHttpHeadersWithInvalidNonNumericId() {
-    // spotless:off
+    @Test
+    void extractHttpHeadersWithInvalidNonNumericId() {
+        // spotless:off
     Map<String, String> headers = headers(
         TRACE_ID_KEY, "traceId",
         SPAN_ID_KEY,"spanId",
@@ -177,9 +174,9 @@ class NoneHttpExtractorTest extends AbstractHttpExtractorTest {
     );
     // spotless:on
 
-    TagContext context = this.extractor.extract(headers, stringValuesMap());
+        TagContext context = this.extractor.extract(headers, stringValuesMap());
 
-    assertInstanceOf(TagContext.class, context);
-    assertEquals(singletonMap(SOME_TAG, "my-interesting-info"), context.getTags());
-  }
+        assertInstanceOf(TagContext.class, context);
+        assertEquals(singletonMap(SOME_TAG, "my-interesting-info"), context.getTags());
+    }
 }

@@ -28,50 +28,47 @@ import net.bytebuddy.matcher.ElementMatcher;
 /** Instrument {@link Runnable} */
 @AutoService(InstrumenterModule.class)
 public final class RunnableInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public RunnableInstrumentation() {
-    super(EXECUTOR_INSTRUMENTATION_NAME, RUNNABLE_INSTRUMENTATION_NAME);
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return null; // bootstrap type
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return notExcludedByName(RUNNABLE)
-        .and(implementsInterface(named(Runnable.class.getName())))
-        .and(not(implementsInterface(named(RunnableFuture.class.getName()))));
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap(Runnable.class.getName(), State.class.getName());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("run").and(takesArguments(0)).and(isPublic()),
-        RunnableInstrumentation.class.getName() + "$RunnableAdvice");
-  }
-
-  public static class RunnableAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope enter(@Advice.This final Runnable thiz) {
-      final ContextStore<Runnable, State> contextStore =
-          InstrumentationContext.get(Runnable.class, State.class);
-      return AdviceUtils.startTaskScope(contextStore, thiz);
+    public RunnableInstrumentation() {
+        super(EXECUTOR_INSTRUMENTATION_NAME, RUNNABLE_INSTRUMENTATION_NAME);
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(@Advice.Enter final ContextScope scope) {
-      AdviceUtils.endTaskScope(scope);
+    @Override
+    public String hierarchyMarkerType() {
+        return null; // bootstrap type
     }
-  }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return notExcludedByName(RUNNABLE)
+                .and(implementsInterface(named(Runnable.class.getName())))
+                .and(not(implementsInterface(named(RunnableFuture.class.getName()))));
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap(Runnable.class.getName(), State.class.getName());
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("run").and(takesArguments(0)).and(isPublic()),
+                RunnableInstrumentation.class.getName() + "$RunnableAdvice");
+    }
+
+    public static class RunnableAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope enter(@Advice.This final Runnable thiz) {
+            final ContextStore<Runnable, State> contextStore = InstrumentationContext.get(Runnable.class, State.class);
+            return AdviceUtils.startTaskScope(contextStore, thiz);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void exit(@Advice.Enter final ContextScope scope) {
+            AdviceUtils.endTaskScope(scope);
+        }
+    }
 }

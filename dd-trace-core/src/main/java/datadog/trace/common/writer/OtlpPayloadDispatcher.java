@@ -12,48 +12,48 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 final class OtlpPayloadDispatcher implements PayloadDispatcher {
-  private static final Logger log = LoggerFactory.getLogger(OtlpPayloadDispatcher.class);
+    private static final Logger log = LoggerFactory.getLogger(OtlpPayloadDispatcher.class);
 
-  private static final int FLUSH_THRESHOLD_BYTES = 5 << 20; // 5 MiB
+    private static final int FLUSH_THRESHOLD_BYTES = 5 << 20; // 5 MiB
 
-  private final OtlpTraceCollector collector;
-  private final OtlpSender sender;
+    private final OtlpTraceCollector collector;
+    private final OtlpSender sender;
 
-  OtlpPayloadDispatcher(OtlpSender sender, OtlpTraceCollector collector) {
-    this.sender = sender;
-    this.collector = collector;
-  }
-
-  @Override
-  public void addTrace(List<? extends CoreSpan<?>> trace) {
-    collector.addTrace(trace);
-    // flush proactively to keep payload size bounded
-    if (collector.sizeInBytes() >= FLUSH_THRESHOLD_BYTES) {
-      flush();
+    OtlpPayloadDispatcher(OtlpSender sender, OtlpTraceCollector collector) {
+        this.sender = sender;
+        this.collector = collector;
     }
-  }
 
-  @Override
-  public void flush() {
-    try {
-      OtlpPayload payload = collector.collectTraces();
-      if (payload != OtlpPayload.EMPTY) {
-        OtlpTelemetry.getInstance().onTracesExportAttempt();
-        RemoteApi.Response response = sender.send(payload);
-        OtlpTelemetry.getInstance().onTracesExportComplete(response.success());
-      }
-    } catch (RuntimeException e) { // don't catch severe Errors
-      log.debug("Failed to send OTLP payload", e);
+    @Override
+    public void addTrace(List<? extends CoreSpan<?>> trace) {
+        collector.addTrace(trace);
+        // flush proactively to keep payload size bounded
+        if (collector.sizeInBytes() >= FLUSH_THRESHOLD_BYTES) {
+            flush();
+        }
     }
-  }
 
-  @Override
-  public void onDroppedTrace(int spanCount) {
-    // no telemetry currently tracked for dropped traces
-  }
+    @Override
+    public void flush() {
+        try {
+            OtlpPayload payload = collector.collectTraces();
+            if (payload != OtlpPayload.EMPTY) {
+                OtlpTelemetry.getInstance().onTracesExportAttempt();
+                RemoteApi.Response response = sender.send(payload);
+                OtlpTelemetry.getInstance().onTracesExportComplete(response.success());
+            }
+        } catch (RuntimeException e) { // don't catch severe Errors
+            log.debug("Failed to send OTLP payload", e);
+        }
+    }
 
-  @Override
-  public Collection<RemoteApi> getApis() {
-    return Collections.emptyList();
-  }
+    @Override
+    public void onDroppedTrace(int spanCount) {
+        // no telemetry currently tracked for dropped traces
+    }
+
+    @Override
+    public Collection<RemoteApi> getApis() {
+        return Collections.emptyList();
+    }
 }

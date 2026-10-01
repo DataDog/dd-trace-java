@@ -8,48 +8,40 @@ import com.datadog.debugger.el.Visitor;
  * BinaryOperator operator}.
  */
 public final class BinaryExpression implements BooleanExpression {
-  protected final BooleanExpression left;
-  protected final BooleanExpression right;
-  private final BinaryOperator operator;
+    protected final BooleanExpression left;
+    protected final BooleanExpression right;
+    private final BinaryOperator operator;
 
-  public BinaryExpression(
-      BooleanExpression left, BooleanExpression right, BinaryOperator operator) {
-    this.left = left == null ? BooleanExpression.FALSE : left;
-    this.right = right == null ? BooleanExpression.FALSE : right;
-    this.operator = operator;
-  }
+    public BinaryExpression(BooleanExpression left, BooleanExpression right, BinaryOperator operator) {
+        this.left = left == null ? BooleanExpression.FALSE : left;
+        this.right = right == null ? BooleanExpression.FALSE : right;
+        this.operator = operator;
+    }
 
-  @Override
-  public Boolean evaluate(EvalContext evalContext) {
-    return operator.apply(left, right, evalContext);
-  }
+    @Override
+    public Boolean evaluate(EvalContext evalContext) {
+        return operator.apply(left, right, evalContext);
+    }
 
-  @Override
-  public String toString() {
-    return "BinaryExpression{"
-        + "left="
-        + left
-        + ", right="
-        + right
-        + ", operator="
-        + operator
-        + '}';
-  }
+    @Override
+    public String toString() {
+        return "BinaryExpression{" + "left=" + left + ", right=" + right + ", operator=" + operator + '}';
+    }
 
-  @Override
-  public <R> R accept(Visitor<R> visitor) {
-    return visitor.visit(this);
-  }
+    @Override
+    public <R> R accept(Visitor<R> visitor) {
+        return visitor.visit(this);
+    }
 
-  public BooleanExpression getLeft() {
-    return left;
-  }
+    public BooleanExpression getLeft() {
+        return left;
+    }
 
-  public BooleanExpression getRight() {
-    return right;
-  }
+    public BooleanExpression getRight() {
+        return right;
+    }
 
-  public BinaryOperator getOperator() {
-    return operator;
-  }
+    public BinaryOperator getOperator() {
+        return operator;
+    }
 }

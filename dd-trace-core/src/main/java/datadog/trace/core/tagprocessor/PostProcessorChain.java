@@ -7,17 +7,16 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 
 public final class PostProcessorChain extends TagsPostProcessor {
-  private final TagsPostProcessor[] chain;
+    private final TagsPostProcessor[] chain;
 
-  public PostProcessorChain(@Nonnull final TagsPostProcessor... processors) {
-    chain = Objects.requireNonNull(processors);
-  }
-
-  @Override
-  public void processTags(
-      TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
-    for (final TagsPostProcessor tagsPostProcessor : chain) {
-      tagsPostProcessor.processTags(unsafeTags, spanContext, spanLinks);
+    public PostProcessorChain(@Nonnull final TagsPostProcessor... processors) {
+        chain = Objects.requireNonNull(processors);
     }
-  }
+
+    @Override
+    public void processTags(TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+        for (final TagsPostProcessor tagsPostProcessor : chain) {
+            tagsPostProcessor.processTags(unsafeTags, spanContext, spanLinks);
+        }
+    }
 }

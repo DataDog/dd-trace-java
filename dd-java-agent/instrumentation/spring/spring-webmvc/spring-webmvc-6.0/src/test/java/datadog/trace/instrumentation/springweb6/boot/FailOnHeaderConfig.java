@@ -6,8 +6,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 public class FailOnHeaderConfig implements WebMvcConfigurer {
-  @Override
-  public void addInterceptors(final InterceptorRegistry registry) {
-    registry.addInterceptor(new FailOnHeaderInterceptor());
-  }
+    @Override
+    public void addInterceptors(final InterceptorRegistry registry) {
+        registry.addInterceptor(new FailOnHeaderInterceptor());
+    }
 }

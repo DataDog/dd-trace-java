@@ -11,21 +11,20 @@ import org.junit.runner.Description;
 
 public class FailFastDescriptionComparator implements Comparator<Description> {
 
-  private final TestEventsHandler<TestSuiteDescriptor, TestDescriptor> handler;
+    private final TestEventsHandler<TestSuiteDescriptor, TestDescriptor> handler;
 
-  public FailFastDescriptionComparator(
-      TestEventsHandler<TestSuiteDescriptor, TestDescriptor> handler) {
-    this.handler = handler;
-  }
+    public FailFastDescriptionComparator(TestEventsHandler<TestSuiteDescriptor, TestDescriptor> handler) {
+        this.handler = handler;
+    }
 
-  private int executionPriority(Description description) {
-    TestIdentifier testIdentifier = JUnit4Utils.toTestIdentifier(description);
-    TestSourceData testSourceData = JUnit4Utils.toTestSourceData(description);
-    return handler.executionPriority(testIdentifier, testSourceData);
-  }
+    private int executionPriority(Description description) {
+        TestIdentifier testIdentifier = JUnit4Utils.toTestIdentifier(description);
+        TestSourceData testSourceData = JUnit4Utils.toTestSourceData(description);
+        return handler.executionPriority(testIdentifier, testSourceData);
+    }
 
-  @Override
-  public int compare(Description o1, Description o2) {
-    return executionPriority(o2) - executionPriority(o1);
-  }
+    @Override
+    public int compare(Description o1, Description o2) {
+        return executionPriority(o2) - executionPriority(o1);
+    }
 }

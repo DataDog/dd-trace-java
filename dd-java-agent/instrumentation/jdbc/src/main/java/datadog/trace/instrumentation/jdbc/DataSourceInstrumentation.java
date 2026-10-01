@@ -22,61 +22,58 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class DataSourceInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice {
-  public DataSourceInstrumentation() {
-    super("jdbc-datasource");
-  }
-
-  @Override
-  public boolean defaultEnabled() {
-    return false;
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return null; // bootstrap type
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("javax.sql.DataSource"));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("getConnection"), DataSourceInstrumentation.class.getName() + "$GetConnectionAdvice");
-  }
-
-  public static class GetConnectionAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope start(@Advice.This final DataSource ds) {
-      if (activeSpan() == null) {
-        // Don't want to generate a new top-level span
-        return null;
-      }
-
-      final AgentSpan span = startSpan(JAVA_JDBC_CONNECTION.toString(), DATABASE_CONNECTION);
-      DECORATE.afterStart(span);
-
-      span.setResourceName(DECORATE.spanNameForMethod(ds.getClass(), "getConnection"));
-
-      return activateSpan(span);
+        implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    public DataSourceInstrumentation() {
+        super("jdbc-datasource");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
-      if (scope == null) {
-        return;
-      }
-      DECORATE.onError(scope, throwable);
-      DECORATE.beforeFinish(scope);
-      scope.close();
-      spanFromScope(scope).finish();
+    @Override
+    public boolean defaultEnabled() {
+        return false;
     }
-  }
+
+    @Override
+    public String hierarchyMarkerType() {
+        return null; // bootstrap type
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named("javax.sql.DataSource"));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("getConnection"), DataSourceInstrumentation.class.getName() + "$GetConnectionAdvice");
+    }
+
+    public static class GetConnectionAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope start(@Advice.This final DataSource ds) {
+            if (activeSpan() == null) {
+                // Don't want to generate a new top-level span
+                return null;
+            }
+
+            final AgentSpan span = startSpan(JAVA_JDBC_CONNECTION.toString(), DATABASE_CONNECTION);
+            DECORATE.afterStart(span);
+
+            span.setResourceName(DECORATE.spanNameForMethod(ds.getClass(), "getConnection"));
+
+            return activateSpan(span);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void stopSpan(@Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+            if (scope == null) {
+                return;
+            }
+            DECORATE.onError(scope, throwable);
+            DECORATE.beforeFinish(scope);
+            scope.close();
+            spanFromScope(scope).finish();
+        }
+    }
 }

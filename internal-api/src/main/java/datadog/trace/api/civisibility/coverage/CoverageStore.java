@@ -6,18 +6,18 @@ import javax.annotation.Nullable;
 
 public interface CoverageStore extends TestReportHolder {
 
-  CoverageProbes getProbes();
+    CoverageProbes getProbes();
 
-  /**
-   * @return {@code true} if coverage was gathered successfully
-   */
-  boolean report(DDTraceId testSessionId, Long testSuiteId, long testSpanId);
+    /**
+     * @return {@code true} if coverage was gathered successfully
+     */
+    boolean report(DDTraceId testSessionId, Long testSuiteId, long testSpanId);
 
-  interface Factory extends Registry {
-    CoverageStore create(@Nullable TestIdentifier testIdentifier);
-  }
+    interface Factory extends Registry {
+        CoverageStore create(@Nullable TestIdentifier testIdentifier);
+    }
 
-  interface Registry {
-    void setTotalProbeCount(String className, int totalProbeCount);
-  }
+    interface Registry {
+        void setTotalProbeCount(String className, int totalProbeCount);
+    }
 }

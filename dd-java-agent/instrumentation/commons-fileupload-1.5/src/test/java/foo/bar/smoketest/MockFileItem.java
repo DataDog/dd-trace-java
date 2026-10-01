@@ -9,87 +9,87 @@ import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.FileItemHeaders;
 
 public class MockFileItem implements FileItem {
-  private final String name;
+    private final String name;
 
-  private final InputStream inputStream;
+    private final InputStream inputStream;
 
-  public MockFileItem(final String name, final InputStream inputStream) {
-    this.name = name;
-    this.inputStream = inputStream;
-  }
+    public MockFileItem(final String name, final InputStream inputStream) {
+        this.name = name;
+        this.inputStream = inputStream;
+    }
 
-  @Override
-  public FileItemHeaders getHeaders() {
-    return null;
-  }
+    @Override
+    public FileItemHeaders getHeaders() {
+        return null;
+    }
 
-  @Override
-  public void setHeaders(FileItemHeaders var1) {}
+    @Override
+    public void setHeaders(FileItemHeaders var1) {}
 
-  @Override
-  public InputStream getInputStream() throws IOException {
-    return inputStream;
-  }
+    @Override
+    public InputStream getInputStream() throws IOException {
+        return inputStream;
+    }
 
-  @Override
-  public String getContentType() {
-    return null;
-  }
+    @Override
+    public String getContentType() {
+        return null;
+    }
 
-  @Override
-  public String getName() {
-    return name;
-  }
+    @Override
+    public String getName() {
+        return name;
+    }
 
-  @Override
-  public boolean isInMemory() {
-    return true;
-  }
+    @Override
+    public boolean isInMemory() {
+        return true;
+    }
 
-  @Override
-  public long getSize() {
-    return 0;
-  }
+    @Override
+    public long getSize() {
+        return 0;
+    }
 
-  @Override
-  public byte[] get() {
-    return null;
-  }
+    @Override
+    public byte[] get() {
+        return null;
+    }
 
-  @Override
-  public String getString(String var1) throws UnsupportedEncodingException {
-    return null;
-  }
+    @Override
+    public String getString(String var1) throws UnsupportedEncodingException {
+        return null;
+    }
 
-  @Override
-  public String getString() {
-    return null;
-  }
+    @Override
+    public String getString() {
+        return null;
+    }
 
-  @Override
-  public void write(File var1) throws Exception {}
+    @Override
+    public void write(File var1) throws Exception {}
 
-  @Override
-  public void delete() {}
+    @Override
+    public void delete() {}
 
-  @Override
-  public String getFieldName() {
-    return null;
-  }
+    @Override
+    public String getFieldName() {
+        return null;
+    }
 
-  @Override
-  public void setFieldName(String var1) {}
+    @Override
+    public void setFieldName(String var1) {}
 
-  @Override
-  public boolean isFormField() {
-    return true;
-  }
+    @Override
+    public boolean isFormField() {
+        return true;
+    }
 
-  @Override
-  public void setFormField(boolean var1) {}
+    @Override
+    public void setFormField(boolean var1) {}
 
-  @Override
-  public OutputStream getOutputStream() throws IOException {
-    return null;
-  }
+    @Override
+    public OutputStream getOutputStream() throws IOException {
+        return null;
+    }
 }

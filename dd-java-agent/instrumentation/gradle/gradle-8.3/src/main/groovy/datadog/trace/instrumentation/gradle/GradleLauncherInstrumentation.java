@@ -19,34 +19,34 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public class GradleLauncherInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public GradleLauncherInstrumentation() {
-    super("gradle", "gradle-daemon-jvm-options");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "org.gradle.launcher.configuration.AllProperties";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("getProperties"),
-        GradleLauncherInstrumentation.class.getName() + "$PropertiesAugmentationAdvice");
-  }
-
-  public static class PropertiesAugmentationAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void addJavaagentToGradleDaemonProperties(
-        @Advice.Return(readOnly = false) Map<String, String> jvmOptions) {
-      jvmOptions = GradleDaemonInjectionUtils.addJavaagentToGradleDaemonProperties(jvmOptions);
+    public GradleLauncherInstrumentation() {
+        super("gradle", "gradle-daemon-jvm-options");
     }
-  }
+
+    @Override
+    public String hierarchyMarkerType() {
+        return "org.gradle.launcher.configuration.AllProperties";
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("getProperties"),
+                GradleLauncherInstrumentation.class.getName() + "$PropertiesAugmentationAdvice");
+    }
+
+    public static class PropertiesAugmentationAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void addJavaagentToGradleDaemonProperties(
+                @Advice.Return(readOnly = false) Map<String, String> jvmOptions) {
+            jvmOptions = GradleDaemonInjectionUtils.addJavaagentToGradleDaemonProperties(jvmOptions);
+        }
+    }
 }

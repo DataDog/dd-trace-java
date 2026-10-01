@@ -104,202 +104,201 @@ import org.openjdk.jmh.infra.Blackhole;
 @OutputTimeUnit(MICROSECONDS)
 @Fork(value = 3, jvmArgsAppend = "-DTEST_LOG_LEVEL=warn")
 public class SpanCreationBenchmark {
-  private static final String INSTRUMENTATION_NAME = "bench";
-  private static final String SERVER_OPERATION_NAME = "servlet.request";
-  // The DB-shaped span gets its own operation name -- a real jdbc span is never "servlet.request",
-  // and keeping the two shapes distinct by operation avoids conflating them.
-  private static final String JDBC_OPERATION_NAME = "database.query";
+    private static final String INSTRUMENTATION_NAME = "bench";
+    private static final String SERVER_OPERATION_NAME = "servlet.request";
+    // The DB-shaped span gets its own operation name -- a real jdbc span is never "servlet.request",
+    // and keeping the two shapes distinct by operation avoids conflating them.
+    private static final String JDBC_OPERATION_NAME = "database.query";
 
-  // int tag values are deliberately kept inside Integer's built-in cache (-128..127) so valueOf
-  // returns a shared box and boxing does not allocate — the bench then measures tag storage / path
-  // cost, not incidental boxing (which differs between setTag(int) and the builder's
-  // withTag(Number)).
+    // int tag values are deliberately kept inside Integer's built-in cache (-128..127) so valueOf
+    // returns a shared box and boxing does not allocate — the bench then measures tag storage / path
+    // cost, not incidental boxing (which differs between setTag(int) and the builder's
+    // withTag(Number)).
 
-  // Web-server-shaped known tags — the profile the dense store / SpanPrototype target.
-  private static final String COMPONENT_VALUE = "tomcat-server";
-  private static final String HTTP_METHOD_VALUE = "GET";
-  private static final String HTTP_ROUTE_VALUE = "/owners/{ownerId}";
-  private static final String HTTP_URL_VALUE = "http://localhost:8080/owners/42";
-  private static final int HTTP_STATUS_VALUE = 100; // in-cache; value itself is immaterial here
-  private static final int PEER_PORT_VALUE = 80;
+    // Web-server-shaped known tags — the profile the dense store / SpanPrototype target.
+    private static final String COMPONENT_VALUE = "tomcat-server";
+    private static final String HTTP_METHOD_VALUE = "GET";
+    private static final String HTTP_ROUTE_VALUE = "/owners/{ownerId}";
+    private static final String HTTP_URL_VALUE = "http://localhost:8080/owners/42";
+    private static final int HTTP_STATUS_VALUE = 100; // in-cache; value itself is immaterial here
+    private static final int PEER_PORT_VALUE = 80;
 
-  // JDBC/DB-client-shaped known tags — a higher-tag-count shape (9 vs the web shape's 7), matching
-  // what DatabaseClientDecorator + JDBCDecorator set on a statement span.
-  private static final String DB_COMPONENT_VALUE = "java-jdbc-statement";
-  private static final String DB_TYPE_VALUE = "postgresql";
-  private static final String DB_INSTANCE_VALUE = "petclinic";
-  private static final String DB_USER_VALUE = "app";
-  private static final String DB_OPERATION_VALUE = "SELECT";
-  private static final String DB_STATEMENT_VALUE = "SELECT * FROM owners WHERE id = ?";
-  private static final String DB_PEER_HOSTNAME_VALUE = "db.internal";
-  private static final int DB_PEER_PORT_VALUE = 90; // in-cache; value itself is immaterial here
+    // JDBC/DB-client-shaped known tags — a higher-tag-count shape (9 vs the web shape's 7), matching
+    // what DatabaseClientDecorator + JDBCDecorator set on a statement span.
+    private static final String DB_COMPONENT_VALUE = "java-jdbc-statement";
+    private static final String DB_TYPE_VALUE = "postgresql";
+    private static final String DB_INSTANCE_VALUE = "petclinic";
+    private static final String DB_USER_VALUE = "app";
+    private static final String DB_OPERATION_VALUE = "SELECT";
+    private static final String DB_STATEMENT_VALUE = "SELECT * FROM owners WHERE id = ?";
+    private static final String DB_PEER_HOSTNAME_VALUE = "db.internal";
+    private static final int DB_PEER_PORT_VALUE = 90; // in-cache; value itself is immaterial here
 
-  CoreTracer tracer;
+    CoreTracer tracer;
 
-  // Baked-once prototypes carrying only the type-constant subset each baseline sets individually
-  // (component + span.kind; jdbc also db.type). The dynamic tags are set per-span in both arms, so
-  // the *ViaPrototype vs *Span delta isolates the construction-path seeding of just those
-  // constants.
-  SpanPrototype webProto;
-  SpanPrototype jdbcProto;
+    // Baked-once prototypes carrying only the type-constant subset each baseline sets individually
+    // (component + span.kind; jdbc also db.type). The dynamic tags are set per-span in both arms, so
+    // the *ViaPrototype vs *Span delta isolates the construction-path seeding of just those
+    // constants.
+    SpanPrototype webProto;
+    SpanPrototype jdbcProto;
 
-  @Setup
-  public void setup(Blackhole blackhole) {
-    // DropWriter keeps finish() from pulling in serialization / agent I/O, so -prof gc reflects
-    // span creation + tagging + PendingTrace completion only.
-    this.tracer = CoreTracer.builder().writer(new DropWriter(blackhole)).build();
-    this.webProto =
-        SpanPrototype.builder()
-            .initInstrumentationName(INSTRUMENTATION_NAME)
-            .initOperationName(SERVER_OPERATION_NAME)
-            .initComponentOnly(COMPONENT_VALUE)
-            .initKind(Tags.SPAN_KIND_SERVER)
-            .build();
-    this.jdbcProto =
-        SpanPrototype.builder()
-            .initInstrumentationName(INSTRUMENTATION_NAME)
-            .initOperationName(JDBC_OPERATION_NAME)
-            .initComponentOnly(DB_COMPONENT_VALUE)
-            .initKind(Tags.SPAN_KIND_CLIENT)
-            .initTag(Tags.DB_TYPE, DB_TYPE_VALUE)
-            .build();
-  }
+    @Setup
+    public void setup(Blackhole blackhole) {
+        // DropWriter keeps finish() from pulling in serialization / agent I/O, so -prof gc reflects
+        // span creation + tagging + PendingTrace completion only.
+        this.tracer = CoreTracer.builder().writer(new DropWriter(blackhole)).build();
+        this.webProto = SpanPrototype.builder()
+                .initInstrumentationName(INSTRUMENTATION_NAME)
+                .initOperationName(SERVER_OPERATION_NAME)
+                .initComponentOnly(COMPONENT_VALUE)
+                .initKind(Tags.SPAN_KIND_SERVER)
+                .build();
+        this.jdbcProto = SpanPrototype.builder()
+                .initInstrumentationName(INSTRUMENTATION_NAME)
+                .initOperationName(JDBC_OPERATION_NAME)
+                .initComponentOnly(DB_COMPONENT_VALUE)
+                .initKind(Tags.SPAN_KIND_CLIENT)
+                .initTag(Tags.DB_TYPE, DB_TYPE_VALUE)
+                .build();
+    }
 
-  @TearDown
-  public void tearDown() {
-    this.tracer.close();
-  }
+    @TearDown
+    public void tearDown() {
+        this.tracer.close();
+    }
 
-  /** Baseline: create + finish a bare span via startSpan, no tags. */
-  @Benchmark
-  public void bareStartSpan() {
-    AgentSpan span = tracer.startSpan(INSTRUMENTATION_NAME, SERVER_OPERATION_NAME);
-    span.finish();
-  }
+    /** Baseline: create + finish a bare span via startSpan, no tags. */
+    @Benchmark
+    public void bareStartSpan() {
+        AgentSpan span = tracer.startSpan(INSTRUMENTATION_NAME, SERVER_OPERATION_NAME);
+        span.finish();
+    }
 
-  /** Baseline: create + finish a bare span via the builder path, no tags. */
-  @Benchmark
-  public void bareBuildSpan() {
-    AgentSpan span = tracer.buildSpan(INSTRUMENTATION_NAME, SERVER_OPERATION_NAME).start();
-    span.finish();
-  }
+    /** Baseline: create + finish a bare span via the builder path, no tags. */
+    @Benchmark
+    public void bareBuildSpan() {
+        AgentSpan span =
+                tracer.buildSpan(INSTRUMENTATION_NAME, SERVER_OPERATION_NAME).start();
+        span.finish();
+    }
 
-  /** Web-server-shaped span: create -> set the typical known tags -> finish. */
-  @Benchmark
-  public void webServerSpan() {
-    AgentSpan span = tracer.buildSpan(INSTRUMENTATION_NAME, SERVER_OPERATION_NAME).start();
-    span.setTag(Tags.COMPONENT, COMPONENT_VALUE);
-    span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER);
-    span.setTag(Tags.HTTP_METHOD, HTTP_METHOD_VALUE);
-    span.setTag(Tags.HTTP_ROUTE, HTTP_ROUTE_VALUE);
-    span.setTag(Tags.HTTP_URL, HTTP_URL_VALUE);
-    span.setTag(Tags.HTTP_STATUS, HTTP_STATUS_VALUE);
-    span.setTag(Tags.PEER_PORT, PEER_PORT_VALUE);
-    span.finish();
-  }
+    /** Web-server-shaped span: create -> set the typical known tags -> finish. */
+    @Benchmark
+    public void webServerSpan() {
+        AgentSpan span =
+                tracer.buildSpan(INSTRUMENTATION_NAME, SERVER_OPERATION_NAME).start();
+        span.setTag(Tags.COMPONENT, COMPONENT_VALUE);
+        span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER);
+        span.setTag(Tags.HTTP_METHOD, HTTP_METHOD_VALUE);
+        span.setTag(Tags.HTTP_ROUTE, HTTP_ROUTE_VALUE);
+        span.setTag(Tags.HTTP_URL, HTTP_URL_VALUE);
+        span.setTag(Tags.HTTP_STATUS, HTTP_STATUS_VALUE);
+        span.setTag(Tags.PEER_PORT, PEER_PORT_VALUE);
+        span.finish();
+    }
 
-  /**
-   * Web-server-shaped span via the <b>builder tag path</b>: tags accumulated on the builder with
-   * {@code withTag} and applied at {@code start()}, rather than set on the span afterward. This is
-   * the shape the OTel bridge takes (OTel {@code SpanBuilder.setAttribute} → dd builder), still
-   * live today for manual OTel and OTel-bridge auto-instrumentation. Compare against {@link
-   * #webServerSpan} (same tags, set after start) to track how the startSpan/buildSpan paths diverge
-   * across releases.
-   */
-  @Benchmark
-  public void webServerSpanViaBuilder() {
-    AgentSpan span =
-        tracer
-            .buildSpan(INSTRUMENTATION_NAME, SERVER_OPERATION_NAME)
-            .withTag(Tags.COMPONENT, COMPONENT_VALUE)
-            .withTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER)
-            .withTag(Tags.HTTP_METHOD, HTTP_METHOD_VALUE)
-            .withTag(Tags.HTTP_ROUTE, HTTP_ROUTE_VALUE)
-            .withTag(Tags.HTTP_URL, HTTP_URL_VALUE)
-            .withTag(Tags.HTTP_STATUS, HTTP_STATUS_VALUE)
-            .withTag(Tags.PEER_PORT, PEER_PORT_VALUE)
-            .start();
-    span.finish();
-  }
+    /**
+     * Web-server-shaped span via the <b>builder tag path</b>: tags accumulated on the builder with
+     * {@code withTag} and applied at {@code start()}, rather than set on the span afterward. This is
+     * the shape the OTel bridge takes (OTel {@code SpanBuilder.setAttribute} → dd builder), still
+     * live today for manual OTel and OTel-bridge auto-instrumentation. Compare against {@link
+     * #webServerSpan} (same tags, set after start) to track how the startSpan/buildSpan paths diverge
+     * across releases.
+     */
+    @Benchmark
+    public void webServerSpanViaBuilder() {
+        AgentSpan span = tracer.buildSpan(INSTRUMENTATION_NAME, SERVER_OPERATION_NAME)
+                .withTag(Tags.COMPONENT, COMPONENT_VALUE)
+                .withTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER)
+                .withTag(Tags.HTTP_METHOD, HTTP_METHOD_VALUE)
+                .withTag(Tags.HTTP_ROUTE, HTTP_ROUTE_VALUE)
+                .withTag(Tags.HTTP_URL, HTTP_URL_VALUE)
+                .withTag(Tags.HTTP_STATUS, HTTP_STATUS_VALUE)
+                .withTag(Tags.PEER_PORT, PEER_PORT_VALUE)
+                .start();
+        span.finish();
+    }
 
-  /** JDBC/DB-client-shaped span: create -> set the typical DB known tags (9) -> finish. */
-  @Benchmark
-  public void jdbcClientSpan() {
-    AgentSpan span = tracer.buildSpan(INSTRUMENTATION_NAME, JDBC_OPERATION_NAME).start();
-    span.setTag(Tags.COMPONENT, DB_COMPONENT_VALUE);
-    span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
-    span.setTag(Tags.DB_TYPE, DB_TYPE_VALUE);
-    span.setTag(Tags.DB_INSTANCE, DB_INSTANCE_VALUE);
-    span.setTag(Tags.DB_USER, DB_USER_VALUE);
-    span.setTag(Tags.DB_OPERATION, DB_OPERATION_VALUE);
-    span.setTag(Tags.DB_STATEMENT, DB_STATEMENT_VALUE);
-    span.setTag(Tags.PEER_HOSTNAME, DB_PEER_HOSTNAME_VALUE);
-    span.setTag(Tags.PEER_PORT, DB_PEER_PORT_VALUE);
-    span.finish();
-  }
+    /** JDBC/DB-client-shaped span: create -> set the typical DB known tags (9) -> finish. */
+    @Benchmark
+    public void jdbcClientSpan() {
+        AgentSpan span =
+                tracer.buildSpan(INSTRUMENTATION_NAME, JDBC_OPERATION_NAME).start();
+        span.setTag(Tags.COMPONENT, DB_COMPONENT_VALUE);
+        span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
+        span.setTag(Tags.DB_TYPE, DB_TYPE_VALUE);
+        span.setTag(Tags.DB_INSTANCE, DB_INSTANCE_VALUE);
+        span.setTag(Tags.DB_USER, DB_USER_VALUE);
+        span.setTag(Tags.DB_OPERATION, DB_OPERATION_VALUE);
+        span.setTag(Tags.DB_STATEMENT, DB_STATEMENT_VALUE);
+        span.setTag(Tags.PEER_HOSTNAME, DB_PEER_HOSTNAME_VALUE);
+        span.setTag(Tags.PEER_PORT, DB_PEER_PORT_VALUE);
+        span.finish();
+    }
 
-  /**
-   * Web-server-shaped span via {@link SpanPrototype}: the type-constants (component, span.kind)
-   * ride a baked-once prototype seeded at construction; the dynamic http.* / peer.port tags are set
-   * per-span, as real instrumentation does. Compare against {@link #webServerSpan} (identical tags,
-   * all set individually) to read the prototype's construction-path win on a full span.
-   */
-  @Benchmark
-  public void webServerSpanViaPrototype() {
-    AgentSpan span = tracer.buildSpan(webProto, null).start(); // null -> prototype's operationName
-    span.setTag(Tags.HTTP_METHOD, HTTP_METHOD_VALUE);
-    span.setTag(Tags.HTTP_ROUTE, HTTP_ROUTE_VALUE);
-    span.setTag(Tags.HTTP_URL, HTTP_URL_VALUE);
-    span.setTag(Tags.HTTP_STATUS, HTTP_STATUS_VALUE);
-    span.setTag(Tags.PEER_PORT, PEER_PORT_VALUE);
-    span.finish();
-  }
+    /**
+     * Web-server-shaped span via {@link SpanPrototype}: the type-constants (component, span.kind)
+     * ride a baked-once prototype seeded at construction; the dynamic http.* / peer.port tags are set
+     * per-span, as real instrumentation does. Compare against {@link #webServerSpan} (identical tags,
+     * all set individually) to read the prototype's construction-path win on a full span.
+     */
+    @Benchmark
+    public void webServerSpanViaPrototype() {
+        AgentSpan span = tracer.buildSpan(webProto, null).start(); // null -> prototype's operationName
+        span.setTag(Tags.HTTP_METHOD, HTTP_METHOD_VALUE);
+        span.setTag(Tags.HTTP_ROUTE, HTTP_ROUTE_VALUE);
+        span.setTag(Tags.HTTP_URL, HTTP_URL_VALUE);
+        span.setTag(Tags.HTTP_STATUS, HTTP_STATUS_VALUE);
+        span.setTag(Tags.PEER_PORT, PEER_PORT_VALUE);
+        span.finish();
+    }
 
-  /**
-   * JDBC/DB-client-shaped span via {@link SpanPrototype}: component, span.kind, and db.type ride
-   * the prototype; the dynamic db.* / peer.* tags are set per-span. Compare against {@link
-   * #jdbcClientSpan}.
-   */
-  @Benchmark
-  public void jdbcClientSpanViaPrototype() {
-    AgentSpan span = tracer.buildSpan(jdbcProto, null).start();
-    span.setTag(Tags.DB_INSTANCE, DB_INSTANCE_VALUE);
-    span.setTag(Tags.DB_USER, DB_USER_VALUE);
-    span.setTag(Tags.DB_OPERATION, DB_OPERATION_VALUE);
-    span.setTag(Tags.DB_STATEMENT, DB_STATEMENT_VALUE);
-    span.setTag(Tags.PEER_HOSTNAME, DB_PEER_HOSTNAME_VALUE);
-    span.setTag(Tags.PEER_PORT, DB_PEER_PORT_VALUE);
-    span.finish();
-  }
+    /**
+     * JDBC/DB-client-shaped span via {@link SpanPrototype}: component, span.kind, and db.type ride
+     * the prototype; the dynamic db.* / peer.* tags are set per-span. Compare against {@link
+     * #jdbcClientSpan}.
+     */
+    @Benchmark
+    public void jdbcClientSpanViaPrototype() {
+        AgentSpan span = tracer.buildSpan(jdbcProto, null).start();
+        span.setTag(Tags.DB_INSTANCE, DB_INSTANCE_VALUE);
+        span.setTag(Tags.DB_USER, DB_USER_VALUE);
+        span.setTag(Tags.DB_OPERATION, DB_OPERATION_VALUE);
+        span.setTag(Tags.DB_STATEMENT, DB_STATEMENT_VALUE);
+        span.setTag(Tags.PEER_HOSTNAME, DB_PEER_HOSTNAME_VALUE);
+        span.setTag(Tags.PEER_PORT, DB_PEER_PORT_VALUE);
+        span.finish();
+    }
 
-  /**
-   * Web-server-shaped span via {@code startSpan(SpanPrototype, ...)} — the builder-free
-   * construction entry (no MultiSpanBuilder allocation), the auto-instrumentation path. Compare
-   * against {@link #webServerSpanViaPrototype} (same prototype, but {@code buildSpan(...).start()}
-   * allocates a builder) to read the builder-free saving, and against {@link #webServerSpan} for
-   * the full win.
-   */
-  @Benchmark
-  public void webServerSpanViaPrototypeStartSpan() {
-    AgentSpan span = tracer.startSpan(webProto, null); // null -> prototype's operationName
-    span.setTag(Tags.HTTP_METHOD, HTTP_METHOD_VALUE);
-    span.setTag(Tags.HTTP_ROUTE, HTTP_ROUTE_VALUE);
-    span.setTag(Tags.HTTP_URL, HTTP_URL_VALUE);
-    span.setTag(Tags.HTTP_STATUS, HTTP_STATUS_VALUE);
-    span.setTag(Tags.PEER_PORT, PEER_PORT_VALUE);
-    span.finish();
-  }
+    /**
+     * Web-server-shaped span via {@code startSpan(SpanPrototype, ...)} — the builder-free
+     * construction entry (no MultiSpanBuilder allocation), the auto-instrumentation path. Compare
+     * against {@link #webServerSpanViaPrototype} (same prototype, but {@code buildSpan(...).start()}
+     * allocates a builder) to read the builder-free saving, and against {@link #webServerSpan} for
+     * the full win.
+     */
+    @Benchmark
+    public void webServerSpanViaPrototypeStartSpan() {
+        AgentSpan span = tracer.startSpan(webProto, null); // null -> prototype's operationName
+        span.setTag(Tags.HTTP_METHOD, HTTP_METHOD_VALUE);
+        span.setTag(Tags.HTTP_ROUTE, HTTP_ROUTE_VALUE);
+        span.setTag(Tags.HTTP_URL, HTTP_URL_VALUE);
+        span.setTag(Tags.HTTP_STATUS, HTTP_STATUS_VALUE);
+        span.setTag(Tags.PEER_PORT, PEER_PORT_VALUE);
+        span.finish();
+    }
 
-  /** JDBC/DB-client-shaped span via the builder-free {@code startSpan(SpanPrototype, ...)}. */
-  @Benchmark
-  public void jdbcClientSpanViaPrototypeStartSpan() {
-    AgentSpan span = tracer.startSpan(jdbcProto, null);
-    span.setTag(Tags.DB_INSTANCE, DB_INSTANCE_VALUE);
-    span.setTag(Tags.DB_USER, DB_USER_VALUE);
-    span.setTag(Tags.DB_OPERATION, DB_OPERATION_VALUE);
-    span.setTag(Tags.DB_STATEMENT, DB_STATEMENT_VALUE);
-    span.setTag(Tags.PEER_HOSTNAME, DB_PEER_HOSTNAME_VALUE);
-    span.setTag(Tags.PEER_PORT, DB_PEER_PORT_VALUE);
-    span.finish();
-  }
+    /** JDBC/DB-client-shaped span via the builder-free {@code startSpan(SpanPrototype, ...)}. */
+    @Benchmark
+    public void jdbcClientSpanViaPrototypeStartSpan() {
+        AgentSpan span = tracer.startSpan(jdbcProto, null);
+        span.setTag(Tags.DB_INSTANCE, DB_INSTANCE_VALUE);
+        span.setTag(Tags.DB_USER, DB_USER_VALUE);
+        span.setTag(Tags.DB_OPERATION, DB_OPERATION_VALUE);
+        span.setTag(Tags.DB_STATEMENT, DB_STATEMENT_VALUE);
+        span.setTag(Tags.PEER_HOSTNAME, DB_PEER_HOSTNAME_VALUE);
+        span.setTag(Tags.PEER_PORT, DB_PEER_PORT_VALUE);
+        span.finish();
+    }
 }

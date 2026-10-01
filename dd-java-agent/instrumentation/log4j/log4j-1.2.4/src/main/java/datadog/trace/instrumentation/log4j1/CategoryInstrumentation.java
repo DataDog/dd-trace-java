@@ -26,41 +26,41 @@ import org.apache.log4j.spi.LoggingEvent;
 
 @AutoService(InstrumenterModule.class)
 public class CategoryInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public CategoryInstrumentation() {
-    super("log4j", "log4j-1");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.apache.log4j.Category";
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("org.apache.log4j.spi.LoggingEvent", AgentSpanContext.class.getName());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(named("callAppenders"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("org.apache.log4j.spi.LoggingEvent"))),
-        CategoryInstrumentation.class.getName() + "$CallAppendersAdvice");
-  }
-
-  public static class CallAppendersAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(@Advice.Argument(0) LoggingEvent event) {
-      AgentSpan span = activeSpan();
-
-      if (span != null && traceConfig(span).isLogsInjectionEnabled()) {
-        InstrumentationContext.get(LoggingEvent.class, AgentSpanContext.class)
-            .put(event, span.spanContext());
-      }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public CategoryInstrumentation() {
+        super("log4j", "log4j-1");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "org.apache.log4j.Category";
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("org.apache.log4j.spi.LoggingEvent", AgentSpanContext.class.getName());
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPublic())
+                        .and(named("callAppenders"))
+                        .and(takesArguments(1))
+                        .and(takesArgument(0, named("org.apache.log4j.spi.LoggingEvent"))),
+                CategoryInstrumentation.class.getName() + "$CallAppendersAdvice");
+    }
+
+    public static class CallAppendersAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter(@Advice.Argument(0) LoggingEvent event) {
+            AgentSpan span = activeSpan();
+
+            if (span != null && traceConfig(span).isLogsInjectionEnabled()) {
+                InstrumentationContext.get(LoggingEvent.class, AgentSpanContext.class)
+                        .put(event, span.spanContext());
+            }
+        }
+    }
 }

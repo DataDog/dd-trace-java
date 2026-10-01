@@ -8,11 +8,11 @@ import java.io.InputStream;
  * it's never called because JMXFetch discovers the embedded snakeyaml-engine library and uses that.
  */
 public class LegacyYaml {
-  public <T> T load(InputStream in) {
-    throw new UnsupportedOperationException();
-  }
+    public <T> T load(InputStream in) {
+        throw new UnsupportedOperationException();
+    }
 
-  public String dump(Object data) {
-    throw new UnsupportedOperationException();
-  }
+    public String dump(Object data) {
+        throw new UnsupportedOperationException();
+    }
 }

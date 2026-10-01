@@ -15,70 +15,65 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 public class TraceCorrelationTest extends DDCoreJavaSpecification {
 
-  @ValueSource(booleans = {true, false})
-  @ParameterizedTest
-  void getTraceIdWithoutTrace(boolean log128bTraceId) {
-    WithConfigExtension.injectSysConfig(
-        TRACE_128_BIT_TRACEID_GENERATION_ENABLED, String.valueOf(log128bTraceId));
-    WithConfigExtension.injectSysConfig(
-        TRACE_128_BIT_TRACEID_LOGGING_ENABLED, String.valueOf(log128bTraceId));
+    @ValueSource(booleans = {true, false})
+    @ParameterizedTest
+    void getTraceIdWithoutTrace(boolean log128bTraceId) {
+        WithConfigExtension.injectSysConfig(TRACE_128_BIT_TRACEID_GENERATION_ENABLED, String.valueOf(log128bTraceId));
+        WithConfigExtension.injectSysConfig(TRACE_128_BIT_TRACEID_LOGGING_ENABLED, String.valueOf(log128bTraceId));
 
-    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
-    AgentSpan span = tracer.buildSpan("datadog", "test").start();
-    ContextScope scope = tracer.activateSpan(span);
-    scope.close();
+        CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+        AgentSpan span = tracer.buildSpan("datadog", "test").start();
+        ContextScope scope = tracer.activateSpan(span);
+        scope.close();
 
-    assertEquals("0", tracer.getTraceId());
+        assertEquals("0", tracer.getTraceId());
 
-    span.finish();
-    tracer.close();
-  }
+        span.finish();
+        tracer.close();
+    }
 
-  @ValueSource(booleans = {true, false})
-  @ParameterizedTest
-  void getTraceIdWithTrace(boolean log128bTraceId) {
-    WithConfigExtension.injectSysConfig(
-        TRACE_128_BIT_TRACEID_GENERATION_ENABLED, String.valueOf(log128bTraceId));
-    WithConfigExtension.injectSysConfig(
-        TRACE_128_BIT_TRACEID_LOGGING_ENABLED, String.valueOf(log128bTraceId));
+    @ValueSource(booleans = {true, false})
+    @ParameterizedTest
+    void getTraceIdWithTrace(boolean log128bTraceId) {
+        WithConfigExtension.injectSysConfig(TRACE_128_BIT_TRACEID_GENERATION_ENABLED, String.valueOf(log128bTraceId));
+        WithConfigExtension.injectSysConfig(TRACE_128_BIT_TRACEID_LOGGING_ENABLED, String.valueOf(log128bTraceId));
 
-    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
-    AgentSpan span = tracer.buildSpan("datadog", "test").start();
-    ContextScope scope = tracer.activateSpan(span);
+        CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+        AgentSpan span = tracer.buildSpan("datadog", "test").start();
+        ContextScope scope = tracer.activateSpan(span);
 
-    DDTraceId traceId = ((DDSpan) AgentSpan.fromScope(scope)).getTraceId();
-    String formattedTraceId = log128bTraceId ? traceId.toHexString() : traceId.toString();
-    assertEquals(formattedTraceId, tracer.getTraceId());
+        DDTraceId traceId = ((DDSpan) AgentSpan.fromScope(scope)).getTraceId();
+        String formattedTraceId = log128bTraceId ? traceId.toHexString() : traceId.toString();
+        assertEquals(formattedTraceId, tracer.getTraceId());
 
-    scope.close();
-    span.finish();
-    tracer.close();
-  }
+        scope.close();
+        span.finish();
+        tracer.close();
+    }
 
-  @Test
-  void getSpanIdWithoutSpan() {
-    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
-    AgentSpan span = tracer.buildSpan("datadog", "test").start();
-    ContextScope scope = tracer.activateSpan(span);
-    scope.close();
+    @Test
+    void getSpanIdWithoutSpan() {
+        CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+        AgentSpan span = tracer.buildSpan("datadog", "test").start();
+        ContextScope scope = tracer.activateSpan(span);
+        scope.close();
 
-    assertEquals("0", tracer.getSpanId());
+        assertEquals("0", tracer.getSpanId());
 
-    span.finish();
-    tracer.close();
-  }
+        span.finish();
+        tracer.close();
+    }
 
-  @Test
-  void getSpanIdWithTrace() {
-    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
-    AgentSpan span = tracer.buildSpan("datadog", "test").start();
-    ContextScope scope = tracer.activateSpan(span);
+    @Test
+    void getSpanIdWithTrace() {
+        CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+        AgentSpan span = tracer.buildSpan("datadog", "test").start();
+        ContextScope scope = tracer.activateSpan(span);
 
-    assertEquals(
-        Long.toString(((DDSpan) AgentSpan.fromScope(scope)).getSpanId()), tracer.getSpanId());
+        assertEquals(Long.toString(((DDSpan) AgentSpan.fromScope(scope)).getSpanId()), tracer.getSpanId());
 
-    scope.close();
-    span.finish();
-    tracer.close();
-  }
+        scope.close();
+        span.finish();
+        tracer.close();
+    }
 }

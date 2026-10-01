@@ -18,56 +18,54 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class OpenTelemetryContextStorageInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
 
-  public OpenTelemetryContextStorageInstrumentation() {
-    super("opentelemetry.experimental", "opentelemetry-1");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return InstrumenterConfig.get().isTraceOtelEnabled();
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "io.opentelemetry.context.ContextStorage";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "io.opentelemetry.context.ThreadLocalContextStorage",
-      "io.opentelemetry.context.StrictContextStorage",
-    };
-  }
-
-  @Override
-  public boolean onlyMatchKnownTypes() {
-    return isShortcutMatchingEnabled(false);
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    // Context ContextStorage.current()
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("current"))
-            .and(takesNoArguments())
-            .and(returns(named("io.opentelemetry.context.Context"))),
-        OpenTelemetryContextStorageInstrumentation.class.getName()
-            + "$ContextStorageCurrentAdvice");
-  }
-
-  public static class ContextStorageCurrentAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void current(@Advice.Return(readOnly = false) Context result) {
-      result = OtelContext.current();
+    public OpenTelemetryContextStorageInstrumentation() {
+        super("opentelemetry.experimental", "opentelemetry-1");
     }
-  }
+
+    @Override
+    protected boolean defaultEnabled() {
+        return InstrumenterConfig.get().isTraceOtelEnabled();
+    }
+
+    @Override
+    public String hierarchyMarkerType() {
+        return "io.opentelemetry.context.ContextStorage";
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            "io.opentelemetry.context.ThreadLocalContextStorage", "io.opentelemetry.context.StrictContextStorage",
+        };
+    }
+
+    @Override
+    public boolean onlyMatchKnownTypes() {
+        return isShortcutMatchingEnabled(false);
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        // Context ContextStorage.current()
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("current"))
+                        .and(takesNoArguments())
+                        .and(returns(named("io.opentelemetry.context.Context"))),
+                OpenTelemetryContextStorageInstrumentation.class.getName() + "$ContextStorageCurrentAdvice");
+    }
+
+    public static class ContextStorageCurrentAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void current(@Advice.Return(readOnly = false) Context result) {
+            result = OtelContext.current();
+        }
+    }
 }

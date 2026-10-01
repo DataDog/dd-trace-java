@@ -42,181 +42,176 @@ import java.util.Set;
  * debugger EL expression tree.
  */
 public class DSL {
-  private DSL() {}
+    private DSL() {}
 
-  public static final BooleanExpression TRUE = BooleanExpression.TRUE;
-  public static final BooleanExpression FALSE = BooleanExpression.FALSE;
+    public static final BooleanExpression TRUE = BooleanExpression.TRUE;
+    public static final BooleanExpression FALSE = BooleanExpression.FALSE;
 
-  public static BooleanExpression and(BooleanExpression... expressions) {
-    if (expressions.length == 0) {
-      return FALSE;
+    public static BooleanExpression and(BooleanExpression... expressions) {
+        if (expressions.length == 0) {
+            return FALSE;
+        }
+        BooleanExpression expression = expressions[0];
+        for (int i = 1; i < expressions.length; i++) {
+            expression = and(expression, expressions[i]);
+        }
+        return expression;
     }
-    BooleanExpression expression = expressions[0];
-    for (int i = 1; i < expressions.length; i++) {
-      expression = and(expression, expressions[i]);
+
+    public static BooleanExpression and(BooleanExpression left, BooleanExpression right) {
+        return new BinaryExpression(left, right, BinaryOperator.AND);
     }
-    return expression;
-  }
 
-  public static BooleanExpression and(BooleanExpression left, BooleanExpression right) {
-    return new BinaryExpression(left, right, BinaryOperator.AND);
-  }
-
-  public static BooleanExpression or(BooleanExpression... expressions) {
-    if (expressions.length == 0) {
-      return FALSE;
+    public static BooleanExpression or(BooleanExpression... expressions) {
+        if (expressions.length == 0) {
+            return FALSE;
+        }
+        BooleanExpression expression = expressions[0];
+        for (int i = 1; i < expressions.length; i++) {
+            expression = or(expression, expressions[i]);
+        }
+        return expression;
     }
-    BooleanExpression expression = expressions[0];
-    for (int i = 1; i < expressions.length; i++) {
-      expression = or(expression, expressions[i]);
+
+    public static BooleanExpression or(BooleanExpression left, BooleanExpression right) {
+        return new BinaryExpression(left, right, BinaryOperator.OR);
     }
-    return expression;
-  }
 
-  public static BooleanExpression or(BooleanExpression left, BooleanExpression right) {
-    return new BinaryExpression(left, right, BinaryOperator.OR);
-  }
+    public static BooleanExpression gt(ValueExpression<?> left, ValueExpression<?> right) {
+        return new ComparisonExpression(left, right, ComparisonOperator.GT);
+    }
 
-  public static BooleanExpression gt(ValueExpression<?> left, ValueExpression<?> right) {
-    return new ComparisonExpression(left, right, ComparisonOperator.GT);
-  }
+    public static BooleanExpression ge(ValueExpression<?> left, ValueExpression<?> right) {
+        return new ComparisonExpression(left, right, ComparisonOperator.GE);
+    }
 
-  public static BooleanExpression ge(ValueExpression<?> left, ValueExpression<?> right) {
-    return new ComparisonExpression(left, right, ComparisonOperator.GE);
-  }
+    public static BooleanExpression lt(ValueExpression<?> left, ValueExpression<?> right) {
+        return new ComparisonExpression(left, right, ComparisonOperator.LT);
+    }
 
-  public static BooleanExpression lt(ValueExpression<?> left, ValueExpression<?> right) {
-    return new ComparisonExpression(left, right, ComparisonOperator.LT);
-  }
+    public static BooleanExpression le(ValueExpression<?> left, ValueExpression<?> right) {
+        return new ComparisonExpression(left, right, ComparisonOperator.LE);
+    }
 
-  public static BooleanExpression le(ValueExpression<?> left, ValueExpression<?> right) {
-    return new ComparisonExpression(left, right, ComparisonOperator.LE);
-  }
+    public static BooleanExpression eq(ValueExpression<?> left, ValueExpression<?> right) {
+        return new ComparisonExpression(left, right, ComparisonOperator.EQ);
+    }
 
-  public static BooleanExpression eq(ValueExpression<?> left, ValueExpression<?> right) {
-    return new ComparisonExpression(left, right, ComparisonOperator.EQ);
-  }
+    public static BooleanExpression instanceOf(ValueExpression<?> left, ValueExpression<?> right) {
+        return new ComparisonExpression(left, right, ComparisonOperator.INSTANCEOF);
+    }
 
-  public static BooleanExpression instanceOf(ValueExpression<?> left, ValueExpression<?> right) {
-    return new ComparisonExpression(left, right, ComparisonOperator.INSTANCEOF);
-  }
+    public static BooleanExpression not(BooleanExpression expression) {
+        return new NotExpression(expression);
+    }
 
-  public static BooleanExpression not(BooleanExpression expression) {
-    return new NotExpression(expression);
-  }
+    public static IfExpression doif(BooleanExpression test, Expression<?> expression) {
+        return new IfExpression(test, expression);
+    }
 
-  public static IfExpression doif(BooleanExpression test, Expression<?> expression) {
-    return new IfExpression(test, expression);
-  }
+    public static IfElseExpression doif(
+            BooleanExpression test, Expression<?> thenExpression, Expression<?> elseExpression) {
+        return new IfElseExpression(test, thenExpression, elseExpression);
+    }
 
-  public static IfElseExpression doif(
-      BooleanExpression test, Expression<?> thenExpression, Expression<?> elseExpression) {
-    return new IfElseExpression(test, thenExpression, elseExpression);
-  }
+    public static ValueRefExpression ref(String path) {
+        return new ValueRefExpression(path);
+    }
 
-  public static ValueRefExpression ref(String path) {
-    return new ValueRefExpression(path);
-  }
+    public static GetMemberExpression getMember(ValueExpression<?> target, String name) {
+        return new GetMemberExpression(target, name);
+    }
 
-  public static GetMemberExpression getMember(ValueExpression<?> target, String name) {
-    return new GetMemberExpression(target, name);
-  }
+    public static IndexExpression index(ValueExpression<?> target, ValueExpression<?> key) {
+        return new IndexExpression(target, key);
+    }
 
-  public static IndexExpression index(ValueExpression<?> target, ValueExpression<?> key) {
-    return new IndexExpression(target, key);
-  }
+    public static Literal<Boolean> value(boolean value) {
+        return new BooleanValue(value, ValueType.BOOLEAN);
+    }
 
-  public static Literal<Boolean> value(boolean value) {
-    return new BooleanValue(value, ValueType.BOOLEAN);
-  }
+    public static Literal<Number> value(Number value) {
+        return new NumericValue(value, ValueType.OBJECT);
+    }
 
-  public static Literal<Number> value(Number value) {
-    return new NumericValue(value, ValueType.OBJECT);
-  }
+    public static Literal<String> value(String value) {
+        return new StringValue(value);
+    }
 
-  public static Literal<String> value(String value) {
-    return new StringValue(value);
-  }
-
-  public static ListValue value(Collection<?> value) {
-    return new ListValue(value);
-  }
-
-  public static SetValue value(Set<?> value) {
-    return new SetValue(value);
-  }
-
-  public static NullValue nullValue() {
-    return NullValue.INSTANCE;
-  }
-
-  public static MapValue value(Map<?, ?> value) {
-    return new MapValue(value);
-  }
-
-  public static ValueExpression<?> value(Object value) {
-    if (value != null) {
-      if (value.getClass().isArray()) {
+    public static ListValue value(Collection<?> value) {
         return new ListValue(value);
-      }
     }
-    return new ObjectValue(value);
-  }
 
-  public static IsEmptyExpression isEmpty(ValueExpression<?> valueExpression) {
-    return new IsEmptyExpression(valueExpression);
-  }
+    public static SetValue value(Set<?> value) {
+        return new SetValue(value);
+    }
 
-  public static HasAnyExpression any(ValueExpression<?> valueExpression, BooleanExpression filter) {
-    return new HasAnyExpression(valueExpression, filter);
-  }
+    public static NullValue nullValue() {
+        return NullValue.INSTANCE;
+    }
 
-  public static HasAllExpression all(ValueExpression<?> valueExpression, BooleanExpression filter) {
-    return new HasAllExpression(valueExpression, filter);
-  }
+    public static MapValue value(Map<?, ?> value) {
+        return new MapValue(value);
+    }
 
-  public static FilterCollectionExpression filter(
-      ValueExpression<?> valueExpression, BooleanExpression filter) {
-    return new FilterCollectionExpression(valueExpression, filter);
-  }
+    public static ValueExpression<?> value(Object value) {
+        if (value != null) {
+            if (value.getClass().isArray()) {
+                return new ListValue(value);
+            }
+        }
+        return new ObjectValue(value);
+    }
 
-  public static LenExpression len(ValueExpression<?> valueExpression) {
-    return new LenExpression(valueExpression);
-  }
+    public static IsEmptyExpression isEmpty(ValueExpression<?> valueExpression) {
+        return new IsEmptyExpression(valueExpression);
+    }
 
-  public static SubStringExpression subString(
-      ValueExpression<?> valueExpression, int startIndex, int endIndex) {
-    return new SubStringExpression(valueExpression, startIndex, endIndex);
-  }
+    public static HasAnyExpression any(ValueExpression<?> valueExpression, BooleanExpression filter) {
+        return new HasAnyExpression(valueExpression, filter);
+    }
 
-  public static StringPredicateExpression startsWith(
-      ValueExpression<?> valueExpression, StringValue str) {
-    return new StartsWithExpression(valueExpression, str);
-  }
+    public static HasAllExpression all(ValueExpression<?> valueExpression, BooleanExpression filter) {
+        return new HasAllExpression(valueExpression, filter);
+    }
 
-  public static StringPredicateExpression endsWith(
-      ValueExpression<?> valueExpression, StringValue str) {
-    return new EndsWithExpression(valueExpression, str);
-  }
+    public static FilterCollectionExpression filter(ValueExpression<?> valueExpression, BooleanExpression filter) {
+        return new FilterCollectionExpression(valueExpression, filter);
+    }
 
-  public static ContainsExpression contains(ValueExpression<?> target, ValueExpression<?> value) {
-    return new ContainsExpression(target, value);
-  }
+    public static LenExpression len(ValueExpression<?> valueExpression) {
+        return new LenExpression(valueExpression);
+    }
 
-  public static StringPredicateExpression matches(
-      ValueExpression<?> valueExpression, StringValue str) {
-    return new MatchesExpression(valueExpression, str);
-  }
+    public static SubStringExpression subString(ValueExpression<?> valueExpression, int startIndex, int endIndex) {
+        return new SubStringExpression(valueExpression, startIndex, endIndex);
+    }
 
-  public static WhenExpression when(BooleanExpression expression) {
-    return new WhenExpression(expression);
-  }
+    public static StringPredicateExpression startsWith(ValueExpression<?> valueExpression, StringValue str) {
+        return new StartsWithExpression(valueExpression, str);
+    }
 
-  public static BooleanValueExpressionAdapter bool(BooleanExpression expression) {
-    return new BooleanValueExpressionAdapter(expression);
-  }
+    public static StringPredicateExpression endsWith(ValueExpression<?> valueExpression, StringValue str) {
+        return new EndsWithExpression(valueExpression, str);
+    }
 
-  public static IsDefinedExpression isDefined(ValueExpression<?> valueExpression) {
-    return new IsDefinedExpression(valueExpression);
-  }
+    public static ContainsExpression contains(ValueExpression<?> target, ValueExpression<?> value) {
+        return new ContainsExpression(target, value);
+    }
+
+    public static StringPredicateExpression matches(ValueExpression<?> valueExpression, StringValue str) {
+        return new MatchesExpression(valueExpression, str);
+    }
+
+    public static WhenExpression when(BooleanExpression expression) {
+        return new WhenExpression(expression);
+    }
+
+    public static BooleanValueExpressionAdapter bool(BooleanExpression expression) {
+        return new BooleanValueExpressionAdapter(expression);
+    }
+
+    public static IsDefinedExpression isDefined(ValueExpression<?> valueExpression) {
+        return new IsDefinedExpression(valueExpression);
+    }
 }

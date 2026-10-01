@@ -37,113 +37,110 @@ import org.bson.ByteBuf;
  */
 @AutoService(InstrumenterModule.class)
 public final class MongoClient34Instrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes,
-        Instrumenter.WithTypeStructure,
-        Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForKnownTypes, Instrumenter.WithTypeStructure, Instrumenter.HasMethodAdvice {
 
-  public MongoClient34Instrumentation() {
-    super("mongo", "mongo-3.4");
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "com.mongodb.MongoClientOptions$Builder",
-      "com.mongodb.async.client.MongoClientSettings$Builder",
-      "com.mongodb.MongoClientSettings$Builder"
-    };
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> structureMatcher() {
-    return declaresField(named("commandListeners"));
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".BsonScrubber",
-      packageName + ".BsonScrubber34",
-      packageName + ".BsonScrubber34$1",
-      packageName + ".BsonScrubber34$2",
-      packageName + ".MongoDecorator",
-      packageName + ".MongoDecorator34",
-      packageName + ".Context",
-      packageName + ".MongoCommandListener",
-      packageName + ".MongoCommandListener$SpanEntry"
-    };
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    Map<String, String> map = new HashMap<>(2);
-    map.put("org.bson.BsonDocument", "org.bson.ByteBuf");
-    map.put("com.mongodb.connection.ConnectionDescription", "com.mongodb.event.CommandListener");
-    return map;
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(named("build"))
-            .and(takesArguments(0))
-            .and(isDeclaredBy(declaresField(named("applicationName")))),
-        MongoClient34Instrumentation.class.getName() + "$MongoClientAdviceAppName");
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(named("build"))
-            .and(takesArguments(0))
-            .and(not(isDeclaredBy(declaresField(named("applicationName"))))),
-        MongoClient34Instrumentation.class.getName() + "$MongoClientAdviceNoAppName");
-  }
-
-  public static class MongoClientAdviceAppName {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static MongoCommandListener injectTraceListener(
-        @Advice.FieldValue("commandListeners") List<CommandListener> listeners) {
-      return MongoCommandListener.tryRegister(
-          new MongoCommandListener(
-              2,
-              MongoDecorator34.INSTANCE,
-              InstrumentationContext.get(BsonDocument.class, ByteBuf.class),
-              InstrumentationContext.get(ConnectionDescription.class, CommandListener.class)),
-          listeners);
+    public MongoClient34Instrumentation() {
+        super("mongo", "mongo-3.4");
     }
 
-    @Advice.OnMethodExit
-    public static void updateApplicationName(
-        @Advice.Enter final MongoCommandListener listener,
-        @Advice.FieldValue(value = "applicationName") String applicationName) {
-      if (listener != null) {
-        listener.setApplicationName(applicationName);
-      }
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            "com.mongodb.MongoClientOptions$Builder",
+            "com.mongodb.async.client.MongoClientSettings$Builder",
+            "com.mongodb.MongoClientSettings$Builder"
+        };
     }
 
-    public static void muzzleCheck(BsonWriter writer) {
-      writer.writeDecimal128(null);
-    }
-  }
-
-  public static class MongoClientAdviceNoAppName {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void injectTraceListener(
-        @Advice.FieldValue("commandListeners") List<CommandListener> listeners) {
-      MongoCommandListener.tryRegister(
-          new MongoCommandListener(
-              2,
-              MongoDecorator34.INSTANCE,
-              InstrumentationContext.get(BsonDocument.class, ByteBuf.class),
-              InstrumentationContext.get(ConnectionDescription.class, CommandListener.class)),
-          listeners);
+    @Override
+    public ElementMatcher<TypeDescription> structureMatcher() {
+        return declaresField(named("commandListeners"));
     }
 
-    public static void muzzleCheck(BsonWriter writer) {
-      writer.writeDecimal128(null);
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".BsonScrubber",
+            packageName + ".BsonScrubber34",
+            packageName + ".BsonScrubber34$1",
+            packageName + ".BsonScrubber34$2",
+            packageName + ".MongoDecorator",
+            packageName + ".MongoDecorator34",
+            packageName + ".Context",
+            packageName + ".MongoCommandListener",
+            packageName + ".MongoCommandListener$SpanEntry"
+        };
     }
-  }
+
+    @Override
+    public Map<String, String> contextStore() {
+        Map<String, String> map = new HashMap<>(2);
+        map.put("org.bson.BsonDocument", "org.bson.ByteBuf");
+        map.put("com.mongodb.connection.ConnectionDescription", "com.mongodb.event.CommandListener");
+        return map;
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPublic())
+                        .and(named("build"))
+                        .and(takesArguments(0))
+                        .and(isDeclaredBy(declaresField(named("applicationName")))),
+                MongoClient34Instrumentation.class.getName() + "$MongoClientAdviceAppName");
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPublic())
+                        .and(named("build"))
+                        .and(takesArguments(0))
+                        .and(not(isDeclaredBy(declaresField(named("applicationName"))))),
+                MongoClient34Instrumentation.class.getName() + "$MongoClientAdviceNoAppName");
+    }
+
+    public static class MongoClientAdviceAppName {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static MongoCommandListener injectTraceListener(
+                @Advice.FieldValue("commandListeners") List<CommandListener> listeners) {
+            return MongoCommandListener.tryRegister(
+                    new MongoCommandListener(
+                            2,
+                            MongoDecorator34.INSTANCE,
+                            InstrumentationContext.get(BsonDocument.class, ByteBuf.class),
+                            InstrumentationContext.get(ConnectionDescription.class, CommandListener.class)),
+                    listeners);
+        }
+
+        @Advice.OnMethodExit
+        public static void updateApplicationName(
+                @Advice.Enter final MongoCommandListener listener,
+                @Advice.FieldValue(value = "applicationName") String applicationName) {
+            if (listener != null) {
+                listener.setApplicationName(applicationName);
+            }
+        }
+
+        public static void muzzleCheck(BsonWriter writer) {
+            writer.writeDecimal128(null);
+        }
+    }
+
+    public static class MongoClientAdviceNoAppName {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void injectTraceListener(@Advice.FieldValue("commandListeners") List<CommandListener> listeners) {
+            MongoCommandListener.tryRegister(
+                    new MongoCommandListener(
+                            2,
+                            MongoDecorator34.INSTANCE,
+                            InstrumentationContext.get(BsonDocument.class, ByteBuf.class),
+                            InstrumentationContext.get(ConnectionDescription.class, CommandListener.class)),
+                    listeners);
+        }
+
+        public static void muzzleCheck(BsonWriter writer) {
+            writer.writeDecimal128(null);
+        }
+    }
 }

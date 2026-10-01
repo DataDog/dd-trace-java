@@ -13,28 +13,28 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class ServerErrorHandlerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public ServerErrorHandlerInstrumentation() {
-    super("ratpack");
-  }
+    public ServerErrorHandlerInstrumentation() {
+        super("ratpack");
+    }
 
-  @Override
-  public String hierarchyMarkerType() {
-    return "ratpack.error.ServerErrorHandler";
-  }
+    @Override
+    public String hierarchyMarkerType() {
+        return "ratpack.error.ServerErrorHandler";
+    }
 
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return concreteClass().and(implementsInterface(named(hierarchyMarkerType())));
-  }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return concreteClass().and(implementsInterface(named(hierarchyMarkerType())));
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("error")
-            .and(takesArgument(0, named("ratpack.handling.Context")))
-            .and(takesArgument(1, Throwable.class)),
-        packageName + ".ErrorHandlerAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("error")
+                        .and(takesArgument(0, named("ratpack.handling.Context")))
+                        .and(takesArgument(1, Throwable.class)),
+                packageName + ".ErrorHandlerAdvice");
+    }
 }

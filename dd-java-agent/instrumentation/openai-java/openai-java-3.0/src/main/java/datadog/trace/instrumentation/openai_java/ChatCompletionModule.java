@@ -8,14 +8,13 @@ import java.util.List;
 
 @AutoService(InstrumenterModule.class)
 public class ChatCompletionModule extends InstrumenterModule.Tracing {
-  public ChatCompletionModule() {
-    super("openai-java");
-  }
+    public ChatCompletionModule() {
+        super("openai-java");
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return Arrays.asList(
-        new ChatCompletionServiceAsyncInstrumentation(),
-        new ChatCompletionServiceInstrumentation());
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return Arrays.asList(
+                new ChatCompletionServiceAsyncInstrumentation(), new ChatCompletionServiceInstrumentation());
+    }
 }

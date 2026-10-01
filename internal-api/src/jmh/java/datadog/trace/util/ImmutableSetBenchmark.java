@@ -96,199 +96,199 @@ import org.openjdk.jmh.annotations.Warmup;
 @Threads(8)
 @State(Scope.Benchmark)
 public class ImmutableSetBenchmark {
-  static final String[] STRINGS = {
-    "foo", "bar", "baz", "quux", "hello", "world",
-    "service", "queryString", "lorem", "ipsum", "dolem", "sit"
-  };
+    static final String[] STRINGS = {
+        "foo", "bar", "baz", "quux", "hello", "world",
+        "service", "queryString", "lorem", "ipsum", "dolem", "sit"
+    };
 
-  /** Distinct String instances that are never present, for the miss path. */
-  static final String[] MISSES = newMisses();
+    /** Distinct String instances that are never present, for the miss path. */
+    static final String[] MISSES = newMisses();
 
-  /** Equal, non-interned copies of {@link #STRINGS} used to exercise equality. */
-  static final String[] FRESH_STRINGS = newFreshStrings();
+    /** Equal, non-interned copies of {@link #STRINGS} used to exercise equality. */
+    static final String[] FRESH_STRINGS = newFreshStrings();
 
-  static String[] newFreshStrings() {
-    String[] fresh = new String[STRINGS.length];
-    for (int i = 0; i < STRINGS.length; ++i) {
-      fresh[i] = new String(STRINGS[i]);
-    }
-    return fresh;
-  }
-
-  static String[] newMisses() {
-    String[] misses = new String[STRINGS.length * 4];
-    for (int i = 0; i < misses.length; ++i) {
-      misses[i] = "dne-" + i;
-    }
-    return misses;
-  }
-
-  // StringIndex static-EmbeddingSupport mode: the placed arrays pulled into static final fields, so
-  // the JIT folds the refs to constants and EmbeddingSupport.indexOf has nothing to dereference
-  // (the hot path the StringIndex class Javadoc recommends). Contrast stringIndex_embedded_*
-  // (these) with stringIndex_* (the instance wrapper, one field load) to see the indirection cost.
-  static final int[] SI_HASHES;
-  static final String[] SI_NAMES;
-
-  static {
-    StringIndex.Data data = StringIndex.EmbeddingSupport.create(STRINGS);
-    SI_HASHES = data.hashes;
-    SI_NAMES = data.names;
-  }
-
-  // Built once, never mutated -- safe to share across the reader threads.
-  String[] array;
-  String[] sortedArray;
-  HashSet<String> hashSet;
-  TreeSet<String> treeSet;
-  Set<String> tracerImmutableSet;
-  StringIndex stringIndex;
-
-  @Setup(Level.Trial)
-  public void setUp() {
-    BenchmarkUtils.polluteHashDispatch();
-
-    array = STRINGS;
-    sortedArray = Arrays.copyOf(STRINGS, STRINGS.length);
-    Arrays.sort(sortedArray);
-    hashSet = new HashSet<>(Arrays.asList(STRINGS));
-    treeSet = new TreeSet<>(Arrays.asList(STRINGS));
-    tracerImmutableSet = CollectionUtils.tryMakeImmutableSet(Arrays.asList(STRINGS));
-    stringIndex = StringIndex.of(STRINGS);
-  }
-
-  /** Per-thread lookup cursor so each reader thread cycles keys independently. */
-  @State(Scope.Thread)
-  public static class Cursor {
-    int hitIndex = 0;
-    int hitFreshIndex = 0;
-    int missIndex = 0;
-
-    String nextHit() {
-      int i = hitIndex + 1;
-      if (i >= STRINGS.length) {
-        i = 0;
-      }
-      hitIndex = i;
-      return STRINGS[i];
+    static String[] newFreshStrings() {
+        String[] fresh = new String[STRINGS.length];
+        for (int i = 0; i < STRINGS.length; ++i) {
+            fresh[i] = new String(STRINGS[i]);
+        }
+        return fresh;
     }
 
-    /** See {@code hitFresh} in the class javadoc. */
-    String nextHitFresh() {
-      int i = hitFreshIndex + 1;
-      if (i >= FRESH_STRINGS.length) {
-        i = 0;
-      }
-      hitFreshIndex = i;
-      return FRESH_STRINGS[i];
+    static String[] newMisses() {
+        String[] misses = new String[STRINGS.length * 4];
+        for (int i = 0; i < misses.length; ++i) {
+            misses[i] = "dne-" + i;
+        }
+        return misses;
     }
 
-    String nextMiss() {
-      int i = missIndex + 1;
-      if (i >= MISSES.length) {
-        i = 0;
-      }
-      missIndex = i;
-      return MISSES[i];
+    // StringIndex static-EmbeddingSupport mode: the placed arrays pulled into static final fields, so
+    // the JIT folds the refs to constants and EmbeddingSupport.indexOf has nothing to dereference
+    // (the hot path the StringIndex class Javadoc recommends). Contrast stringIndex_embedded_*
+    // (these) with stringIndex_* (the instance wrapper, one field load) to see the indirection cost.
+    static final int[] SI_HASHES;
+    static final String[] SI_NAMES;
+
+    static {
+        StringIndex.Data data = StringIndex.EmbeddingSupport.create(STRINGS);
+        SI_HASHES = data.hashes;
+        SI_NAMES = data.names;
     }
-  }
 
-  static boolean arrayContains(String[] array, String needle) {
-    for (String s : array) {
-      if (needle.equals(s)) {
-        return true;
-      }
+    // Built once, never mutated -- safe to share across the reader threads.
+    String[] array;
+    String[] sortedArray;
+    HashSet<String> hashSet;
+    TreeSet<String> treeSet;
+    Set<String> tracerImmutableSet;
+    StringIndex stringIndex;
+
+    @Setup(Level.Trial)
+    public void setUp() {
+        BenchmarkUtils.polluteHashDispatch();
+
+        array = STRINGS;
+        sortedArray = Arrays.copyOf(STRINGS, STRINGS.length);
+        Arrays.sort(sortedArray);
+        hashSet = new HashSet<>(Arrays.asList(STRINGS));
+        treeSet = new TreeSet<>(Arrays.asList(STRINGS));
+        tracerImmutableSet = CollectionUtils.tryMakeImmutableSet(Arrays.asList(STRINGS));
+        stringIndex = StringIndex.of(STRINGS);
     }
-    return false;
-  }
 
-  @Benchmark
-  public boolean array_hit(Cursor cursor) {
-    return arrayContains(array, cursor.nextHit());
-  }
+    /** Per-thread lookup cursor so each reader thread cycles keys independently. */
+    @State(Scope.Thread)
+    public static class Cursor {
+        int hitIndex = 0;
+        int hitFreshIndex = 0;
+        int missIndex = 0;
 
-  @Benchmark
-  public boolean array_miss(Cursor cursor) {
-    return arrayContains(array, cursor.nextMiss());
-  }
+        String nextHit() {
+            int i = hitIndex + 1;
+            if (i >= STRINGS.length) {
+                i = 0;
+            }
+            hitIndex = i;
+            return STRINGS[i];
+        }
 
-  @Benchmark
-  public boolean sortedArray_hit(Cursor cursor) {
-    return Arrays.binarySearch(sortedArray, cursor.nextHit()) >= 0;
-  }
+        /** See {@code hitFresh} in the class javadoc. */
+        String nextHitFresh() {
+            int i = hitFreshIndex + 1;
+            if (i >= FRESH_STRINGS.length) {
+                i = 0;
+            }
+            hitFreshIndex = i;
+            return FRESH_STRINGS[i];
+        }
 
-  @Benchmark
-  public boolean sortedArray_miss(Cursor cursor) {
-    return Arrays.binarySearch(sortedArray, cursor.nextMiss()) >= 0;
-  }
+        String nextMiss() {
+            int i = missIndex + 1;
+            if (i >= MISSES.length) {
+                i = 0;
+            }
+            missIndex = i;
+            return MISSES[i];
+        }
+    }
 
-  @Benchmark
-  public boolean hashSet_hit(Cursor cursor) {
-    return hashSet.contains(cursor.nextHit());
-  }
+    static boolean arrayContains(String[] array, String needle) {
+        for (String s : array) {
+            if (needle.equals(s)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
-  @Benchmark
-  public boolean hashSet_hitFresh(Cursor cursor) {
-    return hashSet.contains(cursor.nextHitFresh());
-  }
+    @Benchmark
+    public boolean array_hit(Cursor cursor) {
+        return arrayContains(array, cursor.nextHit());
+    }
 
-  @Benchmark
-  public boolean hashSet_miss(Cursor cursor) {
-    return hashSet.contains(cursor.nextMiss());
-  }
+    @Benchmark
+    public boolean array_miss(Cursor cursor) {
+        return arrayContains(array, cursor.nextMiss());
+    }
 
-  @Benchmark
-  public boolean treeSet_hit(Cursor cursor) {
-    return treeSet.contains(cursor.nextHit());
-  }
+    @Benchmark
+    public boolean sortedArray_hit(Cursor cursor) {
+        return Arrays.binarySearch(sortedArray, cursor.nextHit()) >= 0;
+    }
 
-  @Benchmark
-  public boolean treeSet_miss(Cursor cursor) {
-    return treeSet.contains(cursor.nextMiss());
-  }
+    @Benchmark
+    public boolean sortedArray_miss(Cursor cursor) {
+        return Arrays.binarySearch(sortedArray, cursor.nextMiss()) >= 0;
+    }
 
-  @Benchmark
-  public boolean tracerImmutableSet_hit(Cursor cursor) {
-    return tracerImmutableSet.contains(cursor.nextHit());
-  }
+    @Benchmark
+    public boolean hashSet_hit(Cursor cursor) {
+        return hashSet.contains(cursor.nextHit());
+    }
 
-  @Benchmark
-  public boolean tracerImmutableSet_hitFresh(Cursor cursor) {
-    return tracerImmutableSet.contains(cursor.nextHitFresh());
-  }
+    @Benchmark
+    public boolean hashSet_hitFresh(Cursor cursor) {
+        return hashSet.contains(cursor.nextHitFresh());
+    }
 
-  @Benchmark
-  public boolean tracerImmutableSet_miss(Cursor cursor) {
-    return tracerImmutableSet.contains(cursor.nextMiss());
-  }
+    @Benchmark
+    public boolean hashSet_miss(Cursor cursor) {
+        return hashSet.contains(cursor.nextMiss());
+    }
 
-  @Benchmark
-  public boolean stringIndex_hit(Cursor cursor) {
-    return stringIndex.contains(cursor.nextHit());
-  }
+    @Benchmark
+    public boolean treeSet_hit(Cursor cursor) {
+        return treeSet.contains(cursor.nextHit());
+    }
 
-  @Benchmark
-  public boolean stringIndex_hitFresh(Cursor cursor) {
-    return stringIndex.contains(cursor.nextHitFresh());
-  }
+    @Benchmark
+    public boolean treeSet_miss(Cursor cursor) {
+        return treeSet.contains(cursor.nextMiss());
+    }
 
-  @Benchmark
-  public boolean stringIndex_miss(Cursor cursor) {
-    return stringIndex.contains(cursor.nextMiss());
-  }
+    @Benchmark
+    public boolean tracerImmutableSet_hit(Cursor cursor) {
+        return tracerImmutableSet.contains(cursor.nextHit());
+    }
 
-  @Benchmark
-  public boolean stringIndex_embedded_hit(Cursor cursor) {
-    return StringIndex.EmbeddingSupport.contains(SI_HASHES, SI_NAMES, cursor.nextHit());
-  }
+    @Benchmark
+    public boolean tracerImmutableSet_hitFresh(Cursor cursor) {
+        return tracerImmutableSet.contains(cursor.nextHitFresh());
+    }
 
-  @Benchmark
-  public boolean stringIndex_embedded_hitFresh(Cursor cursor) {
-    return StringIndex.EmbeddingSupport.contains(SI_HASHES, SI_NAMES, cursor.nextHitFresh());
-  }
+    @Benchmark
+    public boolean tracerImmutableSet_miss(Cursor cursor) {
+        return tracerImmutableSet.contains(cursor.nextMiss());
+    }
 
-  @Benchmark
-  public boolean stringIndex_embedded_miss(Cursor cursor) {
-    return StringIndex.EmbeddingSupport.contains(SI_HASHES, SI_NAMES, cursor.nextMiss());
-  }
+    @Benchmark
+    public boolean stringIndex_hit(Cursor cursor) {
+        return stringIndex.contains(cursor.nextHit());
+    }
+
+    @Benchmark
+    public boolean stringIndex_hitFresh(Cursor cursor) {
+        return stringIndex.contains(cursor.nextHitFresh());
+    }
+
+    @Benchmark
+    public boolean stringIndex_miss(Cursor cursor) {
+        return stringIndex.contains(cursor.nextMiss());
+    }
+
+    @Benchmark
+    public boolean stringIndex_embedded_hit(Cursor cursor) {
+        return StringIndex.EmbeddingSupport.contains(SI_HASHES, SI_NAMES, cursor.nextHit());
+    }
+
+    @Benchmark
+    public boolean stringIndex_embedded_hitFresh(Cursor cursor) {
+        return StringIndex.EmbeddingSupport.contains(SI_HASHES, SI_NAMES, cursor.nextHitFresh());
+    }
+
+    @Benchmark
+    public boolean stringIndex_embedded_miss(Cursor cursor) {
+        return StringIndex.EmbeddingSupport.contains(SI_HASHES, SI_NAMES, cursor.nextMiss());
+    }
 }

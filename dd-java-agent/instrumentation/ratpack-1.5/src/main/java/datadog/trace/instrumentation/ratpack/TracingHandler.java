@@ -19,59 +19,57 @@ import ratpack.http.Request;
 import ratpack.util.Types;
 
 public final class TracingHandler implements Handler {
-  public static Handler INSTANCE = new TracingHandler();
+    public static Handler INSTANCE = new TracingHandler();
 
-  private static final TypeToken<Flow.Action.RequestBlockingAction> RBA_CLASS_TOKEN =
-      Types.token(Flow.Action.RequestBlockingAction.class);
+    private static final TypeToken<Flow.Action.RequestBlockingAction> RBA_CLASS_TOKEN =
+            Types.token(Flow.Action.RequestBlockingAction.class);
 
-  /** This constant must stay in sync with datadog.trace.instrumentation.netty41.AttributeKeys. */
-  public static final AttributeKey<datadog.context.Context> SERVER_CONTEXT_ATTRIBUTE_KEY =
-      AttributeKey.valueOf(DD_CONTEXT_ATTRIBUTE);
+    /** This constant must stay in sync with datadog.trace.instrumentation.netty41.AttributeKeys. */
+    public static final AttributeKey<datadog.context.Context> SERVER_CONTEXT_ATTRIBUTE_KEY =
+            AttributeKey.valueOf(DD_CONTEXT_ATTRIBUTE);
 
-  @Override
-  public void handle(final Context ctx) {
-    final Request request = ctx.getRequest();
+    @Override
+    public void handle(final Context ctx) {
+        final Request request = ctx.getRequest();
 
-    final Attribute<datadog.context.Context> contextAttribute =
-        ctx.getDirectChannelAccess().getChannel().attr(SERVER_CONTEXT_ATTRIBUTE_KEY);
-    final datadog.context.Context nettyContext = contextAttribute.get();
-    final AgentSpan nettySpan = nettyContext != null ? fromContext(nettyContext) : null;
+        final Attribute<datadog.context.Context> contextAttribute =
+                ctx.getDirectChannelAccess().getChannel().attr(SERVER_CONTEXT_ATTRIBUTE_KEY);
+        final datadog.context.Context nettyContext = contextAttribute.get();
+        final AgentSpan nettySpan = nettyContext != null ? fromContext(nettyContext) : null;
 
-    // Relying on executor instrumentation to assume the netty span is in context as the parent.
-    final AgentSpan ratpackSpan = startSpan("ratpack", DECORATE.spanName()).setMeasured(true);
-    DECORATE.afterStart(ratpackSpan);
-    DECORATE.onRequest(ratpackSpan, request, request, root());
-    ctx.getExecution().add(ratpackSpan);
+        // Relying on executor instrumentation to assume the netty span is in context as the parent.
+        final AgentSpan ratpackSpan = startSpan("ratpack", DECORATE.spanName()).setMeasured(true);
+        DECORATE.afterStart(ratpackSpan);
+        DECORATE.onRequest(ratpackSpan, request, request, root());
+        ctx.getExecution().add(ratpackSpan);
 
-    boolean setFinalizer = false;
+        boolean setFinalizer = false;
 
-    try (final ContextScope scope = activateSpan(ratpackSpan)) {
+        try (final ContextScope scope = activateSpan(ratpackSpan)) {
 
-      ctx.getResponse()
-          .beforeSend(
-              response -> {
+            ctx.getResponse().beforeSend(response -> {
                 try (final ContextScope ignored = activateSpan(ratpackSpan)) {
-                  if (nettySpan != null) {
-                    // Rename the netty span resource name with the ratpack route.
-                    DECORATE.onContext(nettySpan, ctx);
-                  }
-                  DECORATE.onResponse(ratpackSpan, response);
-                  DECORATE.onContext(ratpackSpan, ctx);
-                  DECORATE.beforeFinish(ratpackSpan);
-                  ratpackSpan.finish();
+                    if (nettySpan != null) {
+                        // Rename the netty span resource name with the ratpack route.
+                        DECORATE.onContext(nettySpan, ctx);
+                    }
+                    DECORATE.onResponse(ratpackSpan, response);
+                    DECORATE.onContext(ratpackSpan, ctx);
+                    DECORATE.beforeFinish(ratpackSpan);
+                    ratpackSpan.finish();
                 }
-              });
+            });
 
-      setFinalizer = true;
+            setFinalizer = true;
 
-      ctx.next();
-    } catch (final Throwable e) {
-      DECORATE.onError(ratpackSpan, e);
-      DECORATE.beforeFinish(ratpackSpan);
-      if (!setFinalizer) {
-        ratpackSpan.finish();
-      }
-      throw e;
+            ctx.next();
+        } catch (final Throwable e) {
+            DECORATE.onError(ratpackSpan, e);
+            DECORATE.beforeFinish(ratpackSpan);
+            if (!setFinalizer) {
+                ratpackSpan.finish();
+            }
+            throw e;
+        }
     }
-  }
 }

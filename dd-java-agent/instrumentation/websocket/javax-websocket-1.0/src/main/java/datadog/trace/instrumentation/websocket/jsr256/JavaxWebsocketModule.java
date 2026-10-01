@@ -12,44 +12,43 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class JavaxWebsocketModule extends InstrumenterModule.Tracing {
-  private final String namespace;
+    private final String namespace;
 
-  public JavaxWebsocketModule() {
-    this("javax", "javax-websocket", "websocket");
-  }
+    public JavaxWebsocketModule() {
+        this("javax", "javax-websocket", "websocket");
+    }
 
-  protected JavaxWebsocketModule(
-      String namespace, String instrumentationName, String... additionalNames) {
-    super(instrumentationName, additionalNames);
-    this.namespace = namespace;
-  }
+    protected JavaxWebsocketModule(String namespace, String instrumentationName, String... additionalNames) {
+        super(instrumentationName, additionalNames);
+        this.namespace = namespace;
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    final Map<String, String> map = new HashMap<>();
-    map.put(namespace + ".websocket.Session", HandlerContext.Sender.class.getName());
-    map.put(namespace + ".websocket.RemoteEndpoint", HandlerContext.Sender.class.getName());
-    map.put(namespace + ".websocket.MessageHandler", HandlerContext.Receiver.class.getName());
-    return map;
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        final Map<String, String> map = new HashMap<>();
+        map.put(namespace + ".websocket.Session", HandlerContext.Sender.class.getName());
+        map.put(namespace + ".websocket.RemoteEndpoint", HandlerContext.Sender.class.getName());
+        map.put(namespace + ".websocket.MessageHandler", HandlerContext.Receiver.class.getName());
+        return map;
+    }
 
-  @Override
-  protected boolean defaultEnabled() {
-    return InstrumenterConfig.get().isWebsocketTracingEnabled();
-  }
+    @Override
+    protected boolean defaultEnabled() {
+        return InstrumenterConfig.get().isWebsocketTracingEnabled();
+    }
 
-  @Override
-  public String muzzleDirective() {
-    return "javax-websocket";
-  }
+    @Override
+    public String muzzleDirective() {
+        return "javax-websocket";
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return Arrays.asList(
-        new EndpointInstrumentation(namespace),
-        new SessionInstrumentation(namespace),
-        new MessageHandlerInstrumentation(namespace),
-        new BasicRemoteEndpointInstrumentation(namespace),
-        new AsyncRemoteEndpointInstrumentation(namespace));
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return Arrays.asList(
+                new EndpointInstrumentation(namespace),
+                new SessionInstrumentation(namespace),
+                new MessageHandlerInstrumentation(namespace),
+                new BasicRemoteEndpointInstrumentation(namespace),
+                new AsyncRemoteEndpointInstrumentation(namespace));
+    }
 }

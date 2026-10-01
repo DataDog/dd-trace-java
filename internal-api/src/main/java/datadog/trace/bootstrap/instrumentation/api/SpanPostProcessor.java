@@ -13,25 +13,25 @@ import javax.annotation.Nonnull;
  */
 public interface SpanPostProcessor {
 
-  /**
-   * Post-processes a span, if needed.
-   *
-   * <p>Implementations should use {@code timeoutCheck}, and if true, they should halt processing as
-   * much as possible. This method is guaranteed to be called even if post-processing of previous
-   * spans have timed out.
-   */
-  void process(@Nonnull AgentSpan span, @Nonnull BooleanSupplier timeoutCheck);
+    /**
+     * Post-processes a span, if needed.
+     *
+     * <p>Implementations should use {@code timeoutCheck}, and if true, they should halt processing as
+     * much as possible. This method is guaranteed to be called even if post-processing of previous
+     * spans have timed out.
+     */
+    void process(@Nonnull AgentSpan span, @Nonnull BooleanSupplier timeoutCheck);
 
-  class Holder {
-    public static final SpanPostProcessor NOOP = new NoOpSpanPostProcessor();
+    class Holder {
+        public static final SpanPostProcessor NOOP = new NoOpSpanPostProcessor();
 
-    // XXX: At the moment, a single post-processor can be registered, and only AppSec defines one.
-    // If other products add their own, we'll need to refactor this to support multiple processors.
-    public static volatile SpanPostProcessor INSTANCE = NOOP;
-  }
+        // XXX: At the moment, a single post-processor can be registered, and only AppSec defines one.
+        // If other products add their own, we'll need to refactor this to support multiple processors.
+        public static volatile SpanPostProcessor INSTANCE = NOOP;
+    }
 
-  class NoOpSpanPostProcessor implements SpanPostProcessor {
-    @Override
-    public void process(@Nonnull AgentSpan span, @Nonnull BooleanSupplier timeoutCheck) {}
-  }
+    class NoOpSpanPostProcessor implements SpanPostProcessor {
+        @Override
+        public void process(@Nonnull AgentSpan span, @Nonnull BooleanSupplier timeoutCheck) {}
+    }
 }

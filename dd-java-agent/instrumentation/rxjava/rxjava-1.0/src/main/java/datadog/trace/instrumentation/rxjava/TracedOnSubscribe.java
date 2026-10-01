@@ -13,38 +13,35 @@ import rx.Subscriber;
 
 public class TracedOnSubscribe<T> implements Observable.OnSubscribe<T> {
 
-  private final Observable.OnSubscribe<?> delegate;
-  private final CharSequence operationName;
-  private final AgentSpan parent;
-  private final BaseDecorator decorator;
+    private final Observable.OnSubscribe<?> delegate;
+    private final CharSequence operationName;
+    private final AgentSpan parent;
+    private final BaseDecorator decorator;
 
-  public TracedOnSubscribe(
-      final Observable originalObservable,
-      final CharSequence operationName,
-      final BaseDecorator decorator) {
-    delegate = DDTracingUtil.extractOnSubscribe(originalObservable);
-    this.operationName = operationName;
-    this.decorator = decorator;
-    this.parent = activeSpan();
-  }
-
-  protected String instrumentationName() {
-    return "rxjava";
-  }
-
-  @Override
-  public void call(final Subscriber<? super T> subscriber) {
-    final AgentSpan span =
-        startSpan(
-            instrumentationName(), operationName, parent != null ? parent.spanContext() : null);
-    afterStart(span);
-
-    try (final ContextScope scope = activateSpan(span)) {
-      delegate.call(new TracedSubscriber(span, subscriber, decorator));
+    public TracedOnSubscribe(
+            final Observable originalObservable, final CharSequence operationName, final BaseDecorator decorator) {
+        delegate = DDTracingUtil.extractOnSubscribe(originalObservable);
+        this.operationName = operationName;
+        this.decorator = decorator;
+        this.parent = activeSpan();
     }
-  }
 
-  protected void afterStart(final AgentSpan span) {
-    decorator.afterStart(span);
-  }
+    protected String instrumentationName() {
+        return "rxjava";
+    }
+
+    @Override
+    public void call(final Subscriber<? super T> subscriber) {
+        final AgentSpan span =
+                startSpan(instrumentationName(), operationName, parent != null ? parent.spanContext() : null);
+        afterStart(span);
+
+        try (final ContextScope scope = activateSpan(span)) {
+            delegate.call(new TracedSubscriber(span, subscriber, decorator));
+        }
+    }
+
+    protected void afterStart(final AgentSpan span) {
+        decorator.afterStart(span);
+    }
 }

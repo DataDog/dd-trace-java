@@ -41,104 +41,105 @@ import org.junit.jupiter.api.TestInstance;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class SofaRpcRestTest extends AbstractInstrumentationTest {
 
-  private static final int PORT = 12205;
+    private static final int PORT = 12205;
 
-  private ProviderConfig<RestGreeterService> restProviderConfig;
-  private RestGreeterService greeterService;
+    private ProviderConfig<RestGreeterService> restProviderConfig;
+    private RestGreeterService greeterService;
 
-  @BeforeAll
-  void setupServers() {
-    restProviderConfig =
-        new ProviderConfig<RestGreeterService>()
-            .setApplication(new ApplicationConfig().setAppName("test-server"))
-            .setInterfaceId(RestGreeterService.class.getName())
-            .setRef(new RestGreeterServiceImpl())
-            .setServer(new ServerConfig().setProtocol("rest").setHost("127.0.0.1").setPort(PORT))
-            .setRegister(false);
-    restProviderConfig.export();
+    @BeforeAll
+    void setupServers() {
+        restProviderConfig = new ProviderConfig<RestGreeterService>()
+                .setApplication(new ApplicationConfig().setAppName("test-server"))
+                .setInterfaceId(RestGreeterService.class.getName())
+                .setRef(new RestGreeterServiceImpl())
+                .setServer(new ServerConfig()
+                        .setProtocol("rest")
+                        .setHost("127.0.0.1")
+                        .setPort(PORT))
+                .setRegister(false);
+        restProviderConfig.export();
 
-    greeterService =
-        new ConsumerConfig<RestGreeterService>()
-            .setApplication(new ApplicationConfig().setAppName("test-client"))
-            .setInterfaceId(RestGreeterService.class.getName())
-            .setDirectUrl("rest://127.0.0.1:" + PORT)
-            .setProtocol("rest")
-            .setRegister(false)
-            .setSubscribe(false)
-            .refer();
-  }
-
-  @AfterAll
-  void tearDownServers() {
-    if (restProviderConfig != null) {
-      restProviderConfig.unExport();
-    }
-  }
-
-  @Test
-  void clientAndServerSpansForRestCall() throws InterruptedException, TimeoutException {
-    String serviceUniqueName = RestGreeterService.class.getName() + ":1.0";
-
-    AgentSpan callerSpan = startSpan("test", "caller");
-    ContextScope callerScope = activateSpan(callerSpan);
-    String reply;
-    try {
-      reply = greeterService.sayHello("World");
-    } finally {
-      callerScope.close();
-      callerSpan.finish();
+        greeterService = new ConsumerConfig<RestGreeterService>()
+                .setApplication(new ApplicationConfig().setAppName("test-client"))
+                .setInterfaceId(RestGreeterService.class.getName())
+                .setDirectUrl("rest://127.0.0.1:" + PORT)
+                .setProtocol("rest")
+                .setRegister(false)
+                .setSubscribe(false)
+                .refer();
     }
 
-    assertEquals("Hello, World", reply);
-
-    writer.waitForTraces(2);
-    List<DDSpan> allSpans = flattenTraces();
-
-    DDSpan clientSofaSpan = findSpan(allSpans, "sofarpc.request", "client");
-    DDSpan serverSofaSpan = findSpan(allSpans, "sofarpc.request", "server");
-
-    // Client span — full service unique name is available on client side
-    assertNotNull(clientSofaSpan, "Expected sofarpc client span");
-    assertEquals(serviceUniqueName + "/sayHello", clientSofaSpan.getResourceName().toString());
-    assertEquals("rest", String.valueOf(clientSofaSpan.getTag("sofarpc.protocol")));
-    assertEquals("sofarpc-client", String.valueOf(clientSofaSpan.getTag("component")));
-    assertEquals("client", String.valueOf(clientSofaSpan.getTag("span.kind")));
-    assertEquals("sofarpc", String.valueOf(clientSofaSpan.getTag("rpc.system")));
-    assertEquals("sayHello", String.valueOf(clientSofaSpan.getTag("rpc.method")));
-    assertEquals(callerSpan.getSpanId(), clientSofaSpan.getParentId());
-    assertFalse(clientSofaSpan.isError());
-
-    // Server span — SofaRequest.getTargetServiceUniqueName() is null on the server side for REST
-    // (not propagated through the JAX-RS layer), so resourceName is the method name only
-    // and rpc.service tag is absent. Parent link to the client trace is provided by
-    // HTTP instrumentation (not active in this test), so this span is a trace root here.
-    assertNotNull(serverSofaSpan, "Expected sofarpc server span");
-    assertEquals("sayHello", serverSofaSpan.getResourceName().toString());
-    assertEquals("rest", String.valueOf(serverSofaSpan.getTag("sofarpc.protocol")));
-    assertEquals("sofarpc-server", String.valueOf(serverSofaSpan.getTag("component")));
-    assertEquals("server", String.valueOf(serverSofaSpan.getTag("span.kind")));
-    assertEquals("sofarpc", String.valueOf(serverSofaSpan.getTag("rpc.system")));
-    assertNull(
-        serverSofaSpan.getTag("rpc.service"), "rpc.service should be absent for REST server span");
-    assertEquals("sayHello", String.valueOf(serverSofaSpan.getTag("rpc.method")));
-    assertFalse(serverSofaSpan.isError());
-  }
-
-  private List<DDSpan> flattenTraces() {
-    List<DDSpan> result = new ArrayList<>();
-    for (List<DDSpan> trace : writer) {
-      result.addAll(trace);
+    @AfterAll
+    void tearDownServers() {
+        if (restProviderConfig != null) {
+            restProviderConfig.unExport();
+        }
     }
-    return result;
-  }
 
-  private DDSpan findSpan(List<DDSpan> spans, String operationName, String spanKind) {
-    for (DDSpan span : spans) {
-      if (span.getOperationName().toString().equals(operationName)
-          && spanKind.equals(span.getTag("span.kind"))) {
-        return span;
-      }
+    @Test
+    void clientAndServerSpansForRestCall() throws InterruptedException, TimeoutException {
+        String serviceUniqueName = RestGreeterService.class.getName() + ":1.0";
+
+        AgentSpan callerSpan = startSpan("test", "caller");
+        ContextScope callerScope = activateSpan(callerSpan);
+        String reply;
+        try {
+            reply = greeterService.sayHello("World");
+        } finally {
+            callerScope.close();
+            callerSpan.finish();
+        }
+
+        assertEquals("Hello, World", reply);
+
+        writer.waitForTraces(2);
+        List<DDSpan> allSpans = flattenTraces();
+
+        DDSpan clientSofaSpan = findSpan(allSpans, "sofarpc.request", "client");
+        DDSpan serverSofaSpan = findSpan(allSpans, "sofarpc.request", "server");
+
+        // Client span — full service unique name is available on client side
+        assertNotNull(clientSofaSpan, "Expected sofarpc client span");
+        assertEquals(
+                serviceUniqueName + "/sayHello",
+                clientSofaSpan.getResourceName().toString());
+        assertEquals("rest", String.valueOf(clientSofaSpan.getTag("sofarpc.protocol")));
+        assertEquals("sofarpc-client", String.valueOf(clientSofaSpan.getTag("component")));
+        assertEquals("client", String.valueOf(clientSofaSpan.getTag("span.kind")));
+        assertEquals("sofarpc", String.valueOf(clientSofaSpan.getTag("rpc.system")));
+        assertEquals("sayHello", String.valueOf(clientSofaSpan.getTag("rpc.method")));
+        assertEquals(callerSpan.getSpanId(), clientSofaSpan.getParentId());
+        assertFalse(clientSofaSpan.isError());
+
+        // Server span — SofaRequest.getTargetServiceUniqueName() is null on the server side for REST
+        // (not propagated through the JAX-RS layer), so resourceName is the method name only
+        // and rpc.service tag is absent. Parent link to the client trace is provided by
+        // HTTP instrumentation (not active in this test), so this span is a trace root here.
+        assertNotNull(serverSofaSpan, "Expected sofarpc server span");
+        assertEquals("sayHello", serverSofaSpan.getResourceName().toString());
+        assertEquals("rest", String.valueOf(serverSofaSpan.getTag("sofarpc.protocol")));
+        assertEquals("sofarpc-server", String.valueOf(serverSofaSpan.getTag("component")));
+        assertEquals("server", String.valueOf(serverSofaSpan.getTag("span.kind")));
+        assertEquals("sofarpc", String.valueOf(serverSofaSpan.getTag("rpc.system")));
+        assertNull(serverSofaSpan.getTag("rpc.service"), "rpc.service should be absent for REST server span");
+        assertEquals("sayHello", String.valueOf(serverSofaSpan.getTag("rpc.method")));
+        assertFalse(serverSofaSpan.isError());
     }
-    return null;
-  }
+
+    private List<DDSpan> flattenTraces() {
+        List<DDSpan> result = new ArrayList<>();
+        for (List<DDSpan> trace : writer) {
+            result.addAll(trace);
+        }
+        return result;
+    }
+
+    private DDSpan findSpan(List<DDSpan> spans, String operationName, String spanKind) {
+        for (DDSpan span : spans) {
+            if (span.getOperationName().toString().equals(operationName) && spanKind.equals(span.getTag("span.kind"))) {
+                return span;
+            }
+        }
+        return null;
+    }
 }

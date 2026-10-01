@@ -12,30 +12,26 @@ import javax.annotation.Nullable;
 /** Test session abstraction that is used by build system instrumentations (e.g. Maven, Gradle) */
 public interface BuildSystemSession {
 
-  void setTag(String key, Object value);
+    void setTag(String key, Object value);
 
-  void setErrorInfo(Throwable error);
+    void setErrorInfo(Throwable error);
 
-  void end(@Nullable Long endTime);
+    void end(@Nullable Long endTime);
 
-  BuildSystemModule testModuleStart(
-      String moduleName,
-      @Nullable Long startTime,
-      BuildModuleLayout moduleLayout,
-      JvmInfo jvmInfo,
-      @Nullable Collection<Path> classpath,
-      @Nullable JavaAgent jacocoAgent);
+    BuildSystemModule testModuleStart(
+            String moduleName,
+            @Nullable Long startTime,
+            BuildModuleLayout moduleLayout,
+            JvmInfo jvmInfo,
+            @Nullable Collection<Path> classpath,
+            @Nullable JavaAgent jacocoAgent);
 
-  AgentSpan testTaskStart(String taskName);
+    AgentSpan testTaskStart(String taskName);
 
-  BuildSessionSettings getSettings();
+    BuildSessionSettings getSettings();
 
-  interface Factory {
-    BuildSystemSession startSession(
-        String projectName,
-        Path projectRoot,
-        String startCommand,
-        String buildSystemName,
-        Long startTime);
-  }
+    interface Factory {
+        BuildSystemSession startSession(
+                String projectName, Path projectRoot, String startCommand, String buildSystemName, Long startTime);
+    }
 }

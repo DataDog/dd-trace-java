@@ -17,67 +17,65 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
 
 public class HttpClientResponseTracingHandler extends SimpleChannelUpstreamHandler {
 
-  private final ContextStore<Channel, ChannelTraceContext> contextStore;
+    private final ContextStore<Channel, ChannelTraceContext> contextStore;
 
-  public HttpClientResponseTracingHandler(
-      final ContextStore<Channel, ChannelTraceContext> contextStore) {
-    this.contextStore = contextStore;
-  }
-
-  @Override
-  public void messageReceived(final ChannelHandlerContext ctx, final MessageEvent msg)
-      throws Exception {
-    final ChannelTraceContext channelTraceContext =
-        contextStore.getOrCreate(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
-
-    AgentSpan parent = channelTraceContext.getClientParentSpan();
-    if (parent == null) {
-      parent = noopSpan();
-      channelTraceContext.setClientParentSpan(noopSpan());
-    }
-    final AgentSpan span = channelTraceContext.getClientSpan();
-
-    final boolean finishSpan = msg.getMessage() instanceof HttpResponse;
-
-    if (span != null && finishSpan) {
-      try (final ContextScope scope = activateSpan(span)) {
-        DECORATE.onResponse(span, (HttpResponse) msg.getMessage());
-        DECORATE.beforeFinish(span);
-        span.finish();
-      }
+    public HttpClientResponseTracingHandler(final ContextStore<Channel, ChannelTraceContext> contextStore) {
+        this.contextStore = contextStore;
     }
 
-    // We want the callback in the scope of the parent, not the client span
-    try (final ContextScope scope = activateSpan(parent)) {
-      ctx.sendUpstream(msg);
-    }
-  }
+    @Override
+    public void messageReceived(final ChannelHandlerContext ctx, final MessageEvent msg) throws Exception {
+        final ChannelTraceContext channelTraceContext =
+                contextStore.getOrCreate(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
 
-  @Override
-  public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) throws Exception {
-    final ChannelTraceContext channelTraceContext =
-        contextStore.getOrCreate(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
+        AgentSpan parent = channelTraceContext.getClientParentSpan();
+        if (parent == null) {
+            parent = noopSpan();
+            channelTraceContext.setClientParentSpan(noopSpan());
+        }
+        final AgentSpan span = channelTraceContext.getClientSpan();
 
-    AgentSpan parent = channelTraceContext.getClientParentSpan();
-    if (parent == null) {
-      parent = noopSpan();
-      channelTraceContext.setClientParentSpan(noopSpan());
+        final boolean finishSpan = msg.getMessage() instanceof HttpResponse;
+
+        if (span != null && finishSpan) {
+            try (final ContextScope scope = activateSpan(span)) {
+                DECORATE.onResponse(span, (HttpResponse) msg.getMessage());
+                DECORATE.beforeFinish(span);
+                span.finish();
+            }
+        }
+
+        // We want the callback in the scope of the parent, not the client span
+        try (final ContextScope scope = activateSpan(parent)) {
+            ctx.sendUpstream(msg);
+        }
     }
 
-    final AgentSpan span = channelTraceContext.getClientSpan();
-    if (span != null) {
-      // If an exception is passed to this point, it likely means it was unhandled and the
-      // client span won't be finished with a proper response, so we should finish the span here.
-      try (final ContextScope scope = activateSpan(span)) {
-        DECORATE.onError(span, e.getCause());
-        DECORATE.beforeFinish(span);
-        span.finish();
-      }
-    }
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) throws Exception {
+        final ChannelTraceContext channelTraceContext =
+                contextStore.getOrCreate(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
 
-    // We want the callback in the scope of the parent, not the client span
-    try (final ContextScope scope = activateSpan(parent)) {
-      super.exceptionCaught(ctx, e);
+        AgentSpan parent = channelTraceContext.getClientParentSpan();
+        if (parent == null) {
+            parent = noopSpan();
+            channelTraceContext.setClientParentSpan(noopSpan());
+        }
+
+        final AgentSpan span = channelTraceContext.getClientSpan();
+        if (span != null) {
+            // If an exception is passed to this point, it likely means it was unhandled and the
+            // client span won't be finished with a proper response, so we should finish the span here.
+            try (final ContextScope scope = activateSpan(span)) {
+                DECORATE.onError(span, e.getCause());
+                DECORATE.beforeFinish(span);
+                span.finish();
+            }
+        }
+
+        // We want the callback in the scope of the parent, not the client span
+        try (final ContextScope scope = activateSpan(parent)) {
+            super.exceptionCaught(ctx, e);
+        }
     }
-  }
 }

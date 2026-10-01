@@ -2,11 +2,11 @@ package datadog.smoketest.controller;
 
 public interface ServletRequestTestSuite {
 
-  String getRequestURI();
+    String getRequestURI();
 
-  String getPathInfo();
+    String getPathInfo();
 
-  String getPathTranslated();
+    String getPathTranslated();
 
-  StringBuffer getRequestURL();
+    StringBuffer getRequestURL();
 }

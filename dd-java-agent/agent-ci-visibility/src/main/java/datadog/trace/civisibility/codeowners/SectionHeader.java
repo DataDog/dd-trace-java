@@ -9,19 +9,19 @@ import java.util.Collection;
  */
 public class SectionHeader {
 
-  private final String name;
-  private final Collection<String> defaultOwners;
+    private final String name;
+    private final Collection<String> defaultOwners;
 
-  public SectionHeader(String name, Collection<String> defaultOwners) {
-    this.name = name;
-    this.defaultOwners = defaultOwners;
-  }
+    public SectionHeader(String name, Collection<String> defaultOwners) {
+        this.name = name;
+        this.defaultOwners = defaultOwners;
+    }
 
-  public String getName() {
-    return name;
-  }
+    public String getName() {
+        return name;
+    }
 
-  public Collection<String> getDefaultOwners() {
-    return defaultOwners;
-  }
+    public Collection<String> getDefaultOwners() {
+        return defaultOwners;
+    }
 }

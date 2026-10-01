@@ -11,13 +11,13 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("hello")
 @Validated
 public class ServerController {
-  @RequestMapping("/not-found")
-  public String notFound() {
-    throw new ResponseStatusException(HttpStatus.NOT_FOUND, "entity not found");
-  }
+    @RequestMapping("/not-found")
+    public String notFound() {
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "entity not found");
+    }
 
-  @RequestMapping("/not-here")
-  public ResponseEntity notHere() {
-    return new ResponseEntity("not here", HttpStatus.NOT_FOUND);
-  }
+    @RequestMapping("/not-here")
+    public ResponseEntity notHere() {
+        return new ResponseEntity("not here", HttpStatus.NOT_FOUND);
+    }
 }

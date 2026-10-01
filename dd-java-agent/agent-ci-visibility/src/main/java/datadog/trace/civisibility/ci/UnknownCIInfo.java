@@ -26,57 +26,59 @@ import org.slf4j.LoggerFactory;
  */
 class UnknownCIInfo implements CIProviderInfo {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(UnknownCIInfo.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(UnknownCIInfo.class);
 
-  public static final String UNKNOWN_PROVIDER_NAME = "unknown";
+    public static final String UNKNOWN_PROVIDER_NAME = "unknown";
 
-  private final CiEnvironment environment;
-  private final String targetFolder;
-  private final Path currentPath;
+    private final CiEnvironment environment;
+    private final String targetFolder;
+    private final Path currentPath;
 
-  UnknownCIInfo(CiEnvironment environment, String targetFolder, Path currentPath) {
-    this.environment = environment;
-    this.targetFolder = targetFolder;
-    this.currentPath = currentPath;
-  }
-
-  @Override
-  public GitInfo buildCIGitInfo() {
-    return GitInfo.NOOP;
-  }
-
-  @Override
-  public CIInfo buildCIInfo() {
-    Path workspace = findParentPathBackwards(getCurrentPath(), getTargetFolder(), true);
-    if (workspace == null) {
-      return CIInfo.NOOP;
+    UnknownCIInfo(CiEnvironment environment, String targetFolder, Path currentPath) {
+        this.environment = environment;
+        this.targetFolder = targetFolder;
+        this.currentPath = currentPath;
     }
 
-    try {
-      workspace = workspace.toRealPath();
-    } catch (Exception e) {
-      LOGGER.debug("Could not get real path for workspace folder {}", workspace, e);
+    @Override
+    public GitInfo buildCIGitInfo() {
+        return GitInfo.NOOP;
     }
 
-    return CIInfo.builder(environment).ciWorkspace(workspace.toAbsolutePath().toString()).build();
-  }
+    @Override
+    public CIInfo buildCIInfo() {
+        Path workspace = findParentPathBackwards(getCurrentPath(), getTargetFolder(), true);
+        if (workspace == null) {
+            return CIInfo.NOOP;
+        }
 
-  @Nonnull
-  @Override
-  public PullRequestInfo buildPullRequestInfo() {
-    return PullRequestInfo.EMPTY;
-  }
+        try {
+            workspace = workspace.toRealPath();
+        } catch (Exception e) {
+            LOGGER.debug("Could not get real path for workspace folder {}", workspace, e);
+        }
 
-  protected String getTargetFolder() {
-    return targetFolder;
-  }
+        return CIInfo.builder(environment)
+                .ciWorkspace(workspace.toAbsolutePath().toString())
+                .build();
+    }
 
-  protected Path getCurrentPath() {
-    return currentPath;
-  }
+    @Nonnull
+    @Override
+    public PullRequestInfo buildPullRequestInfo() {
+        return PullRequestInfo.EMPTY;
+    }
 
-  @Override
-  public Provider getProvider() {
-    return Provider.UNSUPPORTED;
-  }
+    protected String getTargetFolder() {
+        return targetFolder;
+    }
+
+    protected Path getCurrentPath() {
+        return currentPath;
+    }
+
+    @Override
+    public Provider getProvider() {
+        return Provider.UNSUPPORTED;
+    }
 }

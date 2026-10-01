@@ -18,115 +18,114 @@ import org.slf4j.LoggerFactory;
 
 public class ByteCodeLinesResolver implements LinesResolver {
 
-  private static final Logger log = LoggerFactory.getLogger(ByteCodeLinesResolver.class);
+    private static final Logger log = LoggerFactory.getLogger(ByteCodeLinesResolver.class);
 
-  private final DDCache<Class<?>, ClassMethodLines> methodLinesCache =
-      DDCaches.newFixedSizeIdentityCache(16);
+    private final DDCache<Class<?>, ClassMethodLines> methodLinesCache = DDCaches.newFixedSizeIdentityCache(16);
 
-  @Nonnull
-  @Override
-  public Lines getMethodLines(@Nonnull Method method) {
-    try {
-      ClassMethodLines classMethodLines =
-          methodLinesCache.computeIfAbsent(method.getDeclaringClass(), ClassMethodLines::parse);
-      return classMethodLines.get(method);
+    @Nonnull
+    @Override
+    public Lines getMethodLines(@Nonnull Method method) {
+        try {
+            ClassMethodLines classMethodLines =
+                    methodLinesCache.computeIfAbsent(method.getDeclaringClass(), ClassMethodLines::parse);
+            return classMethodLines.get(method);
 
-    } catch (Exception e) {
-      log.error("Could not determine method borders for {}", method, e);
-      return Lines.EMPTY;
-    }
-  }
-
-  @Nonnull
-  @Override
-  public Lines getClassLines(@Nonnull Class<?> clazz) {
-    return Lines.EMPTY;
-  }
-
-  static final class ClassMethodLines {
-    private final Map<String, MethodLinesRecorder> recordersByMethodFingerprint = new HashMap<>();
-
-    public MethodLinesRecorder createRecorder(String methodFingerprint) {
-      MethodLinesRecorder recorder = new MethodLinesRecorder();
-      recordersByMethodFingerprint.put(methodFingerprint, recorder);
-      return recorder;
-    }
-
-    public Lines get(Method method) {
-      String methodFingerprint = getFingerprint(method);
-      MethodLinesRecorder methodLinesRecorder = recordersByMethodFingerprint.get(methodFingerprint);
-      if (methodLinesRecorder != null) {
-        return new Lines(methodLinesRecorder.startLineNumber, methodLinesRecorder.finishLineNumber);
-      } else {
-        return Lines.EMPTY;
-      }
-    }
-
-    public static ClassMethodLines parse(Class<?> clazz) {
-      try {
-        ClassMethodLines classMethodLines = new ClassMethodLines();
-        try (InputStream classStream = Utils.getClassStream(clazz)) {
-          if (classStream == null) {
-            // Cached below via computeIfAbsent, as a permanent empty result for this class.
-            // That's correct for the case this guards against -- a generated/proxy class that
-            // will never have a bytecode resource -- but ClassLoader#getResourceAsStream also
-            // swallows IOException and returns null, so in principle a transient failure (I/O
-            // error, OOM while reading the class bytes) could hit this same branch and get
-            // pinned as a permanent negative. Not handling that here; flagging it for whoever
-            // next touches this if transient-failure caching turns out to matter in practice.
-            log.debug("Could not get input stream for class {}", clazz.getName());
-            return classMethodLines;
-          }
-          ClassReader classReader = new ClassReader(classStream);
-          MethodLocator methodLocator = new MethodLocator(classMethodLines);
-          classReader.accept(methodLocator, ClassReader.SKIP_FRAMES);
+        } catch (Exception e) {
+            log.error("Could not determine method borders for {}", method, e);
+            return Lines.EMPTY;
         }
-        return classMethodLines;
-
-      } catch (Exception e) {
-        // do not cache failure
-        throw new RuntimeException(e);
-      }
     }
 
-    public static String getFingerprint(Method method) {
-      String methodName = method.getName();
-      String methodDescriptor = Type.getMethodDescriptor(method);
-      return getFingerprint(methodName, methodDescriptor);
-    }
-
-    public static String getFingerprint(String methodName, String methodDescriptor) {
-      return methodName + ';' + methodDescriptor;
-    }
-  }
-
-  private static class MethodLocator extends ClassVisitor {
-    private final ClassMethodLines classMethodLines;
-
-    MethodLocator(ClassMethodLines classMethodLines) {
-      super(Opcodes.ASM9);
-      this.classMethodLines = classMethodLines;
-    }
-
+    @Nonnull
     @Override
-    public MethodVisitor visitMethod(
-        int access, String name, String descriptor, String signature, String[] exceptions) {
-      return classMethodLines.createRecorder(ClassMethodLines.getFingerprint(name, descriptor));
-    }
-  }
-
-  private static class MethodLinesRecorder extends MethodVisitor {
-    private int startLineNumber = Integer.MAX_VALUE;
-    private int finishLineNumber = Integer.MIN_VALUE;
-
-    MethodLinesRecorder() {
-      super(Opcodes.ASM9);
+    public Lines getClassLines(@Nonnull Class<?> clazz) {
+        return Lines.EMPTY;
     }
 
-    @Override
-    public void visitLineNumber(int line, Label start) {
-      startLineNumber = Math.min(startLineNumber, line);
-      finishLineNumber = Math.max(finishLineNumber, line);
+    static final class ClassMethodLines {
+        private final Map<String, MethodLinesRecorder> recordersByMethodFingerprint = new HashMap<>();
+
+        public MethodLinesRecorder createRecorder(String methodFingerprint) {
+            MethodLinesRecorder recorder = new MethodLinesRecorder();
+            recordersByMethodFingerprint.put(methodFingerprint, recorder);
+            return recorder;
+        }
+
+        public Lines get(Method method) {
+            String methodFingerprint = getFingerprint(method);
+            MethodLinesRecorder methodLinesRecorder = recordersByMethodFingerprint.get(methodFingerprint);
+            if (methodLinesRecorder != null) {
+                return new Lines(methodLinesRecorder.startLineNumber, methodLinesRecorder.finishLineNumber);
+            } else {
+                return Lines.EMPTY;
+            }
+        }
+
+        public static ClassMethodLines parse(Class<?> clazz) {
+            try {
+                ClassMethodLines classMethodLines = new ClassMethodLines();
+                try (InputStream classStream = Utils.getClassStream(clazz)) {
+                    if (classStream == null) {
+                        // Cached below via computeIfAbsent, as a permanent empty result for this class.
+                        // That's correct for the case this guards against -- a generated/proxy class that
+                        // will never have a bytecode resource -- but ClassLoader#getResourceAsStream also
+                        // swallows IOException and returns null, so in principle a transient failure (I/O
+                        // error, OOM while reading the class bytes) could hit this same branch and get
+                        // pinned as a permanent negative. Not handling that here; flagging it for whoever
+                        // next touches this if transient-failure caching turns out to matter in practice.
+                        log.debug("Could not get input stream for class {}", clazz.getName());
+                        return classMethodLines;
+                    }
+                    ClassReader classReader = new ClassReader(classStream);
+                    MethodLocator methodLocator = new MethodLocator(classMethodLines);
+                    classReader.accept(methodLocator, ClassReader.SKIP_FRAMES);
+                }
+                return classMethodLines;
+
+            } catch (Exception e) {
+                // do not cache failure
+                throw new RuntimeException(e);
+            }
+        }
+
+        public static String getFingerprint(Method method) {
+            String methodName = method.getName();
+            String methodDescriptor = Type.getMethodDescriptor(method);
+            return getFingerprint(methodName, methodDescriptor);
+        }
+
+        public static String getFingerprint(String methodName, String methodDescriptor) {
+            return methodName + ';' + methodDescriptor;
+        }
     }
-  }
+
+    private static class MethodLocator extends ClassVisitor {
+        private final ClassMethodLines classMethodLines;
+
+        MethodLocator(ClassMethodLines classMethodLines) {
+            super(Opcodes.ASM9);
+            this.classMethodLines = classMethodLines;
+        }
+
+        @Override
+        public MethodVisitor visitMethod(
+                int access, String name, String descriptor, String signature, String[] exceptions) {
+            return classMethodLines.createRecorder(ClassMethodLines.getFingerprint(name, descriptor));
+        }
+    }
+
+    private static class MethodLinesRecorder extends MethodVisitor {
+        private int startLineNumber = Integer.MAX_VALUE;
+        private int finishLineNumber = Integer.MIN_VALUE;
+
+        MethodLinesRecorder() {
+            super(Opcodes.ASM9);
+        }
+
+        @Override
+        public void visitLineNumber(int line, Label start) {
+            startLineNumber = Math.min(startLineNumber, line);
+            finishLineNumber = Math.max(finishLineNumber, line);
+        }
+    }
 }

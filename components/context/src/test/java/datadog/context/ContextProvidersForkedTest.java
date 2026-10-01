@@ -11,116 +11,114 @@ import javax.annotation.Nonnull;
 import org.junit.jupiter.api.Test;
 
 class ContextProvidersForkedTest {
-  @Test
-  void testCustomBinder() {
-    assertTrue(ContextBinder.allowTesting());
+    @Test
+    void testCustomBinder() {
+        assertTrue(ContextBinder.allowTesting());
 
-    Context context = root().with(STRING_KEY, "value");
-    assertNotEquals(root(), context);
+        Context context = root().with(STRING_KEY, "value");
+        assertNotEquals(root(), context);
 
-    Object carrier = new Object();
+        Object carrier = new Object();
 
-    // should delegate to the default binder
-    context.attachTo(carrier);
-    assertSame(context, Context.from(carrier));
-    assertSame(context, Context.detachFrom(carrier));
-    assertSame(root(), Context.from(carrier));
+        // should delegate to the default binder
+        context.attachTo(carrier);
+        assertSame(context, Context.from(carrier));
+        assertSame(context, Context.detachFrom(carrier));
+        assertSame(root(), Context.from(carrier));
 
-    // now register a NOOP context binder
-    ContextBinder.register(
-        new ContextBinder() {
-          @Override
-          public Context from(@Nonnull Object carrier) {
-            return root();
-          }
+        // now register a NOOP context binder
+        ContextBinder.register(new ContextBinder() {
+            @Override
+            public Context from(@Nonnull Object carrier) {
+                return root();
+            }
 
-          @Override
-          public void attachTo(@Nonnull Object carrier, @Nonnull Context context) {
-            // no-op
-          }
+            @Override
+            public void attachTo(@Nonnull Object carrier, @Nonnull Context context) {
+                // no-op
+            }
 
-          @Override
-          public Context detachFrom(@Nonnull Object carrier) {
-            return root();
-          }
+            @Override
+            public Context detachFrom(@Nonnull Object carrier) {
+                return root();
+            }
         });
 
-    // NOOP binder, context will always be root
-    context.attachTo(carrier);
-    assertSame(root(), Context.from(carrier));
-    assertSame(root(), Context.detachFrom(carrier));
-    assertSame(root(), Context.from(carrier));
-  }
-
-  @Test
-  void testCustomManager() {
-    assertTrue(ContextManager.allowTesting());
-
-    Context context = root().with(STRING_KEY, "value");
-    assertNotEquals(root(), context);
-
-    // should delegate to the default manager
-    try (ContextScope scope = context.attach()) {
-      assertSame(context, scope.context());
-      assertSame(context, Context.current());
-      ContextContinuation cont = context.capture();
-      assertSame(context, cont.context());
-      cont.release();
+        // NOOP binder, context will always be root
+        context.attachTo(carrier);
+        assertSame(root(), Context.from(carrier));
+        assertSame(root(), Context.detachFrom(carrier));
+        assertSame(root(), Context.from(carrier));
     }
 
-    Context swapped = context.swap();
-    assertSame(root(), swapped);
-    assertSame(context, Context.current());
-    assertSame(context, swapped.swap());
-    assertSame(root(), Context.current());
+    @Test
+    void testCustomManager() {
+        assertTrue(ContextManager.allowTesting());
 
-    // now register a NOOP context manager
-    ContextManager.register(
-        new ContextManager() {
-          @Override
-          public Context current() {
-            return root();
-          }
+        Context context = root().with(STRING_KEY, "value");
+        assertNotEquals(root(), context);
 
-          @Override
-          public ContextScope attach(@Nonnull Context context) {
-            return new NoopContextScope(root());
-          }
+        // should delegate to the default manager
+        try (ContextScope scope = context.attach()) {
+            assertSame(context, scope.context());
+            assertSame(context, Context.current());
+            ContextContinuation cont = context.capture();
+            assertSame(context, cont.context());
+            cont.release();
+        }
 
-          @Override
-          public Context swap(@Nonnull Context context) {
-            return root();
-          }
+        Context swapped = context.swap();
+        assertSame(root(), swapped);
+        assertSame(context, Context.current());
+        assertSame(context, swapped.swap());
+        assertSame(root(), Context.current());
 
-          @Override
-          public ContextContinuation capture(@Nonnull Context context) {
-            return new NoopContextContinuation(root());
-          }
+        // now register a NOOP context manager
+        ContextManager.register(new ContextManager() {
+            @Override
+            public Context current() {
+                return root();
+            }
 
-          @Override
-          public void addListener(@Nonnull ContextListener listener) {}
+            @Override
+            public ContextScope attach(@Nonnull Context context) {
+                return new NoopContextScope(root());
+            }
+
+            @Override
+            public Context swap(@Nonnull Context context) {
+                return root();
+            }
+
+            @Override
+            public ContextContinuation capture(@Nonnull Context context) {
+                return new NoopContextContinuation(root());
+            }
+
+            @Override
+            public void addListener(@Nonnull ContextListener listener) {}
         });
 
-    ContextTestBase.TrackingListener listener = trackingListener();
-    ContextManager.register(listener);
+        ContextTestBase.TrackingListener listener = trackingListener();
+        ContextManager.register(listener);
 
-    // NOOP manager, context will always be root
-    try (ContextScope scope = context.attach()) {
-      assertSame(root(), scope.context());
-      assertSame(root(), Context.current());
-      ContextContinuation cont = context.capture();
-      assertSame(root(), cont.context());
-      cont.release();
+        // NOOP manager, context will always be root
+        try (ContextScope scope = context.attach()) {
+            assertSame(root(), scope.context());
+            assertSame(root(), Context.current());
+            ContextContinuation cont = context.capture();
+            assertSame(root(), cont.context());
+            cont.release();
+        }
+
+        // NOOP manager, context will always be root
+        swapped = context.swap();
+        assertSame(root(), swapped);
+        assertSame(root(), Context.current());
+        assertSame(root(), swapped.swap());
+        assertSame(root(), Context.current());
+
+        // NOOP manager, no events emitted
+        listener.assertNoEvents();
     }
-
-    // NOOP manager, context will always be root
-    swapped = context.swap();
-    assertSame(root(), swapped);
-    assertSame(root(), Context.current());
-    assertSame(root(), swapped.swap());
-    assertSame(root(), Context.current());
-
-    // NOOP manager, no events emitted
-    listener.assertNoEvents();
-  }
 }

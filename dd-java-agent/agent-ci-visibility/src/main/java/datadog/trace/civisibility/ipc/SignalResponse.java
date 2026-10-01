@@ -3,7 +3,7 @@ package datadog.trace.civisibility.ipc;
 import java.nio.ByteBuffer;
 
 public interface SignalResponse {
-  SignalType getType();
+    SignalType getType();
 
-  ByteBuffer serialize();
+    ByteBuffer serialize();
 }

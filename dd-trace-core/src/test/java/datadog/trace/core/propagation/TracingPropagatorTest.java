@@ -37,165 +37,164 @@ import org.tabletest.junit.TableTest;
 
 class TracingPropagatorTest extends DDCoreJavaSpecification {
 
-  private HttpCodec.Injector injector;
-  private HttpCodec.Extractor extractor;
-  private TracingPropagator propagator;
+    private HttpCodec.Injector injector;
+    private HttpCodec.Extractor extractor;
+    private TracingPropagator propagator;
 
-  @BeforeEach
-  void setup() {
-    this.injector = mock(HttpCodec.Injector.class);
-    this.extractor = mock(HttpCodec.Extractor.class);
-    this.propagator = new TracingPropagator(true, this.injector, this.extractor);
-  }
+    @BeforeEach
+    void setup() {
+        this.injector = mock(HttpCodec.Injector.class);
+        this.extractor = mock(HttpCodec.Extractor.class);
+        this.propagator = new TracingPropagator(true, this.injector, this.extractor);
+    }
 
-  @Test
-  void testTracingPropagatorContextInjection() {
-    CoreTracer tracer = tracerBuilder().build();
-    AgentSpan span = tracer.buildSpan("test", "operation").start();
-    Map<String, String> carrier = new HashMap<>();
+    @Test
+    void testTracingPropagatorContextInjection() {
+        CoreTracer tracer = tracerBuilder().build();
+        AgentSpan span = tracer.buildSpan("test", "operation").start();
+        Map<String, String> carrier = new HashMap<>();
 
-    this.propagator.inject(span, carrier, Map::put);
+        this.propagator.inject(span, carrier, Map::put);
 
-    verify(this.injector).inject(same((DDSpanContext) span.spanContext()), same(carrier), any());
+        verify(this.injector).inject(same((DDSpanContext) span.spanContext()), same(carrier), any());
 
-    span.finish();
-    tracer.close();
-  }
+        span.finish();
+        tracer.close();
+    }
 
-  @Test
-  void testTracingPropagatorContextExtractor() {
-    Context context = Context.root();
-    Map<String, String> carrier = new HashMap<>();
+    @Test
+    void testTracingPropagatorContextExtractor() {
+        Context context = Context.root();
+        Map<String, String> carrier = new HashMap<>();
 
-    this.propagator.extract(context, carrier, stringValuesMap());
+        this.propagator.extract(context, carrier, stringValuesMap());
 
-    verify(this.extractor).extract(same(carrier), any());
-  }
+        verify(this.extractor).extract(same(carrier), any());
+    }
 
-  @Test
-  void spanPrioritySetWhenInjecting() {
-    CoreTracer tracer = tracerBuilder().build();
-    Map<String, String> carrier = new HashMap<>();
+    @Test
+    void spanPrioritySetWhenInjecting() {
+        CoreTracer tracer = tracerBuilder().build();
+        Map<String, String> carrier = new HashMap<>();
 
-    AgentSpan root = tracer.buildSpan("test", "parent").start();
-    AgentSpan child = tracer.buildSpan("test", "child").asChildOf(root).start();
-    Propagators.defaultPropagator().inject(child, carrier, Map::put);
+        AgentSpan root = tracer.buildSpan("test", "parent").start();
+        AgentSpan child = tracer.buildSpan("test", "child").asChildOf(root).start();
+        Propagators.defaultPropagator().inject(child, carrier, Map::put);
 
-    assertEquals(SAMPLER_KEEP, root.getSamplingPriority());
-    assertEquals(root.getSamplingPriority(), child.getSamplingPriority());
-    assertEquals(String.valueOf(SAMPLER_KEEP), carrier.get(SAMPLING_PRIORITY_KEY));
+        assertEquals(SAMPLER_KEEP, root.getSamplingPriority());
+        assertEquals(root.getSamplingPriority(), child.getSamplingPriority());
+        assertEquals(String.valueOf(SAMPLER_KEEP), carrier.get(SAMPLING_PRIORITY_KEY));
 
-    child.finish();
-    root.finish();
-    tracer.close();
-  }
+        child.finish();
+        root.finish();
+        tracer.close();
+    }
 
-  @Test
-  void spanPriorityOnlySetAfterFirstInjection() {
-    ControllableSampler sampler = new ControllableSampler();
-    CoreTracer tracer = tracerBuilder().sampler(sampler).build();
+    @Test
+    void spanPriorityOnlySetAfterFirstInjection() {
+        ControllableSampler sampler = new ControllableSampler();
+        CoreTracer tracer = tracerBuilder().sampler(sampler).build();
 
-    AgentSpan root = tracer.buildSpan("test", "parent").start();
-    AgentSpan child = tracer.buildSpan("test", "child").asChildOf(root).start();
+        AgentSpan root = tracer.buildSpan("test", "parent").start();
+        AgentSpan child = tracer.buildSpan("test", "child").asChildOf(root).start();
 
-    Map<String, String> carrier = new HashMap<>();
-    Propagators.defaultPropagator().inject(child, carrier, Map::put);
+        Map<String, String> carrier = new HashMap<>();
+        Propagators.defaultPropagator().inject(child, carrier, Map::put);
 
-    assertEquals(SAMPLER_KEEP, root.getSamplingPriority());
-    assertEquals(root.getSamplingPriority(), child.getSamplingPriority());
-    assertEquals(String.valueOf(SAMPLER_KEEP), carrier.get(SAMPLING_PRIORITY_KEY));
+        assertEquals(SAMPLER_KEEP, root.getSamplingPriority());
+        assertEquals(root.getSamplingPriority(), child.getSamplingPriority());
+        assertEquals(String.valueOf(SAMPLER_KEEP), carrier.get(SAMPLING_PRIORITY_KEY));
 
-    sampler.nextSamplingPriority = SAMPLER_DROP;
-    AgentSpan child2 = tracer.buildSpan("test", "child2").asChildOf(root).start();
-    Propagators.defaultPropagator().inject(child2, carrier, Map::put);
+        sampler.nextSamplingPriority = SAMPLER_DROP;
+        AgentSpan child2 = tracer.buildSpan("test", "child2").asChildOf(root).start();
+        Propagators.defaultPropagator().inject(child2, carrier, Map::put);
 
-    assertEquals(SAMPLER_KEEP, root.getSamplingPriority());
-    assertEquals(root.getSamplingPriority(), child.getSamplingPriority());
-    assertEquals(root.getSamplingPriority(), child2.getSamplingPriority());
-    assertEquals(String.valueOf(SAMPLER_KEEP), carrier.get(SAMPLING_PRIORITY_KEY));
+        assertEquals(SAMPLER_KEEP, root.getSamplingPriority());
+        assertEquals(root.getSamplingPriority(), child.getSamplingPriority());
+        assertEquals(root.getSamplingPriority(), child2.getSamplingPriority());
+        assertEquals(String.valueOf(SAMPLER_KEEP), carrier.get(SAMPLING_PRIORITY_KEY));
 
-    child.finish();
-    child2.finish();
-    root.finish();
-    tracer.close();
-  }
+        child.finish();
+        child2.finish();
+        root.finish();
+        tracer.close();
+    }
 
-  @Test
-  void injectionDoesNotOverrideSetPriority() {
-    ControllableSampler sampler = new ControllableSampler();
-    CoreTracer tracer = tracerBuilder().sampler(sampler).build();
+    @Test
+    void injectionDoesNotOverrideSetPriority() {
+        ControllableSampler sampler = new ControllableSampler();
+        CoreTracer tracer = tracerBuilder().sampler(sampler).build();
 
-    AgentSpan root = tracer.buildSpan("test", "root").start();
-    AgentSpan child = tracer.buildSpan("test", "child").asChildOf(root).start();
-    child.setSamplingPriority(USER_DROP);
+        AgentSpan root = tracer.buildSpan("test", "root").start();
+        AgentSpan child = tracer.buildSpan("test", "child").asChildOf(root).start();
+        child.setSamplingPriority(USER_DROP);
 
-    Map<String, String> carrier = new HashMap<>();
-    Propagators.defaultPropagator().inject(child, carrier, Map::put);
+        Map<String, String> carrier = new HashMap<>();
+        Propagators.defaultPropagator().inject(child, carrier, Map::put);
 
-    assertEquals(USER_DROP, root.getSamplingPriority());
-    assertEquals(root.getSamplingPriority(), child.getSamplingPriority());
-    assertEquals(String.valueOf(USER_DROP), carrier.get(SAMPLING_PRIORITY_KEY));
+        assertEquals(USER_DROP, root.getSamplingPriority());
+        assertEquals(root.getSamplingPriority(), child.getSamplingPriority());
+        assertEquals(String.valueOf(USER_DROP), carrier.get(SAMPLING_PRIORITY_KEY));
 
-    child.finish();
-    root.finish();
-    tracer.close();
-  }
+        child.finish();
+        root.finish();
+        tracer.close();
+    }
 
-  @TableTest({
-    "tracingEnabled | product                 ",
-    "true           | ProductTraceSource.ASM  ",
-    "true           | ProductTraceSource.UNSET",
-    "false          | ProductTraceSource.ASM  ",
-    "false          | ProductTraceSource.UNSET"
-  })
-  void testPropagationWhenTracingIsDisabled(
-      boolean tracingEnabled, @ConvertWith(ProductTraceSourceConverter.class) int product) {
-    // Recreating propagator to apply tracing test flag
-    this.propagator = new TracingPropagator(tracingEnabled, this.injector, this.extractor);
+    @TableTest({
+      "tracingEnabled | product                 ",
+      "true           | ProductTraceSource.ASM  ",
+      "true           | ProductTraceSource.UNSET",
+      "false          | ProductTraceSource.ASM  ",
+      "false          | ProductTraceSource.UNSET"
+    })
+    void testPropagationWhenTracingIsDisabled(
+            boolean tracingEnabled, @ConvertWith(ProductTraceSourceConverter.class) int product) {
+        // Recreating propagator to apply tracing test flag
+        this.propagator = new TracingPropagator(tracingEnabled, this.injector, this.extractor);
 
-    CoreTracer tracer = tracerBuilder().build();
-    AgentSpan span = tracer.buildSpan("test", "operation").start();
-    span.setTag(PROPAGATED_TRACE_SOURCE, product);
+        CoreTracer tracer = tracerBuilder().build();
+        AgentSpan span = tracer.buildSpan("test", "operation").start();
+        span.setTag(PROPAGATED_TRACE_SOURCE, product);
 
-    Map<String, String> carrier = new HashMap<>();
-    this.propagator.inject(span, carrier, Map::put);
+        Map<String, String> carrier = new HashMap<>();
+        this.propagator.inject(span, carrier, Map::put);
 
-    int injected = (tracingEnabled || product != UNSET) ? 1 : 0;
-    verify(this.injector, times(injected))
-        .inject(same((DDSpanContext) span.spanContext()), same(carrier), any());
+        int injected = (tracingEnabled || product != UNSET) ? 1 : 0;
+        verify(this.injector, times(injected)).inject(same((DDSpanContext) span.spanContext()), same(carrier), any());
 
-    span.finish();
-    tracer.close();
-  }
+        span.finish();
+        tracer.close();
+    }
 
-  @Test
-  void testAwsXRayPropagator() {
-    CoreTracer tracer = tracerBuilder().build();
-    AgentSpan span = tracer.buildSpan("test", "operation").start();
-    Propagator xrayPropagator = Propagators.forConcerns(XRAY_TRACING_CONCERN);
+    @Test
+    void testAwsXRayPropagator() {
+        CoreTracer tracer = tracerBuilder().build();
+        AgentSpan span = tracer.buildSpan("test", "operation").start();
+        Propagator xrayPropagator = Propagators.forConcerns(XRAY_TRACING_CONCERN);
 
-    Map<String, String> carrier = new HashMap<>();
-    xrayPropagator.inject(span, carrier, Map::put);
+        Map<String, String> carrier = new HashMap<>();
+        xrayPropagator.inject(span, carrier, Map::put);
 
-    assertNotNull(carrier.get(X_AMZN_TRACE_ID));
+        assertNotNull(carrier.get(X_AMZN_TRACE_ID));
 
-    span.finish();
-    tracer.close();
-  }
+        span.finish();
+        tracer.close();
+    }
 
-  @ParameterizedTest
-  @ValueSource(booleans = {true, false})
-  void testApmTracingDisabledPropagatorStopPropagation(boolean apmTracingEnabled) {
-    injectSysConfig("apm.tracing.enabled", String.valueOf(apmTracingEnabled));
-    CoreTracer tracer = tracerBuilder().build();
-    AgentSpan span = tracer.buildSpan("test", "operation").start();
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testApmTracingDisabledPropagatorStopPropagation(boolean apmTracingEnabled) {
+        injectSysConfig("apm.tracing.enabled", String.valueOf(apmTracingEnabled));
+        CoreTracer tracer = tracerBuilder().build();
+        AgentSpan span = tracer.buildSpan("test", "operation").start();
 
-    Map<String, String> carrier = new HashMap<>();
-    Propagators.defaultPropagator().inject(span, carrier, Map::put);
+        Map<String, String> carrier = new HashMap<>();
+        Propagators.defaultPropagator().inject(span, carrier, Map::put);
 
-    assertEquals(apmTracingEnabled, !carrier.isEmpty());
+        assertEquals(apmTracingEnabled, !carrier.isEmpty());
 
-    span.finish();
-    tracer.close();
-  }
+        span.finish();
+        tracer.close();
+    }
 }

@@ -15,34 +15,34 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class UsernameNotFoundExceptionInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public UsernameNotFoundExceptionInstrumentation() {
-    super("spring-security");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "org.springframework.security.core.userdetails.UsernameNotFoundException";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor().and(takesArgument(0, named("java.lang.String"))).and(isPublic()),
-        getClass().getName() + "$UsernameNotFoundExceptionAdvice");
-  }
-
-  public static class UsernameNotFoundExceptionAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter() {
-      SpringSecurityUserEventDecorator.DECORATE.onUserNotFound();
+    public UsernameNotFoundExceptionInstrumentation() {
+        super("spring-security");
     }
-  }
+
+    @Override
+    public String hierarchyMarkerType() {
+        return "org.springframework.security.core.userdetails.UsernameNotFoundException";
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return extendsClass(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isConstructor().and(takesArgument(0, named("java.lang.String"))).and(isPublic()),
+                getClass().getName() + "$UsernameNotFoundExceptionAdvice");
+    }
+
+    public static class UsernameNotFoundExceptionAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter() {
+            SpringSecurityUserEventDecorator.DECORATE.onUserNotFound();
+        }
+    }
 }

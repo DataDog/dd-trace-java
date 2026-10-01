@@ -9,23 +9,23 @@ import javax.annotation.Nonnull;
 
 public class WeakRandomnessModuleImpl extends SinkModuleBase implements WeakRandomnessModule {
 
-  public WeakRandomnessModuleImpl(final Dependencies dependencies) {
-    super(dependencies);
-  }
-
-  @Override
-  public void onWeakRandom(@Nonnull final Class<?> instance) {
-    if (isSecuredInstance(instance)) {
-      return;
+    public WeakRandomnessModuleImpl(final Dependencies dependencies) {
+        super(dependencies);
     }
-    report(VulnerabilityType.WEAK_RANDOMNESS, new Evidence(instance.getName()));
-  }
 
-  /**
-   * Skip vulnerabilities on {@link java.security.SecureRandom} or any impl that contains secure in
-   * the name
-   */
-  private boolean isSecuredInstance(@Nonnull final Class<?> instance) {
-    return instance.getSimpleName().toLowerCase(Locale.ROOT).contains("secure");
-  }
+    @Override
+    public void onWeakRandom(@Nonnull final Class<?> instance) {
+        if (isSecuredInstance(instance)) {
+            return;
+        }
+        report(VulnerabilityType.WEAK_RANDOMNESS, new Evidence(instance.getName()));
+    }
+
+    /**
+     * Skip vulnerabilities on {@link java.security.SecureRandom} or any impl that contains secure in
+     * the name
+     */
+    private boolean isSecuredInstance(@Nonnull final Class<?> instance) {
+        return instance.getSimpleName().toLowerCase(Locale.ROOT).contains("secure");
+    }
 }

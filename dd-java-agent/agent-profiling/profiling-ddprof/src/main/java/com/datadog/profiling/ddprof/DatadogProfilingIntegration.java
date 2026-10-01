@@ -16,135 +16,130 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
  */
 public class DatadogProfilingIntegration implements ProfilingContextIntegration {
 
-  private static final DatadogProfiler DDPROF = DatadogProfiler.newInstance();
-  private static final int SPAN_NAME_INDEX = DDPROF.operationNameOffset();
-  private static final int RESOURCE_NAME_INDEX = DDPROF.resourceNameOffset();
-  private static final boolean WALLCLOCK_ENABLED =
-      DatadogProfilerConfig.isWallClockProfilerEnabled();
+    private static final DatadogProfiler DDPROF = DatadogProfiler.newInstance();
+    private static final int SPAN_NAME_INDEX = DDPROF.operationNameOffset();
+    private static final int RESOURCE_NAME_INDEX = DDPROF.resourceNameOffset();
+    private static final boolean WALLCLOCK_ENABLED = DatadogProfilerConfig.isWallClockProfilerEnabled();
 
-  private static final boolean IS_ENDPOINT_COLLECTION_ENABLED =
-      DatadogProfilerConfig.isEndpointTrackingEnabled();
+    private static final boolean IS_ENDPOINT_COLLECTION_ENABLED = DatadogProfilerConfig.isEndpointTrackingEnabled();
 
-  // don't use Config because it may use ThreadPoolExecutor to initialize itself
-  private static final boolean IS_PROFILING_QUEUEING_TIME_ENABLED =
-      DatadogProfilerConfig.isQueueTimeEnabled();
+    // don't use Config because it may use ThreadPoolExecutor to initialize itself
+    private static final boolean IS_PROFILING_QUEUEING_TIME_ENABLED = DatadogProfilerConfig.isQueueTimeEnabled();
 
-  private final Stateful contextManager =
-      new Stateful() {
+    private final Stateful contextManager = new Stateful() {
         @Override
         public void close() {
-          // clearTraceContext wipes all custom slots (incl. operation/resource) and reapplies
-          // app-managed context, so no separate clearContextValue calls are needed.
-          DDPROF.clearTraceContext();
+            // clearTraceContext wipes all custom slots (incl. operation/resource) and reapplies
+            // app-managed context, so no separate clearContextValue calls are needed.
+            DDPROF.clearTraceContext();
         }
 
         @Override
         public void activate(Object context) {
-          if (context instanceof ProfilerContext) {
-            ProfilerContext profilerContext = (ProfilerContext) context;
-            // One native call: trace/span context + operation and resource attributes, then
-            // reapply of app-managed context (setTraceContext resets custom slots).
-            DDPROF.setTraceContext(
-                profilerContext.getRootSpanId(),
-                profilerContext.getSpanId(),
-                profilerContext.getTraceIdHigh(),
-                profilerContext.getTraceIdLow(),
-                SPAN_NAME_INDEX,
-                profilerContext.getOperationName(),
-                RESOURCE_NAME_INDEX,
-                profilerContext.getResourceName());
-          }
+            if (context instanceof ProfilerContext) {
+                ProfilerContext profilerContext = (ProfilerContext) context;
+                // One native call: trace/span context + operation and resource attributes, then
+                // reapply of app-managed context (setTraceContext resets custom slots).
+                DDPROF.setTraceContext(
+                        profilerContext.getRootSpanId(),
+                        profilerContext.getSpanId(),
+                        profilerContext.getTraceIdHigh(),
+                        profilerContext.getTraceIdLow(),
+                        SPAN_NAME_INDEX,
+                        profilerContext.getOperationName(),
+                        RESOURCE_NAME_INDEX,
+                        profilerContext.getResourceName());
+            }
         }
-      };
-
-  @Override
-  public Stateful newScopeState(ProfilerContext profilerContext) {
-    return contextManager;
-  }
-
-  @Override
-  public void onAttach() {
-    if (WALLCLOCK_ENABLED) {
-      DDPROF.addThread();
-    }
-  }
-
-  @Override
-  public void onDetach() {
-    if (WALLCLOCK_ENABLED) {
-      DDPROF.removeThread();
-    }
-  }
-
-  @Override
-  public String name() {
-    return "ddprof";
-  }
-
-  /** Rebinds ddprof's carrier-thread context to the span contained in {@code context}. */
-  @Override
-  public void setContext(Context context) {
-    AgentSpan span = AgentSpan.fromContext(context);
-    if (span != null) {
-      contextManager.activate(span.spanContext());
-    } else {
-      clearContext();
-    }
-  }
-
-  @Override
-  public boolean isThreadContextBindingRequired() {
-    return true;
-  }
-
-  private void clearContext() {
-    contextManager.close();
-  }
-
-  @Override
-  public ProfilingContextAttribute createContextAttribute(String attribute) {
-    return new DatadogProfilerContextSetter(attribute, DDPROF);
-  }
-
-  @Override
-  public ProfilingScope newScope() {
-    return new DatadogProfilingScope(DDPROF);
-  }
-
-  @Override
-  public void onRootSpanFinished(AgentSpan rootSpan, EndpointTracker tracker) {
-    if (IS_ENDPOINT_COLLECTION_ENABLED && rootSpan != null) {
-      CharSequence resourceName = rootSpan.getResourceName();
-      CharSequence operationName = rootSpan.getOperationName();
-      if (resourceName != null && operationName != null) {
-        DDPROF.recordTraceRoot(
-            rootSpan.getSpanId(), resourceName.toString(), operationName.toString());
-      }
-    }
-  }
-
-  @Override
-  public EndpointTracker onRootSpanStarted(AgentSpan rootSpan) {
-    return NoOpEndpointTracker.INSTANCE;
-  }
-
-  @Override
-  public Timing start(TimerType type) {
-    if (IS_PROFILING_QUEUEING_TIME_ENABLED && type == TimerType.QUEUEING) {
-      return DDPROF.newQueueTimeTracker();
-    }
-    return Timing.NoOp.INSTANCE;
-  }
-
-  /**
-   * This implementation is actually stateless, so we don't actually need a tracker object, but
-   * we'll create a singleton to avoid returning null and risking NPEs elsewhere.
-   */
-  private static final class NoOpEndpointTracker implements EndpointTracker {
-
-    public static final NoOpEndpointTracker INSTANCE = new NoOpEndpointTracker();
+    };
 
     @Override
-    public void endpointWritten(AgentSpan span) {}
-  }
+    public Stateful newScopeState(ProfilerContext profilerContext) {
+        return contextManager;
+    }
+
+    @Override
+    public void onAttach() {
+        if (WALLCLOCK_ENABLED) {
+            DDPROF.addThread();
+        }
+    }
+
+    @Override
+    public void onDetach() {
+        if (WALLCLOCK_ENABLED) {
+            DDPROF.removeThread();
+        }
+    }
+
+    @Override
+    public String name() {
+        return "ddprof";
+    }
+
+    /** Rebinds ddprof's carrier-thread context to the span contained in {@code context}. */
+    @Override
+    public void setContext(Context context) {
+        AgentSpan span = AgentSpan.fromContext(context);
+        if (span != null) {
+            contextManager.activate(span.spanContext());
+        } else {
+            clearContext();
+        }
+    }
+
+    @Override
+    public boolean isThreadContextBindingRequired() {
+        return true;
+    }
+
+    private void clearContext() {
+        contextManager.close();
+    }
+
+    @Override
+    public ProfilingContextAttribute createContextAttribute(String attribute) {
+        return new DatadogProfilerContextSetter(attribute, DDPROF);
+    }
+
+    @Override
+    public ProfilingScope newScope() {
+        return new DatadogProfilingScope(DDPROF);
+    }
+
+    @Override
+    public void onRootSpanFinished(AgentSpan rootSpan, EndpointTracker tracker) {
+        if (IS_ENDPOINT_COLLECTION_ENABLED && rootSpan != null) {
+            CharSequence resourceName = rootSpan.getResourceName();
+            CharSequence operationName = rootSpan.getOperationName();
+            if (resourceName != null && operationName != null) {
+                DDPROF.recordTraceRoot(rootSpan.getSpanId(), resourceName.toString(), operationName.toString());
+            }
+        }
+    }
+
+    @Override
+    public EndpointTracker onRootSpanStarted(AgentSpan rootSpan) {
+        return NoOpEndpointTracker.INSTANCE;
+    }
+
+    @Override
+    public Timing start(TimerType type) {
+        if (IS_PROFILING_QUEUEING_TIME_ENABLED && type == TimerType.QUEUEING) {
+            return DDPROF.newQueueTimeTracker();
+        }
+        return Timing.NoOp.INSTANCE;
+    }
+
+    /**
+     * This implementation is actually stateless, so we don't actually need a tracker object, but
+     * we'll create a singleton to avoid returning null and risking NPEs elsewhere.
+     */
+    private static final class NoOpEndpointTracker implements EndpointTracker {
+
+        public static final NoOpEndpointTracker INSTANCE = new NoOpEndpointTracker();
+
+        @Override
+        public void endpointWritten(AgentSpan span) {}
+    }
 }

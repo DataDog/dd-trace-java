@@ -9,19 +9,19 @@ import org.testng.ISuiteListener;
  */
 public class TestNGSuiteListener implements ISuiteListener {
 
-  private final TestNGClassListener delegate;
+    private final TestNGClassListener delegate;
 
-  public TestNGSuiteListener(TestNGClassListener delegate) {
-    this.delegate = delegate;
-  }
+    public TestNGSuiteListener(TestNGClassListener delegate) {
+        this.delegate = delegate;
+    }
 
-  @Override
-  public void onStart(ISuite iSuite) {
-    delegate.registerTestMethods(iSuite.getAllMethods());
-  }
+    @Override
+    public void onStart(ISuite iSuite) {
+        delegate.registerTestMethods(iSuite.getAllMethods());
+    }
 
-  @Override
-  public void onFinish(ISuite iSuite) {
-    // ignore
-  }
+    @Override
+    public void onFinish(ISuite iSuite) {
+        // ignore
+    }
 }

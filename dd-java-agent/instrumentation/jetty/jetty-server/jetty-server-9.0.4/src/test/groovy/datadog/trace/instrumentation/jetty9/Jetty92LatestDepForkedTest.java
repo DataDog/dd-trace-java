@@ -15,68 +15,68 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
  */
 abstract class Jetty92LatestDepForkedTest extends Jetty9Test {
 
-  @Override
-  public boolean testBodyMultipart() {
-    return true;
-  }
+    @Override
+    public boolean testBodyMultipart() {
+        return true;
+    }
 
-  @Override
-  public boolean testBodyFilenames() {
-    return true;
-  }
+    @Override
+    public boolean testBodyFilenames() {
+        return true;
+    }
 
-  @Override
-  public boolean testBodyFilenamesCalledOnce() {
-    return true;
-  }
+    @Override
+    public boolean testBodyFilenamesCalledOnce() {
+        return true;
+    }
 
-  @Override
-  public boolean testBodyFilenamesCalledOnceCombined() {
-    return true;
-  }
+    @Override
+    public boolean testBodyFilenamesCalledOnceCombined() {
+        return true;
+    }
 
-  @Override
-  public boolean testBodyFilesContent() {
-    return true;
-  }
+    @Override
+    public boolean testBodyFilesContent() {
+        return true;
+    }
 }
 
 @EnabledIfSystemProperty(named = "test.dd.jetty92", matches = ".+")
 class Jetty92V0LatestDepForkedTest extends Jetty92LatestDepForkedTest
-    implements TestingGenericHttpNamingConventions.ServerV0 {
+        implements TestingGenericHttpNamingConventions.ServerV0 {
 
-  @Override
-  public int version() {
-    return 0;
-  }
+    @Override
+    public int version() {
+        return 0;
+    }
 
-  @Override
-  public String service() {
-    return null;
-  }
+    @Override
+    public String service() {
+        return null;
+    }
 
-  @Override
-  public String operation() {
-    return "servlet.request";
-  }
+    @Override
+    public String operation() {
+        return "servlet.request";
+    }
 }
 
 @EnabledIfSystemProperty(named = "test.dd.jetty92", matches = ".+")
 class Jetty92V1LatestDepForkedTest extends Jetty92LatestDepForkedTest
-    implements TestingGenericHttpNamingConventions.ServerV1 {
+        implements TestingGenericHttpNamingConventions.ServerV1 {
 
-  @Override
-  public int version() {
-    return 1;
-  }
+    @Override
+    public int version() {
+        return 1;
+    }
 
-  @Override
-  public String service() {
-    return null;
-  }
+    @Override
+    public String service() {
+        return null;
+    }
 
-  @Override
-  public String operation() {
-    return "http.server.request";
-  }
+    @Override
+    public String operation() {
+        return "http.server.request";
+    }
 }

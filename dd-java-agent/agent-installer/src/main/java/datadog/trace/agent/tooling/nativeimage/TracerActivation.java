@@ -14,24 +14,22 @@ import org.slf4j.LoggerFactory;
 
 /** Activates the tracer in native executables, see {@code VMRuntimeInstrumentation}. */
 public final class TracerActivation {
-  private static final Logger log = LoggerFactory.getLogger(TracerActivation.class);
+    private static final Logger log = LoggerFactory.getLogger(TracerActivation.class);
 
-  public static void activate() {
-    try {
-      // Initialize meter
-      MeterInstaller.installMeter();
-      // Initialize tracer
-      boolean withProfiler = ProfilerInstaller.installProfiler();
-      TracerInstaller.installGlobalTracer(
-          new SharedCommunicationObjects(),
-          withProfiler
-              ? new JFREventContextIntegration()
-              : ProfilingContextIntegration.NoOp.INSTANCE);
-      // Initialize JMXFetch
-      StatsDClientManager statsDClientManager = DDAgentStatsDClientManager.statsDClientManager();
-      JMXFetch.run(statsDClientManager);
-    } catch (Throwable e) {
-      log.warn("Problem activating datadog tracer", e);
+    public static void activate() {
+        try {
+            // Initialize meter
+            MeterInstaller.installMeter();
+            // Initialize tracer
+            boolean withProfiler = ProfilerInstaller.installProfiler();
+            TracerInstaller.installGlobalTracer(
+                    new SharedCommunicationObjects(),
+                    withProfiler ? new JFREventContextIntegration() : ProfilingContextIntegration.NoOp.INSTANCE);
+            // Initialize JMXFetch
+            StatsDClientManager statsDClientManager = DDAgentStatsDClientManager.statsDClientManager();
+            JMXFetch.run(statsDClientManager);
+        } catch (Throwable e) {
+            log.warn("Problem activating datadog tracer", e);
+        }
     }
-  }
 }

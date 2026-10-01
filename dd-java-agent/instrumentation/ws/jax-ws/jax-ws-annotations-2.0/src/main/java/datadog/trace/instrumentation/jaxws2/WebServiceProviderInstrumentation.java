@@ -24,68 +24,63 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class WebServiceProviderInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice {
-  private static final String WEB_SERVICE_PROVIDER_INTERFACE_NAME = "javax.xml.ws.Provider";
-  private static final String WEB_SERVICE_PROVIDER_ANNOTATION_NAME =
-      "javax.xml.ws.WebServiceProvider";
+        implements Instrumenter.ForBootstrap, Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    private static final String WEB_SERVICE_PROVIDER_INTERFACE_NAME = "javax.xml.ws.Provider";
+    private static final String WEB_SERVICE_PROVIDER_ANNOTATION_NAME = "javax.xml.ws.WebServiceProvider";
 
-  public WebServiceProviderInstrumentation() {
-    super("jax-ws");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return null; // bootstrap type
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(WEB_SERVICE_PROVIDER_INTERFACE_NAME))
-        .and(declaresAnnotation(named(WEB_SERVICE_PROVIDER_ANNOTATION_NAME)));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("invoke")).and(takesArguments(1)),
-        getClass().getName() + "$InvokeAdvice");
-  }
-
-  public static final class InvokeAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope beginRequest(
-        @Advice.This Object thiz, @Advice.Origin("#m") String method) {
-      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(WebServiceProvider.class);
-      if (callDepth > 0) {
-        return null;
-      }
-
-      AgentSpan span = startSpan("jax-ws-endpoint", JAX_WS_REQUEST);
-      span.setMeasured(true);
-      DECORATE.onJaxWsSpan(span, thiz.getClass(), method);
-      DECORATE.afterStart(span);
-      return activateSpan(span);
+    public WebServiceProviderInstrumentation() {
+        super("jax-ws");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void finishRequest(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable error) {
-      if (null == scope) {
-        return;
-      }
-
-      CallDepthThreadLocalMap.reset(WebServiceProvider.class);
-
-      AgentSpan span = spanFromScope(scope);
-      if (null != error) {
-        DECORATE.onError(span, error);
-      }
-      DECORATE.beforeFinish(span);
-      scope.close();
-      span.finish();
+    @Override
+    public String hierarchyMarkerType() {
+        return null; // bootstrap type
     }
-  }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(WEB_SERVICE_PROVIDER_INTERFACE_NAME))
+                .and(declaresAnnotation(named(WEB_SERVICE_PROVIDER_ANNOTATION_NAME)));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("invoke")).and(takesArguments(1)),
+                getClass().getName() + "$InvokeAdvice");
+    }
+
+    public static final class InvokeAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope beginRequest(@Advice.This Object thiz, @Advice.Origin("#m") String method) {
+            final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(WebServiceProvider.class);
+            if (callDepth > 0) {
+                return null;
+            }
+
+            AgentSpan span = startSpan("jax-ws-endpoint", JAX_WS_REQUEST);
+            span.setMeasured(true);
+            DECORATE.onJaxWsSpan(span, thiz.getClass(), method);
+            DECORATE.afterStart(span);
+            return activateSpan(span);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void finishRequest(@Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable error) {
+            if (null == scope) {
+                return;
+            }
+
+            CallDepthThreadLocalMap.reset(WebServiceProvider.class);
+
+            AgentSpan span = spanFromScope(scope);
+            if (null != error) {
+                DECORATE.onError(span, error);
+            }
+            DECORATE.beforeFinish(span);
+            scope.close();
+            span.finish();
+        }
+    }
 }

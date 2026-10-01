@@ -7,10 +7,10 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 public class TextMapInjectAdapter implements CarrierSetter<PubsubMessage.Builder> {
 
-  public static final TextMapInjectAdapter SETTER = new TextMapInjectAdapter();
+    public static final TextMapInjectAdapter SETTER = new TextMapInjectAdapter();
 
-  @Override
-  public void set(final PubsubMessage.Builder msg, final String key, final String value) {
-    msg.putAttributes(key, value);
-  }
+    @Override
+    public void set(final PubsubMessage.Builder msg, final String key, final String value) {
+        msg.putAttributes(key, value);
+    }
 }

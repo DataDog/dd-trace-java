@@ -8,56 +8,52 @@ import com.datadog.debugger.el.values.StringValue;
 import java.util.function.BiPredicate;
 
 public class StringPredicateExpression implements BooleanExpression {
-  private final ValueExpression<?> sourceString;
-  private final StringValue str;
-  private final BiPredicate<String, String> predicate;
-  private final String name;
+    private final ValueExpression<?> sourceString;
+    private final StringValue str;
+    private final BiPredicate<String, String> predicate;
+    private final String name;
 
-  public StringPredicateExpression(
-      ValueExpression<?> sourceString,
-      StringValue str,
-      BiPredicate<String, String> predicate,
-      String name) {
-    this.sourceString = sourceString;
-    this.str = str;
-    this.predicate = predicate;
-    this.name = name;
-  }
-
-  @Override
-  public Boolean evaluate(EvalContext evalContext) {
-    Value<?> sourceValue =
-        sourceString != null ? sourceString.evaluate(evalContext) : Value.nullValue();
-    if (sourceValue.isUndefined()) {
-      throw new EvaluationException(
-          "Cannot evaluate the expression for undefined value", PrettyPrintVisitor.print(this));
+    public StringPredicateExpression(
+            ValueExpression<?> sourceString, StringValue str, BiPredicate<String, String> predicate, String name) {
+        this.sourceString = sourceString;
+        this.str = str;
+        this.predicate = predicate;
+        this.name = name;
     }
-    if (sourceValue.isNull()) {
-      throw new EvaluationException(
-          "Cannot evaluate the expression for null value", PrettyPrintVisitor.print(this));
+
+    @Override
+    public Boolean evaluate(EvalContext evalContext) {
+        Value<?> sourceValue = sourceString != null ? sourceString.evaluate(evalContext) : Value.nullValue();
+        if (sourceValue.isUndefined()) {
+            throw new EvaluationException(
+                    "Cannot evaluate the expression for undefined value", PrettyPrintVisitor.print(this));
+        }
+        if (sourceValue.isNull()) {
+            throw new EvaluationException(
+                    "Cannot evaluate the expression for null value", PrettyPrintVisitor.print(this));
+        }
+        if (sourceValue.getValue() instanceof String) {
+            String sourceStr = (String) sourceValue.getValue();
+            boolean result = predicate.test(sourceStr, str.getValue());
+            ExpressionHelper.checkTimeout(evalContext.getTimeoutChecker(), this);
+            return result;
+        }
+        return Boolean.FALSE;
     }
-    if (sourceValue.getValue() instanceof String) {
-      String sourceStr = (String) sourceValue.getValue();
-      boolean result = predicate.test(sourceStr, str.getValue());
-      ExpressionHelper.checkTimeout(evalContext.getTimeoutChecker(), this);
-      return result;
+
+    public ValueExpression<?> getSourceString() {
+        return sourceString;
     }
-    return Boolean.FALSE;
-  }
 
-  public ValueExpression<?> getSourceString() {
-    return sourceString;
-  }
+    public StringValue getStr() {
+        return str;
+    }
 
-  public StringValue getStr() {
-    return str;
-  }
+    public BiPredicate<String, String> getPredicate() {
+        return predicate;
+    }
 
-  public BiPredicate<String, String> getPredicate() {
-    return predicate;
-  }
-
-  public String getName() {
-    return name;
-  }
+    public String getName() {
+        return name;
+    }
 }

@@ -24,55 +24,55 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public class OpenTelemetryLogsInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
 
-  public OpenTelemetryLogsInstrumentation() {
-    super("opentelemetry-logs", "opentelemetry-1.27", "opentelemetry-1");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return InstrumenterConfig.get().isLogsOtelEnabled();
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "io.opentelemetry.api.OpenTelemetry";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return named(hierarchyMarkerType()).or(implementsInterface(named(hierarchyMarkerType())));
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "io.opentelemetry.api.DefaultOpenTelemetry",
-      "io.opentelemetry.api.GlobalOpenTelemetry$ObfuscatedOpenTelemetry"
-    };
-  }
-
-  @Override
-  public boolean onlyMatchKnownTypes() {
-    return isShortcutMatchingEnabled(false);
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    // LoggerProvider OpenTelemetry.getLogsBridge()
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("getLogsBridge"))
-            .and(takesNoArguments())
-            .and(returns(named("io.opentelemetry.api.logs.LoggerProvider"))),
-        OpenTelemetryLogsInstrumentation.class.getName() + "$LoggerProviderAdvice");
-  }
-
-  public static class LoggerProviderAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void returnProvider(@Advice.Return(readOnly = false) LoggerProvider result) {
-      result = OtelLoggerProvider.INSTANCE;
+    public OpenTelemetryLogsInstrumentation() {
+        super("opentelemetry-logs", "opentelemetry-1.27", "opentelemetry-1");
     }
-  }
+
+    @Override
+    protected boolean defaultEnabled() {
+        return InstrumenterConfig.get().isLogsOtelEnabled();
+    }
+
+    @Override
+    public String hierarchyMarkerType() {
+        return "io.opentelemetry.api.OpenTelemetry";
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return named(hierarchyMarkerType()).or(implementsInterface(named(hierarchyMarkerType())));
+    }
+
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            "io.opentelemetry.api.DefaultOpenTelemetry",
+            "io.opentelemetry.api.GlobalOpenTelemetry$ObfuscatedOpenTelemetry"
+        };
+    }
+
+    @Override
+    public boolean onlyMatchKnownTypes() {
+        return isShortcutMatchingEnabled(false);
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        // LoggerProvider OpenTelemetry.getLogsBridge()
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("getLogsBridge"))
+                        .and(takesNoArguments())
+                        .and(returns(named("io.opentelemetry.api.logs.LoggerProvider"))),
+                OpenTelemetryLogsInstrumentation.class.getName() + "$LoggerProviderAdvice");
+    }
+
+    public static class LoggerProviderAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void returnProvider(@Advice.Return(readOnly = false) LoggerProvider result) {
+            result = OtelLoggerProvider.INSTANCE;
+        }
+    }
 }

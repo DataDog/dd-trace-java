@@ -16,50 +16,49 @@ import org.junit.jupiter.api.Test;
 
 class IntakeApiTest {
 
-  private static final MediaType JSON = MediaType.parse("application/json");
+    private static final MediaType JSON = MediaType.parse("application/json");
 
-  private MockWebServer server;
-  private OkHttpClient client;
+    private MockWebServer server;
+    private OkHttpClient client;
 
-  @BeforeEach
-  void setUp() throws IOException {
-    server = new MockWebServer();
-    server.start();
-    client = new OkHttpClient.Builder().build();
-  }
+    @BeforeEach
+    void setUp() throws IOException {
+        server = new MockWebServer();
+        server.start();
+        client = new OkHttpClient.Builder().build();
+    }
 
-  @AfterEach
-  void tearDown() throws IOException {
-    client.dispatcher().executorService().shutdownNow();
-    client.connectionPool().evictAll();
-    server.shutdown();
-  }
+    @AfterEach
+    void tearDown() throws IOException {
+        client.dispatcher().executorService().shutdownNow();
+        client.connectionPool().evictAll();
+        server.shutdown();
+    }
 
-  @Test
-  void requestsGzipResponseCompressionWhenEnabled() throws Exception {
-    assertEquals("gzip", postAndReadAcceptEncoding(true));
-  }
+    @Test
+    void requestsGzipResponseCompressionWhenEnabled() throws Exception {
+        assertEquals("gzip", postAndReadAcceptEncoding(true));
+    }
 
-  @Test
-  void requestsIdentityResponseEncodingWhenCompressionIsDisabled() throws Exception {
-    assertEquals("identity", postAndReadAcceptEncoding(false));
-  }
+    @Test
+    void requestsIdentityResponseEncodingWhenCompressionIsDisabled() throws Exception {
+        assertEquals("identity", postAndReadAcceptEncoding(false));
+    }
 
-  private String postAndReadAcceptEncoding(final boolean responseCompression) throws Exception {
-    server.enqueue(new MockResponse().setResponseCode(200).setBody("{}"));
-    final IntakeApi api =
-        new IntakeApi(
-            server.url("/api/v2/"),
-            "api-key",
-            "123",
-            HttpRetryPolicy.Factory.NEVER_RETRY,
-            client,
-            responseCompression);
+    private String postAndReadAcceptEncoding(final boolean responseCompression) throws Exception {
+        server.enqueue(new MockResponse().setResponseCode(200).setBody("{}"));
+        final IntakeApi api = new IntakeApi(
+                server.url("/api/v2/"),
+                "api-key",
+                "123",
+                HttpRetryPolicy.Factory.NEVER_RETRY,
+                client,
+                responseCompression);
 
-    api.post("flagevaluation", RequestBody.create(JSON, "{}"), responseBody -> null, null, false);
+        api.post("flagevaluation", RequestBody.create(JSON, "{}"), responseBody -> null, null, false);
 
-    final RecordedRequest request = server.takeRequest();
-    assertEquals("/api/v2/flagevaluation", request.getPath());
-    return request.getHeader("Accept-Encoding");
-  }
+        final RecordedRequest request = server.takeRequest();
+        assertEquals("/api/v2/flagevaluation", request.getPath());
+        return request.getHeader("Accept-Encoding");
+    }
 }

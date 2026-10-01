@@ -6,9 +6,9 @@ import javax.annotation.Nonnull;
 
 public class WafMetricPeriodicAction extends MetricPeriodicAction {
 
-  @Override
-  @Nonnull
-  public MetricCollector collector() {
-    return WafMetricCollector.get();
-  }
+    @Override
+    @Nonnull
+    public MetricCollector collector() {
+        return WafMetricCollector.get();
+    }
 }

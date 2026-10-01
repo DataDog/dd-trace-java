@@ -15,41 +15,39 @@ import datadog.trace.llmobs.writer.ddintake.LLMObsSpanMapper;
  */
 public class DDIntakeMapperDiscovery implements RemoteMapperDiscovery {
 
-  private final TrackType trackType;
-  private final CiVisibilityWellKnownTags wellKnownTags;
-  private final boolean compressionEnabled;
+    private final TrackType trackType;
+    private final CiVisibilityWellKnownTags wellKnownTags;
+    private final boolean compressionEnabled;
 
-  private RemoteMapper mapper;
+    private RemoteMapper mapper;
 
-  public DDIntakeMapperDiscovery(
-      final TrackType trackType,
-      final CiVisibilityWellKnownTags wellKnownTags,
-      boolean compressionEnabled) {
-    this.trackType = trackType;
-    this.wellKnownTags = wellKnownTags;
-    this.compressionEnabled = compressionEnabled;
-  }
-
-  private void reset() {
-    mapper = null;
-  }
-
-  @Override
-  public void discover() {
-    reset();
-    if (TrackType.CITESTCYCLE.equals(trackType)) {
-      mapper = new CiTestCycleMapperV1(wellKnownTags, compressionEnabled);
-    } else if (TrackType.CITESTCOV.equals(trackType)) {
-      mapper = new CiTestCovMapperV2(compressionEnabled);
-    } else if (TrackType.LLMOBS.equals(trackType)) {
-      mapper = new LLMObsSpanMapper();
-    } else {
-      mapper = RemoteMapper.NO_OP;
+    public DDIntakeMapperDiscovery(
+            final TrackType trackType, final CiVisibilityWellKnownTags wellKnownTags, boolean compressionEnabled) {
+        this.trackType = trackType;
+        this.wellKnownTags = wellKnownTags;
+        this.compressionEnabled = compressionEnabled;
     }
-  }
 
-  @Override
-  public RemoteMapper getMapper() {
-    return mapper;
-  }
+    private void reset() {
+        mapper = null;
+    }
+
+    @Override
+    public void discover() {
+        reset();
+        if (TrackType.CITESTCYCLE.equals(trackType)) {
+            mapper = new CiTestCycleMapperV1(wellKnownTags, compressionEnabled);
+        } else if (TrackType.CITESTCOV.equals(trackType)) {
+            mapper = new CiTestCovMapperV2(compressionEnabled);
+        } else if (TrackType.LLMOBS.equals(trackType)) {
+            mapper = new LLMObsSpanMapper();
+        } else {
+            mapper = RemoteMapper.NO_OP;
+        }
+    }
+
+    @Override
+    public RemoteMapper getMapper() {
+        return mapper;
+    }
 }

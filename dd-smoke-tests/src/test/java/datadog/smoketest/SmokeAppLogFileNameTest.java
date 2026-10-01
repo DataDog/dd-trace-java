@@ -13,19 +13,18 @@ import org.junit.jupiter.api.Test;
  */
 class SmokeAppLogFileNameTest {
 
-  @Test
-  void logFileNameIsTimestampedInUtc() {
-    Instant when = Instant.parse("2026-07-30T12:34:56.789Z");
-    assertEquals(
-        "smoke-app.my-app.2026-07-30-123456.789.log", AbstractSmokeApp.logFileName("my-app", when));
-  }
+    @Test
+    void logFileNameIsTimestampedInUtc() {
+        Instant when = Instant.parse("2026-07-30T12:34:56.789Z");
+        assertEquals("smoke-app.my-app.2026-07-30-123456.789.log", AbstractSmokeApp.logFileName("my-app", when));
+    }
 
-  @Test
-  void distinctInstantsYieldDistinctNames() {
-    // Two runs (retries) at different instants must not resolve to the same file.
-    Instant when = Instant.parse("2026-07-30T12:34:56.789Z");
-    assertNotEquals(
-        AbstractSmokeApp.logFileName("my-app", when),
-        AbstractSmokeApp.logFileName("my-app", when.plusMillis(1)));
-  }
+    @Test
+    void distinctInstantsYieldDistinctNames() {
+        // Two runs (retries) at different instants must not resolve to the same file.
+        Instant when = Instant.parse("2026-07-30T12:34:56.789Z");
+        assertNotEquals(
+                AbstractSmokeApp.logFileName("my-app", when),
+                AbstractSmokeApp.logFileName("my-app", when.plusMillis(1)));
+    }
 }

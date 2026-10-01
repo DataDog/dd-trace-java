@@ -17,75 +17,73 @@ import org.apache.http.HttpResponse;
 import org.apache.http.nio.NHttpConnection;
 
 public final class SynapseServerDecorator
-    extends HttpServerDecorator<HttpRequest, NHttpConnection, HttpResponse, HttpRequest> {
-  public static final CharSequence SYNAPSE_SERVER = UTF8BytesString.create("synapse-server");
-  public static final SynapseServerDecorator DECORATE = new SynapseServerDecorator();
-  private static final CharSequence SYNAPSE_REQUEST =
-      UTF8BytesString.create(DECORATE.operationName());
-  private static final CharSequence LEGACY_SYNAPSE_REQUEST = UTF8BytesString.create("http.request");
-  public static final String SYNAPSE_CONTEXT_KEY = "dd.trace.synapse.context";
-  public static final String SYNAPSE_CONTINUATION_KEY = "dd.trace.synapse.continuation";
+        extends HttpServerDecorator<HttpRequest, NHttpConnection, HttpResponse, HttpRequest> {
+    public static final CharSequence SYNAPSE_SERVER = UTF8BytesString.create("synapse-server");
+    public static final SynapseServerDecorator DECORATE = new SynapseServerDecorator();
+    private static final CharSequence SYNAPSE_REQUEST = UTF8BytesString.create(DECORATE.operationName());
+    private static final CharSequence LEGACY_SYNAPSE_REQUEST = UTF8BytesString.create("http.request");
+    public static final String SYNAPSE_CONTEXT_KEY = "dd.trace.synapse.context";
+    public static final String SYNAPSE_CONTINUATION_KEY = "dd.trace.synapse.continuation";
 
-  @Override
-  protected String[] instrumentationNames() {
-    return new String[] {"synapse3"};
-  }
-
-  @Override
-  protected CharSequence component() {
-    return SYNAPSE_SERVER;
-  }
-
-  @Override
-  protected AgentPropagation.ContextVisitor<HttpRequest> getter() {
-    return Request.GETTER;
-  }
-
-  @Override
-  protected AgentPropagation.ContextVisitor<HttpResponse> responseGetter() {
-    return Response.GETTER;
-  }
-
-  @Override
-  public CharSequence spanName() {
-    if (Config.get().isIntegrationSynapseLegacyOperationName()) {
-      return LEGACY_SYNAPSE_REQUEST;
+    @Override
+    protected String[] instrumentationNames() {
+        return new String[] {"synapse3"};
     }
-    return SYNAPSE_REQUEST;
-  }
 
-  @Override
-  protected String method(final HttpRequest request) {
-    return request.getRequestLine().getMethod();
-  }
-
-  @Override
-  protected URIDataAdapter url(final HttpRequest request) {
-    return URIDataAdapterBase.fromURI(
-        request.getRequestLine().getUri(), URIDefaultDataAdapter::new);
-  }
-
-  @Override
-  protected String peerHostIP(final NHttpConnection connection) {
-    if (connection instanceof HttpInetConnection) {
-      return ((HttpInetConnection) connection).getRemoteAddress().getHostAddress();
+    @Override
+    protected CharSequence component() {
+        return SYNAPSE_SERVER;
     }
-    return null;
-  }
 
-  @Override
-  protected int peerPort(final NHttpConnection connection) {
-    if (connection instanceof HttpInetConnection) {
-      return ((HttpInetConnection) connection).getRemotePort();
+    @Override
+    protected AgentPropagation.ContextVisitor<HttpRequest> getter() {
+        return Request.GETTER;
     }
-    return UNSET_PORT;
-  }
 
-  @Override
-  protected int status(final HttpResponse response) {
-    if (null != response.getStatusLine()) {
-      return response.getStatusLine().getStatusCode();
+    @Override
+    protected AgentPropagation.ContextVisitor<HttpResponse> responseGetter() {
+        return Response.GETTER;
     }
-    return UNSET_STATUS;
-  }
+
+    @Override
+    public CharSequence spanName() {
+        if (Config.get().isIntegrationSynapseLegacyOperationName()) {
+            return LEGACY_SYNAPSE_REQUEST;
+        }
+        return SYNAPSE_REQUEST;
+    }
+
+    @Override
+    protected String method(final HttpRequest request) {
+        return request.getRequestLine().getMethod();
+    }
+
+    @Override
+    protected URIDataAdapter url(final HttpRequest request) {
+        return URIDataAdapterBase.fromURI(request.getRequestLine().getUri(), URIDefaultDataAdapter::new);
+    }
+
+    @Override
+    protected String peerHostIP(final NHttpConnection connection) {
+        if (connection instanceof HttpInetConnection) {
+            return ((HttpInetConnection) connection).getRemoteAddress().getHostAddress();
+        }
+        return null;
+    }
+
+    @Override
+    protected int peerPort(final NHttpConnection connection) {
+        if (connection instanceof HttpInetConnection) {
+            return ((HttpInetConnection) connection).getRemotePort();
+        }
+        return UNSET_PORT;
+    }
+
+    @Override
+    protected int status(final HttpResponse response) {
+        if (null != response.getStatusLine()) {
+            return response.getStatusLine().getStatusCode();
+        }
+        return UNSET_STATUS;
+    }
 }

@@ -18,40 +18,39 @@ import org.springframework.beans.factory.config.BeanDefinition;
  */
 @AutoService(InstrumenterModule.class)
 public class SpringBeanProcessorInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public SpringBeanProcessorInstrumentation() {
-    super("spring-web");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.jboss.resteasy.plugins.spring.SpringBeanProcessor";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("processBean"))
-            .and(
-                takesArgument(3, named("org.springframework.beans.factory.config.BeanDefinition"))),
-        SpringBeanProcessorInstrumentation.class.getName() + "$SkipBeanClassAdvice");
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "resteasy-spring";
-  }
-
-  public static class SkipBeanClassAdvice {
-    @Advice.OnMethodEnter(skipOn = Advice.OnNonDefaultValue.class, suppress = Throwable.class)
-    public static Class<?> onEnter(@Advice.Argument(3) final BeanDefinition beanDefinition) {
-      String className = beanDefinition.getBeanClassName();
-      if (null != className && className.startsWith("datadog.trace.instrumentation.")) {
-        return Object.class; // skip the original method and return this value instead
-      } else {
-        return null; // continue on to call the original method and return its value
-      }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public SpringBeanProcessorInstrumentation() {
+        super("spring-web");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "org.jboss.resteasy.plugins.spring.SpringBeanProcessor";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("processBean"))
+                        .and(takesArgument(3, named("org.springframework.beans.factory.config.BeanDefinition"))),
+                SpringBeanProcessorInstrumentation.class.getName() + "$SkipBeanClassAdvice");
+    }
+
+    @Override
+    public String muzzleDirective() {
+        return "resteasy-spring";
+    }
+
+    public static class SkipBeanClassAdvice {
+        @Advice.OnMethodEnter(skipOn = Advice.OnNonDefaultValue.class, suppress = Throwable.class)
+        public static Class<?> onEnter(@Advice.Argument(3) final BeanDefinition beanDefinition) {
+            String className = beanDefinition.getBeanClassName();
+            if (null != className && className.startsWith("datadog.trace.instrumentation.")) {
+                return Object.class; // skip the original method and return this value instead
+            } else {
+                return null; // continue on to call the original method and return its value
+            }
+        }
+    }
 }

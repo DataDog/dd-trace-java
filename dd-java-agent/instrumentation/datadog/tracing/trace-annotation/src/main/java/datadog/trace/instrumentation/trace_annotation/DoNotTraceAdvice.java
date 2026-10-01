@@ -11,21 +11,19 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 
 public class DoNotTraceAdvice {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static ContextScope before() {
-    return activateSpan(blackholeSpan());
-  }
-
-  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void after(
-      @Advice.Enter final ContextScope scope,
-      @Advice.Origin final MethodType methodType,
-      @Advice.Return(typing = Assigner.Typing.DYNAMIC, readOnly = false) Object result) {
-    if (scope != null) {
-      scope.close();
-      result =
-          DECORATE.wrapAsyncResultOrFinishSpan(
-              result, methodType.returnType(), spanFromScope(scope));
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ContextScope before() {
+        return activateSpan(blackholeSpan());
     }
-  }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void after(
+            @Advice.Enter final ContextScope scope,
+            @Advice.Origin final MethodType methodType,
+            @Advice.Return(typing = Assigner.Typing.DYNAMIC, readOnly = false) Object result) {
+        if (scope != null) {
+            scope.close();
+            result = DECORATE.wrapAsyncResultOrFinishSpan(result, methodType.returnType(), spanFromScope(scope));
+        }
+    }
 }

@@ -28,65 +28,61 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class MarshallingDirectivesInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
-  public MarshallingDirectivesInstrumentation() {
-    super("akka-http");
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "akka.http.scaladsl.server.directives.MarshallingDirectives$class",
-      "akka.http.scaladsl.server.directives.MarshallingDirectives",
-    };
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(isStatic())
-            .and(named("entity"))
-            .and(returns(named("akka.http.scaladsl.server.Directive")))
-            .and(takesArguments(2))
-            .and(
-                takesArgument(
-                    0, named("akka.http.scaladsl.server.directives.MarshallingDirectives")))
-            .and(takesArgument(1, named("akka.http.scaladsl.unmarshalling.Unmarshaller"))),
-        MarshallingDirectivesInstrumentation.class.getName()
-            + "$TaintUnmarshallerInputOldScalaAdvice");
-
-    transformer.applyAdvice(
-        isMethod()
-            .and(not(isStatic()))
-            .and(named("entity"))
-            .and(returns(named("akka.http.scaladsl.server.Directive")))
-            .and(takesArguments(1))
-            .and(takesArgument(1, named("akka.http.scaladsl.unmarshalling.Unmarshaller"))),
-        MarshallingDirectivesInstrumentation.class.getName()
-            + "$TaintUnmarshallerInputNewScalaAdvice");
-  }
-
-  static class TaintUnmarshallerInputOldScalaAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_BODY)
-    static void before(@Advice.Argument(readOnly = false, value = 1) Unmarshaller unmarshaller) {
-      PropagationModule mod = InstrumentationBridge.PROPAGATION;
-      if (mod != null) {
-        unmarshaller = new TaintUnmarshaller(mod, unmarshaller);
-      }
+    public MarshallingDirectivesInstrumentation() {
+        super("akka-http");
     }
-  }
 
-  static class TaintUnmarshallerInputNewScalaAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_BODY)
-    static void before(@Advice.Argument(readOnly = false, value = 0) Unmarshaller unmarshaller) {
-      PropagationModule mod = InstrumentationBridge.PROPAGATION;
-      if (mod != null) {
-        unmarshaller = new TaintUnmarshaller(mod, unmarshaller);
-      }
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            "akka.http.scaladsl.server.directives.MarshallingDirectives$class",
+            "akka.http.scaladsl.server.directives.MarshallingDirectives",
+        };
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isStatic())
+                        .and(named("entity"))
+                        .and(returns(named("akka.http.scaladsl.server.Directive")))
+                        .and(takesArguments(2))
+                        .and(takesArgument(0, named("akka.http.scaladsl.server.directives.MarshallingDirectives")))
+                        .and(takesArgument(1, named("akka.http.scaladsl.unmarshalling.Unmarshaller"))),
+                MarshallingDirectivesInstrumentation.class.getName() + "$TaintUnmarshallerInputOldScalaAdvice");
+
+        transformer.applyAdvice(
+                isMethod()
+                        .and(not(isStatic()))
+                        .and(named("entity"))
+                        .and(returns(named("akka.http.scaladsl.server.Directive")))
+                        .and(takesArguments(1))
+                        .and(takesArgument(1, named("akka.http.scaladsl.unmarshalling.Unmarshaller"))),
+                MarshallingDirectivesInstrumentation.class.getName() + "$TaintUnmarshallerInputNewScalaAdvice");
+    }
+
+    static class TaintUnmarshallerInputOldScalaAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        @Source(SourceTypes.REQUEST_BODY)
+        static void before(@Advice.Argument(readOnly = false, value = 1) Unmarshaller unmarshaller) {
+            PropagationModule mod = InstrumentationBridge.PROPAGATION;
+            if (mod != null) {
+                unmarshaller = new TaintUnmarshaller(mod, unmarshaller);
+            }
+        }
+    }
+
+    static class TaintUnmarshallerInputNewScalaAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        @Source(SourceTypes.REQUEST_BODY)
+        static void before(@Advice.Argument(readOnly = false, value = 0) Unmarshaller unmarshaller) {
+            PropagationModule mod = InstrumentationBridge.PROPAGATION;
+            if (mod != null) {
+                unmarshaller = new TaintUnmarshaller(mod, unmarshaller);
+            }
+        }
+    }
 }

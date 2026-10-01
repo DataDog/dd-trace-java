@@ -22,50 +22,49 @@ import reactor.core.CoreSubscriber;
  * lookup.
  */
 public class ContextWritingSubscriberInstrumentation
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "reactor.core.publisher.FluxContextWrite$ContextWriteSubscriber",
-      "reactor.core.publisher.FluxContextStart$ContextStartSubscriber",
-      "reactor.core.publisher.FluxContextWriteRestoringThreadLocals"
-          + "$ContextWriteRestoringThreadLocalsSubscriber",
-      "reactor.core.publisher.FluxContextWriteRestoringThreadLocalsFuseable"
-          + "$FuseableContextWriteRestoringThreadLocalsSubscriber",
-      "reactor.core.publisher.MonoContextWriteRestoringThreadLocals"
-          + "$ContextWriteRestoringThreadLocalsSubscriber",
-    };
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), getClass().getName() + "$CaptureContextAdvice");
-    transformer.applyAdvice(
-        namedOneOf("onNext", "onComplete", "onError"),
-        getClass().getName() + "$ActivateContextAdvice");
-  }
-
-  public static class CaptureContextAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void onConstructed(@Advice.This final CoreSubscriber<?> self) {
-      ReactorContextBridge.captureSubscriberContext(
-          self, InstrumentationContext.get(Subscriber.class, Context.class));
-    }
-  }
-
-  public static class ActivateContextAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope before(@Advice.This final CoreSubscriber<?> self) {
-      return ReactorContextBridge.activateStoredContext(
-          self, InstrumentationContext.get(Subscriber.class, Context.class));
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            "reactor.core.publisher.FluxContextWrite$ContextWriteSubscriber",
+            "reactor.core.publisher.FluxContextStart$ContextStartSubscriber",
+            "reactor.core.publisher.FluxContextWriteRestoringThreadLocals"
+                    + "$ContextWriteRestoringThreadLocalsSubscriber",
+            "reactor.core.publisher.FluxContextWriteRestoringThreadLocalsFuseable"
+                    + "$FuseableContextWriteRestoringThreadLocalsSubscriber",
+            "reactor.core.publisher.MonoContextWriteRestoringThreadLocals"
+                    + "$ContextWriteRestoringThreadLocalsSubscriber",
+        };
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void after(@Advice.Enter final ContextScope scope) {
-      if (scope != null) {
-        scope.close();
-      }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor(), getClass().getName() + "$CaptureContextAdvice");
+        transformer.applyAdvice(
+                namedOneOf("onNext", "onComplete", "onError"), getClass().getName() + "$ActivateContextAdvice");
     }
-  }
+
+    public static class CaptureContextAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void onConstructed(@Advice.This final CoreSubscriber<?> self) {
+            ReactorContextBridge.captureSubscriberContext(
+                    self, InstrumentationContext.get(Subscriber.class, Context.class));
+        }
+    }
+
+    public static class ActivateContextAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope before(@Advice.This final CoreSubscriber<?> self) {
+            return ReactorContextBridge.activateStoredContext(
+                    self, InstrumentationContext.get(Subscriber.class, Context.class));
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void after(@Advice.Enter final ContextScope scope) {
+            if (scope != null) {
+                scope.close();
+            }
+        }
+    }
 }

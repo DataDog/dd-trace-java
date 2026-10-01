@@ -11,12 +11,12 @@ import ratpack.handling.Context;
  * @see ratpack.error.ServerErrorHandler#error(Context, Throwable)
  */
 public class ErrorHandlerAdvice {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static void captureThrowable(
-      @Advice.Argument(0) final Context ctx, @Advice.Argument(1) final Throwable throwable) {
-    final Optional<AgentSpan> span = ctx.maybeGet(AgentSpan.class);
-    if (span.isPresent()) {
-      DECORATE.onError(span.get(), throwable);
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void captureThrowable(
+            @Advice.Argument(0) final Context ctx, @Advice.Argument(1) final Throwable throwable) {
+        final Optional<AgentSpan> span = ctx.maybeGet(AgentSpan.class);
+        if (span.isPresent()) {
+            DECORATE.onError(span.get(), throwable);
+        }
     }
-  }
 }

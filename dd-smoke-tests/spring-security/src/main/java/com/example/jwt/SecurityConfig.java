@@ -29,63 +29,61 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 public class SecurityConfig {
 
-  @Bean
-  public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
-    return httpSecurity
-        .authorizeHttpRequests(
-            authorize ->
-                authorize
-                    .mvcMatchers("/read/**")
-                    .hasAuthority("SCOPE_read")
-                    .anyRequest()
-                    .authenticated())
-        .oauth2ResourceServer(OAuth2ResourceServerConfigurer::jwt)
-        .build();
-  }
-
-  RSAPublicKey buildKey() {
-    try {
-      String publicKeyStr = System.getProperty("publickey");
-      System.out.println("Reading Public key: " + publicKeyStr);
-      byte[] publicKeyBytes = Base64.getDecoder().decode(publicKeyStr);
-      KeyFactory publicKeyFactory = KeyFactory.getInstance("RSA");
-      EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKeyBytes);
-      return (RSAPublicKey) publicKeyFactory.generatePublic(publicKeySpec);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
+        return httpSecurity
+                .authorizeHttpRequests(authorize -> authorize
+                        .mvcMatchers("/read/**")
+                        .hasAuthority("SCOPE_read")
+                        .anyRequest()
+                        .authenticated())
+                .oauth2ResourceServer(OAuth2ResourceServerConfigurer::jwt)
+                .build();
     }
-  }
 
-  @Bean
-  public JwtDecoder jwtDecoder() {
+    RSAPublicKey buildKey() {
+        try {
+            String publicKeyStr = System.getProperty("publickey");
+            System.out.println("Reading Public key: " + publicKeyStr);
+            byte[] publicKeyBytes = Base64.getDecoder().decode(publicKeyStr);
+            KeyFactory publicKeyFactory = KeyFactory.getInstance("RSA");
+            EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKeyBytes);
+            return (RSAPublicKey) publicKeyFactory.generatePublic(publicKeySpec);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-    final NimbusJwtDecoder decoder = NimbusJwtDecoder.withPublicKey(buildKey()).build();
-    decoder.setJwtValidator(tokenValidator());
-    return decoder;
-  }
+    @Bean
+    public JwtDecoder jwtDecoder() {
 
-  public OAuth2TokenValidator<Jwt> tokenValidator() {
-    final List<OAuth2TokenValidator<Jwt>> validators = new Vector<>();
-    validators.add(new JwtTimestampValidator());
-    validators.add(new JwtIssuerValidator("http://foobar.com"));
-    validators.add(audienceValidator());
-    return new DelegatingOAuth2TokenValidator<>(validators);
-  }
+        final NimbusJwtDecoder decoder =
+                NimbusJwtDecoder.withPublicKey(buildKey()).build();
+        decoder.setJwtValidator(tokenValidator());
+        return decoder;
+    }
 
-  public OAuth2TokenValidator<Jwt> audienceValidator() {
-    return new JwtClaimValidator<List<String>>(AUD, aud -> aud.contains("foobar"));
-  }
+    public OAuth2TokenValidator<Jwt> tokenValidator() {
+        final List<OAuth2TokenValidator<Jwt>> validators = new Vector<>();
+        validators.add(new JwtTimestampValidator());
+        validators.add(new JwtIssuerValidator("http://foobar.com"));
+        validators.add(audienceValidator());
+        return new DelegatingOAuth2TokenValidator<>(validators);
+    }
 
-  @Bean
-  @Profile("roles")
-  public JwtAuthenticationConverter jwtAuthenticationConverter() {
-    final JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter =
-        new JwtGrantedAuthoritiesConverter();
-    grantedAuthoritiesConverter.setAuthoritiesClaimName("authorities");
-    grantedAuthoritiesConverter.setAuthorityPrefix("ROLE_");
+    public OAuth2TokenValidator<Jwt> audienceValidator() {
+        return new JwtClaimValidator<List<String>>(AUD, aud -> aud.contains("foobar"));
+    }
 
-    final JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
-    jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesConverter);
-    return jwtAuthenticationConverter;
-  }
+    @Bean
+    @Profile("roles")
+    public JwtAuthenticationConverter jwtAuthenticationConverter() {
+        final JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
+        grantedAuthoritiesConverter.setAuthoritiesClaimName("authorities");
+        grantedAuthoritiesConverter.setAuthorityPrefix("ROLE_");
+
+        final JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
+        jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesConverter);
+        return jwtAuthenticationConverter;
+    }
 }

@@ -8,8 +8,8 @@ package datadog.trace.core.util;
  * {@linkplain JmxSystemAccessProvider} on-the-fly once JMX is safe to use.
  */
 public interface SystemAccessProvider {
-  SystemAccessProvider NONE = new NoneSystemAccessProvider();
+    SystemAccessProvider NONE = new NoneSystemAccessProvider();
 
-  /** Get the current thread CPU time */
-  long getThreadCpuTime();
+    /** Get the current thread CPU time */
+    long getThreadCpuTime();
 }

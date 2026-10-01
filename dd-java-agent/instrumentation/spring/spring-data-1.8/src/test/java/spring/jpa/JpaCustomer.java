@@ -10,34 +10,34 @@ import javax.persistence.Id;
 @Entity
 public class JpaCustomer {
 
-  @Id
-  @GeneratedValue(strategy = GenerationType.AUTO)
-  private Long id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    private Long id;
 
-  private String firstName;
-  private String lastName;
+    private String firstName;
+    private String lastName;
 
-  protected JpaCustomer() {}
+    protected JpaCustomer() {}
 
-  public JpaCustomer(final String firstName, final String lastName) {
-    this.firstName = firstName;
-    this.lastName = lastName;
-  }
+    public JpaCustomer(final String firstName, final String lastName) {
+        this.firstName = firstName;
+        this.lastName = lastName;
+    }
 
-  @Override
-  public String toString() {
-    return String.format("Customer[id=%d, firstName='%s', lastName='%s']", id, firstName, lastName);
-  }
+    @Override
+    public String toString() {
+        return String.format("Customer[id=%d, firstName='%s', lastName='%s']", id, firstName, lastName);
+    }
 
-  public Long getId() {
-    return id;
-  }
+    public Long getId() {
+        return id;
+    }
 
-  public String getFirstName() {
-    return firstName;
-  }
+    public String getFirstName() {
+        return firstName;
+    }
 
-  public String getLastName() {
-    return lastName;
-  }
+    public String getLastName() {
+        return lastName;
+    }
 }

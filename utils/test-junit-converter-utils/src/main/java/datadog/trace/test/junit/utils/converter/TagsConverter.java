@@ -22,45 +22,45 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class TagsConverter extends AbstractStringFallThruConverter {
-  private static final Map<String, String> MAPPING;
+    private static final Map<String, String> MAPPING;
 
-  static {
-    MAPPING = new HashMap<>();
-    // Tags mapping (class name will be trimmed)
-    MAPPING.put("SPAN_KIND_SERVER", SPAN_KIND_SERVER);
-    MAPPING.put("SPAN_KIND_CLIENT", SPAN_KIND_CLIENT);
-    MAPPING.put("SPAN_KIND_PRODUCER", SPAN_KIND_PRODUCER);
-    MAPPING.put("SPAN_KIND_CONSUMER", SPAN_KIND_CONSUMER);
-    MAPPING.put("SPAN_KIND_BROKER", SPAN_KIND_BROKER);
-    MAPPING.put("PEER_SERVICE", PEER_SERVICE);
-    MAPPING.put("HTTP_URL", HTTP_URL);
-    MAPPING.put("HTTP_STATUS", HTTP_STATUS);
-    MAPPING.put("HTTP_METHOD", HTTP_METHOD);
-    // DDTags mapping with class name
-    MAPPING.put("DDTags.SPAN_TYPE", SPAN_TYPE);
-    MAPPING.put("DDTags.SERVICE_NAME", SERVICE_NAME);
-    MAPPING.put("DDTags.RESOURCE_NAME", RESOURCE_NAME);
-    MAPPING.put("DDTags.THREAD_NAME", THREAD_NAME);
-    MAPPING.put("DDTags.THREAD_ID", THREAD_ID);
-    MAPPING.put("DDTags.MANUAL_KEEP", MANUAL_KEEP);
-    MAPPING.put("DDTags.MANUAL_DROP", MANUAL_DROP);
-    // DDTags mapping with direct field name
-    MAPPING.put("SPAN_TYPE", SPAN_TYPE);
-    MAPPING.put("SERVICE_NAME", SERVICE_NAME);
-    MAPPING.put("RESOURCE_NAME", RESOURCE_NAME);
-    MAPPING.put("THREAD_NAME", THREAD_NAME);
-    MAPPING.put("THREAD_ID", THREAD_ID);
-    MAPPING.put("MANUAL_KEEP", MANUAL_KEEP);
-    MAPPING.put("MANUAL_DROP", MANUAL_DROP);
-  }
+    static {
+        MAPPING = new HashMap<>();
+        // Tags mapping (class name will be trimmed)
+        MAPPING.put("SPAN_KIND_SERVER", SPAN_KIND_SERVER);
+        MAPPING.put("SPAN_KIND_CLIENT", SPAN_KIND_CLIENT);
+        MAPPING.put("SPAN_KIND_PRODUCER", SPAN_KIND_PRODUCER);
+        MAPPING.put("SPAN_KIND_CONSUMER", SPAN_KIND_CONSUMER);
+        MAPPING.put("SPAN_KIND_BROKER", SPAN_KIND_BROKER);
+        MAPPING.put("PEER_SERVICE", PEER_SERVICE);
+        MAPPING.put("HTTP_URL", HTTP_URL);
+        MAPPING.put("HTTP_STATUS", HTTP_STATUS);
+        MAPPING.put("HTTP_METHOD", HTTP_METHOD);
+        // DDTags mapping with class name
+        MAPPING.put("DDTags.SPAN_TYPE", SPAN_TYPE);
+        MAPPING.put("DDTags.SERVICE_NAME", SERVICE_NAME);
+        MAPPING.put("DDTags.RESOURCE_NAME", RESOURCE_NAME);
+        MAPPING.put("DDTags.THREAD_NAME", THREAD_NAME);
+        MAPPING.put("DDTags.THREAD_ID", THREAD_ID);
+        MAPPING.put("DDTags.MANUAL_KEEP", MANUAL_KEEP);
+        MAPPING.put("DDTags.MANUAL_DROP", MANUAL_DROP);
+        // DDTags mapping with direct field name
+        MAPPING.put("SPAN_TYPE", SPAN_TYPE);
+        MAPPING.put("SERVICE_NAME", SERVICE_NAME);
+        MAPPING.put("RESOURCE_NAME", RESOURCE_NAME);
+        MAPPING.put("THREAD_NAME", THREAD_NAME);
+        MAPPING.put("THREAD_ID", THREAD_ID);
+        MAPPING.put("MANUAL_KEEP", MANUAL_KEEP);
+        MAPPING.put("MANUAL_DROP", MANUAL_DROP);
+    }
 
-  @Override
-  protected String className() {
-    return "Tags";
-  }
+    @Override
+    protected String className() {
+        return "Tags";
+    }
 
-  @Override
-  protected Map<String, String> mapping() {
-    return MAPPING;
-  }
+    @Override
+    protected Map<String, String> mapping() {
+        return MAPPING;
+    }
 }

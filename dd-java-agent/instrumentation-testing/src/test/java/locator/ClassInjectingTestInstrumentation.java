@@ -16,50 +16,48 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
-public class ClassInjectingTestInstrumentation extends TestInstrumentation
-    implements Instrumenter.WithTypeStructure {
+public class ClassInjectingTestInstrumentation extends TestInstrumentation implements Instrumenter.WithTypeStructure {
 
-  @Override
-  public String instrumentedType() {
-    return getClass().getName() + "$ToBeInstrumented";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> structureMatcher() {
-    // additional constraint which requires loading the InjectedInterface to match
-    return hasInterface(declaresAnnotation(named(getClass().getName() + "$ToBeMatched")));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), getClass().getName() + "$ConstructorAdvice");
-  }
-
-  public static class ConstructorAdvice {
-    @Advice.OnMethodEnter
-    public static void appendToMessage(
-        @Advice.Argument(value = 0, readOnly = false) String message) {
-      message = message + ":instrumented";
-    }
-  }
-
-  @Retention(RetentionPolicy.RUNTIME)
-  public @interface ToBeMatched {}
-
-  public static final class ToBeInstrumented {
-    private final String message;
-
-    public ToBeInstrumented(String message) {
-      this.message = message;
+    @Override
+    public String instrumentedType() {
+        return getClass().getName() + "$ToBeInstrumented";
     }
 
-    public String getMessage() {
-      StringBuilder msg = new StringBuilder(message);
-      for (Class<?> iface : getClass().getInterfaces()) {
-        msg.append(':');
-        msg.append(iface.getName());
-      }
-      return msg.toString();
+    @Override
+    public ElementMatcher<TypeDescription> structureMatcher() {
+        // additional constraint which requires loading the InjectedInterface to match
+        return hasInterface(declaresAnnotation(named(getClass().getName() + "$ToBeMatched")));
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor(), getClass().getName() + "$ConstructorAdvice");
+    }
+
+    public static class ConstructorAdvice {
+        @Advice.OnMethodEnter
+        public static void appendToMessage(@Advice.Argument(value = 0, readOnly = false) String message) {
+            message = message + ":instrumented";
+        }
+    }
+
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface ToBeMatched {}
+
+    public static final class ToBeInstrumented {
+        private final String message;
+
+        public ToBeInstrumented(String message) {
+            this.message = message;
+        }
+
+        public String getMessage() {
+            StringBuilder msg = new StringBuilder(message);
+            for (Class<?> iface : getClass().getInterfaces()) {
+                msg.append(':');
+                msg.append(iface.getName());
+            }
+            return msg.toString();
+        }
+    }
 }

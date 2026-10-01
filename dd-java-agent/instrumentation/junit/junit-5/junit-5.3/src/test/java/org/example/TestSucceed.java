@@ -6,8 +6,8 @@ import org.junit.jupiter.api.Test;
 
 public class TestSucceed {
 
-  @Test
-  public void test_succeed() {
-    assertTrue(true);
-  }
+    @Test
+    public void test_succeed() {
+        assertTrue(true);
+    }
 }

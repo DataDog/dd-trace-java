@@ -13,41 +13,40 @@ import java.util.Enumeration;
 
 public class DummyHttpServlet extends HttpServlet {
 
-  DummyHttpServlet() {}
+    DummyHttpServlet() {}
 
-  private void callPublicServiceMethod(HttpServletRequest req, HttpServletResponse resp)
-      throws ServletException, IOException {
-    service((ServletRequest) req, (ServletResponse) resp);
-  }
+    private void callPublicServiceMethod(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
+        service((ServletRequest) req, (ServletResponse) resp);
+    }
 
-  @Override
-  public void service(ServletRequest req, ServletResponse res)
-      throws ServletException, IOException {
-    // do nothing
-  }
+    @Override
+    public void service(ServletRequest req, ServletResponse res) throws ServletException, IOException {
+        // do nothing
+    }
 
-  @Override
-  public ServletConfig getServletConfig() {
-    return new ServletConfig() {
-      @Override
-      public String getServletName() {
-        return "test";
-      }
+    @Override
+    public ServletConfig getServletConfig() {
+        return new ServletConfig() {
+            @Override
+            public String getServletName() {
+                return "test";
+            }
 
-      @Override
-      public ServletContext getServletContext() {
-        return new DummyContext();
-      }
+            @Override
+            public ServletContext getServletContext() {
+                return new DummyContext();
+            }
 
-      @Override
-      public String getInitParameter(String s) {
-        return s;
-      }
+            @Override
+            public String getInitParameter(String s) {
+                return s;
+            }
 
-      @Override
-      public Enumeration<String> getInitParameterNames() {
-        return null;
-      }
-    };
-  }
+            @Override
+            public Enumeration<String> getInitParameterNames() {
+                return null;
+            }
+        };
+    }
 }

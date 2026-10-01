@@ -12,27 +12,26 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class CoreEnvironmentBuilderInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public CoreEnvironmentBuilderInstrumentation() {
-    super("couchbase", "couchbase-3");
-  }
+    public CoreEnvironmentBuilderInstrumentation() {
+        super("couchbase", "couchbase-3");
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap("com.couchbase.client.core.Core", String.class.getName());
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap("com.couchbase.client.core.Core", String.class.getName());
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "com.couchbase.client.core.env.CoreEnvironment$Builder";
-  }
+    @Override
+    public String instrumentedType() {
+        return "com.couchbase.client.core.env.CoreEnvironment$Builder";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), packageName + ".CoreEnvironmentBuilderAdvice");
-    transformer.applyAdvice(
-        isMethod().and(named("requestTracer")),
-        packageName + ".CoreEnvironmentBuilderRequestTracerAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor(), packageName + ".CoreEnvironmentBuilderAdvice");
+        transformer.applyAdvice(
+                isMethod().and(named("requestTracer")), packageName + ".CoreEnvironmentBuilderRequestTracerAdvice");
+    }
 }

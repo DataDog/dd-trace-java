@@ -56,552 +56,516 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, EventListener {
-  private static final Logger log = LoggerFactory.getLogger(DefaultDataStreamsMonitoring.class);
+    private static final Logger log = LoggerFactory.getLogger(DefaultDataStreamsMonitoring.class);
 
-  static final long FEATURE_CHECK_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
-  static final long MAX_TRANSACTION_CONTAINER_SIZE = 1024 * 512;
+    static final long FEATURE_CHECK_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
+    static final long MAX_TRANSACTION_CONTAINER_SIZE = 1024 * 512;
 
-  private static final StatsPoint REPORT =
-      new StatsPoint(DataStreamsTags.EMPTY, 0, 0, 0, 0, 0, 0, 0, null);
-  private static final StatsPoint POISON_PILL =
-      new StatsPoint(DataStreamsTags.EMPTY, 0, 0, 0, 0, 0, 0, 0, null);
+    private static final StatsPoint REPORT = new StatsPoint(DataStreamsTags.EMPTY, 0, 0, 0, 0, 0, 0, 0, null);
+    private static final StatsPoint POISON_PILL = new StatsPoint(DataStreamsTags.EMPTY, 0, 0, 0, 0, 0, 0, 0, null);
 
-  private final Map<Long, Map<String, StatsBucket>> timeToBucket = new HashMap<>();
-  private final MessagePassingQueue<InboxItem> inbox = Queues.mpscArrayQueue(1024);
-  private final DatastreamsPayloadWriter payloadWriter;
-  private final DDAgentFeaturesDiscovery features;
-  private final TimeSource timeSource;
-  private final Supplier<TraceConfig> traceConfigSupplier;
-  private final long bucketDurationNanos;
-  private final Thread thread;
-  private final DataStreamsPropagator propagator;
-  private AgentTaskScheduler.Scheduled<DefaultDataStreamsMonitoring> cancellation;
-  private volatile long nextFeatureCheck;
-  private volatile boolean supportsDataStreams = false;
-  private volatile boolean agentSupportsDataStreams = false;
-  private volatile boolean configSupportsDataStreams = false;
-  private static final ThreadLocal<String> serviceNameOverride = new ThreadLocal<>();
+    private final Map<Long, Map<String, StatsBucket>> timeToBucket = new HashMap<>();
+    private final MessagePassingQueue<InboxItem> inbox = Queues.mpscArrayQueue(1024);
+    private final DatastreamsPayloadWriter payloadWriter;
+    private final DDAgentFeaturesDiscovery features;
+    private final TimeSource timeSource;
+    private final Supplier<TraceConfig> traceConfigSupplier;
+    private final long bucketDurationNanos;
+    private final Thread thread;
+    private final DataStreamsPropagator propagator;
+    private AgentTaskScheduler.Scheduled<DefaultDataStreamsMonitoring> cancellation;
+    private volatile long nextFeatureCheck;
+    private volatile boolean supportsDataStreams = false;
+    private volatile boolean agentSupportsDataStreams = false;
+    private volatile boolean configSupportsDataStreams = false;
+    private static final ThreadLocal<String> serviceNameOverride = new ThreadLocal<>();
 
-  // contains a list of active extractors by type. Thread-safe via volatile with immutable
-  // snapshots.
-  private volatile Map<DataStreamsTransactionExtractor.Type, List<DataStreamsTransactionExtractor>>
-      extractorsByType;
+    // contains a list of active extractors by type. Thread-safe via volatile with immutable
+    // snapshots.
+    private volatile Map<DataStreamsTransactionExtractor.Type, List<DataStreamsTransactionExtractor>> extractorsByType;
 
-  public DefaultDataStreamsMonitoring(
-      Config config,
-      SharedCommunicationObjects sharedCommunicationObjects,
-      TimeSource timeSource,
-      Supplier<TraceConfig> traceConfigSupplier) {
-    this(
-        new OkHttpSink(
-            sharedCommunicationObjects.agentHttpClient,
-            sharedCommunicationObjects.agentUrl.toString(),
-            V01_DATASTREAMS_ENDPOINT,
-            false,
-            true,
-            Collections.emptyMap()),
-        sharedCommunicationObjects.featuresDiscovery(config),
-        timeSource,
-        traceConfigSupplier,
-        config);
-  }
-
-  public DefaultDataStreamsMonitoring(
-      Sink sink,
-      DDAgentFeaturesDiscovery features,
-      TimeSource timeSource,
-      Supplier<TraceConfig> traceConfigSupplier,
-      Config config) {
-    this(
-        sink,
-        features,
-        timeSource,
-        traceConfigSupplier,
-        new MsgPackDatastreamsPayloadWriter(
-            sink, config.getWellKnownTags(), DDTraceCoreInfo.VERSION, config.getPrimaryTag()),
-        Config.get().getDataStreamsBucketDurationNanoseconds());
-  }
-
-  public DefaultDataStreamsMonitoring(
-      Sink sink,
-      DDAgentFeaturesDiscovery features,
-      TimeSource timeSource,
-      Supplier<TraceConfig> traceConfigSupplier,
-      DatastreamsPayloadWriter payloadWriter,
-      long bucketDurationNanos) {
-    this.features = features;
-    this.timeSource = timeSource;
-    this.traceConfigSupplier = traceConfigSupplier;
-    this.payloadWriter = payloadWriter;
-    this.bucketDurationNanos = bucketDurationNanos;
-
-    thread = newAgentThread(DATA_STREAMS_MONITORING, new InboxProcessor());
-    sink.register(this);
-
-    this.propagator = new DataStreamsPropagator(this, this.timeSource, serviceNameOverride);
-    DataStreamsTags.setServiceNameOverride(serviceNameOverride);
-  }
-
-  @Override
-  public void start() {
-    checkDynamicConfig();
-    cancellation =
-        AgentTaskScheduler.get()
-            .scheduleAtFixedRate(
-                new ReportTask(),
-                this,
-                bucketDurationNanos,
-                bucketDurationNanos,
-                TimeUnit.NANOSECONDS);
-    thread.start();
-  }
-
-  @Override
-  public void add(StatsPoint statsPoint) {
-    if (thread.isAlive()) {
-      inbox.offer(statsPoint);
-    }
-  }
-
-  @Override
-  public void setProduceCheckpoint(String type, String target) {
-    setProduceCheckpoint(type, target, DataStreamsContextCarrier.NoOp.INSTANCE, false);
-  }
-
-  @Override
-  public void setThreadServiceName(String serviceName) {
-    if (serviceName == null) {
-      clearThreadServiceName();
-      return;
+    public DefaultDataStreamsMonitoring(
+            Config config,
+            SharedCommunicationObjects sharedCommunicationObjects,
+            TimeSource timeSource,
+            Supplier<TraceConfig> traceConfigSupplier) {
+        this(
+                new OkHttpSink(
+                        sharedCommunicationObjects.agentHttpClient,
+                        sharedCommunicationObjects.agentUrl.toString(),
+                        V01_DATASTREAMS_ENDPOINT,
+                        false,
+                        true,
+                        Collections.emptyMap()),
+                sharedCommunicationObjects.featuresDiscovery(config),
+                timeSource,
+                traceConfigSupplier,
+                config);
     }
 
-    serviceNameOverride.set(serviceName);
-  }
-
-  @Override
-  public void clearThreadServiceName() {
-    serviceNameOverride.remove();
-  }
-
-  @Override
-  public void trackTransaction(String transactionId, String checkpointName) {
-    inbox.offer(
-        new TransactionInfo(transactionId, timeSource.getCurrentTimeNanos(), checkpointName));
-  }
-
-  @Override
-  public void trackTransaction(
-      AgentSpan span,
-      DataStreamsTransactionExtractor.Type extractorType,
-      Object source,
-      TransactionSourceReader sourceReader) {
-    if (!supportsDataStreams || source == null || extractorsByType == null) {
-      return;
+    public DefaultDataStreamsMonitoring(
+            Sink sink,
+            DDAgentFeaturesDiscovery features,
+            TimeSource timeSource,
+            Supplier<TraceConfig> traceConfigSupplier,
+            Config config) {
+        this(
+                sink,
+                features,
+                timeSource,
+                traceConfigSupplier,
+                new MsgPackDatastreamsPayloadWriter(
+                        sink, config.getWellKnownTags(), DDTraceCoreInfo.VERSION, config.getPrimaryTag()),
+                Config.get().getDataStreamsBucketDurationNanoseconds());
     }
 
-    List<DataStreamsTransactionExtractor> extractorList = extractorsByType.get(extractorType);
-    if (extractorList == null) {
-      return;
-    }
+    public DefaultDataStreamsMonitoring(
+            Sink sink,
+            DDAgentFeaturesDiscovery features,
+            TimeSource timeSource,
+            Supplier<TraceConfig> traceConfigSupplier,
+            DatastreamsPayloadWriter payloadWriter,
+            long bucketDurationNanos) {
+        this.features = features;
+        this.timeSource = timeSource;
+        this.traceConfigSupplier = traceConfigSupplier;
+        this.payloadWriter = payloadWriter;
+        this.bucketDurationNanos = bucketDurationNanos;
 
-    for (DataStreamsTransactionExtractor extractor : extractorList) {
-      String transactionId = sourceReader.readHeader(source, extractor.getValue());
-      if (transactionId != null && !transactionId.isEmpty()) {
-        trackTransaction(transactionId, extractor.getName());
+        thread = newAgentThread(DATA_STREAMS_MONITORING, new InboxProcessor());
+        sink.register(this);
 
-        span.setTag(Tags.DSM_TRANSACTION_ID, transactionId);
-        span.setTag(Tags.DSM_TRANSACTION_CHECKPOINT, extractor.getName());
-      }
-    }
-  }
-
-  private static String getThreadServiceName() {
-    return serviceNameOverride.get();
-  }
-
-  @Override
-  public PathwayContext newPathwayContext() {
-    if (configSupportsDataStreams) {
-      return new DefaultPathwayContext(timeSource, getThreadServiceName());
-    } else {
-      return NoopPathwayContext.INSTANCE;
-    }
-  }
-
-  @Override
-  public Propagator propagator() {
-    return this.propagator;
-  }
-
-  @Override
-  public void mergePathwayContextIntoSpan(AgentSpan span, DataStreamsContextCarrier carrier) {
-    if (span instanceof DDSpan) {
-      DefaultPathwayContext pathwayContext =
-          DefaultPathwayContext.extract(
-              carrier,
-              DataStreamsContextCarrierAdapter.INSTANCE,
-              this.timeSource,
-              getThreadServiceName());
-      ((DDSpan) span).spanContext().mergePathwayContext(pathwayContext);
-    }
-  }
-
-  @Override
-  public void trackBacklog(DataStreamsTags tags, long value) {
-    inbox.offer(new Backlog(tags, value, timeSource.getCurrentTimeNanos(), getThreadServiceName()));
-  }
-
-  @Override
-  public void reportSchemaRegistryUsage(
-      String topic,
-      String clusterId,
-      int schemaId,
-      boolean isSuccess,
-      boolean isKey,
-      String operation) {
-    inbox.offer(
-        new SchemaRegistryUsage(
-            topic,
-            clusterId,
-            schemaId,
-            isSuccess,
-            isKey,
-            operation,
-            timeSource.getCurrentTimeNanos(),
-            getThreadServiceName()));
-  }
-
-  @Override
-  public void reportKafkaConfig(
-      String type, String kafkaClusterId, String consumerGroup, Map<String, String> config) {
-    inbox.offer(
-        new KafkaConfigReport(
-            type,
-            kafkaClusterId,
-            consumerGroup,
-            config,
-            timeSource.getCurrentTimeNanos(),
-            getThreadServiceName()));
-  }
-
-  @Override
-  public void reportKafkaConsumerGroupMember(
-      String kafkaClusterId,
-      String consumerGroup,
-      String memberId,
-      int generationId,
-      String memberProtocol) {
-    inbox.offer(
-        new KafkaConfigReport(
-            "kafka_consumer",
-            kafkaClusterId,
-            consumerGroup,
-            memberId,
-            generationId,
-            memberProtocol,
-            Collections.<String, String>emptyMap(),
-            timeSource.getCurrentTimeNanos(),
-            getThreadServiceName()));
-  }
-
-  @Override
-  public void setCheckpoint(AgentSpan span, DataStreamsContext context) {
-    PathwayContext pathwayContext = span.spanContext().getPathwayContext();
-    if (pathwayContext != null) {
-      pathwayContext.setCheckpoint(context, this::add);
-      long pathwayHash = pathwayContext.getHash();
-      if (pathwayHash != 0) {
-        span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayHash));
-      }
-    }
-  }
-
-  @Override
-  public void setConsumeCheckpoint(String type, String source, DataStreamsContextCarrier carrier) {
-    setConsumeCheckpoint(type, source, carrier, true);
-  }
-
-  public void setConsumeCheckpoint(
-      String type, String source, DataStreamsContextCarrier carrier, Boolean isManual) {
-    if (type == null || type.isEmpty() || source == null || source.isEmpty()) {
-      log.warn("setConsumeCheckpoint should be called with non-empty type and source");
-      return;
-    }
-
-    AgentSpan span = activeSpan();
-    if (span == null) {
-      log.warn("SetConsumeCheckpoint is called with no active span");
-      return;
-    }
-    mergePathwayContextIntoSpan(span, carrier);
-
-    DataStreamsTags tags;
-    if (isManual) {
-      tags = createManual(type, INBOUND, source);
-    } else {
-      tags = create(type, INBOUND, source);
-    }
-
-    setCheckpoint(span, fromTags(tags));
-  }
-
-  public void setProduceCheckpoint(
-      String type, String target, DataStreamsContextCarrier carrier, boolean manualCheckpoint) {
-    if (type == null || type.isEmpty() || target == null || target.isEmpty()) {
-      log.warn("SetProduceCheckpoint should be called with non-empty type and target");
-      return;
-    }
-
-    AgentSpan span = activeSpan();
-    if (span == null) {
-      log.warn("SetProduceCheckpoint is called with no active span");
-      return;
-    }
-    DataStreamsTags tags;
-    if (manualCheckpoint) {
-      tags = createManual(type, OUTBOUND, target);
-    } else {
-      tags = create(type, OUTBOUND, target);
-    }
-
-    DataStreamsContext dsmContext = fromTags(tags);
-    this.propagator.inject(
-        span.with(dsmContext), carrier, DataStreamsContextCarrierAdapter.INSTANCE);
-  }
-
-  @Override
-  public void setProduceCheckpoint(String type, String target, DataStreamsContextCarrier carrier) {
-    setProduceCheckpoint(type, target, carrier, true);
-  }
-
-  @Override
-  public void close() {
-    if (null != cancellation) {
-      cancellation.cancel();
-    }
-
-    inbox.offer(POISON_PILL);
-    try {
-      thread.join(THREAD_JOIN_TIMOUT_MS);
-    } catch (InterruptedException ignored) {
-    }
-  }
-
-  private class InboxProcessor implements Runnable {
-
-    private StatsBucket getStatsBucket(final long timestamp, final String serviceNameOverride) {
-      long bucket = currentBucket(timestamp);
-      Map<String, StatsBucket> statsBucketMap =
-          timeToBucket.computeIfAbsent(bucket, startTime -> new HashMap<>(1));
-      return statsBucketMap.computeIfAbsent(
-          serviceNameOverride, s -> new StatsBucket(bucket, bucketDurationNanos));
+        this.propagator = new DataStreamsPropagator(this, this.timeSource, serviceNameOverride);
+        DataStreamsTags.setServiceNameOverride(serviceNameOverride);
     }
 
     @Override
-    public void run() {
+    public void start() {
+        checkDynamicConfig();
+        cancellation = AgentTaskScheduler.get()
+                .scheduleAtFixedRate(
+                        new ReportTask(), this, bucketDurationNanos, bucketDurationNanos, TimeUnit.NANOSECONDS);
+        thread.start();
+    }
 
-      if (features.getDataStreamsEndpoint() == null) {
-        features.discoverIfOutdated();
-      }
+    @Override
+    public void add(StatsPoint statsPoint) {
+        if (thread.isAlive()) {
+            inbox.offer(statsPoint);
+        }
+    }
 
-      agentSupportsDataStreams = features.supportsDataStreams();
-      checkDynamicConfig();
-      // only load extractors on startup
-      updateExtractorsFromConfig();
+    @Override
+    public void setProduceCheckpoint(String type, String target) {
+        setProduceCheckpoint(type, target, DataStreamsContextCarrier.NoOp.INSTANCE, false);
+    }
 
-      if (!configSupportsDataStreams) {
-        log.debug("Data streams is disabled");
-      } else if (!agentSupportsDataStreams) {
-        log.debug("Data streams is disabled or not supported by agent");
-      }
+    @Override
+    public void setThreadServiceName(String serviceName) {
+        if (serviceName == null) {
+            clearThreadServiceName();
+            return;
+        }
 
-      nextFeatureCheck = timeSource.getCurrentTimeNanos() + FEATURE_CHECK_INTERVAL_NANOS;
+        serviceNameOverride.set(serviceName);
+    }
 
-      Thread currentThread = Thread.currentThread();
-      while (!currentThread.isInterrupted()) {
+    @Override
+    public void clearThreadServiceName() {
+        serviceNameOverride.remove();
+    }
+
+    @Override
+    public void trackTransaction(String transactionId, String checkpointName) {
+        inbox.offer(new TransactionInfo(transactionId, timeSource.getCurrentTimeNanos(), checkpointName));
+    }
+
+    @Override
+    public void trackTransaction(
+            AgentSpan span,
+            DataStreamsTransactionExtractor.Type extractorType,
+            Object source,
+            TransactionSourceReader sourceReader) {
+        if (!supportsDataStreams || source == null || extractorsByType == null) {
+            return;
+        }
+
+        List<DataStreamsTransactionExtractor> extractorList = extractorsByType.get(extractorType);
+        if (extractorList == null) {
+            return;
+        }
+
+        for (DataStreamsTransactionExtractor extractor : extractorList) {
+            String transactionId = sourceReader.readHeader(source, extractor.getValue());
+            if (transactionId != null && !transactionId.isEmpty()) {
+                trackTransaction(transactionId, extractor.getName());
+
+                span.setTag(Tags.DSM_TRANSACTION_ID, transactionId);
+                span.setTag(Tags.DSM_TRANSACTION_CHECKPOINT, extractor.getName());
+            }
+        }
+    }
+
+    private static String getThreadServiceName() {
+        return serviceNameOverride.get();
+    }
+
+    @Override
+    public PathwayContext newPathwayContext() {
+        if (configSupportsDataStreams) {
+            return new DefaultPathwayContext(timeSource, getThreadServiceName());
+        } else {
+            return NoopPathwayContext.INSTANCE;
+        }
+    }
+
+    @Override
+    public Propagator propagator() {
+        return this.propagator;
+    }
+
+    @Override
+    public void mergePathwayContextIntoSpan(AgentSpan span, DataStreamsContextCarrier carrier) {
+        if (span instanceof DDSpan) {
+            DefaultPathwayContext pathwayContext = DefaultPathwayContext.extract(
+                    carrier, DataStreamsContextCarrierAdapter.INSTANCE, this.timeSource, getThreadServiceName());
+            ((DDSpan) span).spanContext().mergePathwayContext(pathwayContext);
+        }
+    }
+
+    @Override
+    public void trackBacklog(DataStreamsTags tags, long value) {
+        inbox.offer(new Backlog(tags, value, timeSource.getCurrentTimeNanos(), getThreadServiceName()));
+    }
+
+    @Override
+    public void reportSchemaRegistryUsage(
+            String topic, String clusterId, int schemaId, boolean isSuccess, boolean isKey, String operation) {
+        inbox.offer(new SchemaRegistryUsage(
+                topic,
+                clusterId,
+                schemaId,
+                isSuccess,
+                isKey,
+                operation,
+                timeSource.getCurrentTimeNanos(),
+                getThreadServiceName()));
+    }
+
+    @Override
+    public void reportKafkaConfig(
+            String type, String kafkaClusterId, String consumerGroup, Map<String, String> config) {
+        inbox.offer(new KafkaConfigReport(
+                type, kafkaClusterId, consumerGroup, config, timeSource.getCurrentTimeNanos(), getThreadServiceName()));
+    }
+
+    @Override
+    public void reportKafkaConsumerGroupMember(
+            String kafkaClusterId, String consumerGroup, String memberId, int generationId, String memberProtocol) {
+        inbox.offer(new KafkaConfigReport(
+                "kafka_consumer",
+                kafkaClusterId,
+                consumerGroup,
+                memberId,
+                generationId,
+                memberProtocol,
+                Collections.<String, String>emptyMap(),
+                timeSource.getCurrentTimeNanos(),
+                getThreadServiceName()));
+    }
+
+    @Override
+    public void setCheckpoint(AgentSpan span, DataStreamsContext context) {
+        PathwayContext pathwayContext = span.spanContext().getPathwayContext();
+        if (pathwayContext != null) {
+            pathwayContext.setCheckpoint(context, this::add);
+            long pathwayHash = pathwayContext.getHash();
+            if (pathwayHash != 0) {
+                span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayHash));
+            }
+        }
+    }
+
+    @Override
+    public void setConsumeCheckpoint(String type, String source, DataStreamsContextCarrier carrier) {
+        setConsumeCheckpoint(type, source, carrier, true);
+    }
+
+    public void setConsumeCheckpoint(String type, String source, DataStreamsContextCarrier carrier, Boolean isManual) {
+        if (type == null || type.isEmpty() || source == null || source.isEmpty()) {
+            log.warn("setConsumeCheckpoint should be called with non-empty type and source");
+            return;
+        }
+
+        AgentSpan span = activeSpan();
+        if (span == null) {
+            log.warn("SetConsumeCheckpoint is called with no active span");
+            return;
+        }
+        mergePathwayContextIntoSpan(span, carrier);
+
+        DataStreamsTags tags;
+        if (isManual) {
+            tags = createManual(type, INBOUND, source);
+        } else {
+            tags = create(type, INBOUND, source);
+        }
+
+        setCheckpoint(span, fromTags(tags));
+    }
+
+    public void setProduceCheckpoint(
+            String type, String target, DataStreamsContextCarrier carrier, boolean manualCheckpoint) {
+        if (type == null || type.isEmpty() || target == null || target.isEmpty()) {
+            log.warn("SetProduceCheckpoint should be called with non-empty type and target");
+            return;
+        }
+
+        AgentSpan span = activeSpan();
+        if (span == null) {
+            log.warn("SetProduceCheckpoint is called with no active span");
+            return;
+        }
+        DataStreamsTags tags;
+        if (manualCheckpoint) {
+            tags = createManual(type, OUTBOUND, target);
+        } else {
+            tags = create(type, OUTBOUND, target);
+        }
+
+        DataStreamsContext dsmContext = fromTags(tags);
+        this.propagator.inject(span.with(dsmContext), carrier, DataStreamsContextCarrierAdapter.INSTANCE);
+    }
+
+    @Override
+    public void setProduceCheckpoint(String type, String target, DataStreamsContextCarrier carrier) {
+        setProduceCheckpoint(type, target, carrier, true);
+    }
+
+    @Override
+    public void close() {
+        if (null != cancellation) {
+            cancellation.cancel();
+        }
+
+        inbox.offer(POISON_PILL);
         try {
-          InboxItem payload = inbox.poll();
-          if (payload == null) {
-            Thread.sleep(10);
-            continue;
-          }
+            thread.join(THREAD_JOIN_TIMOUT_MS);
+        } catch (InterruptedException ignored) {
+        }
+    }
 
-          if (payload == REPORT) {
+    private class InboxProcessor implements Runnable {
+
+        private StatsBucket getStatsBucket(final long timestamp, final String serviceNameOverride) {
+            long bucket = currentBucket(timestamp);
+            Map<String, StatsBucket> statsBucketMap =
+                    timeToBucket.computeIfAbsent(bucket, startTime -> new HashMap<>(1));
+            return statsBucketMap.computeIfAbsent(
+                    serviceNameOverride, s -> new StatsBucket(bucket, bucketDurationNanos));
+        }
+
+        @Override
+        public void run() {
+
+            if (features.getDataStreamsEndpoint() == null) {
+                features.discoverIfOutdated();
+            }
+
+            agentSupportsDataStreams = features.supportsDataStreams();
             checkDynamicConfig();
+            // only load extractors on startup
+            updateExtractorsFromConfig();
 
-            if (supportsDataStreams) {
-              flush(timeSource.getCurrentTimeNanos());
-            } else if (timeSource.getCurrentTimeNanos() >= nextFeatureCheck) {
-              checkFeatures();
+            if (!configSupportsDataStreams) {
+                log.debug("Data streams is disabled");
+            } else if (!agentSupportsDataStreams) {
+                log.debug("Data streams is disabled or not supported by agent");
             }
-          } else if (payload == POISON_PILL) {
-            if (supportsDataStreams) {
-              flush(Long.MAX_VALUE);
+
+            nextFeatureCheck = timeSource.getCurrentTimeNanos() + FEATURE_CHECK_INTERVAL_NANOS;
+
+            Thread currentThread = Thread.currentThread();
+            while (!currentThread.isInterrupted()) {
+                try {
+                    InboxItem payload = inbox.poll();
+                    if (payload == null) {
+                        Thread.sleep(10);
+                        continue;
+                    }
+
+                    if (payload == REPORT) {
+                        checkDynamicConfig();
+
+                        if (supportsDataStreams) {
+                            flush(timeSource.getCurrentTimeNanos());
+                        } else if (timeSource.getCurrentTimeNanos() >= nextFeatureCheck) {
+                            checkFeatures();
+                        }
+                    } else if (payload == POISON_PILL) {
+                        if (supportsDataStreams) {
+                            flush(Long.MAX_VALUE);
+                        }
+                        break;
+                    } else if (supportsDataStreams) {
+                        if (payload instanceof StatsPoint) {
+                            StatsPoint statsPoint = (StatsPoint) payload;
+                            StatsBucket statsBucket =
+                                    getStatsBucket(statsPoint.getTimestampNanos(), statsPoint.getServiceNameOverride());
+                            statsBucket.addPoint(statsPoint);
+                        } else if (payload instanceof Backlog) {
+                            Backlog backlog = (Backlog) payload;
+                            StatsBucket statsBucket =
+                                    getStatsBucket(backlog.getTimestampNanos(), backlog.getServiceNameOverride());
+                            statsBucket.addBacklog(backlog);
+                        } else if (payload instanceof TransactionInfo) {
+                            TransactionInfo transactionInfo = (TransactionInfo) payload;
+                            StatsBucket statsBucket = getStatsBucket(transactionInfo.getTimestamp(), "");
+                            statsBucket.addTransaction(transactionInfo);
+                            // we want to force flush when the transaction payload gets too big
+                            // with 512kb and approx 20 bytes per transaction we're looking at ~26k
+                            // transaction/sec
+                            // this should be enough for 99.9% of the users
+                            if (statsBucket.getTransactions().getSize() >= MAX_TRANSACTION_CONTAINER_SIZE) {
+                                inbox.offer(REPORT);
+                            }
+                        } else if (payload instanceof SchemaRegistryUsage) {
+                            SchemaRegistryUsage usage = (SchemaRegistryUsage) payload;
+                            StatsBucket statsBucket =
+                                    getStatsBucket(usage.getTimestampNanos(), usage.getServiceNameOverride());
+                            statsBucket.addSchemaRegistryUsage(usage);
+                        } else if (payload instanceof KafkaConfigReport) {
+                            KafkaConfigReport configReport = (KafkaConfigReport) payload;
+                            StatsBucket statsBucket = getStatsBucket(
+                                    configReport.getTimestampNanos(), configReport.getServiceNameOverride());
+                            statsBucket.addKafkaConfig(configReport);
+                        }
+                    }
+                } catch (Exception e) {
+                    log.debug("Error monitoring data streams", e);
+                }
             }
-            break;
-          } else if (supportsDataStreams) {
-            if (payload instanceof StatsPoint) {
-              StatsPoint statsPoint = (StatsPoint) payload;
-              StatsBucket statsBucket =
-                  getStatsBucket(
-                      statsPoint.getTimestampNanos(), statsPoint.getServiceNameOverride());
-              statsBucket.addPoint(statsPoint);
-            } else if (payload instanceof Backlog) {
-              Backlog backlog = (Backlog) payload;
-              StatsBucket statsBucket =
-                  getStatsBucket(backlog.getTimestampNanos(), backlog.getServiceNameOverride());
-              statsBucket.addBacklog(backlog);
-            } else if (payload instanceof TransactionInfo) {
-              TransactionInfo transactionInfo = (TransactionInfo) payload;
-              StatsBucket statsBucket = getStatsBucket(transactionInfo.getTimestamp(), "");
-              statsBucket.addTransaction(transactionInfo);
-              // we want to force flush when the transaction payload gets too big
-              // with 512kb and approx 20 bytes per transaction we're looking at ~26k
-              // transaction/sec
-              // this should be enough for 99.9% of the users
-              if (statsBucket.getTransactions().getSize() >= MAX_TRANSACTION_CONTAINER_SIZE) {
-                inbox.offer(REPORT);
-              }
-            } else if (payload instanceof SchemaRegistryUsage) {
-              SchemaRegistryUsage usage = (SchemaRegistryUsage) payload;
-              StatsBucket statsBucket =
-                  getStatsBucket(usage.getTimestampNanos(), usage.getServiceNameOverride());
-              statsBucket.addSchemaRegistryUsage(usage);
-            } else if (payload instanceof KafkaConfigReport) {
-              KafkaConfigReport configReport = (KafkaConfigReport) payload;
-              StatsBucket statsBucket =
-                  getStatsBucket(
-                      configReport.getTimestampNanos(), configReport.getServiceNameOverride());
-              statsBucket.addKafkaConfig(configReport);
+        }
+    }
+
+    private long currentBucket(long timestampNanos) {
+        return timestampNanos - (timestampNanos % bucketDurationNanos);
+    }
+
+    private void flush(long timestampNanos) {
+        long currentBucket = currentBucket(timestampNanos);
+
+        // stats are grouped by time buckets and service names
+        Map<String, List<StatsBucket>> includedBuckets = new HashMap<>();
+        Iterator<Map.Entry<Long, Map<String, StatsBucket>>> mapIterator =
+                timeToBucket.entrySet().iterator();
+
+        while (mapIterator.hasNext()) {
+            Map.Entry<Long, Map<String, StatsBucket>> entry = mapIterator.next();
+            if (entry.getKey() < currentBucket) {
+                mapIterator.remove();
+                for (Map.Entry<String, StatsBucket> buckets : entry.getValue().entrySet()) {
+                    if (!includedBuckets.containsKey(buckets.getKey())) {
+                        includedBuckets.put(buckets.getKey(), new LinkedList<>());
+                    }
+
+                    includedBuckets.get(buckets.getKey()).add(buckets.getValue());
+                }
             }
-          }
-        } catch (Exception e) {
-          log.debug("Error monitoring data streams", e);
         }
-      }
-    }
-  }
 
-  private long currentBucket(long timestampNanos) {
-    return timestampNanos - (timestampNanos % bucketDurationNanos);
-  }
-
-  private void flush(long timestampNanos) {
-    long currentBucket = currentBucket(timestampNanos);
-
-    // stats are grouped by time buckets and service names
-    Map<String, List<StatsBucket>> includedBuckets = new HashMap<>();
-    Iterator<Map.Entry<Long, Map<String, StatsBucket>>> mapIterator =
-        timeToBucket.entrySet().iterator();
-
-    while (mapIterator.hasNext()) {
-      Map.Entry<Long, Map<String, StatsBucket>> entry = mapIterator.next();
-      if (entry.getKey() < currentBucket) {
-        mapIterator.remove();
-        for (Map.Entry<String, StatsBucket> buckets : entry.getValue().entrySet()) {
-          if (!includedBuckets.containsKey(buckets.getKey())) {
-            includedBuckets.put(buckets.getKey(), new LinkedList<>());
-          }
-
-          includedBuckets.get(buckets.getKey()).add(buckets.getValue());
+        if (!includedBuckets.isEmpty()) {
+            for (Map.Entry<String, List<StatsBucket>> entry : includedBuckets.entrySet()) {
+                if (!entry.getValue().isEmpty()) {
+                    log.debug("Flushing {} buckets ({})", entry.getValue(), entry.getKey());
+                    payloadWriter.writePayload(entry.getValue(), entry.getKey());
+                }
+            }
         }
-      }
     }
 
-    if (!includedBuckets.isEmpty()) {
-      for (Map.Entry<String, List<StatsBucket>> entry : includedBuckets.entrySet()) {
-        if (!entry.getValue().isEmpty()) {
-          log.debug("Flushing {} buckets ({})", entry.getValue(), entry.getKey());
-          payloadWriter.writePayload(entry.getValue(), entry.getKey());
-        }
-      }
-    }
-  }
-
-  @Override
-  public void clear() {
-    timeToBucket.clear();
-  }
-
-  @VisibleForTesting
-  public void report() {
-    inbox.offer(REPORT);
-  }
-
-  @Override
-  public void onEvent(EventType eventType, String message) {
-    switch (eventType) {
-      case DOWNGRADED:
-        log.debug("Agent downgrade was detected");
-        checkFeatures();
-        break;
-      case BAD_PAYLOAD:
-        log.debug("bad metrics payload sent to trace agent: {}", message);
-        break;
-      case ERROR:
-        log.debug("trace agent errored receiving metrics payload: {}", message);
-        break;
-      default:
-    }
-  }
-
-  /* updateExtractorsFromConfig can be called to update extractors at runtime */
-  private void updateExtractorsFromConfig() {
-    if (!supportsDataStreams) {
-      return;
-    }
-
-    List<DataStreamsTransactionExtractor> extractors =
-        traceConfigSupplier.get().getDataStreamsTransactionExtractors();
-    if (extractors == null) {
-      return;
-    }
-
-    // Build a new immutable snapshot
-    Map<DataStreamsTransactionExtractor.Type, List<DataStreamsTransactionExtractor>> newMap =
-        new EnumMap<>(DataStreamsTransactionExtractor.Type.class);
-
-    // we support up to MAX_NUM_EXTRACTORS
-    for (int i = 0; i < Math.min(extractors.size(), MAX_NUM_EXTRACTORS); i++) {
-      DataStreamsTransactionExtractor extractor = extractors.get(i);
-      List<DataStreamsTransactionExtractor> list =
-          newMap.computeIfAbsent(extractor.getType(), k -> new ArrayList<>());
-      list.add(extractor);
-    }
-
-    extractorsByType = newMap;
-    log.debug("Added {} data streams transaction extractors", extractors.size());
-  }
-
-  private void checkDynamicConfig() {
-    configSupportsDataStreams = traceConfigSupplier.get().isDataStreamsEnabled();
-    supportsDataStreams = agentSupportsDataStreams && configSupportsDataStreams;
-  }
-
-  private void checkFeatures() {
-    boolean oldValue = agentSupportsDataStreams;
-
-    features.discoverIfOutdated();
-    agentSupportsDataStreams = features.supportsDataStreams();
-    if (oldValue && !agentSupportsDataStreams && configSupportsDataStreams) {
-      log.info("Disabling data streams reporting because it is not supported by the agent");
-    } else if (!oldValue && agentSupportsDataStreams && configSupportsDataStreams) {
-      log.info("Agent upgrade detected. Enabling data streams because it is now supported");
-    } else if (!oldValue && agentSupportsDataStreams && !configSupportsDataStreams) {
-      log.info(
-          "Agent upgrade detected. Not enabling data streams because it is disabled by config");
-    }
-
-    supportsDataStreams = agentSupportsDataStreams && configSupportsDataStreams;
-
-    nextFeatureCheck = timeSource.getCurrentTimeNanos() + FEATURE_CHECK_INTERVAL_NANOS;
-  }
-
-  private static final class ReportTask
-      implements AgentTaskScheduler.Task<DefaultDataStreamsMonitoring> {
     @Override
-    public void run(DefaultDataStreamsMonitoring target) {
-      target.report();
+    public void clear() {
+        timeToBucket.clear();
     }
-  }
+
+    @VisibleForTesting
+    public void report() {
+        inbox.offer(REPORT);
+    }
+
+    @Override
+    public void onEvent(EventType eventType, String message) {
+        switch (eventType) {
+            case DOWNGRADED:
+                log.debug("Agent downgrade was detected");
+                checkFeatures();
+                break;
+            case BAD_PAYLOAD:
+                log.debug("bad metrics payload sent to trace agent: {}", message);
+                break;
+            case ERROR:
+                log.debug("trace agent errored receiving metrics payload: {}", message);
+                break;
+            default:
+        }
+    }
+
+    /* updateExtractorsFromConfig can be called to update extractors at runtime */
+    private void updateExtractorsFromConfig() {
+        if (!supportsDataStreams) {
+            return;
+        }
+
+        List<DataStreamsTransactionExtractor> extractors =
+                traceConfigSupplier.get().getDataStreamsTransactionExtractors();
+        if (extractors == null) {
+            return;
+        }
+
+        // Build a new immutable snapshot
+        Map<DataStreamsTransactionExtractor.Type, List<DataStreamsTransactionExtractor>> newMap =
+                new EnumMap<>(DataStreamsTransactionExtractor.Type.class);
+
+        // we support up to MAX_NUM_EXTRACTORS
+        for (int i = 0; i < Math.min(extractors.size(), MAX_NUM_EXTRACTORS); i++) {
+            DataStreamsTransactionExtractor extractor = extractors.get(i);
+            List<DataStreamsTransactionExtractor> list =
+                    newMap.computeIfAbsent(extractor.getType(), k -> new ArrayList<>());
+            list.add(extractor);
+        }
+
+        extractorsByType = newMap;
+        log.debug("Added {} data streams transaction extractors", extractors.size());
+    }
+
+    private void checkDynamicConfig() {
+        configSupportsDataStreams = traceConfigSupplier.get().isDataStreamsEnabled();
+        supportsDataStreams = agentSupportsDataStreams && configSupportsDataStreams;
+    }
+
+    private void checkFeatures() {
+        boolean oldValue = agentSupportsDataStreams;
+
+        features.discoverIfOutdated();
+        agentSupportsDataStreams = features.supportsDataStreams();
+        if (oldValue && !agentSupportsDataStreams && configSupportsDataStreams) {
+            log.info("Disabling data streams reporting because it is not supported by the agent");
+        } else if (!oldValue && agentSupportsDataStreams && configSupportsDataStreams) {
+            log.info("Agent upgrade detected. Enabling data streams because it is now supported");
+        } else if (!oldValue && agentSupportsDataStreams && !configSupportsDataStreams) {
+            log.info("Agent upgrade detected. Not enabling data streams because it is disabled by config");
+        }
+
+        supportsDataStreams = agentSupportsDataStreams && configSupportsDataStreams;
+
+        nextFeatureCheck = timeSource.getCurrentTimeNanos() + FEATURE_CHECK_INTERVAL_NANOS;
+    }
+
+    private static final class ReportTask implements AgentTaskScheduler.Task<DefaultDataStreamsMonitoring> {
+        @Override
+        public void run(DefaultDataStreamsMonitoring target) {
+            target.report();
+        }
+    }
 }

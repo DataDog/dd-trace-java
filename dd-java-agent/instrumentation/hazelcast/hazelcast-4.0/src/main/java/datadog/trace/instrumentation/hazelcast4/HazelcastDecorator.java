@@ -16,51 +16,47 @@ import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 /** Decorate Hazelcast distributed object span's with relevant contextual information. */
 public class HazelcastDecorator extends ClientDecorator {
 
-  private static final String SERVICE_NAME =
-      SpanNaming.instance().namingSchema().cache().service(INSTRUMENTATION_NAME);
+    private static final String SERVICE_NAME =
+            SpanNaming.instance().namingSchema().cache().service(INSTRUMENTATION_NAME);
 
-  public static final HazelcastDecorator DECORATE = new HazelcastDecorator();
+    public static final HazelcastDecorator DECORATE = new HazelcastDecorator();
 
-  @Override
-  protected CharSequence spanType() {
-    return InternalSpanTypes.HTTP_CLIENT;
-  }
-
-  @Override
-  protected String[] instrumentationNames() {
-    return new String[] {COMPONENT_NAME.toString()};
-  }
-
-  @Override
-  protected CharSequence component() {
-    return COMPONENT_NAME;
-  }
-
-  @Override
-  protected String service() {
-    return SERVICE_NAME;
-  }
-
-  /** Decorate trace based on service execution metadata. */
-  public void onServiceExecution(
-      final AgentSpan span,
-      final String operationName,
-      final Object objectName,
-      long correlationId) {
-
-    if (objectName != null) {
-      span.setResourceName(
-          UTF8BytesString.create(String.join(" ", operationName, objectName.toString())));
-      span.setTag(HAZELCAST_NAME, objectName.toString());
-    } else {
-      span.setResourceName(UTF8BytesString.create(operationName));
+    @Override
+    protected CharSequence spanType() {
+        return InternalSpanTypes.HTTP_CLIENT;
     }
 
-    span.setTag(HAZELCAST_OPERATION, operationName);
-    span.setTag(HAZELCAST_SERVICE, operationName.substring(0, operationName.indexOf('.')));
-
-    if (correlationId > 0) {
-      span.setTag(HAZELCAST_CORRELATION_ID, correlationId);
+    @Override
+    protected String[] instrumentationNames() {
+        return new String[] {COMPONENT_NAME.toString()};
     }
-  }
+
+    @Override
+    protected CharSequence component() {
+        return COMPONENT_NAME;
+    }
+
+    @Override
+    protected String service() {
+        return SERVICE_NAME;
+    }
+
+    /** Decorate trace based on service execution metadata. */
+    public void onServiceExecution(
+            final AgentSpan span, final String operationName, final Object objectName, long correlationId) {
+
+        if (objectName != null) {
+            span.setResourceName(UTF8BytesString.create(String.join(" ", operationName, objectName.toString())));
+            span.setTag(HAZELCAST_NAME, objectName.toString());
+        } else {
+            span.setResourceName(UTF8BytesString.create(operationName));
+        }
+
+        span.setTag(HAZELCAST_OPERATION, operationName);
+        span.setTag(HAZELCAST_SERVICE, operationName.substring(0, operationName.indexOf('.')));
+
+        if (correlationId > 0) {
+            span.setTag(HAZELCAST_CORRELATION_ID, correlationId);
+        }
+    }
 }

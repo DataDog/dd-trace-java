@@ -40,90 +40,89 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public final class AkkaForkJoinTaskInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
 
-  public AkkaForkJoinTaskInstrumentation() {
-    super("java_concurrent", "akka_concurrent");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("akka.dispatch.forkjoin.ForkJoinTask", State.class.getName());
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    String akkaForkJoinTaskName = InstrumenterConfig.get().getAkkaForkJoinTaskName();
-    return akkaForkJoinTaskName != null && !akkaForkJoinTaskName.isEmpty()
-        ? null // bypass the hint if custom class is configured
-        : "akka.dispatch.forkjoin.ForkJoinTask";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return notExcludedByName(FORK_JOIN_TASK)
-        .and(declaresMethod(namedOneOf("exec", "fork", "cancel")))
-        .and(isForkJoinTaskSubclass());
-  }
-
-  private ElementMatcher<TypeDescription> isForkJoinTaskSubclass() {
-    ElementMatcher.Junction<TypeDescription> forkJoinTaskSubclass =
-        extendsClass(named("akka.dispatch.forkjoin.ForkJoinTask"));
-    String akkaForkJoinTaskName = InstrumenterConfig.get().getAkkaForkJoinTaskName();
-    return akkaForkJoinTaskName != null && !akkaForkJoinTaskName.isEmpty()
-        ? forkJoinTaskSubclass.or(extendsClass(named(akkaForkJoinTaskName)))
-        : forkJoinTaskSubclass;
-  }
-
-  @Override
-  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
-    Map<ExcludeFilter.ExcludeType, Collection<String>> exclude =
-        new EnumMap<>(ExcludeFilter.ExcludeType.class);
-    exclude.put(
-        FORK_JOIN_TASK,
-        Arrays.asList(
-            "akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinTask",
-            "akka.dispatch.Dispatcher$$anon$1"));
-    exclude.put(
-        RUNNABLE_FUTURE,
-        Arrays.asList(
-            "akka.dispatch.forkjoin.ForkJoinTask$AdaptedCallable",
-            "akka.dispatch.forkjoin.ForkJoinTask$AdaptedRunnable",
-            "akka.dispatch.forkjoin.ForkJoinTask$AdaptedRunnableAction"));
-    return exclude;
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(namedOneOf("doExec", "exec")), getClass().getName() + "$Exec");
-    transformer.applyAdvice(isMethod().and(named("fork")), getClass().getName() + "$Fork");
-    transformer.applyAdvice(isMethod().and(named("cancel")), getClass().getName() + "$Cancel");
-  }
-
-  public static final class Exec {
-    @Advice.OnMethodEnter
-    public static <T> ContextScope before(@Advice.This ForkJoinTask<T> task) {
-      return startTaskScope(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
+    public AkkaForkJoinTaskInstrumentation() {
+        super("java_concurrent", "akka_concurrent");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter ContextScope scope) {
-      endTaskScope(scope);
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("akka.dispatch.forkjoin.ForkJoinTask", State.class.getName());
     }
-  }
 
-  public static final class Fork {
-    @Advice.OnMethodEnter
-    public static <T> void fork(@Advice.This ForkJoinTask<T> task) {
-      capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
+    @Override
+    public String hierarchyMarkerType() {
+        String akkaForkJoinTaskName = InstrumenterConfig.get().getAkkaForkJoinTaskName();
+        return akkaForkJoinTaskName != null && !akkaForkJoinTaskName.isEmpty()
+                ? null // bypass the hint if custom class is configured
+                : "akka.dispatch.forkjoin.ForkJoinTask";
     }
-  }
 
-  public static final class Cancel {
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static <T> void cancel(@Advice.This ForkJoinTask<T> task) {
-      cancelTask(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return notExcludedByName(FORK_JOIN_TASK)
+                .and(declaresMethod(namedOneOf("exec", "fork", "cancel")))
+                .and(isForkJoinTaskSubclass());
     }
-  }
+
+    private ElementMatcher<TypeDescription> isForkJoinTaskSubclass() {
+        ElementMatcher.Junction<TypeDescription> forkJoinTaskSubclass =
+                extendsClass(named("akka.dispatch.forkjoin.ForkJoinTask"));
+        String akkaForkJoinTaskName = InstrumenterConfig.get().getAkkaForkJoinTaskName();
+        return akkaForkJoinTaskName != null && !akkaForkJoinTaskName.isEmpty()
+                ? forkJoinTaskSubclass.or(extendsClass(named(akkaForkJoinTaskName)))
+                : forkJoinTaskSubclass;
+    }
+
+    @Override
+    public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
+        Map<ExcludeFilter.ExcludeType, Collection<String>> exclude = new EnumMap<>(ExcludeFilter.ExcludeType.class);
+        exclude.put(
+                FORK_JOIN_TASK,
+                Arrays.asList(
+                        "akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinTask",
+                        "akka.dispatch.Dispatcher$$anon$1"));
+        exclude.put(
+                RUNNABLE_FUTURE,
+                Arrays.asList(
+                        "akka.dispatch.forkjoin.ForkJoinTask$AdaptedCallable",
+                        "akka.dispatch.forkjoin.ForkJoinTask$AdaptedRunnable",
+                        "akka.dispatch.forkjoin.ForkJoinTask$AdaptedRunnableAction"));
+        return exclude;
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(namedOneOf("doExec", "exec")), getClass().getName() + "$Exec");
+        transformer.applyAdvice(isMethod().and(named("fork")), getClass().getName() + "$Fork");
+        transformer.applyAdvice(isMethod().and(named("cancel")), getClass().getName() + "$Cancel");
+    }
+
+    public static final class Exec {
+        @Advice.OnMethodEnter
+        public static <T> ContextScope before(@Advice.This ForkJoinTask<T> task) {
+            return startTaskScope(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class)
+        public static void after(@Advice.Enter ContextScope scope) {
+            endTaskScope(scope);
+        }
+    }
+
+    public static final class Fork {
+        @Advice.OnMethodEnter
+        public static <T> void fork(@Advice.This ForkJoinTask<T> task) {
+            capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
+        }
+    }
+
+    public static final class Cancel {
+        @Advice.OnMethodExit(onThrowable = Throwable.class)
+        public static <T> void cancel(@Advice.This ForkJoinTask<T> task) {
+            cancelTask(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
+        }
+    }
 }

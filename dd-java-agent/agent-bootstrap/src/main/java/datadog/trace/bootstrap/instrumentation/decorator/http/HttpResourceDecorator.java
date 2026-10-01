@@ -9,44 +9,41 @@ import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 
 public class HttpResourceDecorator {
-  public static final HttpResourceDecorator HTTP_RESOURCE_DECORATOR = new HttpResourceDecorator();
+    public static final HttpResourceDecorator HTTP_RESOURCE_DECORATOR = new HttpResourceDecorator();
 
-  private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
+    private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
 
-  private final boolean shouldSetUrlResourceName =
-      Config.get().isRuleEnabled("URLAsResourceNameRule");
+    private final boolean shouldSetUrlResourceName = Config.get().isRuleEnabled("URLAsResourceNameRule");
 
-  private HttpResourceDecorator() {}
+    private HttpResourceDecorator() {}
 
-  public final void withClientPath(AgentSpan span, CharSequence method, CharSequence path) {
-    HttpResourceNames.setForClient(span, method, path, false);
-  }
-
-  public final void withServerPath(
-      AgentSpan span, CharSequence method, CharSequence path, boolean encoded) {
-    if (!shouldSetUrlResourceName) {
-      span.setResourceName(DEFAULT_RESOURCE_NAME);
-      return;
+    public final void withClientPath(AgentSpan span, CharSequence method, CharSequence path) {
+        HttpResourceNames.setForClient(span, method, path, false);
     }
 
-    HttpResourceNames.setForServer(span, method, path, encoded);
-  }
+    public final void withServerPath(AgentSpan span, CharSequence method, CharSequence path, boolean encoded) {
+        if (!shouldSetUrlResourceName) {
+            span.setResourceName(DEFAULT_RESOURCE_NAME);
+            return;
+        }
 
-  public final void withRoute(
-      final AgentSpan span, final CharSequence method, final CharSequence route) {
-    withRoute(span, method, route, false);
-  }
+        HttpResourceNames.setForServer(span, method, path, encoded);
+    }
 
-  public final void withRoute(
-      final AgentSpan span, final CharSequence method, final CharSequence route, boolean encoded) {
-    CharSequence routeTag = route;
-    if (encoded) {
-      routeTag = URIUtils.decode(route.toString());
+    public final void withRoute(final AgentSpan span, final CharSequence method, final CharSequence route) {
+        withRoute(span, method, route, false);
     }
-    span.setTag(Tags.HTTP_ROUTE, routeTag);
-    if (Config.get().isHttpServerRouteBasedNaming()) {
-      final CharSequence resourceName = HttpResourceNames.join(method, route);
-      span.setResourceName(resourceName, ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE);
+
+    public final void withRoute(
+            final AgentSpan span, final CharSequence method, final CharSequence route, boolean encoded) {
+        CharSequence routeTag = route;
+        if (encoded) {
+            routeTag = URIUtils.decode(route.toString());
+        }
+        span.setTag(Tags.HTTP_ROUTE, routeTag);
+        if (Config.get().isHttpServerRouteBasedNaming()) {
+            final CharSequence resourceName = HttpResourceNames.join(method, route);
+            span.setResourceName(resourceName, ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE);
+        }
     }
-  }
 }

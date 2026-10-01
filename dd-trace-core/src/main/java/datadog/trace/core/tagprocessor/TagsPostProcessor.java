@@ -5,6 +5,5 @@ import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
 import datadog.trace.core.DDSpanContext;
 
 public abstract class TagsPostProcessor {
-  public abstract void processTags(
-      TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks);
+    public abstract void processTags(TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks);
 }

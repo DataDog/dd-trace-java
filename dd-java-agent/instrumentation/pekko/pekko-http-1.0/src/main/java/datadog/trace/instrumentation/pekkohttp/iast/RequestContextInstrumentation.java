@@ -24,48 +24,48 @@ import org.apache.pekko.http.scaladsl.server.RequestContext;
 /** Propagates taint when fetching the {@link HttpRequest} from the {@link RequestContext}. */
 @AutoService(InstrumenterModule.class)
 public class RequestContextInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public RequestContextInstrumentation() {
-    super("pekko-http");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.apache.pekko.http.scaladsl.server.RequestContextImpl";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(not(isStatic()))
-            .and(named("request"))
-            .and(returns(named("org.apache.pekko.http.scaladsl.model.HttpRequest")))
-            .and(takesArguments(0)),
-        RequestContextInstrumentation.class.getName() + "$GetRequestAdvice");
-  }
-
-  @RequiresRequestContext(RequestContextSlot.IAST)
-  static class GetRequestAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Propagation
-    static void onExit(
-        @Advice.This RequestContext requestContext,
-        @Advice.Return HttpRequest request,
-        @ActiveRequestContext datadog.trace.api.gateway.RequestContext reqCtx) {
-
-      PropagationModule propagation = InstrumentationBridge.PROPAGATION;
-      if (propagation == null) {
-        return;
-      }
-
-      IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-
-      if (propagation.isTainted(ctx, request)) {
-        return;
-      }
-
-      propagation.taintObjectIfTainted(ctx, request, requestContext);
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public RequestContextInstrumentation() {
+        super("pekko-http");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "org.apache.pekko.http.scaladsl.server.RequestContextImpl";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(not(isStatic()))
+                        .and(named("request"))
+                        .and(returns(named("org.apache.pekko.http.scaladsl.model.HttpRequest")))
+                        .and(takesArguments(0)),
+                RequestContextInstrumentation.class.getName() + "$GetRequestAdvice");
+    }
+
+    @RequiresRequestContext(RequestContextSlot.IAST)
+    static class GetRequestAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Propagation
+        static void onExit(
+                @Advice.This RequestContext requestContext,
+                @Advice.Return HttpRequest request,
+                @ActiveRequestContext datadog.trace.api.gateway.RequestContext reqCtx) {
+
+            PropagationModule propagation = InstrumentationBridge.PROPAGATION;
+            if (propagation == null) {
+                return;
+            }
+
+            IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+
+            if (propagation.isTainted(ctx, request)) {
+                return;
+            }
+
+            propagation.taintObjectIfTainted(ctx, request, requestContext);
+        }
+    }
 }

@@ -29,36 +29,36 @@ import org.openjdk.jmh.infra.Blackhole;
 @Measurement(iterations = 3)
 @Threads(8)
 public class StringSubSequenceBenchmark {
-  static final String LOREM_IPSUM =
-      "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
+    static final String LOREM_IPSUM =
+            "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
 
-  @Benchmark
-  public void string_substring(Blackhole bh) {
-    String str = LOREM_IPSUM;
-    int len = str.length();
+    @Benchmark
+    public void string_substring(Blackhole bh) {
+        String str = LOREM_IPSUM;
+        int len = str.length();
 
-    for (int i = 0; i < str.length(); i += 100) {
-      bh.consume(str.substring(i, Math.min(i + 100, len)));
+        for (int i = 0; i < str.length(); i += 100) {
+            bh.consume(str.substring(i, Math.min(i + 100, len)));
+        }
     }
-  }
 
-  @Benchmark
-  public void string_subSequence(Blackhole bh) {
-    String str = LOREM_IPSUM;
-    int len = str.length();
+    @Benchmark
+    public void string_subSequence(Blackhole bh) {
+        String str = LOREM_IPSUM;
+        int len = str.length();
 
-    for (int i = 0; i < str.length(); i += 100) {
-      bh.consume(str.subSequence(i, Math.min(i + 100, len)));
+        for (int i = 0; i < str.length(); i += 100) {
+            bh.consume(str.subSequence(i, Math.min(i + 100, len)));
+        }
     }
-  }
 
-  @Benchmark
-  public void subSequence(Blackhole bh) {
-    String str = LOREM_IPSUM;
-    int len = str.length();
+    @Benchmark
+    public void subSequence(Blackhole bh) {
+        String str = LOREM_IPSUM;
+        int len = str.length();
 
-    for (int i = 0; i < str.length(); i += 100) {
-      bh.consume(SubSequence.of(str, i, Math.min(i + 100, len)));
+        for (int i = 0; i < str.length(); i += 100) {
+            bh.consume(SubSequence.of(str, i, Math.min(i + 100, len)));
+        }
     }
-  }
 }

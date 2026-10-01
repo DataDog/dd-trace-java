@@ -22,50 +22,50 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class JettyHttpClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
-  public JettyHttpClientInstrumentation() {
-    super("jetty-client");
-  }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
+    public JettyHttpClientInstrumentation() {
+        super("jetty-client");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "org.eclipse.jetty.client.transport.HttpRequest";
-  }
+    @Override
+    public String instrumentedType() {
+        return "org.eclipse.jetty.client.transport.HttpRequest";
+    }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JettyClientDecorator",
-      packageName + ".HeadersInjectAdapter",
-      packageName + ".SpanFinishingCompleteListener",
-      packageName + ".CallbackWrapper",
-    };
-  }
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".JettyClientDecorator",
+            packageName + ".HeadersInjectAdapter",
+            packageName + ".SpanFinishingCompleteListener",
+            packageName + ".CallbackWrapper",
+        };
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("org.eclipse.jetty.client.Request", AgentSpan.class.getName());
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("org.eclipse.jetty.client.Request", AgentSpan.class.getName());
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), packageName + ".RequestCreateAdvice");
-    transformer.applyAdvices(
-        isMethod()
-            .and(named("send"))
-            .and(takesArgument(0, named("org.eclipse.jetty.client.Response$CompleteListener"))),
-        packageName + ".SendAdvice",
-        packageName + ".SendContextPropagationAdvice");
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(namedOneOf("listener", "onSuccess", "onFailure", "onComplete"))
-            .and(takesArguments(1)),
-        packageName + ".WrapListenerAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor(), packageName + ".RequestCreateAdvice");
+        transformer.applyAdvices(
+                isMethod()
+                        .and(named("send"))
+                        .and(takesArgument(0, named("org.eclipse.jetty.client.Response$CompleteListener"))),
+                packageName + ".SendAdvice",
+                packageName + ".SendContextPropagationAdvice");
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPublic())
+                        .and(namedOneOf("listener", "onSuccess", "onFailure", "onComplete"))
+                        .and(takesArguments(1)),
+                packageName + ".WrapListenerAdvice");
+    }
 
-  @Override
-  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
-    return singletonMap(RUNNABLE, singletonList("org.eclipse.jetty.util.SocketAddressResolver$1"));
-  }
+    @Override
+    public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
+        return singletonMap(RUNNABLE, singletonList("org.eclipse.jetty.util.SocketAddressResolver$1"));
+    }
 }

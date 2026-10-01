@@ -18,50 +18,48 @@ import java.util.Map;
 
 /** Provides a canned message for OpenTelemetry's "resource.proto" wire protocol. */
 public final class OtlpResourceProto {
-  private OtlpResourceProto() {}
+    private OtlpResourceProto() {}
 
-  /** Vendor-neutral resource (no {@code datadog.*}). Used by the OTLP metric export. */
-  public static final byte[] RESOURCE_MESSAGE =
-      buildResourceMessage(Config.get(), Collections.emptyMap());
+    /** Vendor-neutral resource (no {@code datadog.*}). Used by the OTLP metric export. */
+    public static final byte[] RESOURCE_MESSAGE = buildResourceMessage(Config.get(), Collections.emptyMap());
 
-  /**
-   * Resource that additionally carries {@code datadog.runtime_id} and process tags (each prefixed
-   * {@code datadog.}). Used by the SDK trace-metrics export.
-   */
-  public static final byte[] RESOURCE_MESSAGE_WITH_DATADOG_ATTRS =
-      buildResourceMessage(Config.get(), datadogResourceAttributes(Config.get()));
+    /**
+     * Resource that additionally carries {@code datadog.runtime_id} and process tags (each prefixed
+     * {@code datadog.}). Used by the SDK trace-metrics export.
+     */
+    public static final byte[] RESOURCE_MESSAGE_WITH_DATADOG_ATTRS =
+            buildResourceMessage(Config.get(), datadogResourceAttributes(Config.get()));
 
-  /**
-   * Resource used by the OTLP trace export. Identical to {@link #RESOURCE_MESSAGE} but adds the
-   * {@code _dd.stats_computed} marker when the SDK is computing OTLP span metrics, so a downstream
-   * Agent does not recompute them from the exported spans.
-   */
-  public static final byte[] TRACE_RESOURCE_MESSAGE =
-      buildResourceMessage(Config.get(), traceResourceAttributes(Config.get()));
+    /**
+     * Resource used by the OTLP trace export. Identical to {@link #RESOURCE_MESSAGE} but adds the
+     * {@code _dd.stats_computed} marker when the SDK is computing OTLP span metrics, so a downstream
+     * Agent does not recompute them from the exported spans.
+     */
+    public static final byte[] TRACE_RESOURCE_MESSAGE =
+            buildResourceMessage(Config.get(), traceResourceAttributes(Config.get()));
 
-  static byte[] buildResourceMessage(Config config, Map<String, Object> extraAttributes) {
-    GrowableBuffer buf = new GrowableBuffer(512);
+    static byte[] buildResourceMessage(Config config, Map<String, Object> extraAttributes) {
+        GrowableBuffer buf = new GrowableBuffer(512);
 
-    visitResourceAttributes(
-        config, extraAttributes, (key, value) -> writeResourceAttribute(buf, key, value));
+        visitResourceAttributes(config, extraAttributes, (key, value) -> writeResourceAttribute(buf, key, value));
 
-    OtlpProtoBuffer protobuf = new OtlpProtoBuffer(buf.capacity());
-    int numBytes = protobuf.recordMessage(buf, 1);
-    byte[] resourceMessage = new byte[numBytes];
-    protobuf.flip().get(resourceMessage);
+        OtlpProtoBuffer protobuf = new OtlpProtoBuffer(buf.capacity());
+        int numBytes = protobuf.recordMessage(buf, 1);
+        byte[] resourceMessage = new byte[numBytes];
+        protobuf.flip().get(resourceMessage);
 
-    return resourceMessage;
-  }
-
-  /**
-   * {@code value} is a {@link String}, except {@code datadog.process_tags}: a {@code List<String>}.
-   */
-  private static void writeResourceAttribute(StreamingBuffer buf, String key, Object value) {
-    writeTag(buf, 1, LEN_WIRE_TYPE);
-    if (value instanceof List) {
-      writeAttribute(buf, STRING_ARRAY_ATTRIBUTE, key, value);
-    } else {
-      writeAttribute(buf, STRING_ATTRIBUTE, key, value);
+        return resourceMessage;
     }
-  }
+
+    /**
+     * {@code value} is a {@link String}, except {@code datadog.process_tags}: a {@code List<String>}.
+     */
+    private static void writeResourceAttribute(StreamingBuffer buf, String key, Object value) {
+        writeTag(buf, 1, LEN_WIRE_TYPE);
+        if (value instanceof List) {
+            writeAttribute(buf, STRING_ARRAY_ATTRIBUTE, key, value);
+        } else {
+            writeAttribute(buf, STRING_ATTRIBUTE, key, value);
+        }
+    }
 }

@@ -28,110 +28,110 @@ import org.junit.jupiter.api.Test;
 @WithConfig(key = APPSEC_ENABLED, value = "false")
 class EventTrackerAppSecDisabledForkedTest extends DDJavaSpecification {
 
-  private static final Map<String, String> METADATA = metadata();
+    private static final Map<String, String> METADATA = metadata();
 
-  private TraceSegment traceSegment;
-  private AppSecEventTracker tracker;
+    private TraceSegment traceSegment;
+    private AppSecEventTracker tracker;
 
-  @BeforeAll
-  static void disableAppSec() {
-    ActiveSubsystems.APPSEC_ACTIVE = false;
-  }
+    @BeforeAll
+    static void disableAppSec() {
+        ActiveSubsystems.APPSEC_ACTIVE = false;
+    }
 
-  @BeforeEach
-  void setup() {
-    tracker = new AppSecEventTracker();
-    GlobalTracer.setEventTracker(tracker);
-    EventTrackerV2.setEventTrackerService(tracker.v2EventTrackerService());
-    User.setUserService(tracker);
-    traceSegment = mock(TraceSegment.class);
-    TracerAPI tracer = mock(TracerAPI.class);
-    when(tracer.getTraceSegment()).thenReturn(traceSegment);
-    when(tracer.getCallbackProvider(RequestContextSlot.APPSEC)).thenReturn(null);
-    AgentTracer.forceRegister(tracer);
-  }
+    @BeforeEach
+    void setup() {
+        tracker = new AppSecEventTracker();
+        GlobalTracer.setEventTracker(tracker);
+        EventTrackerV2.setEventTrackerService(tracker.v2EventTrackerService());
+        User.setUserService(tracker);
+        traceSegment = mock(TraceSegment.class);
+        TracerAPI tracer = mock(TracerAPI.class);
+        when(tracer.getTraceSegment()).thenReturn(traceSegment);
+        when(tracer.getCallbackProvider(RequestContextSlot.APPSEC)).thenReturn(null);
+        AgentTracer.forceRegister(tracer);
+    }
 
-  @Test
-  void trackLoginSuccessEvent() {
-    GlobalTracer.getEventTracker().trackLoginSuccessEvent("user", METADATA);
+    @Test
+    void trackLoginSuccessEvent() {
+        GlobalTracer.getEventTracker().trackLoginSuccessEvent("user", METADATA);
 
-    verify(traceSegment).setTagTop("_dd.appsec.events.users.login.success.sdk", true, true);
-  }
+        verify(traceSegment).setTagTop("_dd.appsec.events.users.login.success.sdk", true, true);
+    }
 
-  @Test
-  void trackLoginFailureEvent() {
-    GlobalTracer.getEventTracker().trackLoginFailureEvent("user", true, METADATA);
+    @Test
+    void trackLoginFailureEvent() {
+        GlobalTracer.getEventTracker().trackLoginFailureEvent("user", true, METADATA);
 
-    verify(traceSegment).setTagTop("_dd.appsec.events.users.login.failure.sdk", true, true);
-  }
+        verify(traceSegment).setTagTop("_dd.appsec.events.users.login.failure.sdk", true, true);
+    }
 
-  @Test
-  void trackCustomEvent() {
-    GlobalTracer.getEventTracker().trackCustomEvent("myevent", METADATA);
+    @Test
+    void trackCustomEvent() {
+        GlobalTracer.getEventTracker().trackCustomEvent("myevent", METADATA);
 
-    verify(traceSegment).setTagTop("_dd.appsec.events.myevent.sdk", true, true);
-  }
+        verify(traceSegment).setTagTop("_dd.appsec.events.myevent.sdk", true, true);
+    }
 
-  @Test
-  void trackLoginSuccessEventV2() {
-    EventTrackerV2.trackUserLoginSuccess("user", "id", METADATA);
+    @Test
+    void trackLoginSuccessEventV2() {
+        EventTrackerV2.trackUserLoginSuccess("user", "id", METADATA);
 
-    verify(traceSegment).setTagTop("_dd.appsec.events.users.login.success.sdk", true, true);
-  }
+        verify(traceSegment).setTagTop("_dd.appsec.events.users.login.success.sdk", true, true);
+    }
 
-  @Test
-  void trackLoginFailureEventV2() {
-    EventTrackerV2.trackUserLoginFailure("user", true, METADATA);
+    @Test
+    void trackLoginFailureEventV2() {
+        EventTrackerV2.trackUserLoginFailure("user", true, METADATA);
 
-    verify(traceSegment).setTagTop("_dd.appsec.events.users.login.failure.sdk", true, true);
-  }
+        verify(traceSegment).setTagTop("_dd.appsec.events.users.login.failure.sdk", true, true);
+    }
 
-  @Test
-  void trackCustomEventV2() {
-    EventTrackerV2.trackCustomEvent("myevent", METADATA);
+    @Test
+    void trackCustomEventV2() {
+        EventTrackerV2.trackCustomEvent("myevent", METADATA);
 
-    verify(traceSegment).setTagTop("_dd.appsec.events.myevent.sdk", true, true);
-  }
+        verify(traceSegment).setTagTop("_dd.appsec.events.myevent.sdk", true, true);
+    }
 
-  @Test
-  void onSignup() {
-    tracker.onSignupEvent(IDENTIFICATION, "user", METADATA);
+    @Test
+    void onSignup() {
+        tracker.onSignupEvent(IDENTIFICATION, "user", METADATA);
 
-    verifyNoInteractions(traceSegment);
-  }
+        verifyNoInteractions(traceSegment);
+    }
 
-  @Test
-  void onLoginSuccess() {
-    tracker.onLoginSuccessEvent(IDENTIFICATION, "user", METADATA);
+    @Test
+    void onLoginSuccess() {
+        tracker.onLoginSuccessEvent(IDENTIFICATION, "user", METADATA);
 
-    verifyNoInteractions(traceSegment);
-  }
+        verifyNoInteractions(traceSegment);
+    }
 
-  @Test
-  void onLoginFailed() {
-    tracker.onLoginFailureEvent(IDENTIFICATION, "user", true, METADATA);
+    @Test
+    void onLoginFailed() {
+        tracker.onLoginFailureEvent(IDENTIFICATION, "user", true, METADATA);
 
-    verifyNoInteractions(traceSegment);
-  }
+        verifyNoInteractions(traceSegment);
+    }
 
-  @Test
-  void onUserEvent() {
-    tracker.onUserEvent(IDENTIFICATION, "user");
+    @Test
+    void onUserEvent() {
+        tracker.onUserEvent(IDENTIFICATION, "user");
 
-    verifyNoInteractions(traceSegment);
-  }
+        verifyNoInteractions(traceSegment);
+    }
 
-  @Test
-  void onUserNotFound() {
-    tracker.onUserNotFound(IDENTIFICATION);
+    @Test
+    void onUserNotFound() {
+        tracker.onUserNotFound(IDENTIFICATION);
 
-    verifyNoInteractions(traceSegment);
-  }
+        verifyNoInteractions(traceSegment);
+    }
 
-  private static Map<String, String> metadata() {
-    Map<String, String> metadata = new HashMap<>();
-    metadata.put("key1", "value1");
-    metadata.put("key2", "value2");
-    return metadata;
-  }
+    private static Map<String, String> metadata() {
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("key1", "value1");
+        metadata.put("key2", "value2");
+        return metadata;
+    }
 }

@@ -26,57 +26,58 @@ import org.apache.kafka.common.errors.WakeupException;
  * class.
  */
 public class RecordsAdvice {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static ContextScope onEnter(@Advice.This ConsumerDelegate consumer) {
-    // Set cluster ID in ClusterIdHolder for Schema Registry instrumentation
-    KafkaConsumerInfo kafkaConsumerInfo =
-        InstrumentationContext.get(ConsumerDelegate.class, KafkaConsumerInfo.class).get(consumer);
-    if (kafkaConsumerInfo != null && Config.get().isDataStreamsEnabled()) {
-      String clusterId =
-          KafkaConsumerInstrumentationHelper.extractClusterId(
-              kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, MetadataState.class));
-      if (clusterId != null) {
-        ClusterIdHolder.set(clusterId);
-      }
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ContextScope onEnter(@Advice.This ConsumerDelegate consumer) {
+        // Set cluster ID in ClusterIdHolder for Schema Registry instrumentation
+        KafkaConsumerInfo kafkaConsumerInfo = InstrumentationContext.get(
+                        ConsumerDelegate.class, KafkaConsumerInfo.class)
+                .get(consumer);
+        if (kafkaConsumerInfo != null && Config.get().isDataStreamsEnabled()) {
+            String clusterId = KafkaConsumerInstrumentationHelper.extractClusterId(
+                    kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, MetadataState.class));
+            if (clusterId != null) {
+                ClusterIdHolder.set(clusterId);
+            }
+        }
+
+        if (traceConfig().isDataStreamsEnabled()) {
+            final AgentSpan span = startSpan(JAVA_KAFKA.toString(), KAFKA_POLL);
+            return activateSpan(span);
+        }
+        return null;
     }
 
-    if (traceConfig().isDataStreamsEnabled()) {
-      final AgentSpan span = startSpan(JAVA_KAFKA.toString(), KAFKA_POLL);
-      return activateSpan(span);
-    }
-    return null;
-  }
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void captureGroup(
+            @Advice.Enter final ContextScope scope,
+            @Advice.This ConsumerDelegate consumer,
+            @Advice.Return ConsumerRecords records,
+            @Advice.Thrown Throwable throwable) {
+        int recordsCount = 0;
+        if (records != null) {
+            // new - we are getting the KafkaConsumerInfo from the ConsumerDelegate instead of
+            // KafkaConsumer
+            KafkaConsumerInfo kafkaConsumerInfo = InstrumentationContext.get(
+                            ConsumerDelegate.class, KafkaConsumerInfo.class)
+                    .get(consumer);
+            if (kafkaConsumerInfo != null) {
+                InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerInfo.class)
+                        .put(records, kafkaConsumerInfo);
+            }
+            recordsCount = records.count();
+        }
+        // Clear cluster ID from Schema Registry instrumentation
+        ClusterIdHolder.clear();
 
-  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void captureGroup(
-      @Advice.Enter final ContextScope scope,
-      @Advice.This ConsumerDelegate consumer,
-      @Advice.Return ConsumerRecords records,
-      @Advice.Thrown Throwable throwable) {
-    int recordsCount = 0;
-    if (records != null) {
-      // new - we are getting the KafkaConsumerInfo from the ConsumerDelegate instead of
-      // KafkaConsumer
-      KafkaConsumerInfo kafkaConsumerInfo =
-          InstrumentationContext.get(ConsumerDelegate.class, KafkaConsumerInfo.class).get(consumer);
-      if (kafkaConsumerInfo != null) {
-        InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerInfo.class)
-            .put(records, kafkaConsumerInfo);
-      }
-      recordsCount = records.count();
+        if (scope == null) {
+            return;
+        }
+        AgentSpan span = spanFromScope(scope);
+        span.setTag(KAFKA_RECORDS_COUNT, recordsCount);
+        if (!(throwable instanceof WakeupException)) {
+            span.addThrowable(throwable);
+        }
+        scope.close();
+        span.finish();
     }
-    // Clear cluster ID from Schema Registry instrumentation
-    ClusterIdHolder.clear();
-
-    if (scope == null) {
-      return;
-    }
-    AgentSpan span = spanFromScope(scope);
-    span.setTag(KAFKA_RECORDS_COUNT, recordsCount);
-    if (!(throwable instanceof WakeupException)) {
-      span.addThrowable(throwable);
-    }
-    scope.close();
-    span.finish();
-  }
 }

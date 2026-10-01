@@ -8,7 +8,7 @@ import datadog.trace.api.featureflag.FeatureFlaggingGateway.ExposureListener;
  */
 public interface ExposureWriter extends AutoCloseable, ExposureListener {
 
-  void init();
+    void init();
 
-  void close();
+    void close();
 }

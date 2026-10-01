@@ -4,5 +4,5 @@ package zserio.runtime.array;
 // Preserves the method signature used by ScaRealLibraryBytecodeTest.
 public class Array {
 
-  public void read() {}
+    public void read() {}
 }

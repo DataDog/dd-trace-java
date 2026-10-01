@@ -65,406 +65,402 @@ import javax.annotation.concurrent.ThreadSafe;
  */
 @ThreadSafe
 @SuppressFBWarnings(
-    value = "IS2_INCONSISTENT_SYNC",
-    justification =
-        "stat updates are deliberately racy - sync is only used to prevent simultaneous bulk updates")
+        value = "IS2_INCONSISTENT_SYNC",
+        justification = "stat updates are deliberately racy - sync is only used to prevent simultaneous bulk updates")
 public final class GenerationalUtf8Cache implements EncodingCache {
-  static final int MAX_EDEN_CAPACITY = 512;
-  static final int MAX_TENURED_CAPACITY = 1024;
+    static final int MAX_EDEN_CAPACITY = 512;
+    static final int MAX_TENURED_CAPACITY = 1024;
 
-  private static final int MAX_EDEN_PROBES = 4;
-  private static final int MAX_TENURED_PROBES = 8;
+    private static final int MAX_EDEN_PROBES = 4;
+    private static final int MAX_TENURED_PROBES = 8;
 
-  private static final int MIN_PROMOTION_THRESHOLD = 2;
-  private static final int INITIAL_PROMOTION_THRESHOLD = 16;
+    private static final int MIN_PROMOTION_THRESHOLD = 2;
+    private static final int INITIAL_PROMOTION_THRESHOLD = 16;
 
-  private static final double SCORE_DECAY = 0.5D;
-  private static final double PURGE_THRESHOLD = 0.25D;
-  private static final double PROMOTION_THRESHOLD_ADJ_FACTOR = 1.5;
+    private static final double SCORE_DECAY = 0.5D;
+    private static final double PURGE_THRESHOLD = 0.25D;
+    private static final double PROMOTION_THRESHOLD_ADJ_FACTOR = 1.5;
 
-  private static final double EDEN_PROPORTION = 1D / 3D;
-  private static final double TENURED_PROPORTION = 1 - EDEN_PROPORTION;
+    private static final double EDEN_PROPORTION = 1D / 3D;
+    private static final double TENURED_PROPORTION = 1 - EDEN_PROPORTION;
 
-  static final int MAX_ENTRY_LEN = 256;
+    static final int MAX_ENTRY_LEN = 256;
 
-  final CacheEntry[] edenEntries;
-  private final int[] edenMarkers;
+    final CacheEntry[] edenEntries;
+    private final int[] edenMarkers;
 
-  final CacheEntry[] tenuredEntries;
+    final CacheEntry[] tenuredEntries;
 
-  private long accessTimeMs;
-  private double promotionThreshold = INITIAL_PROMOTION_THRESHOLD;
+    private long accessTimeMs;
+    private double promotionThreshold = INITIAL_PROMOTION_THRESHOLD;
 
-  int edenHits = 0;
-  int tenuredHits = 0;
-  int earlyPromotions = 0;
-  int promotions = 0;
-  int edenEvictions = 0;
-  int tenuredEvictions = 0;
+    int edenHits = 0;
+    int tenuredHits = 0;
+    int earlyPromotions = 0;
+    int promotions = 0;
+    int edenEvictions = 0;
+    int tenuredEvictions = 0;
 
-  public GenerationalUtf8Cache(int capacity) {
-    this.accessTimeMs = System.currentTimeMillis();
+    public GenerationalUtf8Cache(int capacity) {
+        this.accessTimeMs = System.currentTimeMillis();
 
-    int edenCapacity = (int) (capacity * EDEN_PROPORTION);
-    int edenSize = Caching.cacheSizeFor(Math.min(edenCapacity, MAX_EDEN_CAPACITY));
+        int edenCapacity = (int) (capacity * EDEN_PROPORTION);
+        int edenSize = Caching.cacheSizeFor(Math.min(edenCapacity, MAX_EDEN_CAPACITY));
 
-    // These sizes must be powers of 2
-    this.edenEntries = new CacheEntry[edenSize];
-    this.edenMarkers = new int[edenSize];
+        // These sizes must be powers of 2
+        this.edenEntries = new CacheEntry[edenSize];
+        this.edenMarkers = new int[edenSize];
 
-    int tenuredCapacity = (int) (capacity * TENURED_PROPORTION);
-    int tenuredSize = Caching.cacheSizeFor(Math.min(tenuredCapacity, MAX_TENURED_CAPACITY));
+        int tenuredCapacity = (int) (capacity * TENURED_PROPORTION);
+        int tenuredSize = Caching.cacheSizeFor(Math.min(tenuredCapacity, MAX_TENURED_CAPACITY));
 
-    // The size must be a power of 2
-    this.tenuredEntries = new CacheEntry[tenuredSize];
-  }
-
-  public GenerationalUtf8Cache(int edenCapacity, int tenuredCapacity) {
-    this.accessTimeMs = System.currentTimeMillis();
-
-    int edenSize = Caching.cacheSizeFor(Math.min(edenCapacity, MAX_EDEN_CAPACITY));
-    this.edenEntries = new CacheEntry[edenSize];
-    this.edenMarkers = new int[edenSize];
-
-    int tenuredSize = Caching.cacheSizeFor(Math.min(tenuredCapacity, MAX_TENURED_CAPACITY));
-    this.tenuredEntries = new CacheEntry[tenuredSize];
-  }
-
-  public int edenCapacity() {
-    return this.edenEntries.length;
-  }
-
-  public int tenuredCapacity() {
-    return this.tenuredEntries.length;
-  }
-
-  /** Updates the access time used by {@link #getUtf8(String)} to the provided value. */
-  @SuppressFBWarnings("AT_NONATOMIC_64BIT_PRIMITIVE")
-  public void updateAccessTime(long accessTimeMs) {
-    this.accessTimeMs = accessTimeMs;
-  }
-
-  /** Updates access time to the @link {@link System#currentTimeMillis()} */
-  public void refreshAccessTime() {
-    this.updateAccessTime(System.currentTimeMillis());
-  }
-
-  public synchronized void recalibrate() {
-    this.recalibrate(System.currentTimeMillis());
-  }
-
-  /**
-   * Recalibrates the cache Applies a decay to existing entries - and purges entries below the
-   * PURGE_THRESHOLD
-   *
-   * <p>Adjusts the promotion threshold depending on ratio of promotions to evictions, since prior
-   * recalibration
-   *
-   * <p>While still racy this method is synchronized to avoid simultaneous recalibrations
-   */
-  public synchronized void recalibrate(long accessTimeMs) {
-    this.accessTimeMs = accessTimeMs;
-
-    recalibrate(this.edenEntries);
-    Caching.reset(this.edenMarkers);
-    recalibrate(this.tenuredEntries);
-
-    int totalPromotions = this.promotions + this.earlyPromotions;
-    if (totalPromotions == 0 && this.promotionThreshold >= MIN_PROMOTION_THRESHOLD) {
-      this.promotionThreshold /= PROMOTION_THRESHOLD_ADJ_FACTOR;
-    } else if (totalPromotions > this.tenuredEvictions / 2) {
-      this.promotionThreshold *= PROMOTION_THRESHOLD_ADJ_FACTOR;
+        // The size must be a power of 2
+        this.tenuredEntries = new CacheEntry[tenuredSize];
     }
 
-    this.edenHits = 0;
-    this.tenuredHits = 0;
-    this.earlyPromotions = 0;
-    this.promotions = 0;
-    this.edenEvictions = 0;
-    this.tenuredEvictions = 0;
-  }
+    public GenerationalUtf8Cache(int edenCapacity, int tenuredCapacity) {
+        this.accessTimeMs = System.currentTimeMillis();
 
-  static final void recalibrate(CacheEntry[] entries) {
-    for (int i = 0; i < entries.length; ++i) {
-      CacheEntry entry = entries[i];
-      if (entry == null) continue;
+        int edenSize = Caching.cacheSizeFor(Math.min(edenCapacity, MAX_EDEN_CAPACITY));
+        this.edenEntries = new CacheEntry[edenSize];
+        this.edenMarkers = new int[edenSize];
 
-      boolean purge = entry.decay();
-      if (purge) entries[i] = null;
-    }
-  }
-
-  @Override
-  public byte[] encode(CharSequence charSeq) {
-    if (charSeq instanceof String) {
-      String str = (String) charSeq;
-      return this.getUtf8(str);
-    } else {
-      return null;
-    }
-  }
-
-  /** Returns the UTF-8 encoding of value -- using a cache value if available */
-  public final byte[] getUtf8(String value) {
-    return this.getUtf8(value, this.accessTimeMs);
-  }
-
-  /**
-   * Returns the UTF-8 encoding of value -- using a cache value if available If there is cache hit,
-   * the specified accessTimeMs is used to update the cache entry
-   */
-  public final byte[] getUtf8(String value, long accessTimeMs) {
-    if (value.length() > MAX_ENTRY_LEN) return CacheEntry.utf8(value);
-
-    int adjHash = Caching.adjHash(value);
-
-    CacheEntry[] tenuredEntries = this.tenuredEntries;
-    int matchingTenuredIndex = lookupEntryIndex(tenuredEntries, MAX_TENURED_PROBES, adjHash, value);
-    if (matchingTenuredIndex != -1) {
-      // The slot can be mutated concurrently between the lookup and this read: nulled (recalibrate
-      // purge / eviction) or reassigned to a *different* value. CacheEntry identity is immutable
-      // (adjHash/value/valueUtf8 are final), so re-validate the loaded reference against the
-      // request; anything but a match means the slot moved out from under us, so fall through and
-      // treat it as a miss rather than NPE'ing (null) or returning another value's bytes
-      // (reassigned).
-      CacheEntry tenuredEntry = tenuredEntries[matchingTenuredIndex];
-      if (tenuredEntry != null && tenuredEntry.matches(adjHash, value)) {
-        tenuredEntry.hit(accessTimeMs);
-
-        this.tenuredHits += 1;
-        return tenuredEntry.utf8();
-      }
+        int tenuredSize = Caching.cacheSizeFor(Math.min(tenuredCapacity, MAX_TENURED_CAPACITY));
+        this.tenuredEntries = new CacheEntry[tenuredSize];
     }
 
-    CacheEntry[] edenEntries = this.edenEntries;
-    int matchingEdenIndex = lookupEntryIndex(edenEntries, MAX_EDEN_PROBES, adjHash, value);
-    if (matchingEdenIndex != -1) {
-      // Same lookup-then-read race as tenured, plus concurrent promotion nulls the slot (line
-      // below); re-validate the loaded reference and treat null-or-mismatch as a miss.
-      CacheEntry edenEntry = edenEntries[matchingEdenIndex];
-      if (edenEntry != null && edenEntry.matches(adjHash, value)) {
-        double hits = edenEntry.hit(accessTimeMs);
-        if (hits > this.promotionThreshold) {
-          // mark promoted first - to avoid racy insertions
-          this.promotions += 1;
+    public int edenCapacity() {
+        return this.edenEntries.length;
+    }
 
-          boolean evicted = lruInsert(this.tenuredEntries, MAX_TENURED_PROBES, edenEntry);
-          if (evicted) this.tenuredEvictions += 1;
+    public int tenuredCapacity() {
+        return this.tenuredEntries.length;
+    }
 
-          edenEntries[matchingEdenIndex] = null;
+    /** Updates the access time used by {@link #getUtf8(String)} to the provided value. */
+    @SuppressFBWarnings("AT_NONATOMIC_64BIT_PRIMITIVE")
+    public void updateAccessTime(long accessTimeMs) {
+        this.accessTimeMs = accessTimeMs;
+    }
+
+    /** Updates access time to the @link {@link System#currentTimeMillis()} */
+    public void refreshAccessTime() {
+        this.updateAccessTime(System.currentTimeMillis());
+    }
+
+    public synchronized void recalibrate() {
+        this.recalibrate(System.currentTimeMillis());
+    }
+
+    /**
+     * Recalibrates the cache Applies a decay to existing entries - and purges entries below the
+     * PURGE_THRESHOLD
+     *
+     * <p>Adjusts the promotion threshold depending on ratio of promotions to evictions, since prior
+     * recalibration
+     *
+     * <p>While still racy this method is synchronized to avoid simultaneous recalibrations
+     */
+    public synchronized void recalibrate(long accessTimeMs) {
+        this.accessTimeMs = accessTimeMs;
+
+        recalibrate(this.edenEntries);
+        Caching.reset(this.edenMarkers);
+        recalibrate(this.tenuredEntries);
+
+        int totalPromotions = this.promotions + this.earlyPromotions;
+        if (totalPromotions == 0 && this.promotionThreshold >= MIN_PROMOTION_THRESHOLD) {
+            this.promotionThreshold /= PROMOTION_THRESHOLD_ADJ_FACTOR;
+        } else if (totalPromotions > this.tenuredEvictions / 2) {
+            this.promotionThreshold *= PROMOTION_THRESHOLD_ADJ_FACTOR;
         }
 
-        this.edenHits += 1;
-        return edenEntry.utf8();
-      }
+        this.edenHits = 0;
+        this.tenuredHits = 0;
+        this.earlyPromotions = 0;
+        this.promotions = 0;
+        this.edenEvictions = 0;
+        this.tenuredEvictions = 0;
     }
 
-    boolean wasMarked = Caching.mark(this.edenMarkers, adjHash);
+    static final void recalibrate(CacheEntry[] entries) {
+        for (int i = 0; i < entries.length; ++i) {
+            CacheEntry entry = entries[i];
+            if (entry == null) continue;
 
-    // If slot isn't marked, this is likely the first request
-    // Don't create an entry yet
-    if (!wasMarked) return CacheEntry.utf8(value);
-
-    CacheEntry newEntry = new CacheEntry(adjHash, value);
-    // First request was swallowed by marking, so double hit
-    newEntry.hit(accessTimeMs);
-    newEntry.hit(accessTimeMs);
-
-    // search for empty slot or failing that the MFU entry
-    int edenMfuIndex = findFirstAvailableOrMfuIndex(edenEntries, MAX_EDEN_PROBES, adjHash);
-    CacheEntry edenMfuEntry = edenEntries[edenMfuIndex];
-
-    // Found an empty slot - fill it
-    if (edenMfuEntry == null) {
-      edenEntries[edenMfuIndex] = newEntry;
-      return newEntry.utf8();
-    }
-
-    // See if we can early promote the local MFU entry into the global cache
-    // Early promotion doesn't evict from the global cache
-
-    // NOTE: Need to make sure to use hash of the entry being promoted,
-    // since it may differ from the requested hash
-    int tenuredAvailableIndex =
-        findAvailableIndex(tenuredEntries, MAX_TENURED_PROBES, edenMfuEntry.adjHash());
-    if (tenuredAvailableIndex != -1) {
-      tenuredEntries[tenuredAvailableIndex] = edenMfuEntry;
-      this.earlyPromotions += 1;
-
-      edenEntries[edenMfuIndex] = newEntry;
-      return newEntry.utf8();
-    }
-
-    // No empty slot - or space to promote into the global cache
-    // Insert into local cache while evicting the LFU
-    boolean evicted = lfuInsert(edenEntries, MAX_EDEN_PROBES, newEntry);
-    if (evicted) this.edenEvictions += 1;
-
-    return newEntry.utf8();
-  }
-
-  static final int findAvailableIndex(CacheEntry[] entries, int numProbes, int newAdjHash) {
-    int initialBucketIndex = Caching.bucketIndex(entries, newAdjHash);
-    for (int probe = 0, index = initialBucketIndex; probe < numProbes; ++probe, ++index) {
-      if (index >= entries.length) index = 0;
-
-      CacheEntry entry = entries[index];
-      if (entry == null || entry.isPurgeable()) return index;
-    }
-    return -1;
-  }
-
-  static final int findFirstAvailableOrMfuIndex(
-      CacheEntry[] entries, int numProbes, int newAdjHash) {
-    double mfuScore = Double.MIN_VALUE;
-    int mfuIndex = -1;
-
-    int initialBucketIndex = Caching.bucketIndex(entries, newAdjHash);
-    for (int probe = 0, index = initialBucketIndex; probe < numProbes; ++probe, ++index) {
-      if (index >= entries.length) index = 0;
-
-      CacheEntry entry = entries[index];
-      if (entry == null) return index;
-
-      double score = entry.score();
-      if (score > mfuScore) {
-        mfuScore = score;
-        mfuIndex = index;
-      }
-    }
-    return mfuIndex;
-  }
-
-  static final boolean lfuInsert(CacheEntry[] entries, int numProbes, CacheEntry newEntry) {
-    int initialBucketIndex = Caching.bucketIndex(entries, newEntry.adjHash());
-
-    // initial scan to see if there's an empty slot or marker entry is already present
-    double lowestScore = Double.MAX_VALUE;
-    int lfuIndex = -1;
-    for (int probe = 0, index = initialBucketIndex; probe < numProbes; ++probe, ++index) {
-      if (index >= entries.length) index = 0;
-
-      CacheEntry entry = entries[index];
-      if (entry == null || entry.isPurgeable()) {
-        entries[index] = newEntry;
-        return false;
-      } else {
-        double score = entry.score();
-        if (score < lowestScore) {
-          lowestScore = score;
-          lfuIndex = index;
+            boolean purge = entry.decay();
+            if (purge) entries[i] = null;
         }
-      }
-    }
-
-    // If we get here, then we're evicting the LFU
-    entries[lfuIndex] = newEntry;
-    return true;
-  }
-
-  static final boolean lruInsert(CacheEntry[] entries, int numProbes, CacheEntry newEntry) {
-    int initialBucketIndex = Caching.bucketIndex(entries, newEntry.adjHash());
-
-    // initial scan to see if there's an empty slot or entry is already present
-    long lowestUsedMs = Long.MAX_VALUE;
-    int lruIndex = -1;
-    for (int probe = 0, index = initialBucketIndex; probe < numProbes; ++probe, ++index) {
-      if (index >= entries.length) index = 0;
-
-      CacheEntry entry = entries[index];
-      if (entry == null || entry.matches(newEntry)) {
-        entries[index] = newEntry;
-        return false;
-      }
-
-      long lastUsedMs = entry.lastUsedMs();
-      if (lastUsedMs < lowestUsedMs) {
-        lowestUsedMs = lastUsedMs;
-        lruIndex = index;
-      }
-    }
-
-    entries[lruIndex] = newEntry;
-    return true;
-  }
-
-  static final int lookupEntryIndex(
-      CacheEntry[] entries, int numProbes, int adjHash, String value) {
-    int initialBucketIndex = Caching.bucketIndex(entries, adjHash);
-    for (int probe = 0, index = initialBucketIndex; probe < numProbes; ++probe, ++index) {
-      if (index >= entries.length) index = 0;
-
-      CacheEntry entry = entries[index];
-      if (entry != null && entry.matches(adjHash, value)) {
-        return index;
-      }
-    }
-    return -1;
-  }
-
-  static final class CacheEntry {
-    final int adjHash;
-    final String value;
-    final byte[] valueUtf8;
-
-    boolean promoted = false;
-    long lastUsedMs = 0;
-    double score = 0;
-
-    public CacheEntry(int adjHash, String value) {
-      this.adjHash = adjHash;
-      this.value = value;
-      this.valueUtf8 = utf8(value);
-    }
-
-    boolean matches(CacheEntry thatEntry) {
-      return (this == thatEntry) || this.matches(thatEntry.adjHash, thatEntry.value);
-    }
-
-    boolean matches(int adjHash, String value) {
-      return (this.adjHash == adjHash) && value.equals(this.value);
-    }
-
-    int adjHash() {
-      return this.adjHash;
-    }
-
-    double score() {
-      return this.score;
-    }
-
-    long lastUsedMs() {
-      return this.lastUsedMs;
-    }
-
-    byte[] utf8() {
-      return this.valueUtf8;
-    }
-
-    double hit(long lastUsedMs) {
-      this.lastUsedMs = lastUsedMs;
-      this.score += 1;
-
-      return this.score;
-    }
-
-    boolean decay() {
-      this.score *= SCORE_DECAY;
-
-      return this.isPurgeable();
-    }
-
-    boolean isPurgeable() {
-      return (this.score < PURGE_THRESHOLD);
-    }
-
-    static final byte[] utf8(String value) {
-      return value.getBytes(StandardCharsets.UTF_8);
     }
 
     @Override
-    public String toString() {
-      return this.value + " - score: " + this.score + " used (ms): " + this.lastUsedMs;
+    public byte[] encode(CharSequence charSeq) {
+        if (charSeq instanceof String) {
+            String str = (String) charSeq;
+            return this.getUtf8(str);
+        } else {
+            return null;
+        }
     }
-  }
+
+    /** Returns the UTF-8 encoding of value -- using a cache value if available */
+    public final byte[] getUtf8(String value) {
+        return this.getUtf8(value, this.accessTimeMs);
+    }
+
+    /**
+     * Returns the UTF-8 encoding of value -- using a cache value if available If there is cache hit,
+     * the specified accessTimeMs is used to update the cache entry
+     */
+    public final byte[] getUtf8(String value, long accessTimeMs) {
+        if (value.length() > MAX_ENTRY_LEN) return CacheEntry.utf8(value);
+
+        int adjHash = Caching.adjHash(value);
+
+        CacheEntry[] tenuredEntries = this.tenuredEntries;
+        int matchingTenuredIndex = lookupEntryIndex(tenuredEntries, MAX_TENURED_PROBES, adjHash, value);
+        if (matchingTenuredIndex != -1) {
+            // The slot can be mutated concurrently between the lookup and this read: nulled (recalibrate
+            // purge / eviction) or reassigned to a *different* value. CacheEntry identity is immutable
+            // (adjHash/value/valueUtf8 are final), so re-validate the loaded reference against the
+            // request; anything but a match means the slot moved out from under us, so fall through and
+            // treat it as a miss rather than NPE'ing (null) or returning another value's bytes
+            // (reassigned).
+            CacheEntry tenuredEntry = tenuredEntries[matchingTenuredIndex];
+            if (tenuredEntry != null && tenuredEntry.matches(adjHash, value)) {
+                tenuredEntry.hit(accessTimeMs);
+
+                this.tenuredHits += 1;
+                return tenuredEntry.utf8();
+            }
+        }
+
+        CacheEntry[] edenEntries = this.edenEntries;
+        int matchingEdenIndex = lookupEntryIndex(edenEntries, MAX_EDEN_PROBES, adjHash, value);
+        if (matchingEdenIndex != -1) {
+            // Same lookup-then-read race as tenured, plus concurrent promotion nulls the slot (line
+            // below); re-validate the loaded reference and treat null-or-mismatch as a miss.
+            CacheEntry edenEntry = edenEntries[matchingEdenIndex];
+            if (edenEntry != null && edenEntry.matches(adjHash, value)) {
+                double hits = edenEntry.hit(accessTimeMs);
+                if (hits > this.promotionThreshold) {
+                    // mark promoted first - to avoid racy insertions
+                    this.promotions += 1;
+
+                    boolean evicted = lruInsert(this.tenuredEntries, MAX_TENURED_PROBES, edenEntry);
+                    if (evicted) this.tenuredEvictions += 1;
+
+                    edenEntries[matchingEdenIndex] = null;
+                }
+
+                this.edenHits += 1;
+                return edenEntry.utf8();
+            }
+        }
+
+        boolean wasMarked = Caching.mark(this.edenMarkers, adjHash);
+
+        // If slot isn't marked, this is likely the first request
+        // Don't create an entry yet
+        if (!wasMarked) return CacheEntry.utf8(value);
+
+        CacheEntry newEntry = new CacheEntry(adjHash, value);
+        // First request was swallowed by marking, so double hit
+        newEntry.hit(accessTimeMs);
+        newEntry.hit(accessTimeMs);
+
+        // search for empty slot or failing that the MFU entry
+        int edenMfuIndex = findFirstAvailableOrMfuIndex(edenEntries, MAX_EDEN_PROBES, adjHash);
+        CacheEntry edenMfuEntry = edenEntries[edenMfuIndex];
+
+        // Found an empty slot - fill it
+        if (edenMfuEntry == null) {
+            edenEntries[edenMfuIndex] = newEntry;
+            return newEntry.utf8();
+        }
+
+        // See if we can early promote the local MFU entry into the global cache
+        // Early promotion doesn't evict from the global cache
+
+        // NOTE: Need to make sure to use hash of the entry being promoted,
+        // since it may differ from the requested hash
+        int tenuredAvailableIndex = findAvailableIndex(tenuredEntries, MAX_TENURED_PROBES, edenMfuEntry.adjHash());
+        if (tenuredAvailableIndex != -1) {
+            tenuredEntries[tenuredAvailableIndex] = edenMfuEntry;
+            this.earlyPromotions += 1;
+
+            edenEntries[edenMfuIndex] = newEntry;
+            return newEntry.utf8();
+        }
+
+        // No empty slot - or space to promote into the global cache
+        // Insert into local cache while evicting the LFU
+        boolean evicted = lfuInsert(edenEntries, MAX_EDEN_PROBES, newEntry);
+        if (evicted) this.edenEvictions += 1;
+
+        return newEntry.utf8();
+    }
+
+    static final int findAvailableIndex(CacheEntry[] entries, int numProbes, int newAdjHash) {
+        int initialBucketIndex = Caching.bucketIndex(entries, newAdjHash);
+        for (int probe = 0, index = initialBucketIndex; probe < numProbes; ++probe, ++index) {
+            if (index >= entries.length) index = 0;
+
+            CacheEntry entry = entries[index];
+            if (entry == null || entry.isPurgeable()) return index;
+        }
+        return -1;
+    }
+
+    static final int findFirstAvailableOrMfuIndex(CacheEntry[] entries, int numProbes, int newAdjHash) {
+        double mfuScore = Double.MIN_VALUE;
+        int mfuIndex = -1;
+
+        int initialBucketIndex = Caching.bucketIndex(entries, newAdjHash);
+        for (int probe = 0, index = initialBucketIndex; probe < numProbes; ++probe, ++index) {
+            if (index >= entries.length) index = 0;
+
+            CacheEntry entry = entries[index];
+            if (entry == null) return index;
+
+            double score = entry.score();
+            if (score > mfuScore) {
+                mfuScore = score;
+                mfuIndex = index;
+            }
+        }
+        return mfuIndex;
+    }
+
+    static final boolean lfuInsert(CacheEntry[] entries, int numProbes, CacheEntry newEntry) {
+        int initialBucketIndex = Caching.bucketIndex(entries, newEntry.adjHash());
+
+        // initial scan to see if there's an empty slot or marker entry is already present
+        double lowestScore = Double.MAX_VALUE;
+        int lfuIndex = -1;
+        for (int probe = 0, index = initialBucketIndex; probe < numProbes; ++probe, ++index) {
+            if (index >= entries.length) index = 0;
+
+            CacheEntry entry = entries[index];
+            if (entry == null || entry.isPurgeable()) {
+                entries[index] = newEntry;
+                return false;
+            } else {
+                double score = entry.score();
+                if (score < lowestScore) {
+                    lowestScore = score;
+                    lfuIndex = index;
+                }
+            }
+        }
+
+        // If we get here, then we're evicting the LFU
+        entries[lfuIndex] = newEntry;
+        return true;
+    }
+
+    static final boolean lruInsert(CacheEntry[] entries, int numProbes, CacheEntry newEntry) {
+        int initialBucketIndex = Caching.bucketIndex(entries, newEntry.adjHash());
+
+        // initial scan to see if there's an empty slot or entry is already present
+        long lowestUsedMs = Long.MAX_VALUE;
+        int lruIndex = -1;
+        for (int probe = 0, index = initialBucketIndex; probe < numProbes; ++probe, ++index) {
+            if (index >= entries.length) index = 0;
+
+            CacheEntry entry = entries[index];
+            if (entry == null || entry.matches(newEntry)) {
+                entries[index] = newEntry;
+                return false;
+            }
+
+            long lastUsedMs = entry.lastUsedMs();
+            if (lastUsedMs < lowestUsedMs) {
+                lowestUsedMs = lastUsedMs;
+                lruIndex = index;
+            }
+        }
+
+        entries[lruIndex] = newEntry;
+        return true;
+    }
+
+    static final int lookupEntryIndex(CacheEntry[] entries, int numProbes, int adjHash, String value) {
+        int initialBucketIndex = Caching.bucketIndex(entries, adjHash);
+        for (int probe = 0, index = initialBucketIndex; probe < numProbes; ++probe, ++index) {
+            if (index >= entries.length) index = 0;
+
+            CacheEntry entry = entries[index];
+            if (entry != null && entry.matches(adjHash, value)) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    static final class CacheEntry {
+        final int adjHash;
+        final String value;
+        final byte[] valueUtf8;
+
+        boolean promoted = false;
+        long lastUsedMs = 0;
+        double score = 0;
+
+        public CacheEntry(int adjHash, String value) {
+            this.adjHash = adjHash;
+            this.value = value;
+            this.valueUtf8 = utf8(value);
+        }
+
+        boolean matches(CacheEntry thatEntry) {
+            return (this == thatEntry) || this.matches(thatEntry.adjHash, thatEntry.value);
+        }
+
+        boolean matches(int adjHash, String value) {
+            return (this.adjHash == adjHash) && value.equals(this.value);
+        }
+
+        int adjHash() {
+            return this.adjHash;
+        }
+
+        double score() {
+            return this.score;
+        }
+
+        long lastUsedMs() {
+            return this.lastUsedMs;
+        }
+
+        byte[] utf8() {
+            return this.valueUtf8;
+        }
+
+        double hit(long lastUsedMs) {
+            this.lastUsedMs = lastUsedMs;
+            this.score += 1;
+
+            return this.score;
+        }
+
+        boolean decay() {
+            this.score *= SCORE_DECAY;
+
+            return this.isPurgeable();
+        }
+
+        boolean isPurgeable() {
+            return (this.score < PURGE_THRESHOLD);
+        }
+
+        static final byte[] utf8(String value) {
+            return value.getBytes(StandardCharsets.UTF_8);
+        }
+
+        @Override
+        public String toString() {
+            return this.value + " - score: " + this.score + " used (ms): " + this.lastUsedMs;
+        }
+    }
 }

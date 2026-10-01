@@ -4,29 +4,29 @@ import datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage;
 
 /** Ensure all instruments implement the same equivalency. */
 public abstract class OtelInstrument {
-  protected final OtelMetricStorage storage;
+    protected final OtelMetricStorage storage;
 
-  protected OtelInstrument(OtelMetricStorage storage) {
-    this.storage = storage;
-  }
-
-  @Override
-  public final boolean equals(Object o) {
-    if (!(o instanceof OtelInstrument)) {
-      return false;
+    protected OtelInstrument(OtelMetricStorage storage) {
+        this.storage = storage;
     }
 
-    OtelInstrument that = (OtelInstrument) o;
-    return storage.getDescriptor().equals(that.storage.getDescriptor());
-  }
+    @Override
+    public final boolean equals(Object o) {
+        if (!(o instanceof OtelInstrument)) {
+            return false;
+        }
 
-  @Override
-  public final int hashCode() {
-    return storage.getDescriptor().hashCode();
-  }
+        OtelInstrument that = (OtelInstrument) o;
+        return storage.getDescriptor().equals(that.storage.getDescriptor());
+    }
 
-  @Override
-  public final String toString() {
-    return getClass().getSimpleName() + "{descriptor=" + storage.getDescriptor() + '}';
-  }
+    @Override
+    public final int hashCode() {
+        return storage.getDescriptor().hashCode();
+    }
+
+    @Override
+    public final String toString() {
+        return getClass().getSimpleName() + "{descriptor=" + storage.getDescriptor() + '}';
+    }
 }

@@ -30,20 +30,20 @@ import org.openjdk.jmh.annotations.Warmup;
 @OutputTimeUnit(MICROSECONDS)
 @Fork(value = 1)
 public class CoreTracerBenchmark {
-  static final CoreTracer TRACER = CoreTracer.builder().build();
+    static final CoreTracer TRACER = CoreTracer.builder().build();
 
-  @Benchmark
-  public AgentSpan startSpan() {
-    return TRACER.startSpan("foo", "bar");
-  }
+    @Benchmark
+    public AgentSpan startSpan() {
+        return TRACER.startSpan("foo", "bar");
+    }
 
-  @Benchmark
-  public AgentSpan buildSpan() {
-    return TRACER.buildSpan("foo", "bar").start();
-  }
+    @Benchmark
+    public AgentSpan buildSpan() {
+        return TRACER.buildSpan("foo", "bar").start();
+    }
 
-  @Benchmark
-  public AgentSpan singleSpanBuilder() {
-    return TRACER.singleSpanBuilder("foo", "bar").start();
-  }
+    @Benchmark
+    public AgentSpan singleSpanBuilder() {
+        return TRACER.singleSpanBuilder("foo", "bar").start();
+    }
 }

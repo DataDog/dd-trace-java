@@ -9,21 +9,22 @@ import org.junit.jupiter.api.Test;
 
 class WafMetricCollectorContextClosedRaceTest {
 
-  @Test
-  void reportsContextClosedRaceCount() {
-    WafMetricCollector collector = WafMetricCollector.get();
+    @Test
+    void reportsContextClosedRaceCount() {
+        WafMetricCollector collector = WafMetricCollector.get();
 
-    collector.wafContextClosedRace();
-    collector.wafContextClosedRace();
-    collector.prepareMetrics();
+        collector.wafContextClosedRace();
+        collector.wafContextClosedRace();
+        collector.prepareMetrics();
 
-    Collection<WafMetricCollector.WafMetric> metrics = collector.drain();
-    Optional<WafMetricCollector.WafMetric> raceMetric =
-        metrics.stream().filter(m -> "waf.context_closed_race".equals(m.metricName)).findFirst();
+        Collection<WafMetricCollector.WafMetric> metrics = collector.drain();
+        Optional<WafMetricCollector.WafMetric> raceMetric = metrics.stream()
+                .filter(m -> "waf.context_closed_race".equals(m.metricName))
+                .findFirst();
 
-    assertTrue(raceMetric.isPresent(), "expected waf.context_closed_race to be reported");
-    assertEquals("count", raceMetric.get().type);
-    assertEquals("appsec", raceMetric.get().namespace);
-    assertEquals(2L, raceMetric.get().value.longValue());
-  }
+        assertTrue(raceMetric.isPresent(), "expected waf.context_closed_race to be reported");
+        assertEquals("count", raceMetric.get().type);
+        assertEquals("appsec", raceMetric.get().namespace);
+        assertEquals(2L, raceMetric.get().value.longValue());
+    }
 }

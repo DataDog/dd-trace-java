@@ -15,110 +15,102 @@ import org.slf4j.LoggerFactory;
 
 public class TelemetryClient {
 
-  public enum Result {
-    SUCCESS,
-    FAILURE,
-    NOT_FOUND,
-    INTERRUPTED
-  }
-
-  public static TelemetryClient buildAgentClient(
-      OkHttpClient okHttpClient, HttpUrl agentUrl, HttpRetryPolicy.Factory httpRetryPolicy) {
-    HttpUrl agentTelemetryUrl =
-        agentUrl.newBuilder().addPathSegments(AGENT_TELEMETRY_API_ENDPOINT).build();
-    return new TelemetryClient(okHttpClient, httpRetryPolicy, agentTelemetryUrl, null);
-  }
-
-  public static TelemetryClient buildIntakeClient(
-      Config config, HttpRetryPolicy.Factory httpRetryPolicy) {
-    String apiKey = config.getApiKey();
-    if (apiKey == null) {
-      log.debug("Cannot create Telemetry Intake because DD_API_KEY unspecified.");
-      return null;
+    public enum Result {
+        SUCCESS,
+        FAILURE,
+        NOT_FOUND,
+        INTERRUPTED
     }
 
-    String telemetryUrl = buildIntakeTelemetryUrl(config);
-    HttpUrl url;
-    try {
-      url = HttpUrl.get(telemetryUrl);
-    } catch (IllegalArgumentException e) {
-      log.error("Can't create Telemetry URL for {}", telemetryUrl);
-      return null;
+    public static TelemetryClient buildAgentClient(
+            OkHttpClient okHttpClient, HttpUrl agentUrl, HttpRetryPolicy.Factory httpRetryPolicy) {
+        HttpUrl agentTelemetryUrl = agentUrl.newBuilder()
+                .addPathSegments(AGENT_TELEMETRY_API_ENDPOINT)
+                .build();
+        return new TelemetryClient(okHttpClient, httpRetryPolicy, agentTelemetryUrl, null);
     }
 
-    long timeoutMillis = TimeUnit.SECONDS.toMillis(config.getAgentTimeout());
-    OkHttpClient httpClient = OkHttpUtils.buildHttpClient(url, timeoutMillis);
-    return new TelemetryClient(httpClient, httpRetryPolicy, url, apiKey);
-  }
+    public static TelemetryClient buildIntakeClient(Config config, HttpRetryPolicy.Factory httpRetryPolicy) {
+        String apiKey = config.getApiKey();
+        if (apiKey == null) {
+            log.debug("Cannot create Telemetry Intake because DD_API_KEY unspecified.");
+            return null;
+        }
 
-  private static String buildIntakeTelemetryUrl(Config config) {
-    if (config.isCiVisibilityEnabled() && config.isCiVisibilityAgentlessEnabled()) {
-      String agentlessUrl = config.getCiVisibilityAgentlessUrl();
-      if (Strings.isNotBlank(agentlessUrl)) {
-        return agentlessUrl + "/api/v2/apmtelemetry";
-      }
-    }
-    return config.getDefaultTelemetryUrl();
-  }
+        String telemetryUrl = buildIntakeTelemetryUrl(config);
+        HttpUrl url;
+        try {
+            url = HttpUrl.get(telemetryUrl);
+        } catch (IllegalArgumentException e) {
+            log.error("Can't create Telemetry URL for {}", telemetryUrl);
+            return null;
+        }
 
-  private static final Logger log = LoggerFactory.getLogger(TelemetryClient.class);
-
-  private static final String AGENT_TELEMETRY_API_ENDPOINT = "telemetry/proxy/api/v2/apmtelemetry";
-  private static final String DD_TELEMETRY_REQUEST_TYPE = "DD-Telemetry-Request-Type";
-
-  private final OkHttpClient okHttpClient;
-  private final HttpRetryPolicy.Factory httpRetryPolicy;
-  private final HttpUrl url;
-  private final String apiKey;
-
-  public TelemetryClient(
-      OkHttpClient okHttpClient,
-      HttpRetryPolicy.Factory httpRetryPolicy,
-      HttpUrl url,
-      String apiKey) {
-    this.okHttpClient = okHttpClient;
-    this.httpRetryPolicy = httpRetryPolicy;
-    this.url = url;
-    this.apiKey = apiKey;
-  }
-
-  public HttpUrl getUrl() {
-    return url;
-  }
-
-  public Result sendHttpRequest(Request.Builder httpRequestBuilder) {
-    httpRequestBuilder.url(url);
-    if (apiKey != null) {
-      httpRequestBuilder.addHeader("DD-API-KEY", apiKey);
+        long timeoutMillis = TimeUnit.SECONDS.toMillis(config.getAgentTimeout());
+        OkHttpClient httpClient = OkHttpUtils.buildHttpClient(url, timeoutMillis);
+        return new TelemetryClient(httpClient, httpRetryPolicy, url, apiKey);
     }
 
-    Request httpRequest = httpRequestBuilder.build();
-    String requestType = httpRequest.header(DD_TELEMETRY_REQUEST_TYPE);
-
-    try (okhttp3.Response response =
-        OkHttpUtils.sendWithRetries(okHttpClient, httpRetryPolicy, httpRequest)) {
-      if (response.code() == 404) {
-        log.debug("Telemetry endpoint is disabled, dropping {} message.", requestType);
-        return Result.NOT_FOUND;
-      }
-      if (!response.isSuccessful()) {
-        log.debug(
-            "Telemetry message {} failed with: {} {}.",
-            requestType,
-            response.code(),
-            response.message());
-        return Result.FAILURE;
-      }
-    } catch (InterruptedIOException e) {
-      log.debug("Telemetry message {} sending interrupted: {}.", requestType, e.toString());
-      return Result.INTERRUPTED;
-
-    } catch (IOException e) {
-      log.debug("Telemetry message {} failed with exception: {}.", requestType, e.toString());
-      return Result.FAILURE;
+    private static String buildIntakeTelemetryUrl(Config config) {
+        if (config.isCiVisibilityEnabled() && config.isCiVisibilityAgentlessEnabled()) {
+            String agentlessUrl = config.getCiVisibilityAgentlessUrl();
+            if (Strings.isNotBlank(agentlessUrl)) {
+                return agentlessUrl + "/api/v2/apmtelemetry";
+            }
+        }
+        return config.getDefaultTelemetryUrl();
     }
 
-    log.debug("Telemetry message {} sent successfully to {}.", requestType, url);
-    return Result.SUCCESS;
-  }
+    private static final Logger log = LoggerFactory.getLogger(TelemetryClient.class);
+
+    private static final String AGENT_TELEMETRY_API_ENDPOINT = "telemetry/proxy/api/v2/apmtelemetry";
+    private static final String DD_TELEMETRY_REQUEST_TYPE = "DD-Telemetry-Request-Type";
+
+    private final OkHttpClient okHttpClient;
+    private final HttpRetryPolicy.Factory httpRetryPolicy;
+    private final HttpUrl url;
+    private final String apiKey;
+
+    public TelemetryClient(
+            OkHttpClient okHttpClient, HttpRetryPolicy.Factory httpRetryPolicy, HttpUrl url, String apiKey) {
+        this.okHttpClient = okHttpClient;
+        this.httpRetryPolicy = httpRetryPolicy;
+        this.url = url;
+        this.apiKey = apiKey;
+    }
+
+    public HttpUrl getUrl() {
+        return url;
+    }
+
+    public Result sendHttpRequest(Request.Builder httpRequestBuilder) {
+        httpRequestBuilder.url(url);
+        if (apiKey != null) {
+            httpRequestBuilder.addHeader("DD-API-KEY", apiKey);
+        }
+
+        Request httpRequest = httpRequestBuilder.build();
+        String requestType = httpRequest.header(DD_TELEMETRY_REQUEST_TYPE);
+
+        try (okhttp3.Response response = OkHttpUtils.sendWithRetries(okHttpClient, httpRetryPolicy, httpRequest)) {
+            if (response.code() == 404) {
+                log.debug("Telemetry endpoint is disabled, dropping {} message.", requestType);
+                return Result.NOT_FOUND;
+            }
+            if (!response.isSuccessful()) {
+                log.debug("Telemetry message {} failed with: {} {}.", requestType, response.code(), response.message());
+                return Result.FAILURE;
+            }
+        } catch (InterruptedIOException e) {
+            log.debug("Telemetry message {} sending interrupted: {}.", requestType, e.toString());
+            return Result.INTERRUPTED;
+
+        } catch (IOException e) {
+            log.debug("Telemetry message {} failed with exception: {}.", requestType, e.toString());
+            return Result.FAILURE;
+        }
+
+        log.debug("Telemetry message {} sent successfully to {}.", requestType, url);
+        return Result.SUCCESS;
+    }
 }

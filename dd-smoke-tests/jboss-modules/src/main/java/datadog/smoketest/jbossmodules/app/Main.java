@@ -6,24 +6,30 @@ import datadog.smoketest.jbossmodules.messaging.SubscriberSupport;
 import org.jboss.modules.Module;
 
 public class Main {
-  public static void main(final String[] args) throws Exception {
-    ClientSupport client =
-        Module.getCallerModule().loadService(ClientSupport.class).iterator().next();
-    PublisherSupport publisher =
-        Module.getCallerModule().loadService(PublisherSupport.class).iterator().next();
-    SubscriberSupport subscriber =
-        Module.getCallerModule().loadService(SubscriberSupport.class).iterator().next();
+    public static void main(final String[] args) throws Exception {
+        ClientSupport client = Module.getCallerModule()
+                .loadService(ClientSupport.class)
+                .iterator()
+                .next();
+        PublisherSupport publisher = Module.getCallerModule()
+                .loadService(PublisherSupport.class)
+                .iterator()
+                .next();
+        SubscriberSupport subscriber = Module.getCallerModule()
+                .loadService(SubscriberSupport.class)
+                .iterator()
+                .next();
 
-    publisher.subscribe(subscriber);
+        publisher.subscribe(subscriber);
 
-    client.start();
-    publisher.start();
-    subscriber.start();
+        client.start();
+        publisher.start();
+        subscriber.start();
 
-    publisher.publish("Hello, world!");
+        publisher.publish("Hello, world!");
 
-    publisher.stop();
-    subscriber.stop();
-    client.stop();
-  }
+        publisher.stop();
+        subscriber.stop();
+        client.stop();
+    }
 }

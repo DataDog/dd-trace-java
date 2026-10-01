@@ -51,38 +51,39 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public final class AkkaHttpServerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public AkkaHttpServerInstrumentation() {
-    super("akka-http", "akka-http-server");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "akka.http.scaladsl.HttpExt";
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return ScalaListCollectorMuzzleReferences.additionalMuzzleReferences();
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("bindAndHandle").and(takesArgument(0, named("akka.stream.scaladsl.Flow"))),
-        getClass().getName() + "$AkkaHttpBindAndHandleAdvice");
-  }
-
-  public static class AkkaHttpBindAndHandleAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void enter(
-        @Advice.Argument(value = 0, readOnly = false)
-            Flow<HttpRequest, HttpResponse, NotUsed> handler,
-        @Advice.Argument(value = 4, readOnly = false) ServerSettings settings) {
-      handler = handler.asJava().recover(RecoverFromBlockedExceptionPF.INSTANCE).asScala();
-      final BidiFlow<HttpResponse, HttpResponse, HttpRequest, HttpRequest, NotUsed> wrapper =
-          BidiFlow.fromGraph(new DatadogServerRequestResponseFlowWrapper(settings));
-      handler = wrapper.reversed().join(handler.asJava()).asScala();
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public AkkaHttpServerInstrumentation() {
+        super("akka-http", "akka-http-server");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "akka.http.scaladsl.HttpExt";
+    }
+
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return ScalaListCollectorMuzzleReferences.additionalMuzzleReferences();
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("bindAndHandle").and(takesArgument(0, named("akka.stream.scaladsl.Flow"))),
+                getClass().getName() + "$AkkaHttpBindAndHandleAdvice");
+    }
+
+    public static class AkkaHttpBindAndHandleAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void enter(
+                @Advice.Argument(value = 0, readOnly = false) Flow<HttpRequest, HttpResponse, NotUsed> handler,
+                @Advice.Argument(value = 4, readOnly = false) ServerSettings settings) {
+            handler = handler.asJava()
+                    .recover(RecoverFromBlockedExceptionPF.INSTANCE)
+                    .asScala();
+            final BidiFlow<HttpResponse, HttpResponse, HttpRequest, HttpRequest, NotUsed> wrapper =
+                    BidiFlow.fromGraph(new DatadogServerRequestResponseFlowWrapper(settings));
+            handler = wrapper.reversed().join(handler.asJava()).asScala();
+        }
+    }
 }

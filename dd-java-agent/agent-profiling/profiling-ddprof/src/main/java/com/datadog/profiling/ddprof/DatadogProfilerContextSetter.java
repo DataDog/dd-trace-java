@@ -1,21 +1,20 @@
 package com.datadog.profiling.ddprof;
 
-public class DatadogProfilerContextSetter
-    implements datadog.trace.api.profiling.ProfilingContextAttribute {
+public class DatadogProfilerContextSetter implements datadog.trace.api.profiling.ProfilingContextAttribute {
 
-  private final int offset;
-  private final DatadogProfiler profiler;
+    private final int offset;
+    private final DatadogProfiler profiler;
 
-  public DatadogProfilerContextSetter(String attribute, DatadogProfiler profiler) {
-    this.offset = profiler.offsetOf(attribute);
-    this.profiler = profiler;
-  }
+    public DatadogProfilerContextSetter(String attribute, DatadogProfiler profiler) {
+        this.offset = profiler.offsetOf(attribute);
+        this.profiler = profiler;
+    }
 
-  public void set(String value) {
-    profiler.setContextValue(offset, value);
-  }
+    public void set(String value) {
+        profiler.setContextValue(offset, value);
+    }
 
-  public void clear() {
-    profiler.clearContextValue(offset);
-  }
+    public void clear() {
+        profiler.clearContextValue(offset);
+    }
 }

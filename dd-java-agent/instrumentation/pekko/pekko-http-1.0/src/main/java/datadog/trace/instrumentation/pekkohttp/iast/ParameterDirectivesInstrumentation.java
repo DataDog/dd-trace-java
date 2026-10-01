@@ -30,131 +30,122 @@ import org.apache.pekko.http.scaladsl.server.util.Tupler$;
  */
 @AutoService(InstrumenterModule.class)
 public class ParameterDirectivesInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-  private static final String TRAIT_NAME =
-      "org.apache.pekko.http.scaladsl.server.directives.ParameterDirectives";
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+    private static final String TRAIT_NAME = "org.apache.pekko.http.scaladsl.server.directives.ParameterDirectives";
 
-  public ParameterDirectivesInstrumentation() {
-    super("pekko-http");
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      TRAIT_NAME + "$class", TRAIT_NAME,
-    };
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    // the Java API delegates to the Scala API
-    transformDirective(transformer, "parameterMultiMap", "TaintMultiMapDirectiveAdvice");
-    transformDirective(transformer, "parameterMap", "TaintMapDirectiveAdvice");
-    transformDirective(transformer, "parameterSeq", "TaintSeqDirectiveAdvice");
-
-    transformer.applyAdvice(
-        isMethod()
-            .and(isStatic())
-            .and(named("parameter").or(named("parameters")))
-            .and(returns(Object.class))
-            .and(takesArguments(2))
-            .and(
-                takesArgument(
-                    0,
-                    named("org.apache.pekko.http.scaladsl.server.directives.ParameterDirectives")))
-            .and(
-                takesArgument(
-                    1,
-                    named(
-                        "org.apache.pekko.http.scaladsl.server.directives.ParameterDirectives$ParamMagnet"))),
-        ParameterDirectivesInstrumentation.class.getName()
-            + "$TaintSingleParameterDirectiveOldScalaAdvice");
-
-    transformer.applyAdvice(
-        isMethod()
-            .and(not(isStatic()))
-            .and(named("parameter").or(named("parameters")))
-            .and(
-                returns(Object.class)
-                    .or(returns(named("org.apache.pekko.http.scaladsl.server.Directive"))))
-            .and(takesArguments(1))
-            .and(
-                takesArgument(
-                    0,
-                    named(
-                        "org.apache.pekko.http.scaladsl.server.directives.ParameterDirectives$ParamMagnet"))),
-        ParameterDirectivesInstrumentation.class.getName()
-            + "$TaintSingleParameterDirectiveNewScalaAdvice");
-  }
-
-  private void transformDirective(
-      MethodTransformer transformation, String methodName, String adviceClass) {
-    transformation.applyAdvice(
-        TraitMethodMatchers.isTraitDirectiveMethod(TRAIT_NAME, methodName),
-        ParameterDirectivesInstrumentation.class.getName() + "$" + adviceClass);
-  }
-
-  static class TaintMultiMapDirectiveAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
-    static void after(@Advice.Return(readOnly = false) Directive directive) {
-      directive = directive.tmap(TaintMultiMapFunction.INSTANCE, Tupler$.MODULE$.forTuple(null));
+    public ParameterDirectivesInstrumentation() {
+        super("pekko-http");
     }
-  }
 
-  static class TaintMapDirectiveAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
-    static void after(@Advice.Return(readOnly = false) Directive directive) {
-      directive = directive.tmap(TaintMapFunction.INSTANCE, Tupler$.MODULE$.forTuple(null));
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            TRAIT_NAME + "$class", TRAIT_NAME,
+        };
     }
-  }
 
-  static class TaintSeqDirectiveAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
-    static void after(@Advice.Return(readOnly = false) Directive directive) {
-      directive = directive.tmap(TaintSeqFunction.INSTANCE, Tupler$.MODULE$.forTuple(null));
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        // the Java API delegates to the Scala API
+        transformDirective(transformer, "parameterMultiMap", "TaintMultiMapDirectiveAdvice");
+        transformDirective(transformer, "parameterMap", "TaintMapDirectiveAdvice");
+        transformDirective(transformer, "parameterSeq", "TaintSeqDirectiveAdvice");
+
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isStatic())
+                        .and(named("parameter").or(named("parameters")))
+                        .and(returns(Object.class))
+                        .and(takesArguments(2))
+                        .and(takesArgument(
+                                0, named("org.apache.pekko.http.scaladsl.server.directives.ParameterDirectives")))
+                        .and(
+                                takesArgument(
+                                        1,
+                                        named(
+                                                "org.apache.pekko.http.scaladsl.server.directives.ParameterDirectives$ParamMagnet"))),
+                ParameterDirectivesInstrumentation.class.getName() + "$TaintSingleParameterDirectiveOldScalaAdvice");
+
+        transformer.applyAdvice(
+                isMethod()
+                        .and(not(isStatic()))
+                        .and(named("parameter").or(named("parameters")))
+                        .and(returns(Object.class)
+                                .or(returns(named("org.apache.pekko.http.scaladsl.server.Directive"))))
+                        .and(takesArguments(1))
+                        .and(
+                                takesArgument(
+                                        0,
+                                        named(
+                                                "org.apache.pekko.http.scaladsl.server.directives.ParameterDirectives$ParamMagnet"))),
+                ParameterDirectivesInstrumentation.class.getName() + "$TaintSingleParameterDirectiveNewScalaAdvice");
     }
-  }
 
-  static class TaintSingleParameterDirectiveOldScalaAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
-    static void after(
-        @Advice.Return(readOnly = false) Object retval,
-        @Advice.Argument(1) ParameterDirectives.ParamMagnet pmag) {
-      if (!(retval instanceof Directive)) {
-        return;
-      }
-
-      try {
-        retval =
-            ((Directive) retval)
-                .tmap(new TaintSingleParameterFunction<>(pmag), Tupler$.MODULE$.forTuple(null));
-      } catch (Exception e) {
-        throw new RuntimeException(e); // propagate so it's logged
-      }
+    private void transformDirective(MethodTransformer transformation, String methodName, String adviceClass) {
+        transformation.applyAdvice(
+                TraitMethodMatchers.isTraitDirectiveMethod(TRAIT_NAME, methodName),
+                ParameterDirectivesInstrumentation.class.getName() + "$" + adviceClass);
     }
-  }
 
-  static class TaintSingleParameterDirectiveNewScalaAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
-    static void after(
-        @Advice.Return(readOnly = false) Object retval,
-        @Advice.Argument(0) ParameterDirectives.ParamMagnet pmag) {
-      if (!(retval instanceof Directive)) {
-        return;
-      }
-
-      try {
-        retval =
-            ((Directive) retval)
-                .tmap(new TaintSingleParameterFunction<>(pmag), Tupler$.MODULE$.forTuple(null));
-      } catch (Exception e) {
-        throw new RuntimeException(e); // propagate so it's logged
-      }
+    static class TaintMultiMapDirectiveAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
+        static void after(@Advice.Return(readOnly = false) Directive directive) {
+            directive = directive.tmap(TaintMultiMapFunction.INSTANCE, Tupler$.MODULE$.forTuple(null));
+        }
     }
-  }
+
+    static class TaintMapDirectiveAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
+        static void after(@Advice.Return(readOnly = false) Directive directive) {
+            directive = directive.tmap(TaintMapFunction.INSTANCE, Tupler$.MODULE$.forTuple(null));
+        }
+    }
+
+    static class TaintSeqDirectiveAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
+        static void after(@Advice.Return(readOnly = false) Directive directive) {
+            directive = directive.tmap(TaintSeqFunction.INSTANCE, Tupler$.MODULE$.forTuple(null));
+        }
+    }
+
+    static class TaintSingleParameterDirectiveOldScalaAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
+        static void after(
+                @Advice.Return(readOnly = false) Object retval,
+                @Advice.Argument(1) ParameterDirectives.ParamMagnet pmag) {
+            if (!(retval instanceof Directive)) {
+                return;
+            }
+
+            try {
+                retval = ((Directive) retval)
+                        .tmap(new TaintSingleParameterFunction<>(pmag), Tupler$.MODULE$.forTuple(null));
+            } catch (Exception e) {
+                throw new RuntimeException(e); // propagate so it's logged
+            }
+        }
+    }
+
+    static class TaintSingleParameterDirectiveNewScalaAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
+        static void after(
+                @Advice.Return(readOnly = false) Object retval,
+                @Advice.Argument(0) ParameterDirectives.ParamMagnet pmag) {
+            if (!(retval instanceof Directive)) {
+                return;
+            }
+
+            try {
+                retval = ((Directive) retval)
+                        .tmap(new TaintSingleParameterFunction<>(pmag), Tupler$.MODULE$.forTuple(null));
+            } catch (Exception e) {
+                throw new RuntimeException(e); // propagate so it's logged
+            }
+        }
+    }
 }

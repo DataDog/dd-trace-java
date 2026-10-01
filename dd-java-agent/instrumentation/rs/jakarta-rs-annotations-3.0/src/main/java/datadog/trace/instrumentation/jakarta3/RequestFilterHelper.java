@@ -14,49 +14,48 @@ import jakarta.ws.rs.container.ContainerRequestContext;
 import java.lang.reflect.Method;
 
 public class RequestFilterHelper {
-  public static ContextScope createOrUpdateAbortSpan(
-      final ContainerRequestContext context, final Class resourceClass, final Method method) {
+    public static ContextScope createOrUpdateAbortSpan(
+            final ContainerRequestContext context, final Class resourceClass, final Method method) {
 
-    if (method != null && resourceClass != null) {
-      context.setProperty(JakartaRsAnnotationsDecorator.ABORT_HANDLED, true);
-      // The ordering of the specific and general abort instrumentation is unspecified
-      // The general instrumentation (ContainerRequestFilterInstrumentation) saves spans
-      // properties if it ran first
-      AgentSpan parent =
-          (AgentSpan) context.getProperty(JakartaRsAnnotationsDecorator.ABORT_PARENT);
-      AgentSpan span = (AgentSpan) context.getProperty(JakartaRsAnnotationsDecorator.ABORT_SPAN);
+        if (method != null && resourceClass != null) {
+            context.setProperty(JakartaRsAnnotationsDecorator.ABORT_HANDLED, true);
+            // The ordering of the specific and general abort instrumentation is unspecified
+            // The general instrumentation (ContainerRequestFilterInstrumentation) saves spans
+            // properties if it ran first
+            AgentSpan parent = (AgentSpan) context.getProperty(JakartaRsAnnotationsDecorator.ABORT_PARENT);
+            AgentSpan span = (AgentSpan) context.getProperty(JakartaRsAnnotationsDecorator.ABORT_SPAN);
 
-      if (span == null) {
-        parent = activeSpan();
-        span = startSpan(JAKARTA_RS_CONTROLLER.toString(), JAKARTA_RS_REQUEST_ABORT);
+            if (span == null) {
+                parent = activeSpan();
+                span = startSpan(JAKARTA_RS_CONTROLLER.toString(), JAKARTA_RS_REQUEST_ABORT);
 
-        final ContextScope scope = activateSpan(span);
+                final ContextScope scope = activateSpan(span);
 
-        DECORATE.afterStart(span);
-        DECORATE.onJakartaRsSpan(span, parent, resourceClass, method);
+                DECORATE.afterStart(span);
+                DECORATE.onJakartaRsSpan(span, parent, resourceClass, method);
 
-        return scope;
-      } else {
-        DECORATE.onJakartaRsSpan(span, parent, resourceClass, method);
-        return null;
-      }
-    } else {
-      return null;
-    }
-  }
-
-  public static void closeSpanAndScope(final ContextScope scope, final Throwable throwable) {
-    if (scope == null) {
-      return;
+                return scope;
+            } else {
+                DECORATE.onJakartaRsSpan(span, parent, resourceClass, method);
+                return null;
+            }
+        } else {
+            return null;
+        }
     }
 
-    final AgentSpan span = spanFromScope(scope);
-    if (throwable != null) {
-      DECORATE.onError(span, throwable);
-    }
+    public static void closeSpanAndScope(final ContextScope scope, final Throwable throwable) {
+        if (scope == null) {
+            return;
+        }
 
-    DECORATE.beforeFinish(span);
-    scope.close();
-    span.finish();
-  }
+        final AgentSpan span = spanFromScope(scope);
+        if (throwable != null) {
+            DECORATE.onError(span, throwable);
+        }
+
+        DECORATE.beforeFinish(span);
+        scope.close();
+        span.finish();
+    }
 }

@@ -20,48 +20,44 @@ import org.slf4j.LoggerFactory;
  * and distributed by Oracle.
  */
 public final class OracleJdkController implements Controller {
-  private static final Logger log = LoggerFactory.getLogger(OracleJdkController.class);
-  static final int RECORDING_MAX_SIZE = 64 * 1024 * 1024; // 64 megs
-  static final Duration RECORDING_MAX_AGE = Duration.ofMinutes(5);
+    private static final Logger log = LoggerFactory.getLogger(OracleJdkController.class);
+    static final int RECORDING_MAX_SIZE = 64 * 1024 * 1024; // 64 megs
+    static final Duration RECORDING_MAX_AGE = Duration.ofMinutes(5);
 
-  private final Map<String, String> eventSettings;
-  private final JfrMBeanHelper helper;
+    private final Map<String, String> eventSettings;
+    private final JfrMBeanHelper helper;
 
-  public static Controller instance(ConfigProvider configProvider) throws ConfigurationException {
-    return new OracleJdkController(configProvider);
-  }
-
-  /**
-   * Main constructor for Oracle JDK profiling controller.
-   *
-   * <p>This has to be public because it is created via reflection
-   */
-  public OracleJdkController(@Nonnull final ConfigProvider configProvider)
-      throws ConfigurationException {
-    try {
-      log.debug("Initializing Oracle JFR controller");
-      helper = new JfrMBeanHelper();
-      eventSettings =
-          Collections.unmodifiableMap(
-              JfpUtils.readJfpResources(
-                  JfpUtils.DEFAULT_JFP,
-                  configProvider.getString(ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE)));
-    } catch (final IOException e) {
-      throw new ConfigurationException(e);
+    public static Controller instance(ConfigProvider configProvider) throws ConfigurationException {
+        return new OracleJdkController(configProvider);
     }
-  }
 
-  @Override
-  @Nonnull
-  public OracleJdkOngoingRecording createRecording(
-      @Nonnull final String recordingName, ControllerContext.Snapshot context)
-      throws UnsupportedEnvironmentException {
-    try {
-      log.debug("Attempting to create a new recording with name '{}'", recordingName);
-      return new OracleJdkOngoingRecording(
-          helper, recordingName, RECORDING_MAX_SIZE, RECORDING_MAX_AGE, eventSettings);
-    } catch (final IOException e) {
-      throw new RuntimeException("Unable to create a new recording with name " + recordingName, e);
+    /**
+     * Main constructor for Oracle JDK profiling controller.
+     *
+     * <p>This has to be public because it is created via reflection
+     */
+    public OracleJdkController(@Nonnull final ConfigProvider configProvider) throws ConfigurationException {
+        try {
+            log.debug("Initializing Oracle JFR controller");
+            helper = new JfrMBeanHelper();
+            eventSettings = Collections.unmodifiableMap(JfpUtils.readJfpResources(
+                    JfpUtils.DEFAULT_JFP, configProvider.getString(ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE)));
+        } catch (final IOException e) {
+            throw new ConfigurationException(e);
+        }
     }
-  }
+
+    @Override
+    @Nonnull
+    public OracleJdkOngoingRecording createRecording(
+            @Nonnull final String recordingName, ControllerContext.Snapshot context)
+            throws UnsupportedEnvironmentException {
+        try {
+            log.debug("Attempting to create a new recording with name '{}'", recordingName);
+            return new OracleJdkOngoingRecording(
+                    helper, recordingName, RECORDING_MAX_SIZE, RECORDING_MAX_AGE, eventSettings);
+        } catch (final IOException e) {
+            throw new RuntimeException("Unable to create a new recording with name " + recordingName, e);
+        }
+    }
 }

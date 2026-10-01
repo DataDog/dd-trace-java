@@ -24,60 +24,59 @@ import org.junit.runner.manipulation.Sorter;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit4TestSorterInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  private final String parentPackageName =
-      Strings.getPackageName(JUnit4Instrumentation.class.getName());
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    private final String parentPackageName = Strings.getPackageName(JUnit4Instrumentation.class.getName());
 
-  public JUnit4TestSorterInstrumentation() {
-    super("ci-visibility", "junit-4", "test-order");
-  }
-
-  @Override
-  public boolean isEnabled() {
-    return super.isEnabled() && Config.get().getCiVisibilityTestOrder() != null;
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "org.junit.runner.Runner";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named(hierarchyMarkerType()))
-        .and(implementsInterface(named("org.junit.runner.manipulation.Sortable")));
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      parentPackageName + ".SkippedByDatadog",
-      parentPackageName + ".TracingListener",
-      parentPackageName + ".JUnit4Utils",
-      parentPackageName + ".TestEventsHandlerHolder",
-      packageName + ".FailFastDescriptionComparator",
-    };
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("sort").and(takesArgument(0, named("org.junit.runner.manipulation.Sorter"))),
-        JUnit4TestSorterInstrumentation.class.getName() + "$SorterAdvice");
-  }
-
-  public static class SorterAdvice {
-    @Advice.OnMethodEnter
-    public static void onOrdering(@Advice.Argument(value = 0, readOnly = false) Sorter sorter) {
-      String testOrder = Config.get().getCiVisibilityTestOrder();
-      TestEventsHandler<TestSuiteDescriptor, TestDescriptor> handler =
-          TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.JUNIT4);
-      if (CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(testOrder) && handler != null) {
-        // use sorter provided when elements are equal (same execution priority)
-        sorter = new Sorter(new FailFastDescriptionComparator(handler).thenComparing(sorter));
-      } else {
-        throw new IllegalArgumentException("Unknown test order: " + testOrder);
-      }
+    public JUnit4TestSorterInstrumentation() {
+        super("ci-visibility", "junit-4", "test-order");
     }
-  }
+
+    @Override
+    public boolean isEnabled() {
+        return super.isEnabled() && Config.get().getCiVisibilityTestOrder() != null;
+    }
+
+    @Override
+    public String hierarchyMarkerType() {
+        return "org.junit.runner.Runner";
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return extendsClass(named(hierarchyMarkerType()))
+                .and(implementsInterface(named("org.junit.runner.manipulation.Sortable")));
+    }
+
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            parentPackageName + ".SkippedByDatadog",
+            parentPackageName + ".TracingListener",
+            parentPackageName + ".JUnit4Utils",
+            parentPackageName + ".TestEventsHandlerHolder",
+            packageName + ".FailFastDescriptionComparator",
+        };
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("sort").and(takesArgument(0, named("org.junit.runner.manipulation.Sorter"))),
+                JUnit4TestSorterInstrumentation.class.getName() + "$SorterAdvice");
+    }
+
+    public static class SorterAdvice {
+        @Advice.OnMethodEnter
+        public static void onOrdering(@Advice.Argument(value = 0, readOnly = false) Sorter sorter) {
+            String testOrder = Config.get().getCiVisibilityTestOrder();
+            TestEventsHandler<TestSuiteDescriptor, TestDescriptor> handler =
+                    TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.JUNIT4);
+            if (CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(testOrder) && handler != null) {
+                // use sorter provided when elements are equal (same execution priority)
+                sorter = new Sorter(new FailFastDescriptionComparator(handler).thenComparing(sorter));
+            } else {
+                throw new IllegalArgumentException("Unknown test order: " + testOrder);
+            }
+        }
+    }
 }

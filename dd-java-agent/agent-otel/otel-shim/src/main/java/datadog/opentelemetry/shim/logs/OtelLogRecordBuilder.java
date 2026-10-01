@@ -24,147 +24,157 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 final class OtelLogRecordBuilder implements LogRecordBuilder {
-  @VisibleForTesting static TimeSource TIME_SOURCE = SystemTimeSource.INSTANCE;
+    @VisibleForTesting
+    static TimeSource TIME_SOURCE = SystemTimeSource.INSTANCE;
 
-  private static final AttributeKey<String> EXCEPTION_TYPE_KEY = stringKey("exception.type");
-  private static final AttributeKey<String> EXCEPTION_MESSAGE_KEY = stringKey("exception.message");
+    private static final AttributeKey<String> EXCEPTION_TYPE_KEY = stringKey("exception.type");
+    private static final AttributeKey<String> EXCEPTION_MESSAGE_KEY = stringKey("exception.message");
 
-  private final OtelLogger logger;
+    private final OtelLogger logger;
 
-  private long timestampNanos;
-  private long observedNanos;
-  private Severity severity = Severity.UNDEFINED_SEVERITY_NUMBER;
-  @Nullable private String severityText;
-  @Nullable private String body;
-  @Nullable private Map<AttributeKey<?>, Object> attributes;
-  @Nullable private Context context;
-  @Nullable private String eventName;
+    private long timestampNanos;
+    private long observedNanos;
+    private Severity severity = Severity.UNDEFINED_SEVERITY_NUMBER;
 
-  private boolean attributesEmitted;
+    @Nullable
+    private String severityText;
 
-  OtelLogRecordBuilder(OtelLogger logger) {
-    this.logger = logger;
-  }
+    @Nullable
+    private String body;
 
-  @Override
-  public LogRecordBuilder setTimestamp(long timestamp, TimeUnit unit) {
-    this.timestampNanos = unit.toNanos(timestamp);
-    return this;
-  }
+    @Nullable
+    private Map<AttributeKey<?>, Object> attributes;
 
-  @Override
-  public LogRecordBuilder setTimestamp(Instant instant) {
-    this.timestampNanos = TimeUnit.SECONDS.toNanos(instant.getEpochSecond()) + instant.getNano();
-    return this;
-  }
+    @Nullable
+    private Context context;
 
-  @Override
-  public LogRecordBuilder setObservedTimestamp(long timestamp, TimeUnit unit) {
-    this.observedNanos = unit.toNanos(timestamp);
-    return this;
-  }
+    @Nullable
+    private String eventName;
 
-  @Override
-  public LogRecordBuilder setObservedTimestamp(Instant instant) {
-    this.observedNanos = TimeUnit.SECONDS.toNanos(instant.getEpochSecond()) + instant.getNano();
-    return this;
-  }
+    private boolean attributesEmitted;
 
-  @Override
-  public LogRecordBuilder setSeverity(Severity severity) {
-    this.severity = Objects.requireNonNull(severity);
-    return this;
-  }
-
-  @Override
-  public LogRecordBuilder setSeverityText(String severityText) {
-    this.severityText = emptyToNull(severityText);
-    return this;
-  }
-
-  @Override
-  public LogRecordBuilder setBody(String body) {
-    this.body = emptyToNull(body);
-    return this;
-  }
-
-  @Override
-  public LogRecordBuilder setBody(Value<?> body) {
-    this.body = body.asString();
-    return this;
-  }
-
-  @Override
-  public <T> LogRecordBuilder setAttribute(@Nullable AttributeKey<T> key, @Nullable T value) {
-    if (key == null || key.getKey().isEmpty()) {
-      return this;
+    OtelLogRecordBuilder(OtelLogger logger) {
+        this.logger = logger;
     }
-    if (attributesEmitted && attributes != null) {
-      // defensive copy if builder used after emit
-      attributes = new HashMap<>(attributes);
-      attributesEmitted = false;
+
+    @Override
+    public LogRecordBuilder setTimestamp(long timestamp, TimeUnit unit) {
+        this.timestampNanos = unit.toNanos(timestamp);
+        return this;
     }
-    if (value != null) {
-      if (attributes == null) {
-        attributes = new HashMap<>();
-      }
-      attributes.put(key, value);
-    } else if (attributes != null) {
-      attributes.remove(key);
+
+    @Override
+    public LogRecordBuilder setTimestamp(Instant instant) {
+        this.timestampNanos = TimeUnit.SECONDS.toNanos(instant.getEpochSecond()) + instant.getNano();
+        return this;
     }
-    return this;
-  }
 
-  @Override
-  public LogRecordBuilder setContext(Context context) {
-    this.context = context;
-    return this;
-  }
-
-  public LogRecordBuilder setEventName(String eventName) {
-    this.eventName = emptyToNull(eventName);
-    return this;
-  }
-
-  public LogRecordBuilder setException(@Nullable Throwable throwable) {
-    if (throwable != null) {
-      setExceptionAttribute(EXCEPTION_TYPE_KEY, throwable.getClass().getName());
-      setExceptionAttribute(EXCEPTION_MESSAGE_KEY, throwable.getMessage());
+    @Override
+    public LogRecordBuilder setObservedTimestamp(long timestamp, TimeUnit unit) {
+        this.observedNanos = unit.toNanos(timestamp);
+        return this;
     }
-    return this;
-  }
 
-  private void setExceptionAttribute(AttributeKey<String> key, @Nullable String value) {
-    // avoid overwriting/removing existing exception details
-    if (value != null && (attributes == null || !attributes.containsKey(key))) {
-      setAttribute(key, value);
+    @Override
+    public LogRecordBuilder setObservedTimestamp(Instant instant) {
+        this.observedNanos = TimeUnit.SECONDS.toNanos(instant.getEpochSecond()) + instant.getNano();
+        return this;
     }
-  }
 
-  @Override
-  public void emit() {
-    if (body == null && eventName == null) {
-      return; // drop log records where body and eventName are both missing
+    @Override
+    public LogRecordBuilder setSeverity(Severity severity) {
+        this.severity = Objects.requireNonNull(severity);
+        return this;
     }
-    Context context = this.context != null ? this.context : Context.current();
-    if (logger.isEnabled(severity, context)) {
-      OtelLogRecordProcessor.INSTANCE.addLog(
-          new OtlpLogRecord(
-              logger.instrumentationScope,
-              timestampNanos,
-              observedNanos != 0 ? observedNanos : TIME_SOURCE.getCurrentTimeNanos(),
-              severity.getSeverityNumber(),
-              severityText,
-              body,
-              attributes != null ? attributes : Collections.emptyMap(),
-              extract(context),
-              eventName));
 
-      attributesEmitted = true;
+    @Override
+    public LogRecordBuilder setSeverityText(String severityText) {
+        this.severityText = emptyToNull(severityText);
+        return this;
     }
-  }
 
-  private static String emptyToNull(@Nullable String value) {
-    return "".equals(value) ? null : value;
-  }
+    @Override
+    public LogRecordBuilder setBody(String body) {
+        this.body = emptyToNull(body);
+        return this;
+    }
+
+    @Override
+    public LogRecordBuilder setBody(Value<?> body) {
+        this.body = body.asString();
+        return this;
+    }
+
+    @Override
+    public <T> LogRecordBuilder setAttribute(@Nullable AttributeKey<T> key, @Nullable T value) {
+        if (key == null || key.getKey().isEmpty()) {
+            return this;
+        }
+        if (attributesEmitted && attributes != null) {
+            // defensive copy if builder used after emit
+            attributes = new HashMap<>(attributes);
+            attributesEmitted = false;
+        }
+        if (value != null) {
+            if (attributes == null) {
+                attributes = new HashMap<>();
+            }
+            attributes.put(key, value);
+        } else if (attributes != null) {
+            attributes.remove(key);
+        }
+        return this;
+    }
+
+    @Override
+    public LogRecordBuilder setContext(Context context) {
+        this.context = context;
+        return this;
+    }
+
+    public LogRecordBuilder setEventName(String eventName) {
+        this.eventName = emptyToNull(eventName);
+        return this;
+    }
+
+    public LogRecordBuilder setException(@Nullable Throwable throwable) {
+        if (throwable != null) {
+            setExceptionAttribute(EXCEPTION_TYPE_KEY, throwable.getClass().getName());
+            setExceptionAttribute(EXCEPTION_MESSAGE_KEY, throwable.getMessage());
+        }
+        return this;
+    }
+
+    private void setExceptionAttribute(AttributeKey<String> key, @Nullable String value) {
+        // avoid overwriting/removing existing exception details
+        if (value != null && (attributes == null || !attributes.containsKey(key))) {
+            setAttribute(key, value);
+        }
+    }
+
+    @Override
+    public void emit() {
+        if (body == null && eventName == null) {
+            return; // drop log records where body and eventName are both missing
+        }
+        Context context = this.context != null ? this.context : Context.current();
+        if (logger.isEnabled(severity, context)) {
+            OtelLogRecordProcessor.INSTANCE.addLog(new OtlpLogRecord(
+                    logger.instrumentationScope,
+                    timestampNanos,
+                    observedNanos != 0 ? observedNanos : TIME_SOURCE.getCurrentTimeNanos(),
+                    severity.getSeverityNumber(),
+                    severityText,
+                    body,
+                    attributes != null ? attributes : Collections.emptyMap(),
+                    extract(context),
+                    eventName));
+
+            attributesEmitted = true;
+        }
+    }
+
+    private static String emptyToNull(@Nullable String value) {
+        return "".equals(value) ? null : value;
+    }
 }

@@ -27,57 +27,54 @@ import org.springframework.beans.factory.support.RootBeanDefinition;
  */
 @AutoService(InstrumenterModule.class)
 public class BeanFactoryInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public BeanFactoryInstrumentation() {
-    super("spring-beans");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "org.springframework.beans.factory.support.AbstractBeanFactory";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("registerBeanDefinition"))
-            .and(
-                takesArgument(1, named("org.springframework.beans.factory.config.BeanDefinition"))),
-        BeanFactoryInstrumentation.class.getName() + "$BeanRegisteringAdvice");
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("resolveBeanClass"))
-            .and(
-                takesArgument(
-                    0, named("org.springframework.beans.factory.support.RootBeanDefinition"))),
-        BeanFactoryInstrumentation.class.getName() + "$BeanResolvingAdvice");
-  }
-
-  public static class BeanRegisteringAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(@Advice.Argument(1) final BeanDefinition beanDefinition) {
-      String className = beanDefinition.getBeanClassName();
-      if (null != className
-          && className.startsWith("datadog.trace.instrumentation.")
-          && beanDefinition instanceof AbstractBeanDefinition
-          && ((AbstractBeanDefinition) beanDefinition).hasBeanClass()) {
-        BeanDefinitionRepairer.register(((AbstractBeanDefinition) beanDefinition).getBeanClass());
-      }
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    public BeanFactoryInstrumentation() {
+        super("spring-beans");
     }
-  }
 
-  public static class BeanResolvingAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(@Advice.Argument(0) final RootBeanDefinition beanDefinition) {
-      if (!beanDefinition.hasBeanClass()) {
-        BeanDefinitionRepairer.repair(beanDefinition);
-      }
+    @Override
+    public String hierarchyMarkerType() {
+        return "org.springframework.beans.factory.support.AbstractBeanFactory";
     }
-  }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return extendsClass(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("registerBeanDefinition"))
+                        .and(takesArgument(1, named("org.springframework.beans.factory.config.BeanDefinition"))),
+                BeanFactoryInstrumentation.class.getName() + "$BeanRegisteringAdvice");
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("resolveBeanClass"))
+                        .and(takesArgument(0, named("org.springframework.beans.factory.support.RootBeanDefinition"))),
+                BeanFactoryInstrumentation.class.getName() + "$BeanResolvingAdvice");
+    }
+
+    public static class BeanRegisteringAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter(@Advice.Argument(1) final BeanDefinition beanDefinition) {
+            String className = beanDefinition.getBeanClassName();
+            if (null != className
+                    && className.startsWith("datadog.trace.instrumentation.")
+                    && beanDefinition instanceof AbstractBeanDefinition
+                    && ((AbstractBeanDefinition) beanDefinition).hasBeanClass()) {
+                BeanDefinitionRepairer.register(((AbstractBeanDefinition) beanDefinition).getBeanClass());
+            }
+        }
+    }
+
+    public static class BeanResolvingAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter(@Advice.Argument(0) final RootBeanDefinition beanDefinition) {
+            if (!beanDefinition.hasBeanClass()) {
+                BeanDefinitionRepairer.repair(beanDefinition);
+            }
+        }
+    }
 }

@@ -23,206 +23,205 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.List;
 
 public final class TracingListener
-    implements ExistsListener,
-        ExistsSequenceListener,
-        ExistsArrayListener,
-        RecordListener,
-        RecordSequenceListener,
-        RecordArrayListener,
-        BatchSequenceListener,
-        BatchListListener,
-        WriteListener,
-        ExecuteListener,
-        DeleteListener {
+        implements ExistsListener,
+                ExistsSequenceListener,
+                ExistsArrayListener,
+                RecordListener,
+                RecordSequenceListener,
+                RecordArrayListener,
+                BatchSequenceListener,
+                BatchListListener,
+                WriteListener,
+                ExecuteListener,
+                DeleteListener {
 
-  protected final AgentSpan clientSpan;
-  protected final ContextContinuation continuation;
-  protected final Object listener;
+    protected final AgentSpan clientSpan;
+    protected final ContextContinuation continuation;
+    protected final Object listener;
 
-  public TracingListener(
-      final AgentSpan clientSpan, final ContextContinuation continuation, final Object listener) {
-    this.clientSpan = clientSpan;
-    this.continuation = continuation;
-    this.listener = listener;
-  }
-
-  @Override
-  public void onExists(final Key key, final boolean exists) {
-    if (listener != null) {
-      ((ExistsSequenceListener) listener).onExists(key, exists);
+    public TracingListener(final AgentSpan clientSpan, final ContextContinuation continuation, final Object listener) {
+        this.clientSpan = clientSpan;
+        this.continuation = continuation;
+        this.listener = listener;
     }
-  }
 
-  @Override
-  public void onRecord(final Key key, final Record record) throws AerospikeException {
-    if (listener != null) {
-      ((RecordSequenceListener) listener).onRecord(key, record);
-    }
-  }
-
-  @Override
-  public void onRecord(final BatchRead record) {
-    if (listener != null) {
-      ((BatchSequenceListener) listener).onRecord(record);
-    }
-  }
-
-  @Override
-  public void onSuccess(final Key key, final boolean exists) {
-    DECORATE.beforeFinish(clientSpan);
-    clientSpan.finish();
-
-    if (listener != null) {
-      try (final ContextScope scope = continuation.resume()) {
-        if (listener instanceof ExistsListener) {
-          ((ExistsListener) listener).onSuccess(key, exists);
-        } else if (listener instanceof DeleteListener) {
-          ((DeleteListener) listener).onSuccess(key, exists);
+    @Override
+    public void onExists(final Key key, final boolean exists) {
+        if (listener != null) {
+            ((ExistsSequenceListener) listener).onExists(key, exists);
         }
-      }
-    } else {
-      continuation.release();
     }
-  }
 
-  @Override
-  public void onSuccess(final Key[] keys, final boolean[] exists) {
-    DECORATE.beforeFinish(clientSpan);
-    clientSpan.finish();
-
-    if (listener != null) {
-      try (final ContextScope scope = continuation.resume()) {
-        ((ExistsArrayListener) listener).onSuccess(keys, exists);
-      }
-    } else {
-      continuation.release();
-    }
-  }
-
-  @Override
-  public void onSuccess(final Key key, final Record record) {
-    DECORATE.beforeFinish(clientSpan);
-    clientSpan.finish();
-
-    if (listener != null) {
-      try (final ContextScope scope = continuation.resume()) {
-        ((RecordListener) listener).onSuccess(key, record);
-      }
-    } else {
-      continuation.release();
-    }
-  }
-
-  @Override
-  public void onSuccess(final Key[] keys, final Record[] records) {
-    DECORATE.beforeFinish(clientSpan);
-    clientSpan.finish();
-
-    if (listener != null) {
-      try (final ContextScope scope = continuation.resume()) {
-        ((RecordArrayListener) listener).onSuccess(keys, records);
-      }
-    } else {
-      continuation.release();
-    }
-  }
-
-  @Override
-  public void onSuccess(final List<BatchRead> records) {
-    DECORATE.beforeFinish(clientSpan);
-    clientSpan.finish();
-
-    if (listener != null) {
-      try (final ContextScope scope = continuation.resume()) {
-        ((BatchListListener) listener).onSuccess(records);
-      }
-    } else {
-      continuation.release();
-    }
-  }
-
-  @Override
-  public void onSuccess(final Key key) {
-    DECORATE.beforeFinish(clientSpan);
-    clientSpan.finish();
-
-    if (listener != null) {
-      try (final ContextScope scope = continuation.resume()) {
-        ((WriteListener) listener).onSuccess(key);
-      }
-    } else {
-      continuation.release();
-    }
-  }
-
-  @Override
-  public void onSuccess(final Key key, final Object obj) {
-    DECORATE.beforeFinish(clientSpan);
-    clientSpan.finish();
-
-    if (listener != null) {
-      try (final ContextScope scope = continuation.resume()) {
-        ((ExecuteListener) listener).onSuccess(key, obj);
-      }
-    } else {
-      continuation.release();
-    }
-  }
-
-  @Override
-  public void onSuccess() {
-    DECORATE.beforeFinish(clientSpan);
-    clientSpan.finish();
-
-    if (listener != null) {
-      try (final ContextScope scope = continuation.resume()) {
-        if (listener instanceof ExistsSequenceListener) {
-          ((ExistsSequenceListener) listener).onSuccess();
-        } else if (listener instanceof RecordSequenceListener) {
-          ((RecordSequenceListener) listener).onSuccess();
-        } else if (listener instanceof BatchSequenceListener) {
-          ((BatchSequenceListener) listener).onSuccess();
+    @Override
+    public void onRecord(final Key key, final Record record) throws AerospikeException {
+        if (listener != null) {
+            ((RecordSequenceListener) listener).onRecord(key, record);
         }
-      }
-    } else {
-      continuation.release();
     }
-  }
 
-  @Override
-  public void onFailure(final AerospikeException error) {
-    DECORATE.onError(clientSpan, error);
-    DECORATE.beforeFinish(clientSpan);
-    clientSpan.finish();
-
-    if (listener != null) {
-      try (final ContextScope scope = continuation.resume()) {
-        if (listener instanceof ExistsListener) {
-          ((ExistsListener) listener).onFailure(error);
-        } else if (listener instanceof ExistsSequenceListener) {
-          ((ExistsSequenceListener) listener).onFailure(error);
-        } else if (listener instanceof ExistsArrayListener) {
-          ((ExistsArrayListener) listener).onFailure(error);
-        } else if (listener instanceof RecordListener) {
-          ((RecordListener) listener).onFailure(error);
-        } else if (listener instanceof RecordSequenceListener) {
-          ((RecordSequenceListener) listener).onFailure(error);
-        } else if (listener instanceof RecordArrayListener) {
-          ((RecordArrayListener) listener).onFailure(error);
-        } else if (listener instanceof BatchSequenceListener) {
-          ((BatchSequenceListener) listener).onFailure(error);
-        } else if (listener instanceof BatchListListener) {
-          ((BatchListListener) listener).onFailure(error);
-        } else if (listener instanceof WriteListener) {
-          ((WriteListener) listener).onFailure(error);
-        } else if (listener instanceof ExecuteListener) {
-          ((ExecuteListener) listener).onFailure(error);
-        } else if (listener instanceof DeleteListener) {
-          ((DeleteListener) listener).onFailure(error);
+    @Override
+    public void onRecord(final BatchRead record) {
+        if (listener != null) {
+            ((BatchSequenceListener) listener).onRecord(record);
         }
-      }
-    } else {
-      continuation.release();
     }
-  }
+
+    @Override
+    public void onSuccess(final Key key, final boolean exists) {
+        DECORATE.beforeFinish(clientSpan);
+        clientSpan.finish();
+
+        if (listener != null) {
+            try (final ContextScope scope = continuation.resume()) {
+                if (listener instanceof ExistsListener) {
+                    ((ExistsListener) listener).onSuccess(key, exists);
+                } else if (listener instanceof DeleteListener) {
+                    ((DeleteListener) listener).onSuccess(key, exists);
+                }
+            }
+        } else {
+            continuation.release();
+        }
+    }
+
+    @Override
+    public void onSuccess(final Key[] keys, final boolean[] exists) {
+        DECORATE.beforeFinish(clientSpan);
+        clientSpan.finish();
+
+        if (listener != null) {
+            try (final ContextScope scope = continuation.resume()) {
+                ((ExistsArrayListener) listener).onSuccess(keys, exists);
+            }
+        } else {
+            continuation.release();
+        }
+    }
+
+    @Override
+    public void onSuccess(final Key key, final Record record) {
+        DECORATE.beforeFinish(clientSpan);
+        clientSpan.finish();
+
+        if (listener != null) {
+            try (final ContextScope scope = continuation.resume()) {
+                ((RecordListener) listener).onSuccess(key, record);
+            }
+        } else {
+            continuation.release();
+        }
+    }
+
+    @Override
+    public void onSuccess(final Key[] keys, final Record[] records) {
+        DECORATE.beforeFinish(clientSpan);
+        clientSpan.finish();
+
+        if (listener != null) {
+            try (final ContextScope scope = continuation.resume()) {
+                ((RecordArrayListener) listener).onSuccess(keys, records);
+            }
+        } else {
+            continuation.release();
+        }
+    }
+
+    @Override
+    public void onSuccess(final List<BatchRead> records) {
+        DECORATE.beforeFinish(clientSpan);
+        clientSpan.finish();
+
+        if (listener != null) {
+            try (final ContextScope scope = continuation.resume()) {
+                ((BatchListListener) listener).onSuccess(records);
+            }
+        } else {
+            continuation.release();
+        }
+    }
+
+    @Override
+    public void onSuccess(final Key key) {
+        DECORATE.beforeFinish(clientSpan);
+        clientSpan.finish();
+
+        if (listener != null) {
+            try (final ContextScope scope = continuation.resume()) {
+                ((WriteListener) listener).onSuccess(key);
+            }
+        } else {
+            continuation.release();
+        }
+    }
+
+    @Override
+    public void onSuccess(final Key key, final Object obj) {
+        DECORATE.beforeFinish(clientSpan);
+        clientSpan.finish();
+
+        if (listener != null) {
+            try (final ContextScope scope = continuation.resume()) {
+                ((ExecuteListener) listener).onSuccess(key, obj);
+            }
+        } else {
+            continuation.release();
+        }
+    }
+
+    @Override
+    public void onSuccess() {
+        DECORATE.beforeFinish(clientSpan);
+        clientSpan.finish();
+
+        if (listener != null) {
+            try (final ContextScope scope = continuation.resume()) {
+                if (listener instanceof ExistsSequenceListener) {
+                    ((ExistsSequenceListener) listener).onSuccess();
+                } else if (listener instanceof RecordSequenceListener) {
+                    ((RecordSequenceListener) listener).onSuccess();
+                } else if (listener instanceof BatchSequenceListener) {
+                    ((BatchSequenceListener) listener).onSuccess();
+                }
+            }
+        } else {
+            continuation.release();
+        }
+    }
+
+    @Override
+    public void onFailure(final AerospikeException error) {
+        DECORATE.onError(clientSpan, error);
+        DECORATE.beforeFinish(clientSpan);
+        clientSpan.finish();
+
+        if (listener != null) {
+            try (final ContextScope scope = continuation.resume()) {
+                if (listener instanceof ExistsListener) {
+                    ((ExistsListener) listener).onFailure(error);
+                } else if (listener instanceof ExistsSequenceListener) {
+                    ((ExistsSequenceListener) listener).onFailure(error);
+                } else if (listener instanceof ExistsArrayListener) {
+                    ((ExistsArrayListener) listener).onFailure(error);
+                } else if (listener instanceof RecordListener) {
+                    ((RecordListener) listener).onFailure(error);
+                } else if (listener instanceof RecordSequenceListener) {
+                    ((RecordSequenceListener) listener).onFailure(error);
+                } else if (listener instanceof RecordArrayListener) {
+                    ((RecordArrayListener) listener).onFailure(error);
+                } else if (listener instanceof BatchSequenceListener) {
+                    ((BatchSequenceListener) listener).onFailure(error);
+                } else if (listener instanceof BatchListListener) {
+                    ((BatchListListener) listener).onFailure(error);
+                } else if (listener instanceof WriteListener) {
+                    ((WriteListener) listener).onFailure(error);
+                } else if (listener instanceof ExecuteListener) {
+                    ((ExecuteListener) listener).onFailure(error);
+                } else if (listener instanceof DeleteListener) {
+                    ((DeleteListener) listener).onFailure(error);
+                }
+            }
+        } else {
+            continuation.release();
+        }
+    }
 }

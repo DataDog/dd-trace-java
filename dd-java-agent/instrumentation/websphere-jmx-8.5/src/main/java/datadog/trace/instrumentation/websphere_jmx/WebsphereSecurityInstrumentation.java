@@ -18,45 +18,45 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class WebsphereSecurityInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  private final String customBuilder;
+    private final String customBuilder;
 
-  public WebsphereSecurityInstrumentation() {
-    super("websphere-jmx");
+    public WebsphereSecurityInstrumentation() {
+        super("websphere-jmx");
 
-    customBuilder = SystemProperties.get("javax.management.builder.initial");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "com.ibm.ws.management.util.SecurityHelper";
-  }
-
-  @Override
-  public boolean isEnabled() {
-    return super.isEnabled()
-        && "com.ibm.ws.management.PlatformMBeanServerBuilder".equals(customBuilder)
-        // we must avoid loading the global Config while setting up instrumentation, so use the same
-        // underlying provider call as Config.get().isJmxFetchIntegrationEnabled("websphere", false)
-        && ConfigProvider.getInstance()
-            .isEnabled(Collections.singletonList("websphere"), "jmxfetch.", ".enabled", false);
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("isSecurityEnabled")).and(returns(boolean.class)),
-        this.getClass().getName() + "$DisableSecurityAdvice");
-  }
-
-  public static class DisableSecurityAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void after(@Advice.Return(readOnly = false) boolean securityEnabled) {
-      // only grant access when we know the call is coming from one of our agent threads
-      if (AgentThreadFactory.AGENT_THREAD_GROUP == Thread.currentThread().getThreadGroup()) {
-        securityEnabled = false;
-      }
+        customBuilder = SystemProperties.get("javax.management.builder.initial");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "com.ibm.ws.management.util.SecurityHelper";
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return super.isEnabled()
+                && "com.ibm.ws.management.PlatformMBeanServerBuilder".equals(customBuilder)
+                // we must avoid loading the global Config while setting up instrumentation, so use the same
+                // underlying provider call as Config.get().isJmxFetchIntegrationEnabled("websphere", false)
+                && ConfigProvider.getInstance()
+                        .isEnabled(Collections.singletonList("websphere"), "jmxfetch.", ".enabled", false);
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("isSecurityEnabled")).and(returns(boolean.class)),
+                this.getClass().getName() + "$DisableSecurityAdvice");
+    }
+
+    public static class DisableSecurityAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void after(@Advice.Return(readOnly = false) boolean securityEnabled) {
+            // only grant access when we know the call is coming from one of our agent threads
+            if (AgentThreadFactory.AGENT_THREAD_GROUP == Thread.currentThread().getThreadGroup()) {
+                securityEnabled = false;
+            }
+        }
+    }
 }

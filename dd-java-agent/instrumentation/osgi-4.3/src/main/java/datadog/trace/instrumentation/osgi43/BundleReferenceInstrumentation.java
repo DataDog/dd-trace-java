@@ -23,162 +23,156 @@ import org.osgi.framework.BundleReference;
 
 @AutoService(InstrumenterModule.class)
 public final class BundleReferenceInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public BundleReferenceInstrumentation() {
-    super("classloading", "osgi");
-  }
-
-  @Override
-  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    // Avoid matching older versions of OSGi that don't have the wiring API.
-    return hasClassNamed("org.osgi.framework.wiring.BundleWiring");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "org.osgi.framework.BundleReference";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named("java.lang.ClassLoader"))
-        .and(implementsInterface(named(hierarchyMarkerType())));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("getResource"))
-            .and(takesArguments(1).and(takesArgument(0, String.class))),
-        BundleReferenceInstrumentation.class.getName() + "$WidenGetResourceAdvice");
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("getResourceAsStream"))
-            .and(takesArguments(1).and(takesArgument(0, String.class))),
-        BundleReferenceInstrumentation.class.getName() + "$WidenGetResourceAsStreamAdvice");
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("loadClass"))
-            .and(
-                takesArguments(1)
-                    .and(takesArgument(0, String.class))
-                    .or(
-                        takesArguments(2)
-                            .and(takesArgument(0, String.class))
-                            .and(takesArgument(1, boolean.class)))),
-        BundleReferenceInstrumentation.class.getName() + "$WidenLoadClassAdvice");
-  }
-
-  /**
-   * Bypass local visibility rules by repeating failed requests from bundles wired as dependencies.
-   * Also supports light probing of class-loaders without triggering further resolution of bundles.
-   *
-   * <p>We only do this for agent requests that require this additional visibility.
-   */
-  public static class WidenGetResourceAdvice {
-    @Advice.OnMethodEnter(skipOn = Advice.OnNonDefaultValue.class, suppress = Throwable.class)
-    public static Object onEnter(
-        @Advice.This final BundleReference thiz, @Advice.Argument(0) final String name) {
-      AgentClassLoading requestType = AgentClassLoading.type();
-      // avoid probing "java/..." class resources, use standard lookup for them
-      if (PROBING_CLASSLOADER == requestType && !name.startsWith("java/")) {
-        return BundleWiringHelper.probeResource(thiz.getBundle(), name);
-      }
-      return null;
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    public BundleReferenceInstrumentation() {
+        super("classloading", "osgi");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void onExit(
-        @Advice.This final BundleReference thiz,
-        @Advice.Argument(0) final String name,
-        @Advice.Return(readOnly = false) URL result,
-        @Advice.Thrown(readOnly = false) Throwable error,
-        @Advice.Enter final Object resultFromProbe) {
-      if (null != resultFromProbe) {
-        if (resultFromProbe instanceof URL) {
-          result = (URL) resultFromProbe;
-        } else {
-          // probe returned SKIP_REQUEST
-        }
-      } else if (null == result) {
-        AgentClassLoading requestType = AgentClassLoading.type();
-        if (null != requestType) {
-          requestType.end(); // avoid looping back into our advice
-          try {
-            // widen search by peeking inside bundle wiring
-            result = BundleWiringHelper.getResource(thiz.getBundle(), name);
-            if (null != result) {
-              error = null; // clear any error from original call
+    @Override
+    public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+        // Avoid matching older versions of OSGi that don't have the wiring API.
+        return hasClassNamed("org.osgi.framework.wiring.BundleWiring");
+    }
+
+    @Override
+    public String hierarchyMarkerType() {
+        return "org.osgi.framework.BundleReference";
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return extendsClass(named("java.lang.ClassLoader")).and(implementsInterface(named(hierarchyMarkerType())));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("getResource")).and(takesArguments(1).and(takesArgument(0, String.class))),
+                BundleReferenceInstrumentation.class.getName() + "$WidenGetResourceAdvice");
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("getResourceAsStream"))
+                        .and(takesArguments(1).and(takesArgument(0, String.class))),
+                BundleReferenceInstrumentation.class.getName() + "$WidenGetResourceAsStreamAdvice");
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("loadClass"))
+                        .and(takesArguments(1)
+                                .and(takesArgument(0, String.class))
+                                .or(takesArguments(2)
+                                        .and(takesArgument(0, String.class))
+                                        .and(takesArgument(1, boolean.class)))),
+                BundleReferenceInstrumentation.class.getName() + "$WidenLoadClassAdvice");
+    }
+
+    /**
+     * Bypass local visibility rules by repeating failed requests from bundles wired as dependencies.
+     * Also supports light probing of class-loaders without triggering further resolution of bundles.
+     *
+     * <p>We only do this for agent requests that require this additional visibility.
+     */
+    public static class WidenGetResourceAdvice {
+        @Advice.OnMethodEnter(skipOn = Advice.OnNonDefaultValue.class, suppress = Throwable.class)
+        public static Object onEnter(@Advice.This final BundleReference thiz, @Advice.Argument(0) final String name) {
+            AgentClassLoading requestType = AgentClassLoading.type();
+            // avoid probing "java/..." class resources, use standard lookup for them
+            if (PROBING_CLASSLOADER == requestType && !name.startsWith("java/")) {
+                return BundleWiringHelper.probeResource(thiz.getBundle(), name);
             }
-          } finally {
-            requestType.begin();
-          }
+            return null;
         }
-      }
-    }
-  }
 
-  /**
-   * Bypass local visibility rules by repeating failed requests from bundles wired as dependencies.
-   *
-   * <p>We only do this for agent requests that require this additional visibility.
-   */
-  public static class WidenGetResourceAsStreamAdvice {
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void onExit(
-        @Advice.This final BundleReference thiz,
-        @Advice.Argument(0) final String name,
-        @Advice.Return(readOnly = false) InputStream result,
-        @Advice.Thrown(readOnly = false) Throwable error) {
-      if (null == result) {
-        AgentClassLoading requestType = AgentClassLoading.type();
-        if (null != requestType) {
-          requestType.end(); // avoid looping back into our advice
-          try {
-            // widen search by peeking inside bundle wiring
-            URL resource = BundleWiringHelper.getResource(thiz.getBundle(), name);
-            if (null != resource) {
-              result = resource.openStream();
-              error = null; // clear any error from original call
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void onExit(
+                @Advice.This final BundleReference thiz,
+                @Advice.Argument(0) final String name,
+                @Advice.Return(readOnly = false) URL result,
+                @Advice.Thrown(readOnly = false) Throwable error,
+                @Advice.Enter final Object resultFromProbe) {
+            if (null != resultFromProbe) {
+                if (resultFromProbe instanceof URL) {
+                    result = (URL) resultFromProbe;
+                } else {
+                    // probe returned SKIP_REQUEST
+                }
+            } else if (null == result) {
+                AgentClassLoading requestType = AgentClassLoading.type();
+                if (null != requestType) {
+                    requestType.end(); // avoid looping back into our advice
+                    try {
+                        // widen search by peeking inside bundle wiring
+                        result = BundleWiringHelper.getResource(thiz.getBundle(), name);
+                        if (null != result) {
+                            error = null; // clear any error from original call
+                        }
+                    } finally {
+                        requestType.begin();
+                    }
+                }
             }
-          } catch (IOException e) {
-            // ignore missing resource
-          } finally {
-            requestType.begin();
-          }
         }
-      }
     }
-  }
 
-  /**
-   * Bypass local visibility rules by repeating failed requests from bundles wired as dependencies.
-   *
-   * <p>We only do this for agent requests that require this additional visibility.
-   */
-  public static class WidenLoadClassAdvice {
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void onExit(
-        @Advice.This final BundleReference thiz,
-        @Advice.Argument(0) final String name,
-        @Advice.Return(readOnly = false) Class<?> result,
-        @Advice.Thrown(readOnly = false) Throwable error) {
-      if (null == result) {
-        AgentClassLoading requestType = AgentClassLoading.type();
-        if (null != requestType) {
-          requestType.end(); // avoid looping back into our advice
-          try {
-            // widen search by peeking inside bundle wiring
-            result = BundleWiringHelper.loadClass(thiz.getBundle(), name);
-            if (null != result) {
-              error = null; // clear any error from original call
+    /**
+     * Bypass local visibility rules by repeating failed requests from bundles wired as dependencies.
+     *
+     * <p>We only do this for agent requests that require this additional visibility.
+     */
+    public static class WidenGetResourceAsStreamAdvice {
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void onExit(
+                @Advice.This final BundleReference thiz,
+                @Advice.Argument(0) final String name,
+                @Advice.Return(readOnly = false) InputStream result,
+                @Advice.Thrown(readOnly = false) Throwable error) {
+            if (null == result) {
+                AgentClassLoading requestType = AgentClassLoading.type();
+                if (null != requestType) {
+                    requestType.end(); // avoid looping back into our advice
+                    try {
+                        // widen search by peeking inside bundle wiring
+                        URL resource = BundleWiringHelper.getResource(thiz.getBundle(), name);
+                        if (null != resource) {
+                            result = resource.openStream();
+                            error = null; // clear any error from original call
+                        }
+                    } catch (IOException e) {
+                        // ignore missing resource
+                    } finally {
+                        requestType.begin();
+                    }
+                }
             }
-          } finally {
-            requestType.begin();
-          }
         }
-      }
     }
-  }
+
+    /**
+     * Bypass local visibility rules by repeating failed requests from bundles wired as dependencies.
+     *
+     * <p>We only do this for agent requests that require this additional visibility.
+     */
+    public static class WidenLoadClassAdvice {
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void onExit(
+                @Advice.This final BundleReference thiz,
+                @Advice.Argument(0) final String name,
+                @Advice.Return(readOnly = false) Class<?> result,
+                @Advice.Thrown(readOnly = false) Throwable error) {
+            if (null == result) {
+                AgentClassLoading requestType = AgentClassLoading.type();
+                if (null != requestType) {
+                    requestType.end(); // avoid looping back into our advice
+                    try {
+                        // widen search by peeking inside bundle wiring
+                        result = BundleWiringHelper.loadClass(thiz.getBundle(), name);
+                        if (null != result) {
+                            error = null; // clear any error from original call
+                        }
+                    } finally {
+                        requestType.begin();
+                    }
+                }
+            }
+        }
+    }
 }

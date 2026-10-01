@@ -27,77 +27,75 @@ import org.elasticsearch.action.ActionType;
 /** This class is identical to version 6's instrumentation, except Action is now ActionType. */
 @AutoService(InstrumenterModule.class)
 public class Elasticsearch73TransportClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public Elasticsearch73TransportClientInstrumentation() {
-    super("elasticsearch", "elasticsearch-transport", "elasticsearch-transport-7");
-  }
-
-  @Override
-  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    // Avoid matching pre-ES7 releases which have their own instrumentations.
-    return hasClassNamed("org.elasticsearch.action.ActionType");
-  }
-
-  @Override
-  public String instrumentedType() {
-    // If we want to be more generic, we could instrument the interface instead:
-    // .and(safeHasSuperType(named("org.elasticsearch.client.ElasticsearchClient"))))
-    return "org.elasticsearch.client.support.AbstractClient";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.elasticsearch.ElasticsearchTransportClientDecorator",
-      packageName + ".TransportActionListener",
-    };
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("execute"))
-            .and(takesArguments(3))
-            .and(takesArgument(0, named("org.elasticsearch.action.ActionType")))
-            .and(takesArgument(1, named("org.elasticsearch.action.ActionRequest")))
-            .and(takesArgument(2, named("org.elasticsearch.action.ActionListener"))),
-        Elasticsearch73TransportClientInstrumentation.class.getName()
-            + "$Elasticsearch73TransportClientAdvice");
-  }
-
-  public static class Elasticsearch73TransportClientAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onEnter(
-        @Advice.Argument(0) final ActionType action,
-        @Advice.Argument(1) final ActionRequest actionRequest,
-        @Advice.Argument(value = 2, readOnly = false)
-            ActionListener<ActionResponse> actionListener) {
-
-      final AgentSpan span = startSpan(ELASTICSEARCH_JAVA.toString(), OPERATION_NAME);
-      DECORATE.afterStart(span);
-      DECORATE.onRequest(span, action.getClass(), actionRequest.getClass());
-
-      actionListener = new TransportActionListener<>(actionRequest, actionListener, span);
-
-      return activateSpan(span);
+    public Elasticsearch73TransportClientInstrumentation() {
+        super("elasticsearch", "elasticsearch-transport", "elasticsearch-transport-7");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
-      if (throwable != null) {
-        final AgentSpan span = spanFromScope(scope);
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-        scope.close();
-        span.finish();
-      } else {
-        scope.close();
-      }
-      // span finished by TransportActionListener
+    @Override
+    public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+        // Avoid matching pre-ES7 releases which have their own instrumentations.
+        return hasClassNamed("org.elasticsearch.action.ActionType");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        // If we want to be more generic, we could instrument the interface instead:
+        // .and(safeHasSuperType(named("org.elasticsearch.client.ElasticsearchClient"))))
+        return "org.elasticsearch.client.support.AbstractClient";
+    }
+
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            "datadog.trace.instrumentation.elasticsearch.ElasticsearchTransportClientDecorator",
+            packageName + ".TransportActionListener",
+        };
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("execute"))
+                        .and(takesArguments(3))
+                        .and(takesArgument(0, named("org.elasticsearch.action.ActionType")))
+                        .and(takesArgument(1, named("org.elasticsearch.action.ActionRequest")))
+                        .and(takesArgument(2, named("org.elasticsearch.action.ActionListener"))),
+                Elasticsearch73TransportClientInstrumentation.class.getName()
+                        + "$Elasticsearch73TransportClientAdvice");
+    }
+
+    public static class Elasticsearch73TransportClientAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope onEnter(
+                @Advice.Argument(0) final ActionType action,
+                @Advice.Argument(1) final ActionRequest actionRequest,
+                @Advice.Argument(value = 2, readOnly = false) ActionListener<ActionResponse> actionListener) {
+
+            final AgentSpan span = startSpan(ELASTICSEARCH_JAVA.toString(), OPERATION_NAME);
+            DECORATE.afterStart(span);
+            DECORATE.onRequest(span, action.getClass(), actionRequest.getClass());
+
+            actionListener = new TransportActionListener<>(actionRequest, actionListener, span);
+
+            return activateSpan(span);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void stopSpan(@Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+            if (throwable != null) {
+                final AgentSpan span = spanFromScope(scope);
+                DECORATE.onError(span, throwable);
+                DECORATE.beforeFinish(span);
+                scope.close();
+                span.finish();
+            } else {
+                scope.close();
+            }
+            // span finished by TransportActionListener
+        }
+    }
 }

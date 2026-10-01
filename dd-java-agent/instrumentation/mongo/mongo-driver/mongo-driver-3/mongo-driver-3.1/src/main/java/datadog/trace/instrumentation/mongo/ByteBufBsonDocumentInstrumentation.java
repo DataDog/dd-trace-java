@@ -19,48 +19,45 @@ import org.bson.ByteBuf;
 
 @AutoService(InstrumenterModule.class)
 public class ByteBufBsonDocumentInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType,
-        Instrumenter.WithTypeStructure,
-        Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.WithTypeStructure, Instrumenter.HasMethodAdvice {
 
-  public ByteBufBsonDocumentInstrumentation() {
-    super("mongo");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "com.mongodb.connection.ByteBufBsonDocument";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> structureMatcher() {
-    return declaresField(named("byteBuf"));
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("org.bson.BsonDocument", "org.bson.ByteBuf");
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "driver-only";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), getClass().getName() + "$ExposeBuffer");
-  }
-
-  public static final class ExposeBuffer {
-    @Advice.OnMethodExit
-    public static void exposeBuffer(
-        @Advice.This BsonDocument doc, @Advice.FieldValue("byteBuf") ByteBuf byteBuf) {
-      InstrumentationContext.get(BsonDocument.class, ByteBuf.class).put(doc, byteBuf);
+    public ByteBufBsonDocumentInstrumentation() {
+        super("mongo");
     }
 
-    public static void muzzleCheck() {
-      MongoClientOptions.builder().addCommandListener(null).build();
+    @Override
+    public String instrumentedType() {
+        return "com.mongodb.connection.ByteBufBsonDocument";
     }
-  }
+
+    @Override
+    public ElementMatcher<TypeDescription> structureMatcher() {
+        return declaresField(named("byteBuf"));
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("org.bson.BsonDocument", "org.bson.ByteBuf");
+    }
+
+    @Override
+    public String muzzleDirective() {
+        return "driver-only";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor(), getClass().getName() + "$ExposeBuffer");
+    }
+
+    public static final class ExposeBuffer {
+        @Advice.OnMethodExit
+        public static void exposeBuffer(@Advice.This BsonDocument doc, @Advice.FieldValue("byteBuf") ByteBuf byteBuf) {
+            InstrumentationContext.get(BsonDocument.class, ByteBuf.class).put(doc, byteBuf);
+        }
+
+        public static void muzzleCheck() {
+            MongoClientOptions.builder().addCommandListener(null).build();
+        }
+    }
 }

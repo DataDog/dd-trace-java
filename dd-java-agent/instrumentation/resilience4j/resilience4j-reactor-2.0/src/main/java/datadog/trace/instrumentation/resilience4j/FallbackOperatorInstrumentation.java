@@ -13,41 +13,36 @@ import java.util.function.Function;
 import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Publisher;
 
-public class FallbackOperatorInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+public class FallbackOperatorInstrumentation implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String instrumentedType() {
-    return "io.github.resilience4j.reactor.ReactorOperatorFallbackDecorator";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("decorate"))
-            .and(
-                takesArgument(0, named("java.util.function.UnaryOperator"))
-                    .and(returns(named("java.util.function.Function")))),
-        FallbackOperatorInstrumentation.class.getName() + "$DecorateAdvice");
-  }
-
-  public static class DecorateAdvice {
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void after(
-        @Advice.Return(readOnly = false) Function<Publisher<?>, Publisher<?>> result) {
-
-      result =
-          ReactorHelper.wrapFunction(
-              result,
-              ReactorHelper.putIfAbsentInto(
-                  InstrumentationContext.get(Publisher.class, HandoffContext.class)));
+    @Override
+    public String instrumentedType() {
+        return "io.github.resilience4j.reactor.ReactorOperatorFallbackDecorator";
     }
 
-    // 2.0.0+
-    public static void muzzleCheck(CheckedSupplier<?> cs) throws Throwable {
-      cs.get();
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("decorate"))
+                        .and(takesArgument(0, named("java.util.function.UnaryOperator"))
+                                .and(returns(named("java.util.function.Function")))),
+                FallbackOperatorInstrumentation.class.getName() + "$DecorateAdvice");
     }
-  }
+
+    public static class DecorateAdvice {
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void after(@Advice.Return(readOnly = false) Function<Publisher<?>, Publisher<?>> result) {
+
+            result = ReactorHelper.wrapFunction(
+                    result,
+                    ReactorHelper.putIfAbsentInto(InstrumentationContext.get(Publisher.class, HandoffContext.class)));
+        }
+
+        // 2.0.0+
+        public static void muzzleCheck(CheckedSupplier<?> cs) throws Throwable {
+            cs.get();
+        }
+    }
 }

@@ -11,23 +11,23 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(InstrumenterModule.class)
 public class HttpServerResponseEndHandlerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public HttpServerResponseEndHandlerInstrumentation() {
-    super("vertx", "vertx-3.4");
-  }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public HttpServerResponseEndHandlerInstrumentation() {
+        super("vertx", "vertx-3.4");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "io.vertx.core.http.impl.HttpServerResponseImpl";
-  }
+    @Override
+    public String instrumentedType() {
+        return "io.vertx.core.http.impl.HttpServerResponseImpl";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("endHandler"))
-            .and(isPublic())
-            .and(takesArgument(0, named("io.vertx.core.Handler"))),
-        packageName + ".EndHandlerWrapperAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("endHandler"))
+                        .and(isPublic())
+                        .and(takesArgument(0, named("io.vertx.core.Handler"))),
+                packageName + ".EndHandlerWrapperAdvice");
+    }
 }

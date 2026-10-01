@@ -21,68 +21,63 @@ import net.bytebuddy.asm.Advice;
 @RequiresRequestContext(RequestContextSlot.APPSEC)
 class RoutingContextFilenamesAdvice {
 
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  static int before() {
-    return CallDepthThreadLocalMap.incrementCallDepth(FileUpload.class);
-  }
-
-  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  static void after(
-      @Advice.Enter int depth,
-      @Advice.Return Collection<FileUpload> uploads,
-      @ActiveRequestContext RequestContext reqCtx,
-      @Advice.Thrown(readOnly = false) Throwable throwable) {
-    CallDepthThreadLocalMap.decrementCallDepth(FileUpload.class);
-    if (depth != 0 || throwable != null || uploads == null || uploads.isEmpty()) {
-      return;
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    static int before() {
+        return CallDepthThreadLocalMap.incrementCallDepth(FileUpload.class);
     }
 
-    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-    BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb =
-        cbp.getCallback(EVENTS.requestFilesFilenames());
-    BiFunction<RequestContext, List<String>, Flow<Void>> contentCb =
-        cbp.getCallback(EVENTS.requestFilesContent());
-    if (filenamesCb == null && contentCb == null) {
-      return;
-    }
-
-    int maxFiles = Config.get().getAppSecMaxFileContentCount();
-    int maxBytes = Config.get().getAppSecMaxFileContentBytes();
-    List<String> filenames = null;
-    List<String> filesContent = null;
-
-    for (FileUpload upload : uploads) {
-      String name = upload.fileName();
-      if (filenamesCb != null && name != null && !name.isEmpty()) {
-        if (filenames == null) {
-          filenames = new ArrayList<>();
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    static void after(
+            @Advice.Enter int depth,
+            @Advice.Return Collection<FileUpload> uploads,
+            @ActiveRequestContext RequestContext reqCtx,
+            @Advice.Thrown(readOnly = false) Throwable throwable) {
+        CallDepthThreadLocalMap.decrementCallDepth(FileUpload.class);
+        if (depth != 0 || throwable != null || uploads == null || uploads.isEmpty()) {
+            return;
         }
-        filenames.add(name);
-      }
-      if (contentCb != null
-          && maxFiles > 0
-          && (filesContent == null || filesContent.size() < maxFiles)) {
-        if (filesContent == null) {
-          filesContent = new ArrayList<>();
+
+        CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+        BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb =
+                cbp.getCallback(EVENTS.requestFilesFilenames());
+        BiFunction<RequestContext, List<String>, Flow<Void>> contentCb = cbp.getCallback(EVENTS.requestFilesContent());
+        if (filenamesCb == null && contentCb == null) {
+            return;
         }
-        filesContent.add(FileUploadHelper.readUploadContent(upload, maxBytes));
-      }
-    }
 
-    if (filenamesCb != null && filenames != null) {
-      throwable =
-          FileUploadHelper.commitBlockingResponse(
-              filenamesCb, reqCtx, filenames, "Blocked request (multipart file upload)");
-    }
+        int maxFiles = Config.get().getAppSecMaxFileContentCount();
+        int maxBytes = Config.get().getAppSecMaxFileContentBytes();
+        List<String> filenames = null;
+        List<String> filesContent = null;
 
-    if (throwable != null) {
-      return;
-    }
+        for (FileUpload upload : uploads) {
+            String name = upload.fileName();
+            if (filenamesCb != null && name != null && !name.isEmpty()) {
+                if (filenames == null) {
+                    filenames = new ArrayList<>();
+                }
+                filenames.add(name);
+            }
+            if (contentCb != null && maxFiles > 0 && (filesContent == null || filesContent.size() < maxFiles)) {
+                if (filesContent == null) {
+                    filesContent = new ArrayList<>();
+                }
+                filesContent.add(FileUploadHelper.readUploadContent(upload, maxBytes));
+            }
+        }
 
-    if (contentCb != null && filesContent != null) {
-      throwable =
-          FileUploadHelper.commitBlockingResponse(
-              contentCb, reqCtx, filesContent, "Blocked request (file content)");
+        if (filenamesCb != null && filenames != null) {
+            throwable = FileUploadHelper.commitBlockingResponse(
+                    filenamesCb, reqCtx, filenames, "Blocked request (multipart file upload)");
+        }
+
+        if (throwable != null) {
+            return;
+        }
+
+        if (contentCb != null && filesContent != null) {
+            throwable = FileUploadHelper.commitBlockingResponse(
+                    contentCb, reqCtx, filesContent, "Blocked request (file content)");
+        }
     }
-  }
 }

@@ -24,117 +24,117 @@ import org.slf4j.LoggerFactory;
  * trigger {@link java.lang.instrument.Instrumentation#retransformClasses(Class[])} on them
  */
 public class SourceFileTrackingTransformer implements ClassFileTransformer {
-  private static final Logger LOGGER = LoggerFactory.getLogger(SourceFileTrackingTransformer.class);
-  static final int MAX_QUEUE_SIZE = 16 * 1024;
+    private static final Logger LOGGER = LoggerFactory.getLogger(SourceFileTrackingTransformer.class);
+    static final int MAX_QUEUE_SIZE = 16 * 1024;
 
-  private final ClassesToRetransformFinder finder;
-  private final Queue<SourceFileItem> queue = new ConcurrentLinkedQueue<>();
-  private final AgentTaskScheduler scheduler = AgentTaskScheduler.get();
-  private final AtomicInteger queueSize = new AtomicInteger(0);
-  private AgentTaskScheduler.Scheduled<Runnable> scheduled;
-  // this field MUST only be used in flush() calling thread
-  protected ClassNameFiltering classNameFilter;
+    private final ClassesToRetransformFinder finder;
+    private final Queue<SourceFileItem> queue = new ConcurrentLinkedQueue<>();
+    private final AgentTaskScheduler scheduler = AgentTaskScheduler.get();
+    private final AtomicInteger queueSize = new AtomicInteger(0);
+    private AgentTaskScheduler.Scheduled<Runnable> scheduled;
+    // this field MUST only be used in flush() calling thread
+    protected ClassNameFiltering classNameFilter;
 
-  public SourceFileTrackingTransformer(ClassesToRetransformFinder finder) {
-    this.finder = finder;
-  }
-
-  public void start() {
-    scheduled = scheduler.scheduleAtFixedRate(this::flush, 0, 1, TimeUnit.SECONDS);
-  }
-
-  public void stop() {
-    if (scheduled != null) {
-      scheduled.cancel();
+    public SourceFileTrackingTransformer(ClassesToRetransformFinder finder) {
+        this.finder = finder;
     }
-  }
 
-  void flush() {
-    if (classNameFilter == null) {
-      // init class name filter once here to parse the config in background thread and avoid
-      // startup latency on main thread. The field classNameFilter MUST only be used in this thread
-      classNameFilter = new ClassNameFiltering(Config.get());
+    public void start() {
+        scheduled = scheduler.scheduleAtFixedRate(this::flush, 0, 1, TimeUnit.SECONDS);
     }
-    if (queue.isEmpty()) {
-      return;
-    }
-    int itemCount = 0;
-    long start = System.nanoTime();
-    SourceFileItem item;
-    while ((item = queue.poll()) != null) {
-      queueSize.decrementAndGet();
-      registerSourceFile(item.className, item.classfileBuffer);
-      itemCount++;
-    }
-    LOGGER.debug(
-        "flushing {} source file items in {}ms, totalentries: {}",
-        itemCount,
-        (System.nanoTime() - start) / 1_000_000,
-        finder.getClassNamesBySourceFile().size());
-  }
 
-  int getQueueSize() {
-    return queueSize.get();
-  }
-
-  @Override
-  public byte[] transform(
-      ClassLoader loader,
-      String className,
-      Class<?> classBeingRedefined,
-      ProtectionDomain protectionDomain,
-      byte[] classfileBuffer)
-      throws IllegalClassFormatException {
-    if (className == null) {
-      return null;
+    public void stop() {
+        if (scheduled != null) {
+            scheduled.cancel();
+        }
     }
-    if (queueSize.get() >= MAX_QUEUE_SIZE) {
-      LOGGER.debug("SourceFile Tracking queue full, dropping class: {}", className);
-      return null;
+
+    void flush() {
+        if (classNameFilter == null) {
+            // init class name filter once here to parse the config in background thread and avoid
+            // startup latency on main thread. The field classNameFilter MUST only be used in this thread
+            classNameFilter = new ClassNameFiltering(Config.get());
+        }
+        if (queue.isEmpty()) {
+            return;
+        }
+        int itemCount = 0;
+        long start = System.nanoTime();
+        SourceFileItem item;
+        while ((item = queue.poll()) != null) {
+            queueSize.decrementAndGet();
+            registerSourceFile(item.className, item.classfileBuffer);
+            itemCount++;
+        }
+        LOGGER.debug(
+                "flushing {} source file items in {}ms, totalentries: {}",
+                itemCount,
+                (System.nanoTime() - start) / 1_000_000,
+                finder.getClassNamesBySourceFile().size());
     }
-    queue.add(new SourceFileItem(className, classfileBuffer));
-    queueSize.incrementAndGet();
-    return null;
-  }
 
-  protected void registerSourceFile(String className, byte[] classfileBuffer) {
-    try {
-      String javaClassName = Strings.getClassName(className);
-      if (classNameFilter.isExcluded(javaClassName)) {
-        return;
-      }
-      String sourceFile = ClassFileHelper.extractSourceFile(classfileBuffer);
-      if (sourceFile == null) {
-        return;
-      }
-      if (!isExtensionAllowed(sourceFile)) {
-        return;
-      }
-      String simpleClassName = stripPackagePath(className);
-      String simpleSourceFile = removeExtension(sourceFile);
-      if (simpleClassName.equals(simpleSourceFile)) {
-        return;
-      }
-      finder.register(sourceFile, className);
-    } catch (Exception e) {
-      LOGGER.debug("Error registering source file {}: {}", className, e);
+    int getQueueSize() {
+        return queueSize.get();
     }
-  }
 
-  private boolean isExtensionAllowed(String sourceFile) {
-    return sourceFile.endsWith(".java")
-        || sourceFile.endsWith(".kt")
-        || sourceFile.endsWith(".scala")
-        || sourceFile.endsWith(".groovy");
-  }
-
-  private static class SourceFileItem {
-    final String className;
-    final byte[] classfileBuffer;
-
-    public SourceFileItem(String className, byte[] classfileBuffer) {
-      this.className = className;
-      this.classfileBuffer = classfileBuffer;
+    @Override
+    public byte[] transform(
+            ClassLoader loader,
+            String className,
+            Class<?> classBeingRedefined,
+            ProtectionDomain protectionDomain,
+            byte[] classfileBuffer)
+            throws IllegalClassFormatException {
+        if (className == null) {
+            return null;
+        }
+        if (queueSize.get() >= MAX_QUEUE_SIZE) {
+            LOGGER.debug("SourceFile Tracking queue full, dropping class: {}", className);
+            return null;
+        }
+        queue.add(new SourceFileItem(className, classfileBuffer));
+        queueSize.incrementAndGet();
+        return null;
     }
-  }
+
+    protected void registerSourceFile(String className, byte[] classfileBuffer) {
+        try {
+            String javaClassName = Strings.getClassName(className);
+            if (classNameFilter.isExcluded(javaClassName)) {
+                return;
+            }
+            String sourceFile = ClassFileHelper.extractSourceFile(classfileBuffer);
+            if (sourceFile == null) {
+                return;
+            }
+            if (!isExtensionAllowed(sourceFile)) {
+                return;
+            }
+            String simpleClassName = stripPackagePath(className);
+            String simpleSourceFile = removeExtension(sourceFile);
+            if (simpleClassName.equals(simpleSourceFile)) {
+                return;
+            }
+            finder.register(sourceFile, className);
+        } catch (Exception e) {
+            LOGGER.debug("Error registering source file {}: {}", className, e);
+        }
+    }
+
+    private boolean isExtensionAllowed(String sourceFile) {
+        return sourceFile.endsWith(".java")
+                || sourceFile.endsWith(".kt")
+                || sourceFile.endsWith(".scala")
+                || sourceFile.endsWith(".groovy");
+    }
+
+    private static class SourceFileItem {
+        final String className;
+        final byte[] classfileBuffer;
+
+        public SourceFileItem(String className, byte[] classfileBuffer) {
+            this.className = className;
+            this.classfileBuffer = classfileBuffer;
+        }
+    }
 }

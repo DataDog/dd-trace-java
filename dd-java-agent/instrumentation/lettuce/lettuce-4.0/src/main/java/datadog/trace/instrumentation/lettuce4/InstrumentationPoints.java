@@ -27,111 +27,107 @@ import java.util.concurrent.CancellationException;
 
 public final class InstrumentationPoints {
 
-  private static final Set<CommandType> NON_INSTRUMENTING_COMMANDS = EnumSet.of(SHUTDOWN, DEBUG);
+    private static final Set<CommandType> NON_INSTRUMENTING_COMMANDS = EnumSet.of(SHUTDOWN, DEBUG);
 
-  private static final Set<CommandType> AGENT_CRASHING_COMMANDS =
-      EnumSet.of(CLIENT, CLUSTER, COMMAND, CONFIG, DEBUG, SCRIPT);
+    private static final Set<CommandType> AGENT_CRASHING_COMMANDS =
+            EnumSet.of(CLIENT, CLUSTER, COMMAND, CONFIG, DEBUG, SCRIPT);
 
-  public static final String AGENT_CRASHING_COMMAND_PREFIX = "COMMAND-NAME:";
+    public static final String AGENT_CRASHING_COMMAND_PREFIX = "COMMAND-NAME:";
 
-  public static ContextScope beforeCommand(
-      final RedisCommand<?, ?, ?> command, final RedisURI redisURI) {
-    final AgentSpan span =
-        startSpan(REDIS_CLIENT.toString(), LettuceClientDecorator.OPERATION_NAME);
-    DECORATE.afterStart(span);
-    DECORATE.onConnection(span, redisURI);
-    DECORATE.onCommand(span, command);
-    return activateSpan(span);
-  }
+    public static ContextScope beforeCommand(final RedisCommand<?, ?, ?> command, final RedisURI redisURI) {
+        final AgentSpan span = startSpan(REDIS_CLIENT.toString(), LettuceClientDecorator.OPERATION_NAME);
+        DECORATE.afterStart(span);
+        DECORATE.onConnection(span, redisURI);
+        DECORATE.onCommand(span, command);
+        return activateSpan(span);
+    }
 
-  public static void afterCommand(
-      final RedisCommand<?, ?, ?> command,
-      final ContextScope scope,
-      final Throwable throwable,
-      final AsyncCommand<?, ?, ?> asyncCommand) {
-    final AgentSpan span = spanFromScope(scope);
-    if (throwable != null) {
-      DECORATE.onError(span, throwable);
-      DECORATE.beforeFinish(span);
-      scope.close();
-      span.finish();
-    } else if (expectsResponse(command)) {
-      // Register the callback before closing the scope so the active span is correct when
-      // the CompletableFuture instrumentation captures context for the finishing lambda.
-      asyncCommand.handleAsync(
-          (value, ex) -> {
-            if (ex instanceof CancellationException) {
-              span.setTag("db.command.cancelled", true);
-            } else {
-              DECORATE.onError(span, ex);
-            }
+    public static void afterCommand(
+            final RedisCommand<?, ?, ?> command,
+            final ContextScope scope,
+            final Throwable throwable,
+            final AsyncCommand<?, ?, ?> asyncCommand) {
+        final AgentSpan span = spanFromScope(scope);
+        if (throwable != null) {
+            DECORATE.onError(span, throwable);
             DECORATE.beforeFinish(span);
+            scope.close();
             span.finish();
-            return null;
-          });
-      scope.close();
-    } else {
-      // No response is expected, so we must finish the span now.
-      DECORATE.beforeFinish(span);
-      scope.close();
-      span.finish();
+        } else if (expectsResponse(command)) {
+            // Register the callback before closing the scope so the active span is correct when
+            // the CompletableFuture instrumentation captures context for the finishing lambda.
+            asyncCommand.handleAsync((value, ex) -> {
+                if (ex instanceof CancellationException) {
+                    span.setTag("db.command.cancelled", true);
+                } else {
+                    DECORATE.onError(span, ex);
+                }
+                DECORATE.beforeFinish(span);
+                span.finish();
+                return null;
+            });
+            scope.close();
+        } else {
+            // No response is expected, so we must finish the span now.
+            DECORATE.beforeFinish(span);
+            scope.close();
+            span.finish();
+        }
+        // span may be finished by handleAsync call above.
     }
-    // span may be finished by handleAsync call above.
-  }
 
-  public static ContextScope beforeConnect(final RedisURI redisURI) {
-    final AgentSpan span =
-        startSpan(REDIS_CLIENT.toString(), LettuceClientDecorator.OPERATION_NAME);
-    DECORATE.afterStart(span);
-    DECORATE.onConnection(span, redisURI);
-    span.setResourceName(DECORATE.resourceNameForConnection(redisURI));
-    return activateSpan(span);
-  }
-
-  public static void afterConnect(final ContextScope scope, final Throwable throwable) {
-    final AgentSpan span = spanFromScope(scope);
-    if (throwable != null) {
-      DECORATE.onError(span, throwable);
-      DECORATE.beforeFinish(span);
+    public static ContextScope beforeConnect(final RedisURI redisURI) {
+        final AgentSpan span = startSpan(REDIS_CLIENT.toString(), LettuceClientDecorator.OPERATION_NAME);
+        DECORATE.afterStart(span);
+        DECORATE.onConnection(span, redisURI);
+        span.setResourceName(DECORATE.resourceNameForConnection(redisURI));
+        return activateSpan(span);
     }
-    scope.close();
-    span.finish();
-  }
 
-  /**
-   * Determines whether a redis command should finish its relevant span early (as soon as tags are
-   * added and the command is executed) because these commands have no return values/call backs, so
-   * we must close the span early in order to provide info for the users
-   *
-   * @param command
-   * @return false if the span should finish early (the command will not have a return value)
-   */
-  public static boolean expectsResponse(final RedisCommand<?, ?, ?> command) {
-    final ProtocolKeyword keyword = command.getType();
-    return !(isNonInstrumentingCommand(keyword) || isNonInstrumentingKeyword(keyword));
-  }
-
-  private static boolean isNonInstrumentingCommand(final ProtocolKeyword keyword) {
-    return keyword instanceof CommandType && NON_INSTRUMENTING_COMMANDS.contains(keyword);
-  }
-
-  private static boolean isNonInstrumentingKeyword(final ProtocolKeyword keyword) {
-    return keyword == SEGFAULT;
-  }
-
-  /**
-   * Workaround to keep trace agent from crashing Currently the commands in AGENT_CRASHING_COMMANDS
-   * will crash the trace agent and traces with these commands as the resource name will not be
-   * processed by the trace agent
-   *
-   * @param keyword the actual redis command
-   * @return the redis command with a prefix if it is a command that will crash the trace agent,
-   *     otherwise, the original command is returned.
-   */
-  public static String getCommandResourceName(final ProtocolKeyword keyword) {
-    if (keyword instanceof CommandType && AGENT_CRASHING_COMMANDS.contains(keyword)) {
-      return AGENT_CRASHING_COMMAND_PREFIX + keyword.name();
+    public static void afterConnect(final ContextScope scope, final Throwable throwable) {
+        final AgentSpan span = spanFromScope(scope);
+        if (throwable != null) {
+            DECORATE.onError(span, throwable);
+            DECORATE.beforeFinish(span);
+        }
+        scope.close();
+        span.finish();
     }
-    return keyword.name();
-  }
+
+    /**
+     * Determines whether a redis command should finish its relevant span early (as soon as tags are
+     * added and the command is executed) because these commands have no return values/call backs, so
+     * we must close the span early in order to provide info for the users
+     *
+     * @param command
+     * @return false if the span should finish early (the command will not have a return value)
+     */
+    public static boolean expectsResponse(final RedisCommand<?, ?, ?> command) {
+        final ProtocolKeyword keyword = command.getType();
+        return !(isNonInstrumentingCommand(keyword) || isNonInstrumentingKeyword(keyword));
+    }
+
+    private static boolean isNonInstrumentingCommand(final ProtocolKeyword keyword) {
+        return keyword instanceof CommandType && NON_INSTRUMENTING_COMMANDS.contains(keyword);
+    }
+
+    private static boolean isNonInstrumentingKeyword(final ProtocolKeyword keyword) {
+        return keyword == SEGFAULT;
+    }
+
+    /**
+     * Workaround to keep trace agent from crashing Currently the commands in AGENT_CRASHING_COMMANDS
+     * will crash the trace agent and traces with these commands as the resource name will not be
+     * processed by the trace agent
+     *
+     * @param keyword the actual redis command
+     * @return the redis command with a prefix if it is a command that will crash the trace agent,
+     *     otherwise, the original command is returned.
+     */
+    public static String getCommandResourceName(final ProtocolKeyword keyword) {
+        if (keyword instanceof CommandType && AGENT_CRASHING_COMMANDS.contains(keyword)) {
+            return AGENT_CRASHING_COMMAND_PREFIX + keyword.name();
+        }
+        return keyword.name();
+    }
 }

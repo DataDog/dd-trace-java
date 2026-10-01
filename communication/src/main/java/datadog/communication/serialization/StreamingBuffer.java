@@ -4,33 +4,33 @@ import java.nio.ByteBuffer;
 
 public interface StreamingBuffer {
 
-  int capacity();
+    int capacity();
 
-  boolean isDirty();
+    boolean isDirty();
 
-  void mark();
+    void mark();
 
-  boolean flush();
+    boolean flush();
 
-  void put(byte b);
+    void put(byte b);
 
-  void putShort(short s);
+    void putShort(short s);
 
-  void putChar(char c);
+    void putChar(char c);
 
-  void putInt(int i);
+    void putInt(int i);
 
-  void putLong(long l);
+    void putLong(long l);
 
-  void putFloat(float f);
+    void putFloat(float f);
 
-  void putDouble(double d);
+    void putDouble(double d);
 
-  void put(byte[] bytes);
+    void put(byte[] bytes);
 
-  void put(byte[] bytes, int offset, int length);
+    void put(byte[] bytes, int offset, int length);
 
-  void put(ByteBuffer buffer);
+    void put(ByteBuffer buffer);
 
-  void reset();
+    void reset();
 }

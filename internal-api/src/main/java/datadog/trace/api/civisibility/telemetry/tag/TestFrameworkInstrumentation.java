@@ -4,25 +4,25 @@ import datadog.trace.api.civisibility.telemetry.TagValue;
 
 /** The name of test framework instrumentation used */
 public enum TestFrameworkInstrumentation implements TagValue {
-  JUNIT4,
-  JUNIT5,
-  TESTNG,
-  SPOCK,
-  CUCUMBER,
-  MUNIT,
-  SCALATEST,
-  KARATE,
-  WEAVER,
-  OTHER;
+    JUNIT4,
+    JUNIT5,
+    TESTNG,
+    SPOCK,
+    CUCUMBER,
+    MUNIT,
+    SCALATEST,
+    KARATE,
+    WEAVER,
+    OTHER;
 
-  private final String s;
+    private final String s;
 
-  TestFrameworkInstrumentation() {
-    s = "test_framework:" + name().toLowerCase();
-  }
+    TestFrameworkInstrumentation() {
+        s = "test_framework:" + name().toLowerCase();
+    }
 
-  @Override
-  public String asString() {
-    return s;
-  }
+    @Override
+    public String asString() {
+        return s;
+    }
 }

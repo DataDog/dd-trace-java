@@ -16,18 +16,18 @@ import net.bytebuddy.asm.Advice;
  */
 @RequiresRequestContext(RequestContextSlot.IAST)
 class TaintReadOnlyHttpHeadersAdvice {
-  @Advice.OnMethodExit(suppress = Throwable.class)
-  @Source(SourceTypes.REQUEST_HEADER_VALUE)
-  public static void after(
-      @Advice.Argument(0) Object headers,
-      @Advice.Return Object retValue,
-      @ActiveRequestContext RequestContext reqCtx) {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Source(SourceTypes.REQUEST_HEADER_VALUE)
+    public static void after(
+            @Advice.Argument(0) Object headers,
+            @Advice.Return Object retValue,
+            @ActiveRequestContext RequestContext reqCtx) {
 
-    PropagationModule module = InstrumentationBridge.PROPAGATION;
-    if (module == null || retValue == null) {
-      return;
+        PropagationModule module = InstrumentationBridge.PROPAGATION;
+        if (module == null || retValue == null) {
+            return;
+        }
+        final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+        module.taintObjectIfTainted(ctx, retValue, headers);
     }
-    final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-    module.taintObjectIfTainted(ctx, retValue, headers);
-  }
 }

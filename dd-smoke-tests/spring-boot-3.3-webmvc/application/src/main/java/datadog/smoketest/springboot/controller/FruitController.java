@@ -12,22 +12,22 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/fruits")
 public class FruitController {
 
-  private final FruitRepository fruitRepository;
+    private final FruitRepository fruitRepository;
 
-  public FruitController(FruitRepository fruitRepository) {
-    this.fruitRepository = fruitRepository;
-  }
+    public FruitController(FruitRepository fruitRepository) {
+        this.fruitRepository = fruitRepository;
+    }
 
-  @GetMapping
-  public Iterable<Fruit> listFruits() {
-    return fruitRepository.findAll();
-  }
+    @GetMapping
+    public Iterable<Fruit> listFruits() {
+        return fruitRepository.findAll();
+    }
 
-  @GetMapping("/{name}")
-  public ResponseEntity<Fruit> findOneFruit(@PathVariable("name") final String name) {
-    return fruitRepository
-        .findByName(name)
-        .map(ResponseEntity::ok)
-        .orElseGet(() -> ResponseEntity.notFound().build());
-  }
+    @GetMapping("/{name}")
+    public ResponseEntity<Fruit> findOneFruit(@PathVariable("name") final String name) {
+        return fruitRepository
+                .findByName(name)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
 }

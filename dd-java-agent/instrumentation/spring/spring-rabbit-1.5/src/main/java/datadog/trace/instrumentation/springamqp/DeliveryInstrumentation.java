@@ -17,35 +17,35 @@ import org.springframework.amqp.rabbit.support.Delivery;
 
 @AutoService(InstrumenterModule.class)
 public class DeliveryInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public DeliveryInstrumentation() {
-    super("spring-rabbit");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.springframework.amqp.rabbit.support.Delivery";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), getClass().getName() + "$CaptureActiveScope");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("org.springframework.amqp.rabbit.support.Delivery", State.class.getName());
-  }
-
-  public static class CaptureActiveScope {
-    @Advice.OnMethodExit
-    public static void captureActiveScope(@Advice.This Delivery delivery) {
-      Context context = currentContext();
-      if (shouldCapture(context)) {
-        State state = State.FACTORY.create();
-        state.captureAndSetContinuation(context);
-        InstrumentationContext.get(Delivery.class, State.class).put(delivery, state);
-      }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public DeliveryInstrumentation() {
+        super("spring-rabbit");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "org.springframework.amqp.rabbit.support.Delivery";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(isConstructor(), getClass().getName() + "$CaptureActiveScope");
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("org.springframework.amqp.rabbit.support.Delivery", State.class.getName());
+    }
+
+    public static class CaptureActiveScope {
+        @Advice.OnMethodExit
+        public static void captureActiveScope(@Advice.This Delivery delivery) {
+            Context context = currentContext();
+            if (shouldCapture(context)) {
+                State state = State.FACTORY.create();
+                state.captureAndSetContinuation(context);
+                InstrumentationContext.get(Delivery.class, State.class).put(delivery, state);
+            }
+        }
+    }
 }

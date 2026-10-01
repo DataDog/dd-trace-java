@@ -9,22 +9,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ProcessorRecordContextHeadersAccess {
-  private static final Logger log =
-      LoggerFactory.getLogger(ProcessorRecordContextHeadersAccess.class);
+    private static final Logger log = LoggerFactory.getLogger(ProcessorRecordContextHeadersAccess.class);
 
-  public static final MethodHandle HEADERS_METHOD;
+    public static final MethodHandle HEADERS_METHOD;
 
-  static {
-    MethodHandle method;
-    try {
-      method =
-          MethodHandles.publicLookup()
-              .findVirtual(
-                  ProcessorRecordContext.class, "headers", MethodType.methodType(Headers.class));
-    } catch (Throwable e) {
-      log.debug("Exception loading MethodHandle", e);
-      method = null;
+    static {
+        MethodHandle method;
+        try {
+            method = MethodHandles.publicLookup()
+                    .findVirtual(ProcessorRecordContext.class, "headers", MethodType.methodType(Headers.class));
+        } catch (Throwable e) {
+            log.debug("Exception loading MethodHandle", e);
+            method = null;
+        }
+        HEADERS_METHOD = method;
     }
-    HEADERS_METHOD = method;
-  }
 }

@@ -33,52 +33,52 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class CallbackChainRetryingFutureInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public CallbackChainRetryingFutureInstrumentation() {
-    super("gax", "gax-1.4");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "com.google.api.gax.retrying.CallbackChainRetryingFuture";
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap(Runnable.class.getName(), State.class.getName());
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("setAttemptFuture")
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("com.google.api.core.ApiFuture"))),
-        CallbackChainRetryingFutureInstrumentation.class.getName() + "$SetAttemptFutureAdvice");
-  }
-
-  public static class SetAttemptFutureAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static Runnable capturePrevious(
-        @Advice.FieldValue("attemptFutureCompletionListener") final Runnable previousListener) {
-      return previousListener;
+    public CallbackChainRetryingFutureInstrumentation() {
+        super("gax", "gax-1.4");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void cancelSuperseded(
-        @Advice.Enter final Runnable previousListener,
-        @Advice.FieldValue("attemptFutureCompletionListener") final Runnable newListener) {
-      // Only cancel once the field has actually been replaced: GAX may return early without
-      // reassigning, and a listener still treated as active must keep its continuation.
-      if (previousListener != null && previousListener != newListener) {
-        final ContextStore<Runnable, State> contextStore =
-            InstrumentationContext.get(Runnable.class, State.class);
-        final State state = contextStore.remove(previousListener);
-        if (state != null) {
-          state.closeContinuation();
+    @Override
+    public String instrumentedType() {
+        return "com.google.api.gax.retrying.CallbackChainRetryingFuture";
+    }
+
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap(Runnable.class.getName(), State.class.getName());
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("setAttemptFuture")
+                        .and(takesArguments(1))
+                        .and(takesArgument(0, named("com.google.api.core.ApiFuture"))),
+                CallbackChainRetryingFutureInstrumentation.class.getName() + "$SetAttemptFutureAdvice");
+    }
+
+    public static class SetAttemptFutureAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static Runnable capturePrevious(
+                @Advice.FieldValue("attemptFutureCompletionListener") final Runnable previousListener) {
+            return previousListener;
         }
-      }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void cancelSuperseded(
+                @Advice.Enter final Runnable previousListener,
+                @Advice.FieldValue("attemptFutureCompletionListener") final Runnable newListener) {
+            // Only cancel once the field has actually been replaced: GAX may return early without
+            // reassigning, and a listener still treated as active must keep its continuation.
+            if (previousListener != null && previousListener != newListener) {
+                final ContextStore<Runnable, State> contextStore =
+                        InstrumentationContext.get(Runnable.class, State.class);
+                final State state = contextStore.remove(previousListener);
+                if (state != null) {
+                    state.closeContinuation();
+                }
+            }
+        }
     }
-  }
 }

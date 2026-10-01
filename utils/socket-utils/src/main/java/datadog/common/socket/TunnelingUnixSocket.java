@@ -18,34 +18,33 @@ import jnr.unixsocket.UnixSocketChannel;
  * examples</a>.
  */
 final class TunnelingUnixSocket extends UnixSocket {
-  private final File path;
-  private InetSocketAddress inetSocketAddress;
+    private final File path;
+    private InetSocketAddress inetSocketAddress;
 
-  TunnelingUnixSocket(final File path, final UnixSocketChannel channel) {
-    super(channel);
-    this.path = path;
-  }
+    TunnelingUnixSocket(final File path, final UnixSocketChannel channel) {
+        super(channel);
+        this.path = path;
+    }
 
-  TunnelingUnixSocket(
-      final File path, final UnixSocketChannel channel, final InetSocketAddress address) {
-    this(path, channel);
-    inetSocketAddress = address;
-  }
+    TunnelingUnixSocket(final File path, final UnixSocketChannel channel, final InetSocketAddress address) {
+        this(path, channel);
+        inetSocketAddress = address;
+    }
 
-  @Override
-  public void connect(final SocketAddress endpoint) throws IOException {
-    inetSocketAddress = (InetSocketAddress) endpoint;
-    super.connect(new UnixSocketAddress(path), 0);
-  }
+    @Override
+    public void connect(final SocketAddress endpoint) throws IOException {
+        inetSocketAddress = (InetSocketAddress) endpoint;
+        super.connect(new UnixSocketAddress(path), 0);
+    }
 
-  @Override
-  public void connect(final SocketAddress endpoint, final int timeout) throws IOException {
-    inetSocketAddress = (InetSocketAddress) endpoint;
-    super.connect(new UnixSocketAddress(path), timeout);
-  }
+    @Override
+    public void connect(final SocketAddress endpoint, final int timeout) throws IOException {
+        inetSocketAddress = (InetSocketAddress) endpoint;
+        super.connect(new UnixSocketAddress(path), timeout);
+    }
 
-  @Override
-  public InetAddress getInetAddress() {
-    return inetSocketAddress.getAddress();
-  }
+    @Override
+    public InetAddress getInetAddress() {
+        return inetSocketAddress.getAddress();
+    }
 }

@@ -23,71 +23,69 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class UriRoutingContextInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public UriRoutingContextInstrumentation() {
-    super("jersey");
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    String baseName = UriRoutingContextInstrumentation.class.getName();
-    transformer.applyAdvice(
-        named("getPathParameters").and(isPublic().and(takesArguments(boolean.class))),
-        baseName + "$GetPathParametersAdvice");
-    transformer.applyAdvice(
-        named("getQueryParameters").and(isPublic().and(takesArguments(boolean.class))),
-        baseName + "$GetQueryParametersAdvice");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.glassfish.jersey.server.internal.routing.UriRoutingContext";
-  }
-
-  @RequiresRequestContext(RequestContextSlot.IAST)
-  public static class GetPathParametersAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_PATH_PARAMETER)
-    public static void onExit(
-        @Advice.Return Map<String, List<String>> pathParams,
-        @ActiveRequestContext RequestContext reqCtx) {
-      if (pathParams == null || pathParams.isEmpty()) {
-        return;
-      }
-      final PropagationModule prop = InstrumentationBridge.PROPAGATION;
-      if (prop == null) {
-        return;
-      }
-      final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      if (prop.isTainted(ctx, pathParams)) {
-        return;
-      }
-      prop.taintObject(ctx, pathParams, SourceTypes.REQUEST_PATH_PARAMETER);
-      taintMultiValuedMap(ctx, prop, SourceTypes.REQUEST_PATH_PARAMETER, pathParams);
+    public UriRoutingContextInstrumentation() {
+        super("jersey");
     }
-  }
 
-  @RequiresRequestContext(RequestContextSlot.IAST)
-  public static class GetQueryParametersAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
-    public static void onExit(
-        @Advice.Return Map<String, List<String>> queryParams,
-        @ActiveRequestContext RequestContext reqCtx) {
-      if (queryParams == null || queryParams.isEmpty()) {
-        return;
-      }
-      final PropagationModule prop = InstrumentationBridge.PROPAGATION;
-      if (prop == null) {
-        return;
-      }
-      final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      if (prop.isTainted(ctx, queryParams)) {
-        return;
-      }
-      prop.taintObject(ctx, queryParams, SourceTypes.REQUEST_PARAMETER_VALUE);
-      taintMultiValuedMap(ctx, prop, SourceTypes.REQUEST_PARAMETER_VALUE, queryParams);
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        String baseName = UriRoutingContextInstrumentation.class.getName();
+        transformer.applyAdvice(
+                named("getPathParameters").and(isPublic().and(takesArguments(boolean.class))),
+                baseName + "$GetPathParametersAdvice");
+        transformer.applyAdvice(
+                named("getQueryParameters").and(isPublic().and(takesArguments(boolean.class))),
+                baseName + "$GetQueryParametersAdvice");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "org.glassfish.jersey.server.internal.routing.UriRoutingContext";
+    }
+
+    @RequiresRequestContext(RequestContextSlot.IAST)
+    public static class GetPathParametersAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Source(SourceTypes.REQUEST_PATH_PARAMETER)
+        public static void onExit(
+                @Advice.Return Map<String, List<String>> pathParams, @ActiveRequestContext RequestContext reqCtx) {
+            if (pathParams == null || pathParams.isEmpty()) {
+                return;
+            }
+            final PropagationModule prop = InstrumentationBridge.PROPAGATION;
+            if (prop == null) {
+                return;
+            }
+            final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+            if (prop.isTainted(ctx, pathParams)) {
+                return;
+            }
+            prop.taintObject(ctx, pathParams, SourceTypes.REQUEST_PATH_PARAMETER);
+            taintMultiValuedMap(ctx, prop, SourceTypes.REQUEST_PATH_PARAMETER, pathParams);
+        }
+    }
+
+    @RequiresRequestContext(RequestContextSlot.IAST)
+    public static class GetQueryParametersAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
+        public static void onExit(
+                @Advice.Return Map<String, List<String>> queryParams, @ActiveRequestContext RequestContext reqCtx) {
+            if (queryParams == null || queryParams.isEmpty()) {
+                return;
+            }
+            final PropagationModule prop = InstrumentationBridge.PROPAGATION;
+            if (prop == null) {
+                return;
+            }
+            final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+            if (prop.isTainted(ctx, queryParams)) {
+                return;
+            }
+            prop.taintObject(ctx, queryParams, SourceTypes.REQUEST_PARAMETER_VALUE);
+            taintMultiValuedMap(ctx, prop, SourceTypes.REQUEST_PARAMETER_VALUE, queryParams);
+        }
+    }
 }

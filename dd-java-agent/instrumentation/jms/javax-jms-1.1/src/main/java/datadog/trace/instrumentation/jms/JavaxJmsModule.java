@@ -13,39 +13,39 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class JavaxJmsModule extends InstrumenterModule.Tracing {
-  private final String namespace;
+    private final String namespace;
 
-  public JavaxJmsModule() {
-    this("javax", "jms", "jms-1", "jms-2");
-  }
+    public JavaxJmsModule() {
+        this("javax", "jms", "jms-1", "jms-2");
+    }
 
-  public JavaxJmsModule(String namespace, String instrumentationName, String... additionalNames) {
-    super(instrumentationName, additionalNames);
-    this.namespace = namespace;
-  }
+    public JavaxJmsModule(String namespace, String instrumentationName, String... additionalNames) {
+        super(instrumentationName, additionalNames);
+        this.namespace = namespace;
+    }
 
-  @Override
-  public String muzzleDirective() {
-    return "javax.jms";
-  }
+    @Override
+    public String muzzleDirective() {
+        return "javax.jms";
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    Map<String, String> contextStore = new HashMap<>(4);
-    contextStore.put(namespace + ".jms.MessageConsumer", MessageConsumerState.class.getName());
-    contextStore.put(namespace + ".jms.MessageProducer", MessageProducerState.class.getName());
-    contextStore.put(namespace + ".jms.Message", SessionState.class.getName());
-    contextStore.put(namespace + ".jms.Session", SessionState.class.getName());
-    return contextStore;
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        Map<String, String> contextStore = new HashMap<>(4);
+        contextStore.put(namespace + ".jms.MessageConsumer", MessageConsumerState.class.getName());
+        contextStore.put(namespace + ".jms.MessageProducer", MessageProducerState.class.getName());
+        contextStore.put(namespace + ".jms.Message", SessionState.class.getName());
+        contextStore.put(namespace + ".jms.Session", SessionState.class.getName());
+        return contextStore;
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return Arrays.asList(
-        new JMSMessageConsumerInstrumentation(namespace),
-        new JMSMessageProducerInstrumentation(namespace),
-        new MDBMessageConsumerInstrumentation(namespace),
-        new MessageInstrumentation(namespace),
-        new SessionInstrumentation(namespace));
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return Arrays.asList(
+                new JMSMessageConsumerInstrumentation(namespace),
+                new JMSMessageProducerInstrumentation(namespace),
+                new MDBMessageConsumerInstrumentation(namespace),
+                new MessageInstrumentation(namespace),
+                new SessionInstrumentation(namespace));
+    }
 }

@@ -7,15 +7,15 @@ import javax.annotation.Nonnull;
 
 public class NoSameSiteCookieModuleImpl implements NoSameSiteCookieModule<VulnerabilityType> {
 
-  private static final String STRICT_VALUE = "Strict";
+    private static final String STRICT_VALUE = "Strict";
 
-  @Override
-  public boolean isVulnerable(@Nonnull final Cookie cookie) {
-    return !STRICT_VALUE.equalsIgnoreCase(cookie.getSameSite());
-  }
+    @Override
+    public boolean isVulnerable(@Nonnull final Cookie cookie) {
+        return !STRICT_VALUE.equalsIgnoreCase(cookie.getSameSite());
+    }
 
-  @Override
-  public VulnerabilityType getType() {
-    return VulnerabilityType.NO_SAMESITE_COOKIE;
-  }
+    @Override
+    public VulnerabilityType getType() {
+        return VulnerabilityType.NO_SAMESITE_COOKIE;
+    }
 }

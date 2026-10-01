@@ -8,54 +8,54 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.ListIterator;
 import software.amazon.awssdk.services.sqs.model.Message;
 
-public class TracingListIterator extends TracingIterator<ListIterator<Message>>
-    implements ListIterator<Message> {
+public class TracingListIterator extends TracingIterator<ListIterator<Message>> implements ListIterator<Message> {
 
-  public TracingListIterator(ListIterator<Message> delegate, String queueUrl, String requestId) {
-    super(delegate, queueUrl, requestId);
-  }
-
-  @Override
-  public boolean hasPrevious() {
-    boolean moreMessages = delegate.hasPrevious();
-    if (!moreMessages) {
-      // no more messages, use this as a signal to close the last iteration scope
-      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-        closePrevious(true);
-      } else {
-        final AgentSpan previousSpan = AgentSpan.fromContext(Context.root().swap());
-        if (previousSpan != null) {
-          previousSpan.finishWithEndToEnd();
-        }
-      }
+    public TracingListIterator(ListIterator<Message> delegate, String queueUrl, String requestId) {
+        super(delegate, queueUrl, requestId);
     }
-    return moreMessages;
-  }
 
-  @Override
-  public Message previous() {
-    Message prev = delegate.previous();
-    startNewMessageSpan(prev);
-    return prev;
-  }
+    @Override
+    public boolean hasPrevious() {
+        boolean moreMessages = delegate.hasPrevious();
+        if (!moreMessages) {
+            // no more messages, use this as a signal to close the last iteration scope
+            if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+                closePrevious(true);
+            } else {
+                final AgentSpan previousSpan =
+                        AgentSpan.fromContext(Context.root().swap());
+                if (previousSpan != null) {
+                    previousSpan.finishWithEndToEnd();
+                }
+            }
+        }
+        return moreMessages;
+    }
 
-  @Override
-  public int nextIndex() {
-    return delegate.nextIndex();
-  }
+    @Override
+    public Message previous() {
+        Message prev = delegate.previous();
+        startNewMessageSpan(prev);
+        return prev;
+    }
 
-  @Override
-  public int previousIndex() {
-    return delegate.previousIndex();
-  }
+    @Override
+    public int nextIndex() {
+        return delegate.nextIndex();
+    }
 
-  @Override
-  public void set(Message message) {
-    delegate.set(message);
-  }
+    @Override
+    public int previousIndex() {
+        return delegate.previousIndex();
+    }
 
-  @Override
-  public void add(Message message) {
-    delegate.add(message);
-  }
+    @Override
+    public void set(Message message) {
+        delegate.set(message);
+    }
+
+    @Override
+    public void add(Message message) {
+        delegate.add(message);
+    }
 }

@@ -14,141 +14,141 @@ import java.util.Set;
  * Lazy deduplication occurs once: before iterating over entries/values, or when combining sizes.
  */
 public final class UnionMap<K, V> extends AbstractMap<K, V> implements Serializable {
-  private final Map<K, V> primaryMap;
-  private final Map<K, V> secondaryMap;
-  private transient Set<Map.Entry<K, V>> entrySet;
-  private transient volatile boolean deduped;
+    private final Map<K, V> primaryMap;
+    private final Map<K, V> secondaryMap;
+    private transient Set<Map.Entry<K, V>> entrySet;
+    private transient volatile boolean deduped;
 
-  public UnionMap(Map<K, V> primaryMap, Map<K, V> secondaryMap) {
-    this.primaryMap = primaryMap;
-    this.secondaryMap = secondaryMap;
-  }
+    public UnionMap(Map<K, V> primaryMap, Map<K, V> secondaryMap) {
+        this.primaryMap = primaryMap;
+        this.secondaryMap = secondaryMap;
+    }
 
-  private void dedup() {
-    if (!deduped) {
-      if (primaryMap.isEmpty()) {
-        deduped = true;
-        return; // nothing to deduplicate
-      }
-      synchronized (this) {
+    private void dedup() {
         if (!deduped) {
-          // drop keys from secondary that already exist in primary
-          Iterator<K> itr = secondaryMap.keySet().iterator();
-          while (itr.hasNext()) {
-            if (primaryMap.containsKey(itr.next())) {
-              itr.remove();
+            if (primaryMap.isEmpty()) {
+                deduped = true;
+                return; // nothing to deduplicate
             }
-          }
-          deduped = true;
+            synchronized (this) {
+                if (!deduped) {
+                    // drop keys from secondary that already exist in primary
+                    Iterator<K> itr = secondaryMap.keySet().iterator();
+                    while (itr.hasNext()) {
+                        if (primaryMap.containsKey(itr.next())) {
+                            itr.remove();
+                        }
+                    }
+                    deduped = true;
+                }
+            }
         }
-      }
     }
-  }
 
-  @Override
-  public int size() {
-    dedup();
-    return primaryMap.size() + secondaryMap.size();
-  }
-
-  @Override
-  public boolean isEmpty() {
-    return primaryMap.isEmpty() && secondaryMap.isEmpty();
-  }
-
-  @Override
-  public boolean containsKey(Object key) {
-    return primaryMap.containsKey(key) || secondaryMap.containsKey(key);
-  }
-
-  @Override
-  public boolean containsValue(Object value) {
-    if (primaryMap.containsValue(value)) {
-      return true;
-    } else {
-      dedup();
-      return secondaryMap.containsValue(value);
+    @Override
+    public int size() {
+        dedup();
+        return primaryMap.size() + secondaryMap.size();
     }
-  }
 
-  @Override
-  public V get(Object key) {
-    V result = primaryMap.get(key);
-    return null != result || primaryMap.containsKey(key) ? result : secondaryMap.get(key);
-  }
-
-  @Override
-  public V put(K key, V value) {
-    if (primaryMap.containsKey(key)) {
-      return primaryMap.put(key, value);
-    } else {
-      primaryMap.put(key, value);
-      return secondaryMap.remove(key);
+    @Override
+    public boolean isEmpty() {
+        return primaryMap.isEmpty() && secondaryMap.isEmpty();
     }
-  }
 
-  @Override
-  public V remove(Object key) {
-    if (primaryMap.containsKey(key)) {
-      secondaryMap.remove(key);
-      return primaryMap.remove(key);
-    } else {
-      return secondaryMap.remove(key);
+    @Override
+    public boolean containsKey(Object key) {
+        return primaryMap.containsKey(key) || secondaryMap.containsKey(key);
     }
-  }
 
-  @Override
-  public void clear() {
-    primaryMap.clear();
-    secondaryMap.clear();
-    entrySet = primaryMap.entrySet(); // optimization: secondary will now always be empty
-    deduped = true;
-  }
+    @Override
+    public boolean containsValue(Object value) {
+        if (primaryMap.containsValue(value)) {
+            return true;
+        } else {
+            dedup();
+            return secondaryMap.containsValue(value);
+        }
+    }
 
-  @Override
-  public Set<Entry<K, V>> entrySet() {
-    if (null == entrySet) {
-      entrySet =
-          new AbstractSet<Map.Entry<K, V>>() {
-            @Override
-            public int size() {
-              return UnionMap.this.size();
-            }
+    @Override
+    public V get(Object key) {
+        V result = primaryMap.get(key);
+        return null != result || primaryMap.containsKey(key) ? result : secondaryMap.get(key);
+    }
 
-            @Override
-            public Iterator<Map.Entry<K, V>> iterator() {
-              UnionMap.this.dedup();
+    @Override
+    public V put(K key, V value) {
+        if (primaryMap.containsKey(key)) {
+            return primaryMap.put(key, value);
+        } else {
+            primaryMap.put(key, value);
+            return secondaryMap.remove(key);
+        }
+    }
 
-              return new Iterator<Map.Entry<K, V>>() {
-                private Iterator<Map.Entry<K, V>> itr = primaryMap.entrySet().iterator();
-                private volatile boolean trySecondaryNext = !secondaryMap.isEmpty();
+    @Override
+    public V remove(Object key) {
+        if (primaryMap.containsKey(key)) {
+            secondaryMap.remove(key);
+            return primaryMap.remove(key);
+        } else {
+            return secondaryMap.remove(key);
+        }
+    }
 
+    @Override
+    public void clear() {
+        primaryMap.clear();
+        secondaryMap.clear();
+        entrySet = primaryMap.entrySet(); // optimization: secondary will now always be empty
+        deduped = true;
+    }
+
+    @Override
+    public Set<Entry<K, V>> entrySet() {
+        if (null == entrySet) {
+            entrySet = new AbstractSet<Map.Entry<K, V>>() {
                 @Override
-                public boolean hasNext() {
-                  return itr.hasNext() || trySecondaryNext;
+                public int size() {
+                    return UnionMap.this.size();
                 }
 
                 @Override
-                public Map.Entry<K, V> next() {
-                  if (!itr.hasNext() && trySecondaryNext) {
-                    trySecondaryNext = false;
-                    itr = secondaryMap.entrySet().iterator();
-                  }
-                  return itr.next();
-                }
+                public Iterator<Map.Entry<K, V>> iterator() {
+                    UnionMap.this.dedup();
 
-                @Override
-                public void remove() {
-                  itr.remove();
+                    return new Iterator<Map.Entry<K, V>>() {
+                        private Iterator<Map.Entry<K, V>> itr =
+                                primaryMap.entrySet().iterator();
+                        private volatile boolean trySecondaryNext = !secondaryMap.isEmpty();
+
+                        @Override
+                        public boolean hasNext() {
+                            return itr.hasNext() || trySecondaryNext;
+                        }
+
+                        @Override
+                        public Map.Entry<K, V> next() {
+                            if (!itr.hasNext() && trySecondaryNext) {
+                                trySecondaryNext = false;
+                                itr = secondaryMap.entrySet().iterator();
+                            }
+                            return itr.next();
+                        }
+
+                        @Override
+                        public void remove() {
+                            itr.remove();
+                        }
+                    };
                 }
-              };
-            }
-          };
+            };
+        }
+        return entrySet;
     }
-    return entrySet;
-  }
 
-  public Object writeReplace() {
-    return new HashMap<>(this); // serialize de-duplicated copy
-  }
+    public Object writeReplace() {
+        return new HashMap<>(this); // serialize de-duplicated copy
+    }
 }

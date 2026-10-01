@@ -7,15 +7,15 @@ import javax.annotation.Nullable;
 
 public class NoOpSourcePathResolver implements SourcePathResolver {
 
-  public static final SourcePathResolver INSTANCE = new NoOpSourcePathResolver();
+    public static final SourcePathResolver INSTANCE = new NoOpSourcePathResolver();
 
-  @Override
-  public Collection<String> getSourcePaths(@Nonnull Class<?> c) {
-    return Collections.emptyList();
-  }
+    @Override
+    public Collection<String> getSourcePaths(@Nonnull Class<?> c) {
+        return Collections.emptyList();
+    }
 
-  @Override
-  public Collection<String> getResourcePaths(@Nullable String relativePath) {
-    return Collections.emptyList();
-  }
+    @Override
+    public Collection<String> getResourcePaths(@Nullable String relativePath) {
+        return Collections.emptyList();
+    }
 }

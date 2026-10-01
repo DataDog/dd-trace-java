@@ -19,52 +19,49 @@ import org.junit.platform.engine.TestDescriptor;
  * parameterized tests
  */
 @AutoService(InstrumenterModule.class)
-public class JUnit5SpockParameterizedExecutionInstrumentation
-    extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+public class JUnit5SpockParameterizedExecutionInstrumentation extends InstrumenterModule.CiVisibility
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  private final String parentPackageName =
-      Strings.getPackageName(JUnitPlatformUtils.class.getName());
+    private final String parentPackageName = Strings.getPackageName(JUnitPlatformUtils.class.getName());
 
-  public JUnit5SpockParameterizedExecutionInstrumentation() {
-    super("ci-visibility", "junit-5", "junit-5-spock", "test-retry");
-  }
-
-  @Override
-  public boolean isEnabled() {
-    return super.isEnabled() && Config.get().isCiVisibilityExecutionPoliciesEnabled();
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.spockframework.runtime.ParameterizedFeatureChildExecutor";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      parentPackageName + ".JUnitPlatformUtils",
-      packageName + ".SpockParameterizedExecutionListener",
-    };
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor(),
-        JUnit5SpockParameterizedExecutionInstrumentation.class.getName()
-            + "$SpockParameterizedExecutionAdvice");
-  }
-
-  public static class SpockParameterizedExecutionAdvice {
-
-    @SuppressWarnings("bytebuddy-exception-suppression")
-    @Advice.OnMethodExit
-    public static void afterConstructor(
-        @Advice.FieldValue(value = "executionListener", readOnly = false)
-            EngineExecutionListener executionListener,
-        @Advice.FieldValue("pending") Map<TestDescriptor, CompletableFuture<?>> pending) {
-      executionListener = new SpockParameterizedExecutionListener(executionListener, pending);
+    public JUnit5SpockParameterizedExecutionInstrumentation() {
+        super("ci-visibility", "junit-5", "junit-5-spock", "test-retry");
     }
-  }
+
+    @Override
+    public boolean isEnabled() {
+        return super.isEnabled() && Config.get().isCiVisibilityExecutionPoliciesEnabled();
+    }
+
+    @Override
+    public String instrumentedType() {
+        return "org.spockframework.runtime.ParameterizedFeatureChildExecutor";
+    }
+
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            parentPackageName + ".JUnitPlatformUtils", packageName + ".SpockParameterizedExecutionListener",
+        };
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isConstructor(),
+                JUnit5SpockParameterizedExecutionInstrumentation.class.getName()
+                        + "$SpockParameterizedExecutionAdvice");
+    }
+
+    public static class SpockParameterizedExecutionAdvice {
+
+        @SuppressWarnings("bytebuddy-exception-suppression")
+        @Advice.OnMethodExit
+        public static void afterConstructor(
+                @Advice.FieldValue(value = "executionListener", readOnly = false)
+                        EngineExecutionListener executionListener,
+                @Advice.FieldValue("pending") Map<TestDescriptor, CompletableFuture<?>> pending) {
+            executionListener = new SpockParameterizedExecutionListener(executionListener, pending);
+        }
+    }
 }

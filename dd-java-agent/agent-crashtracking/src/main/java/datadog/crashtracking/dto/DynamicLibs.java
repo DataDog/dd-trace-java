@@ -7,24 +7,24 @@ import java.util.List;
 import java.util.Map;
 
 public class DynamicLibs {
-  public final String name;
-  public final List<String> lines;
+    public final String name;
+    public final List<String> lines;
 
-  public DynamicLibs(String name, List<String> lines) {
-    this.name = name;
-    this.lines = lines;
-  }
-
-  public static class JsonAdapter {
-    @ToJson
-    Map<String, List<String>> toJson(DynamicLibs dynamicLibs) {
-      return Collections.singletonMap(dynamicLibs.name, dynamicLibs.lines);
+    public DynamicLibs(String name, List<String> lines) {
+        this.name = name;
+        this.lines = lines;
     }
 
-    @FromJson
-    DynamicLibs fromJson(Map<String, List<String>> map) {
-      Map.Entry<String, List<String>> entry = map.entrySet().iterator().next();
-      return new DynamicLibs(entry.getKey(), entry.getValue());
+    public static class JsonAdapter {
+        @ToJson
+        Map<String, List<String>> toJson(DynamicLibs dynamicLibs) {
+            return Collections.singletonMap(dynamicLibs.name, dynamicLibs.lines);
+        }
+
+        @FromJson
+        DynamicLibs fromJson(Map<String, List<String>> map) {
+            Map.Entry<String, List<String>> entry = map.entrySet().iterator().next();
+            return new DynamicLibs(entry.getKey(), entry.getValue());
+        }
     }
-  }
 }

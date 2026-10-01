@@ -25,46 +25,45 @@ import org.reactivestreams.Subscriber;
  * Publisher#subscribe(Subscriber)} is called. The state is then stored and will be used to
  * eventually propagate on the downstream signals.
  */
-public class PublisherInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+public class PublisherInstrumentation implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String hierarchyMarkerType() {
-    return "org.reactivestreams.Publisher";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("org.reactivestreams.Publisher"));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(not(isStatic()))
-            .and(named("subscribe"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, hasInterface(named("org.reactivestreams.Subscriber")))),
-        getClass().getName() + "$PublisherSubscribeAdvice");
-  }
-
-  public static class PublisherSubscribeAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onSubscribe(
-        @Advice.This final Publisher self, @Advice.Argument(value = 0) final Subscriber s) {
-      return ReactiveStreamsContextPropagation.captureOnSubscribe(
-          self,
-          s,
-          InstrumentationContext.get(Publisher.class, HandoffContext.class),
-          InstrumentationContext.get(Subscriber.class, Context.class));
+    @Override
+    public String hierarchyMarkerType() {
+        return "org.reactivestreams.Publisher";
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void afterSubscribe(@Advice.Enter final ContextScope scope) {
-      if (scope != null) {
-        scope.close();
-      }
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named("org.reactivestreams.Publisher"));
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(not(isStatic()))
+                        .and(named("subscribe"))
+                        .and(takesArguments(1))
+                        .and(takesArgument(0, hasInterface(named("org.reactivestreams.Subscriber")))),
+                getClass().getName() + "$PublisherSubscribeAdvice");
+    }
+
+    public static class PublisherSubscribeAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope onSubscribe(
+                @Advice.This final Publisher self, @Advice.Argument(value = 0) final Subscriber s) {
+            return ReactiveStreamsContextPropagation.captureOnSubscribe(
+                    self,
+                    s,
+                    InstrumentationContext.get(Publisher.class, HandoffContext.class),
+                    InstrumentationContext.get(Subscriber.class, Context.class));
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void afterSubscribe(@Advice.Enter final ContextScope scope) {
+            if (scope != null) {
+                scope.close();
+            }
+        }
+    }
 }

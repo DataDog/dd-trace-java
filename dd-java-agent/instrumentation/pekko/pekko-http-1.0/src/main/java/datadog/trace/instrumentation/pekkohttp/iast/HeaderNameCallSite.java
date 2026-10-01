@@ -19,24 +19,23 @@ import org.apache.pekko.http.javadsl.model.HttpHeader;
 @CallSite(spi = IastCallSites.class)
 public class HeaderNameCallSite {
 
-  @CallSite.After("java.lang.String org.apache.pekko.http.javadsl.model.HttpHeader.name()")
-  @CallSite.After(
-      "java.lang.String org.apache.pekko.http.scaladsl.model.HttpHeader.name()") // subtype of the
-  // first
-  public static String after(@CallSite.This HttpHeader header, @CallSite.Return String result) {
-    PropagationModule module = InstrumentationBridge.PROPAGATION;
-    if (module == null) {
-      return result;
-    }
-    try {
-      final IastContext ctx = IastContext.Provider.get(AgentTracer.activeSpan());
-      if (ctx == null) {
+    @CallSite.After("java.lang.String org.apache.pekko.http.javadsl.model.HttpHeader.name()")
+    @CallSite.After("java.lang.String org.apache.pekko.http.scaladsl.model.HttpHeader.name()") // subtype of the
+    // first
+    public static String after(@CallSite.This HttpHeader header, @CallSite.Return String result) {
+        PropagationModule module = InstrumentationBridge.PROPAGATION;
+        if (module == null) {
+            return result;
+        }
+        try {
+            final IastContext ctx = IastContext.Provider.get(AgentTracer.activeSpan());
+            if (ctx == null) {
+                return result;
+            }
+            module.taintStringIfTainted(ctx, result, header, SourceTypes.REQUEST_HEADER_NAME, result);
+        } catch (final Throwable e) {
+            module.onUnexpectedException("onHeaderNames threw", e);
+        }
         return result;
-      }
-      module.taintStringIfTainted(ctx, result, header, SourceTypes.REQUEST_HEADER_NAME, result);
-    } catch (final Throwable e) {
-      module.onUnexpectedException("onHeaderNames threw", e);
     }
-    return result;
-  }
 }

@@ -32,79 +32,77 @@ import org.jboss.netty.handler.codec.http.websocketx.WebSocketServerProtocolHand
  * currently implemented.
  */
 public class ChannelPipelineAdviceUtil {
-  public static void wrapHandler(
-      final ContextStore<Channel, ChannelTraceContext> contextStore,
-      final ChannelPipeline pipeline,
-      final ChannelHandler handler) {
-    try {
-      // Server pipeline handlers
-      if (handler instanceof HttpServerCodec) {
-        pipeline.addLast(
-            HttpServerTracingHandler.class.getName(), new HttpServerTracingHandler(contextStore));
-        pipeline.addLast(
-            MaybeBlockResponseHandler.class.getName(), new MaybeBlockResponseHandler(contextStore));
-      } else if (handler instanceof HttpRequestDecoder) {
-        pipeline.addLast(
-            HttpServerRequestTracingHandler.class.getName(),
-            new HttpServerRequestTracingHandler(contextStore));
-      } else if (handler instanceof HttpResponseEncoder) {
-        pipeline.addLast(
-            HttpServerResponseTracingHandler.class.getName(),
-            new HttpServerResponseTracingHandler(contextStore));
-        pipeline.addLast(
-            MaybeBlockResponseHandler.class.getName(), new MaybeBlockResponseHandler(contextStore));
-      } else if (handler instanceof WebSocketServerProtocolHandler) {
-        if (InstrumenterConfig.get().isWebsocketTracingEnabled()) {
-          if (pipeline.get(HttpServerTracingHandler.class) != null) {
-            addHandlerAfter(
-                pipeline,
-                "datadog.trace.instrumentation.netty38.server.HttpServerTracingHandler",
-                new WebSocketServerTracingHandler(contextStore));
-          }
+    public static void wrapHandler(
+            final ContextStore<Channel, ChannelTraceContext> contextStore,
+            final ChannelPipeline pipeline,
+            final ChannelHandler handler) {
+        try {
+            // Server pipeline handlers
+            if (handler instanceof HttpServerCodec) {
+                pipeline.addLast(HttpServerTracingHandler.class.getName(), new HttpServerTracingHandler(contextStore));
+                pipeline.addLast(
+                        MaybeBlockResponseHandler.class.getName(), new MaybeBlockResponseHandler(contextStore));
+            } else if (handler instanceof HttpRequestDecoder) {
+                pipeline.addLast(
+                        HttpServerRequestTracingHandler.class.getName(),
+                        new HttpServerRequestTracingHandler(contextStore));
+            } else if (handler instanceof HttpResponseEncoder) {
+                pipeline.addLast(
+                        HttpServerResponseTracingHandler.class.getName(),
+                        new HttpServerResponseTracingHandler(contextStore));
+                pipeline.addLast(
+                        MaybeBlockResponseHandler.class.getName(), new MaybeBlockResponseHandler(contextStore));
+            } else if (handler instanceof WebSocketServerProtocolHandler) {
+                if (InstrumenterConfig.get().isWebsocketTracingEnabled()) {
+                    if (pipeline.get(HttpServerTracingHandler.class) != null) {
+                        addHandlerAfter(
+                                pipeline,
+                                "datadog.trace.instrumentation.netty38.server.HttpServerTracingHandler",
+                                new WebSocketServerTracingHandler(contextStore));
+                    }
+                }
+            } else if (handler instanceof WebSocket13FrameEncoder) {
+                if (InstrumenterConfig.get().isWebsocketTracingEnabled()) {
+                    if (pipeline.get(HttpServerRequestTracingHandler.class) != null) {
+                        addHandlerAfter(
+                                pipeline,
+                                "datadog.trace.instrumentation.netty38.server.HttpServerRequestTracingHandler",
+                                new WebSocketServerRequestTracingHandler(contextStore));
+                    }
+                }
+            } else if (handler instanceof WebSocket13FrameDecoder) {
+                if (InstrumenterConfig.get().isWebsocketTracingEnabled()) {
+                    if (pipeline.get(HttpServerResponseTracingHandler.class) != null) {
+                        addHandlerAfter(
+                                pipeline,
+                                "datadog.trace.instrumentation.netty38.server.HttpServerResponseTracingHandler",
+                                new WebSocketServerResponseTracingHandler(contextStore));
+                    }
+                }
+            } else
+            // Client pipeline handlers
+            if (handler instanceof HttpClientCodec) {
+                pipeline.addLast(HttpClientTracingHandler.class.getName(), new HttpClientTracingHandler(contextStore));
+            } else if (handler instanceof HttpRequestEncoder) {
+                pipeline.addLast(
+                        HttpClientRequestTracingHandler.class.getName(),
+                        new HttpClientRequestTracingHandler(contextStore));
+            } else if (handler instanceof HttpResponseDecoder) {
+                pipeline.addLast(
+                        HttpClientResponseTracingHandler.class.getName(),
+                        new HttpClientResponseTracingHandler(contextStore));
+            }
+        } finally {
+            CallDepthThreadLocalMap.reset(ChannelPipeline.class);
         }
-      } else if (handler instanceof WebSocket13FrameEncoder) {
-        if (InstrumenterConfig.get().isWebsocketTracingEnabled()) {
-          if (pipeline.get(HttpServerRequestTracingHandler.class) != null) {
-            addHandlerAfter(
-                pipeline,
-                "datadog.trace.instrumentation.netty38.server.HttpServerRequestTracingHandler",
-                new WebSocketServerRequestTracingHandler(contextStore));
-          }
-        }
-      } else if (handler instanceof WebSocket13FrameDecoder) {
-        if (InstrumenterConfig.get().isWebsocketTracingEnabled()) {
-          if (pipeline.get(HttpServerResponseTracingHandler.class) != null) {
-            addHandlerAfter(
-                pipeline,
-                "datadog.trace.instrumentation.netty38.server.HttpServerResponseTracingHandler",
-                new WebSocketServerResponseTracingHandler(contextStore));
-          }
-        }
-      } else
-      // Client pipeline handlers
-      if (handler instanceof HttpClientCodec) {
-        pipeline.addLast(
-            HttpClientTracingHandler.class.getName(), new HttpClientTracingHandler(contextStore));
-      } else if (handler instanceof HttpRequestEncoder) {
-        pipeline.addLast(
-            HttpClientRequestTracingHandler.class.getName(),
-            new HttpClientRequestTracingHandler(contextStore));
-      } else if (handler instanceof HttpResponseDecoder) {
-        pipeline.addLast(
-            HttpClientResponseTracingHandler.class.getName(),
-            new HttpClientResponseTracingHandler(contextStore));
-      }
-    } finally {
-      CallDepthThreadLocalMap.reset(ChannelPipeline.class);
     }
-  }
 
-  private static void addHandlerAfter(
-      final ChannelPipeline pipeline, final String name, final ChannelHandler handler) {
-    ChannelHandler existing = pipeline.get(handler.getClass());
-    if (existing != null) {
-      pipeline.remove(existing);
+    private static void addHandlerAfter(
+            final ChannelPipeline pipeline, final String name, final ChannelHandler handler) {
+        ChannelHandler existing = pipeline.get(handler.getClass());
+        if (existing != null) {
+            pipeline.remove(existing);
+        }
+        pipeline.addAfter(name, handler.getClass().getName(), handler);
     }
-    pipeline.addAfter(name, handler.getClass().getName(), handler);
-  }
 }

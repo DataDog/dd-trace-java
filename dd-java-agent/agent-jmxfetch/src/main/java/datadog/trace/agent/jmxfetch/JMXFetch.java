@@ -30,216 +30,204 @@ import org.slf4j.LoggerFactory;
 
 public class JMXFetch {
 
-  private static final Logger log = LoggerFactory.getLogger(JMXFetch.class);
+    private static final Logger log = LoggerFactory.getLogger(JMXFetch.class);
 
-  private static final String DEFAULT_CONFIG = "jmxfetch-config.yaml";
-  private static final String OTLP_JMX_CONFIG = "jmxfetch-config-no-jvm-defaults.yaml";
-  private static final String WEBSPHERE_CONFIG = "jmxfetch-websphere-config.yaml";
+    private static final String DEFAULT_CONFIG = "jmxfetch-config.yaml";
+    private static final String OTLP_JMX_CONFIG = "jmxfetch-config-no-jvm-defaults.yaml";
+    private static final String WEBSPHERE_CONFIG = "jmxfetch-websphere-config.yaml";
 
-  private static final int DELAY_BETWEEN_RUN_ATTEMPTS = 5000;
+    private static final int DELAY_BETWEEN_RUN_ATTEMPTS = 5000;
 
-  public static void run(final StatsDClientManager statsDClientManager) {
-    run(statsDClientManager, Config.get());
-  }
-
-  // This is used by tests
-  private static void run(final StatsDClientManager statsDClientManager, final Config config) {
-    if (!config.isJmxFetchEnabled()) {
-      log.debug("JMXFetch is disabled");
-      return;
+    public static void run(final StatsDClientManager statsDClientManager) {
+        run(statsDClientManager, Config.get());
     }
 
-    if (!log.isDebugEnabled()
-        && SystemProperties.get("org.slf4j.simpleLogger.log.org.datadog.jmxfetch") == null) {
-      // Reduce noisiness of jmxfetch logging.
-      SystemProperties.set("org.slf4j.simpleLogger.log.org.datadog.jmxfetch", "warn");
-    }
+    // This is used by tests
+    private static void run(final StatsDClientManager statsDClientManager, final Config config) {
+        if (!config.isJmxFetchEnabled()) {
+            log.debug("JMXFetch is disabled");
+            return;
+        }
 
-    final String jmxFetchConfigDir = config.getJmxFetchConfigDir();
-    final List<String> jmxFetchConfigs = config.getJmxFetchConfigs();
-    final List<String> internalMetricsConfigs = getInternalMetricFiles();
-    final List<String> metricsConfigs = config.getJmxFetchMetricsConfigs();
-    final Integer checkPeriod = config.getJmxFetchCheckPeriod();
-    final Integer refreshBeansPeriod = config.getJmxFetchRefreshBeansPeriod();
-    final Integer initialRefreshBeansPeriod = config.getJmxFetchInitialRefreshBeansPeriod();
-    final Map<String, String> globalTags = config.getMergedJmxTags();
+        if (!log.isDebugEnabled() && SystemProperties.get("org.slf4j.simpleLogger.log.org.datadog.jmxfetch") == null) {
+            // Reduce noisiness of jmxfetch logging.
+            SystemProperties.set("org.slf4j.simpleLogger.log.org.datadog.jmxfetch", "warn");
+        }
 
-    String host = config.getJmxFetchStatsdHost();
-    Integer port = config.getJmxFetchStatsdPort();
-    String namedPipe = config.getDogStatsDNamedPipe();
+        final String jmxFetchConfigDir = config.getJmxFetchConfigDir();
+        final List<String> jmxFetchConfigs = config.getJmxFetchConfigs();
+        final List<String> internalMetricsConfigs = getInternalMetricFiles();
+        final List<String> metricsConfigs = config.getJmxFetchMetricsConfigs();
+        final Integer checkPeriod = config.getJmxFetchCheckPeriod();
+        final Integer refreshBeansPeriod = config.getJmxFetchRefreshBeansPeriod();
+        final Integer initialRefreshBeansPeriod = config.getJmxFetchInitialRefreshBeansPeriod();
+        final Map<String, String> globalTags = config.getMergedJmxTags();
 
-    if (log.isDebugEnabled()) {
-      String statsDConnectionString;
-      if (namedPipe == null) {
-        statsDConnectionString =
-            "statsd:"
-                + (null != host ? host : "<auto-detect>")
-                + (null != port && port > 0 ? ":" + port : "");
-      } else {
-        statsDConnectionString = "statsd:" + namedPipe;
-      }
+        String host = config.getJmxFetchStatsdHost();
+        Integer port = config.getJmxFetchStatsdPort();
+        String namedPipe = config.getDogStatsDNamedPipe();
 
-      log.debug(
-          "JMXFetch config: {} {} {} {} {} {} {} {} {}",
-          jmxFetchConfigDir,
-          jmxFetchConfigs,
-          internalMetricsConfigs,
-          metricsConfigs,
-          checkPeriod,
-          initialRefreshBeansPeriod,
-          refreshBeansPeriod,
-          globalTags,
-          statsDConnectionString);
-    }
+        if (log.isDebugEnabled()) {
+            String statsDConnectionString;
+            if (namedPipe == null) {
+                statsDConnectionString = "statsd:"
+                        + (null != host ? host : "<auto-detect>")
+                        + (null != port && port > 0 ? ":" + port : "");
+            } else {
+                statsDConnectionString = "statsd:" + namedPipe;
+            }
 
-    final StatsDClient statsd = statsDClientManager.statsDClient(host, port, namedPipe, null, null);
-    final AgentStatsdReporter reporter = new AgentStatsdReporter(statsd);
+            log.debug(
+                    "JMXFetch config: {} {} {} {} {} {} {} {} {}",
+                    jmxFetchConfigDir,
+                    jmxFetchConfigs,
+                    internalMetricsConfigs,
+                    metricsConfigs,
+                    checkPeriod,
+                    initialRefreshBeansPeriod,
+                    refreshBeansPeriod,
+                    globalTags,
+                    statsDConnectionString);
+        }
 
-    final boolean otlpRuntimeMetricsEnabled =
-        InstrumenterConfig.get().isMetricsOtelEnabled() && config.isMetricsOtlpExporterEnabled();
+        final StatsDClient statsd = statsDClientManager.statsDClient(host, port, namedPipe, null, null);
+        final AgentStatsdReporter reporter = new AgentStatsdReporter(statsd);
 
-    TracerFlare.addReporter(reporter);
-    final List<String> defaultConfigs = new ArrayList<>();
-    if (otlpRuntimeMetricsEnabled) {
-      // Register JVM runtime metric callbacks against the OtelMeterProvider so the OTLP
-      // exporter started by CoreTracer collects them. Started here so it rides the same
-      // delayed-start path as JMXFetch itself.
-      JvmOtlpRuntimeMetrics.start(config.isMetricsOtelExperimentalEnabled());
-      // When the OTLP exporter is collecting JVM runtime metrics, skip the default JMXFetch
-      // JVM config to avoid double-reporting.
-      defaultConfigs.add(OTLP_JMX_CONFIG);
-    } else {
-      defaultConfigs.add(DEFAULT_CONFIG);
-    }
-    if (config.isJmxFetchIntegrationEnabled(Collections.singletonList("websphere"), false)) {
-      defaultConfigs.add(WEBSPHERE_CONFIG);
-    }
+        final boolean otlpRuntimeMetricsEnabled =
+                InstrumenterConfig.get().isMetricsOtelEnabled() && config.isMetricsOtlpExporterEnabled();
 
-    final AppConfig.AppConfigBuilder configBuilder =
-        AppConfig.builder()
-            .action(Collections.singletonList(ACTION_COLLECT))
-            // App should be run as daemon otherwise CLI apps would not exit once main method exits.
-            .daemon(true)
-            .embedded(true)
-            .confdDirectory(jmxFetchConfigDir)
-            .yamlFileList(jmxFetchConfigs)
-            .targetDirectInstances(true)
-            .instanceConfigResources(defaultConfigs)
-            .metricConfigResources(internalMetricsConfigs)
-            .metricConfigFiles(metricsConfigs)
-            .initialRefreshBeansPeriod(initialRefreshBeansPeriod)
-            .refreshBeansPeriod(refreshBeansPeriod)
-            .globalTags(globalTags)
-            .reporter(reporter)
-            .connectionFactory(new AgentConnectionFactory());
+        TracerFlare.addReporter(reporter);
+        final List<String> defaultConfigs = new ArrayList<>();
+        if (otlpRuntimeMetricsEnabled) {
+            // Register JVM runtime metric callbacks against the OtelMeterProvider so the OTLP
+            // exporter started by CoreTracer collects them. Started here so it rides the same
+            // delayed-start path as JMXFetch itself.
+            JvmOtlpRuntimeMetrics.start(config.isMetricsOtelExperimentalEnabled());
+            // When the OTLP exporter is collecting JVM runtime metrics, skip the default JMXFetch
+            // JVM config to avoid double-reporting.
+            defaultConfigs.add(OTLP_JMX_CONFIG);
+        } else {
+            defaultConfigs.add(DEFAULT_CONFIG);
+        }
+        if (config.isJmxFetchIntegrationEnabled(Collections.singletonList("websphere"), false)) {
+            defaultConfigs.add(WEBSPHERE_CONFIG);
+        }
 
-    if (config.isJmxFetchMultipleRuntimeServicesEnabled()) {
-      ServiceNameCollectingTraceInterceptor serviceNameProvider =
-          ServiceNameCollectingTraceInterceptor.INSTANCE;
-      GlobalTracer.get().addTraceInterceptor(serviceNameProvider);
+        final AppConfig.AppConfigBuilder configBuilder = AppConfig.builder()
+                .action(Collections.singletonList(ACTION_COLLECT))
+                // App should be run as daemon otherwise CLI apps would not exit once main method exits.
+                .daemon(true)
+                .embedded(true)
+                .confdDirectory(jmxFetchConfigDir)
+                .yamlFileList(jmxFetchConfigs)
+                .targetDirectInstances(true)
+                .instanceConfigResources(defaultConfigs)
+                .metricConfigResources(internalMetricsConfigs)
+                .metricConfigFiles(metricsConfigs)
+                .initialRefreshBeansPeriod(initialRefreshBeansPeriod)
+                .refreshBeansPeriod(refreshBeansPeriod)
+                .globalTags(globalTags)
+                .reporter(reporter)
+                .connectionFactory(new AgentConnectionFactory());
 
-      configBuilder.serviceNameProvider(serviceNameProvider);
-    }
+        if (config.isJmxFetchMultipleRuntimeServicesEnabled()) {
+            ServiceNameCollectingTraceInterceptor serviceNameProvider = ServiceNameCollectingTraceInterceptor.INSTANCE;
+            GlobalTracer.get().addTraceInterceptor(serviceNameProvider);
 
-    if (checkPeriod != null) {
-      configBuilder.checkPeriod(checkPeriod);
-    }
+            configBuilder.serviceNameProvider(serviceNameProvider);
+        }
 
-    final AppConfig appConfig = configBuilder.build();
+        if (checkPeriod != null) {
+            configBuilder.checkPeriod(checkPeriod);
+        }
 
-    final Thread thread =
-        newAgentThread(
-            JMX_COLLECTOR,
-            new Runnable() {
-              @Override
-              public void run() {
+        final AppConfig appConfig = configBuilder.build();
+
+        final Thread thread = newAgentThread(JMX_COLLECTOR, new Runnable() {
+            @Override
+            public void run() {
                 App app = new App(appConfig);
                 while (true) {
-                  // check in case dynamic-config has temporarily disabled JMXFetch
-                  if (!appConfig.getExitWatcher().shouldExit()) {
-                    try {
-                      final int result = app.run();
-                      if (result != 0) {
-                        log.warn("jmx collector exited with error code: {}", result);
-                      }
-                    } catch (final Exception e) {
-                      String message = e.getMessage();
-                      boolean ignoredException =
-                          message != null && message.startsWith("Shutdown in progress");
-                      if (!ignoredException) {
-                        log.warn("Exception in jmx collector thread", e);
-                      }
+                    // check in case dynamic-config has temporarily disabled JMXFetch
+                    if (!appConfig.getExitWatcher().shouldExit()) {
+                        try {
+                            final int result = app.run();
+                            if (result != 0) {
+                                log.warn("jmx collector exited with error code: {}", result);
+                            }
+                        } catch (final Exception e) {
+                            String message = e.getMessage();
+                            boolean ignoredException = message != null && message.startsWith("Shutdown in progress");
+                            if (!ignoredException) {
+                                log.warn("Exception in jmx collector thread", e);
+                            }
+                        }
                     }
-                  }
-                  // always wait before next attempt
-                  try {
-                    Thread.sleep(DELAY_BETWEEN_RUN_ATTEMPTS);
-                  } catch (final InterruptedException ignore) {
-                    Thread.currentThread().interrupt();
-                    break;
-                  }
+                    // always wait before next attempt
+                    try {
+                        Thread.sleep(DELAY_BETWEEN_RUN_ATTEMPTS);
+                    } catch (final InterruptedException ignore) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
                 }
-              }
-            });
-    thread.setContextClassLoader(JMXFetch.class.getClassLoader());
-    thread.start();
-  }
-
-  @SuppressForbidden
-  private static List<String> getInternalMetricFiles() {
-    try (final InputStream metricConfigsStream =
-        JMXFetch.class.getResourceAsStream("metricconfigs.txt")) {
-      if (metricConfigsStream == null) {
-        log.debug("metricconfigs not found. returning empty set");
-        return Collections.emptyList();
-      }
-      log.debug("reading found metricconfigs");
-      Scanner scanner = new Scanner(metricConfigsStream);
-      scanner.useDelimiter("\n");
-      final List<String> result = new ArrayList<>();
-      final SortedSet<String> integrationName = new TreeSet<>();
-      while (scanner.hasNext()) {
-        String config = scanner.next();
-        integrationName.clear();
-        integrationName.add(config.replace(".yaml", ""));
-
-        if (!Config.get().isJmxFetchIntegrationEnabled(integrationName, false)) {
-          log.debug(
-              "skipping metric config `{}` because integration {} is disabled",
-              config,
-              integrationName);
-        } else {
-          final URL resource = JMXFetch.class.getResource("metricconfigs/" + config);
-          if (resource == null) {
-            log.debug(
-                LogCollector.SEND_TELEMETRY, "metric config `{}` not found. skipping", config);
-            continue;
-          }
-          log.debug("adding metric config `{}`", config);
-
-          // jar!/ means a file internal to a jar, only add the part after if it exists
-          final String path = resource.getPath();
-          final int filenameIndex = path.indexOf("jar!/");
-          if (filenameIndex != -1) {
-            result.add(path.substring(filenameIndex + 5));
-          } else {
-            result.add(path.substring(1));
-          }
-        }
-      }
-      return result;
-    } catch (final IOException e) {
-      log.debug("error reading metricconfigs. returning empty set", e);
-      return Collections.emptyList();
+            }
+        });
+        thread.setContextClassLoader(JMXFetch.class.getClassLoader());
+        thread.start();
     }
-  }
 
-  private static String getLogLocation() {
-    return SystemProperties.getOrDefault("org.slf4j.simpleLogger.logFile", "System.err");
-  }
+    @SuppressForbidden
+    private static List<String> getInternalMetricFiles() {
+        try (final InputStream metricConfigsStream = JMXFetch.class.getResourceAsStream("metricconfigs.txt")) {
+            if (metricConfigsStream == null) {
+                log.debug("metricconfigs not found. returning empty set");
+                return Collections.emptyList();
+            }
+            log.debug("reading found metricconfigs");
+            Scanner scanner = new Scanner(metricConfigsStream);
+            scanner.useDelimiter("\n");
+            final List<String> result = new ArrayList<>();
+            final SortedSet<String> integrationName = new TreeSet<>();
+            while (scanner.hasNext()) {
+                String config = scanner.next();
+                integrationName.clear();
+                integrationName.add(config.replace(".yaml", ""));
 
-  private static String getLogLevel() {
-    return SystemProperties.getOrDefault("org.slf4j.simpleLogger.defaultLogLevel", "info")
-        .toUpperCase();
-  }
+                if (!Config.get().isJmxFetchIntegrationEnabled(integrationName, false)) {
+                    log.debug(
+                            "skipping metric config `{}` because integration {} is disabled", config, integrationName);
+                } else {
+                    final URL resource = JMXFetch.class.getResource("metricconfigs/" + config);
+                    if (resource == null) {
+                        log.debug(LogCollector.SEND_TELEMETRY, "metric config `{}` not found. skipping", config);
+                        continue;
+                    }
+                    log.debug("adding metric config `{}`", config);
+
+                    // jar!/ means a file internal to a jar, only add the part after if it exists
+                    final String path = resource.getPath();
+                    final int filenameIndex = path.indexOf("jar!/");
+                    if (filenameIndex != -1) {
+                        result.add(path.substring(filenameIndex + 5));
+                    } else {
+                        result.add(path.substring(1));
+                    }
+                }
+            }
+            return result;
+        } catch (final IOException e) {
+            log.debug("error reading metricconfigs. returning empty set", e);
+            return Collections.emptyList();
+        }
+    }
+
+    private static String getLogLocation() {
+        return SystemProperties.getOrDefault("org.slf4j.simpleLogger.logFile", "System.err");
+    }
+
+    private static String getLogLevel() {
+        return SystemProperties.getOrDefault("org.slf4j.simpleLogger.defaultLogLevel", "info")
+                .toUpperCase();
+    }
 }

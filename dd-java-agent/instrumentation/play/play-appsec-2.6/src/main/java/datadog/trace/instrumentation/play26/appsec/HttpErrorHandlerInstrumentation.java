@@ -27,65 +27,65 @@ import play.api.mvc.RequestHeader;
  */
 @AutoService(InstrumenterModule.class)
 public class HttpErrorHandlerInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public HttpErrorHandlerInstrumentation() {
-    super("play");
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "play26Plus";
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return MuzzleReferences.PLAY_26_PLUS;
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isPublic()
-            .and(named("onServerError"))
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("play.api.mvc.RequestHeader")))
-            .and(takesArgument(1, Throwable.class))
-            .and(returns(named("scala.concurrent.Future"))),
-        HttpErrorHandlerInstrumentation.class.getName() + "$OnServerErrorAdvice");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "play.api.http.HttpErrorHandler";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("play.api.http.HttpErrorHandler"));
-  }
-
-  static class OnServerErrorAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    static void before(@Advice.Argument(1) Throwable t) {
-      int i = CallDepthThreadLocalMap.incrementCallDepth(HttpErrorHandler.class);
-      if (i > 0) {
-        return;
-      }
-
-      if (!(t instanceof BlockingException)) {
-        return;
-      }
-
-      AgentSpan agentSpan = activeSpan();
-      if (agentSpan == null) {
-        return;
-      }
-      agentSpan.addThrowable(t);
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    public HttpErrorHandlerInstrumentation() {
+        super("play");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    static void after() {
-      CallDepthThreadLocalMap.decrementCallDepth(HttpErrorHandler.class);
+    @Override
+    public String muzzleDirective() {
+        return "play26Plus";
     }
-  }
+
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return MuzzleReferences.PLAY_26_PLUS;
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isPublic()
+                        .and(named("onServerError"))
+                        .and(takesArguments(2))
+                        .and(takesArgument(0, named("play.api.mvc.RequestHeader")))
+                        .and(takesArgument(1, Throwable.class))
+                        .and(returns(named("scala.concurrent.Future"))),
+                HttpErrorHandlerInstrumentation.class.getName() + "$OnServerErrorAdvice");
+    }
+
+    @Override
+    public String hierarchyMarkerType() {
+        return "play.api.http.HttpErrorHandler";
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named("play.api.http.HttpErrorHandler"));
+    }
+
+    static class OnServerErrorAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        static void before(@Advice.Argument(1) Throwable t) {
+            int i = CallDepthThreadLocalMap.incrementCallDepth(HttpErrorHandler.class);
+            if (i > 0) {
+                return;
+            }
+
+            if (!(t instanceof BlockingException)) {
+                return;
+            }
+
+            AgentSpan agentSpan = activeSpan();
+            if (agentSpan == null) {
+                return;
+            }
+            agentSpan.addThrowable(t);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        static void after() {
+            CallDepthThreadLocalMap.decrementCallDepth(HttpErrorHandler.class);
+        }
+    }
 }

@@ -8,29 +8,26 @@ import datadog.trace.api.gateway.Flow;
 import java.util.Collection;
 
 public class ReplaceableEventProducerService implements EventProducerService {
-  private volatile EventProducerService cur;
+    private volatile EventProducerService cur;
 
-  public void replaceEventProducerService(EventProducerService ed) {
-    this.cur = ed;
-  }
+    public void replaceEventProducerService(EventProducerService ed) {
+        this.cur = ed;
+    }
 
-  @Override
-  public DataSubscriberInfo getDataSubscribers(Address<?>... newAddresses) {
-    return cur.getDataSubscribers(newAddresses);
-  }
+    @Override
+    public DataSubscriberInfo getDataSubscribers(Address<?>... newAddresses) {
+        return cur.getDataSubscribers(newAddresses);
+    }
 
-  @Override
-  public Flow<Void> publishDataEvent(
-      DataSubscriberInfo subscribers,
-      AppSecRequestContext reqCtx,
-      DataBundle newData,
-      GatewayContext gwCtx)
-      throws ExpiredSubscriberInfoException {
-    return cur.publishDataEvent(subscribers, reqCtx, newData, gwCtx);
-  }
+    @Override
+    public Flow<Void> publishDataEvent(
+            DataSubscriberInfo subscribers, AppSecRequestContext reqCtx, DataBundle newData, GatewayContext gwCtx)
+            throws ExpiredSubscriberInfoException {
+        return cur.publishDataEvent(subscribers, reqCtx, newData, gwCtx);
+    }
 
-  @Override
-  public Collection<Address<?>> allSubscribedDataAddresses() {
-    return cur.allSubscribedDataAddresses();
-  }
+    @Override
+    public Collection<Address<?>> allSubscribedDataAddresses() {
+        return cur.allSubscribedDataAddresses();
+    }
 }

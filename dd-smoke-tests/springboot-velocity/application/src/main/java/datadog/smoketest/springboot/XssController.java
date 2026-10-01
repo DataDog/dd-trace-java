@@ -15,28 +15,27 @@ import org.springframework.web.bind.annotation.RequestParam;
 @RequestMapping("/xss")
 public class XssController {
 
-  private static final String DIRECTORY_TEMPLATES_TEST = "resources/main/templates/";
-  private static final String DIRECTORY_TEMPLATES_RUN =
-      "dd-smoke-tests/springboot-velocity/src/main/resources/templates/";
+    private static final String DIRECTORY_TEMPLATES_TEST = "resources/main/templates/";
+    private static final String DIRECTORY_TEMPLATES_RUN =
+            "dd-smoke-tests/springboot-velocity/src/main/resources/templates/";
 
-  @GetMapping("/velocity")
-  public void xssVelocity(
-      @RequestParam("velocity") String param,
-      @RequestParam("templateName") String templateName,
-      HttpServletResponse response)
-      throws Exception {
-    VelocityEngine velocity = new VelocityEngine();
-    // To avoid the creation of a Velocity log file
-    velocity.setProperty(
-        RuntimeConstants.RUNTIME_LOG_LOGSYSTEM_CLASS,
-        "org.apache.velocity.runtime.log.NullLogChute");
-    velocity.init();
-    Template template = velocity.getTemplate(DIRECTORY_TEMPLATES_TEST + templateName);
+    @GetMapping("/velocity")
+    public void xssVelocity(
+            @RequestParam("velocity") String param,
+            @RequestParam("templateName") String templateName,
+            HttpServletResponse response)
+            throws Exception {
+        VelocityEngine velocity = new VelocityEngine();
+        // To avoid the creation of a Velocity log file
+        velocity.setProperty(
+                RuntimeConstants.RUNTIME_LOG_LOGSYSTEM_CLASS, "org.apache.velocity.runtime.log.NullLogChute");
+        velocity.init();
+        Template template = velocity.getTemplate(DIRECTORY_TEMPLATES_TEST + templateName);
 
-    VelocityContext context = new VelocityContext();
-    context.put("esc", new EscapeTool());
-    context.put("param", param);
+        VelocityContext context = new VelocityContext();
+        context.put("esc", new EscapeTool());
+        context.put("param", param);
 
-    template.merge(context, response.getWriter());
-  }
+        template.merge(context, response.getWriter());
+    }
 }

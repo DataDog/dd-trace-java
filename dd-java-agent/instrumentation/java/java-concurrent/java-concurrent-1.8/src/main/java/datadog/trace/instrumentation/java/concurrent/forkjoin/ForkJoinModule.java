@@ -17,31 +17,30 @@ import java.util.List;
 import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
-public class ForkJoinModule extends InstrumenterModule.ContextTracking
-    implements ExcludeFilterProvider {
+public class ForkJoinModule extends InstrumenterModule.ContextTracking implements ExcludeFilterProvider {
 
-  public ForkJoinModule() {
-    super(EXECUTOR_INSTRUMENTATION_NAME, FORK_JOIN_POOL_INSTRUMENTATION_NAME);
-  }
+    public ForkJoinModule() {
+        super(EXECUTOR_INSTRUMENTATION_NAME, FORK_JOIN_POOL_INSTRUMENTATION_NAME);
+    }
 
-  @Override
-  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
-    return singletonMap(
-        RUNNABLE_FUTURE,
-        asList(
-            "java.util.concurrent.ForkJoinTask$AdaptedCallable",
-            "java.util.concurrent.ForkJoinTask$AdaptedRunnable",
-            "java.util.concurrent.ForkJoinTask$AdaptedRunnableAction",
-            "java.util.concurrent.ForkJoinTask$AdaptedInterruptibleCallable"));
-  }
+    @Override
+    public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
+        return singletonMap(
+                RUNNABLE_FUTURE,
+                asList(
+                        "java.util.concurrent.ForkJoinTask$AdaptedCallable",
+                        "java.util.concurrent.ForkJoinTask$AdaptedRunnable",
+                        "java.util.concurrent.ForkJoinTask$AdaptedRunnableAction",
+                        "java.util.concurrent.ForkJoinTask$AdaptedInterruptibleCallable"));
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("java.util.concurrent.ForkJoinTask", State.class.getName());
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("java.util.concurrent.ForkJoinTask", State.class.getName());
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return asList(new JavaForkJoinPoolInstrumentation(), new JavaForkJoinTaskInstrumentation());
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return asList(new JavaForkJoinPoolInstrumentation(), new JavaForkJoinTaskInstrumentation());
+    }
 }

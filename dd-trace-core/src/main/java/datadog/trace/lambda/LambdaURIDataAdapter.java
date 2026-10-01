@@ -18,91 +18,91 @@ import java.util.Map;
  * the {@code raw.resource} / {@code raw.query-string} settings have no effect.
  */
 class LambdaURIDataAdapter extends URIDataAdapterBase {
-  private final String path;
-  private final String query;
-  private final String scheme;
-  private final String host;
-  private final int port;
+    private final String path;
+    private final String query;
+    private final String scheme;
+    private final String host;
+    private final int port;
 
-  LambdaURIDataAdapter(String pathWithQuery, Map<String, String> headers, String host) {
-    if (pathWithQuery != null) {
-      int queryIndex = pathWithQuery.indexOf('?');
-      if (queryIndex != -1) {
-        this.path = pathWithQuery.substring(0, queryIndex);
-        this.query = pathWithQuery.substring(queryIndex + 1);
-      } else {
-        this.path = pathWithQuery;
-        this.query = null;
-      }
-    } else {
-      this.path = "/";
-      this.query = null;
+    LambdaURIDataAdapter(String pathWithQuery, Map<String, String> headers, String host) {
+        if (pathWithQuery != null) {
+            int queryIndex = pathWithQuery.indexOf('?');
+            if (queryIndex != -1) {
+                this.path = pathWithQuery.substring(0, queryIndex);
+                this.query = pathWithQuery.substring(queryIndex + 1);
+            } else {
+                this.path = pathWithQuery;
+                this.query = null;
+            }
+        } else {
+            this.path = "/";
+            this.query = null;
+        }
+
+        this.host = host;
+
+        // Lowercased because the port default below and URIUtils.buildURL both compare the scheme
+        // exactly; whitelisted because X-Forwarded-Proto is client-influenceable and arrives
+        // comma-joined when duplicated, which would render as "https, http://host/path".
+        String forwardedProto = findHeader(headers, "x-forwarded-proto");
+        String proto = forwardedProto == null ? null : forwardedProto.toLowerCase(Locale.ROOT);
+        this.scheme = "http".equals(proto) || "https".equals(proto) ? proto : "https";
+
+        String forwardedPort = findHeader(headers, "x-forwarded-port");
+        int parsedPort = -1;
+        if (forwardedPort != null && !forwardedPort.isEmpty()) {
+            try {
+                parsedPort = Integer.parseInt(forwardedPort.trim());
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        // URIUtils.buildURL only suppresses the port for 80 on http and 443 on https, so the default
+        // has to follow the scheme or an http URL would leak ":443".
+        this.port = parsedPort > 0 ? parsedPort : ("http".equals(this.scheme) ? 80 : 443);
     }
 
-    this.host = host;
-
-    // Lowercased because the port default below and URIUtils.buildURL both compare the scheme
-    // exactly; whitelisted because X-Forwarded-Proto is client-influenceable and arrives
-    // comma-joined when duplicated, which would render as "https, http://host/path".
-    String forwardedProto = findHeader(headers, "x-forwarded-proto");
-    String proto = forwardedProto == null ? null : forwardedProto.toLowerCase(Locale.ROOT);
-    this.scheme = "http".equals(proto) || "https".equals(proto) ? proto : "https";
-
-    String forwardedPort = findHeader(headers, "x-forwarded-port");
-    int parsedPort = -1;
-    if (forwardedPort != null && !forwardedPort.isEmpty()) {
-      try {
-        parsedPort = Integer.parseInt(forwardedPort.trim());
-      } catch (NumberFormatException ignored) {
-      }
+    @Override
+    public String scheme() {
+        return scheme;
     }
-    // URIUtils.buildURL only suppresses the port for 80 on http and 443 on https, so the default
-    // has to follow the scheme or an http URL would leak ":443".
-    this.port = parsedPort > 0 ? parsedPort : ("http".equals(this.scheme) ? 80 : 443);
-  }
 
-  @Override
-  public String scheme() {
-    return scheme;
-  }
+    @Override
+    public String host() {
+        return host;
+    }
 
-  @Override
-  public String host() {
-    return host;
-  }
+    @Override
+    public int port() {
+        return port;
+    }
 
-  @Override
-  public int port() {
-    return port;
-  }
+    @Override
+    public String path() {
+        return path;
+    }
 
-  @Override
-  public String path() {
-    return path;
-  }
+    @Override
+    public String fragment() {
+        return null;
+    }
 
-  @Override
-  public String fragment() {
-    return null;
-  }
+    @Override
+    public String query() {
+        return query;
+    }
 
-  @Override
-  public String query() {
-    return query;
-  }
+    @Override
+    public boolean supportsRaw() {
+        return true;
+    }
 
-  @Override
-  public boolean supportsRaw() {
-    return true;
-  }
+    @Override
+    public String rawPath() {
+        return path;
+    }
 
-  @Override
-  public String rawPath() {
-    return path;
-  }
-
-  @Override
-  public String rawQuery() {
-    return query;
-  }
+    @Override
+    public String rawQuery() {
+        return query;
+    }
 }

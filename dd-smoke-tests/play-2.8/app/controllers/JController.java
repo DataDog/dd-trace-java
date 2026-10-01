@@ -19,35 +19,33 @@ import play.mvc.With;
 
 public class JController extends Controller {
 
-  private final WSClient ws;
-  private final String clientRequestBase;
+    private final WSClient ws;
+    private final String clientRequestBase;
 
-  @Inject
-  public JController(WSClient ws, Configuration configuration, ControllerComponents c) {
-    this.ws = ws;
-    this.clientRequestBase =
-        configuration
-            .getOptional("client.request.base", ConfigLoader.stringLoader())
-            .getOrElse(() -> "http://localhost:0/broken/");
-  }
-
-  @With({Action1.class, Action2.class})
-  public CompletionStage<Result> doGet(final Integer id) {
-    Tracer tracer = GlobalTracer.get();
-    Span span = tracer.buildSpan("do-get").start();
-    Scope scope = tracer.scopeManager().activate(span);
-    try {
-      if (id > 0) {
-        return ws.url(clientRequestBase + id)
-            .get()
-            .thenApply(
-                response -> status(response.getStatus(), "J Got '" + response.getBody() + "'"));
-      } else {
-        return CompletableFuture.supplyAsync(() -> badRequest("No ID."));
-      }
-    } finally {
-      scope.close();
-      span.finish();
+    @Inject
+    public JController(WSClient ws, Configuration configuration, ControllerComponents c) {
+        this.ws = ws;
+        this.clientRequestBase = configuration
+                .getOptional("client.request.base", ConfigLoader.stringLoader())
+                .getOrElse(() -> "http://localhost:0/broken/");
     }
-  }
+
+    @With({Action1.class, Action2.class})
+    public CompletionStage<Result> doGet(final Integer id) {
+        Tracer tracer = GlobalTracer.get();
+        Span span = tracer.buildSpan("do-get").start();
+        Scope scope = tracer.scopeManager().activate(span);
+        try {
+            if (id > 0) {
+                return ws.url(clientRequestBase + id)
+                        .get()
+                        .thenApply(response -> status(response.getStatus(), "J Got '" + response.getBody() + "'"));
+            } else {
+                return CompletableFuture.supplyAsync(() -> badRequest("No ID."));
+            }
+        } finally {
+            scope.close();
+            span.finish();
+        }
+    }
 }

@@ -23,70 +23,64 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class MessageBodyReaderInvocationInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
-  public MessageBodyReaderInvocationInstrumentation() {
-    super("resteasy");
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "jaxrs";
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {"org.jboss.resteasy.core.interception.AbstractReaderInterceptorContext"};
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("readFrom")
-            .and(takesArguments(1))
-            .and(takesArgument(0, nameEndsWith(".MessageBodyReader"))),
-        MessageBodyReaderInvocationInstrumentation.class.getName()
-            + "$AbstractReaderInterceptorAdvice");
-  }
-
-  @RequiresRequestContext(RequestContextSlot.APPSEC)
-  public static class AbstractReaderInterceptorAdvice {
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    static void after(
-        @Advice.Return final Object ret,
-        @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
-      if (ret == null || t != null) {
-        return;
-      }
-
-      if (ret.getClass()
-          .getName()
-          .equals("org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInputImpl")) {
-        // already handled in MultipartFormDataReaderInstrumentation
-        return;
-      }
-
-      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-      BiFunction<RequestContext, Object, Flow<Void>> callback =
-          cbp.getCallback(EVENTS.requestBodyProcessed());
-      if (callback == null) {
-        return;
-      }
-
-      Flow<Void> flow = callback.apply(reqCtx, ret);
-      Flow.Action action = flow.getAction();
-      if (action instanceof Flow.Action.RequestBlockingAction) {
-        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
-        if (blockResponseFunction != null) {
-          blockResponseFunction.tryCommitBlockingResponse(reqCtx, rba);
-          t =
-              new BlockingException(
-                  "Blocked request (for AbstractReaderInterceptorContext/readFrom)");
-          reqCtx.getTraceSegment().effectivelyBlocked();
-        }
-      }
+    public MessageBodyReaderInvocationInstrumentation() {
+        super("resteasy");
     }
-  }
+
+    @Override
+    public String muzzleDirective() {
+        return "jaxrs";
+    }
+
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {"org.jboss.resteasy.core.interception.AbstractReaderInterceptorContext"};
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("readFrom").and(takesArguments(1)).and(takesArgument(0, nameEndsWith(".MessageBodyReader"))),
+                MessageBodyReaderInvocationInstrumentation.class.getName() + "$AbstractReaderInterceptorAdvice");
+    }
+
+    @RequiresRequestContext(RequestContextSlot.APPSEC)
+    public static class AbstractReaderInterceptorAdvice {
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        static void after(
+                @Advice.Return final Object ret,
+                @ActiveRequestContext RequestContext reqCtx,
+                @Advice.Thrown(readOnly = false) Throwable t) {
+            if (ret == null || t != null) {
+                return;
+            }
+
+            if (ret.getClass()
+                    .getName()
+                    .equals("org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInputImpl")) {
+                // already handled in MultipartFormDataReaderInstrumentation
+                return;
+            }
+
+            CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+            BiFunction<RequestContext, Object, Flow<Void>> callback = cbp.getCallback(EVENTS.requestBodyProcessed());
+            if (callback == null) {
+                return;
+            }
+
+            Flow<Void> flow = callback.apply(reqCtx, ret);
+            Flow.Action action = flow.getAction();
+            if (action instanceof Flow.Action.RequestBlockingAction) {
+                Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+                BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
+                if (blockResponseFunction != null) {
+                    blockResponseFunction.tryCommitBlockingResponse(reqCtx, rba);
+                    t = new BlockingException("Blocked request (for AbstractReaderInterceptorContext/readFrom)");
+                    reqCtx.getTraceSegment().effectivelyBlocked();
+                }
+            }
+        }
+    }
 }

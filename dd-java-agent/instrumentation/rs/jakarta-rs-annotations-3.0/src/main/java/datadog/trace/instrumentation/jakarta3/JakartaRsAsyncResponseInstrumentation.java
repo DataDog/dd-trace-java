@@ -21,100 +21,97 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class JakartaRsAsyncResponseInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public JakartaRsAsyncResponseInstrumentation() {
-    super("jakarta-rs", "jakartars", "jakarta-rs-annotations");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "jakarta.ws.rs.container.AsyncResponse", AgentSpan.class.getName());
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "jakarta.ws.rs.container.AsyncResponse";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("resume").and(takesArgument(0, Object.class)).and(isPublic()),
-        JakartaRsAsyncResponseInstrumentation.class.getName() + "$AsyncResponseAdvice");
-    transformer.applyAdvice(
-        named("resume").and(takesArgument(0, Throwable.class)).and(isPublic()),
-        JakartaRsAsyncResponseInstrumentation.class.getName() + "$AsyncResponseThrowableAdvice");
-    transformer.applyAdvice(
-        named("cancel"),
-        JakartaRsAsyncResponseInstrumentation.class.getName() + "$AsyncResponseCancelAdvice");
-  }
-
-  public static class AsyncResponseAdvice {
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.This final AsyncResponse asyncResponse, @Advice.Thrown Throwable throwable) {
-
-      final ContextStore<AsyncResponse, AgentSpan> contextStore =
-          InstrumentationContext.get(AsyncResponse.class, AgentSpan.class);
-
-      final AgentSpan span = contextStore.get(asyncResponse);
-      if (span != null) {
-        contextStore.put(asyncResponse, null);
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-        span.finish();
-      }
+    public JakartaRsAsyncResponseInstrumentation() {
+        super("jakarta-rs", "jakartars", "jakarta-rs-annotations");
     }
-  }
 
-  public static class AsyncResponseThrowableAdvice {
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.This final AsyncResponse asyncResponse,
-        @Advice.Argument(0) final Throwable throwable) {
-
-      final ContextStore<AsyncResponse, AgentSpan> contextStore =
-          InstrumentationContext.get(AsyncResponse.class, AgentSpan.class);
-
-      final AgentSpan span = contextStore.get(asyncResponse);
-      if (span != null) {
-        contextStore.put(asyncResponse, null);
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-        span.finish();
-      }
+    @Override
+    public Map<String, String> contextStore() {
+        return Collections.singletonMap("jakarta.ws.rs.container.AsyncResponse", AgentSpan.class.getName());
     }
-  }
 
-  public static class AsyncResponseCancelAdvice {
+    @Override
+    public String hierarchyMarkerType() {
+        return "jakarta.ws.rs.container.AsyncResponse";
+    }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.This final AsyncResponse asyncResponse, @Advice.Thrown Throwable throwable) {
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
 
-      final ContextStore<AsyncResponse, AgentSpan> contextStore =
-          InstrumentationContext.get(AsyncResponse.class, AgentSpan.class);
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("resume").and(takesArgument(0, Object.class)).and(isPublic()),
+                JakartaRsAsyncResponseInstrumentation.class.getName() + "$AsyncResponseAdvice");
+        transformer.applyAdvice(
+                named("resume").and(takesArgument(0, Throwable.class)).and(isPublic()),
+                JakartaRsAsyncResponseInstrumentation.class.getName() + "$AsyncResponseThrowableAdvice");
+        transformer.applyAdvice(
+                named("cancel"), JakartaRsAsyncResponseInstrumentation.class.getName() + "$AsyncResponseCancelAdvice");
+    }
 
-      final AgentSpan span = contextStore.get(asyncResponse);
-      if (span != null) {
-        contextStore.put(asyncResponse, null);
-        if (throwable != null) {
-          DECORATE.onError(span, throwable);
-        } else {
-          span.setTag("canceled", true);
+    public static class AsyncResponseAdvice {
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void stopSpan(
+                @Advice.This final AsyncResponse asyncResponse, @Advice.Thrown Throwable throwable) {
+
+            final ContextStore<AsyncResponse, AgentSpan> contextStore =
+                    InstrumentationContext.get(AsyncResponse.class, AgentSpan.class);
+
+            final AgentSpan span = contextStore.get(asyncResponse);
+            if (span != null) {
+                contextStore.put(asyncResponse, null);
+                DECORATE.onError(span, throwable);
+                DECORATE.beforeFinish(span);
+                span.finish();
+            }
         }
-        DECORATE.beforeFinish(span);
-        span.finish();
-      }
     }
-  }
+
+    public static class AsyncResponseThrowableAdvice {
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void stopSpan(
+                @Advice.This final AsyncResponse asyncResponse, @Advice.Argument(0) final Throwable throwable) {
+
+            final ContextStore<AsyncResponse, AgentSpan> contextStore =
+                    InstrumentationContext.get(AsyncResponse.class, AgentSpan.class);
+
+            final AgentSpan span = contextStore.get(asyncResponse);
+            if (span != null) {
+                contextStore.put(asyncResponse, null);
+                DECORATE.onError(span, throwable);
+                DECORATE.beforeFinish(span);
+                span.finish();
+            }
+        }
+    }
+
+    public static class AsyncResponseCancelAdvice {
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void stopSpan(
+                @Advice.This final AsyncResponse asyncResponse, @Advice.Thrown Throwable throwable) {
+
+            final ContextStore<AsyncResponse, AgentSpan> contextStore =
+                    InstrumentationContext.get(AsyncResponse.class, AgentSpan.class);
+
+            final AgentSpan span = contextStore.get(asyncResponse);
+            if (span != null) {
+                contextStore.put(asyncResponse, null);
+                if (throwable != null) {
+                    DECORATE.onError(span, throwable);
+                } else {
+                    span.setTag("canceled", true);
+                }
+                DECORATE.beforeFinish(span);
+                span.finish();
+            }
+        }
+    }
 }

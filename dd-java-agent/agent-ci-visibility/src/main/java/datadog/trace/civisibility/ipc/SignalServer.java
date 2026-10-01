@@ -22,110 +22,107 @@ import org.slf4j.LoggerFactory;
  */
 public class SignalServer {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(SignalServer.class);
-  private static final int DEFAULT_BUFFER_CAPACITY = 1024;
+    private static final Logger LOGGER = LoggerFactory.getLogger(SignalServer.class);
+    private static final int DEFAULT_BUFFER_CAPACITY = 1024;
 
-  private Selector selector;
-  private ServerSocketChannel serverSocketChannel;
-  private Thread signalServerThread;
+    private Selector selector;
+    private ServerSocketChannel serverSocketChannel;
+    private Thread signalServerThread;
 
-  private final int port;
-  private final String address;
-  private final Map<SignalType, Function<Signal, SignalResponse>> signalHandlers =
-      new EnumMap<>(SignalType.class);
+    private final int port;
+    private final String address;
+    private final Map<SignalType, Function<Signal, SignalResponse>> signalHandlers = new EnumMap<>(SignalType.class);
 
-  public SignalServer() {
-    this("127.0.0.1", 0);
-  }
-
-  public SignalServer(String address, int port) {
-    this.port = port;
-    this.address = address;
-  }
-
-  public synchronized void start() {
-    if (serverSocketChannel == null) {
-      try {
-        serverSocketChannel = ServerSocketChannel.open();
-        serverSocketChannel.configureBlocking(false);
-
-        serverSocketChannel.bind(new InetSocketAddress(address, port));
-
-        selector = Selector.open();
-        serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
-
-      } catch (IOException e) {
-        LOGGER.error("Error while starting signal server", e);
-        return;
-      }
-
-      SignalServerRunnable signalServerRunnable =
-          new SignalServerRunnable(selector, DEFAULT_BUFFER_CAPACITY, signalHandlers);
-      signalServerThread =
-          AgentThreadFactory.newAgentThread(
-              AgentThreadFactory.AgentThread.CI_SIGNAL_SERVER, signalServerRunnable);
-      signalServerThread.start();
-    }
-  }
-
-  public synchronized InetSocketAddress getAddress() {
-    if (serverSocketChannel == null) {
-      throw new IllegalStateException("Server not started");
+    public SignalServer() {
+        this("127.0.0.1", 0);
     }
 
-    SocketAddress localAddress;
-    try {
-      localAddress = serverSocketChannel.getLocalAddress();
-    } catch (IOException e) {
-      LOGGER.error("Error while getting signal server address", e);
-      return null;
+    public SignalServer(String address, int port) {
+        this.port = port;
+        this.address = address;
     }
 
-    if (localAddress instanceof InetSocketAddress) {
-      return (InetSocketAddress) localAddress;
+    public synchronized void start() {
+        if (serverSocketChannel == null) {
+            try {
+                serverSocketChannel = ServerSocketChannel.open();
+                serverSocketChannel.configureBlocking(false);
 
-    } else {
-      LOGGER.error(
-          "Got unexpected address from the signal server: {}. "
-              + "Signal server will not be started",
-          localAddress);
-      return null;
-    }
-  }
+                serverSocketChannel.bind(new InetSocketAddress(address, port));
 
-  @SuppressWarnings("unchecked")
-  public synchronized <T extends Signal> void registerSignalHandler(
-      SignalType type, Function<T, SignalResponse> handler) {
-    if (serverSocketChannel != null) {
-      throw new IllegalStateException("Cannot register a signal handler after server has started");
-    }
-    signalHandlers.put(type, (Function<Signal, SignalResponse>) handler);
-  }
+                selector = Selector.open();
+                serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 
-  public synchronized void stop() {
-    if (signalServerThread != null) {
-      signalServerThread.interrupt();
-      try {
-        signalServerThread.join();
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-      }
+            } catch (IOException e) {
+                LOGGER.error("Error while starting signal server", e);
+                return;
+            }
+
+            SignalServerRunnable signalServerRunnable =
+                    new SignalServerRunnable(selector, DEFAULT_BUFFER_CAPACITY, signalHandlers);
+            signalServerThread = AgentThreadFactory.newAgentThread(
+                    AgentThreadFactory.AgentThread.CI_SIGNAL_SERVER, signalServerRunnable);
+            signalServerThread.start();
+        }
     }
 
-    try {
-      if (selector != null) {
-        selector.close();
-      }
-    } catch (IOException e) {
-      LOGGER.error("Error while closing signal server selector", e);
+    public synchronized InetSocketAddress getAddress() {
+        if (serverSocketChannel == null) {
+            throw new IllegalStateException("Server not started");
+        }
+
+        SocketAddress localAddress;
+        try {
+            localAddress = serverSocketChannel.getLocalAddress();
+        } catch (IOException e) {
+            LOGGER.error("Error while getting signal server address", e);
+            return null;
+        }
+
+        if (localAddress instanceof InetSocketAddress) {
+            return (InetSocketAddress) localAddress;
+
+        } else {
+            LOGGER.error(
+                    "Got unexpected address from the signal server: {}. " + "Signal server will not be started",
+                    localAddress);
+            return null;
+        }
     }
 
-    try {
-      if (serverSocketChannel != null) {
-        serverSocketChannel.close();
-      }
-    } catch (IOException e) {
-      LOGGER.error("Error while closing signal server socket channel", e);
+    @SuppressWarnings("unchecked")
+    public synchronized <T extends Signal> void registerSignalHandler(
+            SignalType type, Function<T, SignalResponse> handler) {
+        if (serverSocketChannel != null) {
+            throw new IllegalStateException("Cannot register a signal handler after server has started");
+        }
+        signalHandlers.put(type, (Function<Signal, SignalResponse>) handler);
     }
-  }
+
+    public synchronized void stop() {
+        if (signalServerThread != null) {
+            signalServerThread.interrupt();
+            try {
+                signalServerThread.join();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        try {
+            if (selector != null) {
+                selector.close();
+            }
+        } catch (IOException e) {
+            LOGGER.error("Error while closing signal server selector", e);
+        }
+
+        try {
+            if (serverSocketChannel != null) {
+                serverSocketChannel.close();
+            }
+        } catch (IOException e) {
+            LOGGER.error("Error while closing signal server socket channel", e);
+        }
+    }
 }

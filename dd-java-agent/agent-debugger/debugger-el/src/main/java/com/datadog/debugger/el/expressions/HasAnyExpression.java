@@ -27,97 +27,93 @@ import java.util.Set;
  * using the filter.
  */
 public final class HasAnyExpression extends MatchingExpression {
-  public HasAnyExpression(
-      ValueExpression<?> valueExpression, BooleanExpression filterPredicateExpression) {
-    super(valueExpression, filterPredicateExpression);
-  }
-
-  @Override
-  public Boolean evaluate(EvalContext evalContext) {
-    Value<?> value = evaluateTargetCollection(valueExpression, this, evalContext);
-    ValueReferenceResolver valueRefResolver = evalContext.getValueRefResolver();
-    if (value instanceof ListValue) {
-      ListValue collection = (ListValue) value;
-      checkSupportedList(collection, this);
-      if (collection.isEmpty()) {
-        // always return FALSE for empty collection
-        return Boolean.FALSE;
-      }
-      try {
-        int len = collection.count();
-        for (int i = 0; i < len; i++) {
-          valueRefResolver.addExtension(
-              ValueReferences.ITERATOR_EXTENSION_NAME, CapturedValue.of(collection.get(i)));
-          if (filterPredicateExpression.evaluate(evalContext)) {
-            return Boolean.TRUE;
-          }
-          checkTimeout(evalContext.getTimeoutChecker(), this);
-        }
-        return Boolean.FALSE;
-
-      } catch (IllegalArgumentException | UnsupportedOperationException ex) {
-        throw new EvaluationException(ex.getMessage(), print(this));
-      } finally {
-        valueRefResolver.removeExtension(ValueReferences.ITERATOR_EXTENSION_NAME);
-      }
+    public HasAnyExpression(ValueExpression<?> valueExpression, BooleanExpression filterPredicateExpression) {
+        super(valueExpression, filterPredicateExpression);
     }
-    if (value instanceof MapValue) {
-      MapValue map = (MapValue) value;
-      checkSupportedMap(map, this);
-      try {
-        if (map.isEmpty()) {
-          return Boolean.FALSE;
-        }
-        for (Value<?> key : map.getKeys()) {
-          Value<?> val = key.isUndefined() ? Value.undefinedValue() : map.get(key);
-          valueRefResolver.addExtension(ValueReferences.KEY_EXTENSION_NAME, CapturedValue.of(key));
-          valueRefResolver.addExtension(
-              ValueReferences.VALUE_EXTENSION_NAME, CapturedValue.of(val));
-          valueRefResolver.addExtension(
-              ValueReferences.ITERATOR_EXTENSION_NAME,
-              CapturedValue.of(new MapValue.Entry(key, val)));
-          if (filterPredicateExpression.evaluate(evalContext)) {
-            return Boolean.TRUE;
-          }
-          checkTimeout(evalContext.getTimeoutChecker(), this);
-        }
-        return Boolean.FALSE;
-      } catch (IllegalArgumentException | UnsupportedOperationException ex) {
-        throw new EvaluationException(ex.getMessage(), print(this));
-      } finally {
-        valueRefResolver.removeExtension(ValueReferences.ITERATOR_EXTENSION_NAME);
-        valueRefResolver.removeExtension(ValueReferences.KEY_EXTENSION_NAME);
-        valueRefResolver.removeExtension(ValueReferences.VALUE_EXTENSION_NAME);
-      }
-    }
-    if (value instanceof SetValue) {
-      SetValue set = (SetValue) value;
-      Set<?> setHolder = checkSupportedSet(set, this);
-      try {
-        if (set.isEmpty()) {
-          return Boolean.FALSE;
-        }
-        for (Object val : setHolder) {
-          valueRefResolver.addExtension(
-              ValueReferences.ITERATOR_EXTENSION_NAME, CapturedValue.of(val));
-          if (filterPredicateExpression.evaluate(evalContext)) {
-            return Boolean.TRUE;
-          }
-          checkTimeout(evalContext.getTimeoutChecker(), this);
-        }
-        return Boolean.FALSE;
-      } catch (IllegalArgumentException | UnsupportedOperationException ex) {
-        throw new EvaluationException(ex.getMessage(), print(this));
-      } finally {
-        valueRefResolver.removeExtension(ValueReferences.ITERATOR_EXTENSION_NAME);
-      }
-    }
-    throw new EvaluationException(
-        "Unsupported collection class: " + value.getValue().getClass().getTypeName(), print(this));
-  }
 
-  @Override
-  public <R> R accept(Visitor<R> visitor) {
-    return visitor.visit(this);
-  }
+    @Override
+    public Boolean evaluate(EvalContext evalContext) {
+        Value<?> value = evaluateTargetCollection(valueExpression, this, evalContext);
+        ValueReferenceResolver valueRefResolver = evalContext.getValueRefResolver();
+        if (value instanceof ListValue) {
+            ListValue collection = (ListValue) value;
+            checkSupportedList(collection, this);
+            if (collection.isEmpty()) {
+                // always return FALSE for empty collection
+                return Boolean.FALSE;
+            }
+            try {
+                int len = collection.count();
+                for (int i = 0; i < len; i++) {
+                    valueRefResolver.addExtension(
+                            ValueReferences.ITERATOR_EXTENSION_NAME, CapturedValue.of(collection.get(i)));
+                    if (filterPredicateExpression.evaluate(evalContext)) {
+                        return Boolean.TRUE;
+                    }
+                    checkTimeout(evalContext.getTimeoutChecker(), this);
+                }
+                return Boolean.FALSE;
+
+            } catch (IllegalArgumentException | UnsupportedOperationException ex) {
+                throw new EvaluationException(ex.getMessage(), print(this));
+            } finally {
+                valueRefResolver.removeExtension(ValueReferences.ITERATOR_EXTENSION_NAME);
+            }
+        }
+        if (value instanceof MapValue) {
+            MapValue map = (MapValue) value;
+            checkSupportedMap(map, this);
+            try {
+                if (map.isEmpty()) {
+                    return Boolean.FALSE;
+                }
+                for (Value<?> key : map.getKeys()) {
+                    Value<?> val = key.isUndefined() ? Value.undefinedValue() : map.get(key);
+                    valueRefResolver.addExtension(ValueReferences.KEY_EXTENSION_NAME, CapturedValue.of(key));
+                    valueRefResolver.addExtension(ValueReferences.VALUE_EXTENSION_NAME, CapturedValue.of(val));
+                    valueRefResolver.addExtension(
+                            ValueReferences.ITERATOR_EXTENSION_NAME, CapturedValue.of(new MapValue.Entry(key, val)));
+                    if (filterPredicateExpression.evaluate(evalContext)) {
+                        return Boolean.TRUE;
+                    }
+                    checkTimeout(evalContext.getTimeoutChecker(), this);
+                }
+                return Boolean.FALSE;
+            } catch (IllegalArgumentException | UnsupportedOperationException ex) {
+                throw new EvaluationException(ex.getMessage(), print(this));
+            } finally {
+                valueRefResolver.removeExtension(ValueReferences.ITERATOR_EXTENSION_NAME);
+                valueRefResolver.removeExtension(ValueReferences.KEY_EXTENSION_NAME);
+                valueRefResolver.removeExtension(ValueReferences.VALUE_EXTENSION_NAME);
+            }
+        }
+        if (value instanceof SetValue) {
+            SetValue set = (SetValue) value;
+            Set<?> setHolder = checkSupportedSet(set, this);
+            try {
+                if (set.isEmpty()) {
+                    return Boolean.FALSE;
+                }
+                for (Object val : setHolder) {
+                    valueRefResolver.addExtension(ValueReferences.ITERATOR_EXTENSION_NAME, CapturedValue.of(val));
+                    if (filterPredicateExpression.evaluate(evalContext)) {
+                        return Boolean.TRUE;
+                    }
+                    checkTimeout(evalContext.getTimeoutChecker(), this);
+                }
+                return Boolean.FALSE;
+            } catch (IllegalArgumentException | UnsupportedOperationException ex) {
+                throw new EvaluationException(ex.getMessage(), print(this));
+            } finally {
+                valueRefResolver.removeExtension(ValueReferences.ITERATOR_EXTENSION_NAME);
+            }
+        }
+        throw new EvaluationException(
+                "Unsupported collection class: " + value.getValue().getClass().getTypeName(), print(this));
+    }
+
+    @Override
+    public <R> R accept(Visitor<R> visitor) {
+        return visitor.visit(this);
+    }
 }

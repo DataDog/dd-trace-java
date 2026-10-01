@@ -19,97 +19,93 @@ import java.util.concurrent.ThreadPoolExecutor;
  * in the ThreadPoolExecutorInstrumentation.
  */
 public final class TPEHelper {
-  // If legacy is enabled, we will try to propagate via wrapping, if not we will try to propagate
-  // via storing the state in the existing field in the Runnable
-  private static final boolean useWrapping;
-  // A ThreadPoolExecutor with one of these types will newer be propagated/wrapped
-  private static final Set<String> excludedClasses;
-  // A ThreadLocal to store the Scope between beforeExecute and afterExecute if wrapping is not used
-  private static final ThreadLocal<ContextScope> threadLocalScope;
+    // If legacy is enabled, we will try to propagate via wrapping, if not we will try to propagate
+    // via storing the state in the existing field in the Runnable
+    private static final boolean useWrapping;
+    // A ThreadPoolExecutor with one of these types will newer be propagated/wrapped
+    private static final Set<String> excludedClasses;
+    // A ThreadLocal to store the Scope between beforeExecute and afterExecute if wrapping is not used
+    private static final ThreadLocal<ContextScope> threadLocalScope;
 
-  private static final ClassValue<Boolean> WRAP =
-      GenericClassValue.of(
-          input -> {
-            String className = input.getName();
-            // We should always wrap anonymous lambda classes since we can't inject fields into
-            // them, and they can never be anything more than a _pure_ Runnable. They have '/' in
-            // their class name which is not allowed in 'normal' classes.
-            return className.indexOf('/', className.lastIndexOf('.')) > 0;
-          });
+    private static final ClassValue<Boolean> WRAP = GenericClassValue.of(input -> {
+        String className = input.getName();
+        // We should always wrap anonymous lambda classes since we can't inject fields into
+        // them, and they can never be anything more than a _pure_ Runnable. They have '/' in
+        // their class name which is not allowed in 'normal' classes.
+        return className.indexOf('/', className.lastIndexOf('.')) > 0;
+    });
 
-  static {
-    InstrumenterConfig config = InstrumenterConfig.get();
-    useWrapping = config.isLegacyInstrumentationEnabled(false, "trace.thread-pool-executors");
-    excludedClasses = config.getTraceThreadPoolExecutorsExclude();
-    if (useWrapping) {
-      threadLocalScope = null;
-    } else {
-      threadLocalScope = new ThreadLocal<>();
+    static {
+        InstrumenterConfig config = InstrumenterConfig.get();
+        useWrapping = config.isLegacyInstrumentationEnabled(false, "trace.thread-pool-executors");
+        excludedClasses = config.getTraceThreadPoolExecutorsExclude();
+        if (useWrapping) {
+            threadLocalScope = null;
+        } else {
+            threadLocalScope = new ThreadLocal<>();
+        }
     }
-  }
 
-  public static boolean useWrapping(Runnable task) {
-    return useWrapping || task instanceof Wrapper || (task != null && WRAP.get(task.getClass()));
-  }
-
-  private static final ClassValue<Boolean> PROPAGATE =
-      GenericClassValue.of(input -> !excludedClasses.contains(input.getName()));
-
-  public static boolean shouldPropagate(ThreadPoolExecutor executor) {
-    // avoid tracking threads when building native images as it confuses the scanner
-    // (we still want instrumentation applied, so tracking works in the built image)
-    return !Platform.isNativeImageBuilder()
-        && executor != null
-        && PROPAGATE.get(executor.getClass());
-  }
-
-  public static void capture(ContextStore<Runnable, State> contextStore, Runnable task) {
-    if (task != null && !exclude(RUNNABLE, task)) {
-      AdviceUtils.capture(contextStore, task);
+    public static boolean useWrapping(Runnable task) {
+        return useWrapping || task instanceof Wrapper || (task != null && WRAP.get(task.getClass()));
     }
-  }
 
-  public static ContextScope startScope(ContextStore<Runnable, State> contextStore, Runnable task) {
-    if (task == null || exclude(RUNNABLE, task)) {
-      return null;
-    }
-    return AdviceUtils.startTaskScope(contextStore, task);
-  }
+    private static final ClassValue<Boolean> PROPAGATE =
+            GenericClassValue.of(input -> !excludedClasses.contains(input.getName()));
 
-  public static void setThreadLocalScope(ContextScope scope, Runnable task) {
-    if (scope == null || task == null || exclude(RUNNABLE, task)) {
-      return;
+    public static boolean shouldPropagate(ThreadPoolExecutor executor) {
+        // avoid tracking threads when building native images as it confuses the scanner
+        // (we still want instrumentation applied, so tracking works in the built image)
+        return !Platform.isNativeImageBuilder() && executor != null && PROPAGATE.get(executor.getClass());
     }
-    ContextScope current = threadLocalScope.get();
-    if (current != null) {
-      current.close();
-    }
-    threadLocalScope.set(scope);
-  }
 
-  public static ContextScope getAndClearThreadLocalScope(Runnable task) {
-    if (task == null || exclude(RUNNABLE, task)) {
-      return null;
+    public static void capture(ContextStore<Runnable, State> contextStore, Runnable task) {
+        if (task != null && !exclude(RUNNABLE, task)) {
+            AdviceUtils.capture(contextStore, task);
+        }
     }
-    ContextScope scope = threadLocalScope.get();
-    // Intentionally use `.set(null)` instead of `.remove()` for performance reasons.
-    // For details see: https://github.com/DataDog/dd-trace-java/pull/9856#discussion_r2527729963
-    // noinspection ThreadLocalSetWithNull
-    threadLocalScope.set(null);
-    return scope;
-  }
 
-  public static void endScope(ContextScope scope, Runnable task) {
-    if (task == null || exclude(RUNNABLE, task)) {
-      return;
+    public static ContextScope startScope(ContextStore<Runnable, State> contextStore, Runnable task) {
+        if (task == null || exclude(RUNNABLE, task)) {
+            return null;
+        }
+        return AdviceUtils.startTaskScope(contextStore, task);
     }
-    AdviceUtils.endTaskScope(scope);
-  }
 
-  public static void cancelTask(ContextStore<Runnable, State> contextStore, Runnable task) {
-    if (task == null || exclude(RUNNABLE, task)) {
-      return;
+    public static void setThreadLocalScope(ContextScope scope, Runnable task) {
+        if (scope == null || task == null || exclude(RUNNABLE, task)) {
+            return;
+        }
+        ContextScope current = threadLocalScope.get();
+        if (current != null) {
+            current.close();
+        }
+        threadLocalScope.set(scope);
     }
-    AdviceUtils.cancelTask(contextStore, task);
-  }
+
+    public static ContextScope getAndClearThreadLocalScope(Runnable task) {
+        if (task == null || exclude(RUNNABLE, task)) {
+            return null;
+        }
+        ContextScope scope = threadLocalScope.get();
+        // Intentionally use `.set(null)` instead of `.remove()` for performance reasons.
+        // For details see: https://github.com/DataDog/dd-trace-java/pull/9856#discussion_r2527729963
+        // noinspection ThreadLocalSetWithNull
+        threadLocalScope.set(null);
+        return scope;
+    }
+
+    public static void endScope(ContextScope scope, Runnable task) {
+        if (task == null || exclude(RUNNABLE, task)) {
+            return;
+        }
+        AdviceUtils.endTaskScope(scope);
+    }
+
+    public static void cancelTask(ContextStore<Runnable, State> contextStore, Runnable task) {
+        if (task == null || exclude(RUNNABLE, task)) {
+            return;
+        }
+        AdviceUtils.cancelTask(contextStore, task);
+    }
 }

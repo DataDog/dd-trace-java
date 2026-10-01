@@ -8,30 +8,29 @@ import java.util.Collection;
 
 public class ExecutionContext {
 
-  private final TestExecutionPolicy executionPolicy;
-  private boolean suppressFailures;
+    private final TestExecutionPolicy executionPolicy;
+    private boolean suppressFailures;
 
-  public ExecutionContext(TestExecutionPolicy executionPolicy) {
-    this.executionPolicy = executionPolicy;
-  }
+    public ExecutionContext(TestExecutionPolicy executionPolicy) {
+        this.executionPolicy = executionPolicy;
+    }
 
-  public void setSuppressFailures(boolean suppressFailures) {
-    this.suppressFailures = suppressFailures;
-  }
+    public void setSuppressFailures(boolean suppressFailures) {
+        this.suppressFailures = suppressFailures;
+    }
 
-  public boolean shouldSuppressFailures() {
-    return suppressFailures;
-  }
+    public boolean shouldSuppressFailures() {
+        return suppressFailures;
+    }
 
-  public TestExecutionPolicy getExecutionPolicy() {
-    return executionPolicy;
-  }
+    public TestExecutionPolicy getExecutionPolicy() {
+        return executionPolicy;
+    }
 
-  public static ExecutionContext create(Scenario scenario) {
-    TestIdentifier testIdentifier = KarateUtils.toTestIdentifier(scenario);
-    Collection<String> testTags = scenario.getTagsEffective().getTagKeys();
-    return new ExecutionContext(
-        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.executionPolicy(
-            testIdentifier, TestSourceData.UNKNOWN, testTags));
-  }
+    public static ExecutionContext create(Scenario scenario) {
+        TestIdentifier testIdentifier = KarateUtils.toTestIdentifier(scenario);
+        Collection<String> testTags = scenario.getTagsEffective().getTagKeys();
+        return new ExecutionContext(TestEventsHandlerHolder.TEST_EVENTS_HANDLER.executionPolicy(
+                testIdentifier, TestSourceData.UNKNOWN, testTags));
+    }
 }

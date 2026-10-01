@@ -11,42 +11,41 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class Dbcp2PerUserPoolDataSourceInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
-  public Dbcp2PerUserPoolDataSourceInstrumentation() {
-    super("jdbc", "dbcp2");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return InstrumenterConfig.get().isJdbcPoolWaitingEnabled();
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "org.apache.commons.dbcp2.datasources.PerUserPoolDataSource", // standalone
-      "org.apache.tomcat.dbcp.dbcp2.datasources.PerUserPoolDataSource" // bundled with Tomcat
-    };
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("getPooledConnectionAndInfo"),
-        Dbcp2PerUserPoolDataSourceInstrumentation.class.getName()
-            + "$GetPooledConnectionAndInfoAdvice");
-  }
-
-  public static class GetPooledConnectionAndInfoAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter() {
-      CallDepthThreadLocalMap.incrementCallDepth(PoolWaitingDecorator.class);
+    public Dbcp2PerUserPoolDataSourceInstrumentation() {
+        super("jdbc", "dbcp2");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void onExit() {
-      CallDepthThreadLocalMap.decrementCallDepth(PoolWaitingDecorator.class);
+    @Override
+    protected boolean defaultEnabled() {
+        return InstrumenterConfig.get().isJdbcPoolWaitingEnabled();
     }
-  }
+
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            "org.apache.commons.dbcp2.datasources.PerUserPoolDataSource", // standalone
+            "org.apache.tomcat.dbcp.dbcp2.datasources.PerUserPoolDataSource" // bundled with Tomcat
+        };
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("getPooledConnectionAndInfo"),
+                Dbcp2PerUserPoolDataSourceInstrumentation.class.getName() + "$GetPooledConnectionAndInfoAdvice");
+    }
+
+    public static class GetPooledConnectionAndInfoAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter() {
+            CallDepthThreadLocalMap.incrementCallDepth(PoolWaitingDecorator.class);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void onExit() {
+            CallDepthThreadLocalMap.decrementCallDepth(PoolWaitingDecorator.class);
+        }
+    }
 }

@@ -4,17 +4,17 @@ import datadog.trace.api.civisibility.telemetry.TagValue;
 
 /** The type of code-coverage library used */
 public enum Library implements TagValue {
-  CUSTOM,
-  JACOCO;
+    CUSTOM,
+    JACOCO;
 
-  private final String s;
+    private final String s;
 
-  Library() {
-    s = "library:" + name().toLowerCase();
-  }
+    Library() {
+        s = "library:" + name().toLowerCase();
+    }
 
-  @Override
-  public String asString() {
-    return s;
-  }
+    @Override
+    public String asString() {
+        return s;
+    }
 }

@@ -53,420 +53,403 @@ import org.slf4j.LoggerFactory;
  * re-transformation of required classes
  */
 public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, ConfigurationAcceptor {
-  private static final Logger LOGGER = LoggerFactory.getLogger(ConfigurationUpdater.class);
-  private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
-  private static final boolean JAVA_AT_LEAST_17_0_20 =
-      JavaVirtualMachine.isJavaVersionAtLeast(17, 0, 20);
-  private static final boolean JAVA_AT_LEAST_16 = JavaVirtualMachine.isJavaVersionAtLeast(16);
-  private static final boolean JAVA_AT_LEAST_25_0_4 =
-      JavaVirtualMachine.isJavaVersionAtLeast(25, 0, 4);
-  private static final Method GET_RECORD_COMPONENTS_METHOD;
-  private static final Method GET_ANNOTATED_TYPES_METHOD;
+    private static final Logger LOGGER = LoggerFactory.getLogger(ConfigurationUpdater.class);
+    private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
+    private static final boolean JAVA_AT_LEAST_17_0_20 = JavaVirtualMachine.isJavaVersionAtLeast(17, 0, 20);
+    private static final boolean JAVA_AT_LEAST_16 = JavaVirtualMachine.isJavaVersionAtLeast(16);
+    private static final boolean JAVA_AT_LEAST_25_0_4 = JavaVirtualMachine.isJavaVersionAtLeast(25, 0, 4);
+    private static final Method GET_RECORD_COMPONENTS_METHOD;
+    private static final Method GET_ANNOTATED_TYPES_METHOD;
 
-  static {
-    Method getRecordComponentsMethod = null;
-    Method getAnnotatedTypesMethod = null;
-    if (JAVA_AT_LEAST_16) {
-      try {
-        Class<?> recordClass = Class.forName("java.lang.Record", true, null);
-        getRecordComponentsMethod = recordClass.getClass().getDeclaredMethod("getRecordComponents");
-        Class<?> recordComponentClass =
-            Class.forName("java.lang.reflect.RecordComponent", true, null);
-        getAnnotatedTypesMethod = recordComponentClass.getDeclaredMethod("getAnnotatedType");
-      } catch (Exception e) {
-        LOGGER.debug("Exception initializing reflection constants", e);
-      }
+    static {
+        Method getRecordComponentsMethod = null;
+        Method getAnnotatedTypesMethod = null;
+        if (JAVA_AT_LEAST_16) {
+            try {
+                Class<?> recordClass = Class.forName("java.lang.Record", true, null);
+                getRecordComponentsMethod = recordClass.getClass().getDeclaredMethod("getRecordComponents");
+                Class<?> recordComponentClass = Class.forName("java.lang.reflect.RecordComponent", true, null);
+                getAnnotatedTypesMethod = recordComponentClass.getDeclaredMethod("getAnnotatedType");
+            } catch (Exception e) {
+                LOGGER.debug("Exception initializing reflection constants", e);
+            }
+        }
+        GET_RECORD_COMPONENTS_METHOD = getRecordComponentsMethod;
+        GET_ANNOTATED_TYPES_METHOD = getAnnotatedTypesMethod;
     }
-    GET_RECORD_COMPONENTS_METHOD = getRecordComponentsMethod;
-    GET_ANNOTATED_TYPES_METHOD = getAnnotatedTypesMethod;
-  }
 
-  public interface TransformerSupplier {
-    DebuggerTransformer supply(
-        Config tracerConfig,
-        Configuration configuration,
-        DebuggerTransformer.InstrumentationListener listener,
-        ProbeMetadata probeMetadata,
-        DebuggerSink debuggerSink);
-  }
-
-  private final Instrumentation instrumentation;
-  private final TransformerSupplier transformerSupplier;
-  private final Lock configurationLock = new ReentrantLock();
-  private final EnumMap<Source, Collection<? extends ProbeDefinition>> definitionSources =
-      new EnumMap<>(Source.class);
-  private volatile Configuration currentConfiguration;
-  private DebuggerTransformer currentTransformer;
-  private final ProbeMetadata probeMetadata = new ProbeMetadata();
-  private final Config config;
-  private final DebuggerSink sink;
-  private final ClassesToRetransformFinder finder;
-  private final String serviceName;
-  private final Map<String, InstrumentationResult> instrumentationResults =
-      new ConcurrentHashMap<>();
-  private final RatelimitedLogger ratelimitedLogger =
-      new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES);
-
-  public ConfigurationUpdater(
-      Instrumentation instrumentation,
-      TransformerSupplier transformerSupplier,
-      Config config,
-      DebuggerSink sink,
-      ClassesToRetransformFinder finder) {
-    this.instrumentation = instrumentation;
-    this.transformerSupplier = transformerSupplier;
-    this.serviceName = TagsHelper.sanitize(config.getServiceName());
-    this.config = config;
-    this.sink = sink;
-    this.finder = finder;
-  }
-
-  // /!\ Can be called by different threads and concurrently /!\
-  // Should throw a runtime exception if there is a problem. The message of
-  // the exception will be reported in the next request to the conf service
-  @Override
-  public void accept(Source source, Collection<? extends ProbeDefinition> definitions) {
-    configurationLock.lock();
-    try {
-      LOGGER.debug("Received new definitions from {}", source);
-      Configuration newConfiguration;
-      definitionSources.put(source, definitions);
-      newConfiguration = createConfiguration(definitionSources);
-      applyNewConfiguration(newConfiguration);
-    } catch (RuntimeException e) {
-      ExceptionHelper.logException(LOGGER, e, "Error during accepting new debugger configuration:");
-      throw e;
-    } finally {
-      configurationLock.unlock();
+    public interface TransformerSupplier {
+        DebuggerTransformer supply(
+                Config tracerConfig,
+                Configuration configuration,
+                DebuggerTransformer.InstrumentationListener listener,
+                ProbeMetadata probeMetadata,
+                DebuggerSink debuggerSink);
     }
-  }
 
-  @Override
-  public void handleException(String configId, Exception ex) {
-    if (configId == null) {
-      return;
+    private final Instrumentation instrumentation;
+    private final TransformerSupplier transformerSupplier;
+    private final Lock configurationLock = new ReentrantLock();
+    private final EnumMap<Source, Collection<? extends ProbeDefinition>> definitionSources =
+            new EnumMap<>(Source.class);
+    private volatile Configuration currentConfiguration;
+    private DebuggerTransformer currentTransformer;
+    private final ProbeMetadata probeMetadata = new ProbeMetadata();
+    private final Config config;
+    private final DebuggerSink sink;
+    private final ClassesToRetransformFinder finder;
+    private final String serviceName;
+    private final Map<String, InstrumentationResult> instrumentationResults = new ConcurrentHashMap<>();
+    private final RatelimitedLogger ratelimitedLogger =
+            new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES);
+
+    public ConfigurationUpdater(
+            Instrumentation instrumentation,
+            TransformerSupplier transformerSupplier,
+            Config config,
+            DebuggerSink sink,
+            ClassesToRetransformFinder finder) {
+        this.instrumentation = instrumentation;
+        this.transformerSupplier = transformerSupplier;
+        this.serviceName = TagsHelper.sanitize(config.getServiceName());
+        this.config = config;
+        this.sink = sink;
+        this.finder = finder;
     }
-    ProbeId probeId;
-    if (configId.startsWith(LOG_PROBE_PREFIX)) {
-      probeId = extractPrefix(LOG_PROBE_PREFIX, configId);
-    } else if (configId.startsWith(METRIC_PROBE_PREFIX)) {
-      probeId = extractPrefix(METRIC_PROBE_PREFIX, configId);
-    } else if (configId.startsWith(SPAN_PROBE_PREFIX)) {
-      probeId = extractPrefix(SPAN_PROBE_PREFIX, configId);
-    } else if (configId.startsWith(SPAN_DECORATION_PROBE_PREFIX)) {
-      probeId = extractPrefix(SPAN_DECORATION_PROBE_PREFIX, configId);
-    } else {
-      probeId = new ProbeId(configId, 0);
-    }
-    LOGGER.warn("Error handling probe configuration: {}", configId, ex);
-    sink.getProbeStatusSink().addError(probeId, ex);
-  }
 
-  ProbeMetadata getProbeMetadata() {
-    return probeMetadata;
-  }
-
-  private ProbeId extractPrefix(String prefix, String configId) {
-    return new ProbeId(configId.substring(prefix.length()), 0);
-  }
-
-  private void applyNewConfiguration(Configuration newConfiguration) {
-    Configuration originalConfiguration = currentConfiguration;
-    ConfigurationComparer changes =
-        new ConfigurationComparer(originalConfiguration, newConfiguration, instrumentationResults);
-    if (changes.hasRateLimitRelatedChanged()) {
-      // apply rate limit config first to avoid racing with execution/instrumentation
-      // of probes requiring samplers
-      applyRateLimiter(newConfiguration.getSampling());
-    }
-    currentConfiguration = newConfiguration;
-    if (changes.hasProbeRelatedChanges()) {
-      LOGGER.debug("Applying new probe configuration, changes: {}", changes);
-      handleProbesChanges(changes, newConfiguration);
-    }
-  }
-
-  private Configuration createConfiguration(
-      EnumMap<Source, Collection<? extends ProbeDefinition>> sources) {
-    Configuration.Builder builder = Configuration.builder();
-    for (Collection<? extends ProbeDefinition> definitions : sources.values()) {
-      builder.add(definitions);
-    }
-    return builder.build();
-  }
-
-  private <E extends ProbeDefinition> Collection<E> filterProbes(
-      Supplier<Collection<E>> probeSupplier, int maxAllowedProbes) {
-    Collection<E> probes = probeSupplier.get();
-    if (probes == null) {
-      return Collections.emptyList();
-    }
-    return probes.stream().limit(maxAllowedProbes).collect(Collectors.toList());
-  }
-
-  private void handleProbesChanges(ConfigurationComparer changes, Configuration newConfiguration) {
-    removeCurrentTransformer();
-    updateProbeMetadata(changes);
-    installNewDefinitions(newConfiguration);
-    reportReceived(changes);
-    if (!finder.hasChangedClasses(changes)) {
-      return;
-    }
-    List<Class<?>> changedClasses =
-        finder.getAllLoadedChangedClasses(instrumentation.getAllLoadedClasses(), changes);
-    changedClasses =
-        JDKVersionSpecificHelper.detectMethodParameters(
-            errorMsg -> reportError(changes, errorMsg), instrumentation, changedClasses);
-    changedClasses =
-        JDKVersionSpecificHelper.detectRecordWithTypeAnnotation(
-            errorMsg -> reportError(changes, errorMsg), changedClasses);
-    retransformClasses(changedClasses);
-    // ensures that we have at least re-transformed 1 class
-    if (changedClasses.size() > 0) {
-      LOGGER.debug("Re-transformation done");
-    }
-  }
-
-  private void reportReceived(ConfigurationComparer changes) {
-    for (ProbeDefinition def : changes.getAddedDefinitions()) {
-      if (def instanceof ExceptionProbe) {
-        // do not report received for exception probes
-        continue;
-      }
-      sink.addReceived(def.getProbeId());
-    }
-    for (ProbeDefinition def : changes.getRemovedDefinitions()) {
-      sink.removeDiagnostics(def.getProbeId());
-    }
-  }
-
-  private void reportError(ConfigurationComparer changes, String errorMsg) {
-    for (ProbeDefinition def : changes.getAddedDefinitions()) {
-      if (def instanceof ExceptionProbe) {
-        // do not report received for exception probes
-        continue;
-      }
-      sink.addError(def.getProbeId(), errorMsg);
-    }
-  }
-
-  private void installNewDefinitions(Configuration newConfiguration) {
-    DebuggerContext.initClassFilter(new DenyListHelper(newConfiguration.getDenyList()));
-    if (newConfiguration.getDefinitions().isEmpty()) {
-      return;
-    }
-    // install new probe definitions
-    DebuggerTransformer newTransformer =
-        transformerSupplier.supply(
-            config, newConfiguration, this::recordInstrumentationProgress, probeMetadata, sink);
-    instrumentation.addTransformer(newTransformer, true);
-    currentTransformer = newTransformer;
-    LOGGER.debug("New transformer installed with probes: {}", newConfiguration.getDefinitions());
-  }
-
-  private void recordInstrumentationProgress(
-      ProbeDefinition definition, InstrumentationResult instrumentationResult) {
-    if (instrumentationResult.isError()) {
-      return;
-    }
-    instrumentationResults.put(definition.getProbeId().getEncodedId(), instrumentationResult);
-  }
-
-  private void retransformClasses(List<Class<?>> classesToBeTransformed) {
-    int classCount = classesToBeTransformed.size();
-    if (classCount <= 10) {
-      retransformIndividualClasses(classesToBeTransformed);
-    } else if (classCount <= 1000) {
-      retransformClassesAtOnce(classesToBeTransformed);
-    } else {
-      throw new IllegalStateException("Too many classes to retransform: " + classCount);
-    }
-  }
-
-  private void retransformClassesAtOnce(List<Class<?>> classesToBeTransformed) {
-    LOGGER.debug("Re-transforming classes: {}", classesToBeTransformed);
-    try {
-      instrumentation.retransformClasses(classesToBeTransformed.toArray(new Class[0]));
-    } catch (Exception ex) {
-      ExceptionHelper.logException(LOGGER, ex, "Re-transform error:");
-    } catch (Throwable ex) {
-      ExceptionHelper.logException(LOGGER, ex, "Re-transform throwable:");
-    }
-  }
-
-  private void retransformIndividualClasses(List<Class<?>> classesToBeTransformed) {
-    for (Class<?> clazz : classesToBeTransformed) {
-      try {
-        LOGGER.debug("Re-transforming class: {}", clazz.getTypeName());
-        instrumentation.retransformClasses(clazz);
-      } catch (Exception ex) {
-        ExceptionHelper.logException(LOGGER, ex, "Re-transform error:");
-      } catch (Throwable ex) {
-        ExceptionHelper.logException(LOGGER, ex, "Re-transform throwable:");
-      }
-    }
-  }
-
-  private void updateProbeMetadata(ConfigurationComparer changes) {
-    for (ProbeDefinition definition : changes.getRemovedDefinitions()) {
-      probeMetadata.removeProbe(definition.getProbeId().getEncodedId());
-    }
-  }
-
-  // /!\ This is called potentially by multiple threads from the instrumented code /!\
-  @Override
-  public ProbeImplementation resolve(int probeIndex) {
-    return probeMetadata.getProbe(probeIndex);
-  }
-
-  private static void applyRateLimiter(LogProbe.Sampling globalSampling) {
-    // set global sampling
-    if (globalSampling != null) {
-      ProbeRateLimiter.setGlobalSnapshotRate(globalSampling.getSnapshotsPerSecond());
-    }
-  }
-
-  private void removeCurrentTransformer() {
-    if (currentTransformer == null) {
-      return;
-    }
-    instrumentation.removeTransformer(currentTransformer);
-    currentTransformer = null;
-  }
-
-  @VisibleForTesting
-  Map<String, ProbeDefinition> getAppliedDefinitions() {
-    if (currentTransformer == null) {
-      return Collections.emptyMap();
-    }
-    return currentConfiguration.getDefinitions().stream()
-        .collect(
-            Collectors.toMap(
-                probeDefinition -> probeDefinition.getProbeId().getEncodedId(),
-                Function.identity()));
-  }
-
-  Map<String, InstrumentationResult> getInstrumentationResults() {
-    return instrumentationResults;
-  }
-
-  private static class JDKVersionSpecificHelper {
-
-    public static List<Class<?>> detectRecordWithTypeAnnotation(
-        Consumer<String> reportError, List<Class<?>> changedClasses) {
-      if (!JAVA_AT_LEAST_16 || JAVA_AT_LEAST_25_0_4) {
-        // records introduced in JDK 16 (final version)
-        // JDK-8376185 fixed since JDK 25.0.4
-        return changedClasses;
-      }
-      List<Class<?>> result = new ArrayList<>();
-      for (Class<?> changedClass : changedClasses) {
-        boolean addClass = true;
+    // /!\ Can be called by different threads and concurrently /!\
+    // Should throw a runtime exception if there is a problem. The message of
+    // the exception will be reported in the next request to the conf service
+    @Override
+    public void accept(Source source, Collection<? extends ProbeDefinition> definitions) {
+        configurationLock.lock();
         try {
-          if (changedClass.getSuperclass() != null
-              && changedClass.getSuperclass().getTypeName().equals("java.lang.Record")
-              && Modifier.isFinal(changedClass.getModifiers())) {
-            if (hasTypeAnnotationOnRecordComponent(changedClass)) {
-              LOGGER.debug(
-                  "Record with type annotation detected, instrumentation not supported for {}",
-                  changedClass.getTypeName());
-              reportError.accept(
-                  "Record with type annotation detected, instrumentation not supported for "
-                      + changedClass.getTypeName());
-              addClass = false;
-            }
-          }
-        } catch (Exception e) {
-          LOGGER.debug("Exception detecting record with type annotation", e);
+            LOGGER.debug("Received new definitions from {}", source);
+            Configuration newConfiguration;
+            definitionSources.put(source, definitions);
+            newConfiguration = createConfiguration(definitionSources);
+            applyNewConfiguration(newConfiguration);
+        } catch (RuntimeException e) {
+            ExceptionHelper.logException(LOGGER, e, "Error during accepting new debugger configuration:");
+            throw e;
+        } finally {
+            configurationLock.unlock();
         }
-        if (addClass) {
-          result.add(changedClass);
-        }
-      }
-      return result;
     }
 
-    private static boolean hasTypeAnnotationOnRecordComponent(Class<?> recordClass) {
-      if (GET_RECORD_COMPONENTS_METHOD == null || GET_ANNOTATED_TYPES_METHOD == null) {
-        return false;
-      }
-      try {
-        Object recordComponentsArray = GET_RECORD_COMPONENTS_METHOD.invoke(recordClass);
-        int len = Array.getLength(recordComponentsArray);
-        for (int i = 0; i < len; i++) {
-          Object recordComponent = Array.get(recordComponentsArray, i);
-          AnnotatedType annotatedType =
-              (AnnotatedType) GET_ANNOTATED_TYPES_METHOD.invoke(recordComponent);
-          for (Annotation annotation : annotatedType.getAnnotations()) {
-            Target annotationTarget = annotation.annotationType().getAnnotation(Target.class);
-            if (annotationTarget != null
-                && Arrays.stream(annotationTarget.value())
-                    .anyMatch(it -> it == ElementType.TYPE_USE)) {
-              return true;
-            }
-          }
+    @Override
+    public void handleException(String configId, Exception ex) {
+        if (configId == null) {
+            return;
         }
-        return false;
-      } catch (Exception ex) {
-        return false;
-      }
+        ProbeId probeId;
+        if (configId.startsWith(LOG_PROBE_PREFIX)) {
+            probeId = extractPrefix(LOG_PROBE_PREFIX, configId);
+        } else if (configId.startsWith(METRIC_PROBE_PREFIX)) {
+            probeId = extractPrefix(METRIC_PROBE_PREFIX, configId);
+        } else if (configId.startsWith(SPAN_PROBE_PREFIX)) {
+            probeId = extractPrefix(SPAN_PROBE_PREFIX, configId);
+        } else if (configId.startsWith(SPAN_DECORATION_PROBE_PREFIX)) {
+            probeId = extractPrefix(SPAN_DECORATION_PROBE_PREFIX, configId);
+        } else {
+            probeId = new ProbeId(configId, 0);
+        }
+        LOGGER.warn("Error handling probe configuration: {}", configId, ex);
+        sink.getProbeStatusSink().addError(probeId, ex);
     }
 
-    /*
-     * Because of this bug (https://bugs.openjdk.org/browse/JDK-8240908), classes compiled with
-     * method parameters (javac -parameters) strip this attribute once retransformed
-     * Spring 6/Spring boot 3 rely exclusively on this attribute and may throw an exception
-     * if no attribute found.
-     */
-    public static List<Class<?>> detectMethodParameters(
-        Consumer<String> reportError,
-        Instrumentation instrumentation,
-        List<Class<?>> changedClasses) {
-      if (JAVA_AT_LEAST_17_0_20) {
-        // bug is fixed since JDK 19 and 17.0.20, no need to perform detection
-        return changedClasses;
-      }
-      List<Class<?>> result = new ArrayList<>();
-      for (Class<?> changedClass : changedClasses) {
-        boolean addClass = true;
+    ProbeMetadata getProbeMetadata() {
+        return probeMetadata;
+    }
+
+    private ProbeId extractPrefix(String prefix, String configId) {
+        return new ProbeId(configId.substring(prefix.length()), 0);
+    }
+
+    private void applyNewConfiguration(Configuration newConfiguration) {
+        Configuration originalConfiguration = currentConfiguration;
+        ConfigurationComparer changes =
+                new ConfigurationComparer(originalConfiguration, newConfiguration, instrumentationResults);
+        if (changes.hasRateLimitRelatedChanged()) {
+            // apply rate limit config first to avoid racing with execution/instrumentation
+            // of probes requiring samplers
+            applyRateLimiter(newConfiguration.getSampling());
+        }
+        currentConfiguration = newConfiguration;
+        if (changes.hasProbeRelatedChanges()) {
+            LOGGER.debug("Applying new probe configuration, changes: {}", changes);
+            handleProbesChanges(changes, newConfiguration);
+        }
+    }
+
+    private Configuration createConfiguration(EnumMap<Source, Collection<? extends ProbeDefinition>> sources) {
+        Configuration.Builder builder = Configuration.builder();
+        for (Collection<? extends ProbeDefinition> definitions : sources.values()) {
+            builder.add(definitions);
+        }
+        return builder.build();
+    }
+
+    private <E extends ProbeDefinition> Collection<E> filterProbes(
+            Supplier<Collection<E>> probeSupplier, int maxAllowedProbes) {
+        Collection<E> probes = probeSupplier.get();
+        if (probes == null) {
+            return Collections.emptyList();
+        }
+        return probes.stream().limit(maxAllowedProbes).collect(Collectors.toList());
+    }
+
+    private void handleProbesChanges(ConfigurationComparer changes, Configuration newConfiguration) {
+        removeCurrentTransformer();
+        updateProbeMetadata(changes);
+        installNewDefinitions(newConfiguration);
+        reportReceived(changes);
+        if (!finder.hasChangedClasses(changes)) {
+            return;
+        }
+        List<Class<?>> changedClasses =
+                finder.getAllLoadedChangedClasses(instrumentation.getAllLoadedClasses(), changes);
+        changedClasses = JDKVersionSpecificHelper.detectMethodParameters(
+                errorMsg -> reportError(changes, errorMsg), instrumentation, changedClasses);
+        changedClasses = JDKVersionSpecificHelper.detectRecordWithTypeAnnotation(
+                errorMsg -> reportError(changes, errorMsg), changedClasses);
+        retransformClasses(changedClasses);
+        // ensures that we have at least re-transformed 1 class
+        if (changedClasses.size() > 0) {
+            LOGGER.debug("Re-transformation done");
+        }
+    }
+
+    private void reportReceived(ConfigurationComparer changes) {
+        for (ProbeDefinition def : changes.getAddedDefinitions()) {
+            if (def instanceof ExceptionProbe) {
+                // do not report received for exception probes
+                continue;
+            }
+            sink.addReceived(def.getProbeId());
+        }
+        for (ProbeDefinition def : changes.getRemovedDefinitions()) {
+            sink.removeDiagnostics(def.getProbeId());
+        }
+    }
+
+    private void reportError(ConfigurationComparer changes, String errorMsg) {
+        for (ProbeDefinition def : changes.getAddedDefinitions()) {
+            if (def instanceof ExceptionProbe) {
+                // do not report received for exception probes
+                continue;
+            }
+            sink.addError(def.getProbeId(), errorMsg);
+        }
+    }
+
+    private void installNewDefinitions(Configuration newConfiguration) {
+        DebuggerContext.initClassFilter(new DenyListHelper(newConfiguration.getDenyList()));
+        if (newConfiguration.getDefinitions().isEmpty()) {
+            return;
+        }
+        // install new probe definitions
+        DebuggerTransformer newTransformer = transformerSupplier.supply(
+                config, newConfiguration, this::recordInstrumentationProgress, probeMetadata, sink);
+        instrumentation.addTransformer(newTransformer, true);
+        currentTransformer = newTransformer;
+        LOGGER.debug("New transformer installed with probes: {}", newConfiguration.getDefinitions());
+    }
+
+    private void recordInstrumentationProgress(
+            ProbeDefinition definition, InstrumentationResult instrumentationResult) {
+        if (instrumentationResult.isError()) {
+            return;
+        }
+        instrumentationResults.put(definition.getProbeId().getEncodedId(), instrumentationResult);
+    }
+
+    private void retransformClasses(List<Class<?>> classesToBeTransformed) {
+        int classCount = classesToBeTransformed.size();
+        if (classCount <= 10) {
+            retransformIndividualClasses(classesToBeTransformed);
+        } else if (classCount <= 1000) {
+            retransformClassesAtOnce(classesToBeTransformed);
+        } else {
+            throw new IllegalStateException("Too many classes to retransform: " + classCount);
+        }
+    }
+
+    private void retransformClassesAtOnce(List<Class<?>> classesToBeTransformed) {
+        LOGGER.debug("Re-transforming classes: {}", classesToBeTransformed);
         try {
-          Method[] declaredMethods = changedClass.getDeclaredMethods();
-          // capping scanning of methods to 100 to avoid generated class with thousand of methods
-          // assuming that in those first 100 methods there is at least one with at least one
-          // parameter
-          for (int methodIdx = 0;
-              methodIdx < declaredMethods.length && methodIdx < 100;
-              methodIdx++) {
-            Method method = declaredMethods[methodIdx];
-            Parameter[] parameters = method.getParameters();
-            if (parameters.length == 0) {
-              continue;
+            instrumentation.retransformClasses(classesToBeTransformed.toArray(new Class[0]));
+        } catch (Exception ex) {
+            ExceptionHelper.logException(LOGGER, ex, "Re-transform error:");
+        } catch (Throwable ex) {
+            ExceptionHelper.logException(LOGGER, ex, "Re-transform throwable:");
+        }
+    }
+
+    private void retransformIndividualClasses(List<Class<?>> classesToBeTransformed) {
+        for (Class<?> clazz : classesToBeTransformed) {
+            try {
+                LOGGER.debug("Re-transforming class: {}", clazz.getTypeName());
+                instrumentation.retransformClasses(clazz);
+            } catch (Exception ex) {
+                ExceptionHelper.logException(LOGGER, ex, "Re-transform error:");
+            } catch (Throwable ex) {
+                ExceptionHelper.logException(LOGGER, ex, "Re-transform throwable:");
             }
-            if (parameters[0].isNamePresent()) {
-              if (!SpringHelper.isSpringUsingOnlyMethodParameters(instrumentation)) {
+        }
+    }
+
+    private void updateProbeMetadata(ConfigurationComparer changes) {
+        for (ProbeDefinition definition : changes.getRemovedDefinitions()) {
+            probeMetadata.removeProbe(definition.getProbeId().getEncodedId());
+        }
+    }
+
+    // /!\ This is called potentially by multiple threads from the instrumented code /!\
+    @Override
+    public ProbeImplementation resolve(int probeIndex) {
+        return probeMetadata.getProbe(probeIndex);
+    }
+
+    private static void applyRateLimiter(LogProbe.Sampling globalSampling) {
+        // set global sampling
+        if (globalSampling != null) {
+            ProbeRateLimiter.setGlobalSnapshotRate(globalSampling.getSnapshotsPerSecond());
+        }
+    }
+
+    private void removeCurrentTransformer() {
+        if (currentTransformer == null) {
+            return;
+        }
+        instrumentation.removeTransformer(currentTransformer);
+        currentTransformer = null;
+    }
+
+    @VisibleForTesting
+    Map<String, ProbeDefinition> getAppliedDefinitions() {
+        if (currentTransformer == null) {
+            return Collections.emptyMap();
+        }
+        return currentConfiguration.getDefinitions().stream()
+                .collect(Collectors.toMap(
+                        probeDefinition -> probeDefinition.getProbeId().getEncodedId(), Function.identity()));
+    }
+
+    Map<String, InstrumentationResult> getInstrumentationResults() {
+        return instrumentationResults;
+    }
+
+    private static class JDKVersionSpecificHelper {
+
+        public static List<Class<?>> detectRecordWithTypeAnnotation(
+                Consumer<String> reportError, List<Class<?>> changedClasses) {
+            if (!JAVA_AT_LEAST_16 || JAVA_AT_LEAST_25_0_4) {
+                // records introduced in JDK 16 (final version)
+                // JDK-8376185 fixed since JDK 25.0.4
                 return changedClasses;
-              }
-              LOGGER.debug(
-                  "Detecting method parameter: method={} param={}, Skipping retransforming this class",
-                  method.getName(),
-                  parameters[0].getName());
-              // skip the class: compiled with -parameters
-              reportError.accept(
-                  "Method Parameters detected, instrumentation not supported for "
-                      + changedClass.getTypeName());
-              addClass = false;
             }
-            // we found at leat a method with one parameter if name is not present we can stop there
-            break;
-          }
-        } catch (Exception e) {
-          LOGGER.debug("Exception scanning method parameters", e);
+            List<Class<?>> result = new ArrayList<>();
+            for (Class<?> changedClass : changedClasses) {
+                boolean addClass = true;
+                try {
+                    if (changedClass.getSuperclass() != null
+                            && changedClass.getSuperclass().getTypeName().equals("java.lang.Record")
+                            && Modifier.isFinal(changedClass.getModifiers())) {
+                        if (hasTypeAnnotationOnRecordComponent(changedClass)) {
+                            LOGGER.debug(
+                                    "Record with type annotation detected, instrumentation not supported for {}",
+                                    changedClass.getTypeName());
+                            reportError.accept(
+                                    "Record with type annotation detected, instrumentation not supported for "
+                                            + changedClass.getTypeName());
+                            addClass = false;
+                        }
+                    }
+                } catch (Exception e) {
+                    LOGGER.debug("Exception detecting record with type annotation", e);
+                }
+                if (addClass) {
+                    result.add(changedClass);
+                }
+            }
+            return result;
         }
-        if (addClass) {
-          result.add(changedClass);
+
+        private static boolean hasTypeAnnotationOnRecordComponent(Class<?> recordClass) {
+            if (GET_RECORD_COMPONENTS_METHOD == null || GET_ANNOTATED_TYPES_METHOD == null) {
+                return false;
+            }
+            try {
+                Object recordComponentsArray = GET_RECORD_COMPONENTS_METHOD.invoke(recordClass);
+                int len = Array.getLength(recordComponentsArray);
+                for (int i = 0; i < len; i++) {
+                    Object recordComponent = Array.get(recordComponentsArray, i);
+                    AnnotatedType annotatedType = (AnnotatedType) GET_ANNOTATED_TYPES_METHOD.invoke(recordComponent);
+                    for (Annotation annotation : annotatedType.getAnnotations()) {
+                        Target annotationTarget = annotation.annotationType().getAnnotation(Target.class);
+                        if (annotationTarget != null
+                                && Arrays.stream(annotationTarget.value()).anyMatch(it -> it == ElementType.TYPE_USE)) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            } catch (Exception ex) {
+                return false;
+            }
         }
-      }
-      return result;
+
+        /*
+         * Because of this bug (https://bugs.openjdk.org/browse/JDK-8240908), classes compiled with
+         * method parameters (javac -parameters) strip this attribute once retransformed
+         * Spring 6/Spring boot 3 rely exclusively on this attribute and may throw an exception
+         * if no attribute found.
+         */
+        public static List<Class<?>> detectMethodParameters(
+                Consumer<String> reportError, Instrumentation instrumentation, List<Class<?>> changedClasses) {
+            if (JAVA_AT_LEAST_17_0_20) {
+                // bug is fixed since JDK 19 and 17.0.20, no need to perform detection
+                return changedClasses;
+            }
+            List<Class<?>> result = new ArrayList<>();
+            for (Class<?> changedClass : changedClasses) {
+                boolean addClass = true;
+                try {
+                    Method[] declaredMethods = changedClass.getDeclaredMethods();
+                    // capping scanning of methods to 100 to avoid generated class with thousand of methods
+                    // assuming that in those first 100 methods there is at least one with at least one
+                    // parameter
+                    for (int methodIdx = 0; methodIdx < declaredMethods.length && methodIdx < 100; methodIdx++) {
+                        Method method = declaredMethods[methodIdx];
+                        Parameter[] parameters = method.getParameters();
+                        if (parameters.length == 0) {
+                            continue;
+                        }
+                        if (parameters[0].isNamePresent()) {
+                            if (!SpringHelper.isSpringUsingOnlyMethodParameters(instrumentation)) {
+                                return changedClasses;
+                            }
+                            LOGGER.debug(
+                                    "Detecting method parameter: method={} param={}, Skipping retransforming this class",
+                                    method.getName(),
+                                    parameters[0].getName());
+                            // skip the class: compiled with -parameters
+                            reportError.accept("Method Parameters detected, instrumentation not supported for "
+                                    + changedClass.getTypeName());
+                            addClass = false;
+                        }
+                        // we found at leat a method with one parameter if name is not present we can stop there
+                        break;
+                    }
+                } catch (Exception e) {
+                    LOGGER.debug("Exception scanning method parameters", e);
+                }
+                if (addClass) {
+                    result.add(changedClass);
+                }
+            }
+            return result;
+        }
     }
-  }
 }

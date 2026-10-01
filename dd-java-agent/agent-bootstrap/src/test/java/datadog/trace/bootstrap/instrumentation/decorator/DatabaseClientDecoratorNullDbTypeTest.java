@@ -12,59 +12,58 @@ import org.junit.jupiter.api.Test;
 
 class DatabaseClientDecoratorNullDbTypeTest {
 
-  private final AgentSpan span = mock(AgentSpan.class);
-  private final DatabaseClientDecorator<Object> decorator =
-      new DatabaseClientDecorator<Object>() {
+    private final AgentSpan span = mock(AgentSpan.class);
+    private final DatabaseClientDecorator<Object> decorator = new DatabaseClientDecorator<Object>() {
         @Override
         protected String[] instrumentationNames() {
-          return new String[] {"test"};
+            return new String[] {"test"};
         }
 
         @Override
         protected CharSequence spanType() {
-          return "test-type";
+            return "test-type";
         }
 
         @Override
         protected CharSequence component() {
-          return "test-component";
+            return "test-component";
         }
 
         @Override
         protected String service() {
-          return "test-service";
+            return "test-service";
         }
 
         @Override
         protected String dbType() {
-          return null;
+            return null;
         }
 
         @Override
         protected String dbUser(Object connection) {
-          return null;
+            return null;
         }
 
         @Override
         protected String dbInstance(Object connection) {
-          return null;
+            return null;
         }
 
         @Override
         protected CharSequence dbHostname(Object connection) {
-          return null;
+            return null;
         }
-      };
+    };
 
-  @Test
-  void processDatabaseTypeWithNullDbTypeDoesNotThrowOrTag() {
-    assertDoesNotThrow(() -> decorator.processDatabaseType(span, null));
+    @Test
+    void processDatabaseTypeWithNullDbTypeDoesNotThrowOrTag() {
+        assertDoesNotThrow(() -> decorator.processDatabaseType(span, null));
 
-    verify(span, never()).setTag(anyString(), anyString());
-  }
+        verify(span, never()).setTag(anyString(), anyString());
+    }
 
-  @Test
-  void dbServiceWithNullDbTypeReturnsNull() {
-    assertNull(decorator.dbService(null, null));
-  }
+    @Test
+    void dbServiceWithNullDbTypeReturnsNull() {
+        assertNull(decorator.dbService(null, null));
+    }
 }

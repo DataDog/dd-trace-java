@@ -6,17 +6,17 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation.ContextVisit
 import java.util.Map;
 
 public class TextMapExtractAdapter implements ContextVisitor<PubsubMessage> {
-  public static final TextMapExtractAdapter GETTER = new TextMapExtractAdapter();
+    public static final TextMapExtractAdapter GETTER = new TextMapExtractAdapter();
 
-  @Override
-  public void forEachKey(PubsubMessage carrier, AgentPropagation.KeyClassifier classifier) {
-    for (Map.Entry<String, String> kv : carrier.getAttributesMap().entrySet()) {
-      String value = kv.getValue();
-      if (null != value) {
-        if (!classifier.accept(kv.getKey(), value)) {
-          return;
+    @Override
+    public void forEachKey(PubsubMessage carrier, AgentPropagation.KeyClassifier classifier) {
+        for (Map.Entry<String, String> kv : carrier.getAttributesMap().entrySet()) {
+            String value = kv.getValue();
+            if (null != value) {
+                if (!classifier.accept(kv.getKey(), value)) {
+                    return;
+                }
+            }
         }
-      }
     }
-  }
 }

@@ -34,89 +34,88 @@ import javax.annotation.Nullable;
  */
 public class HeadlessTestSession extends AbstractTestSession implements TestFrameworkSession {
 
-  private final ExecutionStrategy executionStrategy;
-  private final CoverageStore.Factory coverageStoreFactory;
-  private final Collection<LibraryCapability> capabilities;
+    private final ExecutionStrategy executionStrategy;
+    private final CoverageStore.Factory coverageStoreFactory;
+    private final Collection<LibraryCapability> capabilities;
 
-  public HeadlessTestSession(
-      String projectName,
-      @Nullable Long startTime,
-      Provider ciProvider,
-      Config config,
-      CiVisibilityMetricCollector metricCollector,
-      TestDecorator testDecorator,
-      SourcePathResolver sourcePathResolver,
-      Codeowners codeowners,
-      LinesResolver linesResolver,
-      CoverageStore.Factory coverageStoreFactory,
-      ExecutionStrategy executionStrategy,
-      @Nonnull Collection<LibraryCapability> capabilities) {
-    super(
-        projectName,
-        startTime,
-        InstrumentationType.HEADLESS,
-        ciProvider,
-        config,
-        metricCollector,
-        testDecorator,
-        sourcePathResolver,
-        codeowners,
-        linesResolver);
-    this.executionStrategy = executionStrategy;
-    this.coverageStoreFactory = coverageStoreFactory;
-    this.capabilities = capabilities;
+    public HeadlessTestSession(
+            String projectName,
+            @Nullable Long startTime,
+            Provider ciProvider,
+            Config config,
+            CiVisibilityMetricCollector metricCollector,
+            TestDecorator testDecorator,
+            SourcePathResolver sourcePathResolver,
+            Codeowners codeowners,
+            LinesResolver linesResolver,
+            CoverageStore.Factory coverageStoreFactory,
+            ExecutionStrategy executionStrategy,
+            @Nonnull Collection<LibraryCapability> capabilities) {
+        super(
+                projectName,
+                startTime,
+                InstrumentationType.HEADLESS,
+                ciProvider,
+                config,
+                metricCollector,
+                testDecorator,
+                sourcePathResolver,
+                codeowners,
+                linesResolver);
+        this.executionStrategy = executionStrategy;
+        this.coverageStoreFactory = coverageStoreFactory;
+        this.capabilities = capabilities;
 
-    DynamicAutoTestRetrySettings dynamicAtrSettings =
-        executionStrategy.getExecutionSettings().getDynamicAutoTestRetrySettings();
-    if (dynamicAtrSettings.isEnabled()) {
-      metricCollector.add(
-          CiVisibilityCountMetric.DYNAMIC_ATR_RETRIES_ENABLED,
-          1,
-          dynamicAtrSettings.isCustom() ? HasCustomBuckets.TRUE : null);
+        DynamicAutoTestRetrySettings dynamicAtrSettings =
+                executionStrategy.getExecutionSettings().getDynamicAutoTestRetrySettings();
+        if (dynamicAtrSettings.isEnabled()) {
+            metricCollector.add(
+                    CiVisibilityCountMetric.DYNAMIC_ATR_RETRIES_ENABLED,
+                    1,
+                    dynamicAtrSettings.isCustom() ? HasCustomBuckets.TRUE : null);
+        }
     }
-  }
 
-  @Override
-  public HeadlessTestModule testModuleStart(String moduleName, @Nullable Long startTime) {
-    return new HeadlessTestModule(
-        span.spanContext(),
-        moduleName,
-        startTime,
-        config,
-        metricCollector,
-        testDecorator,
-        sourcePathResolver,
-        codeowners,
-        linesResolver,
-        coverageStoreFactory,
-        executionStrategy,
-        capabilities,
-        this::onModuleFinish);
-  }
+    @Override
+    public HeadlessTestModule testModuleStart(String moduleName, @Nullable Long startTime) {
+        return new HeadlessTestModule(
+                span.spanContext(),
+                moduleName,
+                startTime,
+                config,
+                metricCollector,
+                testDecorator,
+                sourcePathResolver,
+                codeowners,
+                linesResolver,
+                coverageStoreFactory,
+                executionStrategy,
+                capabilities,
+                this::onModuleFinish);
+    }
 
-  private void onModuleFinish(AgentSpan moduleSpan) {
-    tagPropagator.propagateCiVisibilityTags(moduleSpan);
-    tagPropagator.propagateTags(
-        moduleSpan,
-        TagMergeSpec.of(Tags.TEST_CODE_COVERAGE_ENABLED),
-        TagMergeSpec.of(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED),
-        TagMergeSpec.of(Tags.TEST_ITR_TESTS_SKIPPING_TYPE),
-        TagMergeSpec.of(Tags.TEST_ITR_TESTS_SKIPPING_COUNT),
-        TagMergeSpec.of(Tags.TEST_EARLY_FLAKE_ENABLED),
-        TagMergeSpec.of(Tags.TEST_EARLY_FLAKE_ABORT_REASON),
-        TagMergeSpec.of(DDTags.CI_ITR_TESTS_SKIPPED),
-        TagMergeSpec.of(Tags.TEST_TEST_MANAGEMENT_ENABLED),
-        TagMergeSpec.of(DDTags.TEST_HAS_FAILED_TEST_REPLAY),
-        TagMergeSpec.of(DDTags.CI_LIBRARY_CONFIGURATION_ERROR_SETTINGS, Boolean::logicalOr),
-        TagMergeSpec.of(DDTags.CI_LIBRARY_CONFIGURATION_ERROR_SKIPPABLE_TESTS, Boolean::logicalOr),
-        TagMergeSpec.of(DDTags.CI_LIBRARY_CONFIGURATION_ERROR_FLAKY_TESTS, Boolean::logicalOr),
-        TagMergeSpec.of(DDTags.CI_LIBRARY_CONFIGURATION_ERROR_KNOWN_TESTS, Boolean::logicalOr),
-        TagMergeSpec.of(
-            DDTags.CI_LIBRARY_CONFIGURATION_ERROR_TEST_MANAGEMENT_TESTS, Boolean::logicalOr));
-  }
+    private void onModuleFinish(AgentSpan moduleSpan) {
+        tagPropagator.propagateCiVisibilityTags(moduleSpan);
+        tagPropagator.propagateTags(
+                moduleSpan,
+                TagMergeSpec.of(Tags.TEST_CODE_COVERAGE_ENABLED),
+                TagMergeSpec.of(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED),
+                TagMergeSpec.of(Tags.TEST_ITR_TESTS_SKIPPING_TYPE),
+                TagMergeSpec.of(Tags.TEST_ITR_TESTS_SKIPPING_COUNT),
+                TagMergeSpec.of(Tags.TEST_EARLY_FLAKE_ENABLED),
+                TagMergeSpec.of(Tags.TEST_EARLY_FLAKE_ABORT_REASON),
+                TagMergeSpec.of(DDTags.CI_ITR_TESTS_SKIPPED),
+                TagMergeSpec.of(Tags.TEST_TEST_MANAGEMENT_ENABLED),
+                TagMergeSpec.of(DDTags.TEST_HAS_FAILED_TEST_REPLAY),
+                TagMergeSpec.of(DDTags.CI_LIBRARY_CONFIGURATION_ERROR_SETTINGS, Boolean::logicalOr),
+                TagMergeSpec.of(DDTags.CI_LIBRARY_CONFIGURATION_ERROR_SKIPPABLE_TESTS, Boolean::logicalOr),
+                TagMergeSpec.of(DDTags.CI_LIBRARY_CONFIGURATION_ERROR_FLAKY_TESTS, Boolean::logicalOr),
+                TagMergeSpec.of(DDTags.CI_LIBRARY_CONFIGURATION_ERROR_KNOWN_TESTS, Boolean::logicalOr),
+                TagMergeSpec.of(DDTags.CI_LIBRARY_CONFIGURATION_ERROR_TEST_MANAGEMENT_TESTS, Boolean::logicalOr));
+    }
 
-  @Override
-  public void end(@Nullable Long endTime) {
-    super.end(endTime);
-  }
+    @Override
+    public void end(@Nullable Long endTime) {
+        super.end(endTime);
+    }
 }

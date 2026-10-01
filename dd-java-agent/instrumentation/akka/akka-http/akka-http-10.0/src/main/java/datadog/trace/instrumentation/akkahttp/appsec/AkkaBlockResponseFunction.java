@@ -17,56 +17,54 @@ import java.util.Map;
  * @see BlockingResponseHelper#handleFinishForWaf(AgentSpan, HttpResponse)
  */
 public class AkkaBlockResponseFunction implements BlockResponseFunction {
-  private final HttpRequest request;
-  private Flow.Action.RequestBlockingAction rba;
-  private boolean unmarshallBlock;
-  private TraceSegment traceSegment;
+    private final HttpRequest request;
+    private Flow.Action.RequestBlockingAction rba;
+    private boolean unmarshallBlock;
+    private TraceSegment traceSegment;
 
-  public AkkaBlockResponseFunction(HttpRequest request) {
-    this.request = request;
-  }
-
-  public boolean isBlocking() {
-    return rba != null;
-  }
-
-  public boolean isUnmarshallBlock() {
-    return unmarshallBlock;
-  }
-
-  public void setUnmarshallBlock(boolean unmarshallBlock) {
-    this.unmarshallBlock = unmarshallBlock;
-  }
-
-  public HttpResponse maybeCreateAlternativeResponse() {
-    if (!isBlocking()) {
-      return null;
+    public AkkaBlockResponseFunction(HttpRequest request) {
+        this.request = request;
     }
 
-    HttpResponse httpResponse = BlockingResponseHelper.maybeCreateBlockingResponse(rba, request);
-    if (httpResponse != null) {
-      traceSegment.effectivelyBlocked();
+    public boolean isBlocking() {
+        return rba != null;
     }
-    return httpResponse;
-  }
 
-  @Override
-  public boolean tryCommitBlockingResponse(
-      TraceSegment segment,
-      int statusCode,
-      BlockingContentType templateType,
-      Map<String, String> extraHeaders,
-      String securityResponseId) {
-    AgentSpan agentSpan = AgentTracer.activeSpan();
-    if (agentSpan == null) {
-      return false;
+    public boolean isUnmarshallBlock() {
+        return unmarshallBlock;
     }
-    if (rba == null) {
-      rba =
-          new Flow.Action.RequestBlockingAction(
-              statusCode, templateType, extraHeaders, securityResponseId);
-      this.traceSegment = segment;
+
+    public void setUnmarshallBlock(boolean unmarshallBlock) {
+        this.unmarshallBlock = unmarshallBlock;
     }
-    return true;
-  }
+
+    public HttpResponse maybeCreateAlternativeResponse() {
+        if (!isBlocking()) {
+            return null;
+        }
+
+        HttpResponse httpResponse = BlockingResponseHelper.maybeCreateBlockingResponse(rba, request);
+        if (httpResponse != null) {
+            traceSegment.effectivelyBlocked();
+        }
+        return httpResponse;
+    }
+
+    @Override
+    public boolean tryCommitBlockingResponse(
+            TraceSegment segment,
+            int statusCode,
+            BlockingContentType templateType,
+            Map<String, String> extraHeaders,
+            String securityResponseId) {
+        AgentSpan agentSpan = AgentTracer.activeSpan();
+        if (agentSpan == null) {
+            return false;
+        }
+        if (rba == null) {
+            rba = new Flow.Action.RequestBlockingAction(statusCode, templateType, extraHeaders, securityResponseId);
+            this.traceSegment = segment;
+        }
+        return true;
+    }
 }

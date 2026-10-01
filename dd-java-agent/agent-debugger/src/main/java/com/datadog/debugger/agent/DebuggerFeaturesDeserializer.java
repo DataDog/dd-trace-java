@@ -8,20 +8,20 @@ import java.io.IOException;
 import okio.Okio;
 
 public class DebuggerFeaturesDeserializer implements ConfigurationDeserializer<DebuggerFeatures> {
-  public static final DebuggerFeaturesDeserializer INSTANCE = new DebuggerFeaturesDeserializer();
+    public static final DebuggerFeaturesDeserializer INSTANCE = new DebuggerFeaturesDeserializer();
 
-  private static final JsonAdapter<DebuggerFeatures> ADAPTER =
-      MoshiHelper.createMoshiConfig().adapter(DebuggerFeatures.class);
+    private static final JsonAdapter<DebuggerFeatures> ADAPTER =
+            MoshiHelper.createMoshiConfig().adapter(DebuggerFeatures.class);
 
-  private DebuggerFeaturesDeserializer() {}
+    private DebuggerFeaturesDeserializer() {}
 
-  @Override
-  public DebuggerFeatures deserialize(byte[] content) throws IOException {
-    return ADAPTER.fromJson(Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
-  }
+    @Override
+    public DebuggerFeatures deserialize(byte[] content) throws IOException {
+        return ADAPTER.fromJson(Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
+    }
 
-  /* for testing */
-  public String serialize(DebuggerFeatures features) {
-    return ADAPTER.toJson(features);
-  }
+    /* for testing */
+    public String serialize(DebuggerFeatures features) {
+        return ADAPTER.toJson(features);
+    }
 }

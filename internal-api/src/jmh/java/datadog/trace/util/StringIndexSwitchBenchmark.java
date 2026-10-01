@@ -75,226 +75,225 @@ import org.openjdk.jmh.annotations.Warmup;
 @Threads(8)
 @State(Scope.Benchmark)
 public class StringIndexSwitchBenchmark {
-  static final String[] KEYS = {
-    "alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel",
-    "india", "juliet", "kilo", "lima", "mike", "november", "oscar", "papa"
-  };
+    static final String[] KEYS = {
+        "alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel",
+        "india", "juliet", "kilo", "lima", "mike", "november", "oscar", "papa"
+    };
 
-  // A compile-time-constant hit key. javac inlines it, so the JIT can constant-propagate it into an
-  // inlined switch and fold the whole switch away -- the switch's theoretical ceiling. The const_*
-  // arms pair this with INLINE vs DONT_INLINE to show that ceiling only materializes when the call
-  // ALSO inlines: across a DONT_INLINE boundary the constant can't propagate in, so the switch runs
-  // in full. TagInterceptor's real regime is a runtime tag through a non-inlined call -- neither
-  // holds -- which is why StringIndex wins where it counts.
-  static final String CONST_KEY = "mike";
+    // A compile-time-constant hit key. javac inlines it, so the JIT can constant-propagate it into an
+    // inlined switch and fold the whole switch away -- the switch's theoretical ceiling. The const_*
+    // arms pair this with INLINE vs DONT_INLINE to show that ceiling only materializes when the call
+    // ALSO inlines: across a DONT_INLINE boundary the constant can't propagate in, so the switch runs
+    // in full. TagInterceptor's real regime is a runtime tag through a non-inlined call -- neither
+    // holds -- which is why StringIndex wins where it counts.
+    static final String CONST_KEY = "mike";
 
-  /** Distinct String instances that are never present, for the miss path. */
-  static final String[] MISSES = newMisses();
+    /** Distinct String instances that are never present, for the miss path. */
+    static final String[] MISSES = newMisses();
 
-  static String[] newMisses() {
-    String[] misses = new String[KEYS.length * 2];
-    for (int i = 0; i < misses.length; ++i) {
-      misses[i] = "dne-" + i;
-    }
-    return misses;
-  }
-
-  // StringIndex placed arrays + slot-aligned ids, pulled into static final fields so the JIT folds
-  // the refs to constants (the hot path StringIndex recommends). IDS[slot] is the 1-based id;
-  // empty slots stay 0, which doubles as the "not found" sentinel.
-  static final int[] HASHES;
-  static final String[] NAMES;
-  static final int[] IDS;
-
-  static {
-    StringIndex.Data data = StringIndex.EmbeddingSupport.create(KEYS);
-    HASHES = data.hashes;
-    NAMES = data.names;
-    IDS = new int[HASHES.length];
-    for (int i = 0; i < KEYS.length; ++i) {
-      IDS[StringIndex.EmbeddingSupport.indexOf(HASHES, NAMES, KEYS[i])] =
-          i + 1; // 1-based; 0 = not found
-    }
-  }
-
-  /** Per-thread cursors so threads don't contend on a shared index under {@code @Threads(8)}. */
-  @State(Scope.Thread)
-  public static class Cursor {
-    int hit = 0;
-    int miss = 0;
-
-    String nextHit() {
-      int i = hit + 1;
-      if (i >= KEYS.length) {
-        i = 0;
-      }
-      hit = i;
-      return KEYS[i];
+    static String[] newMisses() {
+        String[] misses = new String[KEYS.length * 2];
+        for (int i = 0; i < misses.length; ++i) {
+            misses[i] = "dne-" + i;
+        }
+        return misses;
     }
 
-    String nextMiss() {
-      int i = miss + 1;
-      if (i >= MISSES.length) {
-        i = 0;
-      }
-      miss = i;
-      return MISSES[i];
+    // StringIndex placed arrays + slot-aligned ids, pulled into static final fields so the JIT folds
+    // the refs to constants (the hot path StringIndex recommends). IDS[slot] is the 1-based id;
+    // empty slots stay 0, which doubles as the "not found" sentinel.
+    static final int[] HASHES;
+    static final String[] NAMES;
+    static final int[] IDS;
+
+    static {
+        StringIndex.Data data = StringIndex.EmbeddingSupport.create(KEYS);
+        HASHES = data.hashes;
+        NAMES = data.names;
+        IDS = new int[HASHES.length];
+        for (int i = 0; i < KEYS.length; ++i) {
+            IDS[StringIndex.EmbeddingSupport.indexOf(HASHES, NAMES, KEYS[i])] = i + 1; // 1-based; 0 = not found
+        }
     }
-  }
 
-  @CompilerControl(CompilerControl.Mode.INLINE)
-  static int switchInline(String key) {
-    switch (key) {
-      case "alpha":
-        return 1;
-      case "bravo":
-        return 2;
-      case "charlie":
-        return 3;
-      case "delta":
-        return 4;
-      case "echo":
-        return 5;
-      case "foxtrot":
-        return 6;
-      case "golf":
-        return 7;
-      case "hotel":
-        return 8;
-      case "india":
-        return 9;
-      case "juliet":
-        return 10;
-      case "kilo":
-        return 11;
-      case "lima":
-        return 12;
-      case "mike":
-        return 13;
-      case "november":
-        return 14;
-      case "oscar":
-        return 15;
-      case "papa":
-        return 16;
-      default:
-        return 0;
+    /** Per-thread cursors so threads don't contend on a shared index under {@code @Threads(8)}. */
+    @State(Scope.Thread)
+    public static class Cursor {
+        int hit = 0;
+        int miss = 0;
+
+        String nextHit() {
+            int i = hit + 1;
+            if (i >= KEYS.length) {
+                i = 0;
+            }
+            hit = i;
+            return KEYS[i];
+        }
+
+        String nextMiss() {
+            int i = miss + 1;
+            if (i >= MISSES.length) {
+                i = 0;
+            }
+            miss = i;
+            return MISSES[i];
+        }
     }
-  }
 
-  // Duplicate body, pinned non-inlinable -- TagInterceptor's actual call regime.
-  @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-  static int switchNoInline(String key) {
-    switch (key) {
-      case "alpha":
-        return 1;
-      case "bravo":
-        return 2;
-      case "charlie":
-        return 3;
-      case "delta":
-        return 4;
-      case "echo":
-        return 5;
-      case "foxtrot":
-        return 6;
-      case "golf":
-        return 7;
-      case "hotel":
-        return 8;
-      case "india":
-        return 9;
-      case "juliet":
-        return 10;
-      case "kilo":
-        return 11;
-      case "lima":
-        return 12;
-      case "mike":
-        return 13;
-      case "november":
-        return 14;
-      case "oscar":
-        return 15;
-      case "papa":
-        return 16;
-      default:
-        return 0;
+    @CompilerControl(CompilerControl.Mode.INLINE)
+    static int switchInline(String key) {
+        switch (key) {
+            case "alpha":
+                return 1;
+            case "bravo":
+                return 2;
+            case "charlie":
+                return 3;
+            case "delta":
+                return 4;
+            case "echo":
+                return 5;
+            case "foxtrot":
+                return 6;
+            case "golf":
+                return 7;
+            case "hotel":
+                return 8;
+            case "india":
+                return 9;
+            case "juliet":
+                return 10;
+            case "kilo":
+                return 11;
+            case "lima":
+                return 12;
+            case "mike":
+                return 13;
+            case "november":
+                return 14;
+            case "oscar":
+                return 15;
+            case "papa":
+                return 16;
+            default:
+                return 0;
+        }
     }
-  }
 
-  @CompilerControl(CompilerControl.Mode.INLINE)
-  static int indexInline(String key) {
-    int slot = StringIndex.EmbeddingSupport.indexOf(HASHES, NAMES, key);
-    return slot >= 0 ? IDS[slot] : 0;
-  }
+    // Duplicate body, pinned non-inlinable -- TagInterceptor's actual call regime.
+    @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+    static int switchNoInline(String key) {
+        switch (key) {
+            case "alpha":
+                return 1;
+            case "bravo":
+                return 2;
+            case "charlie":
+                return 3;
+            case "delta":
+                return 4;
+            case "echo":
+                return 5;
+            case "foxtrot":
+                return 6;
+            case "golf":
+                return 7;
+            case "hotel":
+                return 8;
+            case "india":
+                return 9;
+            case "juliet":
+                return 10;
+            case "kilo":
+                return 11;
+            case "lima":
+                return 12;
+            case "mike":
+                return 13;
+            case "november":
+                return 14;
+            case "oscar":
+                return 15;
+            case "papa":
+                return 16;
+            default:
+                return 0;
+        }
+    }
 
-  @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-  static int indexNoInline(String key) {
-    int slot = StringIndex.EmbeddingSupport.indexOf(HASHES, NAMES, key);
-    return slot >= 0 ? IDS[slot] : 0;
-  }
+    @CompilerControl(CompilerControl.Mode.INLINE)
+    static int indexInline(String key) {
+        int slot = StringIndex.EmbeddingSupport.indexOf(HASHES, NAMES, key);
+        return slot >= 0 ? IDS[slot] : 0;
+    }
 
-  @Benchmark
-  public int switch_hit_inlined(Cursor cursor) {
-    return switchInline(cursor.nextHit());
-  }
+    @CompilerControl(CompilerControl.Mode.DONT_INLINE)
+    static int indexNoInline(String key) {
+        int slot = StringIndex.EmbeddingSupport.indexOf(HASHES, NAMES, key);
+        return slot >= 0 ? IDS[slot] : 0;
+    }
 
-  @Benchmark
-  public int switch_miss_inlined(Cursor cursor) {
-    return switchInline(cursor.nextMiss());
-  }
+    @Benchmark
+    public int switch_hit_inlined(Cursor cursor) {
+        return switchInline(cursor.nextHit());
+    }
 
-  @Benchmark
-  public int switch_hit_noinline(Cursor cursor) {
-    return switchNoInline(cursor.nextHit());
-  }
+    @Benchmark
+    public int switch_miss_inlined(Cursor cursor) {
+        return switchInline(cursor.nextMiss());
+    }
 
-  @Benchmark
-  public int switch_miss_noinline(Cursor cursor) {
-    return switchNoInline(cursor.nextMiss());
-  }
+    @Benchmark
+    public int switch_hit_noinline(Cursor cursor) {
+        return switchNoInline(cursor.nextHit());
+    }
 
-  @Benchmark
-  public int stringIndex_hit_inlined(Cursor cursor) {
-    return indexInline(cursor.nextHit());
-  }
+    @Benchmark
+    public int switch_miss_noinline(Cursor cursor) {
+        return switchNoInline(cursor.nextMiss());
+    }
 
-  @Benchmark
-  public int stringIndex_miss_inlined(Cursor cursor) {
-    return indexInline(cursor.nextMiss());
-  }
+    @Benchmark
+    public int stringIndex_hit_inlined(Cursor cursor) {
+        return indexInline(cursor.nextHit());
+    }
 
-  @Benchmark
-  public int stringIndex_hit_noinline(Cursor cursor) {
-    return indexNoInline(cursor.nextHit());
-  }
+    @Benchmark
+    public int stringIndex_miss_inlined(Cursor cursor) {
+        return indexInline(cursor.nextMiss());
+    }
 
-  @Benchmark
-  public int stringIndex_miss_noinline(Cursor cursor) {
-    return indexNoInline(cursor.nextMiss());
-  }
+    @Benchmark
+    public int stringIndex_hit_noinline(Cursor cursor) {
+        return indexNoInline(cursor.nextHit());
+    }
 
-  // --- constant key: the switch's best case (const-propagated). Inlined -> folds away; not-inlined
-  // -> the constant can't cross the boundary, so the switch runs in full. ---
+    @Benchmark
+    public int stringIndex_miss_noinline(Cursor cursor) {
+        return indexNoInline(cursor.nextMiss());
+    }
 
-  @Benchmark
-  public int switch_const_inlined() {
-    return switchInline(CONST_KEY);
-  }
+    // --- constant key: the switch's best case (const-propagated). Inlined -> folds away; not-inlined
+    // -> the constant can't cross the boundary, so the switch runs in full. ---
 
-  @Benchmark
-  public int switch_const_noinline() {
-    return switchNoInline(CONST_KEY);
-  }
+    @Benchmark
+    public int switch_const_inlined() {
+        return switchInline(CONST_KEY);
+    }
 
-  @Benchmark
-  public int stringIndex_const_inlined() {
-    return indexInline(CONST_KEY);
-  }
+    @Benchmark
+    public int switch_const_noinline() {
+        return switchNoInline(CONST_KEY);
+    }
 
-  @Benchmark
-  public int stringIndex_const_noinline() {
-    return indexNoInline(CONST_KEY);
-  }
+    @Benchmark
+    public int stringIndex_const_inlined() {
+        return indexInline(CONST_KEY);
+    }
+
+    @Benchmark
+    public int stringIndex_const_noinline() {
+        return indexNoInline(CONST_KEY);
+    }
 }

@@ -15,64 +15,58 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TibcoDecorator extends BaseDecorator {
-  private static final Logger LOGGER = LoggerFactory.getLogger(TibcoDecorator.class);
-  static final CharSequence TIBCO_BW = UTF8BytesString.create("tibco_bw");
-  private static final CharSequence APPNODE_NAME =
-      UTF8BytesString.create(SystemProperties.get("bw.appnode"));
-  private static final CharSequence BW_VERSION = bwVersion();
-  public static final CharSequence TIBCO_PROCESS_OPERATION =
-      UTF8BytesString.create("tibco.process");
-  public static final CharSequence TIBCO_ACTIVITY_OPERATION =
-      UTF8BytesString.create("tibco.activity");
-  public static final TibcoDecorator DECORATE = new TibcoDecorator();
+    private static final Logger LOGGER = LoggerFactory.getLogger(TibcoDecorator.class);
+    static final CharSequence TIBCO_BW = UTF8BytesString.create("tibco_bw");
+    private static final CharSequence APPNODE_NAME = UTF8BytesString.create(SystemProperties.get("bw.appnode"));
+    private static final CharSequence BW_VERSION = bwVersion();
+    public static final CharSequence TIBCO_PROCESS_OPERATION = UTF8BytesString.create("tibco.process");
+    public static final CharSequence TIBCO_ACTIVITY_OPERATION = UTF8BytesString.create("tibco.activity");
+    public static final TibcoDecorator DECORATE = new TibcoDecorator();
 
-  private static CharSequence bwVersion() {
-    try {
-      Class cls =
-          Class.forName(
-              "com.tibco.bw.thor.management.common.SetupUtils",
-              false,
-              ClassLoader.getSystemClassLoader());
-      Map<String, String> map =
-          (Map<String, String>) cls.getMethod("loadProductConfiguration").invoke(null);
-      if (map != null) {
-        return map.get("product.version");
-      }
-    } catch (Throwable t) {
-      LOGGER.warn("Error while obtaining the Tibco BW version", t);
+    private static CharSequence bwVersion() {
+        try {
+            Class cls = Class.forName(
+                    "com.tibco.bw.thor.management.common.SetupUtils", false, ClassLoader.getSystemClassLoader());
+            Map<String, String> map = (Map<String, String>)
+                    cls.getMethod("loadProductConfiguration").invoke(null);
+            if (map != null) {
+                return map.get("product.version");
+            }
+        } catch (Throwable t) {
+            LOGGER.warn("Error while obtaining the Tibco BW version", t);
+        }
+        return null;
     }
-    return null;
-  }
 
-  @Override
-  protected String[] instrumentationNames() {
-    return new String[] {TIBCO_BW.toString()};
-  }
+    @Override
+    protected String[] instrumentationNames() {
+        return new String[] {TIBCO_BW.toString()};
+    }
 
-  @Override
-  protected CharSequence spanType() {
-    return InternalSpanTypes.TIBCO_BW;
-  }
+    @Override
+    protected CharSequence spanType() {
+        return InternalSpanTypes.TIBCO_BW;
+    }
 
-  @Override
-  protected CharSequence component() {
-    return TIBCO_BW;
-  }
+    @Override
+    protected CharSequence component() {
+        return TIBCO_BW;
+    }
 
-  @Override
-  protected void doAfterStart(@Nonnull final AgentSpan span) {
-    span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_INTERNAL);
-    super.doAfterStart(span);
-  }
+    @Override
+    protected void doAfterStart(@Nonnull final AgentSpan span) {
+        span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_INTERNAL);
+        super.doAfterStart(span);
+    }
 
-  public void onProcessStart(AgentSpan span, String processName) {
-    span.setResourceName(processName)
-        .setTag(TIBCO_NODE, APPNODE_NAME)
-        .setTag(TIBCO_VERSION, BW_VERSION)
-        .setMeasured(true);
-  }
+    public void onProcessStart(AgentSpan span, String processName) {
+        span.setResourceName(processName)
+                .setTag(TIBCO_NODE, APPNODE_NAME)
+                .setTag(TIBCO_VERSION, BW_VERSION)
+                .setMeasured(true);
+    }
 
-  public void onActivityStart(final AgentSpan span, String activityName) {
-    span.setResourceName(activityName);
-  }
+    public void onActivityStart(final AgentSpan span, String activityName) {
+        span.setResourceName(activityName);
+    }
 }

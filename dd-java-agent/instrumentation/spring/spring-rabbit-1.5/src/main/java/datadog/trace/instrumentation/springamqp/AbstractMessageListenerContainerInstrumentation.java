@@ -28,70 +28,71 @@ import org.springframework.amqp.core.Message;
 
 @AutoService(InstrumenterModule.class)
 public class AbstractMessageListenerContainerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
 
-  public AbstractMessageListenerContainerInstrumentation() {
-    super("spring-rabbit");
-  }
+    public AbstractMessageListenerContainerInstrumentation() {
+        super("spring-rabbit");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "org.springframework.amqp.rabbit.listener.AbstractMessageListenerContainer";
-  }
+    @Override
+    public String instrumentedType() {
+        return "org.springframework.amqp.rabbit.listener.AbstractMessageListenerContainer";
+    }
 
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("org.springframework.amqp.core.Message", State.class.getName());
-  }
+    @Override
+    public Map<String, String> contextStore() {
+        return singletonMap("org.springframework.amqp.core.Message", State.class.getName());
+    }
 
-  @Override
-  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
-    // Even though this class isn't immediately relevant to spring-rabbit, it's loaded by the test.
-    return singletonMap(
-        RUNNABLE,
-        singleton("org.springframework.boot.logging.logback.LogbackLoggingSystem$ShutdownHandler"));
-  }
+    @Override
+    public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
+        // Even though this class isn't immediately relevant to spring-rabbit, it's loaded by the test.
+        return singletonMap(
+                RUNNABLE, singleton("org.springframework.boot.logging.logback.LogbackLoggingSystem$ShutdownHandler"));
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("executeListener").and(takesArgument(1, Object.class)),
-        getClass().getName() + "$ActivateContinuation");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("executeListener").and(takesArgument(1, Object.class)),
+                getClass().getName() + "$ActivateContinuation");
+    }
 
-  public static class ActivateContinuation {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope activate(@Advice.Argument(1) Object data) {
-      if (data instanceof Message) {
-        Message message = (Message) data;
-        State state = InstrumentationContext.get(Message.class, State.class).get(message);
-        if (null != state) {
-          ContextContinuation continuation = state.getAndResetContinuation();
-          if (null != continuation) {
-            try (ContextScope scope = continuation.resume()) {
-              AgentSpan span = startSpan("rabbitmq-amqp", AMQP_CONSUME);
-              span.setMeasured(true);
-              DECORATE.afterStart(span);
-              DECORATE.onConsume(span, message.getMessageProperties().getConsumerQueue());
-              return activateSpan(span);
+    public static class ActivateContinuation {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope activate(@Advice.Argument(1) Object data) {
+            if (data instanceof Message) {
+                Message message = (Message) data;
+                State state =
+                        InstrumentationContext.get(Message.class, State.class).get(message);
+                if (null != state) {
+                    ContextContinuation continuation = state.getAndResetContinuation();
+                    if (null != continuation) {
+                        try (ContextScope scope = continuation.resume()) {
+                            AgentSpan span = startSpan("rabbitmq-amqp", AMQP_CONSUME);
+                            span.setMeasured(true);
+                            DECORATE.afterStart(span);
+                            DECORATE.onConsume(
+                                    span, message.getMessageProperties().getConsumerQueue());
+                            return activateSpan(span);
+                        }
+                    }
+                }
             }
-          }
+            return null;
         }
-      }
-      return null;
-    }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void close(@Advice.Enter ContextScope scope, @Advice.Thrown Throwable error) {
-      if (null != scope) {
-        AgentSpan span = spanFromScope(scope);
-        if (null != error) {
-          DECORATE.onError(span, error);
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void close(@Advice.Enter ContextScope scope, @Advice.Thrown Throwable error) {
+            if (null != scope) {
+                AgentSpan span = spanFromScope(scope);
+                if (null != error) {
+                    DECORATE.onError(span, error);
+                }
+                DECORATE.beforeFinish(span);
+                scope.close();
+                span.finish();
+            }
         }
-        DECORATE.beforeFinish(span);
-        scope.close();
-        span.finish();
-      }
     }
-  }
 }

@@ -60,113 +60,109 @@ import org.openjdk.jmh.annotations.Warmup;
 @Measurement(iterations = 3)
 @Threads(8)
 public class AtomicsBenchmark {
-  static int SIZE = 32;
+    static int SIZE = 32;
 
-  static final class AtomicHolder {
-    final AtomicInteger atomic;
+    static final class AtomicHolder {
+        final AtomicInteger atomic;
 
-    AtomicHolder(int num) {
-      this.atomic = new AtomicInteger(num);
+        AtomicHolder(int num) {
+            this.atomic = new AtomicInteger(num);
+        }
+
+        int get() {
+            return this.atomic.get();
+        }
+
+        int incrementAndGet() {
+            return this.atomic.incrementAndGet();
+        }
     }
 
-    int get() {
-      return this.atomic.get();
+    static final class FieldHolder {
+        static final AtomicIntegerFieldUpdater<FieldHolder> AFU_FIELD =
+                AtomicIntegerFieldUpdater.newUpdater(FieldHolder.class, "field");
+
+        volatile int field;
+
+        FieldHolder(int num) {
+            this.field = num;
+        }
+
+        int getVolatile() {
+            return this.field;
+        }
+
+        int get() {
+            return AFU_FIELD.get(this);
+        }
+
+        int incrementAndGet() {
+            return AFU_FIELD.incrementAndGet(this);
+        }
     }
 
-    int incrementAndGet() {
-      return this.atomic.incrementAndGet();
-    }
-  }
+    static final AtomicHolder[] atomicHolders = init(() -> {
+        AtomicHolder[] holders = new AtomicHolder[SIZE];
+        for (int i = 0; i < holders.length; ++i) {
+            holders[i] = new AtomicHolder(i * 2);
+        }
+        return holders;
+    });
 
-  static final class FieldHolder {
-    static final AtomicIntegerFieldUpdater<FieldHolder> AFU_FIELD =
-        AtomicIntegerFieldUpdater.newUpdater(FieldHolder.class, "field");
+    static final FieldHolder[] fieldHolders = init(() -> {
+        FieldHolder[] holders = new FieldHolder[SIZE];
+        for (int i = 0; i < holders.length; ++i) {
+            holders[i] = new FieldHolder(i * 2);
+        }
+        return holders;
+    });
 
-    volatile int field;
-
-    FieldHolder(int num) {
-      this.field = num;
-    }
-
-    int getVolatile() {
-      return this.field;
-    }
-
-    int get() {
-      return AFU_FIELD.get(this);
+    static final <T> T init(Supplier<T> supplier) {
+        return supplier.get();
     }
 
-    int incrementAndGet() {
-      return AFU_FIELD.incrementAndGet(this);
+    @State(Scope.Thread)
+    public static class BenchmarkState {
+        int index = 0;
+
+        <T> T next(T[] holders) {
+            if (++index >= holders.length) index = 0;
+            return holders[index];
+        }
     }
-  }
 
-  static final AtomicHolder[] atomicHolders =
-      init(
-          () -> {
-            AtomicHolder[] holders = new AtomicHolder[SIZE];
-            for (int i = 0; i < holders.length; ++i) {
-              holders[i] = new AtomicHolder(i * 2);
-            }
-            return holders;
-          });
-
-  static final FieldHolder[] fieldHolders =
-      init(
-          () -> {
-            FieldHolder[] holders = new FieldHolder[SIZE];
-            for (int i = 0; i < holders.length; ++i) {
-              holders[i] = new FieldHolder(i * 2);
-            }
-            return holders;
-          });
-
-  static final <T> T init(Supplier<T> supplier) {
-    return supplier.get();
-  }
-
-  @State(Scope.Thread)
-  public static class BenchmarkState {
-    int index = 0;
-
-    <T> T next(T[] holders) {
-      if (++index >= holders.length) index = 0;
-      return holders[index];
+    @Benchmark
+    public Object atomic_construction() {
+        return new AtomicHolder(0);
     }
-  }
 
-  @Benchmark
-  public Object atomic_construction() {
-    return new AtomicHolder(0);
-  }
+    @Benchmark
+    public int atomic_incrementAndGet(BenchmarkState state) {
+        return state.next(atomicHolders).incrementAndGet();
+    }
 
-  @Benchmark
-  public int atomic_incrementAndGet(BenchmarkState state) {
-    return state.next(atomicHolders).incrementAndGet();
-  }
+    @Benchmark
+    public Object atomic_read(BenchmarkState state) {
+        return state.next(atomicHolders).get();
+    }
 
-  @Benchmark
-  public Object atomic_read(BenchmarkState state) {
-    return state.next(atomicHolders).get();
-  }
+    @Benchmark
+    public Object atomicFieldUpdater_construction() {
+        return new FieldHolder(0);
+    }
 
-  @Benchmark
-  public Object atomicFieldUpdater_construction() {
-    return new FieldHolder(0);
-  }
+    @Benchmark
+    public Object atomicFieldUpdater_getVolatile(BenchmarkState state) {
+        return state.next(fieldHolders).getVolatile();
+    }
 
-  @Benchmark
-  public Object atomicFieldUpdater_getVolatile(BenchmarkState state) {
-    return state.next(fieldHolders).getVolatile();
-  }
+    @Benchmark
+    public Object atomicFieldUpdater_get(BenchmarkState state) {
+        return state.next(fieldHolders).get();
+    }
 
-  @Benchmark
-  public Object atomicFieldUpdater_get(BenchmarkState state) {
-    return state.next(fieldHolders).get();
-  }
-
-  @Benchmark
-  public int atomicFieldUpdater_incrementAndGet(BenchmarkState state) {
-    return state.next(fieldHolders).incrementAndGet();
-  }
+    @Benchmark
+    public int atomicFieldUpdater_incrementAndGet(BenchmarkState state) {
+        return state.next(fieldHolders).incrementAndGet();
+    }
 }

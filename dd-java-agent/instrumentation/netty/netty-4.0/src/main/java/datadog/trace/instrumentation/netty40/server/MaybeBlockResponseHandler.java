@@ -32,110 +32,105 @@ import org.slf4j.LoggerFactory;
 
 @ChannelHandler.Sharable
 public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
-  public static final ChannelOutboundHandler INSTANCE = new MaybeBlockResponseHandler();
-  public static final Logger log = LoggerFactory.getLogger(MaybeBlockResponseHandler.class);
+    public static final ChannelOutboundHandler INSTANCE = new MaybeBlockResponseHandler();
+    public static final Logger log = LoggerFactory.getLogger(MaybeBlockResponseHandler.class);
 
-  private MaybeBlockResponseHandler() {}
+    private MaybeBlockResponseHandler() {}
 
-  private static boolean isAnalyzedResponse(Channel ch) {
-    return ch.attr(ANALYZED_RESPONSE_KEY).get() != null;
-  }
-
-  private static void markAnalyzedResponse(Channel ch) {
-    ch.attr(ANALYZED_RESPONSE_KEY).set(Boolean.TRUE);
-  }
-
-  private static boolean isBlockedResponse(Channel ch) {
-    return ch.attr(BLOCKED_RESPONSE_KEY).get() != null;
-  }
-
-  private static void markBlockedResponse(Channel ch) {
-    ch.attr(BLOCKED_RESPONSE_KEY).set(Boolean.TRUE);
-  }
-
-  @Override
-  public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise prm) throws Exception {
-    Channel channel = ctx.channel();
-
-    Context storedContext = channel.attr(CONTEXT_ATTRIBUTE_KEY).get();
-    AgentSpan span = AgentSpan.fromContext(storedContext);
-    RequestContext requestContext;
-    if (span == null
-        || (requestContext = span.getRequestContext()) == null
-        || requestContext.getData(RequestContextSlot.APPSEC) == null) {
-      super.write(ctx, msg, prm);
-      return;
+    private static boolean isAnalyzedResponse(Channel ch) {
+        return ch.attr(ANALYZED_RESPONSE_KEY).get() != null;
     }
 
-    if (isAnalyzedResponse(channel)) {
-      if (isBlockedResponse(channel)) {
-        // block further writes
-        log.debug("Write suppressed; dropped outbound message");
+    private static void markAnalyzedResponse(Channel ch) {
+        ch.attr(ANALYZED_RESPONSE_KEY).set(Boolean.TRUE);
+    }
+
+    private static boolean isBlockedResponse(Channel ch) {
+        return ch.attr(BLOCKED_RESPONSE_KEY).get() != null;
+    }
+
+    private static void markBlockedResponse(Channel ch) {
+        ch.attr(BLOCKED_RESPONSE_KEY).set(Boolean.TRUE);
+    }
+
+    @Override
+    public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise prm) throws Exception {
+        Channel channel = ctx.channel();
+
+        Context storedContext = channel.attr(CONTEXT_ATTRIBUTE_KEY).get();
+        AgentSpan span = AgentSpan.fromContext(storedContext);
+        RequestContext requestContext;
+        if (span == null
+                || (requestContext = span.getRequestContext()) == null
+                || requestContext.getData(RequestContextSlot.APPSEC) == null) {
+            super.write(ctx, msg, prm);
+            return;
+        }
+
+        if (isAnalyzedResponse(channel)) {
+            if (isBlockedResponse(channel)) {
+                // block further writes
+                log.debug("Write suppressed; dropped outbound message");
+                ReferenceCountUtil.release(msg);
+            } else {
+                super.write(ctx, msg, prm);
+            }
+            return;
+        }
+
+        if (!(msg instanceof HttpResponse)) {
+            super.write(ctx, msg, prm);
+            return;
+        }
+        HttpResponse origResponse = (HttpResponse) msg;
+        if (origResponse.getStatus().code() == HttpResponseStatus.CONTINUE.code()) {
+            super.write(ctx, msg, prm);
+            return;
+        }
+
+        Flow<Void> flow = DECORATE.callIGCallbackResponseAndHeaders(
+                span, origResponse, origResponse.getStatus().code(), ResponseExtractAdapter.GETTER);
+        markAnalyzedResponse(channel);
+        Flow.Action action = flow.getAction();
+        if (!(action instanceof Flow.Action.RequestBlockingAction)) {
+            super.write(ctx, msg, prm);
+            return;
+        }
+
+        markBlockedResponse(channel);
+        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+        int httpCode = BlockingActionHelper.getHttpCode(rba.getStatusCode());
+        HttpResponseStatus httpResponseStatus = HttpResponseStatus.valueOf(httpCode);
+        FullHttpResponse response = new DefaultFullHttpResponse(origResponse.getProtocolVersion(), httpResponseStatus);
         ReferenceCountUtil.release(msg);
-      } else {
-        super.write(ctx, msg, prm);
-      }
-      return;
-    }
 
-    if (!(msg instanceof HttpResponse)) {
-      super.write(ctx, msg, prm);
-      return;
-    }
-    HttpResponse origResponse = (HttpResponse) msg;
-    if (origResponse.getStatus().code() == HttpResponseStatus.CONTINUE.code()) {
-      super.write(ctx, msg, prm);
-      return;
-    }
+        HttpHeaders headers = response.headers();
+        headers.set("Connection", "close");
 
-    Flow<Void> flow =
-        DECORATE.callIGCallbackResponseAndHeaders(
-            span, origResponse, origResponse.getStatus().code(), ResponseExtractAdapter.GETTER);
-    markAnalyzedResponse(channel);
-    Flow.Action action = flow.getAction();
-    if (!(action instanceof Flow.Action.RequestBlockingAction)) {
-      super.write(ctx, msg, prm);
-      return;
-    }
+        for (Map.Entry<String, String> h : rba.getExtraHeaders().entrySet()) {
+            headers.set(h.getKey(), h.getValue());
+        }
 
-    markBlockedResponse(channel);
-    Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-    int httpCode = BlockingActionHelper.getHttpCode(rba.getStatusCode());
-    HttpResponseStatus httpResponseStatus = HttpResponseStatus.valueOf(httpCode);
-    FullHttpResponse response =
-        new DefaultFullHttpResponse(origResponse.getProtocolVersion(), httpResponseStatus);
-    ReferenceCountUtil.release(msg);
+        BlockingContentType bct = rba.getBlockingContentType();
+        if (bct != BlockingContentType.NONE) {
+            HttpHeaders reqHeaders = ctx.attr(REQUEST_HEADERS_ATTRIBUTE_KEY).get();
+            String acceptHeader = reqHeaders != null ? reqHeaders.get("accept") : null;
+            BlockingActionHelper.TemplateType type = BlockingActionHelper.determineTemplateType(bct, acceptHeader);
+            headers.set("Content-type", BlockingActionHelper.getContentType(type));
+            byte[] template = BlockingActionHelper.getTemplate(type, rba.getSecurityResponseId());
+            setContentLength(response, template.length);
+            response.content().writeBytes(template);
+        }
 
-    HttpHeaders headers = response.headers();
-    headers.set("Connection", "close");
-
-    for (Map.Entry<String, String> h : rba.getExtraHeaders().entrySet()) {
-      headers.set(h.getKey(), h.getValue());
-    }
-
-    BlockingContentType bct = rba.getBlockingContentType();
-    if (bct != BlockingContentType.NONE) {
-      HttpHeaders reqHeaders = ctx.attr(REQUEST_HEADERS_ATTRIBUTE_KEY).get();
-      String acceptHeader = reqHeaders != null ? reqHeaders.get("accept") : null;
-      BlockingActionHelper.TemplateType type =
-          BlockingActionHelper.determineTemplateType(bct, acceptHeader);
-      headers.set("Content-type", BlockingActionHelper.getContentType(type));
-      byte[] template = BlockingActionHelper.getTemplate(type, rba.getSecurityResponseId());
-      setContentLength(response, template.length);
-      response.content().writeBytes(template);
-    }
-
-    requestContext.getTraceSegment().effectivelyBlocked();
-    log.debug("About to write and flush blocking response {}", response);
-    ctx.writeAndFlush(response, prm)
-        .addListener(
-            fut -> {
-              if (!fut.isSuccess()) {
+        requestContext.getTraceSegment().effectivelyBlocked();
+        log.debug("About to write and flush blocking response {}", response);
+        ctx.writeAndFlush(response, prm).addListener(fut -> {
+            if (!fut.isSuccess()) {
                 log.warn("Write of blocking response failed", fut.cause());
-              } else {
+            } else {
                 log.debug("Write of blocking response succeeded");
-              }
-              channel.close();
-            });
-  }
+            }
+            channel.close();
+        });
+    }
 }

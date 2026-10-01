@@ -39,58 +39,56 @@ import org.openjdk.jmh.infra.Blackhole;
 @Fork(value = 1)
 public class MessagingNamingBenchmark {
 
-  CoreTracer tracer;
+    CoreTracer tracer;
 
-  WeakHashMap<ClassLoader, String> weakCache;
+    WeakHashMap<ClassLoader, String> weakCache;
 
-  private static final Supplier<String> constantSupplier = () -> "constant";
+    private static final Supplier<String> constantSupplier = () -> "constant";
 
-  private final Supplier<String> complexSupplier =
-      () -> {
+    private final Supplier<String> complexSupplier = () -> {
         String ret = weakCache.get(Thread.currentThread().getContextClassLoader());
         if (ret == null) {
-          ret = Config.get().getServiceName();
+            ret = Config.get().getServiceName();
         }
         return ret;
-      };
+    };
 
-  @Param({"false", "true"})
-  boolean pinThreadServiceName;
+    @Param({"false", "true"})
+    boolean pinThreadServiceName;
 
-  @Setup(Level.Iteration)
-  public void init(Blackhole blackhole) {
-    tracer =
-        CoreTracer.builder()
-            .writer(new BlackholeWriter(blackhole, new TraceCounters(), 0))
-            .strictTraceWrites(false)
-            .build();
-    weakCache = new WeakHashMap<>();
-    if (pinThreadServiceName) {
-      weakCache.put(Thread.currentThread().getContextClassLoader(), constantSupplier.get());
+    @Setup(Level.Iteration)
+    public void init(Blackhole blackhole) {
+        tracer = CoreTracer.builder()
+                .writer(new BlackholeWriter(blackhole, new TraceCounters(), 0))
+                .strictTraceWrites(false)
+                .build();
+        weakCache = new WeakHashMap<>();
+        if (pinThreadServiceName) {
+            weakCache.put(Thread.currentThread().getContextClassLoader(), constantSupplier.get());
+        }
     }
-  }
 
-  @Benchmark
-  public void constantServiceName(Blackhole blackhole) {
-    final AgentSpan span = tracer.startSpan("", "");
-    span.setServiceName("constant");
-    span.finish();
-    blackhole.consume(span);
-  }
+    @Benchmark
+    public void constantServiceName(Blackhole blackhole) {
+        final AgentSpan span = tracer.startSpan("", "");
+        span.setServiceName("constant");
+        span.finish();
+        blackhole.consume(span);
+    }
 
-  @Benchmark
-  public void constantSupplierServiceName(Blackhole blackhole) {
-    final AgentSpan span = tracer.startSpan("", "");
-    span.setServiceName(constantSupplier.get());
-    span.finish();
-    blackhole.consume(span);
-  }
+    @Benchmark
+    public void constantSupplierServiceName(Blackhole blackhole) {
+        final AgentSpan span = tracer.startSpan("", "");
+        span.setServiceName(constantSupplier.get());
+        span.finish();
+        blackhole.consume(span);
+    }
 
-  @Benchmark
-  public void complexSupplierServiceName(Blackhole blackhole) {
-    final AgentSpan span = tracer.startSpan("", "");
-    span.setServiceName(complexSupplier.get());
-    span.finish();
-    blackhole.consume(span);
-  }
+    @Benchmark
+    public void complexSupplierServiceName(Blackhole blackhole) {
+        final AgentSpan span = tracer.startSpan("", "");
+        span.setServiceName(complexSupplier.get());
+        span.finish();
+        blackhole.consume(span);
+    }
 }

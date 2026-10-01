@@ -6,14 +6,14 @@ import java.util.Set;
 
 /** Skeleton single-class test instrumentation. */
 public abstract class TestInstrumentation extends InstrumenterModule
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public TestInstrumentation() {
-    super("test");
-  }
+    public TestInstrumentation() {
+        super("test");
+    }
 
-  @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return true; // always on for testing purposes
-  }
+    @Override
+    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+        return true; // always on for testing purposes
+    }
 }

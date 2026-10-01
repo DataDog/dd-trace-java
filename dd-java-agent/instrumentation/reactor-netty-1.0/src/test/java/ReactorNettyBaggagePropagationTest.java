@@ -36,74 +36,70 @@ import reactor.netty.http.client.HttpClient;
  */
 class ReactorNettyBaggagePropagationTest extends AbstractInstrumentationTest {
 
-  private static HttpServer mockServer;
-  private static ExecutorService serverExecutor;
-  private static String baseUrl;
-  private static final AtomicReference<String> capturedBaggage = new AtomicReference<>();
+    private static HttpServer mockServer;
+    private static ExecutorService serverExecutor;
+    private static String baseUrl;
+    private static final AtomicReference<String> capturedBaggage = new AtomicReference<>();
 
-  @BeforeAll
-  static void startServer() throws IOException {
-    capturedBaggage.set(null);
-    mockServer = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
-    mockServer.createContext(
-        "/capture",
-        exchange -> {
-          capturedBaggage.set(exchange.getRequestHeaders().getFirst("baggage"));
-          byte[] body = "ok".getBytes(StandardCharsets.UTF_8);
-          exchange.sendResponseHeaders(200, body.length);
-          exchange.getResponseBody().write(body);
-          exchange.close();
+    @BeforeAll
+    static void startServer() throws IOException {
+        capturedBaggage.set(null);
+        mockServer = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+        mockServer.createContext("/capture", exchange -> {
+            capturedBaggage.set(exchange.getRequestHeaders().getFirst("baggage"));
+            byte[] body = "ok".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
         });
-    serverExecutor = Executors.newCachedThreadPool();
-    mockServer.setExecutor(serverExecutor);
-    mockServer.start();
-    baseUrl =
-        "http://"
-            + mockServer.getAddress().getHostString()
-            + ":"
-            + mockServer.getAddress().getPort();
-  }
-
-  @AfterAll
-  static void stopServer() {
-    if (mockServer != null) {
-      mockServer.stop(0);
-      mockServer = null;
-    }
-    if (serverExecutor != null) {
-      serverExecutor.shutdown();
-      serverExecutor = null;
-    }
-  }
-
-  @Test
-  void baggageHeaderPropagatedOnOutgoingRequest() {
-    Baggage baggage = Baggage.create(Collections.singletonMap("user.id", "abc123"));
-
-    AgentSpan span = AgentTracer.startSpan("test", "parent");
-    try (ContextScope spanScope = AgentTracer.activateSpan(span)) {
-      // Active context now carries both the span and the baggage — the exact shape the connect-span
-      // path must carry across the subscription -> I/O thread hand-off.
-      try (ContextScope baggageScope = Context.current().with(baggage).attach()) {
-        HttpClient.create()
-            .get()
-            .uri(baseUrl + "/capture")
-            .responseContent()
-            .aggregate()
-            .asString()
-            .block(Duration.ofSeconds(10));
-      }
-    } finally {
-      span.finish();
+        serverExecutor = Executors.newCachedThreadPool();
+        mockServer.setExecutor(serverExecutor);
+        mockServer.start();
+        baseUrl = "http://"
+                + mockServer.getAddress().getHostString()
+                + ":"
+                + mockServer.getAddress().getPort();
     }
 
-    String header = capturedBaggage.get();
-    assertNotNull(
-        header,
-        "outgoing request must carry a W3C 'baggage' header when baggage is in the active context;"
-            + " null means the connect-span path dropped the context (carried only the span)");
-    assertTrue(
-        header.contains("user.id=abc123"),
-        "baggage header should contain the propagated item, was: " + header);
-  }
+    @AfterAll
+    static void stopServer() {
+        if (mockServer != null) {
+            mockServer.stop(0);
+            mockServer = null;
+        }
+        if (serverExecutor != null) {
+            serverExecutor.shutdown();
+            serverExecutor = null;
+        }
+    }
+
+    @Test
+    void baggageHeaderPropagatedOnOutgoingRequest() {
+        Baggage baggage = Baggage.create(Collections.singletonMap("user.id", "abc123"));
+
+        AgentSpan span = AgentTracer.startSpan("test", "parent");
+        try (ContextScope spanScope = AgentTracer.activateSpan(span)) {
+            // Active context now carries both the span and the baggage — the exact shape the connect-span
+            // path must carry across the subscription -> I/O thread hand-off.
+            try (ContextScope baggageScope = Context.current().with(baggage).attach()) {
+                HttpClient.create()
+                        .get()
+                        .uri(baseUrl + "/capture")
+                        .responseContent()
+                        .aggregate()
+                        .asString()
+                        .block(Duration.ofSeconds(10));
+            }
+        } finally {
+            span.finish();
+        }
+
+        String header = capturedBaggage.get();
+        assertNotNull(
+                header,
+                "outgoing request must carry a W3C 'baggage' header when baggage is in the active context;"
+                        + " null means the connect-span path dropped the context (carried only the span)");
+        assertTrue(
+                header.contains("user.id=abc123"), "baggage header should contain the propagated item, was: " + header);
+    }
 }

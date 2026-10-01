@@ -10,26 +10,25 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(InstrumenterModule.class)
 public class PathParamInjectorInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public PathParamInjectorInstrumentation() {
-    super("resteasy");
-  }
+    public PathParamInjectorInstrumentation() {
+        super("resteasy");
+    }
 
-  @Override
-  public String muzzleDirective() {
-    return "jaxrs";
-  }
+    @Override
+    public String muzzleDirective() {
+        return "jaxrs";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("inject").and(isPublic()).and(takesArguments(2)),
-        packageName + ".PathParamInjectorAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("inject").and(isPublic()).and(takesArguments(2)), packageName + ".PathParamInjectorAdvice");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "org.jboss.resteasy.core.PathParamInjector";
-  }
+    @Override
+    public String instrumentedType() {
+        return "org.jboss.resteasy.core.PathParamInjector";
+    }
 }

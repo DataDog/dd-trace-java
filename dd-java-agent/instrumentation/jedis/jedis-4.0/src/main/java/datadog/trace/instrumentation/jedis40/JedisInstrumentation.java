@@ -23,57 +23,55 @@ import redis.clients.jedis.commands.ProtocolCommand;
 
 @AutoService(InstrumenterModule.class)
 public final class JedisInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public JedisInstrumentation() {
-    super("jedis", "redis");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "redis.clients.jedis.Connection";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(named("executeCommand"))
-            .and(takesArgument(0, named("redis.clients.jedis.CommandObject"))),
-        JedisInstrumentation.class.getName() + "$JedisAdvice");
-  }
-
-  public static class JedisAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onEnter(
-        @Advice.Argument(0) final CommandObject<?> commandObject,
-        @Advice.This final Connection thiz) {
-      final AgentSpan span = startSpan("redis-command", JedisClientDecorator.OPERATION_NAME);
-      DECORATE.afterStart(span);
-      DECORATE.onConnection(span, thiz);
-
-      final ProtocolCommand command = commandObject.getArguments().getCommand();
-
-      if (command instanceof Protocol.Command) {
-        DECORATE.onStatement(span, ((Protocol.Command) command).name());
-      } else {
-        // Protocol.Command is the only implementation in the Jedis lib as of 3.1 but this will save
-        // us if that changes
-        DECORATE.onStatement(span, new String(command.getRaw()));
-      }
-      return activateSpan(span);
+    public JedisInstrumentation() {
+        super("jedis", "redis");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
-      AgentSpan span = spanFromScope(scope);
-      DECORATE.onError(span, throwable);
-      DECORATE.beforeFinish(span);
-      scope.close();
-      span.finish();
+    @Override
+    public String instrumentedType() {
+        return "redis.clients.jedis.Connection";
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPublic())
+                        .and(named("executeCommand"))
+                        .and(takesArgument(0, named("redis.clients.jedis.CommandObject"))),
+                JedisInstrumentation.class.getName() + "$JedisAdvice");
+    }
+
+    public static class JedisAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope onEnter(
+                @Advice.Argument(0) final CommandObject<?> commandObject, @Advice.This final Connection thiz) {
+            final AgentSpan span = startSpan("redis-command", JedisClientDecorator.OPERATION_NAME);
+            DECORATE.afterStart(span);
+            DECORATE.onConnection(span, thiz);
+
+            final ProtocolCommand command = commandObject.getArguments().getCommand();
+
+            if (command instanceof Protocol.Command) {
+                DECORATE.onStatement(span, ((Protocol.Command) command).name());
+            } else {
+                // Protocol.Command is the only implementation in the Jedis lib as of 3.1 but this will save
+                // us if that changes
+                DECORATE.onStatement(span, new String(command.getRaw()));
+            }
+            return activateSpan(span);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void stopSpan(@Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+            AgentSpan span = spanFromScope(scope);
+            DECORATE.onError(span, throwable);
+            DECORATE.beforeFinish(span);
+            scope.close();
+            span.finish();
+        }
+    }
 }

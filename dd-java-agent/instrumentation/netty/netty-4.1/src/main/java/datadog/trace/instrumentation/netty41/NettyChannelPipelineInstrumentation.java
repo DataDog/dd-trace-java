@@ -49,242 +49,232 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  static final String INSTRUMENTATION_NAME = "netty";
-  static final String[] ADDITIONAL_INSTRUMENTATION_NAMES = {"netty-4.1"};
+    static final String INSTRUMENTATION_NAME = "netty";
+    static final String[] ADDITIONAL_INSTRUMENTATION_NAMES = {"netty-4.1"};
 
-  public NettyChannelPipelineInstrumentation() {
-    super(INSTRUMENTATION_NAME, ADDITIONAL_INSTRUMENTATION_NAMES);
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "io.netty.channel.ChannelPipeline";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".AttributeKeys",
-      packageName + ".ServerRequestContext",
-      // client helpers
-      packageName + ".client.NettyHttpClientDecorator",
-      packageName + ".client.NettyResponseInjectAdapter",
-      packageName + ".client.HttpClientRequestTracingHandler",
-      packageName + ".client.HttpClientResponseTracingHandler",
-      packageName + ".client.HttpClientTracingHandler",
-      // server helpers
-      packageName + ".server.ResponseExtractAdapter",
-      packageName + ".server.NettyHttpServerDecorator",
-      packageName + ".server.NettyHttpServerDecorator$NettyBlockResponseFunction",
-      packageName + ".server.BlockingResponseHandler",
-      packageName + ".server.BlockingResponseHandler$IgnoreAllWritesHandler",
-      packageName + ".server.BlockingResponseHandler$PendingBlockResponse",
-      packageName + ".server.HttpServerContextTrackingHandler",
-      packageName + ".server.HttpServerRequestTracingHandler",
-      packageName + ".server.HttpServerResponseTracingHandler",
-      packageName + ".server.HttpServerTracingHandler",
-      packageName + ".server.MaybeBlockResponseHandler",
-      packageName + ".server.websocket.WebSocketServerTracingHandler",
-      packageName + ".server.websocket.WebSocketServerOutboundTracingHandler",
-      packageName + ".server.websocket.WebSocketServerInboundTracingHandler",
-      packageName + ".Http2ConnectContinuationListener",
-      packageName + ".NettyHttp2Helper",
-      packageName + ".NettyPipelineHelper",
-    };
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvices(
-        isMethod()
-            .and(namedOneOf("addFirst", "addLast"))
-            .and(takesArgument(2, named("io.netty.channel.ChannelHandler"))),
-        NettyChannelPipelineInstrumentation.class.getName() + "$ContextTrackingAddHandlerAdvice",
-        NettyChannelPipelineInstrumentation.class.getName() + "$AddHandlerAdvice");
-    transformer.applyAdvices(
-        isMethod()
-            .and(namedOneOf("addBefore", "addAfter"))
-            .and(takesArgument(3, named("io.netty.channel.ChannelHandler"))),
-        NettyChannelPipelineInstrumentation.class.getName() + "$ContextTrackingAddHandlerAdvice",
-        NettyChannelPipelineInstrumentation.class.getName() + "$AddHandlerAdvice");
-    transformer.applyAdvice(
-        isMethod().and(named("connect")).and(returns(named("io.netty.channel.ChannelFuture"))),
-        NettyChannelPipelineInstrumentation.class.getName() + "$ConnectAdvice");
-  }
-
-  @AppliesOn(CONTEXT_TRACKING)
-  public static class ContextTrackingAddHandlerAdvice {
-    // No OnMethodEnter — avoids double-incrementing CallDepthThreadLocalMap,
-    // which would cause AddHandlerAdvice.OnMethodExit to see depth > 0 and skip.
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void addContextTrackingHandler(
-        @Advice.This final ChannelPipeline pipeline,
-        @Advice.Argument(value = 2, optional = true) final Object handler2,
-        @Advice.Argument(value = 3, optional = true) final ChannelHandler handler3) {
-      ChannelHandler handler =
-          handler2 instanceof ChannelHandler ? (ChannelHandler) handler2 : handler3;
-      try {
-        if (handler instanceof HttpServerCodec || handler instanceof HttpRequestDecoder) {
-          NettyPipelineHelper.addHandlerAfter(
-              pipeline, handler, HttpServerContextTrackingHandler.INSTANCE);
-        }
-      } catch (final IllegalArgumentException e) {
-        // Prevented adding duplicate handlers.
-      }
-    }
-  }
-
-  /**
-   * When certain handlers are added to the pipeline, we want to add our corresponding tracing
-   * handlers. If those handlers are later removed, we may want to remove our handlers. That is not
-   * currently implemented.
-   */
-  public static class AddHandlerAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static int checkDepth(
-        @Advice.Argument(value = 2, optional = true) final Object handler2,
-        @Advice.Argument(value = 3, optional = true) final ChannelHandler handler3) {
-      ChannelHandler handler =
-          handler2 instanceof ChannelHandler ? (ChannelHandler) handler2 : handler3;
-      /**
-       * Previously we used one unique call depth tracker for all handlers, using
-       * ChannelPipeline.class as a key. The problem with this approach is that it does not work
-       * with netty's io.netty.channel.ChannelInitializer which provides an `initChannel` that can
-       * be used to `addLast` other handlers. In that case the depth would exceed 0 and handlers
-       * added from initializers would not be considered. Using the specific handler key instead of
-       * the generic ChannelPipeline.class will help us both to handle such cases and avoid adding
-       * our additional handlers in case of internal calls of `addLast` to other method overloads
-       * with a compatible signature.
-       */
-      return CallDepthThreadLocalMap.incrementCallDepth(handler.getClass());
+    public NettyChannelPipelineInstrumentation() {
+        super(INSTRUMENTATION_NAME, ADDITIONAL_INSTRUMENTATION_NAMES);
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void addHandler(
-        @Advice.Enter final int depth,
-        @Advice.This final ChannelPipeline pipeline,
-        @Advice.Argument(value = 2, optional = true) final Object handler2,
-        @Advice.Argument(value = 3, optional = true) final ChannelHandler handler3) {
-      if (depth > 0) {
-        return;
-      }
+    @Override
+    public String hierarchyMarkerType() {
+        return "io.netty.channel.ChannelPipeline";
+    }
 
-      ChannelHandler handler =
-          handler2 instanceof ChannelHandler ? (ChannelHandler) handler2 : handler3;
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
 
-      try {
-        if (NettyHttp2Helper.isHttp2ConnectionCodec(handler)) {
-          pipeline.channel().attr(HTTP2_CONNECTION_CODEC_ATTRIBUTE_KEY).set(Boolean.TRUE);
-        }
-        // Server pipeline handlers
-        if (handler instanceof HttpServerCodec) {
-          NettyPipelineHelper.addHandlerAfter(
-              pipeline,
-              handler,
-              new HttpServerTracingHandler(),
-              MaybeBlockResponseHandler.INSTANCE);
-        } else if (handler instanceof HttpRequestDecoder) {
-          NettyPipelineHelper.addHandlerAfter(
-              pipeline, handler, HttpServerRequestTracingHandler.INSTANCE);
-        } else if (handler instanceof HttpResponseEncoder) {
-          NettyPipelineHelper.addHandlerAfter(
-              pipeline,
-              handler,
-              HttpServerResponseTracingHandler.INSTANCE,
-              MaybeBlockResponseHandler.INSTANCE);
-        } else if (handler instanceof WebSocketServerProtocolHandler) {
-          if (InstrumenterConfig.get().isWebsocketTracingEnabled()
-              && pipeline.get(HttpServerTracingHandler.class) != null) {
-            // remove single websocket handler if added before
-            if (pipeline.get(WebSocketServerInboundTracingHandler.class) != null) {
-              pipeline.remove(WebSocketServerInboundTracingHandler.class);
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            packageName + ".AttributeKeys",
+            packageName + ".ServerRequestContext",
+            // client helpers
+            packageName + ".client.NettyHttpClientDecorator",
+            packageName + ".client.NettyResponseInjectAdapter",
+            packageName + ".client.HttpClientRequestTracingHandler",
+            packageName + ".client.HttpClientResponseTracingHandler",
+            packageName + ".client.HttpClientTracingHandler",
+            // server helpers
+            packageName + ".server.ResponseExtractAdapter",
+            packageName + ".server.NettyHttpServerDecorator",
+            packageName + ".server.NettyHttpServerDecorator$NettyBlockResponseFunction",
+            packageName + ".server.BlockingResponseHandler",
+            packageName + ".server.BlockingResponseHandler$IgnoreAllWritesHandler",
+            packageName + ".server.BlockingResponseHandler$PendingBlockResponse",
+            packageName + ".server.HttpServerContextTrackingHandler",
+            packageName + ".server.HttpServerRequestTracingHandler",
+            packageName + ".server.HttpServerResponseTracingHandler",
+            packageName + ".server.HttpServerTracingHandler",
+            packageName + ".server.MaybeBlockResponseHandler",
+            packageName + ".server.websocket.WebSocketServerTracingHandler",
+            packageName + ".server.websocket.WebSocketServerOutboundTracingHandler",
+            packageName + ".server.websocket.WebSocketServerInboundTracingHandler",
+            packageName + ".Http2ConnectContinuationListener",
+            packageName + ".NettyHttp2Helper",
+            packageName + ".NettyPipelineHelper",
+        };
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvices(
+                isMethod()
+                        .and(namedOneOf("addFirst", "addLast"))
+                        .and(takesArgument(2, named("io.netty.channel.ChannelHandler"))),
+                NettyChannelPipelineInstrumentation.class.getName() + "$ContextTrackingAddHandlerAdvice",
+                NettyChannelPipelineInstrumentation.class.getName() + "$AddHandlerAdvice");
+        transformer.applyAdvices(
+                isMethod()
+                        .and(namedOneOf("addBefore", "addAfter"))
+                        .and(takesArgument(3, named("io.netty.channel.ChannelHandler"))),
+                NettyChannelPipelineInstrumentation.class.getName() + "$ContextTrackingAddHandlerAdvice",
+                NettyChannelPipelineInstrumentation.class.getName() + "$AddHandlerAdvice");
+        transformer.applyAdvice(
+                isMethod().and(named("connect")).and(returns(named("io.netty.channel.ChannelFuture"))),
+                NettyChannelPipelineInstrumentation.class.getName() + "$ConnectAdvice");
+    }
+
+    @AppliesOn(CONTEXT_TRACKING)
+    public static class ContextTrackingAddHandlerAdvice {
+        // No OnMethodEnter — avoids double-incrementing CallDepthThreadLocalMap,
+        // which would cause AddHandlerAdvice.OnMethodExit to see depth > 0 and skip.
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void addContextTrackingHandler(
+                @Advice.This final ChannelPipeline pipeline,
+                @Advice.Argument(value = 2, optional = true) final Object handler2,
+                @Advice.Argument(value = 3, optional = true) final ChannelHandler handler3) {
+            ChannelHandler handler = handler2 instanceof ChannelHandler ? (ChannelHandler) handler2 : handler3;
+            try {
+                if (handler instanceof HttpServerCodec || handler instanceof HttpRequestDecoder) {
+                    NettyPipelineHelper.addHandlerAfter(pipeline, handler, HttpServerContextTrackingHandler.INSTANCE);
+                }
+            } catch (final IllegalArgumentException e) {
+                // Prevented adding duplicate handlers.
             }
-            if (pipeline.get(WebSocketServerOutboundTracingHandler.class) != null) {
-              pipeline.remove(WebSocketServerOutboundTracingHandler.class);
+        }
+    }
+
+    /**
+     * When certain handlers are added to the pipeline, we want to add our corresponding tracing
+     * handlers. If those handlers are later removed, we may want to remove our handlers. That is not
+     * currently implemented.
+     */
+    public static class AddHandlerAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static int checkDepth(
+                @Advice.Argument(value = 2, optional = true) final Object handler2,
+                @Advice.Argument(value = 3, optional = true) final ChannelHandler handler3) {
+            ChannelHandler handler = handler2 instanceof ChannelHandler ? (ChannelHandler) handler2 : handler3;
+            /**
+             * Previously we used one unique call depth tracker for all handlers, using
+             * ChannelPipeline.class as a key. The problem with this approach is that it does not work
+             * with netty's io.netty.channel.ChannelInitializer which provides an `initChannel` that can
+             * be used to `addLast` other handlers. In that case the depth would exceed 0 and handlers
+             * added from initializers would not be considered. Using the specific handler key instead of
+             * the generic ChannelPipeline.class will help us both to handle such cases and avoid adding
+             * our additional handlers in case of internal calls of `addLast` to other method overloads
+             * with a compatible signature.
+             */
+            return CallDepthThreadLocalMap.incrementCallDepth(handler.getClass());
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void addHandler(
+                @Advice.Enter final int depth,
+                @Advice.This final ChannelPipeline pipeline,
+                @Advice.Argument(value = 2, optional = true) final Object handler2,
+                @Advice.Argument(value = 3, optional = true) final ChannelHandler handler3) {
+            if (depth > 0) {
+                return;
             }
-            NettyPipelineHelper.addHandlerAfter(
-                pipeline,
-                pipeline.get(HttpServerTracingHandler.class),
-                new WebSocketServerTracingHandler());
-          }
-        } else if (handler instanceof WebSocketFrameDecoder) {
-          if (InstrumenterConfig.get().isWebsocketTracingEnabled()
-              && pipeline.get(WebSocketServerTracingHandler.class) == null) {
-            NettyPipelineHelper.addHandlerAfter(
-                pipeline, handler, WebSocketServerInboundTracingHandler.INSTANCE);
-          }
-        } else if (handler instanceof WebSocketFrameEncoder) {
-          if (InstrumenterConfig.get().isWebsocketTracingEnabled()
-              && pipeline.get(WebSocketServerTracingHandler.class) == null) {
-            NettyPipelineHelper.addHandlerAfter(
-                pipeline, handler, WebSocketServerOutboundTracingHandler.INSTANCE);
-          }
-        }
-        // Client pipeline handlers
-        else if (handler instanceof HttpClientCodec) {
-          NettyPipelineHelper.addHandlerAfter(pipeline, handler, new HttpClientTracingHandler());
-        } else if (handler instanceof HttpRequestEncoder) {
-          NettyPipelineHelper.addHandlerAfter(
-              pipeline, handler, HttpClientRequestTracingHandler.INSTANCE);
-        } else if (handler instanceof HttpResponseDecoder) {
-          NettyPipelineHelper.addHandlerAfter(
-              pipeline, handler, HttpClientResponseTracingHandler.INSTANCE);
-        } else if (NettyHttp2Helper.isHttp2FrameCodec(handler)) {
-          if (NettyHttp2Helper.isServer(handler)) {
-            NettyPipelineHelper.addHandlerAfter(
-                pipeline,
-                handler,
-                new HttpServerTracingHandler(),
-                MaybeBlockResponseHandler.INSTANCE);
-          } else {
-            NettyPipelineHelper.addHandlerAfter(pipeline, handler, new HttpClientTracingHandler());
-          }
-        }
-      } catch (final IllegalArgumentException e) {
-        // Prevented adding duplicate handlers.
-      } finally {
-        CallDepthThreadLocalMap.reset(handler.getClass());
-      }
-    }
-  }
 
-  public static class ConnectAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static boolean addParentSpan(@Advice.This final ChannelPipeline pipeline) {
-      ContextContinuation continuation = currentContext().capture();
-      if (continuation.context() != rootContext()) {
-        final Attribute<ContextContinuation> attribute =
-            pipeline.channel().attr(CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY);
-        if (!attribute.compareAndSet(null, continuation)) {
-          continuation.release();
-          return false;
+            ChannelHandler handler = handler2 instanceof ChannelHandler ? (ChannelHandler) handler2 : handler3;
+
+            try {
+                if (NettyHttp2Helper.isHttp2ConnectionCodec(handler)) {
+                    pipeline.channel()
+                            .attr(HTTP2_CONNECTION_CODEC_ATTRIBUTE_KEY)
+                            .set(Boolean.TRUE);
+                }
+                // Server pipeline handlers
+                if (handler instanceof HttpServerCodec) {
+                    NettyPipelineHelper.addHandlerAfter(
+                            pipeline, handler, new HttpServerTracingHandler(), MaybeBlockResponseHandler.INSTANCE);
+                } else if (handler instanceof HttpRequestDecoder) {
+                    NettyPipelineHelper.addHandlerAfter(pipeline, handler, HttpServerRequestTracingHandler.INSTANCE);
+                } else if (handler instanceof HttpResponseEncoder) {
+                    NettyPipelineHelper.addHandlerAfter(
+                            pipeline,
+                            handler,
+                            HttpServerResponseTracingHandler.INSTANCE,
+                            MaybeBlockResponseHandler.INSTANCE);
+                } else if (handler instanceof WebSocketServerProtocolHandler) {
+                    if (InstrumenterConfig.get().isWebsocketTracingEnabled()
+                            && pipeline.get(HttpServerTracingHandler.class) != null) {
+                        // remove single websocket handler if added before
+                        if (pipeline.get(WebSocketServerInboundTracingHandler.class) != null) {
+                            pipeline.remove(WebSocketServerInboundTracingHandler.class);
+                        }
+                        if (pipeline.get(WebSocketServerOutboundTracingHandler.class) != null) {
+                            pipeline.remove(WebSocketServerOutboundTracingHandler.class);
+                        }
+                        NettyPipelineHelper.addHandlerAfter(
+                                pipeline,
+                                pipeline.get(HttpServerTracingHandler.class),
+                                new WebSocketServerTracingHandler());
+                    }
+                } else if (handler instanceof WebSocketFrameDecoder) {
+                    if (InstrumenterConfig.get().isWebsocketTracingEnabled()
+                            && pipeline.get(WebSocketServerTracingHandler.class) == null) {
+                        NettyPipelineHelper.addHandlerAfter(
+                                pipeline, handler, WebSocketServerInboundTracingHandler.INSTANCE);
+                    }
+                } else if (handler instanceof WebSocketFrameEncoder) {
+                    if (InstrumenterConfig.get().isWebsocketTracingEnabled()
+                            && pipeline.get(WebSocketServerTracingHandler.class) == null) {
+                        NettyPipelineHelper.addHandlerAfter(
+                                pipeline, handler, WebSocketServerOutboundTracingHandler.INSTANCE);
+                    }
+                }
+                // Client pipeline handlers
+                else if (handler instanceof HttpClientCodec) {
+                    NettyPipelineHelper.addHandlerAfter(pipeline, handler, new HttpClientTracingHandler());
+                } else if (handler instanceof HttpRequestEncoder) {
+                    NettyPipelineHelper.addHandlerAfter(pipeline, handler, HttpClientRequestTracingHandler.INSTANCE);
+                } else if (handler instanceof HttpResponseDecoder) {
+                    NettyPipelineHelper.addHandlerAfter(pipeline, handler, HttpClientResponseTracingHandler.INSTANCE);
+                } else if (NettyHttp2Helper.isHttp2FrameCodec(handler)) {
+                    if (NettyHttp2Helper.isServer(handler)) {
+                        NettyPipelineHelper.addHandlerAfter(
+                                pipeline, handler, new HttpServerTracingHandler(), MaybeBlockResponseHandler.INSTANCE);
+                    } else {
+                        NettyPipelineHelper.addHandlerAfter(pipeline, handler, new HttpClientTracingHandler());
+                    }
+                }
+            } catch (final IllegalArgumentException e) {
+                // Prevented adding duplicate handlers.
+            } finally {
+                CallDepthThreadLocalMap.reset(handler.getClass());
+            }
         }
-        return Boolean.TRUE.equals(
-            pipeline.channel().attr(HTTP2_CONNECTION_CODEC_ATTRIBUTE_KEY).get());
-      }
-      return false;
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void cleanupHttp2ConnectParentContinuation(
-        @Advice.Enter final boolean cleanupHttp2Continuation,
-        @Advice.This final ChannelPipeline pipeline,
-        @Advice.Return final ChannelFuture future) {
-      if (!cleanupHttp2Continuation) {
-        return;
-      }
-      if (future == null) {
-        Http2ConnectContinuationListener.cancel(pipeline.channel());
-      } else {
-        future.addListener(Http2ConnectContinuationListener.INSTANCE);
-      }
+    public static class ConnectAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static boolean addParentSpan(@Advice.This final ChannelPipeline pipeline) {
+            ContextContinuation continuation = currentContext().capture();
+            if (continuation.context() != rootContext()) {
+                final Attribute<ContextContinuation> attribute =
+                        pipeline.channel().attr(CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY);
+                if (!attribute.compareAndSet(null, continuation)) {
+                    continuation.release();
+                    return false;
+                }
+                return Boolean.TRUE.equals(pipeline.channel()
+                        .attr(HTTP2_CONNECTION_CODEC_ATTRIBUTE_KEY)
+                        .get());
+            }
+            return false;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void cleanupHttp2ConnectParentContinuation(
+                @Advice.Enter final boolean cleanupHttp2Continuation,
+                @Advice.This final ChannelPipeline pipeline,
+                @Advice.Return final ChannelFuture future) {
+            if (!cleanupHttp2Continuation) {
+                return;
+            }
+            if (future == null) {
+                Http2ConnectContinuationListener.cancel(pipeline.channel());
+            } else {
+                future.addListener(Http2ConnectContinuationListener.INSTANCE);
+            }
+        }
     }
-  }
 }

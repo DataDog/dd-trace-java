@@ -27,396 +27,382 @@ import java.util.Map;
 import okhttp3.RequestBody;
 
 public final class TraceMapperV0_4 implements TraceMapper {
-  static final SimpleUtf8Cache TAG_CACHE =
-      Config.get().getTagNameUtf8CacheSize() > 0
-          ? new SimpleUtf8Cache(Config.get().getTagNameUtf8CacheSize())
-          : null;
+    static final SimpleUtf8Cache TAG_CACHE = Config.get().getTagNameUtf8CacheSize() > 0
+            ? new SimpleUtf8Cache(Config.get().getTagNameUtf8CacheSize())
+            : null;
 
-  static final GenerationalUtf8Cache VALUE_CACHE =
-      Config.get().getTagValueUtf8CacheSize() > 0
-          ? new GenerationalUtf8Cache(Config.get().getTagValueUtf8CacheSize())
-          : null;
+    static final GenerationalUtf8Cache VALUE_CACHE = Config.get().getTagValueUtf8CacheSize() > 0
+            ? new GenerationalUtf8Cache(Config.get().getTagValueUtf8CacheSize())
+            : null;
 
-  // Controls how often the UTF8 caches are recalibrated. The caches adapt to shifts in tag-value
-  // cardinality over a timescale much longer than a single span, so recalibrating periodically
-  // rather than per-span preserves their effectiveness without paying recalibrate()'s O(cacheSize)
-  // cost on every span. Must be a power of two (see the mask in shouldRecalibrate).
-  static final long RECALIBRATE_SPAN_INTERVAL = 512;
+    // Controls how often the UTF8 caches are recalibrated. The caches adapt to shifts in tag-value
+    // cardinality over a timescale much longer than a single span, so recalibrating periodically
+    // rather than per-span preserves their effectiveness without paying recalibrate()'s O(cacheSize)
+    // cost on every span. Must be a power of two (see the mask in shouldRecalibrate).
+    static final long RECALIBRATE_SPAN_INTERVAL = 512;
 
-  // True when at least one cache exists. static-final so the JIT can fold the whole recalibrate
-  // block away when both caches are off.
-  private static final boolean RECALIBRATE = (TAG_CACHE != null || VALUE_CACHE != null);
+    // True when at least one cache exists. static-final so the JIT can fold the whole recalibrate
+    // block away when both caches are off.
+    private static final boolean RECALIBRATE = (TAG_CACHE != null || VALUE_CACHE != null);
 
-  // Advanced by the single serializer thread. The value is a recalibration cadence, not an exact
-  // count, so a plain counter suffices -- no atomic/volatile needed; a benign race would at most
-  // nudge when recalibrate fires.
-  private static long spanCounter;
+    // Advanced by the single serializer thread. The value is a recalibration cadence, not an exact
+    // count, so a plain counter suffices -- no atomic/volatile needed; a benign race would at most
+    // nudge when recalibrate fires.
+    private static long spanCounter;
 
-  /** True once every {@link #RECALIBRATE_SPAN_INTERVAL} spans; advances the span counter. */
-  static boolean shouldRecalibrate() {
-    return RECALIBRATE && (++spanCounter & (RECALIBRATE_SPAN_INTERVAL - 1)) == 0;
-  }
-
-  private final int size;
-  private boolean firstSpanWritten;
-
-  public TraceMapperV0_4(int size) {
-    this.size = size;
-  }
-
-  public TraceMapperV0_4() {
-    this(5 << 20);
-  }
-
-  private static final class MetaWriter implements MetadataConsumer {
-
-    private Writable writable;
-    private boolean firstSpanInTrace;
-    private boolean lastSpanInTrace;
-    private boolean firstSpanInPayload;
-
-    MetaWriter withWritable(Writable writable) {
-      this.writable = writable;
-      return this;
+    /** True once every {@link #RECALIBRATE_SPAN_INTERVAL} spans; advances the span counter. */
+    static boolean shouldRecalibrate() {
+        return RECALIBRATE && (++spanCounter & (RECALIBRATE_SPAN_INTERVAL - 1)) == 0;
     }
 
-    MetaWriter forSpan(boolean firstInTrace, boolean lastInTrace, boolean firstInPayload) {
-      this.firstSpanInTrace = firstInTrace;
-      this.lastSpanInTrace = lastInTrace;
-      this.firstSpanInPayload = firstInPayload;
-      return this;
+    private final int size;
+    private boolean firstSpanWritten;
+
+    public TraceMapperV0_4(int size) {
+        this.size = size;
     }
 
-    @Override
-    public void accept(Metadata metadata) {
-      if (shouldRecalibrate()) {
-        if (TAG_CACHE != null) TAG_CACHE.recalibrate();
-        if (VALUE_CACHE != null) VALUE_CACHE.recalibrate();
-      }
+    public TraceMapperV0_4() {
+        this(5 << 20);
+    }
 
-      TagMap tags = metadata.getTags();
+    private static final class MetaWriter implements MetadataConsumer {
 
-      // Also write on top-level spans so that inferred proxy spans (which may be in the middle
-      // of the serialized list due to phased-finish ordering) always carry the sampling decision.
-      final boolean writeSamplingPriority =
-          firstSpanInTrace || lastSpanInTrace || metadata.topLevel();
-      final UTF8BytesString processTags = firstSpanInPayload ? metadata.processTags() : null;
-      final UTF8BytesString otlpExport = firstSpanInPayload ? metadata.otlpExportMarker() : null;
-      int metaSize =
-          metadata.getBaggage().size()
-              + tags.size()
-              + (UNSET_STATUS == metadata.getHttpStatusCode() ? 0 : 1)
-              + (null == metadata.getOrigin() ? 0 : 1)
-              + (null == processTags ? 0 : 1)
-              + (null == otlpExport ? 0 : 1)
-              + 1;
-      int metricsSize =
-          (writeSamplingPriority && metadata.hasSamplingPriority() ? 1 : 0)
-              + (metadata.measured() ? 1 : 0)
-              + (metadata.topLevel() ? 1 : 0)
-              + (metadata.longRunningVersion() != 0 ? 1 : 0)
-              + 1;
+        private Writable writable;
+        private boolean firstSpanInTrace;
+        private boolean lastSpanInTrace;
+        private boolean firstSpanInPayload;
 
-      for (TagMap.EntryReader entryReader : tags) {
-        if (entryReader.isNumber()) {
-          ++metricsSize;
-          --metaSize;
-        } else {
-          Object value = entryReader.objectValue();
-          if (value instanceof Map) {
-            --metaSize;
-            metaSize += getFlatMapSize((Map) value);
-          }
+        MetaWriter withWritable(Writable writable) {
+            this.writable = writable;
+            return this;
         }
-      }
-      writable.writeUTF8(METRICS);
-      writable.startMap(metricsSize);
-      if (writeSamplingPriority && metadata.hasSamplingPriority()) {
-        writable.writeUTF8(SAMPLING_PRIORITY_KEY);
-        writable.writeInt(metadata.samplingPriority());
-      }
-      if (metadata.measured()) {
-        writable.writeUTF8(InstrumentationTags.DD_MEASURED);
-        writable.writeInt(1);
-      }
-      if (metadata.topLevel()) {
-        writable.writeUTF8(InstrumentationTags.DD_TOP_LEVEL);
-        writable.writeInt(1);
-      }
-      if (metadata.longRunningVersion() != 0) {
-        if (metadata.longRunningVersion() > 0) {
-          writable.writeUTF8(InstrumentationTags.DD_PARTIAL_VERSION);
-          writable.writeInt(metadata.longRunningVersion());
-        } else {
-          writable.writeUTF8(InstrumentationTags.DD_WAS_LONG_RUNNING);
-          writable.writeInt(1);
+
+        MetaWriter forSpan(boolean firstInTrace, boolean lastInTrace, boolean firstInPayload) {
+            this.firstSpanInTrace = firstInTrace;
+            this.lastSpanInTrace = lastInTrace;
+            this.firstSpanInPayload = firstInPayload;
+            return this;
         }
-      }
-      writable.writeUTF8(THREAD_ID);
-      writable.writeLong(metadata.getThreadId());
 
-      tags.forEach(
-          writable,
-          (w, entry) -> {
-            if (!entry.isNumber()) return;
-
-            w.writeString(entry.tag(), TAG_CACHE);
-
-            switch (entry.type()) {
-              case TagMap.EntryReader.INT:
-                w.writeInt(entry.intValue());
-                break;
-
-              case TagMap.EntryReader.LONG:
-                w.writeLong(entry.longValue());
-                break;
-
-              case TagMap.EntryReader.FLOAT:
-                w.writeFloat(entry.floatValue());
-                break;
-
-              case TagMap.EntryReader.DOUBLE:
-                w.writeDouble(entry.doubleValue());
-                break;
-
-              default:
-                w.writeObject(entry.objectValue(), VALUE_CACHE);
-                break;
+        @Override
+        public void accept(Metadata metadata) {
+            if (shouldRecalibrate()) {
+                if (TAG_CACHE != null) TAG_CACHE.recalibrate();
+                if (VALUE_CACHE != null) VALUE_CACHE.recalibrate();
             }
-          });
 
-      writable.writeUTF8(META);
-      writable.startMap(metaSize);
-      // we don't need to deduplicate any overlap between tags and baggage here
-      // since they will be accumulated into maps in the same order downstream,
-      // we just need to be sure that the size is the same as the number of elements
-      for (Map.Entry<String, String> entry : metadata.getBaggage().entrySet()) {
-        writable.writeString(entry.getKey(), TAG_CACHE);
-        writable.writeString(entry.getValue(), VALUE_CACHE);
-      }
-      writable.writeUTF8(THREAD_NAME);
-      writable.writeUTF8(metadata.getThreadName());
-      if (UNSET_STATUS != metadata.getHttpStatusCode()) {
-        writable.writeUTF8(HTTP_STATUS);
-        writable.writeUTF8(metadata.getHttpStatusCodeString());
-      }
-      if (null != metadata.getOrigin()) {
-        writable.writeUTF8(ORIGIN_KEY);
-        writable.writeString(metadata.getOrigin(), VALUE_CACHE);
-      }
-      if (processTags != null) {
-        writable.writeUTF8(PROCESS_TAGS_KEY);
-        writable.writeUTF8(processTags);
-      }
-      if (otlpExport != null) {
-        writable.writeUTF8(SDK_OTLP_EXPORT_KEY);
-        writable.writeUTF8(otlpExport);
-      }
+            TagMap tags = metadata.getTags();
 
-      tags.forEach(
-          writable,
-          (w, entryReader) -> {
-            if (entryReader.isNumber()) return;
+            // Also write on top-level spans so that inferred proxy spans (which may be in the middle
+            // of the serialized list due to phased-finish ordering) always carry the sampling decision.
+            final boolean writeSamplingPriority = firstSpanInTrace || lastSpanInTrace || metadata.topLevel();
+            final UTF8BytesString processTags = firstSpanInPayload ? metadata.processTags() : null;
+            final UTF8BytesString otlpExport = firstSpanInPayload ? metadata.otlpExportMarker() : null;
+            int metaSize = metadata.getBaggage().size()
+                    + tags.size()
+                    + (UNSET_STATUS == metadata.getHttpStatusCode() ? 0 : 1)
+                    + (null == metadata.getOrigin() ? 0 : 1)
+                    + (null == processTags ? 0 : 1)
+                    + (null == otlpExport ? 0 : 1)
+                    + 1;
+            int metricsSize = (writeSamplingPriority && metadata.hasSamplingPriority() ? 1 : 0)
+                    + (metadata.measured() ? 1 : 0)
+                    + (metadata.topLevel() ? 1 : 0)
+                    + (metadata.longRunningVersion() != 0 ? 1 : 0)
+                    + 1;
 
-            String tag = entryReader.tag();
-            Object value = entryReader.objectValue();
-            if (value instanceof Map) {
-              // Write map as flat map
-              writeFlatMap(w, tag, (Map) value);
-            } else {
-              w.writeString(tag, TAG_CACHE);
-              w.writeObjectString(value, VALUE_CACHE);
+            for (TagMap.EntryReader entryReader : tags) {
+                if (entryReader.isNumber()) {
+                    ++metricsSize;
+                    --metaSize;
+                } else {
+                    Object value = entryReader.objectValue();
+                    if (value instanceof Map) {
+                        --metaSize;
+                        metaSize += getFlatMapSize((Map) value);
+                    }
+                }
             }
-          });
+            writable.writeUTF8(METRICS);
+            writable.startMap(metricsSize);
+            if (writeSamplingPriority && metadata.hasSamplingPriority()) {
+                writable.writeUTF8(SAMPLING_PRIORITY_KEY);
+                writable.writeInt(metadata.samplingPriority());
+            }
+            if (metadata.measured()) {
+                writable.writeUTF8(InstrumentationTags.DD_MEASURED);
+                writable.writeInt(1);
+            }
+            if (metadata.topLevel()) {
+                writable.writeUTF8(InstrumentationTags.DD_TOP_LEVEL);
+                writable.writeInt(1);
+            }
+            if (metadata.longRunningVersion() != 0) {
+                if (metadata.longRunningVersion() > 0) {
+                    writable.writeUTF8(InstrumentationTags.DD_PARTIAL_VERSION);
+                    writable.writeInt(metadata.longRunningVersion());
+                } else {
+                    writable.writeUTF8(InstrumentationTags.DD_WAS_LONG_RUNNING);
+                    writable.writeInt(1);
+                }
+            }
+            writable.writeUTF8(THREAD_ID);
+            writable.writeLong(metadata.getThreadId());
+
+            tags.forEach(writable, (w, entry) -> {
+                if (!entry.isNumber()) return;
+
+                w.writeString(entry.tag(), TAG_CACHE);
+
+                switch (entry.type()) {
+                    case TagMap.EntryReader.INT:
+                        w.writeInt(entry.intValue());
+                        break;
+
+                    case TagMap.EntryReader.LONG:
+                        w.writeLong(entry.longValue());
+                        break;
+
+                    case TagMap.EntryReader.FLOAT:
+                        w.writeFloat(entry.floatValue());
+                        break;
+
+                    case TagMap.EntryReader.DOUBLE:
+                        w.writeDouble(entry.doubleValue());
+                        break;
+
+                    default:
+                        w.writeObject(entry.objectValue(), VALUE_CACHE);
+                        break;
+                }
+            });
+
+            writable.writeUTF8(META);
+            writable.startMap(metaSize);
+            // we don't need to deduplicate any overlap between tags and baggage here
+            // since they will be accumulated into maps in the same order downstream,
+            // we just need to be sure that the size is the same as the number of elements
+            for (Map.Entry<String, String> entry : metadata.getBaggage().entrySet()) {
+                writable.writeString(entry.getKey(), TAG_CACHE);
+                writable.writeString(entry.getValue(), VALUE_CACHE);
+            }
+            writable.writeUTF8(THREAD_NAME);
+            writable.writeUTF8(metadata.getThreadName());
+            if (UNSET_STATUS != metadata.getHttpStatusCode()) {
+                writable.writeUTF8(HTTP_STATUS);
+                writable.writeUTF8(metadata.getHttpStatusCodeString());
+            }
+            if (null != metadata.getOrigin()) {
+                writable.writeUTF8(ORIGIN_KEY);
+                writable.writeString(metadata.getOrigin(), VALUE_CACHE);
+            }
+            if (processTags != null) {
+                writable.writeUTF8(PROCESS_TAGS_KEY);
+                writable.writeUTF8(processTags);
+            }
+            if (otlpExport != null) {
+                writable.writeUTF8(SDK_OTLP_EXPORT_KEY);
+                writable.writeUTF8(otlpExport);
+            }
+
+            tags.forEach(writable, (w, entryReader) -> {
+                if (entryReader.isNumber()) return;
+
+                String tag = entryReader.tag();
+                Object value = entryReader.objectValue();
+                if (value instanceof Map) {
+                    // Write map as flat map
+                    writeFlatMap(w, tag, (Map) value);
+                } else {
+                    w.writeString(tag, TAG_CACHE);
+                    w.writeObjectString(value, VALUE_CACHE);
+                }
+            });
+        }
+
+        /**
+         * Calculate number of all values from map and all sub-maps Assuming map could be a binary tree
+         *
+         * @param map map to traverse
+         * @return number of all elements in the tree
+         */
+        static int getFlatMapSize(Map<String, Object> map) {
+            int size = 0;
+            for (Object value : map.values()) {
+                if (value instanceof Map) {
+                    size += getFlatMapSize((Map) value);
+                } else {
+                    size++;
+                }
+            }
+            return size;
+        }
+
+        /**
+         * Method write map of maps into writeable as FlatMap
+         *
+         * <p>Example: "root": { "key1": "val1" "key2": { "sub1": "val2", "sub2": "val3" } } "plain":
+         * "123"
+         *
+         * <p>Result: "root.key1" -> "val1" "root.key2.sub1" -> "val2" "root.key2.sub2" -> "val3"
+         * "plain" -> "123"
+         *
+         * @param key key name used as base
+         * @param mapValue map of tags that can contain sub-maps as values
+         */
+        static void writeFlatMap(Writable writable, String key, Map<String, Object> mapValue) {
+            for (Map.Entry<String, Object> entry : mapValue.entrySet()) {
+                String newKey = key + '.' + entry.getKey();
+                Object newValue = entry.getValue();
+                if (newValue instanceof Map) {
+                    writeFlatMap(writable, newKey, (Map) newValue);
+                } else {
+                    writable.writeString(newKey, TAG_CACHE);
+                    writable.writeObjectString(newValue, VALUE_CACHE);
+                }
+            }
+        }
     }
 
     /**
-     * Calculate number of all values from map and all sub-maps Assuming map could be a binary tree
+     * The MetaStruct field can safely be used with v4 agents and will be discarded for other
+     * versions.
      *
-     * @param map map to traverse
-     * @return number of all elements in the tree
+     * <p>Any type that needs to be serialized as part of the meta_struct field has to either be a JDK
+     * known type (primitives, wrappers, collections ...) or registered with {@link
+     * datadog.communication.serialization.Codec#Codec(Map)}, in the rest of the cases the {@code
+     * toString} representation of the object will be used instead
      */
-    static int getFlatMapSize(Map<String, Object> map) {
-      int size = 0;
-      for (Object value : map.values()) {
-        if (value instanceof Map) {
-          size += getFlatMapSize((Map) value);
-        } else {
-          size++;
+    public static class MetaStructWriter {
+
+        private static final UTF8BytesString META_STRUCT = UTF8BytesString.create("meta_struct");
+        private static final int BUFFER_SIZE = 1 << 10;
+
+        private Writable writable;
+
+        MetaStructWriter withWritable(final Writable writable) {
+            this.writable = writable;
+            return this;
         }
-      }
-      return size;
-    }
 
-    /**
-     * Method write map of maps into writeable as FlatMap
-     *
-     * <p>Example: "root": { "key1": "val1" "key2": { "sub1": "val2", "sub2": "val3" } } "plain":
-     * "123"
-     *
-     * <p>Result: "root.key1" -> "val1" "root.key2.sub1" -> "val2" "root.key2.sub2" -> "val3"
-     * "plain" -> "123"
-     *
-     * @param key key name used as base
-     * @param mapValue map of tags that can contain sub-maps as values
-     */
-    static void writeFlatMap(Writable writable, String key, Map<String, Object> mapValue) {
-      for (Map.Entry<String, Object> entry : mapValue.entrySet()) {
-        String newKey = key + '.' + entry.getKey();
-        Object newValue = entry.getValue();
-        if (newValue instanceof Map) {
-          writeFlatMap(writable, newKey, (Map) newValue);
-        } else {
-          writable.writeString(newKey, TAG_CACHE);
-          writable.writeObjectString(newValue, VALUE_CACHE);
+        public void write(final Map<String, Object> metaStruct) {
+            writable.writeUTF8(META_STRUCT);
+            writable.startMap(metaStruct.size());
+            final GrowableBuffer buffer = new GrowableBuffer(BUFFER_SIZE);
+            final MsgPackWriter metaStructWriter = new MsgPackWriter(Codec.INSTANCE, buffer);
+            for (Map.Entry<String, Object> entry : metaStruct.entrySet()) {
+                writeMetaStructEntry(metaStructWriter, buffer, entry.getKey(), entry.getValue());
+            }
         }
-      }
-    }
-  }
 
-  /**
-   * The MetaStruct field can safely be used with v4 agents and will be discarded for other
-   * versions.
-   *
-   * <p>Any type that needs to be serialized as part of the meta_struct field has to either be a JDK
-   * known type (primitives, wrappers, collections ...) or registered with {@link
-   * datadog.communication.serialization.Codec#Codec(Map)}, in the rest of the cases the {@code
-   * toString} representation of the object will be used instead
-   */
-  public static class MetaStructWriter {
-
-    private static final UTF8BytesString META_STRUCT = UTF8BytesString.create("meta_struct");
-    private static final int BUFFER_SIZE = 1 << 10;
-
-    private Writable writable;
-
-    MetaStructWriter withWritable(final Writable writable) {
-      this.writable = writable;
-      return this;
+        private void writeMetaStructEntry(
+                final MsgPackWriter writer, final GrowableBuffer buffer, final String key, final Object value) {
+            buffer.mark();
+            try {
+                writer.writeObject(value, null);
+                writer.flush();
+                writable.writeString(key, TAG_CACHE);
+                writable.writeBinary(buffer.slice());
+            } finally {
+                buffer.reset();
+            }
+        }
     }
 
-    public void write(final Map<String, Object> metaStruct) {
-      writable.writeUTF8(META_STRUCT);
-      writable.startMap(metaStruct.size());
-      final GrowableBuffer buffer = new GrowableBuffer(BUFFER_SIZE);
-      final MsgPackWriter metaStructWriter = new MsgPackWriter(Codec.INSTANCE, buffer);
-      for (Map.Entry<String, Object> entry : metaStruct.entrySet()) {
-        writeMetaStructEntry(metaStructWriter, buffer, entry.getKey(), entry.getValue());
-      }
-    }
-
-    private void writeMetaStructEntry(
-        final MsgPackWriter writer,
-        final GrowableBuffer buffer,
-        final String key,
-        final Object value) {
-      buffer.mark();
-      try {
-        writer.writeObject(value, null);
-        writer.flush();
-        writable.writeString(key, TAG_CACHE);
-        writable.writeBinary(buffer.slice());
-      } finally {
-        buffer.reset();
-      }
-    }
-  }
-
-  private final MetaWriter metaWriter = new MetaWriter();
-  private final MetaStructWriter metaStructWriter = new MetaStructWriter();
-
-  @Override
-  public void map(List<? extends CoreSpan<?>> trace, final Writable writable) {
-    writable.startArray(trace.size());
-    for (int i = 0; i < trace.size(); i++) {
-      final CoreSpan<?> span = trace.get(i);
-      final Map<String, Object> metaStruct = span.getMetaStruct();
-      writable.startMap(metaStruct.isEmpty() ? 12 : 13);
-      /* 1  */
-      writable.writeUTF8(SERVICE);
-      writable.writeString(span.getServiceName(), VALUE_CACHE);
-      /* 2  */
-      writable.writeUTF8(NAME);
-      writable.writeObject(span.getOperationName(), VALUE_CACHE);
-      /* 3  */
-      writable.writeUTF8(RESOURCE);
-      writable.writeObject(span.getResourceName(), VALUE_CACHE);
-      /* 4  */
-      writable.writeUTF8(TRACE_ID);
-      writable.writeUnsignedLong(span.getTraceId().toLong());
-      /* 5  */
-      writable.writeUTF8(SPAN_ID);
-      writable.writeUnsignedLong(span.getSpanId());
-      /* 6  */
-      writable.writeUTF8(PARENT_ID);
-      writable.writeUnsignedLong(span.getParentId());
-      /* 7  */
-      writable.writeUTF8(START);
-      writable.writeLong(span.getStartTime());
-      /* 8  */
-      writable.writeUTF8(DURATION);
-      writable.writeLong(PendingTrace.getDurationNano(span));
-      /* 9  */
-      writable.writeUTF8(TYPE);
-      writable.writeString(span.getType(), VALUE_CACHE);
-      /* 10 */
-      writable.writeUTF8(ERROR);
-      writable.writeInt(span.getError());
-      /* 11, 12 */
-      span.processTagsAndBaggage(
-          metaWriter
-              .withWritable(writable)
-              .forSpan(i == 0, i == trace.size() - 1, !firstSpanWritten),
-          i == 0);
-      if (!metaStruct.isEmpty()) {
-        /* 13 */
-        metaStructWriter.withWritable(writable).write(metaStruct);
-      }
-      firstSpanWritten = true;
-    }
-  }
-
-  @Override
-  public Payload newPayload() {
-    return new PayloadV0_4();
-  }
-
-  @Override
-  public int messageBufferSize() {
-    return size; // 5MB
-  }
-
-  @Override
-  public void reset() {
-    firstSpanWritten = false;
-  }
-
-  @Override
-  public String endpoint() {
-    return "v0.4";
-  }
-
-  private static class PayloadV0_4 extends Payload {
+    private final MetaWriter metaWriter = new MetaWriter();
+    private final MetaStructWriter metaStructWriter = new MetaStructWriter();
 
     @Override
-    public int sizeInBytes() {
-      return msgpackArrayHeaderSize(traceCount()) + body.remaining();
+    public void map(List<? extends CoreSpan<?>> trace, final Writable writable) {
+        writable.startArray(trace.size());
+        for (int i = 0; i < trace.size(); i++) {
+            final CoreSpan<?> span = trace.get(i);
+            final Map<String, Object> metaStruct = span.getMetaStruct();
+            writable.startMap(metaStruct.isEmpty() ? 12 : 13);
+            /* 1  */
+            writable.writeUTF8(SERVICE);
+            writable.writeString(span.getServiceName(), VALUE_CACHE);
+            /* 2  */
+            writable.writeUTF8(NAME);
+            writable.writeObject(span.getOperationName(), VALUE_CACHE);
+            /* 3  */
+            writable.writeUTF8(RESOURCE);
+            writable.writeObject(span.getResourceName(), VALUE_CACHE);
+            /* 4  */
+            writable.writeUTF8(TRACE_ID);
+            writable.writeUnsignedLong(span.getTraceId().toLong());
+            /* 5  */
+            writable.writeUTF8(SPAN_ID);
+            writable.writeUnsignedLong(span.getSpanId());
+            /* 6  */
+            writable.writeUTF8(PARENT_ID);
+            writable.writeUnsignedLong(span.getParentId());
+            /* 7  */
+            writable.writeUTF8(START);
+            writable.writeLong(span.getStartTime());
+            /* 8  */
+            writable.writeUTF8(DURATION);
+            writable.writeLong(PendingTrace.getDurationNano(span));
+            /* 9  */
+            writable.writeUTF8(TYPE);
+            writable.writeString(span.getType(), VALUE_CACHE);
+            /* 10 */
+            writable.writeUTF8(ERROR);
+            writable.writeInt(span.getError());
+            /* 11, 12 */
+            span.processTagsAndBaggage(
+                    metaWriter.withWritable(writable).forSpan(i == 0, i == trace.size() - 1, !firstSpanWritten),
+                    i == 0);
+            if (!metaStruct.isEmpty()) {
+                /* 13 */
+                metaStructWriter.withWritable(writable).write(metaStruct);
+            }
+            firstSpanWritten = true;
+        }
     }
 
     @Override
-    public void writeTo(WritableByteChannel channel) throws IOException {
-      ByteBuffer header = msgpackArrayHeader(traceCount());
-      while (header.hasRemaining()) {
-        channel.write(header);
-      }
-      while (body.hasRemaining()) {
-        channel.write(body);
-      }
+    public Payload newPayload() {
+        return new PayloadV0_4();
     }
 
     @Override
-    public RequestBody toRequest() {
-      return msgpackRequestBodyOf(Arrays.asList(msgpackArrayHeader(traceCount()), body));
+    public int messageBufferSize() {
+        return size; // 5MB
     }
-  }
+
+    @Override
+    public void reset() {
+        firstSpanWritten = false;
+    }
+
+    @Override
+    public String endpoint() {
+        return "v0.4";
+    }
+
+    private static class PayloadV0_4 extends Payload {
+
+        @Override
+        public int sizeInBytes() {
+            return msgpackArrayHeaderSize(traceCount()) + body.remaining();
+        }
+
+        @Override
+        public void writeTo(WritableByteChannel channel) throws IOException {
+            ByteBuffer header = msgpackArrayHeader(traceCount());
+            while (header.hasRemaining()) {
+                channel.write(header);
+            }
+            while (body.hasRemaining()) {
+                channel.write(body);
+            }
+        }
+
+        @Override
+        public RequestBody toRequest() {
+            return msgpackRequestBodyOf(Arrays.asList(msgpackArrayHeader(traceCount()), body));
+        }
+    }
 }

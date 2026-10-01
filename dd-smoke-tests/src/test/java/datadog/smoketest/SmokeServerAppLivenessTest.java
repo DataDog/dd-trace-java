@@ -14,27 +14,25 @@ import org.junit.jupiter.api.Test;
  */
 class SmokeServerAppLivenessTest {
 
-  @Test
-  void failsWhenTheServerDiesDuringATest() throws Exception {
-    SmokeServerApp app =
-        SmokeServerApp.named("dying-server")
-            .mainClass("datadog.smoketest.TestServerApp")
-            .args("--server.port=${app.httpPort}")
-            .backend(AgentBackend.mockAgent())
-            .noAgent()
-            .build();
+    @Test
+    void failsWhenTheServerDiesDuringATest() throws Exception {
+        SmokeServerApp app = SmokeServerApp.named("dying-server")
+                .mainClass("datadog.smoketest.TestServerApp")
+                .args("--server.port=${app.httpPort}")
+                .backend(AgentBackend.mockAgent())
+                .noAgent()
+                .build();
 
-    app.beforeAll(null);
-    try {
-      Process process = app.process();
-      process.destroy();
-      process.waitFor();
+        app.beforeAll(null);
+        try {
+            Process process = app.process();
+            process.destroy();
+            process.waitFor();
 
-      IllegalStateException failure =
-          assertThrows(IllegalStateException.class, () -> app.afterEach(null));
-      assertTrue(failure.getMessage().contains("at the end of a test"), failure.getMessage());
-    } finally {
-      app.afterAll(null);
+            IllegalStateException failure = assertThrows(IllegalStateException.class, () -> app.afterEach(null));
+            assertTrue(failure.getMessage().contains("at the end of a test"), failure.getMessage());
+        } finally {
+            app.afterAll(null);
+        }
     }
-  }
 }

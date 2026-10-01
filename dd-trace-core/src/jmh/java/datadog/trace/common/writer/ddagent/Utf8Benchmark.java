@@ -26,80 +26,80 @@ import org.openjdk.jmh.infra.Blackhole;
  */
 @BenchmarkMode(Mode.Throughput)
 public class Utf8Benchmark {
-  @Benchmark
-  public static final String tagUtf8_baseline() {
-    return nextTag();
-  }
-
-  @Benchmark
-  public static final byte[] tagUtf8_nocache() {
-    String tag = nextTag();
-    return tag.getBytes(StandardCharsets.UTF_8);
-  }
-
-  static final SimpleUtf8Cache TAG_CACHE = new SimpleUtf8Cache(128);
-
-  @Benchmark
-  public static final byte[] tagUtf8_w_cache() {
-    String tag = nextTag();
-
-    byte[] cache = TAG_CACHE.getUtf8(tag);
-    if (cache != null) return cache;
-
-    return tag.getBytes(StandardCharsets.UTF_8);
-  }
-
-  @Benchmark
-  public static final void valueUtf8_baseline(Blackhole bh) {
-    for (int i = 0; i < NUM_LOOKUPS; ++i) {
-      String tag = nextTag();
-      String value = nextValue(tag);
-
-      bh.consume(tag);
-      bh.consume(value);
+    @Benchmark
+    public static final String tagUtf8_baseline() {
+        return nextTag();
     }
-  }
 
-  static final GenerationalUtf8Cache VALUE_CACHE = new GenerationalUtf8Cache(64, 128);
-
-  @Benchmark
-  public static final void valueUtf8_cache_generational(Blackhole bh) {
-    GenerationalUtf8Cache valueCache = VALUE_CACHE;
-    valueCache.recalibrate(); // single thread drives recalibrate inline, at a transaction boundary
-
-    for (int i = 0; i < NUM_LOOKUPS; ++i) {
-      String tag = nextTag();
-      String value = nextValue(tag);
-
-      byte[] lookup = valueCache.getUtf8(value);
-      bh.consume(lookup);
+    @Benchmark
+    public static final byte[] tagUtf8_nocache() {
+        String tag = nextTag();
+        return tag.getBytes(StandardCharsets.UTF_8);
     }
-  }
 
-  static final SimpleUtf8Cache SIMPLE_VALUE_CACHE = new SimpleUtf8Cache(128);
+    static final SimpleUtf8Cache TAG_CACHE = new SimpleUtf8Cache(128);
 
-  @Benchmark
-  public static final void valueUtf8_cache_simple(Blackhole bh) {
-    SimpleUtf8Cache valueCache = SIMPLE_VALUE_CACHE;
-    valueCache.recalibrate(); // single thread drives recalibrate inline, at a transaction boundary
+    @Benchmark
+    public static final byte[] tagUtf8_w_cache() {
+        String tag = nextTag();
 
-    for (int i = 0; i < NUM_LOOKUPS; ++i) {
-      String tag = nextTag();
-      String value = nextValue(tag);
+        byte[] cache = TAG_CACHE.getUtf8(tag);
+        if (cache != null) return cache;
 
-      byte[] lookup = valueCache.getUtf8(value);
-      bh.consume(lookup);
+        return tag.getBytes(StandardCharsets.UTF_8);
     }
-  }
 
-  @Benchmark
-  public static final void valueUtf8_nocache(Blackhole bh) {
-    for (int i = 0; i < NUM_LOOKUPS; ++i) {
-      String tag = nextTag();
-      String value = nextValue(tag);
+    @Benchmark
+    public static final void valueUtf8_baseline(Blackhole bh) {
+        for (int i = 0; i < NUM_LOOKUPS; ++i) {
+            String tag = nextTag();
+            String value = nextValue(tag);
 
-      bh.consume(tag);
-      bh.consume(value.getBytes(StandardCharsets.UTF_8));
+            bh.consume(tag);
+            bh.consume(value);
+        }
     }
-  }
+
+    static final GenerationalUtf8Cache VALUE_CACHE = new GenerationalUtf8Cache(64, 128);
+
+    @Benchmark
+    public static final void valueUtf8_cache_generational(Blackhole bh) {
+        GenerationalUtf8Cache valueCache = VALUE_CACHE;
+        valueCache.recalibrate(); // single thread drives recalibrate inline, at a transaction boundary
+
+        for (int i = 0; i < NUM_LOOKUPS; ++i) {
+            String tag = nextTag();
+            String value = nextValue(tag);
+
+            byte[] lookup = valueCache.getUtf8(value);
+            bh.consume(lookup);
+        }
+    }
+
+    static final SimpleUtf8Cache SIMPLE_VALUE_CACHE = new SimpleUtf8Cache(128);
+
+    @Benchmark
+    public static final void valueUtf8_cache_simple(Blackhole bh) {
+        SimpleUtf8Cache valueCache = SIMPLE_VALUE_CACHE;
+        valueCache.recalibrate(); // single thread drives recalibrate inline, at a transaction boundary
+
+        for (int i = 0; i < NUM_LOOKUPS; ++i) {
+            String tag = nextTag();
+            String value = nextValue(tag);
+
+            byte[] lookup = valueCache.getUtf8(value);
+            bh.consume(lookup);
+        }
+    }
+
+    @Benchmark
+    public static final void valueUtf8_nocache(Blackhole bh) {
+        for (int i = 0; i < NUM_LOOKUPS; ++i) {
+            String tag = nextTag();
+            String value = nextValue(tag);
+
+            bh.consume(tag);
+            bh.consume(value.getBytes(StandardCharsets.UTF_8));
+        }
+    }
 }

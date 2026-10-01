@@ -20,57 +20,56 @@ import ratpack.handling.Handler;
 import ratpack.path.PathTokens;
 
 public class PathBindingPublishingHandler implements Handler {
-  public static final Handler INSTANCE = new PathBindingPublishingHandler();
-  private static final Logger LOGGER = LoggerFactory.getLogger(PathBindingPublishingHandler.class);
+    public static final Handler INSTANCE = new PathBindingPublishingHandler();
+    private static final Logger LOGGER = LoggerFactory.getLogger(PathBindingPublishingHandler.class);
 
-  @Override
-  public void handle(Context ctx) {
-    boolean doDelegation = true;
-    try {
-      doDelegation = maybePublishTokens(ctx);
-    } finally {
-      if (doDelegation) {
-        ctx.next();
-      } else {
-        throw new BlockingException("Blocking request");
-      }
-    }
-  }
-
-  private boolean maybePublishTokens(Context ctx) {
-    PathTokens tokens = ctx.getPathTokens();
-
-    if (tokens == null || tokens.isEmpty()) {
-      return true;
+    @Override
+    public void handle(Context ctx) {
+        boolean doDelegation = true;
+        try {
+            doDelegation = maybePublishTokens(ctx);
+        } finally {
+            if (doDelegation) {
+                ctx.next();
+            } else {
+                throw new BlockingException("Blocking request");
+            }
+        }
     }
 
-    AgentSpan agentSpan = activeSpan();
-    if (agentSpan == null) {
-      return true;
-    }
+    private boolean maybePublishTokens(Context ctx) {
+        PathTokens tokens = ctx.getPathTokens();
 
-    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-    BiFunction<RequestContext, Map<String, ?>, Flow<Void>> callback =
-        cbp.getCallback(EVENTS.requestPathParams());
-    RequestContext requestContext = agentSpan.getRequestContext();
-    if (requestContext == null || callback == null) {
-      return true;
-    }
+        if (tokens == null || tokens.isEmpty()) {
+            return true;
+        }
 
-    Flow<Void> flow = callback.apply(requestContext, tokens);
-    Flow.Action action = flow.getAction();
-    if (action instanceof Flow.Action.RequestBlockingAction) {
-      BlockResponseFunction blockResponseFunction =
-          agentSpan.getRequestContext().getBlockResponseFunction();
-      if (blockResponseFunction == null) {
-        LOGGER.warn("Can't block path parameters (no block response function available)");
+        AgentSpan agentSpan = activeSpan();
+        if (agentSpan == null) {
+            return true;
+        }
+
+        CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+        BiFunction<RequestContext, Map<String, ?>, Flow<Void>> callback = cbp.getCallback(EVENTS.requestPathParams());
+        RequestContext requestContext = agentSpan.getRequestContext();
+        if (requestContext == null || callback == null) {
+            return true;
+        }
+
+        Flow<Void> flow = callback.apply(requestContext, tokens);
+        Flow.Action action = flow.getAction();
+        if (action instanceof Flow.Action.RequestBlockingAction) {
+            BlockResponseFunction blockResponseFunction =
+                    agentSpan.getRequestContext().getBlockResponseFunction();
+            if (blockResponseFunction == null) {
+                LOGGER.warn("Can't block path parameters (no block response function available)");
+                return true;
+            }
+            Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+            blockResponseFunction.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
+            return false;
+        }
+
         return true;
-      }
-      Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-      blockResponseFunction.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
-      return false;
     }
-
-    return true;
-  }
 }

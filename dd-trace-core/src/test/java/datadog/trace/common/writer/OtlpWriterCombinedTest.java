@@ -17,40 +17,36 @@ import org.junit.jupiter.api.Timeout;
 @Timeout(value = 10, unit = TimeUnit.SECONDS)
 class OtlpWriterCombinedTest extends DDCoreJavaSpecification {
 
-  @Test
-  void happyPathOverHttp() throws IOException, InterruptedException {
-    injectSysConfig(TRACE_OTEL_EXPORTER, "otlp");
+    @Test
+    void happyPathOverHttp() throws IOException, InterruptedException {
+        injectSysConfig(TRACE_OTEL_EXPORTER, "otlp");
 
-    CountDownLatch received = new CountDownLatch(1);
-    HttpServer server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
-    server.createContext(
-        "/v1/traces",
-        exchange -> {
-          received.countDown();
-          exchange.sendResponseHeaders(200, -1);
-          exchange.close();
+        CountDownLatch received = new CountDownLatch(1);
+        HttpServer server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+        server.createContext("/v1/traces", exchange -> {
+            received.countDown();
+            exchange.sendResponseHeaders(200, -1);
+            exchange.close();
         });
-    server.start();
+        server.start();
 
-    OtlpWriter writer =
-        OtlpWriter.builder()
-            .endpoint(
-                "http://"
-                    + server.getAddress().getHostString()
-                    + ":"
-                    + server.getAddress().getPort()
-                    + "/v1/traces")
-            .flushIntervalMilliseconds(-1)
-            .build();
-    CoreTracer tracer = tracerBuilder().writer(writer).build();
-    try {
-      tracer.buildSpan("test", "fakeOperation").start().finish();
-      writer.flush();
+        OtlpWriter writer = OtlpWriter.builder()
+                .endpoint("http://"
+                        + server.getAddress().getHostString()
+                        + ":"
+                        + server.getAddress().getPort()
+                        + "/v1/traces")
+                .flushIntervalMilliseconds(-1)
+                .build();
+        CoreTracer tracer = tracerBuilder().writer(writer).build();
+        try {
+            tracer.buildSpan("test", "fakeOperation").start().finish();
+            writer.flush();
 
-      assertTrue(received.await(5, TimeUnit.SECONDS), "OTLP server should receive a request");
-    } finally {
-      tracer.close();
-      server.stop(0);
+            assertTrue(received.await(5, TimeUnit.SECONDS), "OTLP server should receive a request");
+        } finally {
+            tracer.close();
+            server.stop(0);
+        }
     }
-  }
 }

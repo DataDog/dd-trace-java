@@ -18,59 +18,58 @@ import org.apache.hc.core5.http.HttpRequest;
 import org.apache.hc.core5.http.HttpResponse;
 
 public class HelperMethods {
-  public static ContextScope doMethodEnter(final HttpRequest request) {
-    final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
-    if (callDepth > 0) {
-      return null;
+    public static ContextScope doMethodEnter(final HttpRequest request) {
+        final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
+        if (callDepth > 0) {
+            return null;
+        }
+
+        return activateHttpSpan(request);
     }
 
-    return activateHttpSpan(request);
-  }
+    public static ContextScope doMethodEnter(HttpHost host, HttpRequest request) {
+        final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
+        if (callDepth > 0) {
+            return null;
+        }
 
-  public static ContextScope doMethodEnter(HttpHost host, HttpRequest request) {
-    final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
-    if (callDepth > 0) {
-      return null;
+        return activateHttpSpan(new HostAndRequestAsHttpUriRequest(host, request));
     }
 
-    return activateHttpSpan(new HostAndRequestAsHttpUriRequest(host, request));
-  }
+    private static ContextScope activateHttpSpan(final HttpRequest request) {
+        final AgentSpan span = startSpan(APACHE_HTTP_CLIENT.toString(), HTTP_REQUEST);
+        final ContextScope scope = activateSpan(span);
 
-  private static ContextScope activateHttpSpan(final HttpRequest request) {
-    final AgentSpan span = startSpan(APACHE_HTTP_CLIENT.toString(), HTTP_REQUEST);
-    final ContextScope scope = activateSpan(span);
+        DECORATE.afterStart(span);
+        DECORATE.onRequest(span, request);
 
-    DECORATE.afterStart(span);
-    DECORATE.onRequest(span, request);
-
-    return scope;
-  }
-
-  public static void doInjectContext(final HttpRequest request) {
-    if (request.containsHeader("amz-sdk-invocation-id")) {
-      return;
+        return scope;
     }
-    DECORATE.injectContext(current(), request, SETTER);
-  }
 
-  public static void doMethodExit(
-      final ContextScope scope, final Object result, final Throwable throwable) {
-    if (scope == null) {
-      return;
+    public static void doInjectContext(final HttpRequest request) {
+        if (request.containsHeader("amz-sdk-invocation-id")) {
+            return;
+        }
+        DECORATE.injectContext(current(), request, SETTER);
     }
-    final AgentSpan span = spanFromScope(scope);
-    if (result instanceof HttpResponse) {
-      DECORATE.onResponse(span, (HttpResponse) result);
-    } // else they probably provided a ResponseHandler.
 
-    DECORATE.onError(span, throwable);
-    DECORATE.beforeFinish(span);
-    scope.close();
-    span.finish();
-    CallDepthThreadLocalMap.reset(HttpClient.class);
-  }
+    public static void doMethodExit(final ContextScope scope, final Object result, final Throwable throwable) {
+        if (scope == null) {
+            return;
+        }
+        final AgentSpan span = spanFromScope(scope);
+        if (result instanceof HttpResponse) {
+            DECORATE.onResponse(span, (HttpResponse) result);
+        } // else they probably provided a ResponseHandler.
 
-  public static void onBlockingRequest() {
-    CallDepthThreadLocalMap.reset(HttpClient.class);
-  }
+        DECORATE.onError(span, throwable);
+        DECORATE.beforeFinish(span);
+        scope.close();
+        span.finish();
+        CallDepthThreadLocalMap.reset(HttpClient.class);
+    }
+
+    public static void onBlockingRequest() {
+        CallDepthThreadLocalMap.reset(HttpClient.class);
+    }
 }

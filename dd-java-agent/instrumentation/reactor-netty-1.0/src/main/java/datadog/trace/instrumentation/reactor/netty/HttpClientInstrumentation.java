@@ -19,36 +19,36 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public class HttpClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public HttpClientInstrumentation() {
-    super("reactor-netty", "reactor-netty-1");
-  }
+    public HttpClientInstrumentation() {
+        super("reactor-netty", "reactor-netty-1");
+    }
 
-  @Override
-  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    // Avoid matching pre-1.0 releases which are not compatible.
-    return hasClassNamed("reactor.netty.transport.AddressUtils");
-  }
+    @Override
+    public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+        // Avoid matching pre-1.0 releases which are not compatible.
+        return hasClassNamed("reactor.netty.transport.AddressUtils");
+    }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.netty41.AttributeKeys",
-      packageName + ".CaptureConnectSpan",
-      packageName + ".TransferConnectSpan",
-    };
-  }
+    @Override
+    public String[] helperClassNames() {
+        return new String[] {
+            "datadog.trace.instrumentation.netty41.AttributeKeys",
+            packageName + ".CaptureConnectSpan",
+            packageName + ".TransferConnectSpan",
+        };
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "reactor.netty.http.client.HttpClient";
-  }
+    @Override
+    public String instrumentedType() {
+        return "reactor.netty.http.client.HttpClient";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(isStatic()).and(namedOneOf("create", "newConnection")),
-        packageName + ".AfterConstructorAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(isStatic()).and(namedOneOf("create", "newConnection")),
+                packageName + ".AfterConstructorAdvice");
+    }
 }

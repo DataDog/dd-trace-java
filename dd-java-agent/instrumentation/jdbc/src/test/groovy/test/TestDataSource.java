@@ -29,83 +29,83 @@ import javax.sql.DataSource;
  * @author Brett Wooldridge
  */
 public class TestDataSource implements DataSource {
-  private String user;
-  private String password;
-  private PrintWriter logWriter;
-  private SQLException throwException;
-  private int loginTimeout;
+    private String user;
+    private String password;
+    private PrintWriter logWriter;
+    private SQLException throwException;
+    private int loginTimeout;
 
-  public String getUser() {
-    return user;
-  }
-
-  public void setUser(String user) {
-    this.user = user;
-  }
-
-  public String getPassword() {
-    return password;
-  }
-
-  public void setURL(String url) {
-    // we don't care
-  }
-
-  /** {@inheritDoc} */
-  @Override
-  public PrintWriter getLogWriter() throws SQLException {
-    return logWriter;
-  }
-
-  /** {@inheritDoc} */
-  @Override
-  public void setLogWriter(PrintWriter out) throws SQLException {
-    this.logWriter = out;
-  }
-
-  /** {@inheritDoc} */
-  @Override
-  public void setLoginTimeout(int seconds) throws SQLException {
-    this.loginTimeout = seconds;
-  }
-
-  /** {@inheritDoc} */
-  @Override
-  public int getLoginTimeout() throws SQLException {
-    return loginTimeout;
-  }
-
-  /** {@inheritDoc} */
-  public Logger getParentLogger() throws SQLFeatureNotSupportedException {
-    return null;
-  }
-
-  /** {@inheritDoc} */
-  @SuppressWarnings("unchecked")
-  @Override
-  public <T> T unwrap(Class<T> iface) throws SQLException {
-    if (iface.isInstance(this)) {
-      return (T) this;
+    public String getUser() {
+        return user;
     }
 
-    throw new SQLException("Wrapped DataSource is not an instance of " + iface);
-  }
+    public void setUser(String user) {
+        this.user = user;
+    }
 
-  /** {@inheritDoc} */
-  @Override
-  public boolean isWrapperFor(Class<?> iface) throws SQLException {
-    return false;
-  }
+    public String getPassword() {
+        return password;
+    }
 
-  /** {@inheritDoc} */
-  @Override
-  public Connection getConnection() throws SQLException {
-    return new TestConnection(false);
-  }
+    public void setURL(String url) {
+        // we don't care
+    }
 
-  /** {@inheritDoc} */
-  @Override
-  public Connection getConnection(String username, String password) throws SQLException {
-    return new TestConnection(false);
-  }
+    /** {@inheritDoc} */
+    @Override
+    public PrintWriter getLogWriter() throws SQLException {
+        return logWriter;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public void setLogWriter(PrintWriter out) throws SQLException {
+        this.logWriter = out;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public void setLoginTimeout(int seconds) throws SQLException {
+        this.loginTimeout = seconds;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public int getLoginTimeout() throws SQLException {
+        return loginTimeout;
+    }
+
+    /** {@inheritDoc} */
+    public Logger getParentLogger() throws SQLFeatureNotSupportedException {
+        return null;
+    }
+
+    /** {@inheritDoc} */
+    @SuppressWarnings("unchecked")
+    @Override
+    public <T> T unwrap(Class<T> iface) throws SQLException {
+        if (iface.isInstance(this)) {
+            return (T) this;
+        }
+
+        throw new SQLException("Wrapped DataSource is not an instance of " + iface);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public boolean isWrapperFor(Class<?> iface) throws SQLException {
+        return false;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public Connection getConnection() throws SQLException {
+        return new TestConnection(false);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public Connection getConnection(String username, String password) throws SQLException {
+        return new TestConnection(false);
+    }
 }

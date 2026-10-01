@@ -20,37 +20,37 @@ import org.spockframework.mock.TooManyInvocationsError;
  */
 public final class TooManyInvocationsErrorHandler implements TestExecutionExceptionHandler {
 
-  @Override
-  public void handleTestExecutionException(ExtensionContext ctx, Throwable ex) throws Throwable {
-    if (ex instanceof TooManyInvocationsError) {
-      fixTooManyInvocationsError((TooManyInvocationsError) ex);
-      throw ex; // re‑throw so JUnit still marks the test as failed.
-    }
-    throw ex;
-  }
-
-  static void fixTooManyInvocationsError(final TooManyInvocationsError error) {
-    final List<IMockInvocation> accepted = error.getAcceptedInvocations();
-    for (final IMockInvocation invocation : accepted) {
-      try {
-        invocation.toString();
-      } catch (final Throwable t) {
-        final List<Object> args = invocation.getArguments();
-        for (int i = 0; i < args.size(); i++) {
-          final Object arg = args.get(i);
-          if (arg instanceof AssertionError) {
-            args.set(
-                i,
-                new AssertionError(
-                    "'"
-                        + arg.getClass().getName()
-                        + "' hidden due to '"
-                        + t.getClass().getName()
-                        + "'",
-                    t));
-          }
+    @Override
+    public void handleTestExecutionException(ExtensionContext ctx, Throwable ex) throws Throwable {
+        if (ex instanceof TooManyInvocationsError) {
+            fixTooManyInvocationsError((TooManyInvocationsError) ex);
+            throw ex; // re‑throw so JUnit still marks the test as failed.
         }
-      }
+        throw ex;
     }
-  }
+
+    static void fixTooManyInvocationsError(final TooManyInvocationsError error) {
+        final List<IMockInvocation> accepted = error.getAcceptedInvocations();
+        for (final IMockInvocation invocation : accepted) {
+            try {
+                invocation.toString();
+            } catch (final Throwable t) {
+                final List<Object> args = invocation.getArguments();
+                for (int i = 0; i < args.size(); i++) {
+                    final Object arg = args.get(i);
+                    if (arg instanceof AssertionError) {
+                        args.set(
+                                i,
+                                new AssertionError(
+                                        "'"
+                                                + arg.getClass().getName()
+                                                + "' hidden due to '"
+                                                + t.getClass().getName()
+                                                + "'",
+                                        t));
+                    }
+                }
+            }
+        }
+    }
 }

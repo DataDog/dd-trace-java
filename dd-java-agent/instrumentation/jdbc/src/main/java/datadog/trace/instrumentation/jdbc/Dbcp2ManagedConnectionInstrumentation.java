@@ -11,41 +11,41 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class Dbcp2ManagedConnectionInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
-  public Dbcp2ManagedConnectionInstrumentation() {
-    super("jdbc", "dbcp2");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return InstrumenterConfig.get().isJdbcPoolWaitingEnabled();
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "org.apache.commons.dbcp2.managed.ManagedConnection", // standalone
-      "org.apache.tomcat.dbcp.dbcp2.managed.ManagedConnection" // bundled with Tomcat
-    };
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("updateTransactionStatus"),
-        Dbcp2ManagedConnectionInstrumentation.class.getName() + "$UpdateTransactionStatusAdvice");
-  }
-
-  public static class UpdateTransactionStatusAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter() {
-      CallDepthThreadLocalMap.incrementCallDepth(PoolWaitingDecorator.class);
+    public Dbcp2ManagedConnectionInstrumentation() {
+        super("jdbc", "dbcp2");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void onExit() {
-      CallDepthThreadLocalMap.decrementCallDepth(PoolWaitingDecorator.class);
+    @Override
+    protected boolean defaultEnabled() {
+        return InstrumenterConfig.get().isJdbcPoolWaitingEnabled();
     }
-  }
+
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            "org.apache.commons.dbcp2.managed.ManagedConnection", // standalone
+            "org.apache.tomcat.dbcp.dbcp2.managed.ManagedConnection" // bundled with Tomcat
+        };
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("updateTransactionStatus"),
+                Dbcp2ManagedConnectionInstrumentation.class.getName() + "$UpdateTransactionStatusAdvice");
+    }
+
+    public static class UpdateTransactionStatusAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter() {
+            CallDepthThreadLocalMap.incrementCallDepth(PoolWaitingDecorator.class);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void onExit() {
+            CallDepthThreadLocalMap.decrementCallDepth(PoolWaitingDecorator.class);
+        }
+    }
 }

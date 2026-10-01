@@ -51,308 +51,294 @@ import org.junit.jupiter.params.provider.MethodSource;
  */
 class OtlpResourceProtoTest {
 
-  // ── test data ─────────────────────────────────────────────────────────────
+    // ── test data ─────────────────────────────────────────────────────────────
 
-  private static Properties props(String... keyValues) {
-    Properties props = new Properties();
-    for (int i = 0; i < keyValues.length; i += 2) {
-      props.setProperty(keyValues[i], keyValues[i + 1]);
+    private static Properties props(String... keyValues) {
+        Properties props = new Properties();
+        for (int i = 0; i < keyValues.length; i += 2) {
+            props.setProperty(keyValues[i], keyValues[i + 1]);
+        }
+        return props;
     }
-    return props;
-  }
 
-  private static Map<String, Object> attrs(String... keyValues) {
-    Map<String, Object> map = new LinkedHashMap<>();
-    for (int i = 0; i < keyValues.length; i += 2) {
-      map.put(keyValues[i], keyValues[i + 1]);
+    private static Map<String, Object> attrs(String... keyValues) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        for (int i = 0; i < keyValues.length; i += 2) {
+            map.put(keyValues[i], keyValues[i + 1]);
+        }
+        map.put("telemetry.sdk.name", "datadog");
+        map.put("telemetry.sdk.version", TRACER_VERSION);
+        map.put("telemetry.sdk.language", "java");
+        return map;
     }
-    map.put("telemetry.sdk.name", "datadog");
-    map.put("telemetry.sdk.version", TRACER_VERSION);
-    map.put("telemetry.sdk.language", "java");
-    return map;
-  }
 
-  @AfterEach
-  void resetProcessTags() {
-    ProcessTags.reset(Config.get());
-  }
+    @AfterEach
+    void resetProcessTags() {
+        ProcessTags.reset(Config.get());
+    }
 
-  static Stream<Arguments> resourceMessageCases() {
-    return Stream.of(
-        // service not set: should use the auto-detected name
-        Arguments.of(
-            "service not set, no env, no version, no tags",
-            props(),
-            attrs("service.name", Config.get().getServiceName())),
-        // custom service name
-        Arguments.of(
-            "custom service name, no env, no version, no tags",
-            props(SERVICE_NAME, "my-service"),
-            attrs("service.name", "my-service")),
-        // env set to empty string: no deployment.environment.name written;
-        Arguments.of(
-            "env set to empty string",
-            props(SERVICE_NAME, "my-service", ENV, ""),
-            attrs("service.name", "my-service")),
-        // env set to non-empty value: deployment.environment.name written;
-        Arguments.of(
-            "env set to non-empty value",
-            props(SERVICE_NAME, "my-service", ENV, "prod"),
-            attrs("service.name", "my-service", "deployment.environment.name", "prod")),
-        // version set to empty string: no service.version written;
-        Arguments.of(
-            "version set to empty string",
-            props(SERVICE_NAME, "my-service", VERSION, ""),
-            attrs("service.name", "my-service")),
-        // version set to non-empty value: service.version written;
-        Arguments.of(
-            "version set to non-empty value",
-            props(SERVICE_NAME, "my-service", VERSION, "1.0.0"),
-            attrs("service.name", "my-service", "service.version", "1.0.0")),
-        // tags as comma-separated key:value pairs (no env or version)
-        Arguments.of(
-            "tags as comma-separated key:value pairs",
-            props(SERVICE_NAME, "my-service", TAGS, "region:us-east,team:platform"),
-            attrs(
-                "service.name", "my-service",
-                "region", "us-east",
-                "team", "platform")),
-        // report-hostname enabled: host.name written with the detected hostname
-        Arguments.of(
-            "report-hostname enabled",
-            props(SERVICE_NAME, "my-service", TRACE_REPORT_HOSTNAME, "true"),
-            attrs("service.name", "my-service", "host.name", Config.get().getHostName())),
-        // all config values set together; telemetry.sdk.* keys in tags must be ignored
-        Arguments.of(
-            "service, env, version, and tags all set",
-            props(
-                SERVICE_NAME,
-                "my-service",
-                ENV,
-                "staging",
-                VERSION,
-                "2.0.0",
-                TAGS,
-                "region:eu-west,"
-                    + "service:ignored-service,"
-                    + "env:ignored-env,"
-                    + "version:ignored-version,"
-                    + "SERVICE:ignored-service,"
-                    + "ENV:ignored-env,"
-                    + "VERSION:ignored-version,"
-                    + "service.name:ignored-service,"
-                    + "deployment.environment.name:ignored-env,"
-                    + "service.version:ignored-version,"
-                    + "SERVICE.NAME:ignored-service,"
-                    + "DEPLOYMENT.ENVIRONMENT.NAME:ignored-env,"
-                    + "SERVICE.VERSION:ignored-version,"
-                    + "telemetry.sdk.name:ignored-sdk,"
-                    + "telemetry.sdk.version:ignored-version,"
-                    + "telemetry.sdk.language:ignored-language,"
-                    + "datadog.sdk.semantics:ignored-semantics,"
-                    + "_dd.sdk.otlp_export:ignored-export"),
-            attrs(
-                "service.name", "my-service",
-                "deployment.environment.name", "staging",
-                "service.version", "2.0.0",
-                "region", "eu-west")));
-  }
+    static Stream<Arguments> resourceMessageCases() {
+        return Stream.of(
+                // service not set: should use the auto-detected name
+                Arguments.of(
+                        "service not set, no env, no version, no tags",
+                        props(),
+                        attrs("service.name", Config.get().getServiceName())),
+                // custom service name
+                Arguments.of(
+                        "custom service name, no env, no version, no tags",
+                        props(SERVICE_NAME, "my-service"),
+                        attrs("service.name", "my-service")),
+                // env set to empty string: no deployment.environment.name written;
+                Arguments.of(
+                        "env set to empty string",
+                        props(SERVICE_NAME, "my-service", ENV, ""),
+                        attrs("service.name", "my-service")),
+                // env set to non-empty value: deployment.environment.name written;
+                Arguments.of(
+                        "env set to non-empty value",
+                        props(SERVICE_NAME, "my-service", ENV, "prod"),
+                        attrs("service.name", "my-service", "deployment.environment.name", "prod")),
+                // version set to empty string: no service.version written;
+                Arguments.of(
+                        "version set to empty string",
+                        props(SERVICE_NAME, "my-service", VERSION, ""),
+                        attrs("service.name", "my-service")),
+                // version set to non-empty value: service.version written;
+                Arguments.of(
+                        "version set to non-empty value",
+                        props(SERVICE_NAME, "my-service", VERSION, "1.0.0"),
+                        attrs("service.name", "my-service", "service.version", "1.0.0")),
+                // tags as comma-separated key:value pairs (no env or version)
+                Arguments.of(
+                        "tags as comma-separated key:value pairs",
+                        props(SERVICE_NAME, "my-service", TAGS, "region:us-east,team:platform"),
+                        attrs(
+                                "service.name", "my-service",
+                                "region", "us-east",
+                                "team", "platform")),
+                // report-hostname enabled: host.name written with the detected hostname
+                Arguments.of(
+                        "report-hostname enabled",
+                        props(SERVICE_NAME, "my-service", TRACE_REPORT_HOSTNAME, "true"),
+                        attrs(
+                                "service.name",
+                                "my-service",
+                                "host.name",
+                                Config.get().getHostName())),
+                // all config values set together; telemetry.sdk.* keys in tags must be ignored
+                Arguments.of(
+                        "service, env, version, and tags all set",
+                        props(
+                                SERVICE_NAME,
+                                "my-service",
+                                ENV,
+                                "staging",
+                                VERSION,
+                                "2.0.0",
+                                TAGS,
+                                "region:eu-west,"
+                                        + "service:ignored-service,"
+                                        + "env:ignored-env,"
+                                        + "version:ignored-version,"
+                                        + "SERVICE:ignored-service,"
+                                        + "ENV:ignored-env,"
+                                        + "VERSION:ignored-version,"
+                                        + "service.name:ignored-service,"
+                                        + "deployment.environment.name:ignored-env,"
+                                        + "service.version:ignored-version,"
+                                        + "SERVICE.NAME:ignored-service,"
+                                        + "DEPLOYMENT.ENVIRONMENT.NAME:ignored-env,"
+                                        + "SERVICE.VERSION:ignored-version,"
+                                        + "telemetry.sdk.name:ignored-sdk,"
+                                        + "telemetry.sdk.version:ignored-version,"
+                                        + "telemetry.sdk.language:ignored-language,"
+                                        + "datadog.sdk.semantics:ignored-semantics,"
+                                        + "_dd.sdk.otlp_export:ignored-export"),
+                        attrs(
+                                "service.name", "my-service",
+                                "deployment.environment.name", "staging",
+                                "service.version", "2.0.0",
+                                "region", "eu-west")));
+    }
 
-  // ── test ─────────────────────────────────────────────────────────────────
+    // ── test ─────────────────────────────────────────────────────────────────
 
-  @ParameterizedTest(name = "{0}")
-  @MethodSource("resourceMessageCases")
-  void testBuildResourceMessage(
-      String caseName, Properties properties, Map<String, Object> expectedAttributes)
-      throws IOException {
-    Config config = Config.get(properties);
-    byte[] bytes = OtlpResourceProto.buildResourceMessage(config, Collections.emptyMap());
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("resourceMessageCases")
+    void testBuildResourceMessage(String caseName, Properties properties, Map<String, Object> expectedAttributes)
+            throws IOException {
+        Config config = Config.get(properties);
+        byte[] bytes = OtlpResourceProto.buildResourceMessage(config, Collections.emptyMap());
 
-    Map<String, Object> actualAttributes = parseResourceAttributes(bytes);
-    assertEquals(expectedAttributes, actualAttributes, "For case: " + caseName);
-  }
+        Map<String, Object> actualAttributes = parseResourceAttributes(bytes);
+        assertEquals(expectedAttributes, actualAttributes, "For case: " + caseName);
+    }
 
-  /**
-   * On the OTLP path the export-mode marker is a resource attribute and is always {@code "true"} --
-   * reaching this encoder means the payload is leaving over OTLP.
-   */
-  @Test
-  void traceResourceAttributesCarryOtlpExportMarker() throws IOException {
-    Config config = Config.get(props(SERVICE_NAME, "my-service"));
+    /**
+     * On the OTLP path the export-mode marker is a resource attribute and is always {@code "true"} --
+     * reaching this encoder means the payload is leaving over OTLP.
+     */
+    @Test
+    void traceResourceAttributesCarryOtlpExportMarker() throws IOException {
+        Config config = Config.get(props(SERVICE_NAME, "my-service"));
 
-    Map<String, Object> attributes =
-        parseResourceAttributes(
-            OtlpResourceProto.buildResourceMessage(config, traceResourceAttributes(config)));
+        Map<String, Object> attributes = parseResourceAttributes(
+                OtlpResourceProto.buildResourceMessage(config, traceResourceAttributes(config)));
 
-    assertEquals("true", attributes.get("_dd.sdk.otlp_export"));
-  }
+        assertEquals("true", attributes.get("_dd.sdk.otlp_export"));
+    }
 
-  @Test
-  void usesOtelSdkSemanticsWhenEnabled() throws IOException {
-    Config config = Config.get(props(TRACE_OTEL_SEMANTICS_ENABLED, "true"));
+    @Test
+    void usesOtelSdkSemanticsWhenEnabled() throws IOException {
+        Config config = Config.get(props(TRACE_OTEL_SEMANTICS_ENABLED, "true"));
 
-    Map<String, Object> attributes =
-        parseResourceAttributes(
-            OtlpResourceProto.buildResourceMessage(config, traceResourceAttributes(config)));
+        Map<String, Object> attributes = parseResourceAttributes(
+                OtlpResourceProto.buildResourceMessage(config, traceResourceAttributes(config)));
 
-    assertEquals("otel", attributes.get("datadog.sdk.semantics"));
-  }
+        assertEquals("otel", attributes.get("datadog.sdk.semantics"));
+    }
 
-  /**
-   * The datadog-attrs variant ({@code buildResourceMessage(config, datadogResourceAttributes)})
-   * carries {@code datadog.runtime_id}; the plain variant omits it.
-   */
-  @Test
-  void datadogResourceAttributesVariantCarriesRuntimeId() throws IOException {
-    Config config = Config.get(props(SERVICE_NAME, "my-service"));
+    /**
+     * The datadog-attrs variant ({@code buildResourceMessage(config, datadogResourceAttributes)})
+     * carries {@code datadog.runtime_id}; the plain variant omits it.
+     */
+    @Test
+    void datadogResourceAttributesVariantCarriesRuntimeId() throws IOException {
+        Config config = Config.get(props(SERVICE_NAME, "my-service"));
 
-    Map<String, Object> withDatadog =
-        parseResourceAttributes(
-            OtlpResourceProto.buildResourceMessage(config, datadogResourceAttributes(config)));
-    Map<String, Object> plain =
-        parseResourceAttributes(
-            OtlpResourceProto.buildResourceMessage(config, Collections.emptyMap()));
+        Map<String, Object> withDatadog = parseResourceAttributes(
+                OtlpResourceProto.buildResourceMessage(config, datadogResourceAttributes(config)));
+        Map<String, Object> plain =
+                parseResourceAttributes(OtlpResourceProto.buildResourceMessage(config, Collections.emptyMap()));
 
-    assertTrue(
-        withDatadog.containsKey("datadog.runtime_id"),
-        "datadog-attrs variant carries datadog.runtime_id");
-    assertEquals(
-        config.getRuntimeId(),
-        withDatadog.get("datadog.runtime_id"),
-        "runtime id matches the config value");
-    assertFalse(plain.containsKey("datadog.runtime_id"), "plain variant omits datadog.runtime_id");
-  }
+        assertTrue(withDatadog.containsKey("datadog.runtime_id"), "datadog-attrs variant carries datadog.runtime_id");
+        assertEquals(
+                config.getRuntimeId(), withDatadog.get("datadog.runtime_id"), "runtime id matches the config value");
+        assertFalse(plain.containsKey("datadog.runtime_id"), "plain variant omits datadog.runtime_id");
+    }
 
-  @Test
-  void datadogResourceAttributesOverrideCollidingGlobalProcessTag() throws IOException {
-    Config config =
-        Config.get(
-            props(
+    @Test
+    void datadogResourceAttributesOverrideCollidingGlobalProcessTag() throws IOException {
+        Config config = Config.get(props(
                 SERVICE_NAME,
                 "my-service",
                 TAGS,
                 "datadog.process_tags:user-value",
                 EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED,
                 "true"));
-    ProcessTags.reset(config);
-    ProcessTags.addTag("entrypoint.name", "app");
-    ProcessTags.addTag("entrypoint.type", "web");
+        ProcessTags.reset(config);
+        ProcessTags.addTag("entrypoint.name", "app");
+        ProcessTags.addTag("entrypoint.type", "web");
 
-    Map<String, Object> withDatadog =
-        parseResourceAttributes(
-            OtlpResourceProto.buildResourceMessage(config, datadogResourceAttributes(config)));
+        Map<String, Object> withDatadog = parseResourceAttributes(
+                OtlpResourceProto.buildResourceMessage(config, datadogResourceAttributes(config)));
 
-    Object processTags = withDatadog.get("datadog.process_tags");
-    assertTrue(processTags instanceof List, "datadog.process_tags is a single arrayValue");
-    assertEquals(ProcessTags.getTagsAsStringList(), processTags);
-  }
-
-  @Test
-  void statsComputedVariantCarriesMarker() throws IOException {
-    Config withMetrics =
-        Config.get(props(SERVICE_NAME, "my-service", OTEL_TRACES_SPAN_METRICS_ENABLED, "true"));
-    Config withoutMetrics = Config.get(props(SERVICE_NAME, "my-service"));
-
-    Map<String, Object> withMarker =
-        parseResourceAttributes(
-            OtlpResourceProto.buildResourceMessage(
-                withMetrics, traceResourceAttributes(withMetrics)));
-    Map<String, Object> without =
-        parseResourceAttributes(
-            OtlpResourceProto.buildResourceMessage(
-                withoutMetrics, traceResourceAttributes(withoutMetrics)));
-
-    assertEquals(
-        "true", withMarker.get("_dd.stats_computed"), "marker present when stats computed");
-    assertFalse(without.containsKey("_dd.stats_computed"), "marker absent when stats not computed");
-    assertEquals("datadog", without.get("datadog.sdk.semantics"));
-    assertEquals("true", without.get("_dd.sdk.otlp_export"));
-  }
-
-  // ── parsing helpers ───────────────────────────────────────────────────────
-
-  /**
-   * Parses the resource message bytes into an attribute map while validating the protobuf wire
-   * format (field numbers and wire types) of every field read.
-   *
-   * <p>{@code buildResourceMessage} returns a length-prefixed message with an outer tag (field 1,
-   * LEN wire type) followed by the Resource body size and body. Read the outer tag, then iterate
-   * over all {@code Resource.attributes} (field 1, LEN wire type). Each attribute is a {@code
-   * KeyValue} whose {@code value} is an {@code AnyValue} containing either a {@code string_value}
-   * (field 1) or, for {@code datadog.process_tags}, an {@code array_value} (field 5).
-   */
-  private static Map<String, Object> parseResourceAttributes(byte[] bytes) throws IOException {
-    // Read the outer tag (field 1, LEN wire type) that wraps the Resource body
-    CodedInputStream outer = CodedInputStream.newInstance(bytes);
-    int outerTag = outer.readTag();
-    assertEquals(1, WireFormat.getTagFieldNumber(outerTag), "outer field is Resource (field 1)");
-    assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(outerTag));
-    CodedInputStream resource = outer.readBytes().newCodedInput();
-
-    Map<String, Object> attributes = new LinkedHashMap<>();
-    while (!resource.isAtEnd()) {
-      // Each attribute is Resource.attributes (field 1, LEN wire type)
-      int tag = resource.readTag();
-      assertEquals(1, WireFormat.getTagFieldNumber(tag), "Resource.attributes is field 1");
-      assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(tag));
-
-      // Read the full KeyValue body
-      CodedInputStream kv = resource.readBytes().newCodedInput();
-
-      String key = readKeyField(kv);
-      CodedInputStream av = readAnyValueField(kv);
-      Object value = readAnyValueBody(av);
-      assertTrue(kv.isAtEnd(), "no extra fields in KeyValue");
-
-      assertFalse(attributes.containsKey(key), "duplicate resource attribute key: " + key);
-      attributes.put(key, value);
+        Object processTags = withDatadog.get("datadog.process_tags");
+        assertTrue(processTags instanceof List, "datadog.process_tags is a single arrayValue");
+        assertEquals(ProcessTags.getTagsAsStringList(), processTags);
     }
-    return attributes;
-  }
 
-  /** Reads the {@code KeyValue.key} field (field 1, LEN) and returns the string value. */
-  private static String readKeyField(CodedInputStream kv) throws IOException {
-    int tag = kv.readTag();
-    assertEquals(1, WireFormat.getTagFieldNumber(tag), "KeyValue.key is field 1");
-    assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(tag));
-    return kv.readString();
-  }
+    @Test
+    void statsComputedVariantCarriesMarker() throws IOException {
+        Config withMetrics = Config.get(props(SERVICE_NAME, "my-service", OTEL_TRACES_SPAN_METRICS_ENABLED, "true"));
+        Config withoutMetrics = Config.get(props(SERVICE_NAME, "my-service"));
 
-  /**
-   * Reads the {@code KeyValue.value} field (field 2, LEN) and returns a stream over the {@code
-   * AnyValue} body.
-   */
-  private static CodedInputStream readAnyValueField(CodedInputStream kv) throws IOException {
-    int tag = kv.readTag();
-    assertEquals(2, WireFormat.getTagFieldNumber(tag), "KeyValue.value is field 2");
-    assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(tag));
-    return kv.readBytes().newCodedInput();
-  }
+        Map<String, Object> withMarker = parseResourceAttributes(
+                OtlpResourceProto.buildResourceMessage(withMetrics, traceResourceAttributes(withMetrics)));
+        Map<String, Object> without = parseResourceAttributes(
+                OtlpResourceProto.buildResourceMessage(withoutMetrics, traceResourceAttributes(withoutMetrics)));
 
-  /** Reads {@code AnyValue.string_value} (field 1) or {@code AnyValue.array_value} (field 5). */
-  private static Object readAnyValueBody(CodedInputStream av) throws IOException {
-    int avTag = av.readTag();
-    int field = WireFormat.getTagFieldNumber(avTag);
-    assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(avTag));
-    Object value;
-    if (field == 5) {
-      value = readArrayValue(av.readBytes().newCodedInput());
-    } else {
-      assertEquals(1, field, "AnyValue.string_value is field 1");
-      value = av.readString();
+        assertEquals("true", withMarker.get("_dd.stats_computed"), "marker present when stats computed");
+        assertFalse(without.containsKey("_dd.stats_computed"), "marker absent when stats not computed");
+        assertEquals("datadog", without.get("datadog.sdk.semantics"));
+        assertEquals("true", without.get("_dd.sdk.otlp_export"));
     }
-    assertTrue(av.isAtEnd(), "no extra fields in AnyValue");
-    return value;
-  }
 
-  /** Reads {@code ArrayValue.values} (field 1, repeated {@code AnyValue}) into a string list. */
-  private static List<String> readArrayValue(CodedInputStream arrayValue) throws IOException {
-    List<String> values = new ArrayList<>();
-    while (!arrayValue.isAtEnd()) {
-      int tag = arrayValue.readTag();
-      assertEquals(1, WireFormat.getTagFieldNumber(tag), "ArrayValue.values is field 1");
-      values.add((String) readAnyValueBody(arrayValue.readBytes().newCodedInput()));
+    // ── parsing helpers ───────────────────────────────────────────────────────
+
+    /**
+     * Parses the resource message bytes into an attribute map while validating the protobuf wire
+     * format (field numbers and wire types) of every field read.
+     *
+     * <p>{@code buildResourceMessage} returns a length-prefixed message with an outer tag (field 1,
+     * LEN wire type) followed by the Resource body size and body. Read the outer tag, then iterate
+     * over all {@code Resource.attributes} (field 1, LEN wire type). Each attribute is a {@code
+     * KeyValue} whose {@code value} is an {@code AnyValue} containing either a {@code string_value}
+     * (field 1) or, for {@code datadog.process_tags}, an {@code array_value} (field 5).
+     */
+    private static Map<String, Object> parseResourceAttributes(byte[] bytes) throws IOException {
+        // Read the outer tag (field 1, LEN wire type) that wraps the Resource body
+        CodedInputStream outer = CodedInputStream.newInstance(bytes);
+        int outerTag = outer.readTag();
+        assertEquals(1, WireFormat.getTagFieldNumber(outerTag), "outer field is Resource (field 1)");
+        assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(outerTag));
+        CodedInputStream resource = outer.readBytes().newCodedInput();
+
+        Map<String, Object> attributes = new LinkedHashMap<>();
+        while (!resource.isAtEnd()) {
+            // Each attribute is Resource.attributes (field 1, LEN wire type)
+            int tag = resource.readTag();
+            assertEquals(1, WireFormat.getTagFieldNumber(tag), "Resource.attributes is field 1");
+            assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(tag));
+
+            // Read the full KeyValue body
+            CodedInputStream kv = resource.readBytes().newCodedInput();
+
+            String key = readKeyField(kv);
+            CodedInputStream av = readAnyValueField(kv);
+            Object value = readAnyValueBody(av);
+            assertTrue(kv.isAtEnd(), "no extra fields in KeyValue");
+
+            assertFalse(attributes.containsKey(key), "duplicate resource attribute key: " + key);
+            attributes.put(key, value);
+        }
+        return attributes;
     }
-    return values;
-  }
+
+    /** Reads the {@code KeyValue.key} field (field 1, LEN) and returns the string value. */
+    private static String readKeyField(CodedInputStream kv) throws IOException {
+        int tag = kv.readTag();
+        assertEquals(1, WireFormat.getTagFieldNumber(tag), "KeyValue.key is field 1");
+        assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(tag));
+        return kv.readString();
+    }
+
+    /**
+     * Reads the {@code KeyValue.value} field (field 2, LEN) and returns a stream over the {@code
+     * AnyValue} body.
+     */
+    private static CodedInputStream readAnyValueField(CodedInputStream kv) throws IOException {
+        int tag = kv.readTag();
+        assertEquals(2, WireFormat.getTagFieldNumber(tag), "KeyValue.value is field 2");
+        assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(tag));
+        return kv.readBytes().newCodedInput();
+    }
+
+    /** Reads {@code AnyValue.string_value} (field 1) or {@code AnyValue.array_value} (field 5). */
+    private static Object readAnyValueBody(CodedInputStream av) throws IOException {
+        int avTag = av.readTag();
+        int field = WireFormat.getTagFieldNumber(avTag);
+        assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(avTag));
+        Object value;
+        if (field == 5) {
+            value = readArrayValue(av.readBytes().newCodedInput());
+        } else {
+            assertEquals(1, field, "AnyValue.string_value is field 1");
+            value = av.readString();
+        }
+        assertTrue(av.isAtEnd(), "no extra fields in AnyValue");
+        return value;
+    }
+
+    /** Reads {@code ArrayValue.values} (field 1, repeated {@code AnyValue}) into a string list. */
+    private static List<String> readArrayValue(CodedInputStream arrayValue) throws IOException {
+        List<String> values = new ArrayList<>();
+        while (!arrayValue.isAtEnd()) {
+            int tag = arrayValue.readTag();
+            assertEquals(1, WireFormat.getTagFieldNumber(tag), "ArrayValue.values is field 1");
+            values.add((String) readAnyValueBody(arrayValue.readBytes().newCodedInput()));
+        }
+        return values;
+    }
 }

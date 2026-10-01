@@ -31,67 +31,65 @@ import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
 class XRayHttpExtractorTest extends AbstractHttpExtractorTest {
-  @Override
-  protected HttpCodec.Extractor newExtractor(
-      Config config, Supplier<TraceConfig> traceConfigSupplier) {
-    return XRayHttpCodec.newExtractor(config, traceConfigSupplier);
-  }
-
-  @Nested
-  class BaggageLimits extends AbstractOTBaggageTest {
     @Override
-    protected HttpCodec.Extractor extractor() {
-      return XRayHttpExtractorTest.this.extractor;
+    protected HttpCodec.Extractor newExtractor(Config config, Supplier<TraceConfig> traceConfigSupplier) {
+        return XRayHttpCodec.newExtractor(config, traceConfigSupplier);
     }
 
-    @Override
-    protected Map<String, String> baggageHeaders(List<Entry<String, String>> items) {
-      return headers(X_AMZN_TRACE_ID, traceHeader(items));
+    @Nested
+    class BaggageLimits extends AbstractOTBaggageTest {
+        @Override
+        protected HttpCodec.Extractor extractor() {
+            return XRayHttpExtractorTest.this.extractor;
+        }
+
+        @Override
+        protected Map<String, String> baggageHeaders(List<Entry<String, String>> items) {
+            return headers(X_AMZN_TRACE_ID, traceHeader(items));
+        }
     }
-  }
 
-  @Test
-  @WithConfig(key = TRACE_BAGGAGE_MAX_ITEMS, value = "3")
-  void extractTraceHeaderKeepsParsingContextAfterBaggageLimit() {
-    // reaching the baggage limit must not stop the header being parsed: the trace context segments
-    // can appear after the `key=value` segments that exhausted the limit
-    TagContext context =
-        this.extractor.extract(
-            headers(
-                X_AMZN_TRACE_ID,
-                traceHeader(generateBaggageItems(50)) + ";Parent=" + zeroPadId("2") + ";Sampled=1"),
-            stringValuesMap());
+    @Test
+    @WithConfig(key = TRACE_BAGGAGE_MAX_ITEMS, value = "3")
+    void extractTraceHeaderKeepsParsingContextAfterBaggageLimit() {
+        // reaching the baggage limit must not stop the header being parsed: the trace context segments
+        // can appear after the `key=value` segments that exhausted the limit
+        TagContext context = this.extractor.extract(
+                headers(
+                        X_AMZN_TRACE_ID,
+                        traceHeader(generateBaggageItems(50)) + ";Parent=" + zeroPadId("2") + ";Sampled=1"),
+                stringValuesMap());
 
-    assertEquals(3, context.getBaggage().size());
-    assertEquals(zeroPadId("1"), context.getTraceId().toHexStringPadded(16));
-    assertEquals(zeroPadId("2"), DDSpanId.toHexStringPadded(context.getSpanId()));
-    assertEquals(SAMPLER_KEEP, context.getSamplingPriority());
-  }
-
-  private static String traceHeader(List<Entry<String, String>> baggage) {
-    // a single X-Amzn-Trace-Id header carries an arbitrary number of `key=value` segments, and can
-    // repeat a key outright
-    StringBuilder header = new StringBuilder("Root=1-00000000-00000000").append(zeroPadId("1"));
-    for (Entry<String, String> item : baggage) {
-      header.append(';').append(item.getKey()).append('=').append(item.getValue());
+        assertEquals(3, context.getBaggage().size());
+        assertEquals(zeroPadId("1"), context.getTraceId().toHexStringPadded(16));
+        assertEquals(zeroPadId("2"), DDSpanId.toHexStringPadded(context.getSpanId()));
+        assertEquals(SAMPLER_KEEP, context.getSamplingPriority());
     }
-    return header.toString();
-  }
 
-  @TableTest({
-    "scenario    | traceId          | spanId           | samplingPriority | expectedSamplingPriority",
-    "no sampling | 1                | 2                | ''               | UNSET                   ",
-    "sampled 1   | 2                | 3                | ';Sampled=1'     | SAMPLER_KEEP            ",
-    "sampled 0   | 3                | 4                | ';Sampled=0'     | SAMPLER_DROP            ",
-    "max trace   | ffffffffffffffff | fffffffffffffffe | ';Sampled=0'     | SAMPLER_DROP            ",
-    "max span    | fffffffffffffffe | ffffffffffffffff | ';Sampled=1'     | SAMPLER_KEEP            "
-  })
-  void extractHttpHeaders(
-      String traceId,
-      String spanId,
-      String samplingPriority,
-      @ConvertWith(PrioritySamplingConverter.class) byte expectedSamplingPriority) {
-    // spotless:off
+    private static String traceHeader(List<Entry<String, String>> baggage) {
+        // a single X-Amzn-Trace-Id header carries an arbitrary number of `key=value` segments, and can
+        // repeat a key outright
+        StringBuilder header = new StringBuilder("Root=1-00000000-00000000").append(zeroPadId("1"));
+        for (Entry<String, String> item : baggage) {
+            header.append(';').append(item.getKey()).append('=').append(item.getValue());
+        }
+        return header.toString();
+    }
+
+    @TableTest({
+      "scenario    | traceId          | spanId           | samplingPriority | expectedSamplingPriority",
+      "no sampling | 1                | 2                | ''               | UNSET                   ",
+      "sampled 1   | 2                | 3                | ';Sampled=1'     | SAMPLER_KEEP            ",
+      "sampled 0   | 3                | 4                | ';Sampled=0'     | SAMPLER_DROP            ",
+      "max trace   | ffffffffffffffff | fffffffffffffffe | ';Sampled=0'     | SAMPLER_DROP            ",
+      "max span    | fffffffffffffffe | ffffffffffffffff | ';Sampled=1'     | SAMPLER_KEEP            "
+    })
+    void extractHttpHeaders(
+            String traceId,
+            String spanId,
+            String samplingPriority,
+            @ConvertWith(PrioritySamplingConverter.class) byte expectedSamplingPriority) {
+        // spotless:off
     Map<String, String> headers = headers(
         X_AMZN_TRACE_ID, "Root=1-00000000-00000000"
             + zeroPadId(traceId)
@@ -105,137 +103,130 @@ class XRayHttpExtractorTest extends AbstractHttpExtractorTest {
     );
     // spotless:on
 
-    ExtractedContext context =
-        (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
+        ExtractedContext context = (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
 
-    assertEquals(DDTraceId.fromHex(traceId), context.getTraceId());
-    assertEquals(DDSpanId.fromHex(spanId), context.getSpanId());
-    Map<String, String> expectedBaggage = new HashMap<>();
-    expectedBaggage.put("empty value", "");
-    expectedBaggage.put("some-baggage", "my-interesting-baggage-info");
-    expectedBaggage.put("some-CaseSensitive-baggage", "my-interesting-baggage-info-2");
-    assertEquals(expectedBaggage, context.getBaggage());
-    assertEquals(singletonMap("some-tag", "my-interesting-info"), context.getTags());
-    assertEquals(expectedSamplingPriority, context.getSamplingPriority());
-    assertNull(context.getOrigin());
-  }
+        assertEquals(DDTraceId.fromHex(traceId), context.getTraceId());
+        assertEquals(DDSpanId.fromHex(spanId), context.getSpanId());
+        Map<String, String> expectedBaggage = new HashMap<>();
+        expectedBaggage.put("empty value", "");
+        expectedBaggage.put("some-baggage", "my-interesting-baggage-info");
+        expectedBaggage.put("some-CaseSensitive-baggage", "my-interesting-baggage-info-2");
+        assertEquals(expectedBaggage, context.getBaggage());
+        assertEquals(singletonMap("some-tag", "my-interesting-info"), context.getTags());
+        assertEquals(expectedSamplingPriority, context.getSamplingPriority());
+        assertNull(context.getOrigin());
+    }
 
-  @Test
-  void extractHeaderTagsWithNoPropagation() {
-    Map<String, String> headers = headers(SOME_HEADER, "my-interesting-info");
+    @Test
+    void extractHeaderTagsWithNoPropagation() {
+        Map<String, String> headers = headers(SOME_HEADER, "my-interesting-info");
 
-    TagContext context = this.extractor.extract(headers, stringValuesMap());
+        TagContext context = this.extractor.extract(headers, stringValuesMap());
 
-    assertFalse(context instanceof ExtractedContext);
-    assertEquals(singletonMap("some-tag", "my-interesting-info"), context.getTags());
-  }
+        assertFalse(context instanceof ExtractedContext);
+        assertEquals(singletonMap("some-tag", "my-interesting-info"), context.getTags());
+    }
 
-  @Test
-  void extractTraceHeaderAlsoCapturesMappedHeaderTag() {
-    // the trace header is consumed as X-Ray context, and must also honour a header tag mapped onto
-    // it without that costing the extracted ids
-    this.extractor.cleanup();
-    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
-        DynamicConfig.create().setHeaderTags(singletonMap(X_AMZN_TRACE_ID, SOME_TAG)).apply();
-    this.extractor = XRayHttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig);
+    @Test
+    void extractTraceHeaderAlsoCapturesMappedHeaderTag() {
+        // the trace header is consumed as X-Ray context, and must also honour a header tag mapped onto
+        // it without that costing the extracted ids
+        this.extractor.cleanup();
+        DynamicConfig<DynamicConfig.Snapshot> dynamicConfig = DynamicConfig.create()
+                .setHeaderTags(singletonMap(X_AMZN_TRACE_ID, SOME_TAG))
+                .apply();
+        this.extractor = XRayHttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig);
 
-    String traceHeader = "Root=1-00000000-00000000" + zeroPadId("1") + ";Parent=" + zeroPadId("2");
+        String traceHeader = "Root=1-00000000-00000000" + zeroPadId("1") + ";Parent=" + zeroPadId("2");
 
-    TagContext context =
-        this.extractor.extract(headers(X_AMZN_TRACE_ID, traceHeader), stringValuesMap());
+        TagContext context = this.extractor.extract(headers(X_AMZN_TRACE_ID, traceHeader), stringValuesMap());
 
-    assertEquals(traceHeader, context.getTags().getString(SOME_TAG));
-    assertEquals(zeroPadId("1"), context.getTraceId().toHexStringPadded(16));
-    assertEquals(zeroPadId("2"), DDSpanId.toHexStringPadded(context.getSpanId()));
-  }
+        assertEquals(traceHeader, context.getTags().getString(SOME_TAG));
+        assertEquals(zeroPadId("1"), context.getTraceId().toHexStringPadded(16));
+        assertEquals(zeroPadId("2"), DDSpanId.toHexStringPadded(context.getSpanId()));
+    }
 
-  @Test
-  void noContextWithInvalidNonNumericId() {
-    // spotless:off
+    @Test
+    void noContextWithInvalidNonNumericId() {
+        // spotless:off
     Map<String, String> headers = headers(
         "x-amzn-trace-Id", "Root=1-00000000-00000000000000000traceId;Parent=0000000000spanId",
         SOME_HEADER, "my-interesting-info"
     );
     // spotless:on
 
-    TagContext context = this.extractor.extract(headers, stringValuesMap());
+        TagContext context = this.extractor.extract(headers, stringValuesMap());
 
-    assertNull(context);
-  }
+        assertNull(context);
+    }
 
-  @Test
-  void noContextWithTooLargeTraceId() {
-    Map<String, String> headers =
-        headers(
-            X_AMZN_TRACE_ID, "Root=1-5759e988-bd862e3fe1be46a994272793;Parent=53995c3f42cd8ad8");
+    @Test
+    void noContextWithTooLargeTraceId() {
+        Map<String, String> headers =
+                headers(X_AMZN_TRACE_ID, "Root=1-5759e988-bd862e3fe1be46a994272793;Parent=53995c3f42cd8ad8");
 
-    TagContext context = extractor.extract(headers, stringValuesMap());
+        TagContext context = extractor.extract(headers, stringValuesMap());
 
-    assertNull(context);
-  }
+        assertNull(context);
+    }
 
-  @Test
-  void extractHttpHeadersWithNonZeroEpoch() {
-    Map<String, String> headers =
-        headers(
-            X_AMZN_TRACE_ID, "Root=1-5759e988-00000000e1be46a994272793;Parent=53995c3f42cd8ad8");
+    @Test
+    void extractHttpHeadersWithNonZeroEpoch() {
+        Map<String, String> headers =
+                headers(X_AMZN_TRACE_ID, "Root=1-5759e988-00000000e1be46a994272793;Parent=53995c3f42cd8ad8");
 
-    TagContext context = extractor.extract(headers, stringValuesMap());
+        TagContext context = extractor.extract(headers, stringValuesMap());
 
-    assertEquals(DDTraceId.fromHex("e1be46a994272793"), context.getTraceId());
-    assertEquals(DDSpanId.fromHex("53995c3f42cd8ad8"), context.getSpanId());
-    assertNull(context.getOrigin());
-  }
+        assertEquals(DDTraceId.fromHex("e1be46a994272793"), context.getTraceId());
+        assertEquals(DDSpanId.fromHex("53995c3f42cd8ad8"), context.getSpanId());
+        assertNull(context.getOrigin());
+    }
 
-  @TableTest({
-    "scenario   | traceId          | spanId           | expectedTraceIdHex | expectedSpanId     ",
-    "short ids  | 00001            | 00001            | 0000000000000001   | 1                  ",
-    "long ids   | 463ac35c9f6413ad | 463ac35c9f6413ad | 463ac35c9f6413ad   | 5060571933882717101",
-    "long trace | 48485a3953bb6124 | 1                | 48485a3953bb6124   | 1                  ",
-    "max trace  | ffffffffffffffff | 1                | ffffffffffffffff   | 1                  ",
-    "max span   | 1                | ffffffffffffffff | 0000000000000001   | -1                 "
-  })
-  void extractIdsWhileRetainingTheOriginalString(
-      String traceId, String spanId, String expectedTraceIdHex, long expectedSpanId) {
-    Map<String, String> headers =
-        headers(
-            X_AMZN_TRACE_ID,
-            "Root=1-00000000-00000000" + zeroPadId(traceId) + ";Parent=" + zeroPadId(spanId));
+    @TableTest({
+      "scenario   | traceId          | spanId           | expectedTraceIdHex | expectedSpanId     ",
+      "short ids  | 00001            | 00001            | 0000000000000001   | 1                  ",
+      "long ids   | 463ac35c9f6413ad | 463ac35c9f6413ad | 463ac35c9f6413ad   | 5060571933882717101",
+      "long trace | 48485a3953bb6124 | 1                | 48485a3953bb6124   | 1                  ",
+      "max trace  | ffffffffffffffff | 1                | ffffffffffffffff   | 1                  ",
+      "max span   | 1                | ffffffffffffffff | 0000000000000001   | -1                 "
+    })
+    void extractIdsWhileRetainingTheOriginalString(
+            String traceId, String spanId, String expectedTraceIdHex, long expectedSpanId) {
+        Map<String, String> headers = headers(
+                X_AMZN_TRACE_ID, "Root=1-00000000-00000000" + zeroPadId(traceId) + ";Parent=" + zeroPadId(spanId));
 
-    ExtractedContext context = (ExtractedContext) extractor.extract(headers, stringValuesMap());
+        ExtractedContext context = (ExtractedContext) extractor.extract(headers, stringValuesMap());
 
-    assertEquals(DDTraceId.fromHex(expectedTraceIdHex), context.getTraceId());
-    assertEquals(zeroPadId(traceId), context.getTraceId().toHexStringPadded(16));
-    assertEquals(expectedSpanId, context.getSpanId());
-    assertEquals(zeroPadId(spanId), DDSpanId.toHexStringPadded(context.getSpanId()));
-  }
+        assertEquals(DDTraceId.fromHex(expectedTraceIdHex), context.getTraceId());
+        assertEquals(zeroPadId(traceId), context.getTraceId().toHexStringPadded(16));
+        assertEquals(expectedSpanId, context.getSpanId());
+        assertEquals(zeroPadId(spanId), DDSpanId.toHexStringPadded(context.getSpanId()));
+    }
 
-  @TableTest({
-    "scenario | traceId | spanId | endToEndStartTime",
-    "zero     | 1       | 2      | 0                ",
-    "non-zero | 2       | 3      | 1610001234       "
-  })
-  void extractHeadersWithEndToEnd(String traceId, String spanId, long endToEndStartTime) {
-    Map<String, String> headers =
-        headers(
-            X_AMZN_TRACE_ID,
-            "Root=1-00000000-00000000"
-                + zeroPadId(traceId)
-                + ";Parent="
-                + zeroPadId(spanId)
-                + ";k1=v1;t0="
-                + endToEndStartTime
-                + ";k2=v2");
+    @TableTest({
+      "scenario | traceId | spanId | endToEndStartTime",
+      "zero     | 1       | 2      | 0                ",
+      "non-zero | 2       | 3      | 1610001234       "
+    })
+    void extractHeadersWithEndToEnd(String traceId, String spanId, long endToEndStartTime) {
+        Map<String, String> headers = headers(
+                X_AMZN_TRACE_ID,
+                "Root=1-00000000-00000000"
+                        + zeroPadId(traceId)
+                        + ";Parent="
+                        + zeroPadId(spanId)
+                        + ";k1=v1;t0="
+                        + endToEndStartTime
+                        + ";k2=v2");
 
-    ExtractedContext context =
-        (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
+        ExtractedContext context = (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
 
-    assertEquals(DDTraceId.from(traceId), context.getTraceId());
-    assertEquals(DDSpanId.from(spanId), context.getSpanId());
-    Map<String, String> expectedBaggage = new HashMap<>();
-    expectedBaggage.put("k1", "v1");
-    expectedBaggage.put("k2", "v2");
-    assertEquals(expectedBaggage, context.getBaggage());
-    assertEquals(endToEndStartTime * 1_000_000L, context.getEndToEndStartTime());
-  }
+        assertEquals(DDTraceId.from(traceId), context.getTraceId());
+        assertEquals(DDSpanId.from(spanId), context.getSpanId());
+        Map<String, String> expectedBaggage = new HashMap<>();
+        expectedBaggage.put("k1", "v1");
+        expectedBaggage.put("k2", "v2");
+        assertEquals(expectedBaggage, context.getBaggage());
+        assertEquals(endToEndStartTime * 1_000_000L, context.getEndToEndStartTime());
+    }
 }

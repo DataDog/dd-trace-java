@@ -11,17 +11,17 @@ import java.util.List;
 
 @AutoService(InstrumenterModule.class)
 public class GrizzlyClientModule extends InstrumenterModule.Tracing {
-  public GrizzlyClientModule() {
-    super("grizzly-client", "ning");
-  }
+    public GrizzlyClientModule() {
+        super("grizzly-client", "ning");
+    }
 
-  @Override
-  protected boolean defaultEnabled() {
-    return InstrumenterConfig.get().isIntegrationEnabled(Collections.singleton("mule"), false);
-  }
+    @Override
+    protected boolean defaultEnabled() {
+        return InstrumenterConfig.get().isIntegrationEnabled(Collections.singleton("mule"), false);
+    }
 
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return singletonList(new AsyncHttpClientInstrumentation());
-  }
+    @Override
+    public List<Instrumenter> typeInstrumentations() {
+        return singletonList(new AsyncHttpClientInstrumentation());
+    }
 }

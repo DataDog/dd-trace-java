@@ -12,18 +12,18 @@ import java.net.URLClassLoader;
  */
 final class BlockingTestClassLoader extends URLClassLoader {
 
-  BlockingTestClassLoader(URL[] classpath) {
-    super(classpath, null, null);
-  }
+    BlockingTestClassLoader(URL[] classpath) {
+        super(classpath, null, null);
+    }
 
-  @Override
-  public Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-    if (name.equals(BlockingExceptionHandler.class.getName())) {
-      return BlockingExceptionHandler.class;
+    @Override
+    public Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+        if (name.equals(BlockingExceptionHandler.class.getName())) {
+            return BlockingExceptionHandler.class;
+        }
+        if (name.equals(BlockingException.class.getName())) {
+            return BlockingException.class;
+        }
+        return super.loadClass(name, resolve);
     }
-    if (name.equals(BlockingException.class.getName())) {
-      return BlockingException.class;
-    }
-    return super.loadClass(name, resolve);
-  }
 }

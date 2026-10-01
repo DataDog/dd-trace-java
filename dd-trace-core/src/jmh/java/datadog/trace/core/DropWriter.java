@@ -15,28 +15,28 @@ import org.openjdk.jmh.infra.Blackhole;
  * v1.53→master.
  */
 final class DropWriter implements Writer {
-  private final Blackhole blackhole;
+    private final Blackhole blackhole;
 
-  DropWriter(Blackhole blackhole) {
-    this.blackhole = blackhole;
-  }
+    DropWriter(Blackhole blackhole) {
+        this.blackhole = blackhole;
+    }
 
-  @Override
-  public void write(List<DDSpan> trace) {
-    blackhole.consume(trace);
-  }
+    @Override
+    public void write(List<DDSpan> trace) {
+        blackhole.consume(trace);
+    }
 
-  @Override
-  public void start() {}
+    @Override
+    public void start() {}
 
-  @Override
-  public boolean flush() {
-    return true;
-  }
+    @Override
+    public boolean flush() {
+        return true;
+    }
 
-  @Override
-  public void close() {}
+    @Override
+    public void close() {}
 
-  @Override
-  public void incrementDropCounts(int spanCount) {}
+    @Override
+    public void incrementDropCounts(int spanCount) {}
 }

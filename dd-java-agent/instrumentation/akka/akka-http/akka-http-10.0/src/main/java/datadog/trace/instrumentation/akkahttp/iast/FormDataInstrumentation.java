@@ -20,28 +20,28 @@ import datadog.trace.agent.tooling.InstrumenterModule;
  */
 @AutoService(InstrumenterModule.class)
 public class FormDataInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public FormDataInstrumentation() {
-    super("akka-http");
-  }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public FormDataInstrumentation() {
+        super("akka-http");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "akka.http.scaladsl.model.FormData";
-  }
+    @Override
+    public String instrumentedType() {
+        return "akka.http.scaladsl.model.FormData";
+    }
 
-  /**
-   * @param transformer
-   * @see UriInstrumentation.TaintQueryAdvice
-   */
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(not(isStatic()))
-            .and(named("fields"))
-            .and(takesArguments(0))
-            .and(returns(named("akka.http.scaladsl.model.Uri$Query"))),
-        "datadog.trace.instrumentation.akkahttp.iast.UriInstrumentation$TaintQueryAdvice");
-  }
+    /**
+     * @param transformer
+     * @see UriInstrumentation.TaintQueryAdvice
+     */
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(not(isStatic()))
+                        .and(named("fields"))
+                        .and(takesArguments(0))
+                        .and(returns(named("akka.http.scaladsl.model.Uri$Query"))),
+                "datadog.trace.instrumentation.akkahttp.iast.UriInstrumentation$TaintQueryAdvice");
+    }
 }

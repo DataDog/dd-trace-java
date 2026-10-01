@@ -29,85 +29,83 @@ import okio.BufferedSink;
 
 public class CoverageReportUploader {
 
-  private final BackendApi backendApi;
-  private final Map<String, String> ciTags;
-  private final List<String> flags;
-  private final CiVisibilityMetricCollector metricCollector;
-  private final JsonAdapter<Map<String, Object>> eventAdapter;
+    private final BackendApi backendApi;
+    private final Map<String, String> ciTags;
+    private final List<String> flags;
+    private final CiVisibilityMetricCollector metricCollector;
+    private final JsonAdapter<Map<String, Object>> eventAdapter;
 
-  public CoverageReportUploader(
-      BackendApi backendApi,
-      Map<String, String> ciTags,
-      List<String> flags,
-      CiVisibilityMetricCollector metricCollector) {
-    this.backendApi = backendApi;
-    this.ciTags = ciTags;
-    this.flags = Collections.unmodifiableList(new ArrayList<>(flags));
-    this.metricCollector = metricCollector;
+    public CoverageReportUploader(
+            BackendApi backendApi,
+            Map<String, String> ciTags,
+            List<String> flags,
+            CiVisibilityMetricCollector metricCollector) {
+        this.backendApi = backendApi;
+        this.ciTags = ciTags;
+        this.flags = Collections.unmodifiableList(new ArrayList<>(flags));
+        this.metricCollector = metricCollector;
 
-    Moshi moshi = new Moshi.Builder().build();
-    Type type = Types.newParameterizedType(Map.class, String.class, Object.class);
-    eventAdapter = moshi.adapter(type);
-  }
-
-  public void upload(String format, InputStream reportStream) throws IOException {
-    Map<String, Object> event = new HashMap<>(ciTags);
-    event.put("format", format);
-    event.put("type", "coverage_report");
-    if (!flags.isEmpty()) {
-      event.put("report.flags", flags);
-    }
-    String eventJson = eventAdapter.toJson(event);
-    RequestBody eventBody = jsonRequestBodyOf(eventJson.getBytes(StandardCharsets.UTF_8));
-
-    RequestBody coverageBody = new GzipMultipartRequestBody(reportStream);
-
-    MultipartBody multipartBody =
-        new MultipartBody.Builder()
-            .setType(MultipartBody.FORM)
-            .addFormDataPart("coverage", "coverage.gz", coverageBody)
-            .addFormDataPart("event", "event.json", eventBody)
-            .build();
-
-    OkHttpUtils.CustomListener telemetryListener =
-        new TelemetryListener.Builder(metricCollector)
-            .requestCount(CiVisibilityCountMetric.COVERAGE_UPLOAD_REQUEST)
-            .requestBytes(CiVisibilityDistributionMetric.COVERAGE_UPLOAD_REQUEST_BYTES)
-            .requestErrors(CiVisibilityCountMetric.COVERAGE_UPLOAD_REQUEST_ERRORS)
-            .requestDuration(CiVisibilityDistributionMetric.COVERAGE_UPLOAD_REQUEST_MS)
-            .build();
-
-    backendApi.post("cicovreprt", multipartBody, responseStream -> null, telemetryListener, false);
-  }
-
-  /** Request body that compresses a form data part */
-  private static class GzipMultipartRequestBody extends RequestBody {
-    private final InputStream stream;
-
-    private GzipMultipartRequestBody(InputStream stream) {
-      this.stream = stream;
+        Moshi moshi = new Moshi.Builder().build();
+        Type type = Types.newParameterizedType(Map.class, String.class, Object.class);
+        eventAdapter = moshi.adapter(type);
     }
 
-    @Override
-    public long contentLength() {
-      return -1;
+    public void upload(String format, InputStream reportStream) throws IOException {
+        Map<String, Object> event = new HashMap<>(ciTags);
+        event.put("format", format);
+        event.put("type", "coverage_report");
+        if (!flags.isEmpty()) {
+            event.put("report.flags", flags);
+        }
+        String eventJson = eventAdapter.toJson(event);
+        RequestBody eventBody = jsonRequestBodyOf(eventJson.getBytes(StandardCharsets.UTF_8));
+
+        RequestBody coverageBody = new GzipMultipartRequestBody(reportStream);
+
+        MultipartBody multipartBody = new MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("coverage", "coverage.gz", coverageBody)
+                .addFormDataPart("event", "event.json", eventBody)
+                .build();
+
+        OkHttpUtils.CustomListener telemetryListener = new TelemetryListener.Builder(metricCollector)
+                .requestCount(CiVisibilityCountMetric.COVERAGE_UPLOAD_REQUEST)
+                .requestBytes(CiVisibilityDistributionMetric.COVERAGE_UPLOAD_REQUEST_BYTES)
+                .requestErrors(CiVisibilityCountMetric.COVERAGE_UPLOAD_REQUEST_ERRORS)
+                .requestDuration(CiVisibilityDistributionMetric.COVERAGE_UPLOAD_REQUEST_MS)
+                .build();
+
+        backendApi.post("cicovreprt", multipartBody, responseStream -> null, telemetryListener, false);
     }
 
-    @Override
-    public MediaType contentType() {
-      return null;
-    }
+    /** Request body that compresses a form data part */
+    private static class GzipMultipartRequestBody extends RequestBody {
+        private final InputStream stream;
 
-    @SuppressFBWarnings("OS_OPEN_STREAM")
-    @Override
-    public void writeTo(BufferedSink sink) throws IOException {
-      GZIPOutputStream outputStream = new GZIPOutputStream(sink.outputStream());
-      byte[] buffer = new byte[8192];
-      for (int readCount; (readCount = stream.read(buffer)) != -1; ) {
-        outputStream.write(buffer, 0, readCount);
-      }
-      outputStream.finish();
-      // not closing output stream as it would close the underlying sink, which is managed by okhttp
+        private GzipMultipartRequestBody(InputStream stream) {
+            this.stream = stream;
+        }
+
+        @Override
+        public long contentLength() {
+            return -1;
+        }
+
+        @Override
+        public MediaType contentType() {
+            return null;
+        }
+
+        @SuppressFBWarnings("OS_OPEN_STREAM")
+        @Override
+        public void writeTo(BufferedSink sink) throws IOException {
+            GZIPOutputStream outputStream = new GZIPOutputStream(sink.outputStream());
+            byte[] buffer = new byte[8192];
+            for (int readCount; (readCount = stream.read(buffer)) != -1; ) {
+                outputStream.write(buffer, 0, readCount);
+            }
+            outputStream.finish();
+            // not closing output stream as it would close the underlying sink, which is managed by okhttp
+        }
     }
-  }
 }

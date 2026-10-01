@@ -8,8 +8,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableAsync
 public class AsyncTaskConfig {
 
-  @Bean
-  AsyncTask asyncTask() {
-    return new AsyncTask();
-  }
+    @Bean
+    AsyncTask asyncTask() {
+        return new AsyncTask();
+    }
 }

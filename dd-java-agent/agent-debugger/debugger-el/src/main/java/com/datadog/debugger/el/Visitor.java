@@ -33,65 +33,65 @@ import com.datadog.debugger.el.values.SetValue;
 import com.datadog.debugger.el.values.StringValue;
 
 public interface Visitor<R> {
-  R visit(BinaryExpression binaryExpression);
+    R visit(BinaryExpression binaryExpression);
 
-  R visit(BinaryOperator operator);
+    R visit(BinaryOperator operator);
 
-  R visit(ComparisonExpression comparisonExpression);
+    R visit(ComparisonExpression comparisonExpression);
 
-  R visit(ComparisonOperator operator);
+    R visit(ComparisonOperator operator);
 
-  R visit(ContainsExpression containsExpression);
+    R visit(ContainsExpression containsExpression);
 
-  R visit(EndsWithExpression endsWithExpression);
+    R visit(EndsWithExpression endsWithExpression);
 
-  R visit(FilterCollectionExpression filterCollectionExpression);
+    R visit(FilterCollectionExpression filterCollectionExpression);
 
-  R visit(HasAllExpression hasAllExpression);
+    R visit(HasAllExpression hasAllExpression);
 
-  R visit(HasAnyExpression hasAnyExpression);
+    R visit(HasAnyExpression hasAnyExpression);
 
-  R visit(IfElseExpression ifElseExpression);
+    R visit(IfElseExpression ifElseExpression);
 
-  R visit(IfExpression ifExpression);
+    R visit(IfExpression ifExpression);
 
-  R visit(IsEmptyExpression isEmptyExpression);
+    R visit(IsEmptyExpression isEmptyExpression);
 
-  R visit(IsDefinedExpression isDefinedExpression);
+    R visit(IsDefinedExpression isDefinedExpression);
 
-  R visit(LenExpression lenExpression);
+    R visit(LenExpression lenExpression);
 
-  R visit(MatchesExpression matchesExpression);
+    R visit(MatchesExpression matchesExpression);
 
-  R visit(NotExpression notExpression);
+    R visit(NotExpression notExpression);
 
-  R visit(StartsWithExpression startsWithExpression);
+    R visit(StartsWithExpression startsWithExpression);
 
-  R visit(SubStringExpression subStringExpression);
+    R visit(SubStringExpression subStringExpression);
 
-  R visit(ValueRefExpression valueRefExpression);
+    R visit(ValueRefExpression valueRefExpression);
 
-  R visit(GetMemberExpression getMemberExpression);
+    R visit(GetMemberExpression getMemberExpression);
 
-  R visit(IndexExpression indexExpression);
+    R visit(IndexExpression indexExpression);
 
-  R visit(WhenExpression whenExpression);
+    R visit(WhenExpression whenExpression);
 
-  R visit(BooleanExpression booleanExpression);
+    R visit(BooleanExpression booleanExpression);
 
-  R visit(ObjectValue objectValue);
+    R visit(ObjectValue objectValue);
 
-  R visit(StringValue stringValue);
+    R visit(StringValue stringValue);
 
-  R visit(NumericValue numericValue);
+    R visit(NumericValue numericValue);
 
-  R visit(BooleanValue booleanValue);
+    R visit(BooleanValue booleanValue);
 
-  R visit(NullValue nullValue);
+    R visit(NullValue nullValue);
 
-  R visit(ListValue listValue);
+    R visit(ListValue listValue);
 
-  R visit(MapValue mapValue);
+    R visit(MapValue mapValue);
 
-  R visit(SetValue setValue);
+    R visit(SetValue setValue);
 }

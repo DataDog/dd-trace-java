@@ -21,166 +21,163 @@ import org.apache.ignite.cache.query.Query;
 
 public final class IgniteCacheSyncInstrumentation extends AbstractIgniteCacheInstrumentation {
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(
-                namedOneOf(
-                    "loadCache",
-                    "size",
-                    "sizeLong",
-                    "invokeAll",
-                    "getAll",
-                    "getEntries",
-                    "getAllOutTx",
-                    "containsKeys",
-                    "putAll",
-                    "removeAll")),
-        IgniteCacheSyncInstrumentation.class.getName() + "$IgniteAdvice");
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(
-                namedOneOf(
-                    "getAndPutIfAbsent",
-                    "get",
-                    "getEntry",
-                    "containsKey",
-                    "getAndPut",
-                    "put",
-                    "putIfAbsent",
-                    "remove",
-                    "getAndRemove",
-                    "replace",
-                    "getAndReplace",
-                    "clear",
-                    "invoke")),
-        IgniteCacheSyncInstrumentation.class.getName() + "$KeyedAdvice");
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(named("query"))
-            .and(
-                takesArgument(
-                    0,
-                    namedOneOf(
-                        "org.apache.ignite.cache.query.Query",
-                        "org.apache.ignite.cache.query.SqlFieldsQuery"))),
-        IgniteCacheSyncInstrumentation.class.getName() + "$QueryAdvice");
-  }
-
-  public static class IgniteAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onEnter(
-        @Advice.This final IgniteCache that, @Advice.Origin("#m") final String methodName) {
-      // Ensure that we only create a span for the top-level cache method
-      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(IgniteCache.class);
-      if (callDepth > 0) {
-        return null;
-      }
-
-      final AgentSpan span = startSpan("ignite-cache", IgniteCacheDecorator.OPERATION_NAME);
-      DECORATE.afterStart(span);
-      DECORATE.onIgnite(
-          span, InstrumentationContext.get(IgniteCache.class, Ignite.class).get(that));
-      DECORATE.onOperation(span, that.getName(), methodName);
-
-      return activateSpan(span);
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPublic())
+                        .and(namedOneOf(
+                                "loadCache",
+                                "size",
+                                "sizeLong",
+                                "invokeAll",
+                                "getAll",
+                                "getEntries",
+                                "getAllOutTx",
+                                "containsKeys",
+                                "putAll",
+                                "removeAll")),
+                IgniteCacheSyncInstrumentation.class.getName() + "$IgniteAdvice");
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPublic())
+                        .and(namedOneOf(
+                                "getAndPutIfAbsent",
+                                "get",
+                                "getEntry",
+                                "containsKey",
+                                "getAndPut",
+                                "put",
+                                "putIfAbsent",
+                                "remove",
+                                "getAndRemove",
+                                "replace",
+                                "getAndReplace",
+                                "clear",
+                                "invoke")),
+                IgniteCacheSyncInstrumentation.class.getName() + "$KeyedAdvice");
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isPublic())
+                        .and(named("query"))
+                        .and(takesArgument(
+                                0,
+                                namedOneOf(
+                                        "org.apache.ignite.cache.query.Query",
+                                        "org.apache.ignite.cache.query.SqlFieldsQuery"))),
+                IgniteCacheSyncInstrumentation.class.getName() + "$QueryAdvice");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+    public static class IgniteAdvice {
 
-      if (scope == null) {
-        return;
-      }
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope onEnter(
+                @Advice.This final IgniteCache that, @Advice.Origin("#m") final String methodName) {
+            // Ensure that we only create a span for the top-level cache method
+            final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(IgniteCache.class);
+            if (callDepth > 0) {
+                return null;
+            }
 
-      AgentSpan span = spanFromScope(scope);
-      DECORATE.onError(span, throwable);
-      DECORATE.beforeFinish(span);
-      scope.close();
-      span.finish();
-      CallDepthThreadLocalMap.reset(IgniteCache.class); // reset call depth count
-    }
-  }
+            final AgentSpan span = startSpan("ignite-cache", IgniteCacheDecorator.OPERATION_NAME);
+            DECORATE.afterStart(span);
+            DECORATE.onIgnite(
+                    span,
+                    InstrumentationContext.get(IgniteCache.class, Ignite.class).get(that));
+            DECORATE.onOperation(span, that.getName(), methodName);
 
-  public static class KeyedAdvice {
+            return activateSpan(span);
+        }
 
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onEnter(
-        @Advice.This final IgniteCache that,
-        @Advice.Origin("#m") final String methodName,
-        @Advice.Argument(value = 0, optional = true) final Object key) {
-      // Ensure that we only create a span for the top-level cache method
-      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(IgniteCache.class);
-      if (callDepth > 0) {
-        return null;
-      }
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void stopSpan(@Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
 
-      final AgentSpan span = startSpan("ignite-cache", IgniteCacheDecorator.OPERATION_NAME);
-      DECORATE.afterStart(span);
-      DECORATE.onIgnite(
-          span, InstrumentationContext.get(IgniteCache.class, Ignite.class).get(that));
-      DECORATE.onOperation(span, that.getName(), methodName, key);
+            if (scope == null) {
+                return;
+            }
 
-      return activateSpan(span);
+            AgentSpan span = spanFromScope(scope);
+            DECORATE.onError(span, throwable);
+            DECORATE.beforeFinish(span);
+            scope.close();
+            span.finish();
+            CallDepthThreadLocalMap.reset(IgniteCache.class); // reset call depth count
+        }
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
-      if (scope == null) {
-        return;
-      }
+    public static class KeyedAdvice {
 
-      AgentSpan span = spanFromScope(scope);
-      DECORATE.onError(span, throwable);
-      DECORATE.beforeFinish(span);
-      scope.close();
-      span.finish();
-      CallDepthThreadLocalMap.reset(IgniteCache.class); // reset call depth count
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope onEnter(
+                @Advice.This final IgniteCache that,
+                @Advice.Origin("#m") final String methodName,
+                @Advice.Argument(value = 0, optional = true) final Object key) {
+            // Ensure that we only create a span for the top-level cache method
+            final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(IgniteCache.class);
+            if (callDepth > 0) {
+                return null;
+            }
+
+            final AgentSpan span = startSpan("ignite-cache", IgniteCacheDecorator.OPERATION_NAME);
+            DECORATE.afterStart(span);
+            DECORATE.onIgnite(
+                    span,
+                    InstrumentationContext.get(IgniteCache.class, Ignite.class).get(that));
+            DECORATE.onOperation(span, that.getName(), methodName, key);
+
+            return activateSpan(span);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void stopSpan(@Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+            if (scope == null) {
+                return;
+            }
+
+            AgentSpan span = spanFromScope(scope);
+            DECORATE.onError(span, throwable);
+            DECORATE.beforeFinish(span);
+            scope.close();
+            span.finish();
+            CallDepthThreadLocalMap.reset(IgniteCache.class); // reset call depth count
+        }
     }
-  }
 
-  public static class QueryAdvice {
+    public static class QueryAdvice {
 
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onEnter(
-        @Advice.This final IgniteCache that,
-        @Advice.Origin("#m") final String methodName,
-        @Advice.Argument(0) final Query query) {
-      // Ensure that we only create a span for the top-level cache method
-      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(IgniteCache.class);
-      if (callDepth > 0) {
-        return null;
-      }
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope onEnter(
+                @Advice.This final IgniteCache that,
+                @Advice.Origin("#m") final String methodName,
+                @Advice.Argument(0) final Query query) {
+            // Ensure that we only create a span for the top-level cache method
+            final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(IgniteCache.class);
+            if (callDepth > 0) {
+                return null;
+            }
 
-      final AgentSpan span = startSpan("ignite-cache", IgniteCacheDecorator.OPERATION_NAME);
-      DECORATE.afterStart(span);
-      DECORATE.onIgnite(
-          span, InstrumentationContext.get(IgniteCache.class, Ignite.class).get(that));
-      DECORATE.onQuery(span, that.getName(), methodName, query);
+            final AgentSpan span = startSpan("ignite-cache", IgniteCacheDecorator.OPERATION_NAME);
+            DECORATE.afterStart(span);
+            DECORATE.onIgnite(
+                    span,
+                    InstrumentationContext.get(IgniteCache.class, Ignite.class).get(that));
+            DECORATE.onQuery(span, that.getName(), methodName, query);
 
-      return activateSpan(span);
+            return activateSpan(span);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void stopSpan(@Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+            if (scope == null) {
+                return;
+            }
+
+            AgentSpan span = spanFromScope(scope);
+            DECORATE.onError(span, throwable);
+            DECORATE.beforeFinish(span);
+            scope.close();
+            span.finish();
+            CallDepthThreadLocalMap.reset(IgniteCache.class); // reset call depth count
+        }
     }
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
-      if (scope == null) {
-        return;
-      }
-
-      AgentSpan span = spanFromScope(scope);
-      DECORATE.onError(span, throwable);
-      DECORATE.beforeFinish(span);
-      scope.close();
-      span.finish();
-      CallDepthThreadLocalMap.reset(IgniteCache.class); // reset call depth count
-    }
-  }
 }

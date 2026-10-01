@@ -57,189 +57,184 @@ import org.opentest4j.AssertionFailedError;
  */
 @WithConfig(key = "detailed.instrumentation.errors", value = "true")
 @ExtendWith({
-  TestClassShadowingExtension.class,
-  AllowContextTestingExtension.class,
-  LegacyContextTestingExtension.class,
-  ScopeDiagnosticsExtension.class
+    TestClassShadowingExtension.class,
+    AllowContextTestingExtension.class,
+    LegacyContextTestingExtension.class,
+    ScopeDiagnosticsExtension.class
 })
 public abstract class AbstractInstrumentationTest {
-  static final Instrumentation INSTRUMENTATION = ByteBuddyAgent.getInstrumentation();
+    static final Instrumentation INSTRUMENTATION = ByteBuddyAgent.getInstrumentation();
 
-  static final long TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(20);
+    static final long TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(20);
 
-  protected static final InstrumentationTestConfig testConfig = new InstrumentationTestConfig();
+    protected static final InstrumentationTestConfig testConfig = new InstrumentationTestConfig();
 
-  protected static TracerAPI tracer;
-  protected static ListWriter writer;
-  private static ClassFileTransformer activeTransformer;
-  private static ClassFileTransformerListener transformerListener;
+    protected static TracerAPI tracer;
+    protected static ListWriter writer;
+    private static ClassFileTransformer activeTransformer;
+    private static ClassFileTransformerListener transformerListener;
 
-  @BeforeAll
-  static void initAll() {
-    InstrumentationErrors.resetErrors();
+    @BeforeAll
+    static void initAll() {
+        InstrumentationErrors.resetErrors();
 
-    // If this fails, it's likely the result of another test loading Config before it can be
-    // injected into the bootstrap classpath.
-    assertNull(Config.class.getClassLoader(), "Config must load on the bootstrap classpath.");
+        // If this fails, it's likely the result of another test loading Config before it can be
+        // injected into the bootstrap classpath.
+        assertNull(Config.class.getClassLoader(), "Config must load on the bootstrap classpath.");
 
-    // Create shared test writer and tracer
-    writer = new ListWriter();
-    CoreTracer coreTracer =
-        CoreTracer.builder()
-            .writer(writer)
-            .idGenerationStrategy(IdGenerationStrategy.fromName(testConfig.idGenerationStrategy))
-            .strictTraceWrites(testConfig.strictTraceWrites)
-            .build();
-    TracerInstaller.forceInstallGlobalTracer(coreTracer);
-    tracer = coreTracer;
+        // Create shared test writer and tracer
+        writer = new ListWriter();
+        CoreTracer coreTracer = CoreTracer.builder()
+                .writer(writer)
+                .idGenerationStrategy(IdGenerationStrategy.fromName(testConfig.idGenerationStrategy))
+                .strictTraceWrites(testConfig.strictTraceWrites)
+                .build();
+        TracerInstaller.forceInstallGlobalTracer(coreTracer);
+        tracer = coreTracer;
 
-    ClassInjector.enableClassInjection(INSTRUMENTATION);
+        ClassInjector.enableClassInjection(INSTRUMENTATION);
 
-    // if a test enables the instrumentation it verifies,
-    // the cache needs to be recomputed taking into account that instrumentation's matchers
-    ClassLoaderMatchers.resetState();
+        // if a test enables the instrumentation it verifies,
+        // the cache needs to be recomputed taking into account that instrumentation's matchers
+        ClassLoaderMatchers.resetState();
 
-    assertTrue(
-        ServiceLoader.load(
-                InstrumenterModule.class, AbstractInstrumentationTest.class.getClassLoader())
-            .iterator()
-            .hasNext(),
-        "No instrumentation found");
-    transformerListener = new ClassFileTransformerListener();
-    activeTransformer =
-        AgentInstaller.installBytebuddyAgent(
-            INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), false, transformerListener);
+        assertTrue(
+                ServiceLoader.load(InstrumenterModule.class, AbstractInstrumentationTest.class.getClassLoader())
+                        .iterator()
+                        .hasNext(),
+                "No instrumentation found");
+        transformerListener = new ClassFileTransformerListener();
+        activeTransformer = AgentInstaller.installBytebuddyAgent(
+                INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), false, transformerListener);
 
-    // check for instrumentation issues during installation
-    assertTrue(InstrumentationErrors.noErrors(), InstrumentationErrors::describeErrors);
-  }
-
-  @BeforeEach
-  public void init() {
-    InstrumentationErrors.resetErrors(); // reset for each test
-    tracer.flush();
-    writer.start();
-  }
-
-  @AfterEach
-  public void tearDown() {
-    tracer.flush();
-
-    // check for instrumentation issues while running each test
-    assertTrue(InstrumentationErrors.noErrors(), InstrumentationErrors::describeErrors);
-  }
-
-  @AfterAll
-  static void tearDownAll() {
-    if (tracer != null) {
-      tracer.close();
-      tracer = null;
+        // check for instrumentation issues during installation
+        assertTrue(InstrumentationErrors.noErrors(), InstrumentationErrors::describeErrors);
     }
-    if (writer != null) {
-      writer.close();
-      writer = null;
+
+    @BeforeEach
+    public void init() {
+        InstrumentationErrors.resetErrors(); // reset for each test
+        tracer.flush();
+        writer.start();
     }
-    if (activeTransformer != null) {
-      INSTRUMENTATION.removeTransformer(activeTransformer);
-      activeTransformer = null;
+
+    @AfterEach
+    public void tearDown() {
+        tracer.flush();
+
+        // check for instrumentation issues while running each test
+        assertTrue(InstrumentationErrors.noErrors(), InstrumentationErrors::describeErrors);
     }
-    // All cleanups should happen before this verify call.
-    // If not, a failing assertion may prevent cleanup
-    if (transformerListener != null) {
-      transformerListener.verify();
-      transformerListener = null;
-    }
-  }
 
-  /**
-   * Checks the structure of the traces captured from the test tracer.
-   *
-   * @param matchers The matchers to verify the trace collection, one matcher by expected trace.
-   */
-  protected void assertTraces(TraceMatcher... matchers) {
-    assertTraces(identity(), matchers);
-  }
-
-  /**
-   * Checks the structure of the traces captured from the test tracer.
-   *
-   * @param options The {@link TraceAssertions.Options} to configure the checks.
-   * @param matchers The matchers to verify the trace collection, one matcher by expected trace.
-   */
-  protected void assertTraces(
-      UnaryOperator<TraceAssertions.Options> options, TraceMatcher... matchers) {
-    int expectedTraceCount = matchers.length;
-    try {
-      writer.waitForTraces(expectedTraceCount);
-    } catch (InterruptedException | TimeoutException e) {
-      throw new AssertionFailedError("Timeout while waiting for traces", e);
-    }
-    TraceAssertions.assertTraces(writer, options, matchers);
-  }
-
-  /**
-   * Blocks the current thread until the traces written match the given predicate or the timeout
-   * occurs.
-   *
-   * @param predicate the condition that must be satisfied by the list of traces
-   */
-  protected void blockUntilTracesMatch(Predicate<List<List<DDSpan>>> predicate) {
-    long deadline = System.currentTimeMillis() + TIMEOUT_MILLIS;
-    while (!predicate.test(writer)) {
-      if (System.currentTimeMillis() > deadline) {
-        throw new RuntimeException(new TimeoutException("Timed out waiting for traces/spans."));
-      }
-      try {
-        Thread.sleep(10);
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-      }
-    }
-  }
-
-  protected void blockUntilChildSpansFinished(int numberOfSpans) {
-    blockUntilChildSpansFinished(tracer.activeSpan(), numberOfSpans);
-  }
-
-  static void blockUntilChildSpansFinished(AgentSpan span, int numberOfSpans) {
-    if (span instanceof DDSpan) {
-      TraceCollector traceCollector = ((DDSpan) span).spanContext().getTraceCollector();
-      if (!(traceCollector instanceof PendingTrace)) {
-        throw new IllegalStateException(
-            "Expected PendingTrace trace collector, got " + traceCollector.getClass().getName());
-      }
-
-      PendingTrace pendingTrace = (PendingTrace) traceCollector;
-      long deadline = System.currentTimeMillis() + TIMEOUT_MILLIS;
-
-      while (pendingTrace.size() < numberOfSpans) {
-        if (System.currentTimeMillis() > deadline) {
-          throw new RuntimeException(
-              new TimeoutException(
-                  "Timed out waiting for child spans. Received: " + pendingTrace.size()));
+    @AfterAll
+    static void tearDownAll() {
+        if (tracer != null) {
+            tracer.close();
+            tracer = null;
         }
+        if (writer != null) {
+            writer.close();
+            writer = null;
+        }
+        if (activeTransformer != null) {
+            INSTRUMENTATION.removeTransformer(activeTransformer);
+            activeTransformer = null;
+        }
+        // All cleanups should happen before this verify call.
+        // If not, a failing assertion may prevent cleanup
+        if (transformerListener != null) {
+            transformerListener.verify();
+            transformerListener = null;
+        }
+    }
+
+    /**
+     * Checks the structure of the traces captured from the test tracer.
+     *
+     * @param matchers The matchers to verify the trace collection, one matcher by expected trace.
+     */
+    protected void assertTraces(TraceMatcher... matchers) {
+        assertTraces(identity(), matchers);
+    }
+
+    /**
+     * Checks the structure of the traces captured from the test tracer.
+     *
+     * @param options The {@link TraceAssertions.Options} to configure the checks.
+     * @param matchers The matchers to verify the trace collection, one matcher by expected trace.
+     */
+    protected void assertTraces(UnaryOperator<TraceAssertions.Options> options, TraceMatcher... matchers) {
+        int expectedTraceCount = matchers.length;
         try {
-          Thread.sleep(10);
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
+            writer.waitForTraces(expectedTraceCount);
+        } catch (InterruptedException | TimeoutException e) {
+            throw new AssertionFailedError("Timeout while waiting for traces", e);
         }
-      }
-    }
-  }
-
-  /** Configuration for {@link AbstractInstrumentationTest}. */
-  protected static class InstrumentationTestConfig {
-    private String idGenerationStrategy = "SEQUENTIAL";
-    private boolean strictTraceWrites = true;
-
-    public InstrumentationTestConfig idGenerationStrategy(String strategy) {
-      this.idGenerationStrategy = strategy;
-      return this;
+        TraceAssertions.assertTraces(writer, options, matchers);
     }
 
-    public InstrumentationTestConfig strictTraceWrites(boolean strict) {
-      this.strictTraceWrites = strict;
-      return this;
+    /**
+     * Blocks the current thread until the traces written match the given predicate or the timeout
+     * occurs.
+     *
+     * @param predicate the condition that must be satisfied by the list of traces
+     */
+    protected void blockUntilTracesMatch(Predicate<List<List<DDSpan>>> predicate) {
+        long deadline = System.currentTimeMillis() + TIMEOUT_MILLIS;
+        while (!predicate.test(writer)) {
+            if (System.currentTimeMillis() > deadline) {
+                throw new RuntimeException(new TimeoutException("Timed out waiting for traces/spans."));
+            }
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
-  }
+
+    protected void blockUntilChildSpansFinished(int numberOfSpans) {
+        blockUntilChildSpansFinished(tracer.activeSpan(), numberOfSpans);
+    }
+
+    static void blockUntilChildSpansFinished(AgentSpan span, int numberOfSpans) {
+        if (span instanceof DDSpan) {
+            TraceCollector traceCollector = ((DDSpan) span).spanContext().getTraceCollector();
+            if (!(traceCollector instanceof PendingTrace)) {
+                throw new IllegalStateException("Expected PendingTrace trace collector, got "
+                        + traceCollector.getClass().getName());
+            }
+
+            PendingTrace pendingTrace = (PendingTrace) traceCollector;
+            long deadline = System.currentTimeMillis() + TIMEOUT_MILLIS;
+
+            while (pendingTrace.size() < numberOfSpans) {
+                if (System.currentTimeMillis() > deadline) {
+                    throw new RuntimeException(new TimeoutException(
+                            "Timed out waiting for child spans. Received: " + pendingTrace.size()));
+                }
+                try {
+                    Thread.sleep(10);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+    }
+
+    /** Configuration for {@link AbstractInstrumentationTest}. */
+    protected static class InstrumentationTestConfig {
+        private String idGenerationStrategy = "SEQUENTIAL";
+        private boolean strictTraceWrites = true;
+
+        public InstrumentationTestConfig idGenerationStrategy(String strategy) {
+            this.idGenerationStrategy = strategy;
+            return this;
+        }
+
+        public InstrumentationTestConfig strictTraceWrites(boolean strict) {
+            this.strictTraceWrites = strict;
+            return this;
+        }
+    }
 }

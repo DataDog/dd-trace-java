@@ -12,13 +12,13 @@ import org.jboss.logging.Logger;
 
 @Path("/hello-jboss")
 public class JBossLoggingResource {
-  Logger log = Logger.getLogger(JBossLoggingResource.class);
+    Logger log = Logger.getLogger(JBossLoggingResource.class);
 
-  @GET
-  @Produces(MediaType.TEXT_PLAIN)
-  public String hello(@DefaultValue("0") @QueryParam("id") int id) {
-    Tracer tracer = GlobalTracer.get();
-    log.debug("TT|" + tracer.getTraceId() + "|TS|" + tracer.getSpanId());
-    return "Hello " + id + "!";
-  }
+    @GET
+    @Produces(MediaType.TEXT_PLAIN)
+    public String hello(@DefaultValue("0") @QueryParam("id") int id) {
+        Tracer tracer = GlobalTracer.get();
+        log.debug("TT|" + tracer.getTraceId() + "|TS|" + tracer.getSpanId());
+        return "Hello " + id + "!";
+    }
 }

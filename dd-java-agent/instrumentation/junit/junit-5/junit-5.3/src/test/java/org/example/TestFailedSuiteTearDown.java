@@ -7,18 +7,18 @@ import org.junit.jupiter.api.Test;
 
 public class TestFailedSuiteTearDown {
 
-  @AfterAll
-  public static void suiteTearDown() {
-    throw new RuntimeException("suite tear down failed");
-  }
+    @AfterAll
+    public static void suiteTearDown() {
+        throw new RuntimeException("suite tear down failed");
+    }
 
-  @Test
-  public void test_succeed() {
-    assertTrue(true);
-  }
+    @Test
+    public void test_succeed() {
+        assertTrue(true);
+    }
 
-  @Test
-  public void test_another_succeed() {
-    assertTrue(true);
-  }
+    @Test
+    public void test_another_succeed() {
+        assertTrue(true);
+    }
 }

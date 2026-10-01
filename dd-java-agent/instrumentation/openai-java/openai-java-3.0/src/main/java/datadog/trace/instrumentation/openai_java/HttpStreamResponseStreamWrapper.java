@@ -14,38 +14,37 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class HttpStreamResponseStreamWrapper<T> implements StreamResponse<T> {
-  private static final Logger log = LoggerFactory.getLogger(HttpStreamResponseStreamWrapper.class);
+    private static final Logger log = LoggerFactory.getLogger(HttpStreamResponseStreamWrapper.class);
 
-  private final AgentSpan span;
-  private final BiConsumer<AgentSpan, List<T>> decorate;
-  private final List<T> chunks;
-  private final StreamResponse<T> parsed;
-  private final AtomicBoolean finished = new AtomicBoolean(false);
+    private final AgentSpan span;
+    private final BiConsumer<AgentSpan, List<T>> decorate;
+    private final List<T> chunks;
+    private final StreamResponse<T> parsed;
+    private final AtomicBoolean finished = new AtomicBoolean(false);
 
-  HttpStreamResponseStreamWrapper(
-      AgentSpan span, BiConsumer<AgentSpan, List<T>> decorate, StreamResponse<T> parsed) {
-    this.span = span;
-    this.decorate = decorate;
-    this.parsed = parsed;
-    chunks = new ArrayList<>();
-  }
-
-  @Nonnull
-  @Override
-  public Stream<T> stream() {
-    return parsed.stream().peek(chunks::add).onClose(this::close);
-  }
-
-  @Override
-  public void close() {
-    if (finished.compareAndSet(false, true)) {
-      try {
-        decorate.accept(span, chunks);
-      } catch (Throwable t) {
-        log.debug("Span decorator failed", t);
-      }
-      DECORATE.finishSpan(span, null);
+    HttpStreamResponseStreamWrapper(AgentSpan span, BiConsumer<AgentSpan, List<T>> decorate, StreamResponse<T> parsed) {
+        this.span = span;
+        this.decorate = decorate;
+        this.parsed = parsed;
+        chunks = new ArrayList<>();
     }
-    parsed.close();
-  }
+
+    @Nonnull
+    @Override
+    public Stream<T> stream() {
+        return parsed.stream().peek(chunks::add).onClose(this::close);
+    }
+
+    @Override
+    public void close() {
+        if (finished.compareAndSet(false, true)) {
+            try {
+                decorate.accept(span, chunks);
+            } catch (Throwable t) {
+                log.debug("Span decorator failed", t);
+            }
+            DECORATE.finishSpan(span, null);
+        }
+        parsed.close();
+    }
 }

@@ -17,49 +17,46 @@ import org.junit.jupiter.api.Test;
 
 class EvpProxyApiTest {
 
-  private MockWebServer server;
-  private OkHttpClient client;
+    private MockWebServer server;
+    private OkHttpClient client;
 
-  @BeforeEach
-  void setUp() throws IOException {
-    server = new MockWebServer();
-    server.start();
-    client = new OkHttpClient.Builder().build();
-  }
+    @BeforeEach
+    void setUp() throws IOException {
+        server = new MockWebServer();
+        server.start();
+        client = new OkHttpClient.Builder().build();
+    }
 
-  @AfterEach
-  void tearDown() throws IOException {
-    client.dispatcher().executorService().shutdownNow();
-    client.connectionPool().evictAll();
-    server.shutdown();
-  }
+    @AfterEach
+    void tearDown() throws IOException {
+        client.dispatcher().executorService().shutdownNow();
+        client.connectionPool().evictAll();
+        server.shutdown();
+    }
 
-  @Test
-  void reportsHttpStatusForRejectedRequest() throws Exception {
-    server.enqueue(new MockResponse().setResponseCode(404).setBody("not found"));
-    final EvpProxyApi api =
-        new EvpProxyApi(
-            "123",
-            server.url("/evp_proxy/v4/"),
-            "event-platform-intake",
-            HttpRetryPolicy.Factory.NEVER_RETRY,
-            client,
-            false);
+    @Test
+    void reportsHttpStatusForRejectedRequest() throws Exception {
+        server.enqueue(new MockResponse().setResponseCode(404).setBody("not found"));
+        final EvpProxyApi api = new EvpProxyApi(
+                "123",
+                server.url("/evp_proxy/v4/"),
+                "event-platform-intake",
+                HttpRetryPolicy.Factory.NEVER_RETRY,
+                client,
+                false);
 
-    final HttpResponseException exception =
-        assertThrows(
-            HttpResponseException.class,
-            () ->
-                api.post(
-                    "exposures",
-                    RequestBody.create(MediaType.parse("application/json"), "{}"),
-                    stream -> null,
-                    null,
-                    false));
+        final HttpResponseException exception = assertThrows(
+                HttpResponseException.class,
+                () -> api.post(
+                        "exposures",
+                        RequestBody.create(MediaType.parse("application/json"), "{}"),
+                        stream -> null,
+                        null,
+                        false));
 
-    assertEquals(404, exception.getStatusCode());
-    final RecordedRequest request = server.takeRequest();
-    assertEquals("/evp_proxy/v4/api/v2/exposures", request.getPath());
-    assertEquals("event-platform-intake", request.getHeader("X-Datadog-EVP-Subdomain"));
-  }
+        assertEquals(404, exception.getStatusCode());
+        final RecordedRequest request = server.takeRequest();
+        assertEquals("/evp_proxy/v4/api/v2/exposures", request.getPath());
+        assertEquals("event-platform-intake", request.getHeader("X-Datadog-EVP-Subdomain"));
+    }
 }

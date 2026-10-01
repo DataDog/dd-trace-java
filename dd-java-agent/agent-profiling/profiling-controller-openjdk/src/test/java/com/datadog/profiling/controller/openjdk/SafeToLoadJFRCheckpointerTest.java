@@ -8,9 +8,9 @@ import org.junit.jupiter.api.Test;
 
 public class SafeToLoadJFRCheckpointerTest {
 
-  @Test
-  public void testSafeToLoad() {
-    Assumptions.assumeTrue(ExcludedVersions.isVersionExcluded());
-    assertThrows(IllegalArgumentException.class, JFREventContextIntegration::new);
-  }
+    @Test
+    public void testSafeToLoad() {
+        Assumptions.assumeTrue(ExcludedVersions.isVersionExcluded());
+        assertThrows(IllegalArgumentException.class, JFREventContextIntegration::new);
+    }
 }

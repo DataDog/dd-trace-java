@@ -16,18 +16,19 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 public class DatadogProfilerControllerTest {
 
-  private static final String TEST_NAME = "recording name";
+    private static final String TEST_NAME = "recording name";
 
-  @Test
-  public void testCreateContinuousRecording() throws Exception {
-    Assumptions.assumeTrue(OperatingSystem.isLinux());
-    Properties props = new Properties();
-    props.put(PROFILING_AUXILIARY_TYPE, "ddprof");
-    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+    @Test
+    public void testCreateContinuousRecording() throws Exception {
+        Assumptions.assumeTrue(OperatingSystem.isLinux());
+        Properties props = new Properties();
+        props.put(PROFILING_AUXILIARY_TYPE, "ddprof");
+        ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
-    DatadogProfilerController controller = new DatadogProfilerController(configProvider);
-    RecordingData data =
-        controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop();
-    assertEquals("ddprof", data.getName());
-  }
+        DatadogProfilerController controller = new DatadogProfilerController(configProvider);
+        RecordingData data = controller
+                .createRecording(TEST_NAME, new ControllerContext().snapshot())
+                .stop();
+        assertEquals("ddprof", data.getName());
+    }
 }

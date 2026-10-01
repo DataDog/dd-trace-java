@@ -10,22 +10,22 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(InstrumenterModule.class)
 public class BaseCluster410Instrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public BaseCluster410Instrumentation() {
-    super("mongo", "mongo-reactivestreams");
-  }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public BaseCluster410Instrumentation() {
+        super("mongo", "mongo-reactivestreams");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "com.mongodb.internal.connection.BaseCluster";
-  }
+    @Override
+    public String instrumentedType() {
+        return "com.mongodb.internal.connection.BaseCluster";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("selectServerAsync"))
-            .and(takesArgument(2, named("com.mongodb.internal.async.SingleResultCallback"))),
-        packageName + ".Arg2Advice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("selectServerAsync"))
+                        .and(takesArgument(2, named("com.mongodb.internal.async.SingleResultCallback"))),
+                packageName + ".Arg2Advice");
+    }
 }

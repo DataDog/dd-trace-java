@@ -23,232 +23,231 @@ import java.util.Map;
  */
 public abstract class PropagationTags {
 
-  public static final class SamplingState {
-    private static final byte OTEL_POSITION_UNKNOWN = 0;
-    private static final byte OTEL_POSITION_PRESERVED = 1;
-    private static final byte OTEL_POSITION_REPLACED = 2;
+    public static final class SamplingState {
+        private static final byte OTEL_POSITION_UNKNOWN = 0;
+        private static final byte OTEL_POSITION_PRESERVED = 1;
+        private static final byte OTEL_POSITION_REPLACED = 2;
 
-    private final int samplingPriority;
-    private final String tracestate;
-    private final CharSequence otelTraceState;
-    private final CharSequence decisionMaker;
-    private final CharSequence knuthSamplingRate;
-    private volatile byte otelPosition;
+        private final int samplingPriority;
+        private final String tracestate;
+        private final CharSequence otelTraceState;
+        private final CharSequence decisionMaker;
+        private final CharSequence knuthSamplingRate;
+        private volatile byte otelPosition;
 
-    public SamplingState(
-        int samplingPriority,
-        String tracestate,
-        CharSequence otelTraceState,
-        CharSequence decisionMaker,
-        CharSequence knuthSamplingRate) {
-      this.samplingPriority = samplingPriority;
-      this.tracestate = tracestate;
-      this.otelTraceState = otelTraceState;
-      this.decisionMaker = decisionMaker;
-      this.knuthSamplingRate = knuthSamplingRate;
+        public SamplingState(
+                int samplingPriority,
+                String tracestate,
+                CharSequence otelTraceState,
+                CharSequence decisionMaker,
+                CharSequence knuthSamplingRate) {
+            this.samplingPriority = samplingPriority;
+            this.tracestate = tracestate;
+            this.otelTraceState = otelTraceState;
+            this.decisionMaker = decisionMaker;
+            this.knuthSamplingRate = knuthSamplingRate;
+        }
+
+        public int getSamplingPriority() {
+            return samplingPriority;
+        }
+
+        public String getTracestate() {
+            return tracestate;
+        }
+
+        public CharSequence getOtelTraceState() {
+            return otelTraceState;
+        }
+
+        public CharSequence getDecisionMaker() {
+            return decisionMaker;
+        }
+
+        public CharSequence getKnuthSamplingRate() {
+            return knuthSamplingRate;
+        }
+
+        public boolean preservesInheritedOtelPosition() {
+            if (tracestate == null || otelTraceState == null) {
+                return false;
+            }
+            byte position = otelPosition;
+            if (position == OTEL_POSITION_UNKNOWN) {
+                position = isUnchangedInheritedOtelMember(tracestate, otelTraceState)
+                        ? OTEL_POSITION_PRESERVED
+                        : OTEL_POSITION_REPLACED;
+                otelPosition = position;
+            }
+            return position == OTEL_POSITION_PRESERVED;
+        }
     }
 
-    public int getSamplingPriority() {
-      return samplingPriority;
+    public static PropagationTags.Factory factory(Config config) {
+        return factory(config.getxDatadogTagsMaxLength());
     }
 
-    public String getTracestate() {
-      return tracestate;
+    public static PropagationTags.Factory factory(int datadogTagsLimit) {
+        return new PTagsFactory(datadogTagsLimit);
     }
 
-    public CharSequence getOtelTraceState() {
-      return otelTraceState;
+    public static PropagationTags.Factory factory() {
+        return factory(DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH);
     }
 
-    public CharSequence getDecisionMaker() {
-      return decisionMaker;
+    public enum HeaderType {
+        DATADOG,
+        W3C;
+
+        private static final int numValues = HeaderType.values().length;
+
+        public static int getNumValues() {
+            return numValues;
+        }
     }
 
-    public CharSequence getKnuthSamplingRate() {
-      return knuthSamplingRate;
+    public interface Factory {
+        PropagationTags empty();
+
+        PropagationTags fromHeaderValue(HeaderType headerType, String value);
+
+        /**
+         * Returns a fresh PropagationTags that re-encodes only the non-{@code dd} vendor sections of
+         * the supplied W3C tracestate. All Datadog-side state (sampling priority, origin, {@code
+         * _dd.p.*} tags) is dropped. If {@code originalTracestate} is {@code null} or empty, behaves
+         * like {@link #empty()}.
+         */
+        PropagationTags emptyW3C(String originalTracestate);
     }
-
-    public boolean preservesInheritedOtelPosition() {
-      if (tracestate == null || otelTraceState == null) {
-        return false;
-      }
-      byte position = otelPosition;
-      if (position == OTEL_POSITION_UNKNOWN) {
-        position =
-            isUnchangedInheritedOtelMember(tracestate, otelTraceState)
-                ? OTEL_POSITION_PRESERVED
-                : OTEL_POSITION_REPLACED;
-        otelPosition = position;
-      }
-      return position == OTEL_POSITION_PRESERVED;
-    }
-  }
-
-  public static PropagationTags.Factory factory(Config config) {
-    return factory(config.getxDatadogTagsMaxLength());
-  }
-
-  public static PropagationTags.Factory factory(int datadogTagsLimit) {
-    return new PTagsFactory(datadogTagsLimit);
-  }
-
-  public static PropagationTags.Factory factory() {
-    return factory(DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH);
-  }
-
-  public enum HeaderType {
-    DATADOG,
-    W3C;
-
-    private static final int numValues = HeaderType.values().length;
-
-    public static int getNumValues() {
-      return numValues;
-    }
-  }
-
-  public interface Factory {
-    PropagationTags empty();
-
-    PropagationTags fromHeaderValue(HeaderType headerType, String value);
 
     /**
-     * Returns a fresh PropagationTags that re-encodes only the non-{@code dd} vendor sections of
-     * the supplied W3C tracestate. All Datadog-side state (sampling priority, origin, {@code
-     * _dd.p.*} tags) is dropped. If {@code originalTracestate} is {@code null} or empty, behaves
-     * like {@link #empty()}.
+     * Updates the trace-level sampling priority decision if it hasn't already been made and _dd.p.dm
+     * tag doesn't exist. Called on the root span context.
      */
-    PropagationTags emptyW3C(String originalTracestate);
-  }
+    public abstract void updateTraceSamplingPriority(int samplingPriority, int samplingMechanism);
 
-  /**
-   * Updates the trace-level sampling priority decision if it hasn't already been made and _dd.p.dm
-   * tag doesn't exist. Called on the root span context.
-   */
-  public abstract void updateTraceSamplingPriority(int samplingPriority, int samplingMechanism);
+    public abstract boolean tryUpdateTraceSamplingPriority(
+            int samplingPriority, int samplingMechanism, boolean allowOverride);
 
-  public abstract boolean tryUpdateTraceSamplingPriority(
-      int samplingPriority, int samplingMechanism, boolean allowOverride);
+    public abstract boolean tryUpdateProbabilitySamplingDecision(
+            int samplingPriority,
+            int samplingMechanism,
+            double sampleRate,
+            boolean rateLimiterRejected,
+            long traceIdLowOrderBits,
+            boolean allowOverride);
 
-  public abstract boolean tryUpdateProbabilitySamplingDecision(
-      int samplingPriority,
-      int samplingMechanism,
-      double sampleRate,
-      boolean rateLimiterRejected,
-      long traceIdLowOrderBits,
-      boolean allowOverride);
+    public abstract void forceKeep(int samplingMechanism);
 
-  public abstract void forceKeep(int samplingMechanism);
+    public abstract int getSamplingPriority();
 
-  public abstract int getSamplingPriority();
+    public abstract SamplingState samplingState();
 
-  public abstract SamplingState samplingState();
+    public abstract void updateTraceOrigin(CharSequence origin);
 
-  public abstract void updateTraceOrigin(CharSequence origin);
+    public abstract CharSequence getOrigin();
 
-  public abstract CharSequence getOrigin();
+    public abstract long getTraceIdHighOrderBits();
 
-  public abstract long getTraceIdHighOrderBits();
+    public abstract void updateTraceIdHighOrderBits(long highOrderBits);
 
-  public abstract void updateTraceIdHighOrderBits(long highOrderBits);
+    public abstract CharSequence getLastParentId();
 
-  public abstract CharSequence getLastParentId();
+    /**
+     * Gets the original <a href="https://www.w3.org/TR/trace-context/#tracestate-header">W3C
+     * tracestate header</a> value.
+     *
+     * @return The original W3C tracestate header value.
+     */
+    public abstract String getW3CTracestate();
 
-  /**
-   * Gets the original <a href="https://www.w3.org/TR/trace-context/#tracestate-header">W3C
-   * tracestate header</a> value.
-   *
-   * @return The original W3C tracestate header value.
-   */
-  public abstract String getW3CTracestate();
+    public abstract String getW3CTracestate(SamplingState samplingState);
 
-  public abstract String getW3CTracestate(SamplingState samplingState);
+    /**
+     * Stores the original <a href="https://www.w3.org/TR/trace-context/#tracestate-header">W3C
+     * tracestate header</a> value.
+     *
+     * @param tracestate The original W3C tracestate header value.
+     */
+    public abstract void updateW3CTracestate(String tracestate);
 
-  /**
-   * Stores the original <a href="https://www.w3.org/TR/trace-context/#tracestate-header">W3C
-   * tracestate header</a> value.
-   *
-   * @param tracestate The original W3C tracestate header value.
-   */
-  public abstract void updateW3CTracestate(String tracestate);
+    /** Updates the original W3C tracestate header from {@code source}. */
+    public void updateW3CTracestateFrom(PropagationTags source) {
+        updateW3CTracestate(source.getW3CTracestate());
+    }
 
-  /** Updates the original W3C tracestate header from {@code source}. */
-  public void updateW3CTracestateFrom(PropagationTags source) {
-    updateW3CTracestate(source.getW3CTracestate());
-  }
+    /**
+     * Constructs a header value that includes valid propagated _dd.p.* tags and possibly a new
+     * sampling decision tag _dd.p.dm based on the current state. Returns null if the value length
+     * exceeds a configured limit or empty.
+     */
+    public abstract String headerValue(HeaderType headerType);
 
-  /**
-   * Constructs a header value that includes valid propagated _dd.p.* tags and possibly a new
-   * sampling decision tag _dd.p.dm based on the current state. Returns null if the value length
-   * exceeds a configured limit or empty.
-   */
-  public abstract String headerValue(HeaderType headerType);
+    /**
+     * Like {@link #headerValue(HeaderType)} but uses {@code lastParentIdOverride} for the W3C {@code
+     * p:} (last-parent-id) instead of the stored {@link #getLastParentId() last-parent-id}. Used at
+     * inject so the injecting span's id is supplied as a parameter rather than mutated into these
+     * (possibly trace-level, shared) tags — keeping transient per-injection identity out of shared
+     * state. A {@code null} override falls back to {@link #headerValue(HeaderType)}.
+     */
+    public abstract String headerValue(HeaderType headerType, CharSequence lastParentIdOverride);
 
-  /**
-   * Like {@link #headerValue(HeaderType)} but uses {@code lastParentIdOverride} for the W3C {@code
-   * p:} (last-parent-id) instead of the stored {@link #getLastParentId() last-parent-id}. Used at
-   * inject so the injecting span's id is supplied as a parameter rather than mutated into these
-   * (possibly trace-level, shared) tags — keeping transient per-injection identity out of shared
-   * state. A {@code null} override falls back to {@link #headerValue(HeaderType)}.
-   */
-  public abstract String headerValue(HeaderType headerType, CharSequence lastParentIdOverride);
+    public abstract String headerValue(
+            HeaderType headerType, CharSequence lastParentIdOverride, SamplingState samplingState);
 
-  public abstract String headerValue(
-      HeaderType headerType, CharSequence lastParentIdOverride, SamplingState samplingState);
+    /**
+     * Fills a provided tagMap with valid propagated _dd.p.* tags and possibly a new sampling decision
+     * tags _dd.p.dm (root span only) based on the current state, or sets only an error tag if the
+     * header value exceeds a configured limit.
+     */
+    public abstract void fillTagMap(Map<String, String> tagMap);
 
-  /**
-   * Fills a provided tagMap with valid propagated _dd.p.* tags and possibly a new sampling decision
-   * tags _dd.p.dm (root span only) based on the current state, or sets only an error tag if the
-   * header value exceeds a configured limit.
-   */
-  public abstract void fillTagMap(Map<String, String> tagMap);
+    /**
+     * Updates the trace source to include the specified product.
+     *
+     * <p>The product value is parsed and interpreted according to the logic in {@link
+     * ProductTraceSource}. This method ensures that the given product is marked as part of the trace
+     * source.
+     *
+     * @param product the product identifier to be added to the trace source. Refer to {@link
+     *     ProductTraceSource} for details on how the value is interpreted.
+     */
+    public abstract void addTraceSource(int product);
 
-  /**
-   * Updates the trace source to include the specified product.
-   *
-   * <p>The product value is parsed and interpreted according to the logic in {@link
-   * ProductTraceSource}. This method ensures that the given product is marked as part of the trace
-   * source.
-   *
-   * @param product the product identifier to be added to the trace source. Refer to {@link
-   *     ProductTraceSource} for details on how the value is interpreted.
-   */
-  public abstract void addTraceSource(int product);
+    /**
+     * Retrieves the current trace source.
+     *
+     * <p>The returned value is an encoded bitfield that represents the included products. To
+     * understand how this value is parsed and interpreted, refer to {@link ProductTraceSource}.
+     *
+     * @return the trace source as an integer bitfield. See {@link ProductTraceSource} for details on
+     *     its structure and usage.
+     */
+    public abstract int getTraceSource();
 
-  /**
-   * Retrieves the current trace source.
-   *
-   * <p>The returned value is an encoded bitfield that represents the included products. To
-   * understand how this value is parsed and interpreted, refer to {@link ProductTraceSource}.
-   *
-   * @return the trace source as an integer bitfield. See {@link ProductTraceSource} for details on
-   *     its structure and usage.
-   */
-  public abstract int getTraceSource();
+    public abstract void updateDebugPropagation(String value);
 
-  public abstract void updateDebugPropagation(String value);
+    public abstract String getDebugPropagation();
 
-  public abstract String getDebugPropagation();
+    /**
+     * Returns the Org Propagation Marker (OPM) currently held in these tags, encoded as {@code
+     * _dd.p.opm} in Datadog headers and {@code t.opm} in W3C tracestate. Returns {@code null} if no
+     * OPM is set.
+     */
+    public abstract CharSequence getOrgPropagationMarker();
 
-  /**
-   * Returns the Org Propagation Marker (OPM) currently held in these tags, encoded as {@code
-   * _dd.p.opm} in Datadog headers and {@code t.opm} in W3C tracestate. Returns {@code null} if no
-   * OPM is set.
-   */
-  public abstract CharSequence getOrgPropagationMarker();
+    /**
+     * Sets the Org Propagation Marker (OPM). Passing {@code null} clears the marker. The injection
+     * codecs call this just before serializing so that, when the local tracer knows its own OPM, it
+     * overrides any inbound OPM.
+     */
+    public abstract void updateOrgPropagationMarker(CharSequence opm);
 
-  /**
-   * Sets the Org Propagation Marker (OPM). Passing {@code null} clears the marker. The injection
-   * codecs call this just before serializing so that, when the local tracer knows its own OPM, it
-   * overrides any inbound OPM.
-   */
-  public abstract void updateOrgPropagationMarker(CharSequence opm);
+    public HashMap<String, String> createTagMap() {
+        HashMap<String, String> result = new HashMap<>();
+        fillTagMap(result);
+        return result;
+    }
 
-  public HashMap<String, String> createTagMap() {
-    HashMap<String, String> result = new HashMap<>();
-    fillTagMap(result);
-    return result;
-  }
-
-  public abstract void updateAndLockDecisionMaker(PropagationTags source);
+    public abstract void updateAndLockDecisionMaker(PropagationTags source);
 }

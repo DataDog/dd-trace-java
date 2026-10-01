@@ -15,30 +15,30 @@ import net.bytebuddy.matcher.ElementMatchers;
  */
 @AutoService(InstrumenterModule.class)
 public class SpringServletInitializerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-  public SpringServletInitializerInstrumentation() {
-    super("spring-boot");
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("onStartup").and(ElementMatchers.takesArguments(1)),
-        getClass().getName() + "$WarDeployedAdvice");
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "org.springframework.boot.web.servlet.support.SpringBootServletInitializer",
-      "org.springframework.boot.web.support.SpringBootServletInitializer",
-    };
-  }
-
-  public static class WarDeployedAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void before() {
-      DeploymentHelper.runningFromWar = true;
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+    public SpringServletInitializerInstrumentation() {
+        super("spring-boot");
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("onStartup").and(ElementMatchers.takesArguments(1)),
+                getClass().getName() + "$WarDeployedAdvice");
+    }
+
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            "org.springframework.boot.web.servlet.support.SpringBootServletInitializer",
+            "org.springframework.boot.web.support.SpringBootServletInitializer",
+        };
+    }
+
+    public static class WarDeployedAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void before() {
+            DeploymentHelper.runningFromWar = true;
+        }
+    }
 }

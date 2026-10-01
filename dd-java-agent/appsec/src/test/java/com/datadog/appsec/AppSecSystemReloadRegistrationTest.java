@@ -42,82 +42,75 @@ import org.mockito.ArgumentCaptor;
  */
 class AppSecSystemReloadRegistrationTest {
 
-  private static final String RULE_REQUIRING_PATH_PARAMS =
-      "{"
-          + "\"version\": \"2.1\","
-          + "\"rules\": [{"
-          + "  \"id\": \"path-params-rule\","
-          + "  \"name\": \"path-params-rule\","
-          + "  \"conditions\": [{"
-          + "    \"operator\": \"match_regex\","
-          + "    \"parameters\": {"
-          + "      \"inputs\": [{\"address\": \"server.request.path_params\"}],"
-          + "      \"regex\": \"foo\""
-          + "    }"
-          + "  }],"
-          + "  \"tags\": {\"type\": \"t\", \"category\": \"c\"},"
-          + "  \"action\": \"record\""
-          + "}]"
-          + "}";
+    private static final String RULE_REQUIRING_PATH_PARAMS = "{"
+            + "\"version\": \"2.1\","
+            + "\"rules\": [{"
+            + "  \"id\": \"path-params-rule\","
+            + "  \"name\": \"path-params-rule\","
+            + "  \"conditions\": [{"
+            + "    \"operator\": \"match_regex\","
+            + "    \"parameters\": {"
+            + "      \"inputs\": [{\"address\": \"server.request.path_params\"}],"
+            + "      \"regex\": \"foo\""
+            + "    }"
+            + "  }],"
+            + "  \"tags\": {\"type\": \"t\", \"category\": \"c\"},"
+            + "  \"action\": \"record\""
+            + "}]"
+            + "}";
 
-  private final SubscriptionService subService = mock(SubscriptionService.class);
-  private final ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    private final SubscriptionService subService = mock(SubscriptionService.class);
+    private final ConfigurationPoller poller = mock(ConfigurationPoller.class);
 
-  @BeforeEach
-  void setUp() {
-    // a bare mock returns null from registerCallback, which would defeat the
-    // volatile-Subscription idempotency guard in GatewayBridge on every call
-    when(subService.registerCallback(any(), any())).thenReturn(mock(Subscription.class));
-  }
+    @BeforeEach
+    void setUp() {
+        // a bare mock returns null from registerCallback, which would defeat the
+        // volatile-Subscription idempotency guard in GatewayBridge on every call
+        when(subService.registerCallback(any(), any())).thenReturn(mock(Subscription.class));
+    }
 
-  @AfterEach
-  void tearDown() {
-    AppSecSystem.stop();
-  }
+    @AfterEach
+    void tearDown() {
+        AppSecSystem.stop();
+    }
 
-  @Test
-  void reloadThroughRemoteConfigDoesNotReRegisterCallback() throws Exception {
-    AppSecSystem.start(subService, sharedCommunicationObjects());
+    @Test
+    void reloadThroughRemoteConfigDoesNotReRegisterCallback() throws Exception {
+        AppSecSystem.start(subService, sharedCommunicationObjects());
 
-    ArgumentCaptor<ProductListener> asmListenerCaptor =
-        ArgumentCaptor.forClass(ProductListener.class);
-    verify(poller).addListener(eq(Product.ASM_DD), asmListenerCaptor.capture());
+        ArgumentCaptor<ProductListener> asmListenerCaptor = ArgumentCaptor.forClass(ProductListener.class);
+        verify(poller).addListener(eq(Product.ASM_DD), asmListenerCaptor.capture());
 
-    ArgumentCaptor<ConfigurationEndListener> confEndListenerCaptor =
-        ArgumentCaptor.forClass(ConfigurationEndListener.class);
-    verify(poller).addConfigurationEndListener(confEndListenerCaptor.capture());
+        ArgumentCaptor<ConfigurationEndListener> confEndListenerCaptor =
+                ArgumentCaptor.forClass(ConfigurationEndListener.class);
+        verify(poller).addConfigurationEndListener(confEndListenerCaptor.capture());
 
-    // the default ruleset already requires server.request.path_params, so it is registered
-    // at startup
-    verify(subService, times(1)).registerCallback(eq(EVENTS.requestPathParams()), any());
+        // the default ruleset already requires server.request.path_params, so it is registered
+        // at startup
+        verify(subService, times(1)).registerCallback(eq(EVENTS.requestPathParams()), any());
 
-    // Remote Config delivers a ruleset that also requires server.request.path_params
-    assertDoesNotThrow(
-        () -> {
-          asmListenerCaptor
-              .getValue()
-              .accept(
-                  mock(ConfigKey.class),
-                  RULE_REQUIRING_PATH_PARAMS.getBytes(StandardCharsets.UTF_8),
-                  null);
-          confEndListenerCaptor.getValue().onConfigurationEnd();
+        // Remote Config delivers a ruleset that also requires server.request.path_params
+        assertDoesNotThrow(() -> {
+            asmListenerCaptor
+                    .getValue()
+                    .accept(mock(ConfigKey.class), RULE_REQUIRING_PATH_PARAMS.getBytes(StandardCharsets.UTF_8), null);
+            confEndListenerCaptor.getValue().onConfigurationEnd();
         });
 
-    // the already-registered callback is left untouched, not re-registered
-    verify(subService, times(1)).registerCallback(eq(EVENTS.requestPathParams()), any());
-  }
+        // the already-registered callback is left untouched, not re-registered
+        verify(subService, times(1)).registerCallback(eq(EVENTS.requestPathParams()), any());
+    }
 
-  private SharedCommunicationObjects sharedCommunicationObjects() {
-    SharedCommunicationObjects sco =
-        new SharedCommunicationObjects() {
-          @Override
-          public ConfigurationPoller configurationPoller(Config config) {
-            return poller;
-          }
+    private SharedCommunicationObjects sharedCommunicationObjects() {
+        SharedCommunicationObjects sco = new SharedCommunicationObjects() {
+            @Override
+            public ConfigurationPoller configurationPoller(Config config) {
+                return poller;
+            }
         };
-    sco.agentHttpClient = mock(OkHttpClient.class);
-    sco.monitoring = mock(Monitoring.class);
-    sco.setFeaturesDiscovery(mock(DDAgentFeaturesDiscovery.class));
-    return sco;
-  }
+        sco.agentHttpClient = mock(OkHttpClient.class);
+        sco.monitoring = mock(Monitoring.class);
+        sco.setFeaturesDiscovery(mock(DDAgentFeaturesDiscovery.class));
+        return sco;
+    }
 }

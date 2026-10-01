@@ -14,26 +14,26 @@ import javax.annotation.Nullable;
  * has.
  */
 public class SkippableAwareCoverageStoreFactory implements CoverageStore.Factory {
-  private final Collection<TestIdentifier> skippableTests;
-  private final CoverageStore.Factory delegate;
+    private final Collection<TestIdentifier> skippableTests;
+    private final CoverageStore.Factory delegate;
 
-  public SkippableAwareCoverageStoreFactory(
-      Collection<TestIdentifier> skippableTests, CoverageStore.Factory delegate) {
-    this.skippableTests = skippableTests;
-    this.delegate = delegate;
-  }
-
-  @Override
-  public CoverageStore create(@Nullable TestIdentifier testIdentifier) {
-    if (skippableTests.contains(testIdentifier)) {
-      return NoOpCoverageStore.INSTANCE;
-    } else {
-      return delegate.create(testIdentifier);
+    public SkippableAwareCoverageStoreFactory(
+            Collection<TestIdentifier> skippableTests, CoverageStore.Factory delegate) {
+        this.skippableTests = skippableTests;
+        this.delegate = delegate;
     }
-  }
 
-  @Override
-  public void setTotalProbeCount(String className, int totalProbeCount) {
-    delegate.setTotalProbeCount(className, totalProbeCount);
-  }
+    @Override
+    public CoverageStore create(@Nullable TestIdentifier testIdentifier) {
+        if (skippableTests.contains(testIdentifier)) {
+            return NoOpCoverageStore.INSTANCE;
+        } else {
+            return delegate.create(testIdentifier);
+        }
+    }
+
+    @Override
+    public void setTotalProbeCount(String className, int totalProbeCount) {
+        delegate.setTotalProbeCount(className, totalProbeCount);
+    }
 }

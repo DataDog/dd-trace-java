@@ -5,10 +5,10 @@ import org.eclipse.jetty.client.Request;
 
 public class HeadersInjectAdapter implements CarrierSetter<Request> {
 
-  public static final HeadersInjectAdapter SETTER = new HeadersInjectAdapter();
+    public static final HeadersInjectAdapter SETTER = new HeadersInjectAdapter();
 
-  @Override
-  public void set(final Request carrier, final String key, final String value) {
-    carrier.headers(httpFields -> httpFields.add(key, value));
-  }
+    @Override
+    public void set(final Request carrier, final String key, final String value) {
+        carrier.headers(httpFields -> httpFields.add(key, value));
+    }
 }

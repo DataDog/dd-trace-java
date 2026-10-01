@@ -23,44 +23,44 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class ObjectWrapperInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public ObjectWrapperInstrumentation() {
-    super("freemarker");
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "freemarker.template.ObjectWrapper";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("wrap")
-            .and(takesArgument(0, named("java.lang.Object")))
-            .and(returns(named("freemarker.template.TemplateModel"))),
-        getClass().getName() + "$ObjectWrapperAdvice");
-  }
-
-  @RequiresRequestContext(RequestContextSlot.IAST)
-  public static class ObjectWrapperAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    @Propagation
-    public static void onExit(
-        @Advice.Return final TemplateModel templateModel,
-        @Advice.Argument(0) final Object object,
-        @ActiveRequestContext RequestContext reqCtx) {
-      final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        module.taintObjectIfTainted(ctx, templateModel, object);
-      }
+    public ObjectWrapperInstrumentation() {
+        super("freemarker");
     }
-  }
+
+    @Override
+    public String hierarchyMarkerType() {
+        return "freemarker.template.ObjectWrapper";
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("wrap")
+                        .and(takesArgument(0, named("java.lang.Object")))
+                        .and(returns(named("freemarker.template.TemplateModel"))),
+                getClass().getName() + "$ObjectWrapperAdvice");
+    }
+
+    @RequiresRequestContext(RequestContextSlot.IAST)
+    public static class ObjectWrapperAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        @Propagation
+        public static void onExit(
+                @Advice.Return final TemplateModel templateModel,
+                @Advice.Argument(0) final Object object,
+                @ActiveRequestContext RequestContext reqCtx) {
+            final PropagationModule module = InstrumentationBridge.PROPAGATION;
+            if (module != null) {
+                IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
+                module.taintObjectIfTainted(ctx, templateModel, object);
+            }
+        }
+    }
 }

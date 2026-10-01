@@ -18,79 +18,79 @@ import java.util.concurrent.CompletableFuture;
 import net.bytebuddy.asm.Advice;
 
 public class SendAsyncAdvice {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static ContextScope methodEnter(
-      @Advice.Argument(value = 0) final HttpRequest httpRequest,
-      @Advice.Argument(value = 1, readOnly = false) HttpResponse.BodyHandler<?> bodyHandler) {
-    ContextScope scope = null;
-    try {
-      if (DECORATE.isAgentRequest(httpRequest)) {
-        return null;
-      }
-      // Here we avoid having the advice applied twice in case we have nested call of this
-      // intercepted method.
-      // In this particular case, in HttpClientImpl the send method is calling sendAsync under the
-      // hood, and we do not want to instrument twice.
-      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
-      if (callDepth > 0) {
-        return null;
-      }
-      DECORATE.allowContextInjection();
-      final AgentSpan span = startSpan(INSTRUMENTATION_NAME, OPERATION_NAME);
-      scope = activateSpan(span);
-      if (bodyHandler != null) {
-        // Pass span directly — BodyHandlerWrapper captures the continuation lazily in apply(),
-        // only once response headers arrive. This avoids leaking a continuation when the
-        // connection fails before headers are received.
-        bodyHandler = new BodyHandlerWrapper<>(bodyHandler, span);
-      }
-
-      DECORATE.afterStart(span);
-      DECORATE.onRequest(span, httpRequest);
-
-      // propagation is done by another instrumentation since Headers are immutable
-      return scope;
-    } catch (BlockingException e) {
-      CallDepthThreadLocalMap.reset(HttpClient.class);
-      DECORATE.blockContextInjection();
-      if (scope != null) {
-        final AgentSpan span = spanFromScope(scope);
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ContextScope methodEnter(
+            @Advice.Argument(value = 0) final HttpRequest httpRequest,
+            @Advice.Argument(value = 1, readOnly = false) HttpResponse.BodyHandler<?> bodyHandler) {
+        ContextScope scope = null;
         try {
-          DECORATE.onError(span, e);
-          DECORATE.beforeFinish(span);
-        } finally {
-          scope.close();
-          span.finish();
+            if (DECORATE.isAgentRequest(httpRequest)) {
+                return null;
+            }
+            // Here we avoid having the advice applied twice in case we have nested call of this
+            // intercepted method.
+            // In this particular case, in HttpClientImpl the send method is calling sendAsync under the
+            // hood, and we do not want to instrument twice.
+            final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
+            if (callDepth > 0) {
+                return null;
+            }
+            DECORATE.allowContextInjection();
+            final AgentSpan span = startSpan(INSTRUMENTATION_NAME, OPERATION_NAME);
+            scope = activateSpan(span);
+            if (bodyHandler != null) {
+                // Pass span directly — BodyHandlerWrapper captures the continuation lazily in apply(),
+                // only once response headers arrive. This avoids leaking a continuation when the
+                // connection fails before headers are received.
+                bodyHandler = new BodyHandlerWrapper<>(bodyHandler, span);
+            }
+
+            DECORATE.afterStart(span);
+            DECORATE.onRequest(span, httpRequest);
+
+            // propagation is done by another instrumentation since Headers are immutable
+            return scope;
+        } catch (BlockingException e) {
+            CallDepthThreadLocalMap.reset(HttpClient.class);
+            DECORATE.blockContextInjection();
+            if (scope != null) {
+                final AgentSpan span = spanFromScope(scope);
+                try {
+                    DECORATE.onError(span, e);
+                    DECORATE.beforeFinish(span);
+                } finally {
+                    scope.close();
+                    span.finish();
+                }
+            }
+            // re-throw blocking exceptions
+            throw e;
         }
-      }
-      // re-throw blocking exceptions
-      throw e;
     }
-  }
 
-  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void methodExit(
-      @Advice.Enter final ContextScope scope,
-      @Advice.Argument(value = 0) final HttpRequest httpRequest,
-      @Advice.Return(readOnly = false) CompletableFuture<HttpResponse<?>> future,
-      @Advice.Thrown final Throwable throwable) {
-    if (scope == null) {
-      return;
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void methodExit(
+            @Advice.Enter final ContextScope scope,
+            @Advice.Argument(value = 0) final HttpRequest httpRequest,
+            @Advice.Return(readOnly = false) CompletableFuture<HttpResponse<?>> future,
+            @Advice.Thrown final Throwable throwable) {
+        if (scope == null) {
+            return;
+        }
+        // clear the call depth once finished
+        CallDepthThreadLocalMap.reset(HttpClient.class);
+        DECORATE.blockContextInjection();
+
+        AgentSpan span = spanFromScope(scope);
+        if (throwable != null) {
+            DECORATE.onError(span, throwable);
+            DECORATE.beforeFinish(span);
+            scope.close();
+            span.finish();
+
+        } else {
+            future = future.whenComplete(new ResponseConsumer(span));
+            scope.close();
+        }
     }
-    // clear the call depth once finished
-    CallDepthThreadLocalMap.reset(HttpClient.class);
-    DECORATE.blockContextInjection();
-
-    AgentSpan span = spanFromScope(scope);
-    if (throwable != null) {
-      DECORATE.onError(span, throwable);
-      DECORATE.beforeFinish(span);
-      scope.close();
-      span.finish();
-
-    } else {
-      future = future.whenComplete(new ResponseConsumer(span));
-      scope.close();
-    }
-  }
 }

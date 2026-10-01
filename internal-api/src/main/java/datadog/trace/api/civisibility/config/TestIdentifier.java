@@ -7,61 +7,61 @@ import javax.annotation.Nullable;
 
 /** Uniquely identifies a test case with FQN and parameters. */
 public class TestIdentifier {
-  private final TestFQN fqn;
+    private final TestFQN fqn;
 
-  /**
-   * Some API endpoints do not return parameters data. If this field is {@code null} then either
-   * corresponding test case is not parameterized, or this identifier refers to <strong>all</strong>
-   * parameter variations.
-   */
-  private @Nullable final String parameters;
+    /**
+     * Some API endpoints do not return parameters data. If this field is {@code null} then either
+     * corresponding test case is not parameterized, or this identifier refers to <strong>all</strong>
+     * parameter variations.
+     */
+    private @Nullable final String parameters;
 
-  public TestIdentifier(String suite, String name, @Nullable String parameters) {
-    this.fqn = new TestFQN(suite, name);
-    this.parameters = Strings.isNotBlank(parameters) ? parameters : null;
-  }
-
-  public TestIdentifier(TestFQN testFQN, @Nullable String parameters) {
-    this.fqn = testFQN;
-    this.parameters = Strings.isNotBlank(parameters) ? parameters : null;
-  }
-
-  public String getSuite() {
-    return fqn.getSuite();
-  }
-
-  public String getName() {
-    return fqn.getName();
-  }
-
-  @Nullable
-  public String getParameters() {
-    return parameters;
-  }
-
-  public TestFQN toFQN() {
-    return fqn;
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
+    public TestIdentifier(String suite, String name, @Nullable String parameters) {
+        this.fqn = new TestFQN(suite, name);
+        this.parameters = Strings.isNotBlank(parameters) ? parameters : null;
     }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
+
+    public TestIdentifier(TestFQN testFQN, @Nullable String parameters) {
+        this.fqn = testFQN;
+        this.parameters = Strings.isNotBlank(parameters) ? parameters : null;
     }
-    TestIdentifier that = (TestIdentifier) o;
-    return Objects.equals(fqn, that.fqn) && Objects.equals(parameters, that.parameters);
-  }
 
-  @Override
-  public int hashCode() {
-    return HashingUtils.hash(fqn, parameters);
-  }
+    public String getSuite() {
+        return fqn.getSuite();
+    }
 
-  @Override
-  public String toString() {
-    return "TestIdentifier{" + "fqn=" + fqn + ", parameters='" + parameters + '\'' + '}';
-  }
+    public String getName() {
+        return fqn.getName();
+    }
+
+    @Nullable
+    public String getParameters() {
+        return parameters;
+    }
+
+    public TestFQN toFQN() {
+        return fqn;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        TestIdentifier that = (TestIdentifier) o;
+        return Objects.equals(fqn, that.fqn) && Objects.equals(parameters, that.parameters);
+    }
+
+    @Override
+    public int hashCode() {
+        return HashingUtils.hash(fqn, parameters);
+    }
+
+    @Override
+    public String toString() {
+        return "TestIdentifier{" + "fqn=" + fqn + ", parameters='" + parameters + '\'' + '}';
+    }
 }

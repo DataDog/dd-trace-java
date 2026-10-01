@@ -11,32 +11,32 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
  */
 public final class W3CTraceParent {
 
-  private static final int TRACE_PARENT_LENGTH = 55;
+    private static final int TRACE_PARENT_LENGTH = 55;
 
-  private W3CTraceParent() {}
+    private W3CTraceParent() {}
 
-  /**
-   * Builds a W3C traceparent header value from the given trace context components.
-   *
-   * <p>Format: {@code <version>-<traceId>-<spanId>-<flags>}
-   *
-   * @param traceId the trace id
-   * @param spanId the span id
-   * @param isSampled whether the trace was sampled or not
-   * @return the W3C traceparent header value
-   */
-  public static String from(DDTraceId traceId, long spanId, boolean isSampled) {
-    StringBuilder sb = new StringBuilder(TRACE_PARENT_LENGTH);
-    sb.append("00-");
-    sb.append(traceId.toHexString());
-    sb.append('-');
-    sb.append(DDSpanId.toHexStringPadded(spanId));
-    sb.append(isSampled ? "-01" : "-00");
+    /**
+     * Builds a W3C traceparent header value from the given trace context components.
+     *
+     * <p>Format: {@code <version>-<traceId>-<spanId>-<flags>}
+     *
+     * @param traceId the trace id
+     * @param spanId the span id
+     * @param isSampled whether the trace was sampled or not
+     * @return the W3C traceparent header value
+     */
+    public static String from(DDTraceId traceId, long spanId, boolean isSampled) {
+        StringBuilder sb = new StringBuilder(TRACE_PARENT_LENGTH);
+        sb.append("00-");
+        sb.append(traceId.toHexString());
+        sb.append('-');
+        sb.append(DDSpanId.toHexStringPadded(spanId));
+        sb.append(isSampled ? "-01" : "-00");
 
-    return sb.toString();
-  }
+        return sb.toString();
+    }
 
-  public static String from(AgentSpan span) {
-    return from(span.getTraceId(), span.getSpanId(), span.spanContext().getSamplingPriority() > 0);
-  }
+    public static String from(AgentSpan span) {
+        return from(span.getTraceId(), span.getSpanId(), span.spanContext().getSamplingPriority() > 0);
+    }
 }

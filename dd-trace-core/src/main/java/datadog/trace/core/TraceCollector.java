@@ -12,96 +12,95 @@ import javax.annotation.Nonnull;
 
 public abstract class TraceCollector implements AgentTraceCollector {
 
-  interface Factory {
-    /** Used by tests and benchmarks. */
-    TraceCollector create(@Nonnull DDTraceId traceId);
+    interface Factory {
+        /** Used by tests and benchmarks. */
+        TraceCollector create(@Nonnull DDTraceId traceId);
 
-    TraceCollector create(@Nonnull DDTraceId traceId, CoreTracer.ConfigSnapshot traceConfig);
-  }
-
-  enum PublishState {
-    WRITTEN,
-    PARTIAL_FLUSH,
-    ROOT_BUFFERED,
-    BUFFERED,
-    PENDING
-  }
-
-  protected final CoreTracer tracer;
-  protected final CoreTracer.ConfigSnapshot traceConfig;
-  protected final TimeSource timeSource;
-
-  private volatile long endToEndStartTime;
-  private static final AtomicLongFieldUpdater<TraceCollector> END_TO_END_START_TIME =
-      AtomicLongFieldUpdater.newUpdater(TraceCollector.class, "endToEndStartTime");
-
-  protected TraceCollector(
-      CoreTracer tracer, CoreTracer.ConfigSnapshot traceConfig, TimeSource timeSource) {
-    this.tracer = tracer;
-    this.traceConfig = traceConfig;
-    this.timeSource = timeSource;
-  }
-
-  CoreTracer getTracer() {
-    return tracer;
-  }
-
-  CoreTracer.ConfigSnapshot getTraceConfig() {
-    return traceConfig;
-  }
-
-  String mapServiceName(String serviceName) {
-    return traceConfig.getServiceMapping().getOrDefault(serviceName, serviceName);
-  }
-
-  boolean sample(DDSpan spanToSample) {
-    return traceConfig.sampler.sample(spanToSample);
-  }
-
-  public void setSamplingPriorityIfNecessary() {
-    // There's a race where multiple threads can see PrioritySampling.UNSET here
-    // This check skips potential complex sampling priority logic when we know its redundant
-    // Locks inside DDSpanContext ensure the correct behavior in the race case
-    DDSpan rootSpan = getRootSpan();
-    if (traceConfig.sampler instanceof PrioritySampler && rootSpan != null) {
-      // Skip sampler override when _dd.p.ts is marked for ASM or AI Guard.
-      if ((!Config.get().isApmTracingEnabled()
-              && !ProductTraceSource.isProductMarked(
-                  rootSpan.spanContext().getPropagationTags().getTraceSource(),
-                  ProductTraceSource.ASM,
-                  ProductTraceSource.AI_GUARD))
-          || rootSpan.spanContext().getSamplingPriority() == PrioritySampling.UNSET) {
-        ((PrioritySampler) traceConfig.sampler).setSamplingPriority(rootSpan);
-      }
+        TraceCollector create(@Nonnull DDTraceId traceId, CoreTracer.ConfigSnapshot traceConfig);
     }
-  }
 
-  public TimeSource getTimeSource() {
-    return timeSource;
-  }
+    enum PublishState {
+        WRITTEN,
+        PARTIAL_FLUSH,
+        ROOT_BUFFERED,
+        BUFFERED,
+        PENDING
+    }
 
-  public long getCurrentTimeNano() {
-    long nanoTicks = timeSource.getNanoTicks();
-    return tracer.getTimeWithNanoTicks(nanoTicks);
-  }
+    protected final CoreTracer tracer;
+    protected final CoreTracer.ConfigSnapshot traceConfig;
+    protected final TimeSource timeSource;
 
-  void beginEndToEnd() {
-    beginEndToEnd(getCurrentTimeNano());
-  }
+    private volatile long endToEndStartTime;
+    private static final AtomicLongFieldUpdater<TraceCollector> END_TO_END_START_TIME =
+            AtomicLongFieldUpdater.newUpdater(TraceCollector.class, "endToEndStartTime");
 
-  void beginEndToEnd(long endToEndStartTime) {
-    END_TO_END_START_TIME.compareAndSet(this, 0, endToEndStartTime);
-  }
+    protected TraceCollector(CoreTracer tracer, CoreTracer.ConfigSnapshot traceConfig, TimeSource timeSource) {
+        this.tracer = tracer;
+        this.traceConfig = traceConfig;
+        this.timeSource = timeSource;
+    }
 
-  long getEndToEndStartTime() {
-    return endToEndStartTime;
-  }
+    CoreTracer getTracer() {
+        return tracer;
+    }
 
-  abstract void touch();
+    CoreTracer.ConfigSnapshot getTraceConfig() {
+        return traceConfig;
+    }
 
-  abstract void registerSpan(final DDSpan span);
+    String mapServiceName(String serviceName) {
+        return traceConfig.getServiceMapping().getOrDefault(serviceName, serviceName);
+    }
 
-  abstract DDSpan getRootSpan();
+    boolean sample(DDSpan spanToSample) {
+        return traceConfig.sampler.sample(spanToSample);
+    }
 
-  abstract PublishState onPublish(final DDSpan span);
+    public void setSamplingPriorityIfNecessary() {
+        // There's a race where multiple threads can see PrioritySampling.UNSET here
+        // This check skips potential complex sampling priority logic when we know its redundant
+        // Locks inside DDSpanContext ensure the correct behavior in the race case
+        DDSpan rootSpan = getRootSpan();
+        if (traceConfig.sampler instanceof PrioritySampler && rootSpan != null) {
+            // Skip sampler override when _dd.p.ts is marked for ASM or AI Guard.
+            if ((!Config.get().isApmTracingEnabled()
+                            && !ProductTraceSource.isProductMarked(
+                                    rootSpan.spanContext().getPropagationTags().getTraceSource(),
+                                    ProductTraceSource.ASM,
+                                    ProductTraceSource.AI_GUARD))
+                    || rootSpan.spanContext().getSamplingPriority() == PrioritySampling.UNSET) {
+                ((PrioritySampler) traceConfig.sampler).setSamplingPriority(rootSpan);
+            }
+        }
+    }
+
+    public TimeSource getTimeSource() {
+        return timeSource;
+    }
+
+    public long getCurrentTimeNano() {
+        long nanoTicks = timeSource.getNanoTicks();
+        return tracer.getTimeWithNanoTicks(nanoTicks);
+    }
+
+    void beginEndToEnd() {
+        beginEndToEnd(getCurrentTimeNano());
+    }
+
+    void beginEndToEnd(long endToEndStartTime) {
+        END_TO_END_START_TIME.compareAndSet(this, 0, endToEndStartTime);
+    }
+
+    long getEndToEndStartTime() {
+        return endToEndStartTime;
+    }
+
+    abstract void touch();
+
+    abstract void registerSpan(final DDSpan span);
+
+    abstract DDSpan getRootSpan();
+
+    abstract PublishState onPublish(final DDSpan span);
 }

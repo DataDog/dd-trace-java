@@ -24,93 +24,89 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner;
 
 @AutoService(InstrumenterModule.class)
 public class TaskInstrumentation extends AbstractTibcoInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  @Override
-  public String instrumentedType() {
-    return "com.tibco.pe.core.TaskImpl";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(NameMatchers.named("eval"), getClass().getName() + "$EvalAdvice");
-    transformer.applyAdvice(
-        NameMatchers.named("handleError"), getClass().getName() + "$ErrorAdvice");
-  }
-
-  public static class ErrorAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void captureError(@Advice.Argument(2) Throwable t) {
-      AgentSpan span = activeSpan();
-      if (span != null) {
-        DECORATE.onError(span, t);
-      }
-    }
-  }
-
-  public static class EvalAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static boolean before(
-        @Advice.This Task self,
-        @Advice.Argument(0) ProcessContext processContext,
-        @Advice.Local("ddActivityInfo") ActivityHelper.ActivityInfo ddActivityInfo,
-        @Advice.Local("ddScope") ContextScope ddScope) {
-
-      ContextStore<ProcessContext, Map> store =
-          InstrumentationContext.get(ProcessContext.class, Map.class);
-      Map<String, AgentSpan> map = store.get(processContext);
-      if (map == null) {
-        return false;
-      }
-
-      ddActivityInfo = ActivityHelper.activityInfo(self);
-      AgentSpan span = map.get(ddActivityInfo.id);
-      if (span == null) {
-        AgentSpan parent = map.getOrDefault(ddActivityInfo.parent, activeSpan());
-        span =
-            startSpan(
-                "tibco_bw", TIBCO_ACTIVITY_OPERATION, parent != null ? parent.spanContext() : null);
-        DECORATE.afterStart(span);
-        DECORATE.onActivityStart(span, ddActivityInfo.name);
-        map.put(ddActivityInfo.id, span);
-      }
-      if (ddActivityInfo.trace) {
-        ddScope = activateSpan(span);
-      }
-      return ddActivityInfo.trace;
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    @Override
+    public String instrumentedType() {
+        return "com.tibco.pe.core.TaskImpl";
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void after(
-        @Advice.This(typing = Assigner.Typing.DYNAMIC) Task self,
-        @Advice.Argument(0) ProcessContext processContext,
-        @Advice.Return String ret,
-        @Advice.Enter boolean traced,
-        @Advice.Local("ddActivityInfo") ActivityHelper.ActivityInfo ddActivityInfo,
-        @Advice.Local("ddScope") ContextScope ddScope) {
-      try (ContextScope closeMe = ddScope) {
-        if (!traced) {
-          return;
-        }
-
-        if ("STAY_HERE".equals(ret)
-            || ("DEAD".equals(ret)
-                && self.getActivity() instanceof ActivityGroup
-                && !(self.getActivity() instanceof ProcessGroup))) {
-          return;
-        }
-
-        Map<String, AgentSpan> map =
-            InstrumentationContext.get(ProcessContext.class, Map.class).get(processContext);
-        if (map == null) {
-          return;
-        }
-
-        AgentSpan span = map.remove(ddActivityInfo.id);
-        if (span != null) {
-          DECORATE.beforeFinish(span);
-          span.finish();
-        }
-      }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(NameMatchers.named("eval"), getClass().getName() + "$EvalAdvice");
+        transformer.applyAdvice(NameMatchers.named("handleError"), getClass().getName() + "$ErrorAdvice");
     }
-  }
+
+    public static class ErrorAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void captureError(@Advice.Argument(2) Throwable t) {
+            AgentSpan span = activeSpan();
+            if (span != null) {
+                DECORATE.onError(span, t);
+            }
+        }
+    }
+
+    public static class EvalAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static boolean before(
+                @Advice.This Task self,
+                @Advice.Argument(0) ProcessContext processContext,
+                @Advice.Local("ddActivityInfo") ActivityHelper.ActivityInfo ddActivityInfo,
+                @Advice.Local("ddScope") ContextScope ddScope) {
+
+            ContextStore<ProcessContext, Map> store = InstrumentationContext.get(ProcessContext.class, Map.class);
+            Map<String, AgentSpan> map = store.get(processContext);
+            if (map == null) {
+                return false;
+            }
+
+            ddActivityInfo = ActivityHelper.activityInfo(self);
+            AgentSpan span = map.get(ddActivityInfo.id);
+            if (span == null) {
+                AgentSpan parent = map.getOrDefault(ddActivityInfo.parent, activeSpan());
+                span = startSpan("tibco_bw", TIBCO_ACTIVITY_OPERATION, parent != null ? parent.spanContext() : null);
+                DECORATE.afterStart(span);
+                DECORATE.onActivityStart(span, ddActivityInfo.name);
+                map.put(ddActivityInfo.id, span);
+            }
+            if (ddActivityInfo.trace) {
+                ddScope = activateSpan(span);
+            }
+            return ddActivityInfo.trace;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void after(
+                @Advice.This(typing = Assigner.Typing.DYNAMIC) Task self,
+                @Advice.Argument(0) ProcessContext processContext,
+                @Advice.Return String ret,
+                @Advice.Enter boolean traced,
+                @Advice.Local("ddActivityInfo") ActivityHelper.ActivityInfo ddActivityInfo,
+                @Advice.Local("ddScope") ContextScope ddScope) {
+            try (ContextScope closeMe = ddScope) {
+                if (!traced) {
+                    return;
+                }
+
+                if ("STAY_HERE".equals(ret)
+                        || ("DEAD".equals(ret)
+                                && self.getActivity() instanceof ActivityGroup
+                                && !(self.getActivity() instanceof ProcessGroup))) {
+                    return;
+                }
+
+                Map<String, AgentSpan> map = InstrumentationContext.get(ProcessContext.class, Map.class)
+                        .get(processContext);
+                if (map == null) {
+                    return;
+                }
+
+                AgentSpan span = map.remove(ddActivityInfo.id);
+                if (span != null) {
+                    DECORATE.beforeFinish(span);
+                    span.finish();
+                }
+            }
+        }
+    }
 }

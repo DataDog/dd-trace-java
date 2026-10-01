@@ -22,59 +22,56 @@ import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 @AutoService(InstrumenterModule.class)
-public class AppSecDispatcherServletWithPathPatternsInstrumentation
-    extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+public class AppSecDispatcherServletWithPathPatternsInstrumentation extends InstrumenterModule.AppSec
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public AppSecDispatcherServletWithPathPatternsInstrumentation() {
-    super("spring-web");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.springframework.web.servlet.DispatcherServlet";
-  }
-
-  @Override
-  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return hasClassNamed(
-        "org.springframework.web.servlet.mvc.condition.PathPatternsRequestCondition");
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(isProtected())
-            .and(named("onRefresh"))
-            .and(takesArgument(0, named("org.springframework.context.ApplicationContext")))
-            .and(takesArguments(1)),
-        AppSecDispatcherServletWithPathPatternsInstrumentation.class.getName()
-            + "$AppSecHandlerMappingAdvice");
-  }
-
-  @Override
-  public boolean isEnabled() {
-    return super.isEnabled() && InstrumenterConfig.get().isApiSecurityEndpointCollectionEnabled();
-  }
-
-  public static class AppSecHandlerMappingAdvice {
-
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void afterRefresh(@Advice.Argument(0) final ApplicationContext springCtx) {
-      final Map<String, RequestMappingHandlerMapping> handlers =
-          springCtx.getBeansOfType(RequestMappingHandlerMapping.class);
-      if (handlers == null || handlers.isEmpty()) {
-        return;
-      }
-      final Map<RequestMappingInfo, HandlerMethod> mappings = new HashMap<>();
-      for (RequestMappingHandlerMapping mapping : handlers.values()) {
-        mappings.putAll(mapping.getHandlerMethods());
-      }
-      if (mappings.isEmpty()) {
-        return;
-      }
-      EndpointCollector.get().supplier(new RequestMappingInfoWithPathPatternsIterator(mappings));
+    public AppSecDispatcherServletWithPathPatternsInstrumentation() {
+        super("spring-web");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "org.springframework.web.servlet.DispatcherServlet";
+    }
+
+    @Override
+    public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+        return hasClassNamed("org.springframework.web.servlet.mvc.condition.PathPatternsRequestCondition");
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(isProtected())
+                        .and(named("onRefresh"))
+                        .and(takesArgument(0, named("org.springframework.context.ApplicationContext")))
+                        .and(takesArguments(1)),
+                AppSecDispatcherServletWithPathPatternsInstrumentation.class.getName() + "$AppSecHandlerMappingAdvice");
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return super.isEnabled() && InstrumenterConfig.get().isApiSecurityEndpointCollectionEnabled();
+    }
+
+    public static class AppSecHandlerMappingAdvice {
+
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void afterRefresh(@Advice.Argument(0) final ApplicationContext springCtx) {
+            final Map<String, RequestMappingHandlerMapping> handlers =
+                    springCtx.getBeansOfType(RequestMappingHandlerMapping.class);
+            if (handlers == null || handlers.isEmpty()) {
+                return;
+            }
+            final Map<RequestMappingInfo, HandlerMethod> mappings = new HashMap<>();
+            for (RequestMappingHandlerMapping mapping : handlers.values()) {
+                mappings.putAll(mapping.getHandlerMethods());
+            }
+            if (mappings.isEmpty()) {
+                return;
+            }
+            EndpointCollector.get().supplier(new RequestMappingInfoWithPathPatternsIterator(mappings));
+        }
+    }
 }

@@ -9,9 +9,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/string")
 public class StringOperationController {
 
-  @PostMapping("/translateEscapes")
-  public String translateEscapes(@RequestParam(value = "parameter") final String parameter) {
-    parameter.translateEscapes();
-    return "ok";
-  }
+    @PostMapping("/translateEscapes")
+    public String translateEscapes(@RequestParam(value = "parameter") final String parameter) {
+        parameter.translateEscapes();
+        return "ok";
+    }
 }

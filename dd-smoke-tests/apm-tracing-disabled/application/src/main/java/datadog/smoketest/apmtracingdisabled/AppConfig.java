@@ -10,16 +10,16 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class AppConfig {
-  @Bean
-  public ServletContextInitializer servletContextInitializer() {
-    return new SessionTrackingConfig();
-  }
-
-  private class SessionTrackingConfig implements ServletContextInitializer {
-    @Override
-    public void onStartup(ServletContext servletContext) throws ServletException {
-      EnumSet<SessionTrackingMode> sessionTrackingModes = EnumSet.of(SessionTrackingMode.COOKIE);
-      servletContext.setSessionTrackingModes(sessionTrackingModes);
+    @Bean
+    public ServletContextInitializer servletContextInitializer() {
+        return new SessionTrackingConfig();
     }
-  }
+
+    private class SessionTrackingConfig implements ServletContextInitializer {
+        @Override
+        public void onStartup(ServletContext servletContext) throws ServletException {
+            EnumSet<SessionTrackingMode> sessionTrackingModes = EnumSet.of(SessionTrackingMode.COOKIE);
+            servletContext.setSessionTrackingModes(sessionTrackingModes);
+        }
+    }
 }

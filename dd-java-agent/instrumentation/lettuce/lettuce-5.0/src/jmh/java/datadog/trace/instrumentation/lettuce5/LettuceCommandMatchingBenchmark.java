@@ -38,85 +38,83 @@ import org.openjdk.jmh.annotations.Warmup;
 @Threads(1)
 public class LettuceCommandMatchingBenchmark {
 
-  /** Byte-for-byte reproduction of the {@code Set<String>}-based check this replaces. */
-  private static final String[] NON_INSTRUMENTING_COMMAND_WORDS =
-      new String[] {"SHUTDOWN", "DEBUG", "OOM", "SEGFAULT"};
+    /** Byte-for-byte reproduction of the {@code Set<String>}-based check this replaces. */
+    private static final String[] NON_INSTRUMENTING_COMMAND_WORDS =
+            new String[] {"SHUTDOWN", "DEBUG", "OOM", "SEGFAULT"};
 
-  private static final Set<String> NON_INSTRUMENTING_COMMANDS_OLD =
-      new HashSet<>(Arrays.asList(NON_INSTRUMENTING_COMMAND_WORDS));
+    private static final Set<String> NON_INSTRUMENTING_COMMANDS_OLD =
+            new HashSet<>(Arrays.asList(NON_INSTRUMENTING_COMMAND_WORDS));
 
-  private static boolean oldExpectsResponse(final RedisCommand command) {
-    String commandName = "Redis Command";
-    if (command != null && command.getType() != null) {
-      commandName = command.getType().toString().trim();
-    }
-    return !NON_INSTRUMENTING_COMMANDS_OLD.contains(commandName);
-  }
-
-  /** Minimal {@link RedisCommand} stub -- only {@link #getType()} is ever exercised here. */
-  private static final class FakeRedisCommand implements RedisCommand<Object, Object, Object> {
-    private final ProtocolKeyword type;
-
-    FakeRedisCommand(final ProtocolKeyword type) {
-      this.type = type;
+    private static boolean oldExpectsResponse(final RedisCommand command) {
+        String commandName = "Redis Command";
+        if (command != null && command.getType() != null) {
+            commandName = command.getType().toString().trim();
+        }
+        return !NON_INSTRUMENTING_COMMANDS_OLD.contains(commandName);
     }
 
-    @Override
-    public ProtocolKeyword getType() {
-      return type;
+    /** Minimal {@link RedisCommand} stub -- only {@link #getType()} is ever exercised here. */
+    private static final class FakeRedisCommand implements RedisCommand<Object, Object, Object> {
+        private final ProtocolKeyword type;
+
+        FakeRedisCommand(final ProtocolKeyword type) {
+            this.type = type;
+        }
+
+        @Override
+        public ProtocolKeyword getType() {
+            return type;
+        }
+
+        @Override
+        public CommandOutput<Object, Object, Object> getOutput() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void complete() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean completeExceptionally(final Throwable throwable) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void cancel() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public CommandArgs<Object, Object> getArgs() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void encode(final ByteBuf buf) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean isCancelled() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean isDone() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void setOutput(final CommandOutput<Object, Object, Object> output) {
+            throw new UnsupportedOperationException();
+        }
     }
 
-    @Override
-    public CommandOutput<Object, Object, Object> getOutput() {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void complete() {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public boolean completeExceptionally(final Throwable throwable) {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void cancel() {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public CommandArgs<Object, Object> getArgs() {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void encode(final ByteBuf buf) {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public boolean isCancelled() {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public boolean isDone() {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void setOutput(final CommandOutput<Object, Object, Object> output) {
-      throw new UnsupportedOperationException();
-    }
-  }
-
-  // Representative production traffic: ordinary data commands, none of which ever match
-  // NON_INSTRUMENTING_COMMANDS.
-  private static final RedisCommand[] MISS_COMMANDS =
-      Arrays.stream(
-              new CommandType[] {
+    // Representative production traffic: ordinary data commands, none of which ever match
+    // NON_INSTRUMENTING_COMMANDS.
+    private static final RedisCommand[] MISS_COMMANDS = Arrays.stream(new CommandType[] {
                 CommandType.GET,
                 CommandType.SET,
                 CommandType.EXISTS,
@@ -124,63 +122,63 @@ public class LettuceCommandMatchingBenchmark {
                 CommandType.HSET,
                 CommandType.LPUSH,
                 CommandType.INCR,
-              })
-          .map(FakeRedisCommand::new)
-          .toArray(RedisCommand[]::new);
+            })
+            .map(FakeRedisCommand::new)
+            .toArray(RedisCommand[]::new);
 
-  // Rare admin commands that always match NON_INSTRUMENTING_COMMANDS. Not representative of real
-  // traffic volume -- included only to exercise the hit path.
-  private static final RedisCommand[] HIT_COMMANDS =
-      Arrays.stream(new CommandType[] {CommandType.DEBUG, CommandType.SHUTDOWN})
-          .map(FakeRedisCommand::new)
-          .toArray(RedisCommand[]::new);
+    // Rare admin commands that always match NON_INSTRUMENTING_COMMANDS. Not representative of real
+    // traffic volume -- included only to exercise the hit path.
+    private static final RedisCommand[] HIT_COMMANDS = Arrays.stream(
+                    new CommandType[] {CommandType.DEBUG, CommandType.SHUTDOWN})
+            .map(FakeRedisCommand::new)
+            .toArray(RedisCommand[]::new);
 
-  private abstract static class Cursor {
-    int index = 0;
+    private abstract static class Cursor {
+        int index = 0;
 
-    abstract RedisCommand[] commands();
+        abstract RedisCommand[] commands();
 
-    RedisCommand next() {
-      final RedisCommand[] commands = commands();
-      final int i = index;
-      index = (i + 1) % commands.length;
-      return commands[i];
+        RedisCommand next() {
+            final RedisCommand[] commands = commands();
+            final int i = index;
+            index = (i + 1) % commands.length;
+            return commands[i];
+        }
     }
-  }
 
-  @State(Scope.Thread)
-  public static class MissCursor extends Cursor {
-    @Override
-    RedisCommand[] commands() {
-      return MISS_COMMANDS;
+    @State(Scope.Thread)
+    public static class MissCursor extends Cursor {
+        @Override
+        RedisCommand[] commands() {
+            return MISS_COMMANDS;
+        }
     }
-  }
 
-  @State(Scope.Thread)
-  public static class HitCursor extends Cursor {
-    @Override
-    RedisCommand[] commands() {
-      return HIT_COMMANDS;
+    @State(Scope.Thread)
+    public static class HitCursor extends Cursor {
+        @Override
+        RedisCommand[] commands() {
+            return HIT_COMMANDS;
+        }
     }
-  }
 
-  @Benchmark
-  public boolean missOld(final MissCursor cursor) {
-    return oldExpectsResponse(cursor.next());
-  }
+    @Benchmark
+    public boolean missOld(final MissCursor cursor) {
+        return oldExpectsResponse(cursor.next());
+    }
 
-  @Benchmark
-  public boolean missNew(final MissCursor cursor) {
-    return LettuceInstrumentationUtil.expectsResponse(cursor.next());
-  }
+    @Benchmark
+    public boolean missNew(final MissCursor cursor) {
+        return LettuceInstrumentationUtil.expectsResponse(cursor.next());
+    }
 
-  @Benchmark
-  public boolean hitOld(final HitCursor cursor) {
-    return oldExpectsResponse(cursor.next());
-  }
+    @Benchmark
+    public boolean hitOld(final HitCursor cursor) {
+        return oldExpectsResponse(cursor.next());
+    }
 
-  @Benchmark
-  public boolean hitNew(final HitCursor cursor) {
-    return LettuceInstrumentationUtil.expectsResponse(cursor.next());
-  }
+    @Benchmark
+    public boolean hitNew(final HitCursor cursor) {
+        return LettuceInstrumentationUtil.expectsResponse(cursor.next());
+    }
 }

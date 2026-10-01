@@ -11,16 +11,11 @@ import reactor.core.publisher.Flux;
 
 @Filter(Filter.MATCH_ALL_PATTERN)
 public class TestFilter implements HttpServerFilter {
-  @Override
-  public Publisher<MutableHttpResponse<?>> doFilter(
-      HttpRequest<?> request, ServerFilterChain chain) {
+    @Override
+    public Publisher<MutableHttpResponse<?>> doFilter(HttpRequest<?> request, ServerFilterChain chain) {
 
-    return Flux.from(chain.proceed(request))
-        .doOnNext(
-            res ->
-                res.getHeaders()
-                    .add(
-                        HttpServerTest.getIG_RESPONSE_HEADER(),
-                        HttpServerTest.getIG_RESPONSE_HEADER_VALUE()));
-  }
+        return Flux.from(chain.proceed(request))
+                .doOnNext(res -> res.getHeaders()
+                        .add(HttpServerTest.getIG_RESPONSE_HEADER(), HttpServerTest.getIG_RESPONSE_HEADER_VALUE()));
+    }
 }

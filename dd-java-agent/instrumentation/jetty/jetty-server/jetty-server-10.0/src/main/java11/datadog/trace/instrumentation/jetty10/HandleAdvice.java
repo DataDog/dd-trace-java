@@ -18,61 +18,60 @@ import org.eclipse.jetty.server.Request;
 
 public class HandleAdvice {
 
-  @AppliesOn(CONTEXT_TRACKING)
-  public static class ContextTrackingAdvice {
+    @AppliesOn(CONTEXT_TRACKING)
+    public static class ContextTrackingAdvice {
+
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static void onEnter(
+                @Advice.This final HttpChannel channel, @Advice.Local("parentScope") ContextScope parentScope) {
+            Request req = channel.getRequest();
+            if (req.getAttribute(DD_CONTEXT_ATTRIBUTE) instanceof Context) {
+                return; // re-entry: HandleAdvice will attach existing context
+            }
+            Context parentContext = DECORATE.extract(req);
+            req.setAttribute(DD_PARENT_CONTEXT_ATTRIBUTE, parentContext);
+            parentScope = parentContext.attach();
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void closeScope(@Advice.Local("parentScope") ContextScope parentScope) {
+            if (parentScope != null) {
+                parentScope.close();
+            }
+        }
+    }
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onEnter(
-        @Advice.This final HttpChannel channel,
-        @Advice.Local("parentScope") ContextScope parentScope) {
-      Request req = channel.getRequest();
-      if (req.getAttribute(DD_CONTEXT_ATTRIBUTE) instanceof Context) {
-        return; // re-entry: HandleAdvice will attach existing context
-      }
-      Context parentContext = DECORATE.extract(req);
-      req.setAttribute(DD_PARENT_CONTEXT_ATTRIBUTE, parentContext);
-      parentScope = parentContext.attach();
+    public static ContextScope onEnter(
+            @Advice.This final HttpChannel channel, @Advice.Local("agentSpan") AgentSpan span) {
+        Request req = channel.getRequest();
+
+        Object existingContext = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
+        if (existingContext instanceof Context) {
+            return ((Context) existingContext).attach();
+        }
+
+        final Object parentContextObj = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
+        final Context parentContext =
+                (parentContextObj instanceof Context) ? (Context) parentContextObj : rootContext();
+        final Context context = DECORATE.startSpan(req, parentContext);
+        span = spanFromContext(context);
+        DECORATE.afterStart(span);
+        DECORATE.onRequest(span, req, req, parentContext);
+
+        final ContextScope scope = context.attach();
+        req.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
+        req.setAttribute(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
+        req.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
+        return scope;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void closeScope(@Advice.Local("parentScope") ContextScope parentScope) {
-      if (parentScope != null) {
-        parentScope.close();
-      }
-    }
-  }
-
-  @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static ContextScope onEnter(
-      @Advice.This final HttpChannel channel, @Advice.Local("agentSpan") AgentSpan span) {
-    Request req = channel.getRequest();
-
-    Object existingContext = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
-    if (existingContext instanceof Context) {
-      return ((Context) existingContext).attach();
+    public static void closeScope(@Advice.Enter final ContextScope scope) {
+        scope.close();
     }
 
-    final Object parentContextObj = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
-    final Context parentContext =
-        (parentContextObj instanceof Context) ? (Context) parentContextObj : rootContext();
-    final Context context = DECORATE.startSpan(req, parentContext);
-    span = spanFromContext(context);
-    DECORATE.afterStart(span);
-    DECORATE.onRequest(span, req, req, parentContext);
-
-    final ContextScope scope = context.attach();
-    req.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
-    req.setAttribute(CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
-    req.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
-    return scope;
-  }
-
-  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void closeScope(@Advice.Enter final ContextScope scope) {
-    scope.close();
-  }
-
-  private void muzzleCheck(Request r) {
-    r.getAsyncContext(); // there must be a getAsyncContext returning a javax AsyncContext
-  }
+    private void muzzleCheck(Request r) {
+        r.getAsyncContext(); // there must be a getAsyncContext returning a javax AsyncContext
+    }
 }

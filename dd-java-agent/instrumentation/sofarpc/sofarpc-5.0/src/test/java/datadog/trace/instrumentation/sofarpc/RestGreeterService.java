@@ -8,8 +8,8 @@ import javax.ws.rs.core.MediaType;
 
 @Path("/greeter")
 public interface RestGreeterService {
-  @GET
-  @Path("/hello/{name}")
-  @Produces(MediaType.TEXT_PLAIN)
-  String sayHello(@PathParam("name") String name);
+    @GET
+    @Path("/hello/{name}")
+    @Produces(MediaType.TEXT_PLAIN)
+    String sayHello(@PathParam("name") String name);
 }

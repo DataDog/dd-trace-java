@@ -14,59 +14,59 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class ContextPreservingInstrumentation extends ServiceTalkInstrumentation
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      "io.servicetalk.concurrent.api.ContextPreservingBiConsumer",
-      "io.servicetalk.concurrent.api.ContextPreservingBiFunction",
-      "io.servicetalk.concurrent.api.ContextPreservingCallable",
-      "io.servicetalk.concurrent.api.ContextPreservingCancellable",
-      "io.servicetalk.concurrent.api.ContextPreservingCompletableSubscriber",
-      "io.servicetalk.concurrent.api.ContextPreservingConsumer",
-      "io.servicetalk.concurrent.api.ContextPreservingFunction",
-      "io.servicetalk.concurrent.api.ContextPreservingRunnable",
-      "io.servicetalk.concurrent.api.ContextPreservingSingleSubscriber",
-      "io.servicetalk.concurrent.api.ContextPreservingSubscriber",
-      "io.servicetalk.concurrent.api.ContextPreservingSubscription",
-    };
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        namedOneOf(
-            "accept",
-            "apply",
-            "call",
-            "cancel",
-            "onComplete",
-            "onError",
-            "onSuccess",
-            "request",
-            "onNext",
-            "onSubscribe",
-            "run"),
-        getClass().getName() + "$Wrapper");
-  }
-
-  public static final class Wrapper {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope enter(@Advice.FieldValue("saved") final ContextMap contextMap) {
-      AgentSpan parent =
-          InstrumentationContext.get(ContextMap.class, AgentSpan.class).get(contextMap);
-      if (parent != null) {
-        return AgentTracer.activateSpan(parent);
-      }
-      return null;
+    @Override
+    public String[] knownMatchingTypes() {
+        return new String[] {
+            "io.servicetalk.concurrent.api.ContextPreservingBiConsumer",
+            "io.servicetalk.concurrent.api.ContextPreservingBiFunction",
+            "io.servicetalk.concurrent.api.ContextPreservingCallable",
+            "io.servicetalk.concurrent.api.ContextPreservingCancellable",
+            "io.servicetalk.concurrent.api.ContextPreservingCompletableSubscriber",
+            "io.servicetalk.concurrent.api.ContextPreservingConsumer",
+            "io.servicetalk.concurrent.api.ContextPreservingFunction",
+            "io.servicetalk.concurrent.api.ContextPreservingRunnable",
+            "io.servicetalk.concurrent.api.ContextPreservingSingleSubscriber",
+            "io.servicetalk.concurrent.api.ContextPreservingSubscriber",
+            "io.servicetalk.concurrent.api.ContextPreservingSubscription",
+        };
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(@Advice.Enter final ContextScope agentScope) {
-      if (agentScope != null) {
-        agentScope.close();
-      }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                namedOneOf(
+                        "accept",
+                        "apply",
+                        "call",
+                        "cancel",
+                        "onComplete",
+                        "onError",
+                        "onSuccess",
+                        "request",
+                        "onNext",
+                        "onSubscribe",
+                        "run"),
+                getClass().getName() + "$Wrapper");
     }
-  }
+
+    public static final class Wrapper {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        public static ContextScope enter(@Advice.FieldValue("saved") final ContextMap contextMap) {
+            AgentSpan parent = InstrumentationContext.get(ContextMap.class, AgentSpan.class)
+                    .get(contextMap);
+            if (parent != null) {
+                return AgentTracer.activateSpan(parent);
+            }
+            return null;
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        public static void exit(@Advice.Enter final ContextScope agentScope) {
+            if (agentScope != null) {
+                agentScope.close();
+            }
+        }
+    }
 }

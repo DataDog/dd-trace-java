@@ -18,37 +18,37 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class CallbackHandlerInstrumentation extends AbstractTibcoInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String hierarchyMarkerType() {
-    return "com.tibco.bw.jms.shared.api.receive.JMSMessageCallBackHandler";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return HierarchyMatchers.implementsInterface(NameMatchers.named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(NameMatchers.named("onMessage")), getClass().getName() + "$OnMessageAdvice");
-  }
-
-  public static class OnMessageAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void exit(@Advice.This JMSMessageCallBackHandler handler) {
-      String pinnedName =
-          InstrumentationContext.get(JMSMessageCallBackHandler.class, String.class).get(handler);
-      if (pinnedName != null && activeSpan() != null) {
-        final AgentSpan span = activeSpan();
-        AgentSpan root = span.getLocalRootSpan();
-        if (root != null) {
-          root.setServiceName(pinnedName, TIBCO_BW);
-        }
-        span.setServiceName(pinnedName, TIBCO_BW);
-      }
+    @Override
+    public String hierarchyMarkerType() {
+        return "com.tibco.bw.jms.shared.api.receive.JMSMessageCallBackHandler";
     }
-  }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return HierarchyMatchers.implementsInterface(NameMatchers.named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(NameMatchers.named("onMessage")), getClass().getName() + "$OnMessageAdvice");
+    }
+
+    public static class OnMessageAdvice {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void exit(@Advice.This JMSMessageCallBackHandler handler) {
+            String pinnedName = InstrumentationContext.get(JMSMessageCallBackHandler.class, String.class)
+                    .get(handler);
+            if (pinnedName != null && activeSpan() != null) {
+                final AgentSpan span = activeSpan();
+                AgentSpan root = span.getLocalRootSpan();
+                if (root != null) {
+                    root.setServiceName(pinnedName, TIBCO_BW);
+                }
+                span.setServiceName(pinnedName, TIBCO_BW);
+            }
+        }
+    }
 }

@@ -14,48 +14,47 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ProcessorRecordContextVisitor implements ContextVisitor<ProcessorRecordContext> {
-  private static final Logger log = LoggerFactory.getLogger(ProcessorRecordContextVisitor.class);
+    private static final Logger log = LoggerFactory.getLogger(ProcessorRecordContextVisitor.class);
 
-  public static final ProcessorRecordContextVisitor PR_GETTER = new ProcessorRecordContextVisitor();
+    public static final ProcessorRecordContextVisitor PR_GETTER = new ProcessorRecordContextVisitor();
 
-  @Override
-  public void forEachKey(
-      ProcessorRecordContext carrier, AgentPropagation.KeyClassifier classifier) {
-    if (HEADERS_METHOD == null) {
-      return;
-    }
-    try {
-      Headers headers = (Headers) HEADERS_METHOD.invokeExact(carrier);
-      for (Header header : headers) {
-        String key = header.key();
-        byte[] value = header.value();
-        if (null != value) {
-          if (!classifier.accept(key, new String(header.value(), UTF_8))) {
+    @Override
+    public void forEachKey(ProcessorRecordContext carrier, AgentPropagation.KeyClassifier classifier) {
+        if (HEADERS_METHOD == null) {
             return;
-          }
         }
-      }
-    } catch (Throwable ex) {
-      log.debug("Exception getting headers", ex);
+        try {
+            Headers headers = (Headers) HEADERS_METHOD.invokeExact(carrier);
+            for (Header header : headers) {
+                String key = header.key();
+                byte[] value = header.value();
+                if (null != value) {
+                    if (!classifier.accept(key, new String(header.value(), UTF_8))) {
+                        return;
+                    }
+                }
+            }
+        } catch (Throwable ex) {
+            log.debug("Exception getting headers", ex);
+        }
     }
-  }
 
-  public long extractTimeInQueueStart(ProcessorRecordContext carrier) {
-    if (HEADERS_METHOD == null) {
-      return 0;
+    public long extractTimeInQueueStart(ProcessorRecordContext carrier) {
+        if (HEADERS_METHOD == null) {
+            return 0;
+        }
+        try {
+            Headers headers = (Headers) HEADERS_METHOD.invokeExact(carrier);
+            Header header = headers.lastHeader(KAFKA_PRODUCED_KEY);
+            if (null != header) {
+                ByteBuffer buf = ByteBuffer.allocate(8);
+                buf.put(header.value());
+                buf.flip();
+                return buf.getLong();
+            }
+        } catch (Throwable e) {
+            log.debug("Unable to get kafka produced time", e);
+        }
+        return 0;
     }
-    try {
-      Headers headers = (Headers) HEADERS_METHOD.invokeExact(carrier);
-      Header header = headers.lastHeader(KAFKA_PRODUCED_KEY);
-      if (null != header) {
-        ByteBuffer buf = ByteBuffer.allocate(8);
-        buf.put(header.value());
-        buf.flip();
-        return buf.getLong();
-      }
-    } catch (Throwable e) {
-      log.debug("Unable to get kafka produced time", e);
-    }
-    return 0;
-  }
 }

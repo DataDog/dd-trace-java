@@ -12,48 +12,46 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import net.bytebuddy.asm.Advice;
 
-public final class ClientInvocationInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+public final class ClientInvocationInstrumentation implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  @Override
-  public String instrumentedType() {
-    return "com.hazelcast.client.impl.spi.impl.ClientInvocation";
-  }
+    @Override
+    public String instrumentedType() {
+        return "com.hazelcast.client.impl.spi.impl.ClientInvocation";
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("invokeOnSelection")),
-        "datadog.trace.instrumentation.hazelcast4.InvocationAdvice");
-    transformer.applyAdvice(
-        isConstructor()
-            .and(
-                takesArgument(
-                    0, named("com.hazelcast.client.impl.clientside.HazelcastClientInstanceImpl"))),
-        getClass().getName() + "$ConstructAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod().and(named("invokeOnSelection")),
+                "datadog.trace.instrumentation.hazelcast4.InvocationAdvice");
+        transformer.applyAdvice(
+                isConstructor()
+                        .and(takesArgument(
+                                0, named("com.hazelcast.client.impl.clientside.HazelcastClientInstanceImpl"))),
+                getClass().getName() + "$ConstructAdvice");
+    }
 
-  public static class ConstructAdvice {
+    public static class ConstructAdvice {
 
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void constructorExit(
-        @Advice.This ClientInvocation that,
-        @Advice.Argument(0) final HazelcastClientInstanceImpl hazelcastInstance) {
+        @Advice.OnMethodExit(suppress = Throwable.class)
+        public static void constructorExit(
+                @Advice.This ClientInvocation that,
+                @Advice.Argument(0) final HazelcastClientInstanceImpl hazelcastInstance) {
 
-      if (hazelcastInstance != null) {
-        hazelcastInstance.getLifecycleService();
-        if (hazelcastInstance.getLifecycleService().isRunning()) {
+            if (hazelcastInstance != null) {
+                hazelcastInstance.getLifecycleService();
+                if (hazelcastInstance.getLifecycleService().isRunning()) {
 
-          InstrumentationContext.get(ClientInvocation.class, String.class)
-              .put(that, hazelcastInstance.getName());
+                    InstrumentationContext.get(ClientInvocation.class, String.class)
+                            .put(that, hazelcastInstance.getName());
+                }
+            }
         }
-      }
-    }
 
-    public static void muzzleCheck(
-        // Moved in 4.0
-        ClientMapProxy proxy) {
-      proxy.getServiceName();
+        public static void muzzleCheck(
+                // Moved in 4.0
+                ClientMapProxy proxy) {
+            proxy.getServiceName();
+        }
     }
-  }
 }

@@ -12,6 +12,6 @@ import javax.annotation.Nullable;
  * <p>The data sent isn't per-test coverage but coverage for the process as a whole.
  */
 public interface ChildProcessCoverageReporter {
-  @Nullable
-  ModuleSignal createCoverageSignal(DDTraceId sessionId, long moduleId);
+    @Nullable
+    ModuleSignal createCoverageSignal(DDTraceId sessionId, long moduleId);
 }

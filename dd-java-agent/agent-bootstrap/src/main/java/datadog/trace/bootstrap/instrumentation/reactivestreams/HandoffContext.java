@@ -16,26 +16,26 @@ import datadog.context.Context;
  */
 public final class HandoffContext {
 
-  private static final long ANY_THREAD = 0L;
+    private static final long ANY_THREAD = 0L;
 
-  private final long threadId;
-  private final Context context;
+    private final long threadId;
+    private final Context context;
 
-  private HandoffContext(final Context context, final long threadId) {
-    this.context = context;
-    this.threadId = threadId;
-  }
+    private HandoffContext(final Context context, final long threadId) {
+        this.context = context;
+        this.threadId = threadId;
+    }
 
-  public static HandoffContext anyThread(final Context context) {
-    return new HandoffContext(context, ANY_THREAD);
-  }
+    public static HandoffContext anyThread(final Context context) {
+        return new HandoffContext(context, ANY_THREAD);
+    }
 
-  public static HandoffContext threadConfined(final Context context) {
-    return new HandoffContext(context, Thread.currentThread().getId());
-  }
+    public static HandoffContext threadConfined(final Context context) {
+        return new HandoffContext(context, Thread.currentThread().getId());
+    }
 
-  /** The context, or {@code null} if this is a thread-confined deposit read on another thread. */
-  public Context contextForCurrentThread() {
-    return threadId == ANY_THREAD || threadId == Thread.currentThread().getId() ? context : null;
-  }
+    /** The context, or {@code null} if this is a thread-confined deposit read on another thread. */
+    public Context contextForCurrentThread() {
+        return threadId == ANY_THREAD || threadId == Thread.currentThread().getId() ? context : null;
+    }
 }

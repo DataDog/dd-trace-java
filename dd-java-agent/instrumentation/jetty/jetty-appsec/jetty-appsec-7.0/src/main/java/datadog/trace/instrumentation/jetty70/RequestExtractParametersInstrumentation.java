@@ -13,45 +13,43 @@ import org.eclipse.jetty.server.Request;
 
 @AutoService(InstrumenterModule.class)
 public class RequestExtractParametersInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public RequestExtractParametersInstrumentation() {
-    super("jetty");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "org.eclipse.jetty.server.Request";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("extractParameters").and(takesArguments(0)),
-        getClass().getName() + "$ExtractParametersAdvice");
-  }
-
-  static final Reference REQUEST_REFERENCE =
-      new Reference.Builder("org.eclipse.jetty.server.Request")
-          .withField(new String[0], 0, "_baseParameters", "Lorg/eclipse/jetty/util/MultiMap;")
-          .build();
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {REQUEST_REFERENCE};
-  }
-
-  public static class ExtractParametersAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    static int before() {
-      return CallDepthThreadLocalMap.incrementCallDepth(Request.class);
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public RequestExtractParametersInstrumentation() {
+        super("jetty");
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    static void after(@Advice.Enter final int depth) {
-      if (depth > 0) {
-        return;
-      }
-      CallDepthThreadLocalMap.reset(Request.class);
+    @Override
+    public String instrumentedType() {
+        return "org.eclipse.jetty.server.Request";
     }
-  }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("extractParameters").and(takesArguments(0)), getClass().getName() + "$ExtractParametersAdvice");
+    }
+
+    static final Reference REQUEST_REFERENCE = new Reference.Builder("org.eclipse.jetty.server.Request")
+            .withField(new String[0], 0, "_baseParameters", "Lorg/eclipse/jetty/util/MultiMap;")
+            .build();
+
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return new Reference[] {REQUEST_REFERENCE};
+    }
+
+    public static class ExtractParametersAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        static int before() {
+            return CallDepthThreadLocalMap.incrementCallDepth(Request.class);
+        }
+
+        @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+        static void after(@Advice.Enter final int depth) {
+            if (depth > 0) {
+                return;
+            }
+            CallDepthThreadLocalMap.reset(Request.class);
+        }
+    }
 }

@@ -35,71 +35,69 @@ import org.openjdk.jmh.infra.Blackhole;
 @OutputTimeUnit(MICROSECONDS)
 @Fork(1)
 public class ClientStatsAggregatorBenchmark {
-  private final DDAgentFeaturesDiscovery featuresDiscovery =
-      new FixedAgentFeaturesDiscovery(
-          Collections.singleton("peer.hostname"), Collections.emptySet());
-  private final ClientStatsAggregator aggregator =
-      new ClientStatsAggregator(
-          new WellKnownTags("", "", "", "", "", ""),
-          Collections.emptySet(),
-          AdditionalTagsSchema.EMPTY,
-          featuresDiscovery,
-          HealthMetrics.NO_OP,
-          new NullSink(),
-          2048,
-          2048,
-          false);
-  private final List<CoreSpan<?>> spans = generateTrace(64);
+    private final DDAgentFeaturesDiscovery featuresDiscovery =
+            new FixedAgentFeaturesDiscovery(Collections.singleton("peer.hostname"), Collections.emptySet());
+    private final ClientStatsAggregator aggregator = new ClientStatsAggregator(
+            new WellKnownTags("", "", "", "", "", ""),
+            Collections.emptySet(),
+            AdditionalTagsSchema.EMPTY,
+            featuresDiscovery,
+            HealthMetrics.NO_OP,
+            new NullSink(),
+            2048,
+            2048,
+            false);
+    private final List<CoreSpan<?>> spans = generateTrace(64);
 
-  static List<CoreSpan<?>> generateTrace(int len) {
-    final List<CoreSpan<?>> trace = new ArrayList<>();
-    for (int i = 0; i < len; i++) {
-      SimpleSpan span = new SimpleSpan("", "", "", "", true, true, false, 0, 10, -1);
-      span.setTag(SPAN_KIND, SPAN_KIND_CLIENT);
-      span.setTag("peer.hostname", Strings.random(10));
-      trace.add(span);
-    }
-    return trace;
-  }
-
-  static class NullSink implements Sink {
-
-    @Override
-    public void register(EventListener listener) {}
-
-    @Override
-    public void accept(int messageCount, ByteBuffer buffer) {}
-  }
-
-  static class FixedAgentFeaturesDiscovery extends DDAgentFeaturesDiscovery {
-    private final Set<String> peerTags;
-    private final Set<String> spanKinds;
-
-    public FixedAgentFeaturesDiscovery(Set<String> peerTags, Set<String> spanKinds) {
-      // create a fixed discovery with metrics enabled
-      super(null, Monitoring.DISABLED, null, V0_4, true, false);
-      this.peerTags = peerTags;
-      this.spanKinds = spanKinds;
+    static List<CoreSpan<?>> generateTrace(int len) {
+        final List<CoreSpan<?>> trace = new ArrayList<>();
+        for (int i = 0; i < len; i++) {
+            SimpleSpan span = new SimpleSpan("", "", "", "", true, true, false, 0, 10, -1);
+            span.setTag(SPAN_KIND, SPAN_KIND_CLIENT);
+            span.setTag("peer.hostname", Strings.random(10));
+            trace.add(span);
+        }
+        return trace;
     }
 
-    @Override
-    public void discover() {
-      // do nothing
+    static class NullSink implements Sink {
+
+        @Override
+        public void register(EventListener listener) {}
+
+        @Override
+        public void accept(int messageCount, ByteBuffer buffer) {}
     }
 
-    @Override
-    public boolean supportsMetrics() {
-      return true;
+    static class FixedAgentFeaturesDiscovery extends DDAgentFeaturesDiscovery {
+        private final Set<String> peerTags;
+        private final Set<String> spanKinds;
+
+        public FixedAgentFeaturesDiscovery(Set<String> peerTags, Set<String> spanKinds) {
+            // create a fixed discovery with metrics enabled
+            super(null, Monitoring.DISABLED, null, V0_4, true, false);
+            this.peerTags = peerTags;
+            this.spanKinds = spanKinds;
+        }
+
+        @Override
+        public void discover() {
+            // do nothing
+        }
+
+        @Override
+        public boolean supportsMetrics() {
+            return true;
+        }
+
+        @Override
+        public Set<String> peerTags() {
+            return peerTags;
+        }
     }
 
-    @Override
-    public Set<String> peerTags() {
-      return peerTags;
+    @Benchmark
+    public void benchmark(Blackhole blackhole) {
+        blackhole.consume(aggregator.publish(spans));
     }
-  }
-
-  @Benchmark
-  public void benchmark(Blackhole blackhole) {
-    blackhole.consume(aggregator.publish(spans));
-  }
 }

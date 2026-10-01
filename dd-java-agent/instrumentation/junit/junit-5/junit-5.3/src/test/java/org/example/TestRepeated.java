@@ -6,8 +6,8 @@ import org.junit.jupiter.api.RepeatedTest;
 
 public class TestRepeated {
 
-  @RepeatedTest(2)
-  public void test_repeated() {
-    assertTrue(true);
-  }
+    @RepeatedTest(2)
+    public void test_repeated() {
+        assertTrue(true);
+    }
 }

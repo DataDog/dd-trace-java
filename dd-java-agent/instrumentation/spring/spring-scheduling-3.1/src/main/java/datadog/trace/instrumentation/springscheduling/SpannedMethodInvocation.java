@@ -14,63 +14,63 @@ import org.aopalliance.intercept.MethodInvocation;
 
 public class SpannedMethodInvocation implements MethodInvocation {
 
-  private final ContextContinuation continuation;
-  private final MethodInvocation delegate;
+    private final ContextContinuation continuation;
+    private final MethodInvocation delegate;
 
-  public SpannedMethodInvocation(ContextContinuation continuation, MethodInvocation delegate) {
-    this.continuation = continuation;
-    this.delegate = delegate;
-  }
-
-  @Override
-  public Method getMethod() {
-    return delegate.getMethod();
-  }
-
-  @Override
-  public Object[] getArguments() {
-    return delegate.getArguments();
-  }
-
-  @Override
-  public Object proceed() throws Throwable {
-    CharSequence spanName = DECORATE.spanNameForMethod(delegate.getMethod());
-    if (continuation.context() != Context.root()) {
-      return invokeWithContinuation(spanName);
-    } else {
-      return invokeWithSpan(spanName);
+    public SpannedMethodInvocation(ContextContinuation continuation, MethodInvocation delegate) {
+        this.continuation = continuation;
+        this.delegate = delegate;
     }
-  }
 
-  private Object invokeWithContinuation(CharSequence spanName) throws Throwable {
-    try (ContextScope scope = continuation.resume()) {
-      return invokeWithSpan(spanName);
+    @Override
+    public Method getMethod() {
+        return delegate.getMethod();
     }
-  }
 
-  private Object invokeWithSpan(CharSequence spanName) throws Throwable {
-    AgentSpan span = startSpan("spring-scheduling", spanName);
-    DECORATE.afterStart(span);
-    DECORATE.measureIfEnabled(span);
-    try (ContextScope scope = activateSpan(span)) {
-      try {
-        return delegate.proceed();
-      } catch (Throwable throwable) {
-        DECORATE.onError(span, throwable);
-        throw throwable;
-      }
-    } finally {
-      span.finish();
+    @Override
+    public Object[] getArguments() {
+        return delegate.getArguments();
     }
-  }
 
-  @Override
-  public Object getThis() {
-    return delegate.getThis();
-  }
+    @Override
+    public Object proceed() throws Throwable {
+        CharSequence spanName = DECORATE.spanNameForMethod(delegate.getMethod());
+        if (continuation.context() != Context.root()) {
+            return invokeWithContinuation(spanName);
+        } else {
+            return invokeWithSpan(spanName);
+        }
+    }
 
-  @Override
-  public AccessibleObject getStaticPart() {
-    return delegate.getStaticPart();
-  }
+    private Object invokeWithContinuation(CharSequence spanName) throws Throwable {
+        try (ContextScope scope = continuation.resume()) {
+            return invokeWithSpan(spanName);
+        }
+    }
+
+    private Object invokeWithSpan(CharSequence spanName) throws Throwable {
+        AgentSpan span = startSpan("spring-scheduling", spanName);
+        DECORATE.afterStart(span);
+        DECORATE.measureIfEnabled(span);
+        try (ContextScope scope = activateSpan(span)) {
+            try {
+                return delegate.proceed();
+            } catch (Throwable throwable) {
+                DECORATE.onError(span, throwable);
+                throw throwable;
+            }
+        } finally {
+            span.finish();
+        }
+    }
+
+    @Override
+    public Object getThis() {
+        return delegate.getThis();
+    }
+
+    @Override
+    public AccessibleObject getStaticPart() {
+        return delegate.getStaticPart();
+    }
 }

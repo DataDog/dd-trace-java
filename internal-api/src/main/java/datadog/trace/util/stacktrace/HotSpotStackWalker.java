@@ -7,33 +7,34 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 public class HotSpotStackWalker extends AbstractStackWalker {
-  @SuppressForbidden sun.misc.JavaLangAccess access;
+    @SuppressForbidden
+    sun.misc.JavaLangAccess access;
 
-  @SuppressForbidden
-  HotSpotStackWalker() {
-    try {
-      access = sun.misc.SharedSecrets.getJavaLangAccess();
-    } catch (Throwable ignored) {
+    @SuppressForbidden
+    HotSpotStackWalker() {
+        try {
+            access = sun.misc.SharedSecrets.getJavaLangAccess();
+        } catch (Throwable ignored) {
+        }
     }
-  }
 
-  @Override
-  public boolean isEnabled() {
-    try {
-      if (JavaVirtualMachine.isJavaVersion(8) && access != null) {
-        access.getStackTraceElement(new Throwable(), 0);
-        return true;
-      }
-    } catch (Throwable localThrowable) {
+    @Override
+    public boolean isEnabled() {
+        try {
+            if (JavaVirtualMachine.isJavaVersion(8) && access != null) {
+                access.getStackTraceElement(new Throwable(), 0);
+                return true;
+            }
+        } catch (Throwable localThrowable) {
+        }
+        return false;
     }
-    return false;
-  }
 
-  @Override
-  <T> T doGetStack(Function<Stream<StackTraceElement>, T> consumer) {
+    @Override
+    <T> T doGetStack(Function<Stream<StackTraceElement>, T> consumer) {
 
-    Throwable throwable = new Throwable();
-    Iterable<StackTraceElement> iterable = () -> new HotSpotStackTraceIterator(throwable, access);
-    return consumer.apply(StreamSupport.stream(iterable.spliterator(), false));
-  }
+        Throwable throwable = new Throwable();
+        Iterable<StackTraceElement> iterable = () -> new HotSpotStackTraceIterator(throwable, access);
+        return consumer.apply(StreamSupport.stream(iterable.spliterator(), false));
+    }
 }

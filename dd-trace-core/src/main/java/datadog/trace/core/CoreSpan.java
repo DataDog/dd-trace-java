@@ -6,173 +6,171 @@ import java.util.Map;
 
 public interface CoreSpan<T extends CoreSpan<T>> {
 
-  T getLocalRootSpan();
+    T getLocalRootSpan();
 
-  String getServiceName();
+    String getServiceName();
 
-  CharSequence getServiceNameSource();
+    CharSequence getServiceNameSource();
 
-  CharSequence getOperationName();
+    CharSequence getOperationName();
 
-  CharSequence getResourceName();
+    CharSequence getResourceName();
 
-  DDTraceId getTraceId();
+    DDTraceId getTraceId();
 
-  long getSpanId();
+    long getSpanId();
 
-  long getParentId();
+    long getParentId();
 
-  long getStartTime();
+    long getStartTime();
 
-  long getDurationNano();
+    long getDurationNano();
 
-  int getError();
+    int getError();
 
-  short getHttpStatusCode();
+    short getHttpStatusCode();
 
-  CharSequence getOrigin();
+    CharSequence getOrigin();
 
-  T setMeasured(boolean measured);
+    T setMeasured(boolean measured);
 
-  T setErrorMessage(final String errorMessage);
+    T setErrorMessage(final String errorMessage);
 
-  T addThrowable(final Throwable error);
+    T addThrowable(final Throwable error);
 
-  T setTag(final String tag, final String value);
+    T setTag(final String tag, final String value);
 
-  T setTag(final String tag, final boolean value);
+    T setTag(final String tag, final boolean value);
 
-  T setTag(final String tag, final int value);
+    T setTag(final String tag, final int value);
 
-  T setTag(final String tag, final long value);
+    T setTag(final String tag, final long value);
 
-  T setTag(final String tag, final double value);
+    T setTag(final String tag, final double value);
 
-  T setTag(final String tag, final Number value);
+    T setTag(final String tag, final Number value);
 
-  T setTag(final String tag, final CharSequence value);
+    T setTag(final String tag, final CharSequence value);
 
-  T setTag(final String tag, final Object value);
+    T setTag(final String tag, final Object value);
 
-  T removeTag(final String tag);
+    T removeTag(final String tag);
 
-  <U> U getTag(CharSequence name, U defaultValue);
+    <U> U getTag(CharSequence name, U defaultValue);
 
-  <U> U getTag(CharSequence name);
+    <U> U getTag(CharSequence name);
 
-  <U> U unsafeGetTag(CharSequence name, U defaultValue);
+    <U> U unsafeGetTag(CharSequence name, U defaultValue);
 
-  <U> U unsafeGetTag(CharSequence name);
+    <U> U unsafeGetTag(CharSequence name);
 
-  boolean hasSamplingPriority();
+    boolean hasSamplingPriority();
 
-  boolean isMeasured();
+    boolean isMeasured();
 
-  /**
-   * @return whether this span has a different service name from its parent, or is a local root.
-   */
-  boolean isTopLevel();
+    /**
+     * @return whether this span has a different service name from its parent, or is a local root.
+     */
+    boolean isTopLevel();
 
-  boolean isForceKeep();
+    boolean isForceKeep();
 
-  boolean isKind(SpanKindFilter filter);
+    boolean isKind(SpanKindFilter filter);
 
-  /**
-   * Returns the {@code span.kind} tag value as a String, or {@code null} if not set. Default
-   * implementation reads the tag map; {@link DDSpan} overrides to use a cached ordinal that
-   * resolves via a small lookup array, skipping the tag-map lookup on the hot path.
-   */
-  default String getSpanKindString() {
-    Object v = unsafeGetTag(Tags.SPAN_KIND);
-    return v == null ? null : v.toString();
-  }
+    /**
+     * Returns the {@code span.kind} tag value as a String, or {@code null} if not set. Default
+     * implementation reads the tag map; {@link DDSpan} overrides to use a cached ordinal that
+     * resolves via a small lookup array, skipping the tag-map lookup on the hot path.
+     */
+    default String getSpanKindString() {
+        Object v = unsafeGetTag(Tags.SPAN_KIND);
+        return v == null ? null : v.toString();
+    }
 
-  CharSequence getType();
+    CharSequence getType();
 
-  /**
-   * Runs early {@link datadog.trace.core.tagprocessor.TagsPostProcessor} like base service and peer
-   * service computation. Such tags are needed before span serialization so they can’t be processed
-   * lazily as part of the {@link #processTagsAndBaggage(MetadataConsumer)} API.
-   */
-  void processServiceTags();
+    /**
+     * Runs early {@link datadog.trace.core.tagprocessor.TagsPostProcessor} like base service and peer
+     * service computation. Such tags are needed before span serialization so they can’t be processed
+     * lazily as part of the {@link #processTagsAndBaggage(MetadataConsumer)} API.
+     */
+    void processServiceTags();
 
-  void processTagsAndBaggage(MetadataConsumer consumer);
+    void processTagsAndBaggage(MetadataConsumer consumer);
 
-  default void processTagsAndBaggage(MetadataConsumer consumer, boolean firstInChunk) {
-    processTagsAndBaggage(consumer);
-  }
+    default void processTagsAndBaggage(MetadataConsumer consumer, boolean firstInChunk) {
+        processTagsAndBaggage(consumer);
+    }
 
-  /**
-   * Variant of {@link #processTagsAndBaggage(MetadataConsumer)} for protocols that serialize span
-   * links as first-class structured data rather than tags. Baggage tag injection still follows the
-   * tracer configuration.
-   *
-   * <p>To simplify tests, by default delegating to {@link
-   * #processTagsAndBaggage(MetadataConsumer)}.
-   */
-  default void processTagsAndBaggageWithStructuredLinks(MetadataConsumer consumer) {
-    processTagsAndBaggage(consumer);
-  }
+    /**
+     * Variant of {@link #processTagsAndBaggage(MetadataConsumer)} for protocols that serialize span
+     * links as first-class structured data rather than tags. Baggage tag injection still follows the
+     * tracer configuration.
+     *
+     * <p>To simplify tests, by default delegating to {@link
+     * #processTagsAndBaggage(MetadataConsumer)}.
+     */
+    default void processTagsAndBaggageWithStructuredLinks(MetadataConsumer consumer) {
+        processTagsAndBaggage(consumer);
+    }
 
-  default void processTagsAndBaggageWithStructuredLinks(
-      MetadataConsumer consumer, boolean firstInChunk) {
-    processTagsAndBaggageWithStructuredLinks(consumer);
-  }
+    default void processTagsAndBaggageWithStructuredLinks(MetadataConsumer consumer, boolean firstInChunk) {
+        processTagsAndBaggageWithStructuredLinks(consumer);
+    }
 
-  T setSamplingPriority(int samplingPriority, int samplingMechanism);
+    T setSamplingPriority(int samplingPriority, int samplingMechanism);
 
-  T setSamplingPriority(
-      int samplingPriority, CharSequence rate, double sampleRate, int samplingMechanism);
+    T setSamplingPriority(int samplingPriority, CharSequence rate, double sampleRate, int samplingMechanism);
 
-  default T setSamplingPriority(
-      int samplingPriority,
-      CharSequence rate,
-      double sampleRate,
-      int samplingMechanism,
-      boolean rateLimiterRejected) {
-    return setSamplingPriority(samplingPriority, rate, sampleRate, samplingMechanism);
-  }
+    default T setSamplingPriority(
+            int samplingPriority,
+            CharSequence rate,
+            double sampleRate,
+            int samplingMechanism,
+            boolean rateLimiterRejected) {
+        return setSamplingPriority(samplingPriority, rate, sampleRate, samplingMechanism);
+    }
 
-  T setSpanSamplingPriority(double rate, int limit);
+    T setSpanSamplingPriority(double rate, int limit);
 
-  T setMetric(CharSequence name, int value);
+    T setMetric(CharSequence name, int value);
 
-  T setMetric(CharSequence name, long value);
+    T setMetric(CharSequence name, long value);
 
-  T setMetric(CharSequence name, float value);
+    T setMetric(CharSequence name, float value);
 
-  T setMetric(CharSequence name, double value);
+    T setMetric(CharSequence name, double value);
 
-  T setFlag(CharSequence name, boolean value);
+    T setFlag(CharSequence name, boolean value);
 
-  int samplingPriority();
+    int samplingPriority();
 
-  /**
-   * Returns a readonly view of the current meta_struct data stored in the span
-   *
-   * @return readonly map with all the fields
-   */
-  Map<String, Object> getMetaStruct();
+    /**
+     * Returns a readonly view of the current meta_struct data stored in the span
+     *
+     * @return readonly map with all the fields
+     */
+    Map<String, Object> getMetaStruct();
 
-  /**
-   * Adds a new field to the meta_struct stored in the span
-   *
-   * <p>Existing field value with the same value will be replaced. Setting a field with a {@code
-   * null} value will remove the field from the metaStruct.
-   *
-   * @param field name of the field
-   * @param value value of the field
-   * @return this
-   */
-  T setMetaStruct(final String field, final Object value);
+    /**
+     * Adds a new field to the meta_struct stored in the span
+     *
+     * <p>Existing field value with the same value will be replaced. Setting a field with a {@code
+     * null} value will remove the field from the metaStruct.
+     *
+     * @param field name of the field
+     * @param value value of the field
+     * @return this
+     */
+    T setMetaStruct(final String field, final Object value);
 
-  /**
-   * Version of a span that can be set by the long running spans feature:
-   * <li>eq 0 -> span is not long running.
-   * <li>lt 0 -> finished span that had running versions previously written.
-   * <li>gt 0 -> long running span and its write version.
-   *
-   * @return the version.
-   */
-  int getLongRunningVersion();
+    /**
+     * Version of a span that can be set by the long running spans feature:
+     * <li>eq 0 -> span is not long running.
+     * <li>lt 0 -> finished span that had running versions previously written.
+     * <li>gt 0 -> long running span and its write version.
+     *
+     * @return the version.
+     */
+    int getLongRunningVersion();
 }

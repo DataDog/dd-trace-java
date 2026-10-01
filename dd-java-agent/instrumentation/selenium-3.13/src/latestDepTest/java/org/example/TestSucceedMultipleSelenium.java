@@ -11,29 +11,29 @@ import org.openqa.selenium.htmlunit.HtmlUnitDriver;
 
 public class TestSucceedMultipleSelenium {
 
-  private static WebDriver driver;
+    private static WebDriver driver;
 
-  @BeforeAll
-  public static void setUp() {
-    driver = new HtmlUnitDriver(BrowserVersion.CHROME, true);
-  }
+    @BeforeAll
+    public static void setUp() {
+        driver = new HtmlUnitDriver(BrowserVersion.CHROME, true);
+    }
 
-  @Test
-  public void test_succeed() {
-    WebDriver window = driver.switchTo().newWindow(WindowType.WINDOW);
-    window.get(System.getProperty("selenium-test.dummy-page-url"));
-    Assertions.assertEquals("Selenium Integration Test", window.getTitle());
-  }
+    @Test
+    public void test_succeed() {
+        WebDriver window = driver.switchTo().newWindow(WindowType.WINDOW);
+        window.get(System.getProperty("selenium-test.dummy-page-url"));
+        Assertions.assertEquals("Selenium Integration Test", window.getTitle());
+    }
 
-  @Test
-  public void test_succeed_another() {
-    WebDriver window = driver.switchTo().newWindow(WindowType.WINDOW);
-    window.get(System.getProperty("selenium-test.dummy-page-url"));
-    Assertions.assertEquals("Selenium Integration Test", window.getTitle());
-  }
+    @Test
+    public void test_succeed_another() {
+        WebDriver window = driver.switchTo().newWindow(WindowType.WINDOW);
+        window.get(System.getProperty("selenium-test.dummy-page-url"));
+        Assertions.assertEquals("Selenium Integration Test", window.getTitle());
+    }
 
-  @AfterAll
-  public static void tearDown() {
-    driver.quit();
-  }
+    @AfterAll
+    public static void tearDown() {
+        driver.quit();
+    }
 }

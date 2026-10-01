@@ -17,64 +17,63 @@ import org.junit.jupiter.params.provider.CsvSource;
 @WithConfig(key = TracerConfig.TRACE_INFERRED_PROXY_SERVICES_ENABLED, value = "true")
 class ServiceNameInheritanceForkedTest extends DDCoreJavaSpecification {
 
-  @ParameterizedTest
-  @CsvSource({"checkout, servlet-context", "special-checkout, manual"})
-  void descendantsRetainApplicationServiceUnderInferredProxy(String service, String source) {
-    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).serviceName("checkout").build();
-    assertFalse(SpanNaming.instance().namingSchema().allowInferredServices());
+    @ParameterizedTest
+    @CsvSource({"checkout, servlet-context", "special-checkout, manual"})
+    void descendantsRetainApplicationServiceUnderInferredProxy(String service, String source) {
+        CoreTracer tracer =
+                tracerBuilder().writer(new ListWriter()).serviceName("checkout").build();
+        assertFalse(SpanNaming.instance().namingSchema().allowInferredServices());
 
-    DDSpan proxy = (DDSpan) tracer.buildSpan("test", "aws.apigateway").start();
-    proxy.setServiceName("gateway.example.com", "inferred-proxy");
-    proxy.setTag("_dd.inferred_span", 1);
+        DDSpan proxy = (DDSpan) tracer.buildSpan("test", "aws.apigateway").start();
+        proxy.setServiceName("gateway.example.com", "inferred-proxy");
+        proxy.setTag("_dd.inferred_span", 1);
 
-    DDSpan entry =
-        (DDSpan) tracer.buildSpan("test", "servlet.request").asChildOf(proxy.spanContext()).start();
-    // HTTP server decoration resets the application entry service after creating it.
-    entry.setServiceName(service, source);
-    DDSpan child =
-        (DDSpan) tracer.buildSpan("test", "application").asChildOf(entry.spanContext()).start();
-    DDSpan grandchild =
-        (DDSpan)
-            tracer
-                .buildSpan("test", "database.query")
+        DDSpan entry = (DDSpan) tracer.buildSpan("test", "servlet.request")
+                .asChildOf(proxy.spanContext())
+                .start();
+        // HTTP server decoration resets the application entry service after creating it.
+        entry.setServiceName(service, source);
+        DDSpan child = (DDSpan) tracer.buildSpan("test", "application")
+                .asChildOf(entry.spanContext())
+                .start();
+        DDSpan grandchild = (DDSpan) tracer.buildSpan("test", "database.query")
                 .asChildOf(child.spanContext())
                 .withServiceName(SpanNaming.instance().namingSchema().database().service("mysql"))
                 .start();
 
-    grandchild.finish();
-    child.finish();
-    entry.finish();
-    proxy.finish();
+        grandchild.finish();
+        child.finish();
+        entry.finish();
+        proxy.finish();
 
-    assertEquals("gateway.example.com", proxy.getServiceName());
-    for (DDSpan span : new DDSpan[] {entry, child, grandchild}) {
-      assertEquals(service, span.getServiceName());
-      assertEquals(source, span.getServiceNameSource());
+        assertEquals("gateway.example.com", proxy.getServiceName());
+        for (DDSpan span : new DDSpan[] {entry, child, grandchild}) {
+            assertEquals(service, span.getServiceName());
+            assertEquals(source, span.getServiceNameSource());
+        }
     }
-  }
 
-  @ParameterizedTest
-  @CsvSource({"checkout, servlet-context", "special-checkout, manual"})
-  void ordinaryRootStillOverridesIntermediateAndExplicitServices(String service, String source) {
-    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).serviceName("checkout").build();
-    DDSpan root = (DDSpan) tracer.buildSpan("test", "servlet.request").start();
-    root.setServiceName(service, source);
-    DDSpan child =
-        (DDSpan) tracer.buildSpan("test", "application").asChildOf(root.spanContext()).start();
-    child.setServiceName("intermediate-service", ServiceNameSources.MANUAL);
-    DDSpan grandchild =
-        (DDSpan)
-            tracer
-                .buildSpan("test", "database.query")
+    @ParameterizedTest
+    @CsvSource({"checkout, servlet-context", "special-checkout, manual"})
+    void ordinaryRootStillOverridesIntermediateAndExplicitServices(String service, String source) {
+        CoreTracer tracer =
+                tracerBuilder().writer(new ListWriter()).serviceName("checkout").build();
+        DDSpan root = (DDSpan) tracer.buildSpan("test", "servlet.request").start();
+        root.setServiceName(service, source);
+        DDSpan child = (DDSpan) tracer.buildSpan("test", "application")
+                .asChildOf(root.spanContext())
+                .start();
+        child.setServiceName("intermediate-service", ServiceNameSources.MANUAL);
+        DDSpan grandchild = (DDSpan) tracer.buildSpan("test", "database.query")
                 .asChildOf(child.spanContext())
                 .withServiceName("explicit-service")
                 .start();
 
-    grandchild.finish();
-    child.finish();
-    root.finish();
+        grandchild.finish();
+        child.finish();
+        root.finish();
 
-    assertEquals(service, grandchild.getServiceName());
-    assertEquals(source, grandchild.getServiceNameSource());
-  }
+        assertEquals(service, grandchild.getServiceName());
+        assertEquals(source, grandchild.getServiceNameSource());
+    }
 }

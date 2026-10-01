@@ -25,64 +25,63 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class MessageBodyWriterInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  public MessageBodyWriterInstrumentation() {
-    super("jax-rs");
-  }
-
-  @Override
-  public String muzzleDirective() {
-    return "javax-message-body-writer";
-  }
-
-  @Override
-  public String hierarchyMarkerType() {
-    return "javax.ws.rs.ext.MessageBodyWriter";
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        named("writeTo").and(takesArguments(7)), getClass().getName() + "$MessageBodyWriterAdvice");
-  }
-
-  @RequiresRequestContext(RequestContextSlot.APPSEC)
-  public static class MessageBodyWriterAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    static void before(
-        @Advice.Argument(0) Object entity,
-        @Advice.Argument(4) MediaType mediaType,
-        @ActiveRequestContext RequestContext reqCtx) {
-
-      if (!MediaType.APPLICATION_JSON_TYPE.isCompatible(mediaType)) {
-        return;
-      }
-
-      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-      BiFunction<RequestContext, Object, Flow<Void>> callback =
-          cbp.getCallback(EVENTS.responseBody());
-      if (callback == null) {
-        return;
-      }
-
-      Flow<Void> flow = callback.apply(reqCtx, entity);
-      Flow.Action action = flow.getAction();
-      if (action instanceof Flow.Action.RequestBlockingAction) {
-        BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
-        if (blockResponseFunction == null) {
-          return;
-        }
-        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-
-        throw new BlockingException("Blocked request (for MessageBodyWriter)");
-      }
+    public MessageBodyWriterInstrumentation() {
+        super("jax-rs");
     }
-  }
+
+    @Override
+    public String muzzleDirective() {
+        return "javax-message-body-writer";
+    }
+
+    @Override
+    public String hierarchyMarkerType() {
+        return "javax.ws.rs.ext.MessageBodyWriter";
+    }
+
+    @Override
+    public ElementMatcher<TypeDescription> hierarchyMatcher() {
+        return implementsInterface(named(hierarchyMarkerType()));
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                named("writeTo").and(takesArguments(7)), getClass().getName() + "$MessageBodyWriterAdvice");
+    }
+
+    @RequiresRequestContext(RequestContextSlot.APPSEC)
+    public static class MessageBodyWriterAdvice {
+        @Advice.OnMethodEnter(suppress = Throwable.class)
+        static void before(
+                @Advice.Argument(0) Object entity,
+                @Advice.Argument(4) MediaType mediaType,
+                @ActiveRequestContext RequestContext reqCtx) {
+
+            if (!MediaType.APPLICATION_JSON_TYPE.isCompatible(mediaType)) {
+                return;
+            }
+
+            CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+            BiFunction<RequestContext, Object, Flow<Void>> callback = cbp.getCallback(EVENTS.responseBody());
+            if (callback == null) {
+                return;
+            }
+
+            Flow<Void> flow = callback.apply(reqCtx, entity);
+            Flow.Action action = flow.getAction();
+            if (action instanceof Flow.Action.RequestBlockingAction) {
+                BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
+                if (blockResponseFunction == null) {
+                    return;
+                }
+                Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+                blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+
+                throw new BlockingException("Blocked request (for MessageBodyWriter)");
+            }
+        }
+    }
 }

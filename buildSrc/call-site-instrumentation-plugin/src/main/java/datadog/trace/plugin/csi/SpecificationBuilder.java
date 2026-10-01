@@ -14,6 +14,6 @@ import javax.annotation.Nonnull;
  */
 public interface SpecificationBuilder {
 
-  @Nonnull
-  Optional<CallSiteSpecification> build(@Nonnull File classFile);
+    @Nonnull
+    Optional<CallSiteSpecification> build(@Nonnull File classFile);
 }

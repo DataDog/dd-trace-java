@@ -4,5 +4,5 @@ import datadog.trace.api.iast.IastModule;
 import javax.annotation.Nullable;
 
 public interface EmailInjectionModule extends IastModule {
-  void onSendEmail(@Nullable Object message);
+    void onSendEmail(@Nullable Object message);
 }

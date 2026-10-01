@@ -15,33 +15,33 @@ import org.springframework.transaction.PlatformTransactionManager;
 @EnableJpaRepositories(basePackages = "spring.jpa")
 public class JpaPersistenceConfig {
 
-  @Bean
-  public PlatformTransactionManager transactionManager() {
-    final JpaTransactionManager transactionManager = new JpaTransactionManager();
-    transactionManager.setEntityManagerFactory(entityManagerFactory().getObject());
-    return transactionManager;
-  }
+    @Bean
+    public PlatformTransactionManager transactionManager() {
+        final JpaTransactionManager transactionManager = new JpaTransactionManager();
+        transactionManager.setEntityManagerFactory(entityManagerFactory().getObject());
+        return transactionManager;
+    }
 
-  @Bean
-  public LocalContainerEntityManagerFactoryBean entityManagerFactory() {
-    final HibernateJpaVendorAdapter vendorAdapter = new HibernateJpaVendorAdapter();
-    vendorAdapter.setDatabase(Database.HSQL);
-    vendorAdapter.setGenerateDdl(true);
+    @Bean
+    public LocalContainerEntityManagerFactoryBean entityManagerFactory() {
+        final HibernateJpaVendorAdapter vendorAdapter = new HibernateJpaVendorAdapter();
+        vendorAdapter.setDatabase(Database.HSQL);
+        vendorAdapter.setGenerateDdl(true);
 
-    final LocalContainerEntityManagerFactoryBean em = new LocalContainerEntityManagerFactoryBean();
-    em.setDataSource(dataSource());
-    em.setPackagesToScan("spring.jpa");
-    em.setJpaVendorAdapter(vendorAdapter);
-    return em;
-  }
+        final LocalContainerEntityManagerFactoryBean em = new LocalContainerEntityManagerFactoryBean();
+        em.setDataSource(dataSource());
+        em.setPackagesToScan("spring.jpa");
+        em.setJpaVendorAdapter(vendorAdapter);
+        return em;
+    }
 
-  @Bean
-  public DataSource dataSource() {
-    final DriverManagerDataSource dataSource = new DriverManagerDataSource();
-    dataSource.setDriverClassName("org.hsqldb.jdbcDriver");
-    dataSource.setUrl("jdbc:hsqldb:mem:test");
-    dataSource.setUsername("sa");
-    dataSource.setPassword("1");
-    return dataSource;
-  }
+    @Bean
+    public DataSource dataSource() {
+        final DriverManagerDataSource dataSource = new DriverManagerDataSource();
+        dataSource.setDriverClassName("org.hsqldb.jdbcDriver");
+        dataSource.setUrl("jdbc:hsqldb:mem:test");
+        dataSource.setUsername("sa");
+        dataSource.setPassword("1");
+        return dataSource;
+    }
 }

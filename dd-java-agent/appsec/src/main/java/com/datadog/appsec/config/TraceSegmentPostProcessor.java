@@ -6,6 +6,5 @@ import datadog.trace.api.internal.TraceSegment;
 import java.util.Collection;
 
 public interface TraceSegmentPostProcessor {
-  void processTraceSegment(
-      TraceSegment segment, AppSecRequestContext ctx, Collection<AppSecEvent> collectedEvents);
+    void processTraceSegment(TraceSegment segment, AppSecRequestContext ctx, Collection<AppSecEvent> collectedEvents);
 }

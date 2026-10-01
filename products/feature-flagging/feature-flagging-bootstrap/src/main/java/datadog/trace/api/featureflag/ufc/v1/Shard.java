@@ -10,13 +10,13 @@ import java.util.List;
  * before comparing it or using it for arithmetic.
  */
 public class Shard {
-  public final String salt;
-  public final List<ShardRange> ranges;
-  public final int totalShards;
+    public final String salt;
+    public final List<ShardRange> ranges;
+    public final int totalShards;
 
-  public Shard(final String salt, final List<ShardRange> ranges, final int totalShards) {
-    this.salt = salt;
-    this.ranges = ranges;
-    this.totalShards = totalShards;
-  }
+    public Shard(final String salt, final List<ShardRange> ranges, final int totalShards) {
+        this.salt = salt;
+        this.ranges = ranges;
+        this.totalShards = totalShards;
+    }
 }

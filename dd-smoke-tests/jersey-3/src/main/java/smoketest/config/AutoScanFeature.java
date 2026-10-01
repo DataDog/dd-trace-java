@@ -16,23 +16,23 @@ import org.glassfish.hk2.utilities.DuplicatePostProcessor;
 /* Auto scan the jax-rx @Contract and @Service  */
 public class AutoScanFeature implements Feature {
 
-  @Inject ServiceLocator serviceLocator;
+    @Inject
+    ServiceLocator serviceLocator;
 
-  @Override
-  public boolean configure(FeatureContext context) {
+    @Override
+    public boolean configure(FeatureContext context) {
 
-    DynamicConfigurationService dcs = serviceLocator.getService(DynamicConfigurationService.class);
-    Populator populator = dcs.getPopulator();
-    try {
-      // Populator - populate HK2 service locators from inhabitants files
-      // ClasspathDescriptorFileFinder - find files from META-INF/hk2-locator/default
-      populator.populate(
-          new ClasspathDescriptorFileFinder(this.getClass().getClassLoader()),
-          new DuplicatePostProcessor());
+        DynamicConfigurationService dcs = serviceLocator.getService(DynamicConfigurationService.class);
+        Populator populator = dcs.getPopulator();
+        try {
+            // Populator - populate HK2 service locators from inhabitants files
+            // ClasspathDescriptorFileFinder - find files from META-INF/hk2-locator/default
+            populator.populate(
+                    new ClasspathDescriptorFileFinder(this.getClass().getClassLoader()), new DuplicatePostProcessor());
 
-    } catch (IOException | MultiException ex) {
-      Logger.getLogger(AutoScanFeature.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (IOException | MultiException ex) {
+            Logger.getLogger(AutoScanFeature.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return true;
     }
-    return true;
-  }
 }

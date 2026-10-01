@@ -23,35 +23,34 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class TokenBufferInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public TokenBufferInstrumentation() {
-    super("jackson-core");
-  }
-
-  @Override
-  public String instrumentedType() {
-    return "com.fasterxml.jackson.databind.util.TokenBuffer";
-  }
-
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("asParser"))
-            .and(isPublic())
-            .and(returns(named("com.fasterxml.jackson.core.JsonParser"))),
-        TokenBufferInstrumentation.class.getName() + "$AsParserAdvice");
-  }
-
-  public static class AsParserAdvice {
-    @Advice.OnMethodExit
-    @Propagation
-    public static void onExit(
-        @Advice.This TokenBuffer tokenBuffer, @Advice.Return JsonParser parser) {
-      final PropagationModule module = InstrumentationBridge.PROPAGATION;
-      if (module != null) {
-        module.taintObjectIfTainted(parser, tokenBuffer);
-      }
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    public TokenBufferInstrumentation() {
+        super("jackson-core");
     }
-  }
+
+    @Override
+    public String instrumentedType() {
+        return "com.fasterxml.jackson.databind.util.TokenBuffer";
+    }
+
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isMethod()
+                        .and(named("asParser"))
+                        .and(isPublic())
+                        .and(returns(named("com.fasterxml.jackson.core.JsonParser"))),
+                TokenBufferInstrumentation.class.getName() + "$AsParserAdvice");
+    }
+
+    public static class AsParserAdvice {
+        @Advice.OnMethodExit
+        @Propagation
+        public static void onExit(@Advice.This TokenBuffer tokenBuffer, @Advice.Return JsonParser parser) {
+            final PropagationModule module = InstrumentationBridge.PROPAGATION;
+            if (module != null) {
+                module.taintObjectIfTainted(parser, tokenBuffer);
+            }
+        }
+    }
 }

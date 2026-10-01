@@ -12,41 +12,41 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 
 @AutoService(InstrumenterModule.class)
 public class PathHandlerInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+        implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public PathHandlerInstrumentation() {
-    super("ratpack");
-  }
+    public PathHandlerInstrumentation() {
+        super("ratpack");
+    }
 
-  @Override
-  public String instrumentedType() {
-    return "ratpack.path.internal.PathHandler";
-  }
+    @Override
+    public String instrumentedType() {
+        return "ratpack.path.internal.PathHandler";
+    }
 
-  private static final Reference TOKEN_PATH_BINDER_TOKEN_NAMES =
-      new Reference.Builder("ratpack.path.internal.TokenPathBinder")
-          .withField(
-              new String[0],
-              Reference.EXPECTS_NON_STATIC,
-              "tokenNames",
-              "Lcom/google/common/collect/ImmutableList;")
-          .build();
+    private static final Reference TOKEN_PATH_BINDER_TOKEN_NAMES = new Reference.Builder(
+                    "ratpack.path.internal.TokenPathBinder")
+            .withField(
+                    new String[0],
+                    Reference.EXPECTS_NON_STATIC,
+                    "tokenNames",
+                    "Lcom/google/common/collect/ImmutableList;")
+            .build();
 
-  // so it doesn't apply to ratpack < 1.5
-  private static final Reference FILE_IO = new Reference.Builder("ratpack.file.FileIo").build();
+    // so it doesn't apply to ratpack < 1.5
+    private static final Reference FILE_IO = new Reference.Builder("ratpack.file.FileIo").build();
 
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {FILE_IO, TOKEN_PATH_BINDER_TOKEN_NAMES};
-  }
+    @Override
+    public Reference[] additionalMuzzleReferences() {
+        return new Reference[] {FILE_IO, TOKEN_PATH_BINDER_TOKEN_NAMES};
+    }
 
-  @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isConstructor()
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("ratpack.path.PathBinder")))
-            .and(takesArgument(1, named("ratpack.handling.Handler"))),
-        packageName + ".PathHandlerAdvice");
-  }
+    @Override
+    public void methodAdvice(MethodTransformer transformer) {
+        transformer.applyAdvice(
+                isConstructor()
+                        .and(takesArguments(2))
+                        .and(takesArgument(0, named("ratpack.path.PathBinder")))
+                        .and(takesArgument(1, named("ratpack.handling.Handler"))),
+                packageName + ".PathHandlerAdvice");
+    }
 }

@@ -8,13 +8,13 @@ import javax.annotation.Nullable;
 
 public interface PathTraversalModule extends IastModule {
 
-  void onPathTraversal(@Nonnull String path);
+    void onPathTraversal(@Nonnull String path);
 
-  void onPathTraversal(@Nullable String parent, @Nonnull String child);
+    void onPathTraversal(@Nullable String parent, @Nonnull String child);
 
-  void onPathTraversal(@Nonnull String first, @Nonnull String[] more);
+    void onPathTraversal(@Nonnull String first, @Nonnull String[] more);
 
-  void onPathTraversal(@Nonnull URI uri);
+    void onPathTraversal(@Nonnull URI uri);
 
-  void onPathTraversal(@Nullable File parent, @Nonnull String child);
+    void onPathTraversal(@Nullable File parent, @Nonnull String child);
 }
