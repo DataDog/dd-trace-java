@@ -10,10 +10,19 @@ muzzle {
     group = "io.r2dbc"
     module = "r2dbc-spi"
     versions = "[1.0.0.RELEASE,)"
-    // The bundled r2dbc-proxy's callback machinery is written directly against Reactor's
-    // Flux/Mono (see the classLoaderMatcher() in R2dbcModule), so muzzle needs it on
-    // the test application classpath too, even though r2dbc-spi itself doesn't depend on it.
+    // The bundled r2dbc-proxy is written against Reactor (Flux/Mono and, since 3.4,
+    // ContextView), which r2dbc-spi itself doesn't depend on. Muzzle checks those
+    // references against the application, so it needs a compatible Reactor here.
     extraDependency "io.projectreactor:reactor-core:3.5.0"
+  }
+  // Reactor < 3.4 lacks ContextView: muzzle must reject the module rather than let the
+  // proxy fail at runtime.
+  fail {
+    name = "reactor-3.3"
+    group = "io.r2dbc"
+    module = "r2dbc-spi"
+    versions = "[1.0.0.RELEASE,)"
+    extraDependency "io.projectreactor:reactor-core:3.3.22.RELEASE"
   }
 }
 
