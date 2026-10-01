@@ -9,6 +9,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import java.lang.reflect.InvocationTargetException;
 
 public final class DurableFunctionsDecorator extends BaseDecorator {
+  public static final String ORCHESTRATION_TRIGGER = "DurableOrchestration";
   public static final DurableFunctionsDecorator DECORATE = new DurableFunctionsDecorator();
   public static final CharSequence AZURE_FUNCTIONS_REQUEST =
       UTF8BytesString.create(

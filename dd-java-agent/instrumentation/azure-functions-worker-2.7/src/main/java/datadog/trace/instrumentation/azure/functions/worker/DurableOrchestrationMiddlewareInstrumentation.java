@@ -12,6 +12,8 @@ import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.azure.DurableOrchestrationState;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -30,15 +32,6 @@ public final class DurableOrchestrationMiddlewareInstrumentation extends Instrum
   @Override
   public String instrumentedType() {
     return "com.microsoft.durabletask.azurefunctions.internal.middleware.OrchestrationMiddleware";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".DurableFunctionsDecorator",
-      packageName + ".DurableFunctionsUtils",
-      packageName + ".TraceContextExtractAdapter"
-    };
   }
 
   @Override
@@ -68,13 +61,33 @@ public final class DurableOrchestrationMiddlewareInstrumentation extends Instrum
 
   public static class InvokeAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ContextScope onEnter(@Advice.Argument(0) MiddlewareContext context) {
-      return DurableFunctionsUtils.activateOrchestrationContext(context);
+    public static ContextScope onEnter(
+        @Advice.Argument(0) MiddlewareContext context,
+        @Advice.Local("startTimeMicros") long startTimeMicros) {
+      final ContextScope scope = DurableFunctionsUtils.activateOrchestrationContext(context);
+      if (scope != null) {
+        startTimeMicros = DurableFunctionsUtils.nowMicros();
+      }
+      return scope;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void onExit(@Advice.Enter ContextScope scope) {
-      if (scope != null) {
+    public static void onExit(
+        @Advice.Argument(0) MiddlewareContext context,
+        @Advice.Enter ContextScope scope,
+        @Advice.Local("startTimeMicros") long startTimeMicros,
+        @Advice.Thrown Throwable throwable) {
+      if (scope == null) {
+        return;
+      }
+      try {
+        final DurableOrchestrationState state = DurableOrchestrationState.current();
+        if (throwable != null && state != null && !state.errorRecorded()) {
+          final AgentSpan span =
+              DurableFunctionsUtils.startOrchestrationErrorSpan(context, startTimeMicros);
+          DurableFunctionsUtils.recordOrchestrationError(span, throwable, state);
+        }
+      } finally {
         scope.close();
       }
     }

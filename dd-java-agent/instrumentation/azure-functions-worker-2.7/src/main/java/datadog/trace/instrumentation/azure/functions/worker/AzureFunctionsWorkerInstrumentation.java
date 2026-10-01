@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.azure.functions.worker;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromScope;
 import static datadog.trace.instrumentation.azure.functions.worker.DurableFunctionsDecorator.DECORATE;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static datadog.trace.instrumentation.azure.functions.worker.DurableFunctionsDecorator.ORCHESTRATION_TRIGGER;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -15,6 +15,7 @@ import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.azure.DurableOrchestrationState;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
@@ -28,15 +29,6 @@ public final class AzureFunctionsWorkerInstrumentation extends InstrumenterModul
   @Override
   public String instrumentedType() {
     return "com.microsoft.azure.functions.worker.chain.FunctionExecutionMiddleware";
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".DurableFunctionsDecorator",
-      packageName + ".DurableFunctionsUtils",
-      packageName + ".TraceContextExtractAdapter"
-    };
   }
 
   @Override
@@ -70,10 +62,10 @@ public final class AzureFunctionsWorkerInstrumentation extends InstrumenterModul
       if (trigger == null) {
         return null;
       }
-      if ("DurableOrchestration".equals(trigger)) {
-        orchestrationSpan = DurableFunctionsUtils.onOrchestrationInvoke(context);
+      if (ORCHESTRATION_TRIGGER.equals(trigger)) {
+        orchestrationSpan = DurableFunctionsUtils.onOrchestrationInvoke();
         if (orchestrationSpan == null) {
-          startTimeMicros = MILLISECONDS.toMicros(System.currentTimeMillis());
+          startTimeMicros = DurableFunctionsUtils.nowMicros();
         }
         return null;
       }
@@ -98,23 +90,28 @@ public final class AzureFunctionsWorkerInstrumentation extends InstrumenterModul
 
       if (scope == null) {
         if (throwable != null
-            && "DurableOrchestration".equals(trigger)
+            && ORCHESTRATION_TRIGGER.equals(trigger)
             && !DurableFunctionsUtils.isReplayControlFlow(throwable)) {
           final AgentSpan span =
-              DurableFunctionsUtils.startInvocationSpan(context, trigger, startTimeMicros);
-          DECORATE.onInvocationError(span, throwable);
-          DECORATE.beforeFinish(span);
-          span.finish();
+              DurableFunctionsUtils.startOrchestrationErrorSpan(context, startTimeMicros);
+          final DurableOrchestrationState state = DurableOrchestrationState.current();
+          DurableFunctionsUtils.recordOrchestrationError(span, throwable, state);
         }
         return;
       }
       final AgentSpan span = spanFromScope(scope);
-      if (!DurableFunctionsUtils.isReplayControlFlow(throwable)) {
-        DECORATE.onInvocationError(span, throwable);
+      try {
+        if (!DurableFunctionsUtils.isReplayControlFlow(throwable)) {
+          DECORATE.onInvocationError(span, throwable);
+        }
+        DECORATE.beforeFinish(span);
+      } finally {
+        try {
+          scope.close();
+        } finally {
+          span.finish();
+        }
       }
-      DECORATE.beforeFinish(span);
-      scope.close();
-      span.finish();
     }
   }
 }
