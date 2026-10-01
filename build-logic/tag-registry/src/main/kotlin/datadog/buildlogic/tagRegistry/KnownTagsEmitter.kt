@@ -39,13 +39,23 @@ object KnownTagsEmitter {
       return u
     }
 
+    // A Datadog name declared per direction is one name shared by a tag per direction, so it gets one
+    // NAME constant (PEER_PORT_NAME); its tags keep their own ID constants (PEER_PORT_INBOUND_ID).
+    val sharedDdNames = reg.tags.groupBy { it.ddName }.filterValues { it.size > 1 }.keys
+    val sharedNameConst = HashMap<String, String>()
+
     val nameOfConst = HashMap<String, String>()
     val idOfConst = HashMap<String, String>()
     val serialOfConst = HashMap<String, String>()
     val otelNameOfConst = HashMap<String, String>()
     for (t in reg.tags) {
       val base = sanitize(t.name)
-      nameOfConst[t.name] = unique(withSuffix(base, "_NAME"))
+      nameOfConst[t.name] =
+        if (t.ddName in sharedDdNames) {
+          sharedNameConst.getOrPut(t.ddName) { unique(withSuffix(sanitize(t.ddName), "_NAME")) }
+        } else {
+          unique(withSuffix(base, "_NAME"))
+        }
       idOfConst[t.name] = unique(withSuffix(base, "_ID"))
       serialOfConst[t.name] = unique(withSuffix(base, "_SERIAL_NUM"))
       // Suffix the pre-suffix base (not nameC), same as the other three: suffixing an
@@ -58,10 +68,9 @@ object KnownTagsEmitter {
     fun otelNameC(name: String) = otelNameOfConst.getValue(name)
 
     val order = reg.tags.map { it.name } // stable emit order
-    // A Datadog name declared per direction names one tag per direction, so keyOf cannot pick one
-    // without the span's direction; those names resolve to no tag until resolution knows it.
-    val ambiguousDdNames = reg.tags.groupBy { it.ddName }.filterValues { it.size > 1 }.keys
-    val keyOfOrder = reg.tags.filter { it.ddName !in ambiguousDdNames }.map { it.name }
+    // A shared name cannot pick one of its tags without the span's direction, so it is left out of
+    // keyOf and resolves to no tag until resolution knows the direction.
+    val keyOfOrder = reg.tags.filter { it.ddName !in sharedDdNames }.map { it.name }
     // canonical name -> OpenTelemetry name, for the reverse (openTelemetryNameOf) switch.
     val otelName = reg.tags.mapNotNull { t -> t.otelName?.let { t.name to it } }.toMap()
     return buildString {
@@ -81,13 +90,15 @@ object KnownTagsEmitter {
         """.trimIndent()
       )
 
+      val emittedNames = HashSet<String>()
       for (t in reg.tags) {
-        appendLine(
-          """
-            public static final String ${nameC(t.name)} = "${escape(t.ddName)}";
-            public static final long ${idC(t.name)} = ${hex(t.id)};
-          """.trimIndent()
-        )
+        if (emittedNames.add(nameC(t.name))) {
+          if (t.ddName in sharedDdNames) {
+            appendLine("// shared by a tag per direction; resolving it needs the span's direction")
+          }
+          appendLine("  public static final String ${nameC(t.name)} = \"${escape(t.ddName)}\";")
+        }
+        appendLine("  public static final long ${idC(t.name)} = ${hex(t.id)};")
         if (t.otelName != null) {
           appendLine("  public static final String ${otelNameC(t.name)} = \"${escape(t.otelName)}\";")
         }

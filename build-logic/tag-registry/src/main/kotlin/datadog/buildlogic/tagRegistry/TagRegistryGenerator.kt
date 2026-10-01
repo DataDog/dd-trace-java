@@ -109,5 +109,15 @@ object TagRegistryGenerator {
     for ((otel, direction, t) in scoped) {
       appendLine("  %-30s %-9s -> %s".format(Locale.ROOT, otel, direction.yamlKey, t.name))
     }
+    appendLine(
+      """
+
+      # SHARED DATADOG NAMES. One Datadog name for a tag per direction: emitting it needs no context,
+      # but resolving the name to a tag needs the span's direction, so keyOf does not resolve it yet.
+      """.trimIndent()
+    )
+    for ((ddName, shared) in reg.tags.groupBy { it.ddName }.filterValues { it.size > 1 }.toSortedMap()) {
+      appendLine("  %-30s -> %s".format(Locale.ROOT, ddName, shared.joinToString(", ") { it.name }))
+    }
   }
 }
