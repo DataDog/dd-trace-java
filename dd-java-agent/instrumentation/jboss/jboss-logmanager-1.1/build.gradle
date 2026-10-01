@@ -11,6 +11,22 @@ muzzle {
   }
 }
 
+addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
+
+["latestDepTest", "latestDepForkedTest"].each {
+  tasks.named(it, Test) {
+    testJvmConstraints {
+      // jboss-logmanager 3.x requires Java 11
+      minJavaVersion = JavaVersion.VERSION_11
+    }
+  }
+}
+
 dependencies {
   compileOnly group: 'org.jboss.logmanager', name: 'jboss-logmanager', version: '1.1.0.GA'
+
+  // LoggerNode.publish(ExtLogRecord), used by the instrumentation, was introduced in 1.2.0.GA
+  testImplementation group: 'org.jboss.logmanager', name: 'jboss-logmanager', version: '1.2.0.GA'
+  latestDepTestImplementation group: 'org.jboss.logmanager', name: 'jboss-logmanager', version: '+'
 }
